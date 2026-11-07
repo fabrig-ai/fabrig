@@ -528,3 +528,371 @@ fn the_commands_list_what_the_page_offers() {
     assert!(text.starts_with("/model       Change the model, from the next turn\n/effort      Change the effort"));
     assert!(text.ends_with("\n\nEnter sends\nShift+Enter makes a new line\nCtrl+\\ shows or hides the draft\nPgUp and PgDn read back\nEsc closes a list"));
 }
+
+fn cards_limits() -> d::Limits {
+    let mut limits = f::domain_limits();
+    limits.client.domain.text = 512;
+    limits.client.domain.long_text = 4096;
+    limits.client.domain.turn_text = 512;
+    limits.client.domain.rows = 4;
+    limits
+}
+fn cards_step(root: &mut d::Domain, event: Event, out: &mut skein_lib::Queue<d::Request>) {
+    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: cards_limits() }, event, out);
+}
+fn cards_up(root: &mut d::Domain, up: jig_client::Up, out: &mut skein_lib::Queue<d::Request>) {
+    cards_step(root, Event::Client { event: jig_client::Event::Up { up } }, out);
+}
+const QUESTION_OBJECT: c::ObjectKey = c::ObjectKey::Question { task: f::chat::DELEGATE, message: 1 };
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture answers the chat, subtree inbox and question through their requests"
+)]
+fn terminal_question_root(choices: bool) -> d::Domain {
+    use skein_lib::{List, Queue, Wall};
+    let source = f::chat::messaging_root();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+    task.chip.phase = c::Phase::Active;
+    task.run_wait = None;
+    task.waits_on = c::WaitsOn::Party {
+        whom: c::Whom::Person(f::chat::PARTY),
+        entries: 1,
+        task: f::chat::DELEGATE,
+        kind: c::WaitedFor::Question,
+    };
+    let (mut root, me, watch, needs_watch) =
+        f::root_at_with_needs(Address::Chat { task: f::chat::TASK }, &cards_limits());
+    f::deliver_me(&mut root, me, source.pages().me(source.client()).unwrap().clone());
+    let mut out = Queue::uncapped();
+    cards_up(
+        &mut root,
+        jig_client::Up::Watched {
+            watch: watch.unwrap(),
+            event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
+        },
+        &mut out,
+    );
+    cards_step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(terminal::Act::Enter)) }, &mut out);
+    let entries =
+        List::from_boxed(Box::new([super::documents::entry(QUESTION_OBJECT, f::PROJECT, 1, Wall::EPOCH, None)]));
+    cards_up(
+        &mut root,
+        jig_client::Up::Watched {
+            watch: needs_watch,
+            event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                entries.clone(),
+                1,
+                c::Count { value: 0, limited: false },
+                0,
+                false,
+            )))),
+        },
+        &mut out,
+    );
+    let words: &[u8] = if choices {
+        b"Which parser?\n\nChoice: Keep it\nChoice: Replace it (recommended)"
+    } else {
+        b"What should the parser do?"
+    };
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
+            match down {
+                jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                    cards_up(
+                        &mut root,
+                        jig_client::Up::Watched {
+                            watch,
+                            event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                                entries.clone(),
+                                1,
+                                c::Count { value: 0, limited: false },
+                                0,
+                                false,
+                            )))),
+                        },
+                        &mut out,
+                    );
+                }
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) } => {
+                    cards_up(
+                        &mut root,
+                        jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                c::InboxPage {
+                                    selection: None,
+                                    before: None,
+                                    rows: entries.clone(),
+                                    after: None,
+                                    cut: false,
+                                },
+                            )))),
+                        },
+                        &mut out,
+                    );
+                }
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { .. }) } => {
+                    let mut chip = task.chip.clone();
+                    chip.task = f::chat::DELEGATE;
+                    cards_up(
+                        &mut root,
+                        jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(Box::new(
+                                c::Question {
+                                    task: chip,
+                                    from: None,
+                                    message: 1,
+                                    words: c::DocumentText::complete(c::Text::new(words.into(), 4096).unwrap()),
+                                    since: Wall::EPOCH,
+                                    acts: List::from_boxed(Box::new([c::Offered {
+                                        act: c::ActKind::Answer,
+                                        admission: c::Admission::Allowed,
+                                        effect: None,
+                                    }])),
+                                    ending: None,
+                                },
+                            )))),
+                        },
+                        &mut out,
+                    );
+                }
+                jig_client::Down::Save { .. }
+                | jig_client::Down::Erase { .. }
+                | jig_client::Down::Send { .. }
+                | jig_client::Down::Open { .. }
+                | jig_client::Down::Continue { .. }
+                | jig_client::Down::Close { .. }
+                | jig_client::Down::Read { .. } => {}
+            }
+        }
+    }
+    assert_eq!(root.pages().inbox().unwrap().cards.len(), 1);
+    root
+}
+fn subtree<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a [skein_ui::Node] {
+    let at = tree.nodes().iter().position(|n| n.role == role && n.name.as_deref() == Some(name)).unwrap();
+    &tree.nodes()[at..at.checked_add(usize::try_from(tree.nodes()[at].size).unwrap()).unwrap()]
+}
+fn press(view: &mut crate::View, role: Role, name: &[u8]) -> Act {
+    let id = f::find(view.tree(), role, name).unwrap();
+    let Some(Action::Pages(act)) = crate::act(view, id, skein_ui::Act::Press) else { panic!("page binding") };
+    act
+}
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table holds the terminal's questions, cards and failed fold beside their browser drawings"
+)]
+fn the_terminal_draws_what_a_real_chat_has_on_a_line() {
+    use skein_lib::{List, Wall};
+    use temper_client_domain::pages::needs;
+    enum Card {
+        Question(bool),
+        Proposal(bool),
+        Delegation(bool),
+        Failure,
+    }
+    for row in [
+        Card::Question(true),
+        Card::Question(false),
+        Card::Proposal(false),
+        Card::Proposal(true),
+        Card::Delegation(false),
+        Card::Delegation(true),
+        Card::Failure,
+    ] {
+        match row {
+            Card::Question(choices) => {
+                let mut root = terminal_question_root(choices);
+                let mut drawn = view(&root, Shell::Browser);
+                assert!(!styled(drawn.tree(), look::TERMINAL_LINE));
+                let head = if choices { b"Which parser?".as_slice() } else { b"What should the parser do?" };
+                let id = f::find(drawn.tree(), Role::Text, head).unwrap();
+                assert!(drawn.tree().find(id).unwrap().styles.as_slice().contains(&look::TERMINAL_HEAD));
+                if choices {
+                    let menu = subtree(drawn.tree(), Role::Menu, head);
+                    assert!(menu[0].states.as_slice().contains(&State::Options));
+                    let items: Vec<_> = menu.iter().filter(|n| n.role == Role::MenuItem).collect();
+                    assert_eq!(
+                        items.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+                        [b"Keep it".as_slice(), b"Replace it", b"Later"]
+                    );
+                    assert!(!items[0].states.as_slice().contains(&State::Selected));
+                    assert!(items[1].states.as_slice().contains(&State::Selected));
+                    assert!(!items[2].states.as_slice().contains(&State::Selected));
+                    assert_eq!(
+                        press(&mut drawn, Role::MenuItem, b"Later"),
+                        Act::Needs(needs::Act::Later { object: QUESTION_OBJECT })
+                    );
+                    let choose = press(&mut drawn, Role::MenuItem, b"Replace it");
+                    assert_eq!(
+                        choose,
+                        Act::Needs(needs::Act::Choose {
+                            object: QUESTION_OBJECT,
+                            words: b"Replace it".as_slice().into()
+                        })
+                    );
+                    act(&mut root, choose);
+                    assert!(root.pages().needs().held(QUESTION_OBJECT));
+                    let mut answered = view(&root, Shell::Browser);
+                    assert!(skein_lib::bytes::find(&f::text(answered.tree()), b"Answered: Replace it").is_some());
+                    let undo = press(&mut answered, Role::Button, b"Undo");
+                    assert_eq!(undo, Act::Needs(needs::Act::Undo { object: QUESTION_OBJECT }));
+                    act(&mut root, undo);
+                    assert!(!root.pages().needs().held(QUESTION_OBJECT));
+                    assert!(f::find(view(&root, Shell::Browser).tree(), Role::MenuItem, b"Replace it").is_some());
+                    act(&mut root, Act::MessageWords { words: b"/".as_slice().into() });
+                    assert!(f::find(view(&root, Shell::Browser).tree(), Role::Menu, b"Commands").is_some());
+                    assert!(f::find(view(&root, Shell::Browser).tree(), Role::MenuItem, b"Later").is_none());
+                } else {
+                    assert_eq!(
+                        press(&mut drawn, Role::Link, "Answer in Needs you ›".as_bytes()),
+                        Act::Needs(needs::Act::Open { object: QUESTION_OBJECT })
+                    );
+                    assert!(f::find(drawn.tree(), Role::MenuItem, b"Later").is_none());
+                }
+                act(&mut root, Act::Terminal(terminal::Act::Leave));
+                assert!(root.pages().inbox().is_none());
+                assert!(f::find(view(&root, Shell::Browser).tree(), Role::Text, head).is_none());
+            }
+            Card::Proposal(settings) => {
+                let mut page = super::cards::batch_proposal();
+                if settings {
+                    let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+                    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+                        against: 0,
+                        items: List::with_capacity(0),
+                        review: None,
+                        made: None,
+                    }));
+                }
+                let mut root = f::chat::proposal_in_layout(None, Some(page), settings, false);
+                let browser = view(&root, Shell::Browser);
+                let browser_text = f::text(browser.tree());
+                assert!(f::find(browser.tree(), Role::Disclosure, b"Details").is_none());
+                act(&mut root, Act::Terminal(terminal::Act::Enter));
+                let mut drawn = view(&root, Shell::Browser);
+                let facts = subtree(drawn.tree(), Role::Disclosure, b"Details");
+                assert!(!facts[0].states.as_slice().contains(&State::Expanded));
+                assert!(skein_lib::bytes::find(&f::nodes_text(facts), b"Make a goal").is_some());
+                if !settings {
+                    assert!(facts.iter().any(|n| n.role == Role::Term && n.name.as_deref() == Some(b"Budget")));
+                }
+                assert!(styled(drawn.tree(), look::TERMINAL_CARD_LINE));
+                assert!(!styled(drawn.tree(), look::CARD));
+                assert!(f::find(drawn.tree(), Role::Text, b"Proposal").is_some());
+                let accept = press(&mut drawn, Role::Button, b"Accept");
+                assert_eq!(
+                    accept,
+                    Act::Decide {
+                        object: c::ObjectKey::Proposal(f::chat::PROPOSAL),
+                        revision: None,
+                        act: c::ActKind::Accept
+                    }
+                );
+                act(&mut root, accept);
+                let mut confirm = view(&root, Shell::Browser);
+                assert!(f::find(confirm.tree(), Role::Dialog, b"Accept this proposal?").is_none());
+                assert!(f::find(confirm.tree(), Role::Menu, b"Accept this proposal?").is_some());
+                assert_eq!(press(&mut confirm, Role::MenuItem, b"Accept"), Act::Confirm);
+                let cancel = press(&mut confirm, Role::MenuItem, b"Not yet");
+                assert_eq!(cancel, Act::Cancel);
+                act(&mut root, cancel);
+                for dismiss in
+                    [Act::Terminal(terminal::Act::Dismiss), Act::MessageWords { words: b"Actually".as_slice().into() }]
+                {
+                    let mut drawn = view(&root, Shell::Browser);
+                    let accept = press(&mut drawn, Role::Button, b"Accept");
+                    act(&mut root, accept);
+                    act(&mut root, dismiss);
+                    assert!(root.pages().confirmation().is_none());
+                }
+                act(&mut root, Act::Terminal(terminal::Act::Leave));
+                assert_eq!(f::text(view(&root, Shell::Browser).tree()), browser_text);
+                act(&mut root, Act::Terminal(terminal::Act::Enter));
+                let mut drawn = view(&root, Shell::Browser);
+                let accept = press(&mut drawn, Role::Button, b"Accept");
+                act(&mut root, accept);
+                act(&mut root, Act::Confirm);
+                assert!(root.pages().confirmation().unwrap().sent.is_some());
+                let sent = view(&root, Shell::Browser);
+                assert!(!sent.tree().nodes().iter().any(|n| n.states.as_slice().contains(&State::Options)));
+                assert!(!sent.tree().nodes().iter().any(|n| n.role == Role::Dialog));
+            }
+            Card::Delegation(landed) => {
+                let mut task = f::task::document();
+                task.chip.task = f::chat::DELEGATE;
+                task.chip.title = c::DocumentText::complete(f::first_run::text(b"Fix parser"));
+                task.result_contract = c::TaskContractDocument::Change { connector: f::FORGE, kind: 1, words: 256 };
+                task.result = if landed {
+                    Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
+                        kind: 1,
+                        part: c::Part {
+                            connector: f::FORGE,
+                            kind: c::PartKind::Result,
+                            key: c::PartKey::Number(f::chat::DELEGATE),
+                        },
+                        words: c::DocumentText::complete(f::first_run::text(b"1a2b3c4abcdef")),
+                    }))))
+                } else {
+                    None
+                };
+                let mut b = skein_ui::Builder::new(&f::tree_limits());
+                let mut bindings = crate::frame::Bindings::new(32);
+                crate::cards::delegation::terminal_card(&mut b, &task, &f::browser_words(), &mut bindings);
+                let tree = b.finish();
+                assert!(f::find(&tree, Role::Paragraph, "T12 · CHANGE".as_bytes()).is_some());
+                assert!(f::find(&tree, Role::Heading { level: 3 }, b"Fix parser").is_some());
+                assert!(f::find(&tree, Role::Status, if landed { b"Landed" } else { b"Running" }).is_some());
+                assert!(!styled(&tree, look::STEPS));
+                assert!(!styled(&tree, look::DETAILS));
+                let link = tree
+                    .nodes()
+                    .iter()
+                    .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Task 12"))
+                    .unwrap();
+                assert_eq!(
+                    bindings.decode(link.binding.unwrap().token, skein_ui::Act::Press),
+                    Some(Action::Pages(Act::Go { address: Address::Task { task: 12 } }))
+                );
+                assert!(skein_lib::bytes::find(&f::text(&tree), b"Open").is_some());
+                let mut b = skein_ui::Builder::new(&f::tree_limits());
+                crate::cards::delegation::card(
+                    &mut b,
+                    &task,
+                    &f::browser_words(),
+                    &mut crate::frame::Bindings::new(32),
+                );
+                let browser = b.finish();
+                assert!(styled(&browser, look::STEPS));
+                assert!(!styled(&browser, look::TERMINAL_CARD));
+                assert_eq!(styled(&browser, look::DETAILS), landed);
+            }
+            Card::Failure => {
+                let c::Block::Call(mut call) =
+                    f::first_run::call(1, b"shell", br#"{"command":"check"}"#, Some(b"parser rejected\nmore detail"))
+                else {
+                    panic!("call")
+                };
+                call.failed = true;
+                for (terminal, running, expected) in [
+                    (false, false, Some(b"1 failed".as_slice())),
+                    (false, true, None),
+                    (true, false, Some(b"failed: parser rejected".as_slice())),
+                    (true, true, Some(b"failed: parser rejected".as_slice())),
+                ] {
+                    let mut b = skein_ui::Builder::new(&f::tree_limits());
+                    let mut run = crate::pages::chat_line::Run::with_capacity(1);
+                    run.call(&call, Wall::EPOCH, None);
+                    run.flush(&mut b, None, running, &f::browser_words(), terminal);
+                    let tree = b.finish();
+                    let fold = tree.nodes().iter().find(|n| n.role == Role::Disclosure).unwrap();
+                    assert_eq!(fold.description.as_deref(), expected);
+                    assert!(!fold.states.as_slice().contains(&State::Expanded));
+                }
+            }
+        }
+    }
+}

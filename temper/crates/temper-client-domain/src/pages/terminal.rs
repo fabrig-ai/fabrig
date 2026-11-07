@@ -437,6 +437,9 @@ fn confirmation_list(pages: &super::Pages, client: &jig_client::Client) -> bool 
     let Some(open) = &pages.confirm else { return false };
     let Some(chat) = &pages.chat else { return false };
     let Some(task) = chat.task(client) else { return false };
+    if pages.look.terminal && open.act == jig_client::contract::ActKind::Accept && open.sent.is_none() {
+        return true;
+    }
     pages.look.terminal
         && draws(&pages.address)
         && open.act == jig_client::contract::ActKind::Cancel

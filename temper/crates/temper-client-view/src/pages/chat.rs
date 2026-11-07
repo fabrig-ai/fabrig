@@ -170,7 +170,7 @@ pub(crate) fn main(
         b.close();
         super::document::pane(b, root, chat, task, words, times);
     }
-    if !terminal || !super::terminal::commands::confirms(root) {
+    if !terminal || !super::terminal::confirms(root) {
         crate::confirm::main(b, root, words, bindings, rows);
     }
     b.close();
@@ -616,14 +616,15 @@ fn proposal_card(
     }
     b.open(role);
     b.name(&super::inbox::card_name(root, card.object, Word::Proposal, words));
-    if crate::cards::proposal::settings_facts(card).is_none() {
+    if !super::terminal::shown(root, words) && crate::cards::proposal::settings_facts(card).is_none() {
         b.style(look::CARD);
         b.style(look::KIND_PROPOSAL);
     }
     if role == Role::Item || role == Role::Slot {
         b.key(super::inbox::card_key(card.object));
     }
-    if let Some(page) = &card.page
+    if !super::terminal::shown(root, words)
+        && let Some(page) = &card.page
         && let Some(since) = super::inbox::waiting_since(page)
         && let Some(times) = times
     {
@@ -1030,6 +1031,10 @@ pub(crate) fn conversation_lines(
 ) {
     let (rows, _) = limits;
     let Drawing { projected, request, delegations, proposals, agent_run, current: agent_current } = drawing(drawn);
+    let terminal = match proposals {
+        Some(root) => super::terminal::shown(root, words),
+        None => false,
+    };
     let bound = match delegations {
         Some((chat, _)) => chat.delegations.capacity(),
         None => 0,
@@ -1091,7 +1096,7 @@ pub(crate) fn conversation_lines(
             }
             && time > skein_lib::Wall::from_nanos(at)
         {
-            run.flush(b, None, false, words);
+            run.flush(b, None, false, words, terminal);
         }
         if let Line::Provisional { text, .. } = &line
             && text.is_empty()
@@ -1104,9 +1109,9 @@ pub(crate) fn conversation_lines(
                 && let Some(task) = delegation::heard(&event.source.line)
                 && !shown.as_slice().contains(&task)
             {
-                run.flush(b, None, false, words);
+                run.flush(b, None, false, words, terminal);
             }
-            heard_card(b, &line, delegations, (&mut tasks, &mut shown), words, bindings);
+            heard_card(b, &line, delegations, (&mut tasks, &mut shown), words, bindings, terminal);
             continue;
         }
         if let Line::Turn { name, turn, at, .. } = line {
@@ -1127,6 +1132,7 @@ pub(crate) fn conversation_lines(
                     at,
                     since,
                     projected,
+                    terminal,
                     requester: speakers.requester,
                 },
                 (&mut tasks, &mut shown),
@@ -1137,14 +1143,14 @@ pub(crate) fn conversation_lines(
                 let chat = root.pages().chat().expect("chat page");
                 for (card, place) in chat.cards.iter().zip(&places) {
                     if *place == Place::After(index) {
-                        run.flush(b, None, false, words);
+                        run.flush(b, None, false, words, terminal);
                         proposal_card(b, root, card, words, bindings, (rows, times.as_deref_mut()), Role::Slot);
                     }
                 }
             }
             continue;
         }
-        run.flush(b, None, false, words);
+        run.flush(b, None, false, words, terminal);
         let clock = turn_time(b, line_time(&line), &mut times, &mut day, words);
         b.open(Role::Slot);
         b.key(key);
@@ -1190,10 +1196,10 @@ pub(crate) fn conversation_lines(
         None
     };
     let running_run = running && (!run.is_empty() || current.is_some());
-    run.flush(b, current, running_run, words);
+    run.flush(b, current, running_run, words, terminal);
     start_fact(b, &mut started, None, words, bindings);
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
-    live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
+    live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings, terminal);
     if let Some(root) = proposals {
         conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"), &places);
         if words.shell == Shell::Browser && running && !running_run {
@@ -1317,6 +1323,7 @@ fn heard_card(
     (tasks, shown): (&mut List<u64>, &mut List<u64>),
     words: &Words,
     bindings: &mut Bindings,
+    terminal: bool,
 ) {
     let key = line_key(line);
     if let Line::Activity { line } = line
@@ -1328,7 +1335,7 @@ fn heard_card(
         b.open(Role::Slot);
         b.key(key.expect("activity key"));
         b.style(look::TURN);
-        cards(b, tasks, delegations, shown, words, bindings);
+        cards(b, tasks, delegations, shown, words, bindings, terminal);
         b.close();
     }
 }
@@ -1455,6 +1462,7 @@ fn live_delegates(
     shown: &mut List<u64>,
     words: &Words,
     bindings: &mut Bindings,
+    terminal: bool,
 ) {
     tasks.clear();
     if let Some((chat, client)) = delegations
@@ -1472,7 +1480,7 @@ fn live_delegates(
         b.open(Role::Slot);
         b.key(fixed_key(49));
         b.style(look::TURN);
-        cards(b, tasks, delegations, shown, words, bindings);
+        cards(b, tasks, delegations, shown, words, bindings, terminal);
         b.close();
     }
 }
@@ -1585,6 +1593,7 @@ struct Committed<'a> {
     since: Option<skein_lib::Wall>,
     projected: bool,
     requester: bool,
+    terminal: bool,
 }
 #[expect(clippy::too_many_arguments, reason = "the block walk shares its drawing state and run with the conversation")]
 #[expect(clippy::too_many_lines, reason = "one ordered walk keeps text, run calls and card anchors at their block")]
@@ -1609,14 +1618,14 @@ fn committed<'a>(
                 && run_call(block, tasks, drawing.delegations)
             {
                 if unshown_card(tasks, drawing.delegations, shown) {
-                    run.flush(b, None, false, words);
+                    run.flush(b, None, false, words, drawing.terminal);
                     let clock = committed_clock(b, &mut drawing, &mut dated, words);
                     b.open(Role::Slot);
                     b.key(block_key(drawing.key, place));
                     place = place.checked_add(1).expect("turn blocks fit");
                     b.style(look::TURN);
                     card_clock(b, clock.as_deref());
-                    cards(b, tasks, drawing.delegations, shown, words, bindings);
+                    cards(b, tasks, drawing.delegations, shown, words, bindings, drawing.terminal);
                     b.close();
                 }
                 if run.is_empty() {
@@ -1667,7 +1676,7 @@ fn committed<'a>(
                     continue;
                 }
             }
-            run.flush(b, None, false, words);
+            run.flush(b, None, false, words, drawing.terminal);
             let clock = committed_clock(b, &mut drawing, &mut dated, words);
             b.open(Role::Slot);
             b.key(block_key(drawing.key, place));
@@ -1724,7 +1733,7 @@ fn committed<'a>(
                     );
                     tasks.clear();
                     delegation::delegated(call, tasks);
-                    cards(b, tasks, drawing.delegations, shown, words, bindings);
+                    cards(b, tasks, drawing.delegations, shown, words, bindings, drawing.terminal);
                     if let Some((root, name)) = drawing.proposals {
                         let chat = root.pages().chat().expect("chat page");
                         for card in &chat.cards {
@@ -1747,7 +1756,7 @@ fn committed<'a>(
                 c::Block::Result { summary, failed, .. } => {
                     card_clock(b, clock.as_deref());
                     if requested(tasks, drawing.delegations) {
-                        cards(b, tasks, drawing.delegations, shown, words, bindings);
+                        cards(b, tasks, drawing.delegations, shown, words, bindings, drawing.terminal);
                     } else {
                         message_open(b, words);
                         b.style(look::BY_TOOL);
@@ -1872,13 +1881,18 @@ fn cards(
     shown: &mut List<u64>,
     words: &Words,
     bindings: &mut Bindings,
+    terminal: bool,
 ) {
     let Some((chat, client)) = delegations else { return };
     for task in tasks {
         if !shown.as_slice().contains(task)
             && let Some(document) = chat.delegation(client, *task)
         {
-            crate::cards::delegation::card(b, document, words, bindings);
+            if terminal {
+                crate::cards::delegation::terminal_card(b, document, words, bindings);
+            } else {
+                crate::cards::delegation::card(b, document, words, bindings);
+            }
             shown.push(*task).expect("shown delegations fit their bound");
         }
     }

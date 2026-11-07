@@ -31,6 +31,10 @@ fn button(b: &mut Builder, bindings: &mut Bindings, words: &Words, word: Word, a
 }
 pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, rows: u32) {
     let Some(page) = &card.page else { return };
+    if crate::pages::terminal::shown(root, words) {
+        crate::cards::proposal::terminal(b, root, card, words, bindings, rows);
+        return;
+    }
     crate::cards::proposal_reason(b, page);
     facts(b, page, words, rows);
     let conversation = root.pages().chat().is_some() && words.shell == crate::words::Shell::Browser;
@@ -514,4 +518,49 @@ pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
         Outcome::Answered(Answered::Family(_)) => {}
         Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
     }
+}
+
+/// Accept's two acts use the terminal's list; an uncertain effect keeps its sheet.
+pub(crate) fn terminal_confirms(root: &Domain) -> bool {
+    let Some(open) = root.pages().confirmation() else { return false };
+    if open.act != ActKind::Accept || root.pages().chat().is_none() {
+        return false;
+    }
+    let Some(cards) = root.pages().cards() else { return false };
+    for card in cards {
+        if card.object == open.object
+            && let Some(page) = &card.page
+        {
+            return jig_client::facts::effect(acts::offers(page), open.act)
+                != Some(&Effect::Release(ReleaseEffect::Uncertain));
+        }
+    }
+    false
+}
+pub(crate) fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) -> bool {
+    if !terminal_confirms(root) || root.pages().confirmation().expect("Accept list").sent.is_some() {
+        return false;
+    }
+    b.open(Role::Menu);
+    b.style(crate::look::TERMINAL_CHOICES);
+    let head = words.say(Word::AcceptTitle, &[]);
+    b.name(&head);
+    b.state(skein_ui::State::Options);
+    b.open(Role::Text);
+    b.style(crate::look::TERMINAL_HEAD);
+    b.name(&head);
+    b.text(Run::Plain, &head);
+    b.close();
+    sheet_why(b, root, words);
+    for (word, act) in [(Word::Accept, Act::Confirm), (Word::NotYet, Act::Cancel)] {
+        b.open(Role::MenuItem);
+        b.name(&words.say(word, &[]));
+        b.bind(bindings.insert(act));
+        if word == Word::NotYet {
+            b.shortcut(skein_ui::Shortcut::ESCAPE);
+        }
+        b.close();
+    }
+    b.close();
+    true
 }

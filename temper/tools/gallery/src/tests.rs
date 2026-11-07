@@ -131,6 +131,28 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-terminal-question",
+        heading: "T1 · Make tally sum stream its input",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Menu, name: "Keep the trailing comma?" },
+            Part::Named { role: Role::MenuItem, name: "Keep it" },
+            Part::Named { role: Role::MenuItem, name: "Drop it" },
+            Part::Named { role: Role::MenuItem, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-proposal",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Text, name: "Proposal" },
+            Part::Named { role: Role::Disclosure, name: "Details" },
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
         name: "chat-terminal-draft",
         heading: "T1 · Away mode, draft",
         parts: &[Part::Named { role: Role::Button, name: "Exit" }, Part::Pressed { name: "Draft" }],
@@ -2929,7 +2951,8 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 51] = [
+const SPENDS: [(&str, Role, &str); 52] = [
+    ("chat-terminal-proposal", Role::Paragraph, "0 spent · of 40"),
     ("chat-terminal", Role::Paragraph, "1 spent · of 40"),
     ("chat-terminal-draft", Role::Paragraph, "1 spent · of 40"),
     ("chat-terminal-light", Role::Paragraph, "1 spent · of 40"),
@@ -2983,7 +3006,7 @@ const SPENDS: [(&str, Role, &str); 51] = [
     ("chats-solo", Role::Paragraph, "1 spent"),
 ];
 fn each_chat_reads_its_allotment(sample: &Sample, view: &temper_client_view::View) {
-    if matches!(sample.name, "chat-terminal-commands" | "chat-terminal-model") {
+    if matches!(sample.name, "chat-terminal-commands" | "chat-terminal-model" | "chat-terminal-question") {
         assert!(
             !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::TERMINAL_LINE)),
             "a list replaces the quiet line and spend"

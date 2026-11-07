@@ -1,6 +1,7 @@
 //! A chat's pages as a terminal (temper/docs/design/client/README.md, 3.5, A chat's terminal;
 //! temper/docs/design/client/browser.md, 2.5, A chat's terminal).
 pub(crate) mod commands;
+mod question;
 pub(crate) mod words;
 use crate::{
     frame::Bindings,
@@ -152,7 +153,10 @@ pub(crate) fn under(
     bindings: &mut Bindings,
     hint: Hint,
 ) {
-    if commands::under(b, root, task, w, bindings) {
+    if crate::confirm::terminal_list(b, root, w, bindings)
+        || commands::under(b, root, task, w, bindings)
+        || question::under(b, root, w, bindings)
+    {
         return;
     }
     b.open(Role::Slot);
@@ -230,4 +234,16 @@ pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
     } else {
         running(b, None);
     }
+}
+
+pub(crate) fn confirms(root: &Domain) -> bool {
+    commands::confirms(root) || crate::confirm::terminal_confirms(root)
+}
+pub(crate) fn details(b: &mut Builder, w: &Words) {
+    b.open(Role::Disclosure);
+    b.style(look::TERMINAL_DETAILS);
+    b.name(&say(w, T::Details));
+}
+pub(crate) fn kicker(b: &mut Builder, w: &Words) {
+    text(b, &w.say(Word::Proposal, &[]), look::PROPOSAL_KICKER);
 }

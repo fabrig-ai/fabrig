@@ -13,6 +13,9 @@ pub(crate) enum TerminalWord {
     Commands,
     Paused,
     Prompt,
+    AnswerInNeeds,
+    Details,
+    Failed,
 }
 impl TerminalWord {
     fn data(self) -> (u16, &'static [u8]) {
@@ -25,6 +28,9 @@ impl TerminalWord {
             Self::Commands => (5006, b"/ for commands"),
             Self::Paused => (5007, "paused · a message resumes it".as_bytes()),
             Self::Prompt => (5008, "❯".as_bytes()),
+            Self::AnswerInNeeds => (5009, "Answer in Needs you ›".as_bytes()),
+            Self::Details => (5010, b"Details"),
+            Self::Failed => (5011, b"failed: "),
         }
     }
     fn id(self) -> PhraseId {
@@ -44,6 +50,9 @@ pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>)
         TerminalWord::Commands,
         TerminalWord::Paused,
         TerminalWord::Prompt,
+        TerminalWord::AnswerInNeeds,
+        TerminalWord::Details,
+        TerminalWord::Failed,
     ] {
         shapes.push(PhraseShape { id: word.id(), holes: Box::new([]), plural: None }).expect("terminal shapes fit");
         phrases
