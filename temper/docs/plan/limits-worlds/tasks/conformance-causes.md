@@ -62,3 +62,17 @@ Options, each decided:
 ## Report
 
 Instructions and CPU seconds before and after, each cause and what it saved, what you left and whose it is, whether D034 is paid, and your implementation and check minutes apart.
+
+## Rebase (2026-11-07, step merge, foreman limits-worlds/conformance-causes/foreman-1)
+
+reconcile main’s lazy observer views with the branch’s keyed projection
+The merge conflicts with `fd51f31222` (“Build core observer views only for row readers”) and design changes in `e9d0ada6ed` and `c91d31e7fa`.
+Resolve all six conflicting paths, preserving both changes:
+- `jig/testing/jig-conformance/src/core.rs`: retain main’s lazy `inbound` and `submitted` interfaces. Call `self.projection.submitted(&pending)` for every submitted commit before main’s no-erasure early return. Preserve cold invalidation and keyed snapshots in `durable_at`, together with main’s combined evidence/accepted-decision pass.
+- `jig/testing/jig-core-kit/src/conformance.rs`: retain main’s closure-based views, translated newest commit, named revisions and view tests. In its extracted `core_write`, translate `CopySettingsRevision` and `DropTranscript` to `Write::Refresh`, as the branch requires.
+- `jig/testing/jig-conformance/src/core/snapshot.rs`: retain main’s combined naming/row pass and the branch’s `resolve` separation. Keep cross-row tracking and acceptance resolution out of per-row projection; avoid duplicate acceptance collection.
+- `jig/docs/design/domain/testing.md`: preserve main’s reader-only fresh-view contract and coverage/budget additions, plus the branch’s forked-sweep text. Resolve section 10’s “A commit’s rows” entry to the implemented keyed projection, retaining cold/current-row and bulk-rebuild guarantees.
+- `jig/docs/design/domain/testing.status.md`: remove the paid `debt-25` gap while retaining main’s unrelated gaps, including section 9’s budget verification.
+- `jig/docs/development/debt/D034-world-replay-cost.md`: keep the branch’s deletion; main’s modification describes the intermediate whole-projection implementation. Fix any surviving citations introduced on main.
+Review the automatically merged `core/evidence.rs` for both the `commit` helper and `Write::Refresh`, and preserve main’s matching intent and ops-adapter interfaces.
+Validate keyed/whole-projection equivalence and lazy-view tests, then the spec’s referee checks and focused/fuzzy acceptance suites through heavy. Run formatting, affected-package clippy and citation checks.
