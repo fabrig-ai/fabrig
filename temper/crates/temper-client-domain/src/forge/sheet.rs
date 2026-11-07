@@ -1,5 +1,5 @@
-//! Add repositories: reads, selections and sends (temper/docs/design/client/README.md, 4.4 and
-//! 4.5; temper/docs/design/client/forge.md, 5.1).
+//! Add repositories: reads, selections and sends (temper/docs/design/client/README.md, 4.4,
+//! 4.5 and 4.6; temper/docs/design/client/forge.md, 5.1).
 use super::{
     Field, Limits, Request, Side, Typed,
     forges::{Connection, Kind, Mode, Row, State},
@@ -284,7 +284,9 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
                     if making.org.as_ref() == reached.owner().login() && making.name.as_ref() == reached.name() {
                         let taken = match &making.state {
                             w::MakingState::Failed(failed) => *failed.reason() == w::MakeFailure::Taken,
-                            w::MakingState::Waiting | w::MakingState::Making | w::MakingState::Made(_)
+                            w::MakingState::Waiting
+                            | w::MakingState::Making
+                            | w::MakingState::Made(_)
                             | w::MakingState::Adopting(_) => false,
                         };
                         if !taken {
@@ -393,7 +395,9 @@ pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
                 if making.org.as_ref() == org && making.name.as_ref() == name {
                     match &making.state {
                         w::MakingState::Failed(_) => {}
-                        w::MakingState::Waiting | w::MakingState::Making | w::MakingState::Made(_)
+                        w::MakingState::Waiting
+                        | w::MakingState::Making
+                        | w::MakingState::Made(_)
                         | w::MakingState::Adopting(_) => return true,
                     }
                 }
@@ -548,9 +552,20 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
             out.push(Request::Show { address: super::Address::Adopt { project } });
             return;
         }
-        Act::Source(_) | Act::Forge(_) | Act::Installation(_) | Act::Find(_) | Act::Pick { .. }
-        | Act::NearEnd | Act::NotListed { .. } | Act::Org(_) | Act::Name(_) | Act::Addresses(_)
-        | Act::Target(_) | Act::UseIt { .. } | Act::AdoptIt { .. } | Act::Send => {}
+        Act::Source(_)
+        | Act::Forge(_)
+        | Act::Installation(_)
+        | Act::Find(_)
+        | Act::Pick { .. }
+        | Act::NearEnd
+        | Act::NotListed { .. }
+        | Act::Org(_)
+        | Act::Name(_)
+        | Act::Addresses(_)
+        | Act::Target(_)
+        | Act::UseIt { .. }
+        | Act::AdoptIt { .. }
+        | Act::Send => {}
     }
     let Some(sheet) = &mut side.sheet else { return };
     if let Some(form) = &side.form
@@ -1009,6 +1024,7 @@ pub struct Dismissal {
     pub pending: Option<Token>,
     pub words: Option<Box<[u8]>>,
 }
+#[expect(clippy::manual_find, reason = "step code searches with a loop rather than a closure")]
 pub(crate) fn dismissal<'a>(side: &'a Side, forge: u16, org: &[u8], name: &[u8]) -> Option<&'a Dismissal> {
     for dismissal in &side.sheet_dismissals {
         if dismissal.forge == forge && dismissal.org.as_ref() == org && dismissal.name.as_ref() == name {
@@ -1017,6 +1033,7 @@ pub(crate) fn dismissal<'a>(side: &'a Side, forge: u16, org: &[u8], name: &[u8])
     }
     None
 }
+#[expect(clippy::manual_find, reason = "step code searches with a loop rather than a closure")]
 fn making<'a>(side: &'a Side, forge: u16, org: &[u8], name: &[u8]) -> Option<&'a super::making::Making> {
     for making in &row(&side.forges, Some(forge))?.makings {
         if making.org.as_ref() == org && making.name.as_ref() == name {
@@ -1033,7 +1050,10 @@ fn dismiss(side: &mut Side, limits: Limits, forge: u16, org: &[u8], name: &[u8],
     {
         return;
     }
-    let project = making.into.as_ref().map(w::MakeInto::project);
+    let project = match &making.into {
+        Some(into) => Some(into.project()),
+        None => None,
+    };
     let Some(bounds) = super::wire_limits(&limits) else { return };
     let Some(record) = super::dismiss_making(forge, org, name, project, &bounds) else { return };
     let scope = match project {
@@ -1051,9 +1071,9 @@ fn dismiss(side: &mut Side, limits: Limits, forge: u16, org: &[u8], name: &[u8],
         }
     }
     if !found {
-        side.sheet_dismissals.push(Dismissal {
-            forge, org: Box::from(org), name: Box::from(name), pending: Some(request), words: None,
-        }).expect("uncapped dismissals");
+        side.sheet_dismissals
+            .push(Dismissal { forge, org: Box::from(org), name: Box::from(name), pending: Some(request), words: None })
+            .expect("uncapped dismissals");
     }
     out.push(Request::Send { request, name: None, ask: jig_client::Ask::Family { scope, record } });
     side.changed();
@@ -1063,13 +1083,26 @@ pub(crate) fn again(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<R
         Act::CopyAgain { forge, org, name } => (forge, org, name, Source::Copy),
         Act::AdoptAgain { forge, org, name } => (forge, org, name, Source::Forge),
         Act::MakeAgain { forge, org, name } => (forge, org, name, Source::Empty),
-        Act::Dismiss { .. } | Act::Source(_) | Act::Forge(_) | Act::Installation(_) | Act::Find(_)
-        | Act::Pick { .. } | Act::NearEnd | Act::NotListed { .. } | Act::Org(_) | Act::Name(_)
-        | Act::Addresses(_) | Act::Target(_) | Act::UseIt { .. } | Act::AdoptIt { .. } | Act::Send => return,
+        Act::Dismiss { .. }
+        | Act::Source(_)
+        | Act::Forge(_)
+        | Act::Installation(_)
+        | Act::Find(_)
+        | Act::Pick { .. }
+        | Act::NearEnd
+        | Act::NotListed { .. }
+        | Act::Org(_)
+        | Act::Name(_)
+        | Act::Addresses(_)
+        | Act::Target(_)
+        | Act::UseIt { .. }
+        | Act::AdoptIt { .. }
+        | Act::Send => return,
     };
     let Some(making) = making(side, forge, &org, &name).cloned() else { return };
     let Some(sheet) = &mut side.sheet else { return };
-    if making.into.as_ref().map(w::MakeInto::project) != Some(sheet.project) {
+    let Some(into) = &making.into else { return };
+    if into.project() != sheet.project {
         return;
     }
     sheet.source = source;

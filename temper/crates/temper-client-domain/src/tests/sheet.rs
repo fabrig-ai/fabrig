@@ -558,15 +558,26 @@ fn making_buttons_hold_back_an_edit_past_the_fields_bound() {
 
 fn failed_making(from: Option<&[u8]>, reason: w::MakeFailure) -> super::super::making::Making {
     super::super::making::Making {
-        org: b"acme".as_slice().into(), name: b"again".as_slice().into(),
+        org: b"acme".as_slice().into(),
+        name: b"again".as_slice().into(),
         from: match from {
-            Some(address) => w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap()),
+            Some(address) => {
+                w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap())
+            }
             None => w::MakeFrom::Empty,
         },
         into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: PROJECT, home: false }).unwrap()),
-        state: w::MakingState::Failed(w::MakingFailed::new(&w::CEILINGS, w::MakingFailedParts {
-            step: w::MakeStep::Repository, reason, words: b"the forge refused".as_slice().into(),
-        }).unwrap()),
+        state: w::MakingState::Failed(
+            w::MakingFailed::new(
+                &w::CEILINGS,
+                w::MakingFailedParts {
+                    step: w::MakeStep::Repository,
+                    reason,
+                    words: b"the forge refused".as_slice().into(),
+                },
+            )
+            .unwrap(),
+        ),
     }
 }
 fn with_failed(from: Option<&[u8]>, reason: w::MakeFailure) -> Side {
@@ -579,13 +590,30 @@ fn with_failed(from: Option<&[u8]>, reason: w::MakeFailure) -> Side {
 }
 fn reopen(side: &mut Side, again: Act) {
     let out = act(side, again);
-    assert!(out.iter().any(|request| matches!(request, Request::Show { address: forge::Address::Adopt { project: PROJECT } })));
-    forge::step(side, &env(), forge::Event::Went { address: forge::Address::Adopt { project: PROJECT } }, &mut Queue::uncapped());
+    assert!(out.iter().any(|request| match request {
+        Request::Show { address } => *address == forge::Address::Adopt { project: PROJECT },
+        Request::Repositories { .. }
+        | Request::PlaygroundReset
+        | Request::PanelEnded { .. }
+        | Request::ConnectForge { .. }
+        | Request::Leave { .. }
+        | Request::Client { .. }
+        | Request::Send { .. } => false,
+    }));
+    forge::step(
+        side,
+        &env(),
+        forge::Event::Went { address: forge::Address::Adopt { project: PROJECT } },
+        &mut Queue::uncapped(),
+    );
 }
 #[test]
 fn copy_again_opens_its_forge_and_fills_the_address() {
     let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Other);
-    reopen(&mut side, Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() });
+    reopen(
+        &mut side,
+        Act::CopyAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
     let sheet = side.sheet().unwrap();
     assert_eq!((sheet.source, sheet.target), (Source::Copy, Some(FORGEJO)));
     assert_eq!(sheet.addresses.text.as_ref(), b"https://source.example/acme/again");
@@ -594,7 +622,10 @@ fn copy_again_opens_its_forge_and_fills_the_address() {
 #[test]
 fn make_again_opens_its_forge_and_fills_both_names() {
     let mut side = with_failed(None, w::MakeFailure::Other);
-    reopen(&mut side, Act::MakeAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() });
+    reopen(
+        &mut side,
+        Act::MakeAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
     let sheet = side.sheet().unwrap();
     assert_eq!((sheet.source, sheet.target), (Source::Empty, Some(FORGEJO)));
     assert_eq!((sheet.org.text.as_ref(), sheet.name.text.as_ref()), (b"acme".as_slice(), b"again".as_slice()));
@@ -602,13 +633,19 @@ fn make_again_opens_its_forge_and_fills_both_names() {
 #[test]
 fn adopt_again_picks_the_taken_name_after_reading() {
     let mut side = with_failed(Some(b"https://source.example/acme/again"), w::MakeFailure::Taken);
-    reopen(&mut side, Act::AdoptAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() });
+    reopen(
+        &mut side,
+        Act::AdoptAgain { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() },
+    );
     let mut rows = List::with_capacity(1);
     rows.push(reached(11, b"again", false)).unwrap();
     answer(&mut side, w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).unwrap());
     let sheet = side.sheet().unwrap();
     assert_eq!((sheet.source, sheet.forge), (Source::Forge, Some(FORGEJO)));
-    assert_eq!(sheet.picks.as_slice(), &[Pick { id: 11, owner_id: 3, owner: b"acme".as_slice().into(), name: b"again".as_slice().into() }]);
+    assert_eq!(
+        sheet.picks.as_slice(),
+        &[Pick { id: 11, owner_id: 3, owner: b"acme".as_slice().into(), name: b"again".as_slice().into() }]
+    );
     assert_eq!(shown(sheet, PROJECT, &side.forges).get(0).unwrap().mark, Mark::None);
     act(&mut side, Act::Pick { id: 11, on: false });
     assert!(side.sheet().unwrap().picks.is_empty());
@@ -621,18 +658,23 @@ fn dismiss_uses_the_rows_project_and_waits_for_the_watch() {
     let w::Request::DismissMaking(request) = sent(&out) else { panic!("dismiss making") };
     assert_eq!((request.forge(), request.org(), request.name()), (FORGEJO, b"acme".as_slice(), b"again".as_slice()));
     assert_eq!(request.into_parts().into, Some(PROJECT));
-    let (key, scope) = out.iter().find_map(|request| match request {
-        Request::Send { request, ask: jig_client::Ask::Family { scope, .. }, .. } => Some((*request, *scope)),
-        _ => None,
-    }).unwrap();
+    let (key, scope) = out
+        .iter()
+        .find_map(|request| match request {
+            Request::Send { request, ask: jig_client::Ask::Family { scope, .. }, .. } => Some((*request, *scope)),
+            Request::Repositories { .. }
+            | Request::PlaygroundReset
+            | Request::PanelEnded { .. }
+            | Request::Show { .. }
+            | Request::ConnectForge { .. }
+            | Request::Leave { .. }
+            | Request::Client { .. }
+            | Request::Send { .. } => None,
+        })
+        .unwrap();
     assert_eq!(scope, jig_client::contract::Scope::Project(PROJECT));
     assert!(act(&mut side, dismiss).is_empty(), "one dismissal in flight per row");
-    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
-        family: wire::FORGE, version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::MakeKept }).unwrap()),
-    }));
-    let client = jig_client::Client::new(&fixtures::limits().client, fixtures::SEED).unwrap();
-    told(&mut side, &client, &jig_client::Told::Answered { key: jig_client::Key { asker: jig_client::Asker(1), number: key.raw() }, outcome }, env().limits, &mut Queue::uncapped());
+    dismissal_answer(&mut side, key, w::Outcome::MakeKept);
     assert!(making(&side, FORGEJO, b"acme", b"again").is_some(), "only the watch removes a row");
     assert_eq!(dismissal(&side, FORGEJO, b"acme", b"again").unwrap().pending, None);
     side.forges = State::Rows(Box::new([]));
@@ -645,11 +687,28 @@ fn a_dismissal_refusal_stays_with_its_row_after_leaving() {
     act(&mut side, Act::Dismiss { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() });
     let token = dismissal(&side, FORGEJO, b"acme", b"again").unwrap().pending.unwrap();
     let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: w::MakeRefusal::NotOwner }).unwrap();
+    dismissal_answer(&mut side, token, w::Outcome::MakeRefused(refused));
+    assert_eq!(
+        dismissal(&side, FORGEJO, b"acme", b"again").unwrap().words.as_deref(),
+        Some(b"Only the deployment's owner makes repositories.".as_slice())
+    );
+}
+
+fn dismissal_answer(side: &mut Side, token: Token, outcome: w::Outcome) {
     let outcome = jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
-        family: wire::FORGE, version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::MakeRefused(refused) }).unwrap()),
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
     }));
     let client = jig_client::Client::new(&fixtures::limits().client, fixtures::SEED).unwrap();
-    told(&mut side, &client, &jig_client::Told::Answered { key: jig_client::Key { asker: jig_client::Asker(1), number: token.raw() }, outcome }, env().limits, &mut Queue::uncapped());
-    assert_eq!(dismissal(&side, FORGEJO, b"acme", b"again").unwrap().words.as_deref(), Some(b"Only the deployment's owner makes repositories.".as_slice()));
+    told(
+        side,
+        &client,
+        &jig_client::Told::Answered {
+            key: jig_client::Key { asker: jig_client::Asker(1), number: token.raw() },
+            outcome,
+        },
+        env().limits,
+        &mut Queue::uncapped(),
+    );
 }

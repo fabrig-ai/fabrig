@@ -544,6 +544,7 @@ pub(crate) fn repositories(
     b.close();
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the section keeps adopted counts and making rows in one list")]
 fn repository_section(
     b: &mut Builder,
     root: &Domain,
@@ -593,7 +594,10 @@ fn repository_section(
     let mut has_makings = false;
     for row in &rows {
         for making in &row.makings {
-            has_makings |= making.into.as_ref().map(temper_client_protocol_wire::v1::MakeInto::project) == Some(project);
+            has_makings |= match &making.into {
+                Some(into) => into.project() == project,
+                None => false,
+            };
         }
     }
     if known && count == 0 && !has_makings {
@@ -642,7 +646,10 @@ fn repository_section(
         }
         for row in &rows {
             for making in &row.makings {
-                if making.into.as_ref().map(temper_client_protocol_wire::v1::MakeInto::project) == Some(project) {
+                if match &making.into {
+                    Some(into) => into.project() == project,
+                    None => false,
+                } {
                     making_row(b, root, w, forge, row, making);
                 }
             }
@@ -663,7 +670,9 @@ fn making_row(
     use temper_client_protocol_wire::v1 as wire;
     let failed = match &making.state {
         wire::MakingState::Failed(failed) => Some(failed),
-        wire::MakingState::Waiting | wire::MakingState::Making | wire::MakingState::Made(_)
+        wire::MakingState::Waiting
+        | wire::MakingState::Making
+        | wire::MakingState::Made(_)
         | wire::MakingState::Adopting(_) => None,
     };
     b.open(Role::Slot);
@@ -677,7 +686,13 @@ fn making_row(
         (wire::MakeFrom::Copy(_), true) => Word::CopyFailedOn,
         (wire::MakeFrom::Empty, true) => Word::MakeFailedOn,
     };
-    text(b, Role::Text, &crate::forge::words::say(w, word, &[Hole::Name(crate::forge::connect::name(w, row, root))]), look::SETTINGS_WHEN);
+    text(
+        b,
+        Role::Text,
+        &crate::forge::words::say(w, word, &[Hole::Name(crate::forge::connect::name(w, row, root))]),
+        look::SETTINGS_WHEN,
+    );
+    let dismissal = root.forge().making_dismissal(row.number, &making.org, &making.name);
     if let Some(failed) = failed {
         b.open(Role::Paragraph);
         crate::forge::words::text(w, b, Word::ForgeSaid, &[Hole::Name(forge::words::lossy(failed.words()))]);
@@ -692,14 +707,14 @@ fn making_row(
                 wire::MakeFrom::Empty => (Word::MakeAgain, Act::MakeAgain { forge, org, name }),
             }
         };
-        let dismissal = root.forge().making_dismissal(forge, &making.org, &making.name);
         let busy = match dismissal {
             Some(dismissal) => dismissal.pending.is_some(),
             None => false,
         };
-        for (word, act) in [(word, act), (Word::DismissMaking, Act::Dismiss {
-            forge, org: making.org.clone(), name: making.name.clone(),
-        })] {
+        for (word, act) in [
+            (word, act),
+            (Word::DismissMaking, Act::Dismiss { forge, org: making.org.clone(), name: making.name.clone() }),
+        ] {
             b.open(Role::Button);
             b.style(look::CONNECT_QUIET);
             b.name(&crate::forge::words::say(w, word, &[]));
@@ -710,11 +725,11 @@ fn making_row(
             b.close();
         }
         b.close();
-        if let Some(dismissal) = dismissal
-            && let Some(words) = &dismissal.words
-        {
-            crate::cards::text(b, Role::Alert, words);
-        }
+    }
+    if let Some(dismissal) = dismissal
+        && let Some(words) = &dismissal.words
+    {
+        crate::cards::text(b, Role::Alert, words);
     }
     b.close();
 }
