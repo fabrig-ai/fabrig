@@ -1,0 +1,6 @@
+draft = "temper-fuzzy-gate"
+repo = "fabrig"
+sources = ["temper/docs/plan/temper-fuzzy-gate/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
