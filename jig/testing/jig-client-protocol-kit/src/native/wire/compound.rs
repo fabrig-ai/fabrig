@@ -38,5 +38,5 @@ pub(super) fn receipt(attempt: Token, message: Option<(u64, u32)>, bytes: &[u8])
         return Vec::new();
     };
     let message = value.first_message().checked_add(u64::from(at)).expect("bounded message positions");
-    vec![Receipt::Answer { attempt, final_answer: true, words: Some((task, message)) }]
+    vec![Receipt::Answer { attempt, final_answer: true, unconfigured_model: false, words: Some((task, message)) }]
 }

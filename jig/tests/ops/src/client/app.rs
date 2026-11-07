@@ -356,6 +356,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
             vec![Receipt::Answer {
                 attempt: *attempt,
                 final_answer: *envelope == skein_lib::RequestEnvelope::Final,
+                unconfigured_model: false,
                 words,
             }]
         }
