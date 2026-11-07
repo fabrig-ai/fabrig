@@ -189,6 +189,8 @@ read by the application: client.document(handle), client.text(handle), client.pe
   - *`Start { kept }`:* the small store's records, as the host loaded
     them, before any other event (section 11);
   - *`SignIn { with }` and `SignOut`* (section 12);
+  - *`AskApproval`, `ReadApproval { code }` and `DecideApproval { code,
+    approve }`:* an approval's ask, read and decision (section 12);
   - *`Watch { handle, subject, window }` and `Unwatch { handle }`:* a
     subject of jig's (contract.md, 7.1), or a family's as bytes, and the
     window its document holds (section 8);
@@ -225,6 +227,8 @@ read by the application: client.document(handle), client.text(handle), client.pe
     handle behind or live again (8.1);
     *`Text { handle }`:* more of a run's text (8.3); *`Ended { handle,
     why }`:* the handle's one terminal, and why (8.1);
+  - *`Approval(answer)`:* an approval's ask, read or decision answered,
+    once each (section 12);
   - *`Page { handle, page }`:* a read's one terminal (section 7);
   - *`Pending { key }`:* the request's progress changed; *`Answered {
     key, outcome }`:* its one answer; *`Kept { key, request }`:* a
@@ -937,8 +941,9 @@ for any presentation of a chat or of any agent task's activity.
 ## 12. Signing in
 
 - **jig owns credentials, not sign-in flows** (contract.md, section 2).
-  Its own two ways of signing in are the printed link's one-time
-  secret, on loopback, and a service's credential. Every other way is
+  Its own three ways of signing in are the printed link's one-time
+  secret, on loopback, a service's credential, and a sign-in approved
+  by a signed-in browser (below). Every other way is
   the application's sign-in, on its own routes, ending in a `Mint` its
   server gives the clients' component (`../../protocol/client.md`,
   section 8).
@@ -967,6 +972,19 @@ for any presentation of a chat or of any agent task's activity.
     waits for no room, and is never answered full;
   - *`Service(credential)`:* a service's credential, sent the same way,
     and answered with a sign-in's credential, held the same way;
+  - *`Approval { secret }`:* an approval's take, its secret the one
+    `Asked` gave (below), sent with no credential. Answered signed in,
+    the client holds the credential the answer gives, as a link's. While
+    it is answered waiting, the client sends the same take again by
+    itself after a second, `APPROVAL_AGAIN`, and tells `not_signed_in`
+    `Approval(Waiting)`; not ready, busy and lost take the backoff a
+    link's sign-in takes. Any other answer ends it, installing nothing:
+    `not_signed_in` says `Approval` with why (refused, expired, used or
+    unknown), or full with the deployment's room, the earliest saved
+    expiry and the approval's own expiry in place of the link's. A next
+    `SignIn` or a `SignOut` ends it too. The client keeps the secret in
+    memory while it takes, never in the small store, and drops it at
+    the end;
   - *`Held(credential)`:* a credential the application obtained by its own
     sign-in, which the client holds as it is;
   - *`Transport`:* the transport carries a credential the client never
@@ -978,6 +996,25 @@ for any presentation of a chat or of any agent task's activity.
   (8.1); under `Transport` it is signed in from its `SignIn`. So a host
   may sign in after `Start { kept }`, its children watching from their
   start.
+- **An approval, asked and decided** (`../../protocol/client.md`,
+  section 8), each one exchange whose one answer the client tells the
+  application, `Approval`, and keeps nothing of:
+  - *`AskApproval`,* sent with no credential, by a client signed out:
+    `Asked { secret, code, expires }`, the secret the application's to
+    give back in `Approval { secret }` and never show, the code to
+    show; or `NotAsked`, refused, not ready, busy or lost;
+  - *`ReadApproval { code }` and `DecideApproval { code, approve }`,*
+    sent with the credential held, or none under `Transport`, by a
+    browser's client: `Read { code, state }`, the approval waiting
+    with when it was asked, approved, taken, refused, expired or
+    unknown; `Decided { code, decided }`, approved, refused, used,
+    expired or unknown; either not a browser, signed out, not ready,
+    busy or lost. Answered signed out, the client is signed out, as by
+    any exchange (below);
+  - *the code* is `ApprovalCode`, the wire's (`../../protocol/client.md`,
+    section 8): eight letters of its alphabet, read from what a person
+    types or an address carries, either case, hyphens and spaces
+    ignored, and shown as four letters, a hyphen and four.
 - **The credential is never in the small store.** It is the link's, and
   `client.link()` gives it: a host that keeps a sign-in across its own
   restart keeps the credential where its platform keeps secrets, and

@@ -807,7 +807,9 @@ tested in skein, and in a browser on skein's UI example (skein's
     attributes by the listener's address and by the public name, set at
     a browser's sign-in, cleared at its sign-out, and set by the
     application's function after a `Minted`; a GET of the link's route left to the page
-    with the referrer policy, spending nothing;
+    with the referrer policy, spending nothing; an exchange told to the
+    component as a browser's for a credential from the cookie alone, a
+    bearer's never, beside the header or not (`client.md`, 17.3);
   - the reference UI's codec: every place printed and parsed back, at
     the root, under a prefix, with other segment names; any bytes parsed
     to a place, never a panic.
@@ -954,8 +956,10 @@ tested in skein, and in a browser on skein's UI example (skein's
   into messages; the bound on an answer, from the client's limits.
 - **`jig-protocol-engine-clients-http`** owes: the example guards of
   12.2, with no switch, every POST's content type among them; the
-  cookie set at a browser's sign-in, with no
-  credential in the body, and cleared at its sign-out; a function that
+  cookie set at a browser's sign-in, an approval's take among them,
+  with no credential in the body, and cleared at its sign-out; each
+  exchange told to the component as a browser's when its credential
+  came by the cookie, and only then (`client.md`, 17.3); a function that
   sets the same cookie for a credential the application minted; a GET
   of the link's route left to the application's page, with the referrer
   policy; its answers with `no-store` and `nosniff`; no `OPTIONS` and
@@ -1049,6 +1053,7 @@ invariants, on which the client's "once" rests (the table's last row).
 | the required header, the content type and no CORS (12.2) | Cross-origin requests: a page of another origin can neither set the header nor send a body of the mapping's type (either would need a preflight the mapping never answers, and no form can send that type) nor, from another site, send the cookie (same-site strict), so it can neither act as the person nor sign them in by the link. Same-site is not same-origin: on one person's machine, a local server on another port of the same host is the same site, which same-site strict lets send the cookie, and only the header stops it. | its own transport, holding what they held |
 | the cookie's attributes (`client.md`, 17.3) | HTTP-only keeps the credential from every script, the module's too; same-site strict, from requests another site starts; the `Path`, from every request but the mapping's; `Secure`, from plaintext: set on an exchange that came by the public name, through a TLS proxy, and left off on one that came by the listener's own address, plaintext on loopback, since not every browser keeps a secure cookie set over plaintext, loopback included. | its own sign-in, which sets the same cookie through the mapping's function |
 | the referrer policy at the link's route (12.2) | The page opened at the link's route holds the sign-in's secret in its address until the sign-in part rewrites it; a policy sending a path to another origin would send the secret with a first request to an origin the page's policy names. | `strict-origin`, the origin alone |
+| an approval read and decided under the cookie alone (`client.md`, section 8 and 17.3) | A program holding a person's credential as a bearer, an agent driving the application's command line as that person among them, could otherwise approve a client of its own, which would then hold a sign-in of the person's. A browser's cookie no script and no program of the person's reaches through the mapping. | its own transport, telling the component a browser's exchange by the same rule |
 | the link's route safe to GET (section 11) | A GET is the one request any other site can make the person's browser send (a link, an image), with no header of its own and past every guard; one that signed in, or drew a fresh link on a refusal (`client.md`, section 8), would let any page the person visits spend the printed link or keep drawing new ones, until the link printed never works. | its own page at its own route, as safe |
 | the secret taken out of the address first (section 11) | Left in the address, the secret stays in the tab's history and in what the page shows or shares, after it is spent and before. Taken out first, it leaves the address bar and the tab's history; the browser's record of visited addresses keeps it, spent once signed in. | its own page at its own sign-in route |
 | the credential never kept (section 11) | A service's credential acts as the service; kept in a tab, it would outlive its dialog, in storage any script of the origin reads and in the session's restore. | the person copies it from the dialog, which the application's stylesheet may restyle |
