@@ -9,7 +9,9 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); seven of its artifact facts are unchecked at the
-pinned Forgejo (`forge.md`), as are a copy's facts, one of them not
+pinned Forgejo (`forge.md`); the App account's `GET /app` fact still has
+no live observation (`forge-github.md`, `forge-setup.md`). A copy's facts
+remain unchecked at the pinned Forgejo, one of them not
 recorded at all, and no fact records a site admin's read of a repository
 by its path (`forge-setup.md`), nor a comparison's `removed` (`forge.md`); the fake Forgejo leaves no repository
 at a refused copy, asks a delete the wrong scope and answers a read by

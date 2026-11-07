@@ -3919,6 +3919,14 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **The box owner's forge link** (5.2, 17.2;
+  `../draft/forge-identity.md`, sections 3, 4 and 9): connecting the
+  setup's identity answers to the owner's party needs the forge's
+  person field, the sole-owner check and the shared lookup. The mark's
+  storage alone grants no approval authority. Several members and a
+  pasted App's account need the further evidence deferred in that draft's
+  section 12.
+
 - **Repeated admission during fake-box preparation** (7.5): share a
   checked protocol document and typed deployment between preparation,
   step assembly and peer validation, preserving admission of every
