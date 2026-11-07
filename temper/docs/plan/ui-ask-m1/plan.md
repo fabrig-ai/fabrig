@@ -19,14 +19,15 @@ standing rules `notes/common.md`. The design each batch cites is pushed with it.
 | declare | `workspace` | declare | an asking charter's runs get no repository |
 | stock | `stock` | declare | charter 11, template 5, `ask.txt`; the rules' and policy 1's tools 3,975 and delegation to charter 11 |
 | stock | `bound` | stock, mechanics | the step test holding what temper gives charter 11's first request to 16,384 bytes on both shapes |
+| document | `document` | declare | `document` writes the chat's one note by section (write, append, replace), the root splicing it and writing through jig's note family; the client reads a `document` call as a `note` call |
 
 Further batches (being written by two designers): `see` (its M1 addresses, then the
-forge's and the proposal's), `document`, and `propose_settings`' asking mechanics.
+forge's and the proposal's) and `propose_settings`' asking mechanics.
 
 ## Critical path, as it stands
 
-`family` (45 min), `declare` (180), `stock` (150), `bound` (90): about 465
-implementer-minutes; `see`, `document` and `propose` follow `declare` beside `stock`.
+`family` (45 min), `declare` (180), `document` (240): about 465 implementer-minutes;
+`stock` (150) then `bound` (90) beside `document`; `see` and `propose` follow `declare`.
 
 ## Shared pieces, for the heads-ups
 
@@ -44,6 +45,10 @@ implementer-minutes; `see`, `document` and `propose` follow `declare` beside `st
   asking charter's runs no repository (`workspace`); `temper-engine-smith` declares
   `see`, `document` and `propose_settings`' asking form to asking charters alone, and
   every other charter's offer is unchanged (`declare`).
+- **`temper-engine-domain`'s root answers:** `CallAnswer::Document`, `FlightRender::Document`
+  and `Read::Document` (`document`); the client's chat page reads a `document` call
+  as a `note` call (`temper-client-domain/src/pages/chat.rs`,
+  `temper-client-view/src/pages/document.rs`).
 - **The stock:** charter 11 and template 5, and the rules' and policy 1's tools gain
   the asking bit (3,975) and charter 11's delegation (`stock`); a project made before
   keeps its own policy until its owner accepts a proposal.
