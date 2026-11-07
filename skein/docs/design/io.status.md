@@ -5,6 +5,11 @@
 Section 7 has no known gap in the requested hangup event or its distinct
 `ServiceSignal::Hangup` name.
 
+Section 6 has no known gap in `SpawnAlone` closing and reaping the child
+without killing its group, or `Way::Null` giving a child `/dev/null`
+descriptors without parent pipe entities. Process rows cover closure
+before and after exit and mixed null, given and pipe descriptors.
+
 - **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
   cgroups and contained trees.

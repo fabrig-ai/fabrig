@@ -7027,9 +7027,10 @@ was answered with. A box enables it beside the printed link
     from `temper open`, which opens no browser (6.5). The opener's
     stdin, stdout and stderr are none of the terminal's, so nothing it
     says reaches the screen; its environment is the TUI's. Its exit
-    ended, the run reports `Opened { opened }`, done on 0. Closing waits
-    for no opener: one still running is let go, never the browser it
-    started.
+    ended, the run reports `Opened { opened }`, done on 0. Closing
+    aborts and reaps the opener alone, without waiting for it to finish
+    by itself or signalling the browser's group (skein's `io.md`, section
+    6, `SpawnAlone`).
   - *The opener* is the binary's choice, at start: none on an SSH
     session (`SSH_CONNECTION` or `SSH_TTY` set) or, on Linux, with no
     display (neither `DISPLAY` nor `WAYLAND_DISPLAY` set); else the
@@ -7092,9 +7093,10 @@ was answered with. A box enables it beside the printed link
     (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
     7), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (3.5).
-  - *Never printed:* the secret and the credential are drawn, printed
-    or logged nowhere; the TUI's recordings redact them
-    (`tui/journeys.md`, section 5).
+  - *Never shown:* the secret and the credential are never drawn on
+    the screen or logged. A recording keeps them in the person's
+    private file; `add` redacts them before any recording or print is
+    written into the journeys (`tui/journeys.md`, 3.1 and section 5).
 
 ## 8. On the engine's side
 
@@ -7700,13 +7702,12 @@ own tests:
 
 ## 11. Open questions
 
-- **The TUI's later passes** (6.11 to 6.16, 7.1): the TUI's flow above
-  the paste, using the root's approval half and the web's page: opening
-  its locally constructed address, showing the code and address when no
-  browser opens, drawing each outcome and asking again (`../draft/tui.md`,
-  4.2). Recording at the host's seam follows (its section 5), then the
-  surfaces of its section 3. Default: the first pass alone, in
-  `../draft/tui.execution.md`'s order.
+- **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the first
+  screen, the launchpad, chats, the side pane, needs from
+  elsewhere, hand-offs and choosing a project from a checkout
+  (`../draft/tui.md`, section 3). Default: refine each on the recorded
+  frames before designing it; the first pass is sections 4 and 5 of
+  that draft.
 - **Approval between hosts and managing sign-ins** (7.1): a deployment
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
@@ -7714,9 +7715,12 @@ own tests:
   by a browser signed in by the printed link.
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
   printed link into the TUI in another terminal and read the first
-  screen (`../draft/tui.execution.md`, M1). Its frames' refinement
-  follows the recording; simulated closing and client-world stories
-  do not establish the real terminal's look or macOS runtime.
+  screen, then sign in through the browser's approval and check refusal
+  and asking again (`../draft/tui.execution.md`, M1 and M2). The user
+  takes `sign-in-approved`'s frames and refines the look on them
+  (`tui/journeys.md`, sections 9 and 10). Simulated closing, client-world
+  stories and a recorded pseudo-terminal establish no real terminal's
+  look or macOS runtime.
 - **The TUI's address kept at closing** (6.12): the binary writes it once
   the loop has ended, so a TUI killed outright keeps the address it
   read. Default: so; writing it at the sign-in would give the loop file

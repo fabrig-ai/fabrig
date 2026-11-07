@@ -40,3 +40,6 @@ Sections 4.1, 4.2 and 12 have the approval events and answers in linked
 and unlinked modes, `With::Approval`, the take retried each second while
 waiting, and its terminal signing outcomes. The secret stays in memory,
 with secret-safe diagnostics, and never enters the small store.
+Section 12's retrying approval take exposes not ready for a not-ready
+answer and busy for a busy or lost answer, distinguishing a retry from
+an unanswered take for the application's waiting line.

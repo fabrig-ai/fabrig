@@ -860,12 +860,17 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
-- **Not yet:** 6.13: the `Opened` report; 7.1: the TUI's flow: its ask each time its sign-in screen opens signed out, the tab's address made from its own parts (`approval_address`), its opener chosen by the binary and run with the address as its one argument, the opener's report, its lines and the address printed when no browser opens, a pasted link replacing the take, and asking again by Enter in the empty field (`tui-recorded`).
 
 Sections 3.5, 5.1 and 5.12 have the browser's approval page, its root
 state and actions, the asked time, signed-out card and approved read each
 second. Section 7.1's native half asks and starts the take, keeping only
 the code and expiry in the root. The domain and view tables, eleven
 gallery states and joint-client stories cover the page and an approving
-browser's party, with a non-browser refused. The TUI's flow remains
-unbuilt; the browser and terminal checks follow landing in section 11.
+browser's party, with a non-browser refused. Sections 6.13 and 7.1 have
+no known implementation gap in the TUI's ask, locally constructed
+address, single-argument opener with null descriptors, `Opened` report,
+fallback lines, pasted-link replacement or Enter to ask again. Golden
+frames and simulated opener rows cover the lines and closing; joined
+TUI stories cover approval by the browser's party, credential keeping,
+the first screen and refusal followed by another ask. Browser and real
+terminal checks remain section 11's after-landing work.
