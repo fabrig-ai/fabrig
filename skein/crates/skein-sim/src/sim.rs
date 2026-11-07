@@ -15,7 +15,7 @@ use alloc::vec::Vec;
 use core::fmt;
 use core::net::SocketAddr;
 
-use skein_io::kernel::{Addr, Complete, Done, Error, Family, Fd, Op, ServiceSignal, Submit};
+use skein_io::kernel::{Addr, Complete, Done, Error, Family, Fd, Op, ServiceSignal, Signalled, Size, Submit};
 use skein_lib::length::usize_of;
 use skein_lib::{Duration, Queue, Rng, Time, Token, Wall};
 
@@ -76,6 +76,7 @@ struct Process {
     inherited_pipes: BTreeMap<Fd, InheritedPipe>,
     pidfds: BTreeMap<Fd, u64>,
     signal_fds: BTreeMap<Fd, SignalSource>,
+    windows: BTreeMap<Fd, Size>,
     children: BTreeMap<u64, Child>,
     /// `Open`s the machine has yet to answer: each holds a descriptor's
     /// place against the limit.
@@ -93,7 +94,7 @@ struct Process {
 
 #[derive(Debug)]
 struct SignalSource {
-    pending: VecDeque<skein_io::kernel::Signalled>,
+    pending: VecDeque<Signalled>,
     read: Option<Token>,
 }
 
@@ -222,6 +223,7 @@ impl Sim {
             inherited_pipes: BTreeMap::new(),
             pidfds: BTreeMap::new(),
             signal_fds: BTreeMap::new(),
+            windows: BTreeMap::new(),
             children: BTreeMap::new(),
             opening: 0,
             spawning: 0,
@@ -313,6 +315,7 @@ impl Sim {
         process.opening = 0;
         process.spawning = 0;
         process.deferred.clear();
+        process.windows.clear();
         self.settle();
         held
     }
@@ -327,12 +330,37 @@ impl Sim {
         fd
     }
 
+    /// A window size for one of `pid`'s descriptors; `Op::Window` on it answers
+    /// `Done::Window(size)` (skein/docs/design/simulator.md, 3.2).
+    pub fn set_window(&mut self, pid: Pid, fd: Fd, size: Size) {
+        let process = self.process(pid);
+        if !process.fds.contains_key(&fd)
+            && !process.files.contains_key(&fd)
+            && !process.pipe_fds.contains_key(&fd)
+            && !process.inherited_pipes.get(&fd).is_some_and(|pipe| pipe.process_open)
+            && !process.pidfds.contains_key(&fd)
+            && !process.signal_fds.contains_key(&fd)
+        {
+            self.fail(pid, &format!("a window on {fd:?}, which is not open in this process"));
+        }
+        self.process_mut(pid).windows.insert(fd, size);
+    }
+
+    /// `Signalled::WindowChanged` on `pid`'s signal source `fd`, in order with
+    /// its other signals (skein/docs/design/simulator.md, 3.2).
+    pub fn deliver_window_changed(&mut self, pid: Pid, fd: Fd) {
+        self.deliver_signalled(pid, fd, Signalled::WindowChanged);
+    }
+
     /// Delivers a termination signal to the process's signalfd, in order.
     /// `from` names the sending simulated process; a bound child uses the
     /// identity returned by its Spawn completion. None has no known sender.
     pub fn deliver_service_signal(&mut self, pid: Pid, fd: Fd, signal: ServiceSignal, from: Option<Pid>) {
         let sender = from.map(|from| self.process(from).sender);
-        let signal = skein_io::kernel::Signalled::Termination { signal, sender };
+        self.deliver_signalled(pid, fd, Signalled::Termination { signal, sender });
+    }
+
+    fn deliver_signalled(&mut self, pid: Pid, fd: Fd, signal: Signalled) {
         let Some(source) = self.process_mut(pid).signal_fds.get_mut(&fd) else {
             self.fail(pid, "a service signal needs an open signalfd");
         };
@@ -573,7 +601,10 @@ impl Sim {
             On::Nothing => None,
         };
         match kind {
-            Op::Window { .. } => self.complete(pid, token, kind, Err(Error::Other(25))),
+            Op::Window { fd } => {
+                let result = self.process(pid).windows.get(&fd).copied().map(Done::Window).ok_or(Error::Other(25));
+                self.complete(pid, token, kind, result);
+            }
             Op::Usage => {
                 let usage = self.process(pid).usage;
                 self.complete(pid, token, kind, Ok(Done::Usage(usage)));
@@ -945,6 +976,7 @@ impl Sim {
     }
 
     fn close_socket(&mut self, pid: Pid, fd: Fd, id: SocketId) {
+        self.process_mut(pid).windows.remove(&fd);
         self.process_mut(pid).fds.remove(&fd);
         self.release_socket(id);
     }

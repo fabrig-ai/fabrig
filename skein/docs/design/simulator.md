@@ -159,6 +159,13 @@ the kernel's: each child's pidfd, its pipes, its exit and its group.
   interrupt or a termination to the group reaches every member: a modeled
   program dies of it, and a hosted service reads it as a termination
   signal on its signal source. `Kill` ends each.
+- **A terminal's window.** A world gives one of a process's descriptors
+  a window size (`Sim::set_window`), as a terminal's input has; a window
+  record on it (kernel.md, 6.3) answers that size, and on any other
+  descriptor `ENOTTY`, as a pipe answers. A window changed reaches the
+  process's signal source in order with its other signals
+  (`Sim::deliver_window_changed`), so a full-screen shell's resize runs on
+  the simulated machine (ui-screen.md, section 9).
 - **Stop and continue.** `Stop` holds a modeled program's work and exit
   until `Continue`; continuing a running member changes nothing. INT, TERM
   and `Kill` still end a stopped modeled program. Both in-loop worlds refuse

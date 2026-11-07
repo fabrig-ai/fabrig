@@ -65,6 +65,7 @@ mod printed;
 mod program_login;
 mod restart_fault;
 mod setup;
+mod tui;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
 use json::CONFIG_BYTES;
@@ -79,6 +80,7 @@ pub enum Command {
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
     AgentList { configuration: PathBuf },
+    Tui { address: Option<Box<[u8]>> },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
     Help { request: help::Request },
@@ -135,6 +137,13 @@ fn configure_row(
     let os =
         |args: &[Box<[u8]>]| args.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect::<Vec<_>>();
     match row.words {
+        [] => {
+            return match arguments {
+                [] => Ok(Command::Tui { address: None }),
+                [address] => Ok(Command::Tui { address: Some(address.clone()) }),
+                _ => Err(invalid()),
+            };
+        }
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
         ["ctl"] => return Ok(Command::Ctl { arguments: os(arguments) }),
         ["help"] => return help::request(arguments).map(|request| Command::Help { request }).ok_or_else(invalid),
@@ -277,6 +286,7 @@ pub fn run(command: Command) -> Result<u8, String> {
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
+        Command::Tui { address } => return Ok(tui::run(address, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {

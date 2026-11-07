@@ -11,8 +11,11 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 `domain/hosts.md`, `domain/root.md`, `protocol/README.md`,
 `protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). TLS
 between hosts and contained process trees for workers' agents are not
-built (the protocol documents), nor the store's retention, rehearsal and
-going back (`protocol/store.md`, `protocol/client.md`). An
+built (the protocol documents). The reference test service still aborts
+workers without first cancelling their runs; temper's service implements
+that ordering (`protocol/service.md`, section 10). The store's retention,
+rehearsal and going back are not built (`protocol/store.md`,
+`protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a

@@ -1,5 +1,7 @@
 //! Groups, retained exits, reaped resources and the kernel's process invariants.
-use skein_io::kernel::{Done, Exit, Fd, Op, Pipe, Resources, ServiceSignal, Signal, Spawn, Target, Usage, Way};
+use skein_io::kernel::{
+    Done, Error, Exit, Fd, Op, Pipe, Resources, ServiceSignal, Signal, Signalled, Size, Spawn, Target, Usage, Way,
+};
 use skein_lib::{Duration, Queue};
 use skein_sim::{Answer, Pid, Program, Reply};
 use skein_sim_tests::World;
@@ -198,6 +200,61 @@ fn a_hosted_service_in_the_group_hears_a_termination_signal() {
 #[test]
 fn a_hosted_service_hears_an_interrupt_without_exiting() {
     hosted_signal(Signal::Interrupt, ServiceSignal::Interrupt);
+}
+
+#[test]
+fn a_descriptor_answers_its_last_window_size() {
+    // Two terminal layouts exercise the last size given to a descriptor.
+    const INITIAL: Size = Size { rows: 24, columns: 80 };
+    const RESIZED: Size = Size { rows: 40, columns: 120 };
+    let mut world = World::calm();
+    let pid = world.spawn();
+    let descriptors = [
+        world.socket(pid),
+        world.root(pid, &[]),
+        world.sim.open_signal_source(pid),
+        world.sim.open_inherited_read(pid),
+    ];
+    for fd in descriptors {
+        for (size, expected) in [
+            (None, Err(Error::Other(25))),
+            (Some(INITIAL), Ok(Done::Window(INITIAL))),
+            (Some(RESIZED), Ok(Done::Window(RESIZED))),
+        ] {
+            if let Some(size) = size {
+                world.sim.set_window(pid, fd, size);
+            }
+            assert_eq!(world.call(pid, Op::Window { fd }).result, expected, "{fd:?}, {size:?}");
+        }
+        world.close(pid, fd);
+        assert_eq!(world.call(pid, Op::Window { fd }).result, Err(Error::Other(25)), "closed {fd:?}");
+    }
+    world.settled(pid);
+}
+
+#[test]
+fn window_changes_and_terminations_are_read_in_delivery_order() {
+    for waiting in [false, true] {
+        let mut world = World::calm();
+        let pid = world.spawn();
+        let fd = world.sim.open_signal_source(pid);
+        let read = waiting.then(|| world.submit(pid, Op::ReadSignal { fd }));
+        assert!(world.reap(pid).is_empty(), "an empty source parks its read");
+        world.sim.deliver_window_changed(pid, fd);
+        world.sim.deliver_service_signal(pid, fd, ServiceSignal::Terminate, None);
+        let first = match read {
+            Some(token) => world.reap_one(pid, token),
+            None => world.call(pid, Op::ReadSignal { fd }),
+        };
+        assert_eq!(first.result, Ok(Done::Signalled(Signalled::WindowChanged)), "waiting: {waiting}");
+        assert_eq!(
+            world.call(pid, Op::ReadSignal { fd }).result,
+            Ok(Done::Signalled(Signalled::Termination { signal: ServiceSignal::Terminate, sender: None })),
+            "waiting: {waiting}"
+        );
+        world.close(pid, fd);
+        world.settled(pid);
+    }
 }
 
 fn hosted_signal(signal: Signal, expected: ServiceSignal) {

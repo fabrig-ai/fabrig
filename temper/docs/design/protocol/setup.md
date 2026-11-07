@@ -1837,7 +1837,13 @@ temper box
   process group of its own; closing one kills its group. A descendant
   that starts another group or session is outside that kill. Nothing the
   box starts may outlive its stop, nor, on Linux, its death (7.1); each
-  spawning owner must end descendants outside its group too.
+  spawning owner must end descendants outside its group too. serve's
+  agent processes and their programs are serve's children, not the box's
+  steps: serve's first signal stops them, each agent ending its program,
+  before serve exits (README.md, section 8). A serve the box closes, or
+  one a second signal aborts, kills its agents' groups, and a program an
+  agent started outlives it until agents run in contained trees
+  (section 15).
 
 ### 7.3 What it names
 
@@ -3949,13 +3955,12 @@ Each is intended; what it needs is named with it.
   story checks another ownership link; it does not replace killing a
   box whose playground steps run (`../domain/testing.md`, 2.6 and 11).
 
-- **A box's surviving descendant** (7.2): use the owned-forge
-  Claude Code landing story's survivor rows and stop snapshot to identify
-  the spawning owner, then repair that lifetime at its lowest place
-  under a failing test. The next after-landing red supplies the evidence;
-  a runner job's forced shutdown alone does not identify the survivor.
-  A coding run's own child belongs to the run's sandbox lifetime. Keep
-  the live no-survivor assertion and the box's stop bounds unchanged.
+- **The owned-forge Claude Code lifetime proof** (7.2): after landing,
+  run the live landing story with its no-survivor assertion and the box's
+  stop bounds unchanged. For any survivor, use its rows and stop snapshot
+  to identify the spawning owner, then repair that lifetime at its lowest
+  place under a failing test. A coding run's own child belongs to the
+  run's sandbox lifetime.
 
 - **Four agents on a laptop** (8.1, 8.3): measure their combined resident
   memory, including any program an agent launches, after landing. The
@@ -4108,6 +4113,13 @@ Each is intended; what it needs is named with it.
   there fails until it has write" (`../client/README.md`, 4.7) does not
   say so. Reading each adopted repository's permission at a connect is
   what would close it.
+- **Agents in contained trees** (7.2; README.md, sections 8 and 14): a
+  serve the box closes, or one a second signal aborts, kills its agents'
+  groups, and a program an agent started, in a group of its own,
+  outlives it. Ending both needs skein's contained trees (skein's
+  `io.md`, 6.3 and 6.4), or a parent-death signal skein-io's spawn can
+  ask for. Default: serve's first signal stops its agents, which end
+  their programs (7.2).
 - **Reading a runner's row** (6.3): a preparation goes by
   `runner/config.yaml`, since Forgejo's command line cannot read the
   row. So a row a person removed stays gone until that file is removed

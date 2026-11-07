@@ -6,6 +6,7 @@
 //! return. Output storage is read only after the call reports success.
 //! Fcntl duplicates the live input descriptor; restoration consumes and
 //! closes that duplicate once. No call retains a pointer to Rust storage.
+//! Writes borrow a live byte slice only until the synchronous call returns.
 #![expect(unsafe_code, reason = "terminal calls borrow local storage only until return (shell.md, 7.5)")]
 
 use crate::terminal::{Input, Kept, Keys, Modes};
@@ -72,6 +73,23 @@ pub(crate) fn restore(fd: Fd, modes: &libc::termios) -> Result<(), Error> {
     // SAFETY: this is the duplicated descriptor consumed by Kept::restore.
     unsafe { libc::close(fd.raw()) };
     result
+}
+pub(crate) fn on_abort(fd: Fd, modes: &libc::termios, output: Fd, mut leave: &[u8]) {
+    while !leave.is_empty() {
+        // SAFETY: write reads only the live slice during this synchronous call.
+        let written = unsafe { libc::write(output.raw(), leave.as_ptr().cast(), leave.len()) };
+        if written < 0 {
+            if crate::system::last_errno() == libc::EINTR {
+                continue;
+            }
+            break;
+        }
+        if written == 0 {
+            break;
+        }
+        leave = leave.get(written.unsigned_abs()..).expect("the kernel wrote within its slice");
+    }
+    let _restore_result = set(fd, modes);
 }
 pub(crate) fn modes(fd: Fd) -> Result<Modes, Error> {
     let modes = read(fd)?;

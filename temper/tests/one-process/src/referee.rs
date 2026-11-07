@@ -39,6 +39,7 @@ pub(crate) struct Run {
     saved: BTreeSet<[u8; 16]>,
     pending_keys: BTreeSet<[u8; 16]>,
 }
+#[expect(clippy::struct_excessive_bools, reason = "sign-in, receipt and service-end observations are independent")]
 pub(crate) struct Referee {
     controls: skein_world::Controls,
     pub(crate) store: Rc<RefCell<Store>>,
@@ -64,6 +65,7 @@ pub(crate) struct Referee {
     released: bool,
     done: Option<()>,
     drained: Option<()>,
+    ended: bool,
     forge: Rc<RefCell<forge::Forge>>,
     story: crate::world::Story,
 }
@@ -161,6 +163,7 @@ impl Referee {
             released: false,
             done: None,
             drained: None,
+            ended: false,
             forge,
             story: scenario,
         }
@@ -473,6 +476,9 @@ impl skein_world::Referee<Proc> for Referee {
                 self.client_seen = person.wire.received.len();
             }
         }
+        // Serve's stop includes supervised agent cancellation. Only its recorded
+        // end leaves teardown waiting on IO alone (protocol/README.md, 8).
+        self.ended = service.service.end().is_some();
         if self.done.is_some() && self.drained.is_none() && service.is_empty() {
             Self::check_roots(&service.service);
             assert!(self.store.borrow().pending.is_empty(), "drain settles commits");
@@ -516,6 +522,7 @@ impl skein_world::Referee<Proc> for Referee {
     }
     fn passed(&self) -> bool {
         self.done.is_some()
+            && self.ended
             && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
                 || self.signed_in
                     && (self.released

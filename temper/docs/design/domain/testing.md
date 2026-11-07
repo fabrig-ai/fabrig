@@ -2389,6 +2389,11 @@ world of temper's on a scripted engine (../client/README.md, section 10).
   engine root alone.
 - **The agents' tools** run there too: their root, as a scripted agent
   beside the fake person (../client/tools.md, 11.2).
+- **The TUI's host** runs there too (../client/README.md, 6.13): its
+  shipped host with its root linked, as a native shell holds it, whose
+  exchanges and stream the world's front carries to the engine's
+  clients' component as the transport would, signed in by the printed
+  link the component makes; its stories read the host's frames as text.
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
   the first (jig's `protocol/channel.md`, 6.4), and the fake person
@@ -2822,6 +2827,23 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **Haiku's live landing proof** (2.7): use the after-landing Claude Code
+  owned-forge story on a fresh store to verify the by-name selection in
+  charters 1 and 2 and the real launch with
+  `--model claude-haiku-5-5 --effort low`, through landing and restart.
+  Keep the ChatGPT story on stock row 7, `gpt-6-luna`. A table of settings
+  changes establishes no real launch or model outcome; repair any live
+  red after landing.
+
+- **The plain-change live outcome** (2.7): run the existing owned-forge
+  landing story after landing to observe the real chat's choice with
+  `goal`'s declaration (`agent.md`, 4.3.2). Keep the requirement for the
+  chat's own successful `change`; a goal making a change does not satisfy
+  this story. The referee's executor and committed-call tables establish
+  its diagnostics, not a model's choice. If the live story still fails,
+  diagnose the named delegate and committed calls at that red, rather
+  than accepting the goal path.
 
 - **The box's approval story on GitHub** (6.4): extend the configuring
   and change-wait stories to a manifest-made personal App on the fake
