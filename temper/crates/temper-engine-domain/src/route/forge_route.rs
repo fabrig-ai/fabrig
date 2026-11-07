@@ -1705,6 +1705,13 @@ pub(crate) fn run_workspace(
         return Some(status_route::workspace(context.task));
     }
     let root = domain.core.tasks.root(context.task)?;
+    let modify = match context.executor {
+        tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
+            Some(charter) => charter.policy.modify,
+            None => false,
+        },
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
+    };
     let parent = match context.requester {
         tasks::Party::Task(task) => Some(task),
         tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
@@ -1778,6 +1785,9 @@ pub(crate) fn run_workspace(
         let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
         let saved_branch = if saved { Some(save.clone()) } else { None };
         let mut item = domain.forge.workspace_item(forge::items::Seed {
+            modify: modify
+                && may_push(domain, env, context, repository, &run_branch)
+                && !unheld_run_branch(domain, &env.limits, context.task, repository)?,
             task: context.task,
             parent,
             repository: repository.provider,
@@ -1891,6 +1901,7 @@ pub(crate) fn workspace_repository(
         forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
     };
     Some(ForgeRepository {
+        delivers: item.delivers && push.is_some(),
         save: if push.is_some() { Some(save) } else { None },
         tag: forge::tag(item.provider.forge, item.provider.repository),
         provider: item.provider,
@@ -2372,7 +2383,11 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
-                    state: forge_change::State::Producing { requested: false },
+                    state: if requester_branch {
+                        forge_change::State::Opening { requested: false }
+                    } else {
+                        forge_change::State::Producing { requested: false }
+                    },
                     gates,
                     clean: Box::new([]),
                     gate_failures: Box::new([]),
@@ -3038,47 +3053,55 @@ fn change_branch(
     change: &crate::ChangeCall,
     earlier: &[super::Delegate],
 ) -> Result<Option<Box<[u8]>>, ChangeRefused> {
-    let Some(crate::ChangeBranch::Mine) = change.branch else { return Ok(None) };
-    if change.landing == Some(crate::ChangeLanding::Goal) {
+    let (letters, choice) = match change.branch {
+        None => return Ok(None),
+        Some(crate::ChangeBranch::Mine) => (b"g".as_slice(), b"mine".as_slice()),
+        Some(crate::ChangeBranch::Run) => (b"gr".as_slice(), b"run".as_slice()),
+    };
+    if change.branch == Some(crate::ChangeBranch::Mine) && change.landing == Some(crate::ChangeLanding::Goal) {
         return Err(ChangeRefused::Words(Box::from(
             b"branch mine with landing goal: a branch cannot land into itself.".as_slice(),
         )));
     }
     let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
-    let branch = tree_branch(repository, root, b'g', task, None, env.limits.forge.name_bytes)
-        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
-    let name = forge::Name {
-        forge: repository.provider.forge,
-        repository: repository.provider.repository,
-        what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
-    };
-    let held = match domain.forge.hold(&name) {
-        Some(hold) => hold.task == task,
-        None => false,
-    };
-    if !held {
-        let prefix = b"branch mine: this task holds no goal branch in ";
-        let repository = repository_name(repository);
-        let count = u32::try_from(
-            prefix
-                .len()
-                .checked_add(repository.len())
-                .expect("bounded repository name")
-                .checked_add(1)
-                .expect("branch refusal's period"),
-        )
-        .expect("bounded branch refusal");
-        let mut words = List::with_capacity(count);
-        append(&mut words, prefix);
-        append(&mut words, &repository);
-        append(&mut words, b".");
-        return Err(ChangeRefused::Words(words.into_boxed()));
+    let mut branch = None;
+    for letter in letters {
+        let candidate = tree_branch(repository, root, *letter, task, None, env.limits.forge.name_bytes)
+            .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+        let name = forge::Name {
+            forge: repository.provider.forge,
+            repository: repository.provider.repository,
+            what: branch_what(&candidate, env.limits.forge.name_bytes)
+                .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
+        };
+        let held = match domain.forge.hold(&name) {
+            Some(hold) => hold.task == task,
+            None => false,
+        };
+        if !held {
+            let repository = repository_name(repository);
+            // The fixed refusal and choice fit eighty bytes, beside the repository name.
+            let count = u32::try_from(repository.len()).expect("bounded repository name").saturating_add(80);
+            let mut words = List::with_capacity(count);
+            append(&mut words, b"branch ");
+            append(&mut words, choice);
+            append(&mut words, b": this task holds no ");
+            append(&mut words, if *letter == b'g' { b"goal" } else { b"run" });
+            append(&mut words, b" branch in ");
+            append(&mut words, &repository);
+            append(&mut words, b".");
+            return Err(ChangeRefused::Words(words.into_boxed()));
+        }
+        branch = Some(candidate);
     }
+    let branch = branch.expect("each branch choice checks at least one holding");
     for number in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
         let row = domain.forge.change(number).expect("listed change");
         if row.branch == branch && domain.core.tasks.task(number).is_some() {
             let mut words = List::with_capacity(70); // Fixed words plus a u64 task number's twenty digits.
-            append(&mut words, b"branch mine: change task ");
+            append(&mut words, b"branch ");
+            append(&mut words, choice);
+            append(&mut words, b": change task ");
             append(&mut words, &decimal(number));
             append(&mut words, b" is on it already.");
             return Err(ChangeRefused::Words(words.into_boxed()));
@@ -3091,9 +3114,11 @@ fn change_branch(
             resource: forge::tag(repository.provider.forge, repository.provider.repository),
         }) && prior.spec.parameters.contains(&tasks::Parameter::Bytes { name: 3, value: branch.clone() })
         {
-            return Err(ChangeRefused::Words(Box::from(
-                b"branch mine: an earlier change of this call is on it.".as_slice(),
-            )));
+            let mut words = List::with_capacity(64); // Fixed refusal and either branch choice.
+            append(&mut words, b"branch ");
+            append(&mut words, choice);
+            append(&mut words, b": an earlier change of this call is on it.");
+            return Err(ChangeRefused::Words(words.into_boxed()));
         }
     }
     Ok(Some(branch))

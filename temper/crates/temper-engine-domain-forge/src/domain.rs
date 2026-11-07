@@ -3916,15 +3916,18 @@ fn change_facts(
         Some(pull) => pull.base != row.base,
         None => false,
     };
+    let requester_writing = change_requester_writing(d, row);
     let (writer_taken, requester_branch) = match change_branch_hold(d, row) {
-        Some((holder, taken)) => (taken, holder != row.task),
+        Some((holder, taken)) => (taken && !requester_writing, holder != row.task),
         None => (false, false),
     };
     // A fresh procedure read can precede the keep's drift read. Only a head
-    // confirmed by the branch's writer is a requester's new head.
-    // A read of the change's previous head can still precede that confirmation.
+    // confirmed by the branch's writer is a requester's new head, except while
+    // its requester's own run writes it. A read of the change's previous head
+    // can still precede that confirmation.
     let mut branch_moved = false;
     if requester_branch
+        && !requester_writing
         && !writer_taken
         && pending.branch.is_some()
         && pending.branch != row.change.last_head
@@ -5854,6 +5857,19 @@ fn change_on_held_branch(row: &ChangeRow, name: &Name, holder: u64) -> bool {
         && row.repository.repository == name.repository
         && crate::items::branch_matches(name, &row.branch)
         && row.change.state != change::State::Ended
+}
+
+// The requester goes on beside its change; every other writer still stops it (forge.md, 8.5).
+fn change_requester_writing(d: &Domain, row: &ChangeRow) -> bool {
+    for (name, hold) in &d.holds {
+        if change_on_held_branch(row, name, hold.task) {
+            return match hold.writer {
+                Some(Writer::Run { task, .. }) => task == hold.task,
+                Some(Writer::Lost { .. } | Writer::Entry(_)) | None => false,
+            };
+        }
+    }
+    false
 }
 
 fn held_branch_updating_entry(d: &Domain, name: &Name, holder: u64) -> bool {

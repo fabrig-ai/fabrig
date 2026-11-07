@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-06. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, `ConnectModel`, `Accounts`: one set of cards, "✓ Connected", the moved default, the panels, *Ready's place* and an opened row's words (look-round-13's `model-cards`, `model-end`).
 - **Not yet:** 4.4: the sheet "Add repositories": its sources, its picker, "Not listed", "More", its plural sends (look-round-13's `sheet-state`, `sheet-view`, `sheet-copies`); Home's and a project with no repository's ways into it stay as they are, as the request leaves them unmocked.
@@ -256,13 +256,9 @@
   Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
-- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
-  reason's lines and none of its items: jig's document heads leave out every
-  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
-  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
-  and the card has no "Drafts: on". The person accepts on the agent's words. The
-  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
-  document.
+- **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
   proposal, so a live card always takes the place of one no call names, and its call stays a line of
   its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s

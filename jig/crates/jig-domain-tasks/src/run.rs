@@ -419,7 +419,13 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         return refused(to, Some(number), Refusal::Unknown, out);
     };
     if old.last_answer == Some(attempt) {
-        return out.push(Request::Acknowledged { reply_to: to, task: number, attempt, accepted: Accepted::Already });
+        return out.push(Request::Acknowledged {
+            reply_to: to,
+            task: number,
+            attempt,
+            accepted: Accepted::Already,
+            parked: false,
+        });
     }
     if run_attempt(&old.phase) != Some(attempt) {
         return refused(to, Some(number), Refusal::Attempt, out);
@@ -495,7 +501,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         return out
             .push(Request::Refused { reply_to: to, problem: crate::Problem::live_delegates(number, &old.delegates) });
     }
-    let end_kind = if narrowed || closing.is_some() {
+    let end_kind = if (narrowed && !old.llm_changed) || closing.is_some() {
         crate::EndKind::Cancelled
     } else {
         match &end {
@@ -507,6 +513,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }
     };
+    let terminal_parks = end == End::Parked;
     let next = if let Some(mut closing) = closing {
         closing.stage = Stage::Delegates;
         match &mut closing.ending {
@@ -566,6 +573,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     task.record.run_reserved = 0;
     task.record.last_answer = Some(attempt);
     task.record.narrowing = false;
+    task.record.llm_changed = false;
     let spent = task.record.run_spent;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunEnded { attempt, end: end_kind, spent }, out);
     if parked && !kept.owes {
@@ -618,7 +626,13 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     {
         crate::domain::activate(domain, number, out);
     }
-    out.push(Request::Acknowledged { reply_to: to, task: number, attempt, accepted: Accepted::New });
+    out.push(Request::Acknowledged {
+        reply_to: to,
+        task: number,
+        attempt,
+        accepted: Accepted::New,
+        parked: terminal_parks,
+    });
 }
 
 pub(crate) fn was(phase: Phase) -> Was {
