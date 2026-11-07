@@ -1,5 +1,9 @@
 //! A chat's terminal frame (temper/docs/design/client/README.md, 3.5).
-#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees and bindings")]
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary tests inspect semantic trees and bindings"
+)]
 use super::{
     document::{ProposalState, document_root},
     fixtures as f,
@@ -115,6 +119,7 @@ fn state_root(state: u8) -> d::Domain {
         }
         3 => super::chat::pause_chip(&mut task.chip),
         4 => {
+            task.acts.clear();
             task.chip.phase = c::Phase::Ended;
             task.chip.details.phase = c::ChipPhase::Ended;
         }
@@ -165,8 +170,8 @@ fn the_terminal_says_where_it_is_and_what_runs() {
             assert_eq!(run.name, status);
             assert_eq!(run.role, Role::Status);
         }
-        assert_eq!(styled(tree, look::SESSION_COMPOSER), !ended);
-        assert_eq!(styled(tree, look::TERMINAL_LINE), !ended);
+        assert!(styled(tree, look::SESSION_COMPOSER));
+        assert!(styled(tree, look::TERMINAL_LINE));
         if !ended {
             let hint = if paused { "paused · a message resumes it" } else { "/ for commands" };
             assert!(f::find(tree, Role::Paragraph, hint.as_bytes()).is_some(), "state {state}");
@@ -209,4 +214,317 @@ fn the_terminal_says_where_it_is_and_what_runs() {
             }
         }
     }
+}
+
+fn command_root(state: u8) -> d::Domain {
+    let source = state_root(state);
+    let mut me = source.pages().me(source.client()).unwrap().clone();
+    let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
+    model.efforts = skein_lib::List::from_boxed(Box::new([
+        c::Text::new(b"high".as_slice().into(), 32).unwrap(),
+        c::Text::new(b"low".as_slice().into(), 32).unwrap(),
+    ]));
+    model.effort = Some(model.efforts.get(0).unwrap().clone());
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.llm = Some(c::LlmChoice {
+        account: Some(1),
+        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
+        subagents: skein_lib::List::with_capacity(0),
+    });
+    if state != 4 {
+        let mut acts = skein_lib::List::with_capacity(4);
+        for act in task.acts.as_slice() {
+            acts.push(act.clone()).unwrap();
+        }
+        acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None }).unwrap();
+        task.acts = acts;
+    }
+    let (mut root, me_watch, task_watch) = f::root_at(Address::Chat { task: f::chat::TASK }, &f::domain_limits());
+    f::deliver_me(&mut root, me_watch, me);
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: task_watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
+    root
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "the offered commands, choice lists and notes are rows of one view table")]
+fn the_commands_list_what_the_page_offers() {
+    use terminal::{Act as T, Command as C};
+    for (state, words, expected) in [
+        (0, "/", "/model /effort /draft /pause /close /new /chats /theme /font /help /exit"),
+        (3, "/", "/model /effort /draft /close /new /chats /theme /font /help /exit"),
+        (4, "/", "/new /chats /theme /font /help /exit"),
+        (0, "/mo", "/model"),
+        (0, "/model\u{2003}now", ""),
+        (0, "/nope", ""),
+        (0, "/model now", ""),
+        (0, "hello", ""),
+    ] {
+        let mut root = command_root(state);
+        act(&mut root, Act::Terminal(T::Enter));
+        act(&mut root, Act::MessageWords { words: words.as_bytes().into() });
+        let mut view = view(&root, Shell::Browser);
+        let menu = f::find(view.tree(), Role::Menu, b"Commands");
+        assert_eq!(menu.is_some(), !expected.is_empty(), "{state} {words}");
+        let items: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::MenuItem).cloned().collect();
+        let names: Vec<_> = items.iter().map(|n| core::str::from_utf8(n.name.as_ref().unwrap()).unwrap()).collect();
+        assert_eq!(names, expected.split_whitespace().collect::<Vec<_>>(), "{state} {words}");
+        if let Some(menu) = menu {
+            assert!(view.tree().find(menu).unwrap().states.as_slice().contains(&State::Options));
+        }
+        for item in items {
+            let command = C::named(item.name.as_ref().unwrap()).unwrap();
+            assert_eq!(
+                item.description.as_deref(),
+                Some(match command {
+                    C::Model => b"Change the model, from the next turn".as_slice(),
+                    C::Effort => b"Change the effort",
+                    C::Draft => b"Show or hide the draft",
+                    C::Pause => b"Pause this chat; a message resumes it",
+                    C::Close => b"Close this chat; it stays in Chats",
+                    C::StartOver => b"Start a new configuring chat",
+                    C::Goal => b"Start a goal from the draft",
+                    C::New => b"Start a new chat",
+                    C::Chats => b"Open another chat",
+                    C::Theme => b"Dark or light",
+                    C::Font => b"DejaVu Sans Mono or IBM Plex Mono, to compare",
+                    C::Help => b"Commands and keys",
+                    C::Exit => b"Leave the terminal",
+                })
+            );
+            assert_eq!(
+                crate::act(&mut view, item.id, skein_ui::Act::Press),
+                Some(Action::Pages(Act::Terminal(T::Run { command })))
+            );
+        }
+        let escape = f::find(view.tree(), Role::Button, b"Close the list");
+        assert_eq!(escape.is_some(), menu.is_some());
+        if let Some(id) = escape {
+            assert_eq!(view.tree().find(id).unwrap().shortcut, Some(skein_ui::Shortcut::ESCAPE));
+            assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(Action::Pages(Act::Terminal(T::Dismiss))));
+        }
+        if state == 4 {
+            assert!(
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .any(|n| n.role == Role::TextArea && n.placeholder.as_deref() == Some(b"/new starts another chat"))
+            );
+        }
+    }
+    for (state, expected) in [
+        (ProposalState::Ordinary, "/draft /close /new /chats /theme /font /help /exit"),
+        (ProposalState::NotProposed, "/draft /close /start-over /new /chats /theme /font /help /exit"),
+    ] {
+        let mut root = document_root(Some(b"# Draft\nBody"), Mode::Chat, &[], state);
+        act(&mut root, Act::Terminal(T::Enter));
+        act(&mut root, Act::MessageWords { words: b"/".as_slice().into() });
+        let v = view(&root, Shell::Browser);
+        let names: Vec<_> = v
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::MenuItem)
+            .map(|n| core::str::from_utf8(n.name.as_ref().unwrap()).unwrap())
+            .collect();
+        assert_eq!(names, expected.split_whitespace().collect::<Vec<_>>());
+    }
+    for (command, head) in [
+        (C::Model, "Model. A change applies from the next turn."),
+        (C::Effort, "Effort. A change applies from the next turn."),
+        (C::Chats, "Chats"),
+        (C::Close, "Close this chat? It stays in Chats."),
+        (C::StartOver, "Start over? A new configuring chat starts. This one stays in Chats."),
+    ] {
+        let mut root = if command == C::StartOver {
+            document_root(Some(b"# Draft\nBody"), Mode::Chat, &[], ProposalState::NotProposed)
+        } else {
+            command_root(0)
+        };
+        act(&mut root, Act::Terminal(T::Enter));
+        act(&mut root, Act::Terminal(T::Run { command }));
+        let mut view = view(&root, Shell::Browser);
+        let tree = view.tree();
+        let menu = f::find(tree, Role::Menu, head.as_bytes()).unwrap();
+        assert!(tree.find(menu).unwrap().states.as_slice().contains(&State::Options));
+        assert_eq!(tree.find(menu).unwrap().styles.as_slice().contains(&look::TERMINAL_CHOICES), command != C::Chats);
+        assert!(
+            tree.nodes()
+                .iter()
+                .any(|n| n.styles.as_slice().contains(&look::TERMINAL_HEAD)
+                    && n.name.as_deref() == Some(head.as_bytes()))
+        );
+        assert!(f::find(tree, Role::Button, b"Close the list").is_some());
+        assert!(!tree.nodes().iter().any(|n| n.role == Role::Dialog));
+        let selected = tree
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::MenuItem && n.states.as_slice().contains(&State::Selected))
+            .count();
+        if command == C::Model || command == C::Effort {
+            assert_eq!(selected, 1, "{command:?}");
+        }
+        if command == C::Model || command == C::Effort {
+            let (name, expected) = if command == C::Model {
+                (b"chosen".as_slice(), d::pages::choice::Act::Model { index: 0, account: None })
+            } else {
+                (b"high".as_slice(), d::pages::choice::Act::Effort { index: 0 })
+            };
+            let id = f::find(view.tree(), Role::MenuItem, name).unwrap();
+            assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(Action::Pages(Act::Choice(expected))));
+        }
+        if command == C::Close || command == C::StartOver {
+            let restarting = command == C::StartOver;
+            for (name, expected) in [
+                (if restarting { b"Start over".as_slice() } else { b"Close".as_slice() }, Act::Confirm),
+                (if restarting { b"Keep this one".as_slice() } else { b"Keep it open".as_slice() }, Act::Cancel),
+            ] {
+                let id = f::find(view.tree(), Role::MenuItem, name).unwrap();
+                assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(Action::Pages(expected)));
+            }
+            act(&mut root, Act::Confirm);
+            assert!(root.pages().confirmation().unwrap().sent.is_some());
+            let waiting = self::view(&root, Shell::Browser);
+            assert!(!waiting.tree().nodes().iter().any(|n| n.states.as_slice().contains(&State::Options)));
+            assert!(!waiting.tree().nodes().iter().any(|n| n.role == Role::Dialog));
+            assert!(f::find(waiting.tree(), Role::Button, b"Close the list").is_none());
+        }
+    }
+    let mut root = command_root(0);
+    act(&mut root, Act::Terminal(T::Enter));
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: f::domain_limits() },
+        Event::Act { action: Action::Pages(Act::Terminal(T::Run { command: C::Chats })) },
+        &mut out,
+    );
+    let mut watch = None;
+    while let Some(r) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch: token,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
+                },
+        } = r
+            && query.tracked.is_none()
+            && query.requester.is_some()
+        {
+            watch = Some(token);
+        }
+    }
+    let mut rows = skein_lib::List::with_capacity(4);
+    for (task, activity) in [(3, 1), (f::chat::TASK, 9), (2, 5), (4, 2)] {
+        let mut row = super::chats::line();
+        row.chip.task = task;
+        row.last_activity = skein_lib::Wall::from_nanos(activity);
+        rows.push(row).unwrap();
+    }
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.expect("chats read asked"),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
+                },
+            },
+        },
+    );
+    assert_eq!(root.pages().listing(), Some(terminal::Listing::Chats));
+    assert_eq!(root.pages().chats().unwrap().live(root.client()).unwrap().rows.len(), 4);
+    let mut v = view(&root, Shell::Browser);
+    let items: Vec<_> = v.tree().nodes().iter().filter(|n| n.role == Role::MenuItem).cloned().collect();
+    assert_eq!(items.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), [b"T2".as_slice(), b"T4", b"T3"]);
+    for (item, task) in items.iter().zip([2, 4, 3]) {
+        assert_eq!(item.description.as_deref(), Some(b"Hello".as_slice()));
+        assert_eq!(
+            crate::act(&mut v, item.id, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Go { address: Address::Chat { task } }))
+        );
+    }
+    for address in [
+        Address::Chat { task: f::chat::TASK },
+        Address::NewChat { draft: false },
+        Address::Configure { project: f::PROJECT },
+    ] {
+        let (mut root, task_watch) =
+            super::choice::provider_byline_root(address.clone(), [c::Readiness::Unavailable; 2], [false; 2], false);
+        if let Some(watch) = task_watch {
+            let source = command_root(0);
+            let task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+            f::root_event(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched {
+                            watch,
+                            event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                        },
+                    },
+                },
+            );
+        }
+        act(&mut root, Act::Terminal(T::Enter));
+        let writing = if let Address::Chat { .. } = address {
+            Act::MessageWords { words: b"/nope".as_slice().into() }
+        } else {
+            Act::ChatWords { words: b"/nope".as_slice().into() }
+        };
+        act(&mut root, writing);
+        let mut v = view(&root, Shell::Browser);
+        let field = v
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::TextArea)
+            .unwrap_or_else(|| panic!("{address:?}: command box"));
+        assert!(field.states.as_slice().contains(&State::SubmitsOnEnter));
+        if address != (Address::Chat { task: f::chat::TASK }) {
+            assert_eq!(field.focus, Some(d::pages::shown(root.pages())));
+        }
+        let id = field.id;
+        let expected = if let Address::Chat { .. } = address { Act::Send } else { Act::StartChat };
+        assert_eq!(crate::act(&mut v, id, skein_ui::Act::Submit), Some(Action::Pages(expected)));
+    }
+    let mut root = command_root(0);
+    act(&mut root, Act::Terminal(T::Enter));
+    let mut quiet = view(&root, Shell::Browser);
+    assert!(f::find(quiet.tree(), Role::Disclosure, b"Model").is_none());
+    let id = f::find(quiet.tree(), Role::Button, "chosen · high".as_bytes()).unwrap();
+    assert_eq!(
+        crate::act(&mut quiet, id, skein_ui::Act::Press),
+        Some(Action::Pages(Act::Terminal(T::Run { command: C::Model })))
+    );
+    let mut root = command_root(0);
+    act(&mut root, Act::Terminal(T::Enter));
+    act(&mut root, Act::Terminal(T::Run { command: C::Help }));
+    let v = view(&root, Shell::Browser);
+    let help = v
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Code && n.styles.as_slice().contains(&look::TERMINAL_NOTE))
+        .unwrap();
+    let (log_at, log) = v.tree().nodes().iter().enumerate().find(|(_, n)| n.role == Role::Log).unwrap();
+    let note_at = v.tree().nodes().iter().position(|n| n.id == help.id).unwrap();
+    assert!(
+        note_at > log_at && note_at < log_at.checked_add(usize::try_from(log.size).unwrap()).unwrap(),
+        "notes scroll after the conversation inside its log"
+    );
+    let text = core::str::from_utf8(help.name.as_ref().unwrap()).unwrap();
+    assert!(text.starts_with("/model       Change the model, from the next turn\n/effort      Change the effort"));
+    assert!(text.ends_with("\n\nEnter sends\nShift+Enter makes a new line\nCtrl+\\ shows or hides the draft\nPgUp and PgDn read back\nEsc closes a list"));
 }

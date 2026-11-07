@@ -142,6 +142,9 @@ pub(crate) fn main(
     own_way(b, w, bindings, name, pending);
     b.close();
     b.close();
+    if terminal {
+        super::terminal::notes(b, root, w);
+    }
     b.close();
     composer(b, root, w, bindings, pending, text_limit);
     b.close();
@@ -311,9 +314,9 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     b.placeholder(&name);
     b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
     if root.pages().switcher().renaming().is_none() {
-        b.focus(0);
+        b.focus(if terminal { temper_client_domain::pages::shown(root.pages()) } else { 0 });
     }
-    if pending {
+    if pending && (!terminal || !super::terminal::commands::typing(root)) {
         bindings.block_submissions();
     } else {
         b.state(State::SubmitsOnEnter);

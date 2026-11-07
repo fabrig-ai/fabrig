@@ -1280,6 +1280,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-terminal-head",
         b"temper-terminal-note",
         b"temper-to-terminal",
+        b"temper-terminal-dismiss",
+        b"temper-terminal-choices",
     ],
     regions: &[b"temper-link"],
 };
@@ -1633,6 +1635,8 @@ pub const TERMINAL_HINT: Style = Style { owner: owner(), token: 594 };
 pub const TERMINAL_HEAD: Style = Style { owner: owner(), token: 595 };
 pub const TERMINAL_NOTE: Style = Style { owner: owner(), token: 596 };
 pub const TO_TERMINAL: Style = Style { owner: owner(), token: 597 };
+pub const TERMINAL_DISMISS: Style = Style { owner: owner(), token: 598 };
+pub const TERMINAL_CHOICES: Style = Style { owner: owner(), token: 599 };
 
 #[cfg(test)]
 mod tests {

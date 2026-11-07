@@ -131,29 +131,48 @@ pub(crate) fn main(
         b.open(Role::Slot);
         b.style(look::THREAD);
         let person = speakers(task, root.pages().me(root.client()));
-        conversation_with_times(
-            b,
-            &chat.thread,
-            words,
-            (rows, text_limit),
-            person,
-            (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
-            bindings,
-        );
+        if terminal {
+            open_log(b, &chat.thread, words, bindings);
+            conversation_lines(
+                b,
+                &chat.thread,
+                words,
+                (rows, text_limit),
+                person,
+                (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
+                bindings,
+            );
+            super::terminal::notes(b, root, words);
+            b.close();
+        } else {
+            conversation_with_times(
+                b,
+                &chat.thread,
+                words,
+                (rows, text_limit),
+                person,
+                (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
+                bindings,
+            );
+        }
         latest(b, &chat.thread, words, bindings);
         b.close();
-        if task.result.is_none() && !super::chats::ended(&task.chip) {
+        if task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && (!terminal || !super::terminal::commands::typing(root))
+        {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
         if terminal {
-            super::terminal::notes(b, root, words);
             super::terminal::chat_running(b, root, words);
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
         super::document::pane(b, root, chat, task, words, times);
     }
-    crate::confirm::main(b, root, words, bindings, rows);
+    if !terminal || !super::terminal::commands::confirms(root) {
+        crate::confirm::main(b, root, words, bindings, rows);
+    }
     b.close();
 }
 /// A chat's heading is at most this many characters, its ellipsis included.
@@ -393,10 +412,12 @@ fn session_composer(
     words: &Words,
     bindings: &mut Bindings,
 ) {
-    if task.result.is_some() || super::chats::ended(&task.chip) {
+    let terminal = super::terminal::shown(root, words);
+    let ended = task.result.is_some() || super::chats::ended(&task.chip);
+    if ended && !terminal {
         return;
     }
-    if !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
+    if !terminal && !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
         b.open(Role::Slot);
         b.style(look::FOOT_ROW);
         crate::choice::picker(b, root, Some(task), words, bindings);
@@ -414,17 +435,22 @@ fn session_composer(
     }
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
-    let placeholder = match chat.change_asked {
-        Some(_) => words.say(Word::SettingsProposalChangeAsks, &[]),
-        None => words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]),
+    let placeholder = if terminal && ended {
+        Box::from(b"/new starts another chat".as_slice())
+    } else {
+        match chat.change_asked {
+            Some(_) => words.say(Word::SettingsProposalChangeAsks, &[]),
+            None => words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]),
+        }
     };
     b.placeholder(&placeholder);
-    if over == 0 && crate::choice::can_send(root) {
+    if (terminal && (ended || super::terminal::commands::typing(root))) || (over == 0 && crate::choice::can_send(root))
+    {
         b.state(State::SubmitsOnEnter);
     } else if over != 0 {
         bindings.block_submissions();
     }
-    if chat.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
+    if chat.composer_focus != 0 && (!terminal || chat.shown.is_none()) && root.pages().switcher().renaming().is_none() {
         b.focus(chat.composer_focus);
     }
     // Opening and sending write the field; an edit keeps the browser's own value.
