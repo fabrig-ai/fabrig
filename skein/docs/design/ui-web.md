@@ -521,7 +521,7 @@ the host tests (section 14).
 | choice, choice group | `<input type="radio">` with its label, `role="radiogroup"` |
 | check | `<input type="checkbox">` with its label |
 | select, option | `<select>`, `<option>` showing its name as its text |
-| menu, menu item | `role="menu"` behind its button, `role="menuitem"` |
+| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; a menu of a field's options (`ui.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (section 7) |
 | disclosure | `<details>` with `<summary>`, holding its name, then its description's element |
 | dialog | `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
@@ -759,7 +759,25 @@ the host tests (section 14).
   on an item closes the menu. A press outside an open menu closes it, the
   press still going to what it lands on, and the focus returns to the
   menu's button, as on Escape, unless that press took it to another
-  control. **An address changed folds the
+  control. **A field's options** (`ui.md`, 3.2, *options*) are no
+  menu-button: the menu is a `listbox`, shown while it is in the tree, its
+  items `option`s, and its field the text box that controls it,
+  `aria-autocomplete="list"`, `aria-controls` naming the list and
+  `aria-activedescendant` its active option, `aria-selected` on that
+  option alone. The active option starts at the item the tree marks
+  selected, or the first enabled one, and stays while that item stays in
+  the list across an apply; otherwise it starts again. While the field
+  holds the focus and its list an enabled option: ArrowDown and ArrowUp
+  move the active option, wrapping and skipping disabled ones; Enter,
+  with no Shift and no composition under way, presses the active option
+  and gives the field no `Submit` for that Enter; Tab, where the field's
+  words are not empty, differ from the active option's name and begin
+  it, writes that name into the field and reports it as the field's
+  `Input`, the focus staying, and otherwise moves the focus as the
+  browser does; Escape is the form's, as above. A press on an option
+  presses it, and its pointer's down keeps the focus in the field.
+  PageUp and PageDown scroll the log as from any field (below).
+  **An address changed folds the
   disclosures:** when the path or the query the page shows moved since
   the page part's last apply (a new entry, one replaced, back or
   forward), it folds every open `<details>` in that apply, so a

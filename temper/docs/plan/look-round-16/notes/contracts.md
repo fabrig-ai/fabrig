@@ -66,3 +66,32 @@ impl<R: 'static> Screen<R> {
 
 - `changed(false, true)` is `Entered`, `changed(true, false)` `Left`, and no change `None`.
 - The keyboard is locked on `Entered` by `navigator.keyboard.lock(['Escape'])`, reached by reflection where the browser has it, its rejection ignored; unlocked on `Left`.
+
+## 3. A field's options (skein-ui and skein-ui-web, `skein/docs/design/ui.md`, 3.2, *options*; `skein/docs/design/ui-web.md`, 6 and 7)
+
+```rust
+// skein/crates/skein-ui/src/tree.rs, on `State`, after `ToLogEnd`
+/// A menu offering the choices of the nearest text field or area before it in its form.
+Options,
+```
+
+- An owner builds it as any menu, in the form that holds its field, after the field:
+
+  ```rust
+  b.open(Role::Menu);
+  b.name(b"Commands");
+  b.state(State::Options);
+  for each choice {
+      b.open(Role::MenuItem);
+      b.name(choice_words);          // what Tab writes into the field, for a completion
+      b.description(its_help);       // optional, shown beside it
+      if it_is_the_current_one { b.state(State::Selected); }
+      b.bind(binding);               // pressed by Enter, a click or the text shell's number
+      b.close();
+  }
+  b.close();
+  ```
+
+- The builder asserts `Options` on a `Menu` alone; `outline::check` faults a menu with `Options` whose innermost form holds no text field or text area before it.
+- The web page keeps the active option (`Page`, beside `menu`), never the tree. An owner learns of it only through the item's `Press` or the field's `Input` that Tab's completion reports.
+- The text shell prints it as any menu; the worker's platform has nothing to do for it.

@@ -45,6 +45,8 @@ The host table reads the Markdown cases and compares their SVG bytes.
   a tool build optimized, and has a dependency's override show a profile and the user's
   sign-off, with a comment citing both. Neither is recorded, and `flate2` also reaches
   `skein-ui-web-tests` as a dev dependency.
+- **Not yet:** 6 and 7: a field's options, its `listbox` mapping and its keys
+  (`skein-ui-web`'s `mapping.rs`, `page.rs` and `page/web.rs`; look-round-16, `field-options`).
 - **Not yet:** 4.3: no run on record shows skein's browser tier with the loader, which
   its stories on the example load, within `tools/tiers/budgets.toml`'s `browser-skein`, nor
   `browser_stories`'s `a_placeholder_gives_way_to_the_client` and
