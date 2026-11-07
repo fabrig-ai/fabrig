@@ -132,12 +132,22 @@ impl Wire {
             Some(Kind::Request(words)) => {
                 match w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes") {
                     w::KeyedAnswer::FinalAnswer(value) if matches!(value.owner(), w::Owner::Family(_)) => {
-                        vec![Receipt::Answer { attempt: *exchange, final_answer: true, words: None }]
+                        vec![Receipt::Answer {
+                            attempt: *exchange,
+                            final_answer: true,
+                            unconfigured_model: false,
+                            words: None,
+                        }]
                     }
                     w::KeyedAnswer::FinalAnswer(value) => compound::receipt(*exchange, *words, value.record()),
                     w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::SignedOut => vec![Receipt::Parked],
                     w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::AnswersFull(_) => {
-                        vec![Receipt::Answer { attempt: *exchange, final_answer: false, words: None }]
+                        vec![Receipt::Answer {
+                            attempt: *exchange,
+                            final_answer: false,
+                            unconfigured_model: false,
+                            words: None,
+                        }]
                     }
                 }
             }

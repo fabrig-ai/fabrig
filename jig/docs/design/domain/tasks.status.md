@@ -2,6 +2,12 @@
 
 2026-11-07. Where jig's code lags or departs from [tasks.md](tasks.md).
 
+Section 5.2 has no known gap in an agent claim interrupted by its
+engine's orderly stop: `End::Recheck` keeps committed turns, calls and
+saved work, spends no try, adds no backoff and makes the task due again.
+A crash retains the lost-or-not-started recovery rule. The core restart
+table and one-process drain story check the distinction.
+
 Sections 3, 7, 8.2, 8.3, 8.6 and 9 have no known gap in run reasons,
 their retention across kept continuations and retries, offered-message
 fences or wakes for undecided entries. A choice's `later` is checked with

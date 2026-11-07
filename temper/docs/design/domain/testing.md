@@ -1279,11 +1279,18 @@ section 8; testing-strategy.md, 2.9).
   role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
   (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
-  subscription's model (jig's `domain/engine.md`, 17.11): one `settings
-  apply` sets a model at the highest number its catalogue leaves free,
-  with the figures of the provider's dearest stock model, `claude-fable-5-1`,
-  marked estimated and the person's, its efforts with `low` its default,
-  and every charter the story selects naming it. `TEMPER_LIVE_CLAUDE` names the
+  subscription's model on Settings' Models and then chooses it (jig's
+  `domain/engine.md`, 17.11), in two `settings apply`s. The first sets a
+  model at the highest number its catalogue leaves free, with the figures
+  of the provider's dearest stock model, `claude-fable-5-1`, marked
+  estimated and the person's, its efforts with `low` its default; the
+  second, against the revision the first made, has every charter the
+  story selects name it. One change can't hold both: the clients'
+  component refuses a change whose charter names a model the catalogue
+  lacks before the core sees it, and a model the change itself sets is
+  not in the catalogue yet. A focused test applies the fixture's own
+  changes through ctl on the joined world (6.3), its engine holding the
+  Claude deployment's stock catalogue. `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
@@ -2829,12 +2836,16 @@ scripts/proof-live.sh               the live tier
 ## 11. Later
 
 - **Haiku's live landing proof** (2.7): use the after-landing Claude Code
-  owned-forge story on a fresh store to verify the by-name selection in
-  charters 1 and 2 and the real launch with
+  owned-forge story on a fresh store to verify the catalogue apply
+  (`live-model`), then charters 1 and 2 selecting that model in a second
+  apply (`live-settings`) against the first's revision, and the real
+  launch with
   `--model claude-haiku-5-5 --effort low`, through landing and restart.
-  Keep the ChatGPT story on stock row 7, `gpt-6-luna`. A table of settings
-  changes establishes no real launch or model outcome; repair any live
-  red after landing.
+  Keep the ChatGPT story on stock row 7, `gpt-6-luna`. The focused
+  joined-world apply checks settings acceptance; a real launch and model
+  outcome need this live story. Keep the live story compiled during the
+  plan; its held login and real execution
+  belong to after-landing. Repair any live red there.
 
 - **The plain-change live outcome** (2.7): run the existing owned-forge
   landing story after landing to observe the real chat's choice with

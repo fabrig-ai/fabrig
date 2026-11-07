@@ -357,6 +357,7 @@ fn a_sign_in_deadline_names_the_browser_wait() {
 fn other_credential_failures_keep_their_words() {
     use skein_oauth_accounts::Failure;
     for failure in [
+        Failure::LongRedirect { length: 16_385, bound: 16_384 },
         Failure::Busy,
         Failure::NotGranted,
         Failure::NotKept,

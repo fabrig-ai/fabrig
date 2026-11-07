@@ -97,6 +97,7 @@ impl Side {
                     receipts.push(Receipt::Answer {
                         attempt: *exchange,
                         final_answer: matches!(value, w::KeyedAnswer::FinalAnswer(_)),
+                        unconfigured_model: false,
                         words: None,
                     });
                 }

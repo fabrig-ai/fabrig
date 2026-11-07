@@ -2,6 +2,14 @@
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 
+Sections 6 and 6.1 have no known gap in interrupting agent claims on
+hosts in the engine's process at an orderly stop. The core commits
+`End::Recheck` before reporting drained; the fleet forgets each attempt
+without telling its host. The restart table distinguishes a stopped
+in-process worker from a crash and a worker elsewhere: committed turns
+and saved work remain, no try or backoff is charged by the interruption,
+and the task is due again. Jobs retain their claims for restart recovery.
+
 Sections 7.1, 7.2, 7.4 and 9 have no known gap in selecting a charter's
 parts from a run's reasons, retaining the prepared offering through a
 claim, or taking only offered messages at a turn's fence. Later runs
