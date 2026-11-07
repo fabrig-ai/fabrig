@@ -32,6 +32,10 @@ body at 65,536 bytes independently of `forge.client.op_bytes`, with a
 marked cut and the change's stored words kept whole. The engine's batch
 table admits 32 changes and refuses 33 at an authority batch bound of 32.
 
+- **Not yet:** 8.4: a page of a pull's files past the forge client's
+  answer byte or row limit fails its pull section, and a review's lone
+  section fails its brief (`temper-engine-domain-forge/src/brief.rs`);
+  no files-omitted notice is kept.
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
