@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-11-06. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-07. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -2520,7 +2520,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The work's account and model.** The model and effort sit at the composer,
   on every chat: a new chat's, Configure temper's, a chat's and a configuring
   chat's (the look request `model-picker`). A choice is the task's LLM choice,
-  from the chat's next run (jig's `domain/tasks.md`, section 3).
+  from the chat's next run (jig's `domain/tasks.md`, sections 3 and 7).
   - *The picker* is on the hint's row, at the composer's right edge: a
     disclosure named "Model" (skein's `ui.md`, its disclosure), which folds
     away, described by its closed line. A browser shows the line and a chevron;
@@ -2569,6 +2569,23 @@ keeps (`../protocol/configuration.md`, section 2).
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
     refused, it says why, and the choice is the chat's own again.
+    An accepted amendment changing only the LLM choice sends no message and
+    starts no run. A turn under way keeps its choice; the person's next words
+    stop a live run behind the choice and start the next on the new choice,
+    with those words retained and no try spent (jig's `domain/tasks.md`,
+    section 7).
+    A model change in a resumable window first asks the saved window's model,
+    when configured, for a summary, then the new model for the answer.
+    A changed effort alone keeps the window. Across an endpoint, dialect,
+    account or backend boundary, or without the saved program session, the
+    conversation's text, calls and results carry over, with opaque replay
+    dropped and the summary on the new model (smith's `domain/session.md`,
+    8.2). A provider change chooses an account again (jig's `domain/tasks.md`,
+    section 7). A smaller window follows the same compaction rules. If the
+    conversation still cannot fit, the chat is held with its transcript kept
+    and nothing cut: "the run no longer fits the model's window of N tokens"
+    (jig's `client/domain/contract.md`, 5.5). The person can choose another
+    model on the held chat.
   - *A chat whose choice can't be changed:* the same words with no chevron, not a
     button. No usable model: 5.5's "No model yet" above the composer, and no
     picker.
@@ -6566,10 +6583,6 @@ own tests:
   failed-read words, estimated prices and "new" on All models belong to its
   lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
   no "new", and All models links to Accounts with "Accounts, in Settings".
-- **The next run after a picker amendment** (3.5, 5.5): `ui-model-next-turn`
-  owns carrying the stored model and effort through to the next provider
-  request. Default: the choice is applied by one press; the runtime repair
-  and its proof remain that plan's, with the mismatch in `README.status.md`.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

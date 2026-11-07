@@ -1,6 +1,9 @@
 # agent: status
 
-2026-11-06. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
+
+Section 4.6 has no known gap in a chat's new model or effort answering its
+person's next words, whether the previous run still listens or has parked.
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
