@@ -27,10 +27,14 @@ fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
 }
 
 fn places(bytes: &[u8]) -> Vec<Line> {
+    places_with(bytes, &body(bytes))
+}
+
+fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
     let value = || Box::<[u8]>::from(bytes);
     let mut result = vec![
-        Line::Reply { exchange: 1, bytes: body(bytes) },
-        Line::Streamed(Streamed::Record(body(bytes))),
+        Line::Reply { exchange: 1, bytes: body.into() },
+        Line::Streamed(Streamed::Record(body.into())),
         Line::Stored { key: value(), bytes: value() },
         Line::Save { key: value(), bytes: value() },
         Line::Erase(value()),
@@ -58,7 +62,7 @@ fn places(bytes: &[u8]) -> Vec<Line> {
         Sent::StreamGone,
         Sent::SignInLink,
     ] {
-        result.push(send(message(body(bytes)), None));
+        result.push(send(message(body.into()), None));
     }
     result
 }
@@ -128,6 +132,11 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
         }
     }
     pasted_forms(&mut failures);
+    pasted_proof(&mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn pasted_proof(failures: &mut Vec<String>) {
     // The host decodes the pasted URL's base64 into the wire's 32-byte secret.
     // Its recorded Typed event is the Debug print of the URL's byte vector.
     let mut world = World::new();
@@ -137,6 +146,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
     let file = world.save();
     assert!(prove(&file).is_ok(), "pasted link's live proof");
     let redacted = redact(&file, &[]).expect("redact pasted link");
+    assert_eq!(redacted.originals.count(Kind::Link), 1);
     let original = lines(&file).expect("pasted lines");
     let after = lines(&redacted.recording).expect("redacted pasted lines");
     for (before, after) in original.iter().zip(&after) {
@@ -156,26 +166,37 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             }
         }
     }
-    if prove(&redacted.recording).is_err() {
-        failures.push("native pasted link: redaction is stale".to_owned());
+    match prove(&redacted.recording) {
+        Ok(proved) => {
+            if scan(&proved, &redacted.originals).expect("pasted link scan").is_some() {
+                failures.push("native pasted link: redacted replay refused by scan".to_owned());
+            }
+            let mut replay = Replay::new(&proved).expect("pasted replay");
+            while replay.next().expect("pasted duties").is_some() {}
+        }
+        Err(_) => failures.push("native pasted link: redaction is stale".to_owned()),
     }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 fn pasted_forms(failures: &mut Vec<String>) {
     let source = send(Sent::SignInLink(body(&[0; 32])), None);
     let encoded = b"A".repeat(43);
     let hidden = b"eHh4".repeat(10).into_iter().chain(b"eHg".iter().copied()).collect::<Vec<_>>();
-    let decimal = |bytes: &[u8]| {
-        bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ").into_bytes()
-    };
+    let decimal = |bytes: &[u8]| bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ").into_bytes();
     for (name, before, after) in [
         ("paste base64", encoded.clone(), hidden.clone()),
-        ("event decimal", [b"Typed { value: [".as_slice(), &decimal(&encoded), b"] }"].concat(),
-            [b"Typed { value: [".as_slice(), &decimal(&hidden), b"] }"].concat()),
+        (
+            "event decimal",
+            [b"Typed { value: [".as_slice(), &decimal(&encoded), b"] }"].concat(),
+            [b"Typed { value: [".as_slice(), &decimal(&hidden), b"] }"].concat(),
+        ),
     ] {
         let originals = originals(std::slice::from_ref(&source), &[]);
-        for (line, expected) in places(&before).into_iter().zip(places(&after)) {
+        // The synthetic framed body's prefix stands even when decimal elements
+        // change width; the native event carrying this form is text.
+        let mut framed = u32::try_from(before.len()).expect("form length").to_be_bytes().to_vec();
+        framed.extend_from_slice(&after);
+        for (line, expected) in places(&before).into_iter().zip(places_with(&after, &framed)) {
             let kind = line.kind();
             let field_count = fields_mut(&mut line.clone()).len();
             let redacted = redact(&written(&[source.clone(), line.clone()]), &[]).expect("encoded link");
@@ -195,12 +216,12 @@ fn pasted_forms(failures: &mut Vec<String>) {
             }
         }
     }
-    for (prefix, suffix, replace) in [
-        ("[", "]", true), ("[1, ", ", 2]", true),
-        ("[1", "]", false), ("[", "0]", false), ("", "", false),
-    ] {
+    for (prefix, suffix, replace) in
+        [("[", "]", true), ("[1, ", ", 2]", true), ("[1", "]", false), ("[", "0]", false), ("", "", false)]
+    {
         let before = [prefix.as_bytes(), &decimal(&encoded), suffix.as_bytes()].concat();
-        let expected = [prefix.as_bytes(), &decimal(if replace { &hidden } else { &encoded }), suffix.as_bytes()].concat();
+        let expected =
+            [prefix.as_bytes(), &decimal(if replace { &hidden } else { &encoded }), suffix.as_bytes()].concat();
         let redacted = redact(&written(&[source.clone(), Line::Signed(before.clone().into())]), &[]).expect("boundary");
         if lines(&redacted.recording).expect("boundary lines").pop() != Some(Line::Signed(expected.into()))
             || scan_bytes(&before, &[], &redacted.originals).is_some() != replace

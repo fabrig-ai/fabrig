@@ -1,4 +1,5 @@
 //! The TUI's last scan (temper/docs/design/client/tui/journeys.md, 5).
+use super::redact::link_forms;
 use super::{Line, Originals, Refusal, Replay, What, fields_mut, lines};
 use jig_client::ApprovalCode;
 use skein_lib::bytes::find_from;
@@ -22,7 +23,7 @@ pub struct Found {
 /// Approval codes as shown in a browse address's query, checked by their reader.
 #[must_use]
 pub fn codes(lines: &[Line]) -> Vec<Box<[u8]>> {
-    let mut codes = Vec::new();
+    let mut codes: Vec<Box<[u8]>> = Vec::new();
     for line in lines {
         if let Line::Browse(address) = line
             && let Some(query) = address.splitn(2, |byte| *byte == b'?').nth(1)
@@ -31,7 +32,7 @@ pub fn codes(lines: &[Line]) -> Vec<Box<[u8]>> {
             for parameter in query.split(|byte| *byte == b'&') {
                 if let Some(value) = parameter.strip_prefix(b"code=")
                     && ApprovalCode::parse(value).is_some()
-                    && !codes.iter().any(|code: &Box<[u8]>| code.as_ref() == value)
+                    && !codes.iter().any(|code| code.as_ref() == value)
                 {
                     codes.push(value.into());
                 }
@@ -44,7 +45,7 @@ pub fn codes(lines: &[Line]) -> Vec<Box<[u8]>> {
 /// Originals in the whole; shapes in a copy with complete approval codes cut.
 #[must_use]
 pub fn scan_bytes(bytes: &[u8], codes: &[Box<[u8]>], originals: &Originals) -> Option<What> {
-    if original(bytes, originals) {
+    if original(bytes, originals) || link_forms(originals).iter().any(|form| !form.occurrences(bytes).is_empty()) {
         return Some(What::Original);
     }
     let mut cuts = Vec::new();

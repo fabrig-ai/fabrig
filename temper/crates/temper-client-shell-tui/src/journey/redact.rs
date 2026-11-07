@@ -1,8 +1,13 @@
 //! TUI originals and fields (temper/docs/design/client/tui/journeys.md, 5).
 use super::{Framing, Kind, Line, Originals, Sent, Streamed, Unreadable};
 use jig_client_protocol_wire as w;
-use skein_lib::Reader;
+use skein_lib::{
+    Reader, Writer,
+    base64::{self, Alphabet},
+    bytes::find_from,
+};
 use skein_ui_screen_terminal::Key;
+use std::collections::BTreeMap;
 use temper_client_shell_web::journey::redact_field;
 
 pub struct Redacted {
@@ -164,15 +169,91 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
 pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unreadable> {
     let mut lines = super::lines(recording)?;
     let originals = originals(&lines, given);
+    let forms = link_forms(&originals);
     let mut places = 0_u32;
     let mut recording = Vec::new();
     for line in &mut lines {
         for (field, framing) in fields_mut(line) {
+            places = places.checked_add(redact_links(field, &forms)).expect("replacement count fits u32");
             places = places.checked_add(redact_field(field, framing, &originals)).expect("replacement count fits u32");
         }
         line.write(&mut recording);
     }
     Ok(Redacted { recording: recording.into(), originals, places })
+}
+
+/// The paste's canonical URL-base64 and its Typed event's decimal byte elements.
+pub(super) struct LinkForm {
+    bytes: Box<[u8]>,
+    hidden: Box<[u8]>,
+    decimal: bool,
+}
+
+pub(super) fn link_forms(originals: &Originals) -> Vec<LinkForm> {
+    let mut forms = Vec::new();
+    for original in originals.sought() {
+        if original.kind() == Kind::Link {
+            let bytes = url_base64(original.forms().first().expect("an original has its bytes"));
+            let hidden = url_base64(&vec![b'x'; original.len()]);
+            forms.push(LinkForm { bytes: decimal(&bytes), hidden: decimal(&hidden), decimal: true });
+            forms.push(LinkForm { bytes, hidden, decimal: false });
+        }
+    }
+    forms
+}
+
+fn url_base64(bytes: &[u8]) -> Box<[u8]> {
+    let len = base64::encoded_len(Alphabet::Url, u32::try_from(bytes.len()).expect("original length fits u32"))
+        .expect("encoded original length fits u32");
+    let mut writer = Writer::new(usize::try_from(len).expect("encoded length fits usize"));
+    base64::encode(Alphabet::Url, bytes, &mut writer).expect("measured URL-base64");
+    writer.finish()
+}
+
+fn decimal(bytes: &[u8]) -> Box<[u8]> {
+    bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ").into_bytes().into()
+}
+
+impl LinkForm {
+    pub(super) fn occurrences(&self, field: &[u8]) -> Vec<(usize, usize)> {
+        let mut found = Vec::new();
+        let mut from = 0;
+        while let Some(at) = find_from(field, &self.bytes, from) {
+            let end = at.checked_add(self.bytes.len()).expect("found form fits field");
+            if !self.decimal
+                || ((field[..at].ends_with(b"[") || field[..at].ends_with(b", "))
+                    && (field[end..].starts_with(b"]") || field[end..].starts_with(b",")))
+            {
+                found.push((at, end));
+            }
+            from = at.checked_add(1).expect("found form is nonempty");
+        }
+        found
+    }
+}
+
+fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
+    let mut replacements = BTreeMap::new();
+    for form in links {
+        for (at, end) in form.occurrences(field) {
+            if replacements.range(..end).next_back().is_none_or(|(_, (prior_end, _))| *prior_end <= at) {
+                replacements.insert(at, (end, &form.hidden));
+            }
+        }
+    }
+    let places = u32::try_from(replacements.len()).expect("field replacement count fits u32");
+    if places != 0 {
+        let mut output = Vec::with_capacity(field.len());
+        let mut from = 0;
+        for (at, (end, hidden)) in replacements {
+            output.extend_from_slice(&field[from..at]);
+            output.extend_from_slice(hidden);
+            from = end;
+        }
+        output.extend_from_slice(&field[from..]);
+        *field = output.into();
+    }
+    places
 }
 
 #[cfg(test)]

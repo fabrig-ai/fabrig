@@ -12,7 +12,7 @@ use temper_client_shell_web::journey::{Kind, Shape};
 #[test]
 fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
     // Short fake bytes keep both TUI link forms visible in one frame's row.
-    let empty = Originals::new(vec![(Kind::Link, Box::new([0; 4]))], &[]);
+    let originals = Originals::new(vec![(Kind::Link, Box::new([255; 4]))], &[]);
     let shown = b"WDJB-MJHT".as_slice();
     let browse = Line::Browse([b"http://127.0.0.1:8367/approve?code=".as_slice(), shown].concat().into());
     let codes = codes(&[browse]);
@@ -25,20 +25,20 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         ("known code prefix", b"code=WDJB-MJHTsuffix".as_slice(), Some(What::Shape(Shape::Code))),
         ("key", key.as_slice(), Some(What::Shape(Shape::Key))),
         ("bearer", bearer.as_slice(), Some(What::Shape(Shape::Bearer))),
-        ("link base64", b"AAAAAA".as_slice(), Some(What::Original)),
-        ("link decimal", b"[65, 65, 65, 65, 65, 65]".as_slice(), Some(What::Original)),
+        ("link base64", b"_____w".as_slice(), Some(What::Original)),
+        ("link decimal", b"[95, 95, 95, 95, 95, 119]".as_slice(), Some(What::Original)),
     ];
     let mut failures = Vec::new();
     if codes != vec![Box::<[u8]>::from(shown)] {
         failures.push("browse code reader".to_owned());
     }
     for (name, bytes, expected) in cases {
-        if scan_bytes(bytes, &codes, &empty) != expected {
+        if scan_bytes(bytes, &codes, &originals) != expected {
             failures.push(format!("{name}: bytes"));
         }
         // A field is checked before replay; no valid seam is needed to report it.
         if let Some(what) = expected {
-            let found = scan(&written(&[Line::Signed(bytes.into())]), &empty).expect("field scan");
+            let found = scan(&written(&[Line::Signed(bytes.into())]), &originals).expect("field scan");
             if found != Some(Found { line: 1, record: "signed", place: Place::Field, what }) {
                 failures.push(format!("{name}: field"));
             }
@@ -64,7 +64,7 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
             }
         }
         let file = written(&records);
-        match scan(&file, &empty) {
+        match scan(&file, &originals) {
             Ok(found) => {
                 if found.map(|found| found.what) != expected {
                     failures.push(format!("{name}: frame result"));
