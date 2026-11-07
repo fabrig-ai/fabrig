@@ -98,6 +98,7 @@ fn plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Op
         b"change",
         &input,
         &walking::models(),
+        &[],
     )
     .expect("change decodes") else {
         panic!("change call")

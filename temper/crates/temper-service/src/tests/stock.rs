@@ -297,7 +297,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 6262);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 6677);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1720,4 +1720,24 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
             .as_bytes()
         );
     }
+}
+
+#[test]
+fn configuring_txt_teaches_model_changes_within_the_offer() {
+    let words = include_str!("../stock/configuring.txt");
+    for phrase in [
+        "A model is a setting like the others",
+        "window/output",
+        "efforts and default effort",
+        "prices, shown name",
+        "whether it is on the picker",
+        "removal (withdrawn)",
+        "A role's default is its charter's model order",
+        "Settings, Models",
+        "A task keeps the model it has",
+        "The offer still bounds every model you mention or propose",
+    ] {
+        assert!(words.contains(phrase), "missing model instruction: {phrase}");
+    }
+    assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
 }

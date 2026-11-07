@@ -351,10 +351,17 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
 fn host_request(engine: &mut Engine, request: root::HostRequest) {
     match request {
         root::HostRequest::Decode { to, task, attempt, call } => {
-            engine.events.push(crate::tools::decode_configured(to, task, attempt, &call, engine.domain.models()));
+            engine.events.push(crate::tools::decode_configured(
+                to,
+                task,
+                attempt,
+                &call,
+                engine.domain.models(),
+                &engine.domain.catalogue(),
+            ));
         }
         root::HostRequest::SettingsNote { to, call, body } => {
-            engine.events.push(crate::tools::settings_note(to, *call, &body, engine.domain.models()));
+            engine.events.push(crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue()));
         }
         root::HostRequest::Dropped { .. } => {}
     }
@@ -381,7 +388,7 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 &answer,
                 from,
                 requested,
-                engine.domain.models(),
+                &engine.domain.catalogue(),
                 application.as_ref(),
                 &repositories,
                 &people,

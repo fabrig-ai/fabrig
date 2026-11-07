@@ -87,40 +87,14 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
     Ok(engine::Tool::Settings { read, from })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
-    let mut models = List::with_capacity(u32::try_from(values.len()).expect("configured models"));
-    for value in values {
-        models
-            .push(protocol::Model {
-                number: 0,
-                source: s::ModelSource::Stock,
-                estimated: false,
-                name: value.name.clone(),
-                provider: None,
-                window: value.window,
-                output: value.output,
-                efforts: value.efforts.clone(),
-                effort: match value.default_effort() {
-                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
-                    None => None,
-                },
-                shown: None,
-                picker: true,
-                prices: protocol::Prices {
-                    input: value.input_price,
-                    cached: value.cached_price,
-                    cache_write: value.cache_write_price,
-                    output: value.output_price,
-                    unit: value.price_unit,
-                },
-                description: None,
-            })
-            .expect("one row per configured model");
-    }
-    models.into_boxed()
+fn models(values: &[s::CatalogueModel]) -> Box<[protocol::Model]> {
+    protocol::translate::llm::catalogue(values)
 }
-pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::Model]) -> Result<Decoded, Problem> {
+pub(crate) fn proposal(
+    name: run::CallName,
+    bytes: &[u8],
+    configured: &[s::CatalogueModel],
+) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
     only(&value, &[b"against", b"items", b"note", b"reason"], b"propose_settings")?;
     let against = positive(value.required(b"against")?, b"against")?;
@@ -153,7 +127,7 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
 
 /// Decode an authorized, revision-checked note's whole settings file through
 /// the same parser and validation as inline proposals (domain/agent.md, 8.1).
-pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[engine::Model]) -> Result<Decoded, Problem> {
+pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[s::CatalogueModel]) -> Result<Decoded, Problem> {
     let engine::Tool::ProposeSettingsNote { against, reason, .. } = call.tool else {
         return Err(Problem::Range(b"note"));
     };
@@ -167,7 +141,7 @@ fn proposal_items(
     against: u32,
     reason: Box<[u8]>,
     items: Result<List<c::SettingItem>, Box<[u8]>>,
-    configured: &[engine::Model],
+    configured: &[s::CatalogueModel],
 ) -> Result<Decoded, Problem> {
     let limits = settings_form::Limits::standard();
     let items = match items {
@@ -227,7 +201,7 @@ pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>,
 pub fn settings_text(
     answer: &SettingsAnswer,
     requested: Option<u64>,
-    configured: &[engine::Model],
+    configured: &[s::CatalogueModel],
 ) -> Result<Box<[u8]>, Problem> {
     let limits = settings_form::Limits::standard();
     let model = models(configured);
@@ -271,7 +245,7 @@ pub fn settings_answer(
     answer: &SettingsAnswer,
     from: u32,
     requested: Option<u64>,
-    models: &[engine::Model],
+    models: &[s::CatalogueModel],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
 ) -> run::HostAnswer {
     settings_answer_bounded(answer, from, requested, models, application, crate::DOC_ANSWER)
@@ -284,7 +258,7 @@ pub fn settings_answer_bounded(
     answer: &SettingsAnswer,
     from: u32,
     requested: Option<u64>,
-    models: &[engine::Model],
+    models: &[s::CatalogueModel],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     max_bytes: u32,
 ) -> run::HostAnswer {
@@ -299,7 +273,7 @@ pub fn settings_repository_answer(
     answer: &SettingsAnswer,
     from: u32,
     requested: Option<u64>,
-    models: &[engine::Model],
+    models: &[s::CatalogueModel],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
@@ -335,7 +309,7 @@ fn settings_page(
     answer: &SettingsAnswer,
     from: u32,
     requested: Option<u64>,
-    models: &[engine::Model],
+    models: &[s::CatalogueModel],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
@@ -608,5 +582,37 @@ fn malformed_setting(
             Some(value) => Some(setting_detail(value)),
             None => None,
         },
+    }
+}
+
+#[cfg(test)]
+mod catalogue_tests {
+    use super::*;
+    #[test]
+    fn settings_models_keep_the_catalogues_metadata() {
+        let mut model = engine::Model::hole();
+        model.provider = 2;
+        model.name = Box::from(b"gpt-6.1-terra".as_slice());
+        let entry = s::CatalogueModel {
+            number: 4,
+            model,
+            shown: Some(Box::from(b"GPT-6.1 Terra".as_slice())),
+            description: Some(Box::from(b"For careful work".as_slice())),
+            picker: false,
+            withdrawn: false,
+            source: s::ModelSource::Person,
+            estimated: true,
+        };
+        let models = models(core::slice::from_ref(&entry));
+        let model = models.get(3).expect("catalogue row");
+        assert_eq!(models.len(), 4);
+        assert!(models.first().expect("hole").name.is_empty());
+        assert_eq!(model.number, 4);
+        assert_eq!(model.provider, Some(2));
+        assert_eq!(model.shown, entry.shown);
+        assert_eq!(model.description, entry.description);
+        assert!(!model.picker);
+        assert_eq!(model.source, s::ModelSource::Person);
+        assert!(model.estimated);
     }
 }

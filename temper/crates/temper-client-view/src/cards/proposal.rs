@@ -706,6 +706,15 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
     b.open(Role::List);
     b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
     for item in &rows {
+        if let Some(review) = model_review(facts.review, item.setting)
+            && let Some(summary) = model_item(review, words)
+        {
+            setting_line(b, &summary);
+            if let Some(previous) = review_model(&review.now) {
+                setting_line(b, &model_previous(previous, words));
+            }
+            continue;
+        }
         let mut rendered = false;
         if let Some(values) = root.forge().proposed(facts.key.number) {
             for value in values {
@@ -742,6 +751,86 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
         }
     }
     b.close();
+}
+#[expect(clippy::manual_find, reason = "step code searches without closures")]
+fn model_review(items: &[c::ReviewItem], setting: c::Setting) -> Option<&c::ReviewItem> {
+    for item in items {
+        if item.setting == setting {
+            return Some(item);
+        }
+    }
+    None
+}
+/// A model proposal names the change in the person's terms (domain/agent.md, 8.1).
+fn model_item(item: &c::ReviewItem, words: &Words) -> Option<Box<[u8]>> {
+    let c::Setting::Model(_) = item.setting else { return None };
+    let before = review_model(&item.now);
+    let after = review_model(&item.would_be);
+    let model = after.or(before)?;
+    let change = if item.edit == c::RevisionItemEdit::Removed || model.withdrawn {
+        b"withdrawn".as_slice()
+    } else if let Some(after) = after {
+        match before {
+            None => b"added",
+            Some(before) if before.withdrawn => b"added",
+            Some(before) => model_change(before, after),
+        }
+    } else {
+        b"new settings"
+    };
+    Some(joined(&[&model_name(model, words), b": ", change]))
+}
+fn review_model(value: &c::ReviewValue) -> Option<&c::CatalogueEntry> {
+    match value {
+        c::ReviewValue::Value(c::SettingSet { value: c::SettingValue::Model(model) }) => Some(model),
+        c::ReviewValue::Value(_) | c::ReviewValue::TooLarge(_) | c::ReviewValue::None => None,
+    }
+}
+fn model_name(model: &c::CatalogueEntry, words: &Words) -> Box<[u8]> {
+    match &model.shown {
+        Some(shown) => skein_lib::bytes::copy_of(shown.bytes()),
+        None => words.model_name(model.model.name.bytes()),
+    }
+}
+fn model_previous(model: &c::CatalogueEntry, words: &Words) -> Box<[u8]> {
+    let value = &model.model;
+    let write = match value.cache_write_price {
+        Some(price) => joined(&[b", cache write ", skein_lib::Decimal::of(price).as_bytes()]),
+        None => skein_lib::bytes::copy_of(b""),
+    };
+    joined(&[
+        b"Previously: ",
+        &model_name(model, words),
+        b": ",
+        if model.withdrawn { b"withdrawn" } else { picker_words(model.picker) },
+        b"; prices: input ",
+        skein_lib::Decimal::of(value.input_price).as_bytes(),
+        b", cached ",
+        skein_lib::Decimal::of(value.cached_price).as_bytes(),
+        &write,
+        b", output ",
+        skein_lib::Decimal::of(value.output_price).as_bytes(),
+        b" per ",
+        skein_lib::Decimal::of(u64::from(value.price_unit)).as_bytes(),
+        b" tokens",
+    ])
+}
+fn picker_words(on: bool) -> &'static [u8] {
+    if on { b"on the picker" } else { b"off the picker" }
+}
+fn model_change(before: &c::CatalogueEntry, after: &c::CatalogueEntry) -> &'static [u8] {
+    let mut other = before.clone();
+    other.picker = after.picker;
+    if before.picker != after.picker && &other == after {
+        return picker_words(after.picker);
+    }
+    other = before.clone();
+    other.model.input_price = after.model.input_price;
+    other.model.cached_price = after.model.cached_price;
+    other.model.cache_write_price = after.model.cache_write_price;
+    other.model.output_price = after.model.output_price;
+    other.model.price_unit = after.model.price_unit;
+    if before.model != after.model && &other == after { b"new prices" } else { b"new settings" }
 }
 fn setting_line(b: &mut Builder, value: &[u8]) {
     b.open(Role::Item);
@@ -818,7 +907,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
-        c::Setting::Model(n) => (b"Model".as_slice(), Some(n.number)),
+        c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),

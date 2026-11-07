@@ -261,19 +261,20 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTo
 /// Decode an attested Smith host call under one activation-qualified name.
 /// The caller supplies its task/attempt envelope separately to the root.
 pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<Decoded, Problem> {
-    call_configured(name, tool, input, &[])
+    call_configured(name, tool, input, &[], &[])
 }
 
-/// Decode host calls with the deployment's models for settings values.
+/// Decode host calls with execution models and whole catalogue settings.
 #[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
 pub fn call_configured(
     name: run::CallName,
     tool: &[u8],
     input: &run::HostInput,
     models: &[engine::Model],
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
 ) -> Result<Decoded, Problem> {
     if tool == b"propose_settings" {
-        return crate::settings::proposal(name, input.bytes(), models);
+        return crate::settings::proposal(name, input.bytes(), catalogue);
     }
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
