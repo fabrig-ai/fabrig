@@ -22,7 +22,10 @@ struct Story {
 }
 impl Story {
     fn new() -> Self {
-        let mut front = jig_client_world::joint::front::fixture(&jig_test_profile::limits());
+        let mut owner = jig_test_profile::limits();
+        owner.core.people.sign_ins = 3;
+        owner.core.people.sign_in_lifetime = Duration::from_secs(1200);
+        let mut front = jig_client_world::joint::front::fixture(&owner);
         front.session.as_browser(BROWSER);
         Front::<Test>::bind(&mut front, BROWSER, 1);
         // This unsigned provider identity is different from the browser's.
@@ -109,10 +112,7 @@ impl Story {
     }
 
     fn decide(&mut self, id: ClientId, code: jig_client::ApprovalCode, decided: Decided) {
-        assert_eq!(
-            self.approval(id, ApprovalAct::Decide { code, approve: true }),
-            Approval::Decided { code, decided }
-        );
+        assert_eq!(self.approval(id, ApprovalAct::Decide { code, approve: true }), Approval::Decided { code, decided });
     }
 
     fn take(&mut self, secret: &Secret, expected: Signing) {
