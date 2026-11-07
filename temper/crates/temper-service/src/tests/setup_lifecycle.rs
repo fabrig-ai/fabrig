@@ -994,9 +994,7 @@ pub(super) fn github_reply(service: &mut crate::Service, face: &mut Face, github
     let wall = service.engine.as_ref().unwrap().env.wall;
     let reply = github.serve(&face.wire.received, wall);
     face.wire.write(&reply);
-    for _ in 0_u32..1024 {
-        face.turn(service);
-    }
+    face.settle(service);
 }
 
 #[test]

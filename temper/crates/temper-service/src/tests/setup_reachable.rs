@@ -41,9 +41,7 @@ fn github_page(service: &mut crate::Service, page: u32, more: bool) -> domain::R
     } else {
         face.reply(service, br#"{"total_count":31,"repositories":[{"id":31,"owner":{"id":10,"login":"acme"},"name":"last","private":false}]}"#);
     }
-    for _ in 0_u32..4096 {
-        face.turn(service);
-    }
+    face.settle(service);
     reached(service)
 }
 #[test]
@@ -247,9 +245,7 @@ fn picker_config() -> fixtures::ConfiguredEngine {
 }
 
 fn sent(face: &mut Face, service: &mut crate::Service) {
-    for _ in 0_u32..1024 {
-        face.turn(service);
-    }
+    face.settle(service);
     let engine = service.engine.as_ref().unwrap();
     assert!(
         contains(&face.wire.received, b"\r\n\r\n"),
