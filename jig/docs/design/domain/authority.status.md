@@ -9,7 +9,5 @@ Section 6.1: a person's task in project 0 draws on their pool, has no
 tools or delegation, is watched by its payer and is absent from the
 person's lists. Its restoration leaves cancellation to the application.
 
-- **Not yet:** 6.1: `Event::PersonTask` carries no `llm`, so a person's
-  task names no LLM choice, and `PersonSeed` has no `models()`.
-  7: a widening funded by whoever gives it
+- **Not yet:** 7: a widening funded by whoever gives it
   (the task's existing funder is charged).

@@ -38,6 +38,7 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
                 domain.work.push(Work::Core(core::Event::PersonTask {
                     seed: Box::new(seed),
                     executor: tasks::Executor::Agent { charter: TRIAL_CHARTER },
+                    llm: None,
                     spec: tasks::Spec {
                         job: None,
                         asks: false,
