@@ -29,17 +29,7 @@ pub enum Refusal {
 /// # Errors
 /// Refuses an existing directory without index.html, or a bundle or filesystem failure.
 pub fn print(out: &Path) -> Result<(), Refusal> {
-    if out.exists() {
-        if !out.join("index.html").is_file() {
-            return Err(Refusal::NotGallery { out: out.to_owned() });
-        }
-        if fs::remove_dir_all(out).is_err() {
-            return Err(Refusal::Io { path: out.to_owned() });
-        }
-    }
-    if fs::create_dir_all(out).is_err() {
-        return Err(Refusal::Io { path: out.to_owned() });
-    }
+    replace_gallery(out)?;
     let mut stylesheets = Vec::new();
     for path in STYLESHEETS {
         stylesheets.push(PathBuf::from(path));
@@ -66,10 +56,26 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
         Err(why) => return Err(Refusal::Bundle(why)),
     };
     let samples = samples::samples();
+    let inputs = ViewInputs::new();
     for sample in &samples {
-        write(&out.join(format!("{}.html", sample.name)), &page(sample, &digest))?;
+        write(&out.join(format!("{}.html", sample.name)), &page_with(sample, &digest, inputs.clone()))?;
     }
     write(&out.join("index.html"), &index(&samples))
+}
+// Replace only an owned print, whole (client/browser.md, 7.1).
+fn replace_gallery(out: &Path) -> Result<(), Refusal> {
+    if out.exists() {
+        if !out.join("index.html").is_file() {
+            return Err(Refusal::NotGallery { out: out.to_owned() });
+        }
+        if fs::remove_dir_all(out).is_err() {
+            return Err(Refusal::Io { path: out.to_owned() });
+        }
+    }
+    if fs::create_dir_all(out).is_err() {
+        return Err(Refusal::Io { path: out.to_owned() });
+    }
+    Ok(())
 }
 fn write(path: &Path, bytes: &str) -> Result<(), Refusal> {
     match fs::write(path, bytes) {
@@ -87,16 +93,35 @@ pub fn view(sample: &Sample) -> temper_client_view::View {
     let (view, _, _) = built(sample);
     view
 }
+// Every state uses the same shipped words and bounds (client/browser.md, 7.2).
+#[derive(Clone)]
+struct ViewInputs {
+    limits: temper_client_domain::Limits,
+    words: temper_client_view::words::Words,
+    bounds: temper_client_view::Limits,
+}
+impl ViewInputs {
+    fn new() -> Self {
+        let limits = driver::limits();
+        let words = temper_client_view::words::Words::english(
+            temper_client_protocol_wire::FORGE,
+            limits.client.domain.text,
+            temper_client_view::words::Shell::Browser,
+        )
+        .expect("shipped browser words");
+        let bounds = temper_client_view::Limits::of(&limits, &words).expect("shipped view bounds");
+        Self { limits, words, bounds }
+    }
+}
 fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
+    built_with(sample, ViewInputs::new())
+}
+fn built_with(
+    sample: &Sample,
+    inputs: ViewInputs,
+) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
     let root = samples::domain(sample);
-    let limits = driver::limits();
-    let words = temper_client_view::words::Words::english(
-        temper_client_protocol_wire::FORGE,
-        limits.client.domain.text,
-        temper_client_view::words::Shell::Browser,
-    )
-    .expect("shipped browser words");
-    let bounds = temper_client_view::Limits::of(&limits, &words).expect("shipped view bounds");
+    let ViewInputs { limits, words, bounds } = inputs;
     let mut view = temper_client_view::View::with_sign_in(
         &bounds,
         &limits,
@@ -121,7 +146,10 @@ fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limi
 /// One state's page, a whole HTML document.
 #[must_use]
 pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
-    let (mut view, bounds, collected) = built(sample);
+    page_with(sample, digest, ViewInputs::new())
+}
+fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInputs) -> String {
+    let (mut view, bounds, collected) = built_with(sample, inputs);
     let mut page = Page::new(
         Look {
             names: &[temper_client_view::look::NAMES],

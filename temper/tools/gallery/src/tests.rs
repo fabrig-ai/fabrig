@@ -36,62 +36,71 @@ fn retired_chat_style_slots_stay_reserved() {
     }
 }
 
-#[test]
-fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
-    for sample in samples::samples() {
-        let mut view = view(&sample);
-        let mut links = Vec::new();
-        for node in view.tree().nodes() {
-            if node.role == Role::Link {
-                assert!(node.link.is_some() || node.external.is_some(), "{}: link {:?}", sample.name, node.name);
-                links.push(node.id);
-            }
+fn navigation_links_have_addresses_and_install_action_links_keep_their_binding(
+    sample: &Sample,
+    view: &mut temper_client_view::View,
+) {
+    let mut links = Vec::new();
+    for node in view.tree().nodes() {
+        if node.role == Role::Link {
+            assert!(node.link.is_some() || node.external.is_some(), "{}: link {:?}", sample.name, node.name);
+            links.push(node.id);
         }
-        for node in links {
-            if let Some(address) = temper_client_view::href(&mut view, node) {
-                assert!(!address.is_empty(), "{}: empty href for {node:?}", sample.name);
-            } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::Install {
-                forge,
-                ..
-            })) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-            {
-                // The existing picker link starts an asynchronous install request;
-                // it has no static destination until the forge answers.
-                assert_eq!(sample.name, "github-picker");
-                assert_eq!(forge, 2);
-            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::ConnectModel(
-                temper_client_domain::pages::connect_model::Act::Holder { .. },
-            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-            {
-                assert!(
-                    (sample.name.starts_with("connect-model-")
-                        || matches!(sample.name, "accounts-added" | "accounts-renewed"))
-                );
-            } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
-                temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-            {
-                let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
-                assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
-            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
-                temper_client_domain::pages::needs::Act::Open { object },
-            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-            {
-                assert!(
-                    matches!(sample.address, temper_client_domain::Address::Home { .. })
-                        || matches!(sample.name, "rail-away-on" | "rail-away-off")
-                );
-                assert!(
-                    samples::domain(&sample)
-                        .pages()
-                        .inbox()
-                        .expect("Home inbox")
-                        .cards
-                        .iter()
-                        .any(|card| card.object == object)
-                );
-            } else {
-                panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
-            }
+    }
+    for node in links {
+        if let Some(address) = temper_client_view::href(view, node) {
+            assert!(!address.is_empty(), "{}: empty href for {node:?}", sample.name);
+        } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::Install {
+            forge,
+            ..
+        })) = temper_client_view::act(view, node, skein_ui::Act::Press)
+        {
+            // The existing picker link starts an asynchronous install request;
+            // it has no static destination until the forge answers.
+            assert_eq!(sample.name, "github-picker", "{}: install link state", sample.name);
+            assert_eq!(forge, 2, "{}: install link forge", sample.name);
+        } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::ConnectModel(
+            temper_client_domain::pages::connect_model::Act::Holder { .. },
+        ))) = temper_client_view::act(view, node, skein_ui::Act::Press)
+        {
+            assert!(
+                sample.name.starts_with("connect-model-")
+                    || matches!(sample.name, "accounts-added" | "accounts-renewed"),
+                "{}: model connection link state",
+                sample.name
+            );
+        } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
+            temper_client_view::act(view, node, skein_ui::Act::Press)
+        {
+            let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
+            assert!(
+                matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")),
+                "{}: reset link label",
+                sample.name
+            );
+        } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
+            temper_client_domain::pages::needs::Act::Open { object },
+        ))) = temper_client_view::act(view, node, skein_ui::Act::Press)
+        {
+            assert!(
+                matches!(sample.address, temper_client_domain::Address::Home { .. })
+                    || matches!(sample.name, "rail-away-on" | "rail-away-off"),
+                "{}: needs link address",
+                sample.name
+            );
+            assert!(
+                samples::domain(sample)
+                    .pages()
+                    .inbox()
+                    .unwrap_or_else(|| panic!("{}: needs link inbox", sample.name))
+                    .cards
+                    .iter()
+                    .any(|card| card.object == object),
+                "{}: needs link object {object:?}",
+                sample.name
+            );
+        } else {
+            panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
         }
     }
 }
@@ -2807,78 +2816,67 @@ const SPENDS: [(&str, Role, &str); 46] = [
     ("chats-reference", Role::Paragraph, "6 spent"),
     ("chats-solo", Role::Paragraph, "1 spent"),
 ];
-#[test]
-fn each_chat_reads_its_allotment() {
-    for sample in samples::samples() {
-        if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
-            && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
-        {
-            let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
-            let view = view(&sample);
-            find(view.tree(), *role, spend, sample.name);
-        }
+fn each_chat_reads_its_allotment(sample: &Sample, view: &temper_client_view::View) {
+    if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
+        && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
+    {
+        let (_, role, spend) =
+            SPENDS.iter().find(|row| row.0 == sample.name).unwrap_or_else(|| panic!("{}: allotment row", sample.name));
+        find(view.tree(), *role, spend, sample.name);
     }
 }
-#[test]
-fn no_state_reads_of_zero() {
-    for sample in samples::samples() {
-        let view = view(&sample);
-        for node in view.tree().nodes() {
-            let mut text = Vec::new();
-            for run in &node.text {
-                text.extend_from_slice(&run.text);
-            }
-            for text in [node.name.as_deref(), Some(text.as_slice())].into_iter().flatten() {
-                // A space or end after zero: times (of 08:00) and fractions (of 0.5) are not allotments.
-                assert!(
-                    !text.windows(b"of 0 ".len()).any(|part| part == b"of 0 ") && !text.ends_with(b"of 0"),
-                    "{}: zero allotment in {:?}",
-                    sample.name,
-                    String::from_utf8_lossy(text)
-                );
-            }
+fn no_state_reads_of_zero(sample: &Sample, view: &temper_client_view::View) {
+    for node in view.tree().nodes() {
+        let mut text = Vec::new();
+        for run in &node.text {
+            text.extend_from_slice(&run.text);
+        }
+        for text in [node.name.as_deref(), Some(text.as_slice())].into_iter().flatten() {
+            // A space or end after zero: times (of 08:00) and fractions (of 0.5) are not allotments.
+            assert!(
+                !text.windows(b"of 0 ".len()).any(|part| part == b"of 0 ") && !text.ends_with(b"of 0"),
+                "{}: zero allotment in {:?}",
+                sample.name,
+                String::from_utf8_lossy(text)
+            );
         }
     }
 }
 // A browser's button, tab and option show their name as their text (skein/docs/design/ui-web.md, 6), so text under one
 // is more words; recommended/default tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
-#[test]
-fn no_named_control_draws_a_text_child_in_any_state() {
-    for sample in samples::samples() {
-        let view = view(&sample);
-        let nodes = view.tree().nodes();
-        for (index, node) in nodes.iter().enumerate() {
-            if node.name.is_none() || !matches!(node.role, Role::Button | Role::Tab | Role::Option) {
-                continue;
-            }
-            let mut text = Vec::new();
-            let mut tagged = Vec::new();
-            let mut tag_end = 0;
-            for (offset, inner) in nodes.iter().enumerate().skip(index).take(usize::try_from(node.size).unwrap()) {
-                if inner.styles.as_slice().contains(&temper_client_view::look::MODEL_TAG) {
-                    tag_end = offset + usize::try_from(inner.size).unwrap();
-                }
-                for run in &inner.text {
-                    text.extend_from_slice(&run.text);
-                    if offset < tag_end {
-                        tagged.extend_from_slice(&run.text);
-                    }
-                }
-            }
-            let model_tag = node.role == Role::Button
-                && text == tagged
-                && (tagged == b"default"
-                    || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
-                        && tagged.iter().all(u8::is_ascii_digit)));
-            assert!(
-                text.is_empty() || text == b"recommended" || model_tag,
-                "{}: {:?} {:?} also draws the text {:?}",
-                sample.name,
-                node.role,
-                node.name.as_deref().map(String::from_utf8_lossy),
-                String::from_utf8_lossy(&text),
-            );
+fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temper_client_view::View) {
+    let nodes = view.tree().nodes();
+    for (index, node) in nodes.iter().enumerate() {
+        if node.name.is_none() || !matches!(node.role, Role::Button | Role::Tab | Role::Option) {
+            continue;
         }
+        let mut text = Vec::new();
+        let mut tagged = Vec::new();
+        let mut tag_end = 0;
+        for (offset, inner) in nodes.iter().enumerate().skip(index).take(usize::try_from(node.size).unwrap()) {
+            if inner.styles.as_slice().contains(&temper_client_view::look::MODEL_TAG) {
+                tag_end = offset + usize::try_from(inner.size).unwrap();
+            }
+            for run in &inner.text {
+                text.extend_from_slice(&run.text);
+                if offset < tag_end {
+                    tagged.extend_from_slice(&run.text);
+                }
+            }
+        }
+        let model_tag = node.role == Role::Button
+            && text == tagged
+            && (tagged == b"default"
+                || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
+                    && tagged.iter().all(u8::is_ascii_digit)));
+        assert!(
+            text.is_empty() || text == b"recommended" || model_tag,
+            "{}: {:?} {:?} also draws the text {:?}",
+            sample.name,
+            node.role,
+            node.name.as_deref().map(String::from_utf8_lossy),
+            String::from_utf8_lossy(&text),
+        );
     }
 }
 fn has_text(tree: &skein_ui::Tree, text: &str) -> bool {
@@ -2898,16 +2896,17 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
         let mut row = None;
         for holds in &HOLDS {
             if holds.name == sample.name {
-                assert!(row.is_none(), "duplicate holds row");
+                assert!(row.is_none(), "{}: duplicate holds row", sample.name);
                 row = Some(holds);
             }
         }
-        let row = row.expect("every sample has a HOLDS row");
-        let view = view(&sample);
+        let row = row.unwrap_or_else(|| panic!("{}: every sample has a HOLDS row", sample.name));
+        let mut view = built_with(&sample, inputs.clone()).0;
         let tree = view.tree();
         let mut main = TreeFace::new(tree);
         let h1 = in_main(Role::Heading { level: 1 }, row.heading);
@@ -3017,6 +3016,10 @@ fn each_state_holds_what_its_name_says() {
                 }
             }
         }
+        each_chat_reads_its_allotment(&sample, &view);
+        no_state_reads_of_zero(&sample, &view);
+        no_named_control_draws_a_text_child_in_any_state(&sample, &view);
+        navigation_links_have_addresses_and_install_action_links_keep_their_binding(&sample, &mut view);
     }
 }
 #[test]
@@ -3081,7 +3084,12 @@ fn goal_pages_hold_reports_counts_and_only_their_needs() {
 fn print_writes_every_page_and_the_bundle() {
     let scratch = Scratch::new("temper-client-gallery-print");
     let out = scratch.path().join("gallery");
-    print(&out).expect("print gallery");
+    fs::create_dir_all(&out).expect("previous gallery");
+    fs::write(out.join("index.html"), b"previous index").expect("previous index");
+    let stale = out.join("stale.html");
+    fs::write(&stale, b"obsolete").expect("stale page");
+    print(&out).expect("replace gallery");
+    assert!(!stale.exists(), "old output removed");
     let index = fs::read_to_string(out.join("index.html")).expect("index");
     let bundle = out.join("bundle");
     let mut digest = None;
@@ -3136,11 +3144,6 @@ fn print_writes_every_page_and_the_bundle() {
     assert!(chats.contains("<title>Talk to an agent about robin/tally. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
     assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
-    // Reprinting replaces the whole owned directory, including stale files.
-    let stale = out.join("stale.html");
-    fs::write(&stale, b"obsolete").expect("stale page");
-    print(&out).expect("replace gallery");
-    assert!(!stale.exists(), "old output removed");
     let mut expected = Vec::new();
     for path in STYLESHEETS {
         expected.push(Path::new(path).file_name().expect("stylesheet basename").to_str().expect("ASCII"));
@@ -3157,6 +3160,21 @@ fn print_writes_every_page_and_the_bundle() {
         }
     }
     assert_eq!(expected, actual);
+}
+#[test]
+fn replacing_a_gallery_removes_the_whole_previous_print() {
+    let scratch = Scratch::new("temper-client-gallery-replace");
+    let out = scratch.path().join("gallery");
+    replace_gallery(&out).expect("new gallery directory");
+    assert!(out.is_dir(), "missing output created");
+    let old_bundle = out.join("bundle").join("old-digest");
+    fs::create_dir_all(&old_bundle).expect("previous bundle");
+    fs::write(old_bundle.join("old.css"), b"old styles").expect("previous stylesheet");
+    fs::write(out.join("index.html"), b"previous index").expect("previous index");
+    fs::write(out.join("stale.html"), b"obsolete").expect("stale page");
+    replace_gallery(&out).expect("replace owned gallery");
+    assert!(out.is_dir(), "replacement output exists");
+    assert_eq!(fs::read_dir(&out).expect("replacement directory").count(), 0, "whole previous print removed");
 }
 #[test]
 fn print_refuses_a_directory_not_its_own() {
