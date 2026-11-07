@@ -519,10 +519,16 @@ fn reference_agent() -> crate::settings::Agent {
 fn reference_document(generated: &[u8]) -> Box<[u8]> {
     let merged = merge_profile(generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
     let mut document: serde_json::Value = serde_json::from_slice(&merged).unwrap();
-    let overlay = serde_json::to_vec(&reference_room()["worker"]).unwrap();
+    let room = reference_room();
+    let overlay = serde_json::to_vec(&room["worker"]).unwrap();
     for worker in document["workers"].as_array_mut().unwrap() {
         *worker = serde_json::from_slice(&merge_profile(&serde_json::to_vec(worker).unwrap(), &overlay)).unwrap();
     }
+    document["application"] = serde_json::from_slice(&merge_profile(
+        &serde_json::to_vec(&document["application"]).unwrap(),
+        &serde_json::to_vec(&room["application"]).unwrap(),
+    ))
+    .unwrap();
     serde_json::to_vec(&document).unwrap().into_boxed_slice()
 }
 
@@ -576,6 +582,7 @@ fn the_reference_room_starts_and_holds_its_relations() {
                 + u64::from(crate::limits::profile(crate::limits::Profile::Standard).forge_component.string_bytes)
                 + u64::try_from(skein_forge::measure::FILE_BYTES).unwrap(),
         ),
+        ("root.journal.run_bytes", 65_536),
         ("root.journal.transcript_bytes", resume),
         ("root.loads.bytes", loaded),
         ("root.loads.reply_bytes", loaded),
