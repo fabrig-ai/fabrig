@@ -435,15 +435,7 @@ fn assert_program_provider(llm: &Value, temper: &Value) {
 fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
-    let document = crate::read::document(&docs.temper).expect("effective document");
-    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
-    let admitted = jig_protocol_config::engine(
-        &document,
-        engine,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-    )
-    .expect("the program provider passes ordinary engine admission");
+    let admitted = admit(&docs.temper);
     assert_eq!(
         admitted.limits.core.documents.lines,
         jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines,
@@ -574,7 +566,7 @@ fn written_anthropic_entries_are_replaced_once() {
     }
 }
 
-/// A fresh catalogue read must preserve every stock choice (configuration.md, 13.1).
+/// A fresh catalogue read must preserve every stock choice (temper/docs/design/protocol/configuration.md, 13.1).
 #[test]
 fn the_templates_list_patterns_keep_every_stock_model() {
     for template in [
