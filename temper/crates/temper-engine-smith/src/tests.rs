@@ -2465,6 +2465,8 @@ fn goal_decodes_words_and_optional_advisor_and_agree() {
     assert_eq!(decided(b"goal", br#"{"words":"plan","agree":1}"#), Err(Problem::Type(b"agree")));
 }
 
+#[path = "tests/document.rs"]
+mod document;
 mod kinds;
 #[path = "tests/settings.rs"]
 mod settings;

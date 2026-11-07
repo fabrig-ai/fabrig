@@ -341,11 +341,6 @@ read's head explicit.
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
-- **Not yet:** 3.5, *A chat's document*: a `document` call is not read as a
-  `note` call: the page reads the document again after a `note` call alone,
-  and draws no tool line or tint for a `document` call
-  (`temper-client-domain/src/pages/chat.rs`, `note_calls`, `newest_write`,
-  `run_notes`; `temper-client-view/src/pages/document.rs`, `write`).
 - **Design departs:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*, from
   the mock (`greenfield/`), which draws neither Configure temper nor Ask
   temper on Settings: Ask temper stands beside Configure temper until the

@@ -766,3 +766,24 @@ fn an_empty_thread_names_its_draft() {
         );
     }
 }
+
+#[test]
+fn a_document_call_draws_its_tool_line() {
+    let outcome = "Note 1 revision 1 written · 12 lines\ndocument: \"How Shop works\" written, 12 lines.";
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let root = activity_root(
+            Some(BODY),
+            Mode::Split,
+            mixed_activity(b"document", false, outcome),
+            ProposalState::Ordinary,
+        );
+        let view = view(&root, shell);
+        assert!(
+            String::from_utf8_lossy(&section_words(view.tree(), look::TURN_TOOL))
+                .contains("Wrotehow-shop-works.md12 lines")
+        );
+        assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 2);
+        assert!(f::find(view.tree(), Role::Disclosure, b"document").is_none());
+        assert_eq!(styled(view.tree(), look::DOC_CHANGED).len(), 1);
+    }
+}

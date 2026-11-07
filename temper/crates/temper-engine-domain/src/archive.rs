@@ -22,6 +22,7 @@ pub(crate) enum Waiting {
     Input,
     GoalWords,
     Notes,
+    Document,
 }
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
@@ -34,6 +35,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::InputCheck(_)) => Some(Waiting::Input),
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
+        Some(Read::Document(_)) => Some(Waiting::Document),
         None => None,
     }
 }
@@ -119,7 +121,8 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
     match take_read(domain, waiter) {
         Some(Read::Notes { owner }) => Some(owner),
         Some(
-            Read::SettingsNote { .. }
+            Read::Document(_)
+            | Read::SettingsNote { .. }
             | Read::Ended(_)
             | Read::Escalation(_)
             | Read::Proposal(_)

@@ -1607,6 +1607,214 @@ fn a_new_runs_brief_carries_the_durable_note_index() {
     )));
 }
 
+// The asking family is additional to the note fixture's families.
+fn document_config() -> engine::Config {
+    const ASKING: u64 = 2048;
+    let mut config = note_config();
+    config.core.defaults.rules.ceiling.tools.0 |= ASKING;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.tools.0 |= ASKING;
+    policy.roles[0].authority.tools.0 |= ASKING;
+    config
+}
+
+fn document_fixture(configs: [engine::Config; 2]) -> (Driver, engine::Assignment) {
+    let mut bounds = limits();
+    // One working note and the document; each index page still holds one row.
+    bounds.notes.entries_per_scope = 2;
+    let mut driver = Driver::configured(Store::new(), configs, &bounds);
+    hello(&mut driver);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    chat(&mut driver, 12);
+    driver.settle();
+    let assignment = assigned(&driver);
+    (driver, assignment)
+}
+
+fn document_tool(action: engine::DocumentAction, body: &[u8]) -> engine::Tool {
+    engine::Tool::Document { action, body: body.into() }
+}
+
+#[test]
+fn a_document_call_writes_the_chats_document() {
+    use engine::DocumentAction::{Append, Replace, Write};
+    let rows = [
+        (
+            "first",
+            None,
+            None,
+            Write,
+            b"# Title\n## One\nOld\n".as_slice(),
+            b"Title".as_slice(),
+            b"# Title\n## One\nOld\n".as_slice(),
+            1,
+        ),
+        ("append", Some(Write), None, Append, b"## Two\nNew", b"Title", b"# Title\n## One\nOld\n\n## Two\nNew\n", 2),
+        ("replace", Some(Write), None, Replace, b"## One\nNew", b"Title", b"# Title\n## One\nNew\n", 2),
+        ("write twice", Some(Write), None, Write, b"# New title\nBody", b"New title", b"# New title\nBody\n", 2),
+        (
+            "working note skipped across pages",
+            None,
+            Some(false),
+            Write,
+            b"# Title\n## One\nOld\n",
+            b"Title",
+            b"# Title\n## One\nOld\n",
+            1,
+        ),
+        (
+            "person corrected",
+            Some(Write),
+            Some(true),
+            Append,
+            b"## Two\nNew",
+            b"Corrected",
+            b"# Corrected\n## One\nPerson\n\n## Two\nNew\n",
+            3,
+        ),
+    ];
+    for (rule, first, correction, action, body, description, expected, revision) in rows {
+        let (mut driver, assignment) = document_fixture([document_config(), document_config()]);
+        let mut name = 1;
+        if correction == Some(false) {
+            let engine::Tool::Note { mut entry, recalled } =
+                new_note(b"work: settings", b"working body", notes::Author::Task { task: 0, attempt: 0 })
+            else {
+                unreachable!()
+            };
+            entry.scope = notes::Scope::Goal { project: 1, goal: assignment.task };
+            tool_call(&mut driver, &assignment, 3200, engine::Tool::Note { entry, recalled });
+            name = 2;
+        }
+        if let Some(first) = first {
+            tool_call(&mut driver, &assignment, 3201, document_tool(first, b"# Title\n## One\nOld\n"));
+        }
+        if correction == Some(true) {
+            driver.send(engine::Event::Party(engine::PartyInput::Ask {
+                models: Box::new([]),
+                reply_to: ReplyTo::new(Token::new(3202)),
+                sign_in: driver.session(),
+                key: [32; 16],
+                ask: people::Ask::EditNote {
+                    project: 1,
+                    name,
+                    scope: Box::new(people::NoteScope::Goal { goal: assignment.task }),
+                    change: Box::new(people::NoteChange::Correct {
+                        description: b"Corrected".as_slice().into(),
+                        body: b"# Corrected\n## One\nPerson\n".as_slice().into(),
+                        references: Box::new([]),
+                        recalled: 1,
+                    }),
+                },
+            }));
+            driver.settle();
+        }
+        tool_call(&mut driver, &assignment, 3203, document_tool(action, body));
+        let entry = stored_note(&driver, name);
+        assert_eq!(entry.body.as_ref(), expected, "{rule}");
+        assert_eq!(entry.description.as_ref(), description, "{rule}");
+        assert_eq!(entry.scope, notes::Scope::Goal { project: 1, goal: assignment.task }, "{rule}");
+        assert_eq!(entry.revision, revision, "{rule}");
+        assert!(
+            matches!(driver.answered(3203), Some(engine::CallAnswer::Document(documented)) if matches!(documented.outcome, engine::DocumentOutcome::Written { revision: r, .. } if r == revision)),
+            "{rule}: {:?}",
+            driver.answered(3203)
+        );
+        if correction == Some(false) {
+            assert_eq!(stored_note(&driver, 1).body.as_ref(), b"working body");
+            assert_eq!(stored_note(&driver, 1).revision, 1);
+        }
+    }
+}
+
+#[test]
+fn a_refused_document_call_changes_nothing() {
+    use engine::{DocumentAction as A, DocumentOutcome as O, DocumentRefusal as R, NoteFamily};
+    // The walking world's body bound is 256 bytes; the title and newline add 8.
+    let oversized = format!("# Title\n{}", "x".repeat(248));
+    let rows = [
+        ("no document", false, 0, A::Append, b"## One".as_slice(), Some(R::NoDocument)),
+        (
+            "missing section",
+            true,
+            0,
+            A::Replace,
+            b"## Missing",
+            Some(R::NoSection { headings: Box::new([b"One".as_slice().into()]), more: false }),
+        ),
+        ("past body bound", true, 0, A::Write, oversized.as_bytes(), Some(R::PastBound { bytes: 257, bound: 256 })),
+        (
+            "no note family",
+            false,
+            128,
+            A::Write,
+            b"# Title",
+            Some(R::Denied {
+                family: NoteFamily::Note,
+                answer: authority::Answer::Propose,
+                findings: Box::new([authority::Finding::Tool]),
+            }),
+        ),
+        (
+            "no recall family",
+            false,
+            256,
+            A::Write,
+            b"# Title",
+            Some(R::Denied {
+                family: NoteFamily::Recall,
+                answer: authority::Answer::Propose,
+                findings: Box::new([authority::Finding::Tool]),
+            }),
+        ),
+        ("no asking family", false, 2048, A::Write, b"# Title", None),
+    ];
+    for (rule, initial, remove, action, body, refusal) in rows {
+        let configs = std::array::from_fn(|_| {
+            let mut config = document_config();
+            with_policy(&mut config, |policy| policy.roles[0].authority.tools.0 &= !remove);
+            config
+        });
+        let (mut driver, assignment) = document_fixture(configs);
+        if initial {
+            tool_call(&mut driver, &assignment, 3210, document_tool(A::Write, b"# Title\n## One\nOld\n"));
+        }
+        let before: Vec<_> = driver
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                Record::Core(jig_domain_core::Record::Notes(note)) => Some(note.clone()),
+                _ => None,
+            })
+            .collect();
+        tool_call(&mut driver, &assignment, 3211, document_tool(action, body));
+        let after: Vec<_> = driver
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                Record::Core(jig_domain_core::Record::Notes(note)) => Some(note.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(after, before, "{rule}");
+        match refusal {
+            Some(refusal) => assert!(
+                matches!(driver.answered(3211), Some(engine::CallAnswer::Document(documented)) if documented.outcome == O::Refused(refusal)),
+                "{rule}: {:?}",
+                driver.answered(3211)
+            ),
+            None => assert!(
+                matches!(driver.answered(3211), Some(engine::CallAnswer::ToolDenied { findings, .. }) if findings.contains(&authority::Finding::Tool)),
+                "{rule}"
+            ),
+        }
+    }
+}
+
 // A chat's tool families are its role's.
 #[test]
 fn a_note_tool_without_its_family_is_refused_with_an_authority_finding() {
