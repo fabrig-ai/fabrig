@@ -272,14 +272,14 @@ enum ArgumentLimit {
 fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
     // First limits: 10,662/65,536 meets program Bound::Input ("tool input bytes"),
     // 65,532 bytes: (10,662 + 256 path bytes + 4 framing bytes) * 6.
-    // 131,072/131,073 meets domain host_input_bytes; the other rows reach the host.
-    // Costs 378 ms of CPU, measured with the focused suite's per-test collector.
+    // 100,000/100,001 meets domain host_input_bytes; the other rows reach the host.
+    // Keep the declared payload within the transcript ceiling for rendered feedback.
     for (declared, argument, reaches) in [
         (10_662, 10_000, Reaches::Whole),
         (10_662, 65_536, Reaches::Refused(ArgumentLimit::ProgramInput(65_532))),
-        (131_072, 65_536, Reaches::Whole),
-        (131_072, 131_072, Reaches::Whole),
-        (131_072, 131_073, Reaches::Refused(ArgumentLimit::HostInput)),
+        (100_000, 65_536, Reaches::Whole),
+        (100_000, 100_000, Reaches::Whole),
+        (100_000, 100_001, Reaches::Refused(ArgumentLimit::HostInput)),
     ] {
         eprintln!("declared={declared} argument={argument} expected={reaches:?}");
         // {"text":""} contributes eleven bytes to the whole JSON input.
