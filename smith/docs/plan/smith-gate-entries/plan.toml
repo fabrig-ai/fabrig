@@ -1,0 +1,3 @@
+draft = "smith-gate-entries"
+repo = "fabrig"
+sources = ["smith/docs/plan/smith-gate-entries/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
