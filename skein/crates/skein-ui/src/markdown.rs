@@ -299,6 +299,7 @@ fn inline_words(line: &[u8], depth: u32) -> bool {
     false
 }
 
+#[expect(clippy::too_many_lines, reason = "the closing fence joins the existing Markdown line machine (ui.md, 10.1)")]
 fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &mut Blocks, builder: &mut Builder) {
     let raw = input.get(start..end).expect("line is in input");
     let raw = raw.strip_suffix(b"\r").unwrap_or(raw);
@@ -308,9 +309,20 @@ fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &
     };
     if let Some(fence) = blocks.fence {
         if fence_end(raw) {
-            open_block(Role::Code, blocks, builder);
-            builder.text(Run::Code, input.get(fence.body..start).expect("code body is in input"));
-            close_block(blocks, builder);
+            let info = input.get(fence.start..fence.body).expect("fence opening is in input");
+            let body = input.get(fence.body..start).expect("code body is in input");
+            if let Some(flow) = crate::flow::read::read(info, body, &builder.limits) {
+                finish_closing(blocks, builder);
+                builder.drawing(crate::flow::KIND, flow.name, flow.data.as_slice(), builder.limits.drawing_bytes);
+                open_block(Role::Paragraph, blocks, builder);
+                builder.text(Run::Plain, flow.fallback.as_slice());
+                close_block(blocks, builder);
+                close_block(blocks, builder);
+            } else {
+                open_block(Role::Code, blocks, builder);
+                builder.text(Run::Code, body);
+                close_block(blocks, builder);
+            }
             blocks.fence = None;
         }
         return;
@@ -969,5 +981,7 @@ pub fn markdown_bound(bytes: u32, depth: u32) -> Option<u64> {
         .checked_add(List::<Marker>::price(bytes)?)?
         .checked_add(Stack::<u32>::price(depth)?)?
         .checked_add(Stack::<Run>::price(depth)?)?
-        .checked_add(Stack::<ListLevel>::price(depth)?)
+        .checked_add(Stack::<ListLevel>::price(depth)?)?
+        .checked_add(List::<crate::flow::read::Entry<'static>>::price(bytes.checked_div(2)?.checked_add(1)?)?)?
+        .checked_add(List::<u8>::price(bytes)?.checked_mul(3)?)
 }
