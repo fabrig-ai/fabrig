@@ -1003,6 +1003,18 @@ component instead (6.1).
   start. A write fails when the platform refuses it, its quota full, or
   past the small store's own bound, the application's parameter,
   unbounded by default, which a story sets low (14.2).
+- **The kept store** is the browser's local storage, beside the small
+  store: what a person chooses once for every tab of the origin (a
+  look), never a request, a credential or a stream's place. Its records
+  are the small store's form, base64 text under the application's prefix,
+  read whole at start; a write fails as the small store's does, and a
+  page that has no local storage (a private window that refuses it, the
+  worker, a test's platform unless it says otherwise) reads none and
+  refuses every write: the trait's default. The transport never carries
+  it: the shell writes a kept record when its application asks, outside a
+  step's whole, and a failed write changes nothing but that record.
+  Another tab of the origin reads the record at its own start; no tab is
+  told of another's write.
 
 ## 11. Effects in a browser
 
@@ -1033,9 +1045,31 @@ share sheet, a clipboard write, a file picked).
   rejected with `NotAllowedError` is refused, and any other rejection
   failed; both are the application's to say, and neither touches the
   page.
+- **Full screen,** a part of skein's, asked in the turn of a person's
+  act, as a tab is:
+  - *Entered:* `requestFullscreen` on the document's element. Once the
+    page is in full screen, the part asks `navigator.keyboard.lock` for
+    `Escape` alone, where the browser has it (Chromium's, in a secure
+    context), so that a short Escape reaches the page as any key does and
+    a long one still leaves full screen, as the browser's own notice
+    says; the desktop's own shortcuts are the browser's and stay so. A
+    lock refused or missing changes nothing else: there a browser keeps
+    Escape, and it leaves full screen, as Firefox and Safari do. The
+    report `Entered` follows the browser's change; a request refused, by
+    a browser with no full screen, an activation spent or a rejected
+    promise, is reported `Refused`, at once where nothing was asked.
+  - *Left:* by the browser (its Escape, its long Escape, its own control)
+    or by the application's `leave`, which exits full screen when the
+    page is in it and otherwise does nothing. Leaving unlocks the keyboard
+    and is reported `Left`, once for each `Entered`, whoever left. The
+    page's tree is untouched by either: what full screen means to a
+    person is the application's, which draws it.
+  - *A page with none,* the worker's or a test's unless it says
+    otherwise, reports each request `Refused`.
 - **A reload ends what is in flight:** an effect asked before it gives
   no report after it; the state machine starts again from its small
-  store (section 5), which holds no effect in flight.
+  store (section 5), which holds no effect in flight. A reload leaves
+  full screen, as the browser does, with no report.
 
 ## 12. The stylesheet
 

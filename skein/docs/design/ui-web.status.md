@@ -54,3 +54,6 @@ The host table reads the Markdown cases and compares their SVG bytes.
 - **Not yet:** 7: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
+- **Not yet:** 10: the kept store, local storage beside the small store
+  (`skein-ui-web`'s `platform.rs` and `store.rs`); 11: full screen, its Escape held
+  by the keyboard lock, and its reports (look-round-16, `web-screen`).

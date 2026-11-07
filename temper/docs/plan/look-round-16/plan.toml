@@ -17,8 +17,21 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui.md, 10"
 
+[[part]]
+id = "web-screen"
+title = "skein-ui-web gains the kept store, local storage beside the small store, and full screen with Escape held"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 10"
+
 [[slice]]
 id = 1
 story = "A draft's \"_Draft, with the user._\" shows as emphasis, and snake_case stays as written"
 parts = ["md-underscore"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A page keeps a record in local storage across tabs, and goes into and out of full screen with Escape held, reporting each"
+parts = ["web-screen"]
 walk = false
