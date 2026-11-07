@@ -1129,6 +1129,32 @@ of `../draft/v0.1.0.md`, 2.1.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
+- **A goal a person started asks that person.** A goal from the sheet or
+  from Goals (`../client/README.md`, 5.14) has a person as its requester,
+  whose brief says `[Requested by person N]`, and `message` reaches tasks
+  alone (jig's `domain/tasks.md`, 8.5). So, wherever it would ask, it
+  calls `delegate` with one person task addressed to its requester (jig's
+  `domain/people.md`, section 8): executor `{kind: person, person: N}`,
+  the question in the line form below as its spec's words, a report
+  contract and an authority of nothing; then it waits. Its result is the
+  person's answer, and it wakes the goal with those words, as any
+  delegate's does (jig's `domain/tasks.md`, 5.6). The goal's paragraph of
+  charter 1 says so in one sentence, `decided`'s Ask and the hint of a
+  `message` refused for its reference say so too, and a goal a chat calls
+  goes on asking its chat. A person's `Create` never sets `asks`, so the
+  rail below, which a `message` question alone answers, holds no goal a
+  person started; one whose brief says the work is to be agreed asks its
+  plan the same way.
+  - **Its permission is a role's,** as jig's executor permissions are
+    (jig's `domain/authority.md`, section 3): the stock `rules.ceiling`
+    and each project's `policy.ceiling` name roles 0, 1 and 2, those
+    whose people may create work, and a role's authority names its own
+    role alone. So what a person starts may address only someone holding
+    that person's role, and a person with no role or another is refused:
+    `missing executor permission`. A goal a chat calls loses every role
+    kind as `goal` narrows its authority (4.3.1 names what it keeps), so
+    it may address no one. Among holders of one role, the charter's words
+    alone say "its requester" (section 10).
 - **A question's line form.** jig's question carries words alone, so a
   question's options and its recommendation are in its words; the stock
   chat's instructions (charter 1, the goal's paragraph) have a goal
@@ -1311,6 +1337,14 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **A permission for its own requester alone** (8.2): a goal a person
+  started may address anyone holding that person's role, since jig's
+  executor permission is a role's, and a requester who has since changed
+  role can no longer be addressed. A permission naming the requester would
+  be jig's, a new executor kind. And `shapes::set_agreed_goal_from`, were it
+  sent, would owe a question no person task answers. Default: the role, the
+  charter's words, and that shape unsent.
 
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what
