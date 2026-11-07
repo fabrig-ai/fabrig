@@ -4,8 +4,13 @@
 
 Sections 5.1 and 5.4 have no known implementation gap in the paged
 search-and-scroll picker or the shared connection panels and setup in
-Forges rows. The request's rendered comparison remains temper/ui's
-after-landing work (section 10).
+Forges rows. A completed empty search quotes its trimmed query and hides
+the count, including with held picks. The repository sheet's source row,
+list margins, captions and empty-row padding have the requested rules;
+Forges offers "+ Connect a forge". The repair account is `73fd6f4bae`.
+The request-owned parts' rendered comparison remains temper/ui's
+after-landing work (section 10); rule and print checks establish no
+rendered equality.
 
 Section 5.4, *A repository's link*, has no known gap in leaving an empty
 OWNER or NAME without an address, for plain and signed-in links alike.

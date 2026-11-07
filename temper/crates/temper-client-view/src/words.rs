@@ -1481,9 +1481,9 @@ const PHRASES: u32 = 2000;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3477;
+const SEGMENTS: u32 = 3479;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 49079;
+const ENGLISH_BYTES: u32 = 49058;
 const ALL: [Word; 1333] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4989,7 +4989,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::YourForgesTitle => (&[b"Your forges"], &[]),
         Word::YourForges => (&[b"Your forges \xc2\xb7 ", b""], &[Number]),
         Word::NoForgeTag => (&[b"No forge yet"], &[]),
-        Word::AddForge => (&[b"+ Add a forge"], &[]),
+        Word::AddForge => (&[b"+ Connect a forge"], &[]),
         Word::NoForges => (&[b"No forge of yours yet."], &[]),
         Word::ForgeSummary => (&[b"Forge ", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::GitHubUnknown => (&[b"It is not known whether the project was made."], &[]),

@@ -1,6 +1,9 @@
 # tasks: status
 
 2026-11-07. Where jig's code lags or departs from [tasks.md](tasks.md).
+
+Section 3 has no known gap in model indices retaining their catalogue
+numbers and a task checking against its own revision's charter resolution.
 Unlisted sections have no known gap.
 Section 9's replacement of a run's own pending settings proposal has no
 known gap: refusal preserves the old set, late acceptance changes nothing,

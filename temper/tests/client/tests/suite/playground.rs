@@ -130,7 +130,9 @@ fn running_playground_pages_list_the_scripted_facts_without_offering_to_add_anyt
         // The line ends the chats pane; elsewhere the frame's "Set up temper" (client/README.md, 5.1).
         assert_eq!(has(&root, Role::Region, b"Playground"), chats);
         assert!(has(&root, Role::Link, b"Set up temper"));
-        for name in [b"Connect a forge".as_slice(), b"Add a forge", b"Connect GitHub", b"Add key", b"Add an account"] {
+        for name in
+            [b"Connect a forge".as_slice(), b"+ Connect a forge", b"Connect GitHub", b"Add key", b"Add an account"]
+        {
             for role in [Role::Button, Role::Link] {
                 assert!(!has(&root, role, name), "playground offers {}", String::from_utf8_lossy(name));
             }

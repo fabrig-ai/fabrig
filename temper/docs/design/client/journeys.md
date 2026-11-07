@@ -807,6 +807,12 @@ widths and open states in `../draft/look-requests.md`, 4.
 
 ## 10. Open questions
 
+- **The Models page's comparison** (9): temper/ui compares `model-picker`'s
+  hand-made page 07 with the gallery's Models states after landing, with
+  screenshots at 1440, 1280, 1000 and 420 px
+  (`../draft/look-requests.md`, section 4). Default: reprinted journeys and
+  gallery states; print equality establishes no rendered equality.
+
 - **The flow's rendered look** (9): temper/ui checks a flow in a chat
   and its document after landing (`browser.md`, section 5). Default:
   the gallery prints its fallback, and scene bytes are checked in host
