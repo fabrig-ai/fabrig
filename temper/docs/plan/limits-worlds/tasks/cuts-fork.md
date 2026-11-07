@@ -74,3 +74,7 @@ Options, each decided:
 ## Report
 
 Instructions and CPU seconds before and after for both, the fuzzy suite's whole `temper-conformance-world` CPU before and after if you have them, what you broke by hand and what it printed, what the fork itself costs (per cut, from the profile), and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-07 (temper/tiers). The first: cuts-fork is accepted with the guide unmet and named in its report, and conformance-causes owns getting a_forked_cut_ends_as_a_fresh_cut_does within 1 s. Its first look: whether the comparison at the first, a middle and the last live commit shows what comparing at every commit does, since the fuzzy sweeps run every commit through the fork anyway; if so, that's the fix, and otherwise the profile's cause. Nothing raised, nothing sampled in the sweeps.
