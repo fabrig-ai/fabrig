@@ -31,11 +31,13 @@ still open is listed in section 10.
 - **The engine keeps what smith leaves to hosts:** transcripts, turn by
   turn, in its store; host tools' calls, decided once; what follows an
   answer (jig's `domain/engine.md`, section 7).
-- **One translation, temper's own.** `temper-engine-smith`, which the
+- **One translation.** `temper-engine-smith`, which the
   engine's routing calls, is the only place where temper's charter,
-  tools and results become smith's, and smith's back. temper uses
-  neither `jig-protocol-charter` nor `jig-protocol-tools`, since its root
-  has a `Tool` vocabulary of its own (`../protocol/llm.md`, sections 4
+  tools and results become smith's, and smith's back. It uses
+  `jig-protocol-charter` to assemble and translate the charter, supplying
+  temper's host tools, workspace delivery fact and conventions (section 4;
+  jig's `domain/hosts.md`, section 8). Its `Tool` vocabulary is its own,
+  rather than `jig-protocol-tools`' (`../protocol/llm.md`, sections 4
   and 5). smith interprets no temper vocabulary, and the worker none of
   either.
 
@@ -935,7 +937,9 @@ and waits in the Needs you of each project it belongs to (jig's
   its efforts and its default effort, and says so where it holds none. It
   is the list of models the agent may offer. A charter it reads goes back
   whole and may name others; the agent's instructions leave those as they
-  stand and neither propose nor mention them to the person. The settings
+  stand and neither propose nor mention them to the person. Asked for a
+  model no account can run, it says so and points, in one line, to
+  connecting an account: Settings, Accounts, in the browser. The settings
   check validates configured models, not the current offer.
   A read of a project's ways or questions with none stored answers the
   stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
@@ -1063,10 +1067,12 @@ and waits in the Needs you of each project it belongs to (jig's
   1's, holds the settings, read, delegation and message families. It
   has no workspace, its instructions never delegate, and it never
   calls `withdraw`, whose family, the decide family, policy 1 does not
-  give. Nor can it replace a proposal that waits: a task holds one pending
-  proposal (jig's `domain/tasks.md`, section 9), so a second is refused as
-  busy. Asked to withdraw or change one, it says so plainly: an owner rejects
-  it under Needs you, with a reason the chat hears, and it proposes afresh.
+  give. A fresh `propose_settings` replaces its own proposal that waits
+  (jig's `domain/tasks.md`, section 9). Asked to change one, it proposes again,
+  whole, against the newest revision, and never sends the person to Needs you
+  for it: the new card stands below, and the old one reads as replaced
+  (`../client/README.md`, 5.13). Refused, the one that waits stands, and it says
+  so.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`,
   `rules`, `landing-rule` (with its `project`, the deployment's when
@@ -1328,6 +1334,14 @@ host:
 
 ## 10. Open questions
 
+- **A goal as the designer** (4.3 and 4.3.1;
+  `../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
+  path is independent of the stock and reference instructions, their
+  wakes and their location. Those words and settings are folded into the
+  reference workflow together; the room for whole specs, batches, briefs
+  and reports is a separate change. Default: the existing stock and
+  reference words and bounds; test charters exercise goal delivery.
+
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what
   a read exposes while still round-tripping that value, or rejecting a new
@@ -1372,15 +1386,6 @@ host:
   the host part's budget (4.3) may force, and how a brief teaches an LLM
   when to delegate a task rather than a sub-agent. `withdraw`, offered to
   charter 3 and refused by its authority (8.1), is one such tool.
-- **A way out of a proposal that waits** (8.1): the configuring agent can neither
-  withdraw nor replace one, so a person who presses "Change something"
-  (`../client/README.md`, 5.13), where `../draft/configuring.md`, 5.2 has the agent
-  revise, hears that an owner rejects it first. Letting a fresh proposal replace a
-  waiting one, or moving `withdraw` out of the decide family, would give a run its
-  own way, and each is jig's to design (jig's `domain/tasks.md`, section 9); granting
-  the decide family as it stands would also let every chat under policy 1 decide
-  proposals and escalations. Default: an owner rejects it, until a walk shows whether
-  that asks too much of the person.
 - **What sizes temper's own way** (8.1): a read of the deployment's worker slots,
   offered to a run with the settings family, or an answer from the person.
   Default: the person's, as nothing reads

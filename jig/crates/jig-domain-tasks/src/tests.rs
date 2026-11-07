@@ -67,6 +67,7 @@ mod account;
 mod room;
 mod waits;
 
+mod replaced;
 mod settings_proposals;
 
 mod startup;

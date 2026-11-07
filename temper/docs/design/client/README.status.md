@@ -1,18 +1,12 @@
 # README: status
 
-2026-11-06. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
-- **Not yet:** 3.5, *The work's account and model*, 5.5: a stored model and
-  effort amendment can leave the next run using the previous model. The
-  `model-picker` proof stored and reloaded GPT-6 Astra at low, but four
-  fake-provider requests still named `gpt-6.1-sol` (`1d82a937df`). The
-  `ui-model-next-turn` plan owns the runtime repair, by the answer of 2026-11-06
-  to the `look-round-11` task `picker-proof`; no repair is on record.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -253,13 +247,9 @@
   Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
-- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
-  reason's lines and none of its items: jig's document heads leave out every
-  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
-  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
-  and the card has no "Drafts: on". The person accepts on the agent's words. The
-  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
-  document.
+- **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
   proposal, so a live card always takes the place of one no call names, and its call stays a line of
   its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s

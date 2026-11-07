@@ -4585,13 +4585,28 @@ fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
             c::Setting::Application { kind: 6, scope: PROJECT, number: 1 },
         ]))
     };
+    let mut review = List::with_capacity(3);
     for setting in &settings {
-        items.push(c::RevisionItemHead { setting: *setting, edit: c::RevisionItemEdit::Set }).expect("settings item");
+        if let c::Setting::Charter(_) = setting {
+            items
+                .push(c::RevisionItemHead { setting: *setting, edit: c::RevisionItemEdit::Set })
+                .expect("settings item");
+        }
+        review
+            .push(c::ReviewItem {
+                setting: *setting,
+                edit: c::RevisionItemEdit::Set,
+                now: c::ReviewValue::None,
+                origin: c::SettingOrigin::NotOffered,
+                would_be: c::ReviewValue::None,
+                application: None,
+            })
+            .expect("review item");
     }
     proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
         against: 0,
         items,
-        review: None,
+        review: Some(c::SettingsReview { key: Some(9001), newest: 0, items: review, cut: false }),
         made: None,
     }));
     c::ReadValue::Proposal(proposal)
