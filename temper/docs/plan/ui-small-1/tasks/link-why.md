@@ -156,3 +156,12 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, with which rule you broke by hand for each new row, what the row near line 58 of `sign_in.rs` became, and any option you took.
+
+## Rebase (2026-11-07, step merge, foreman ui-small-1/link-why/foreman-1)
+
+resolve both merge conflicts by preserving small-words changes and link-why additions
+Rebase onto the current landing trunk. The conflicting commit is `738ed091e3` (“Clarify stock guidance and remove repeated or blaming messages”), merged into `origin/ui-small-1/integration` by `5b682d72a5`.
+- In `temper/crates/temper-client-view/src/words.rs`, retain the shortened `HomeNeedsEmpty` paragraph from small-words and all three `SignInLink*` variants, IDs, list entries and paragraphs from link-why.
+- Regenerate the combined phrase declarations; neither side’s counts describe the combined vocabulary. Run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`, then verify the same test without write mode.
+- In `temper/docs/design/client/README.status.md`, retain both deletions: remove the completed 5.1 spent-link **Not yet** entry and the completed 3.5 Home / 5.10 semantic-conflict **Not yet** entry. Preserve the surrounding **Design departs** entries.
+- Run `each_link_reason_has_its_paragraph_in_either_shell` in `temper-client-view` through heavy to verify the retained link paragraphs.
