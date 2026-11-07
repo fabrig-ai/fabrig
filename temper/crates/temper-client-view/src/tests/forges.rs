@@ -41,7 +41,7 @@ fn the_forges_page_says_its_words_and_folds_each_row() {
                     if project { "Where your code lives." } else { "Forges" },
                     "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
                     "Your forges · 2",
-                    "+ Add a forge",
+                    "+ Connect a forge",
                 ],
             );
             let row = view
@@ -137,7 +137,7 @@ fn no_forge_of_yours_yet_offers_connect_a_forge() {
     let root = f::forge_root(Address::Forges, List::with_capacity(0));
     let view = f::page_view(&root);
     assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("No forge of yours yet."));
-    for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
+    for name in [b"+ Connect a forge".as_slice(), b"Connect a forge"] {
         assert_eq!(action(&root, Role::Link, name), go(Address::ConnectForge { forge: None }));
     }
 }
@@ -563,7 +563,7 @@ fn forges_lists_the_playground_row_with_nothing_to_add() {
     let root = f::playground_forges_root(Address::Forges, rows);
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"The playground").is_some());
-    for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
+    for name in [b"+ Connect a forge".as_slice(), b"Connect a forge"] {
         assert!(f::find(view.tree(), Role::Link, name).is_none());
     }
     assert!(f::find(view.tree(), Role::Button, b"Remove").is_none());
@@ -810,11 +810,12 @@ fn the_tab_draws_its_section_head_and_its_act_in_it() {
         assert!(head.iter().any(|n| n.role == Role::Heading { level: 2 }
             && n.name.as_deref() == Some("Your forges · 2".as_bytes())
             && n.styles.as_slice().contains(&look::SETTINGS_SECTION_TITLE)));
-        let act = head.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"+ Add a forge")).unwrap();
+        let act =
+            head.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"+ Connect a forge")).unwrap();
         assert!(act.styles.as_slice().contains(&look::SETTINGS_BTN));
         assert!(act.styles.as_slice().contains(&look::SETTINGS_SMALL));
     }
-    assert_eq!(action(&root, Role::Link, b"+ Add a forge"), go(Address::ConnectForge { forge: None }));
+    assert_eq!(action(&root, Role::Link, b"+ Connect a forge"), go(Address::ConnectForge { forge: None }));
     let root = f::playground_forges_root(Address::Forges, List::with_capacity(0));
     let view = f::page_view(&root);
     assert!(!styled(view.tree(), look::SETTINGS_SECTION_HEAD).iter().any(|n| n.role == Role::Link));
@@ -902,7 +903,7 @@ fn no_forge_is_a_quiet_band_and_an_unread_watch_claims_nothing() {
         !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_BAND)
             || n.styles.as_slice().contains(&look::SETTINGS_LINES))
     );
-    assert!(f::find(view.tree(), Role::Link, b"+ Add a forge").is_none());
+    assert!(f::find(view.tree(), Role::Link, b"+ Connect a forge").is_none());
 }
 
 #[test]
