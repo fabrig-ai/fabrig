@@ -139,16 +139,7 @@ pub(crate) fn main(
                 unfinished(b, root, w, forge, row);
             }
         }
-        Shown::SettingUp(number) => {
-            if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
-                setting_up(b, root, w, forge, row);
-            }
-        }
-        Shown::Ready(number) => {
-            if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
-                ready_card(b, root, w, bindings, forge, row, sign_in);
-            }
-        }
+        Shown::SettingUp(_) | Shown::Ready(_) => {}
     }
     b.close();
     b.close();
@@ -218,7 +209,10 @@ pub(crate) fn body(
                     Control::PrimaryButton {
                         name: &w.say(Word::ConnectGitHub, &[]),
                         to: forge.insert(Meaning::Forges(forge::forges::Act::GitHub {
-                            back: temper_client_domain::address::print(&place.address(None)),
+                            back: temper_client_domain::address::print(&match place {
+                                Place::Connect => Address::Forges,
+                                Place::Welcome => place.address(None),
+                            }),
                         })),
                     },
                 ),
@@ -635,7 +629,13 @@ pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
                 Word::ForgeGoOn,
                 forge::forges::Act::GoOn {
                     forge: row.number,
-                    back: temper_client_domain::address::print(root.pages().address()),
+                    back: temper_client_domain::address::print(
+                        &if let Address::Welcome { .. } = root.pages().address() {
+                            root.pages().address().clone()
+                        } else {
+                            Address::Forges
+                        },
+                    ),
                 },
             ),
             connect::UnfinishedAct::StartOver => {
@@ -848,9 +848,11 @@ pub(crate) fn app_control(
         let meaning = match back {
             Some(back) if word == Word::ForgeConnectGitHub => {
                 if number == 0 {
-                    Meaning::Forges(forge::forges::Act::GitHub { back: temper_client_domain::address::print(&back) })
+                    Meaning::Forges(forge::forges::Act::GitHub {
+                        back: temper_client_domain::address::print(&if connect_card { Address::Forges } else { back }),
+                    })
                 } else {
-                    Meaning::ConnectManifest { forge: number, back }
+                    Meaning::ConnectManifest { forge: number, back: if connect_card { Address::Forges } else { back } }
                 }
             }
             Some(back) => Meaning::Install { forge: number, back },
@@ -1076,19 +1078,46 @@ fn full_setup(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row) -> b
     crate::cards::full_progress(b, w, root, setup.request)
 }
 pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row) {
+    progress(b, root, w, row, false);
+}
+pub(crate) fn live(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+    if row.kind == Kind::Forgejo && row.mode == Mode::Connected {
+        flow::live(b, &[(&w.say(Word::TokensChecking, &[]), Mark::UnderWay)]);
+        return;
+    }
+    if row.admin && !connect::failed(row) {
+        let making = match welcome_target(root, row) {
+            Some((org, repository)) => {
+                w.say(Word::ForgeMakingAndAdopting, &[Hole::Name(forge::words::full_name(org, repository))])
+            }
+            None => w.say(Word::ForgeMakingFirst, &[]),
+        };
+        let current = if let Connection::Connected { .. } = row.connection { 2 } else { 0 };
+        flow::live(
+            b,
+            &[
+                (&w.say(Word::ForgeCheckedAddress, &[]), mark(current, 0)),
+                (&w.say(Word::ForgeMadeBot, &[]), mark(current, 1)),
+                (&making, mark(current, 2)),
+                (&w.say(Word::ForgeGiveAccess, &[]), mark(current, 3)),
+            ],
+        );
+    } else {
+        progress(b, Some(root), w, row, true);
+    }
+}
+fn progress(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row, in_row: bool) {
     if full_setup(b, root, w, row) {
         return;
     }
     if row.kind == Kind::GitHub {
-        flow::progress(
-            b,
-            w,
-            &w.say(Word::ForgeProgress, &[]),
-            &[(
-                &forge::words::forge_connection(row),
-                if forge::forges::accepted(row) { Mark::Done } else { Mark::UnderWay },
-            )],
-        );
+        let line = forge::words::forge_connection(row);
+        let steps = [(line.as_ref(), if forge::forges::accepted(row) { Mark::Done } else { Mark::UnderWay })];
+        if in_row {
+            flow::live(b, &steps);
+        } else {
+            flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), &steps);
+        }
         return;
     }
     let repository = match row.starts_with {
@@ -1170,7 +1199,11 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         (making.as_ref(), stage_mark(current, failed_index, 4)),
     ];
     let steps = if repository { steps.as_slice() } else { steps.get(..4).expect("four forge steps") };
-    flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
+    if in_row {
+        flow::live(b, steps);
+    } else {
+        flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
+    }
     if connect::failed(row) {
         failure(b, w, row);
     }
@@ -1260,51 +1293,6 @@ pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
     } else {
         text(b, w, Role::Paragraph, Word::ForgeLeave);
     }
-    b.close();
-}
-pub(crate) fn ready_card(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    _forge: &mut ForgeBindings,
-    row: &Row,
-    sign_in: &crate::forge_sign_in::Forges,
-) {
-    if row.admin {
-        admin_ready(b, root, w, bindings, row);
-        return;
-    }
-    flow::details(b, &w.say(Word::ForgeConnectedTitle, &[Hole::Name(name(w, row, root))]));
-    if let Connection::Connected { login, .. } = &row.connection {
-        crate::cards::text(b, Role::Paragraph, &w.say(Word::ForgeConnectedAs, &[Hole::Name(copy_of(login))]));
-    }
-    if let Some(first) = &row.first
-        && let FirstState::Made { .. } = first.state
-    {
-        crate::cards::text(
-            b,
-            Role::Paragraph,
-            &w.say(Word::ForgeMadeRepository, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
-        );
-        progress_in(b, Some(root), w, row);
-    } else {
-        match row.starts_with {
-            forge::forges::StartsWith::Repository => {}
-            forge::forges::StartsWith::Copies { .. } | forge::forges::StartsWith::Nothing => {
-                progress_in(b, Some(root), w, row);
-            }
-        }
-    }
-    app_line(b, w, row, false);
-    adopt(b, root, w, bindings);
-    super::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
-    b.open(Role::Slot);
-    b.style(look::FLOW_SUBTITLE);
-    w.text(b, Word::ForgeOnForges, &[Hole::Name(name(w, row, root))]);
-    link(b, w, bindings, Word::ForgesTitle, Address::Forges);
-    w.text(b, Word::ForgeOnForgesTail, &[]);
-    b.close();
     b.close();
 }
 pub(crate) fn setup_ending(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, row: &Row) {
@@ -1616,7 +1604,7 @@ fn failure(b: &mut Builder, w: &Words, row: &Row) {
     b.close();
 }
 
-fn admin_details(
+pub(crate) fn admin_details(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -1817,44 +1805,6 @@ fn admin_stop(b: &mut Builder, w: &Words, row: &Row) {
     }
     text(b, w, Role::Paragraph, Word::AdminKept);
 }
-fn admin_ready(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, row: &Row) {
-    let heading = if let Connection::Connected { id, login } = &row.connection {
-        let login = forge::words::lossy(login);
-        let id = skein_lib::Decimal::of(*id);
-        let parts = [b"Connected as ".as_slice(), &login, b" (id ", id.as_bytes(), b"), managed."];
-        let mut size = 0_usize;
-        for part in parts {
-            size = size.checked_add(part.len()).expect("heading fits");
-        }
-        let mut heading = skein_lib::Writer::new(size);
-        for part in parts {
-            heading.put(part).expect("measured heading");
-        }
-        heading.finish()
-    } else {
-        Box::default()
-    };
-    flow::card(b, &heading);
-    if let Some(first) = &row.first {
-        let repository = forge::words::full_name(&first.org, &first.repository);
-        crate::cards::text(
-            b,
-            Role::Paragraph,
-            &w.say(Word::AdminReady, &[Hole::Name(repository.clone()), Hole::Name(first.label.clone())]),
-        );
-        adopt(b, root, w, bindings);
-        if let Some(web) = &row.web
-            && let Some(address) = super::repository::web_address(web, &first.org, &first.repository)
-        {
-            b.open(Role::Link);
-            b.name(&w.say(Word::AdminRepository, &[Hole::Name(repository)]));
-            b.external(&address);
-            b.close();
-        }
-    }
-    b.close();
-}
-
 /// The address field supplies the managed connection's public endpoint (temper/docs/design/client/forge.md, 5.4).
 fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Managed> {
     use forge::admin::PlaceField;
@@ -1911,7 +1861,7 @@ fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Mana
     })
 }
 
-fn tokens_details(
+pub(crate) fn tokens_details(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

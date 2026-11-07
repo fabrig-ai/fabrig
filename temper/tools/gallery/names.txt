@@ -119,6 +119,7 @@ forge-admin-details
 forge-details
 forge-setting-up-middle
 forge-setup-failed
+forges-added
 forges-empty
 forges-failed
 forges-fetching

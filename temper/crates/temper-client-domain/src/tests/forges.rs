@@ -805,3 +805,103 @@ fn the_first_choice_survives_forge_row_decode() {
         assert_eq!(decoded[0].first, None);
     }
 }
+
+#[test]
+fn connection_steps_replace_settings_with_the_open_row_but_keep_welcome() {
+    use crate::{Address, Choice, Event, Place, Request};
+    for (kind, connection) in [
+        (w::Kind::Forgejo, w::Connection::Connecting),
+        (
+            w::Kind::Forgejo,
+            w::Connection::SettingUp(
+                w::SettingUp::new(&limits(), w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
+                    .unwrap(),
+            ),
+        ),
+        (
+            w::Kind::Forgejo,
+            w::Connection::Connected(
+                w::Connected::new(&limits(), w::ConnectedParts { id: 7, login: b"temper".as_slice().into() }).unwrap(),
+            ),
+        ),
+        (
+            w::Kind::Github,
+            w::Connection::Connected(
+                w::Connected::new(&limits(), w::ConnectedParts { id: 7, login: b"temper".as_slice().into() }).unwrap(),
+            ),
+        ),
+    ] {
+        for welcome in [false, true] {
+            let (mut root, _, watch) = super::connect::opened(true);
+            let address = if welcome {
+                Address::Welcome { step: crate::Step::Forge { forge: Some(Choice::Forge(3)) } }
+            } else {
+                Address::ConnectForge { forge: Some(Choice::Forge(3)) }
+            };
+            let mut out = skein_lib::Queue::uncapped();
+            crate::step(
+                &mut root,
+                &fixtures::env(&fixtures::limits()),
+                Event::Went { place: Place::Address(address.clone()) },
+                &mut out,
+            );
+            let mut rows = List::with_capacity(1);
+            rows.push(wire_connection_row(
+                3,
+                kind.clone(),
+                w::Mode::Owned,
+                connection.clone(),
+                w::Offer::Offered,
+                None,
+            ))
+            .unwrap();
+            let record = w::Forges::new(&limits(), w::ForgesParts { forges: rows }).unwrap();
+            out.clear();
+            crate::step(
+                &mut root,
+                &fixtures::env(&fixtures::limits()),
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::FamilyDelivered {
+                            watch,
+                            record: Family {
+                                family: wire::FORGE,
+                                version: wire::CLIENT_VERSION,
+                                bytes: wire::forges(&record),
+                            },
+                        },
+                    },
+                },
+                &mut out,
+            );
+            let mut moved = false;
+            for request in &out {
+                if let Request::Show { address: Address::Forges, replace } = request {
+                    assert!(*replace);
+                    moved = true;
+                }
+            }
+            assert_eq!(moved, !welcome);
+            if welcome {
+                assert_eq!(root.pages().address(), &address);
+                assert_eq!(root.pages().forges_opened(), None);
+            } else {
+                assert_eq!(root.pages().address(), &Address::Forges);
+                assert_eq!(root.pages().forges_opened(), Some(3));
+                crate::step(
+                    &mut root,
+                    &fixtures::env(&fixtures::limits()),
+                    Event::Went { place: Place::Address(Address::Accounts) },
+                    &mut out,
+                );
+                crate::step(
+                    &mut root,
+                    &fixtures::env(&fixtures::limits()),
+                    Event::Went { place: Place::Address(Address::Forges) },
+                    &mut out,
+                );
+                assert_eq!(root.pages().forges_opened(), None);
+            }
+        }
+    }
+}

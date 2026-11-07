@@ -72,6 +72,7 @@ pub struct Pages {
     pub(crate) playground_choice: PlaygroundChoice,
     pub(crate) playground_model: bool,
     pub(crate) choice: choice::Draft,
+    forges_opened: Option<u16>,
     accounts_open: bool,
     builders_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -296,6 +297,7 @@ impl Pages {
             playground_choice: PlaygroundChoice::Idle,
             playground_model: false,
             choice: choice::Draft::default(),
+            forges_opened: None,
             accounts_open: false,
             builders_open: false,
             welcome: None,
@@ -331,6 +333,10 @@ impl Pages {
     #[must_use]
     pub fn accounts(&self) -> Option<&accounts::Accounts> {
         if self.accounts_open && self.party.is_some() { Some(&self.accounts) } else { None }
+    }
+    #[must_use]
+    pub const fn forges_opened(&self) -> Option<u16> {
+        self.forges_opened
     }
     #[must_use]
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
@@ -1078,6 +1084,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         started = true;
     }
     if pages.address != address {
+        pages.forges_opened = None;
         pages.start = None;
     }
     pages.needs.went(&pages.address, &address);
@@ -2216,4 +2223,13 @@ fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &T
         | forge::Answer::EntranceRefused(_)) => Some(welcome::AdoptionEnded::Refused(refused)),
     };
     true
+}
+
+/// Settings replaces its connection page with the live row; welcome owns its steps.
+pub(crate) fn forge_progress(root: &mut crate::Domain, env: &Env<Limits>, out: &mut Queue<crate::Request>) {
+    let Address::ConnectForge { forge } = root.pages.address() else { return };
+    let Some(number) = crate::forge::connect::following(*forge, root.forge()) else { return };
+    crate::route::pages(root, env, Event::Went { address: Address::Forges }, out);
+    root.pages.forges_opened = Some(number);
+    out.push(crate::Request::Show { address: Address::Forges, replace: true });
 }
