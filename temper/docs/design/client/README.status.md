@@ -839,3 +839,6 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
+- **Not yet:** 3.5, *The approval page*; 5.1; 5.12: the approval page, a sign-in approved by a browser (`tui-approval`): `Place::Approve`, the root's `approve` module with its states, acts and the read again each second while approved, `Domain::approval()`, and the view's card with its words, under the banner alone. `temper-client-domain` and `temper-client-view` hold none of it.
+- **Not yet:** 7.1: the root's half for a native client: `Event::AskApproval`, the `asked` module and `Domain::asked()`, the take signed in at once and the secret never in the root's state.
+- **Not yet:** 7.1: the TUI's flow, its tab's address made from its own parts, its opener, its lines and the address printed when no browser opens, and asking again: the plan after the TUI's first screen builds it (`../draft/tui.execution.md`, M2).
