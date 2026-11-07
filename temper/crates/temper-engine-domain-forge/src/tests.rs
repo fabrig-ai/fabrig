@@ -22,6 +22,7 @@ mod kinds;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
+mod link;
 mod make;
 mod making;
 mod panel;

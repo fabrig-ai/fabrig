@@ -7,20 +7,39 @@ fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
     use skein_forge::api;
     let mut d = domain();
     let writer = adopted();
+    outputs(&mut d, Event::Restore { record: Stored::Forge(records::record(1)) });
     outputs(&mut d, Event::Restore { record: Stored::Repository(writer.clone()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
+    d.writers.insert(1, 17).expect("fixture writer differs from the link's user");
     let human = api::Collaborator { user: 42, permission: api::Permission::Admin };
-    for (key, permission, protection, collaborators) in [
-        (4, api::Permission::Write, Err(api::Error::Forbidden), Err(api::Error::Forbidden)),
+    let bot = api::Collaborator { user: 17, permission: api::Permission::Write };
+    for (key, link, permission, protection, collaborators) in [
+        (4, None, api::Permission::Write, Err(api::Error::Forbidden), Err(api::Error::Forbidden)),
         (
             5,
+            None,
             api::Permission::Admin,
             Ok(api::Answer::Protection(None)),
-            Ok(api::Answer::Collaborators { collaborators: Box::new([human.clone()]), more: false }),
+            Ok(api::Answer::Collaborators { collaborators: Box::new([human.clone(), bot.clone()]), more: false }),
+        ),
+        (
+            6,
+            Some(Link { user: 7, person: 31 }),
+            api::Permission::Admin,
+            Ok(api::Answer::Protection(None)),
+            Ok(api::Answer::Collaborators {
+                collaborators: Box::new([
+                    human.clone(),
+                    bot.clone(),
+                    api::Collaborator { user: 7, permission: api::Permission::Admin },
+                ]),
+                more: false,
+            }),
         ),
     ] {
+        d.records.get_mut(&1).expect("restored forge").person = link;
         fixtures::begin_adoption(&mut d, Token::new(key), fixtures::adoption());
         for answer in [
             Ok(api::Answer::Permission(api::UserPermission { user: 1, login: Box::new([]), permission })),
@@ -46,9 +65,15 @@ fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
             let Some(Request::Adopted { result: Ok(value), .. }) = requests.last() else {
                 panic!("repository admin can import the human on re-adoption");
             };
-            assert_eq!(value.collaborators.as_ref(), core::slice::from_ref(&human));
+            assert_eq!(value.collaborators.as_ref(), core::slice::from_ref(&human), "adoption {key}");
             assert_eq!(&value.repository, &writer);
         }
+        let outcome = if permission == api::Permission::Write {
+            people::Outcome::Refused(people::Refusal::Unknown)
+        } else {
+            people::Outcome::Adopted { project: writer.project }
+        };
+        outputs(&mut d, Event::ApplicationAnswered { request: Token::new(key), outcome });
     }
 }
 
