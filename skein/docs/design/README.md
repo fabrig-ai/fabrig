@@ -64,6 +64,7 @@ this design.
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [browser.md](browser.md) |
 | the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui.md](ui.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui-text.md](ui-text.md) |
+| the full-screen shell | `skein-ui-screen`, `skein-ui-screen-terminal` | the tree laid out on a terminal's grid of cells in an application's theme, keys read as acts | [ui-screen.md](ui-screen.md) |
 | the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui-web.md](ui-web.md) |
 | a world in a browser | `skein-playground` | an application's simulated world in a Web Worker, stepped in slices paced by the browser; the visitor speaking HTTP to its listener; the bridge; the session log and its replay | [playground.md](playground.md) |
 | the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui.md](ui.md), [ui-web.md](ui-web.md) |
@@ -103,6 +104,8 @@ skein-throwaway-forgejo lib, io, http, json, shell, forge, fail-stop, world
 skein-browser  lib, json
 skein-ui       lib
 skein-ui-text  lib, io, ui
+skein-ui-screen lib, ui
+skein-ui-screen-terminal lib, io, ui, ui-screen
 skein-ui-web   lib, ui; on wasm32, wasm-bindgen, js-sys, web-sys
 skein-ui-bundle lib, fail-stop (a tool), wasm-bindgen-cli-support
 skein-fake-person lib, ui

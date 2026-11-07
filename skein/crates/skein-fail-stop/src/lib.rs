@@ -11,15 +11,33 @@
 //! panic was. No destructor runs, nothing catches the panic, and the process
 //! ends on `SIGABRT`, as under `panic = "abort"`. Each repository's gate
 //! checks that every binary calls it first.
+//! An optional restoration runs once before the report so it reaches the
+//! person's own screen (shell.md, 6.3).
 //!
 //! This is ordinary Rust (programming-model.md, 10.2).
 #![forbid(unsafe_code)]
 
 use std::io::Write;
+use std::sync::{Mutex, PoisonError};
+
+/// What the hook runs once, before its report (programming-model.md, section 2).
+pub type Restore = Box<dyn Fn() + Send + Sync>;
+
+static RESTORE: Mutex<Option<Restore>> = Mutex::new(None);
+
+/// Sets the restoration, or takes it back with None. The hook takes it out before
+/// running it, so it runs at most once.
+pub fn before_report(restore: Option<Restore>) {
+    *RESTORE.lock().unwrap_or_else(PoisonError::into_inner) = restore;
+}
 
 /// Installs the hook: a message and forced backtrace, then an abort.
 pub fn install() {
     std::panic::set_hook(Box::new(|panic| {
+        let restore = RESTORE.lock().unwrap_or_else(PoisonError::into_inner).take();
+        if let Some(restore) = restore {
+            restore();
+        }
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("<unnamed>");
         let location = panic.location().expect("std supplies the panic's location");

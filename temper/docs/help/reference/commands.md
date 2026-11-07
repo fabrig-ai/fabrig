@@ -140,6 +140,16 @@ Make what people need to sign in to temper through a Forgejo, and print the Forg
 
 For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
+## temper [ADDRESS]
+
+`temper [ADDRESS]`
+
+Run temper's full-screen terminal client, the TUI, on an engine.
+
+- `ADDRESS`: The engine's clients' listener, http://HOST:PORT on loopback; by default the address the TUI last signed in to, else http://127.0.0.1:8367.
+
+Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. q or Ctrl+C closes it without signing out.
+
 ## temper ctl
 
 `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`

@@ -18,7 +18,11 @@ next reads. The owned-forge referee rejects a non-procedure delegate and
 names the chat's successful and failed committed calls. Focused tables
 hold those words; the real model's choice remains unobserved until after
 landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
-and 11). The standard brief follows the declarations at 354,988 bytes;
+and 11). The Claude Code landing fixture takes `claude-haiku-5-5` by name
+at `low` in both selected charters; ChatGPT keeps stock row 7. Its focused
+settings table establishes no real launch or live landing; that proof
+follows landing (`domain/testing.md`, 2.7 and 11).
+The standard brief follows the declarations at 354,988 bytes;
 the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
