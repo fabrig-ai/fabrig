@@ -720,7 +720,7 @@ mod list_tests {
 }
 
 #[test]
-fn list_answers_decode_rows_and_every_typed_failure() {
+fn list_answers_decode_rows_and_every_failure() {
     use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
     use jig_protocol_worker_wire as wire;
     for (body, outcome) in [
