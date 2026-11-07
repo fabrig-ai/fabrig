@@ -2,6 +2,22 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 13.9 has no known gap in the reference's journal room:
+`room.json` sets `root.journal.run_bytes` to 65,536 in its application
+overlay, and the README, startup relation table and owned-process
+fixture merge it. The README also names the worker's turns, time and
+run-spend bounds that a charter must fit. No further room figure was
+settled by the oversized-file repair.
+
+The settings-position wording left by `replay-repairs` remains section
+11's follow-up: jig's corrected refusal counts from 0, and temper prints
+it unchanged, while temper's own translation refusal counts from 1.
+The silent-check diagnosis is by reading, not a timed deployment run:
+`.temper/pre-pr` emits no progress before its format and baseline work,
+and its 60-second `check_timeout` remains unchanged. Progress output is
+also deferred in section 11; no supplied result establishes the reported
+timeouts' exact phase or duration.
+
 Sections 2 and 13.4 have no known gap in the binary's numbered stock,
 model-free configuration documents or `rest` on stock charters. The
 measurement gap below stays.

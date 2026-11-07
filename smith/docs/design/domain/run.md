@@ -642,12 +642,13 @@ its next run to hear of. smith does not make the host's judgement.
   section 4).
 - **A failing check is feedback,** with its output's tail, like any
   other. It names its directory and the check it ran there (the
-  convention's path), how it ended, and, when it timed out, the time it
-  was given: the run's `check_timeout`, or what was left of the call's
-  own deadline when that came first. What the check wrote before its
-  deadline is its tail, as for a check that exits: a stopped check's
-  output is kept to the last byte read before its pipes close, and an
-  empty tail says the check wrote nothing.
+  convention's path), how it ended, and the time it was given, for
+  every exit: the run's `check_timeout`, or what was left of the call's
+  own deadline when that came first. A stopped check keeps its output's
+  bounded tail through the last byte read before its pipes close,
+  including output read during stopping, as a check that exits does.
+  An empty tail with no discarded bytes records no output read before
+  the pipes closed.
 - **Not a security boundary.** An agent can change what a check runs;
   whatever guards the host's systems (temper's CI and its authority's
   requirements) guards them. The checks catch failures early, inside the
@@ -1066,6 +1067,11 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
 
 ## 15. Open questions
 
+- **A silent check** (8.1): feedback carries only what its process
+  wrote and the machine read. Progress messages belong to the repository's
+  check, so a timeout before it writes can still have an empty tail.
+  Default: preserve that evidence, with the path and given time; no
+  generated progress output or longer timeout in the run.
 - **A sub-agent's result:** its final message; whether a sub-agent
   may be given a contract of its own.
 - **A run's refusal on the channel:** a run that refuses its start for

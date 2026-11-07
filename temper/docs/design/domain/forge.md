@@ -3314,6 +3314,14 @@ whole.
 
 ## 20. Open questions
 
+- **A forge read past its bound** (8.4): distinguishing
+  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
+  size, needs skein's bare `TooLarge` to carry the bound and an exact or
+  lower-bound measure, then temper's stored answer to retain them.
+  Those public-interface and stored-format decisions belong to their
+  owners. Default: keep the files-omitted notice and the tool's unknown
+  measure; neither raise the room nor split a file across pages. A host
+  answer's rendered-size bound is separate from the forge client's bound.
 - **A person's link to a forge's user, and eligibility per forge** (section 4,
   8.9; `../draft/forge-identity.md`, sections 3, 4 and 7): the lookup knows
   only what adoption seeded, and eligibility counts an account on any forge of

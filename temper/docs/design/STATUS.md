@@ -1,7 +1,13 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The first
+its design from its drafts, from the status files below. The reference
+merges a 65,536-byte journal run bound from `room.json`. A pull's files
+page past the forge client's bound leaves an omitted-page notice;
+the exact bound and measure still need an interface and stored-answer
+decision. Settings-position wording and progress from the repository's
+quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
+`domain/forge.md`, 8.4 and 20). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
