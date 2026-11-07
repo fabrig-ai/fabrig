@@ -2627,7 +2627,11 @@ fn to_begin_keeps_chats() {
     assert!(!root.forge().ways(f::PROJECT).unwrap().goals);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let nav = styled(view.tree(), crate::look::RAIL_NAV);
-        assert!(children(subtree(view.tree(), nav.id)).iter().any(|n| n.name.as_deref() == Some(b"Goals")));
+        let mut goals = false;
+        for node in &children(subtree(view.tree(), nav.id)) {
+            goals |= node.name.as_deref() == Some(b"Goals");
+        }
+        assert!(goals);
         main_find(view.tree(), Role::Heading { level: 2 }, b"To begin");
         main_find(view.tree(), Role::Region, b"Chats");
         for node in main_nodes(view.tree()) {
@@ -2636,10 +2640,12 @@ fn to_begin_keeps_chats() {
     }
     let view = f::browser_page_view(&root);
     let tabs = styled(view.tree(), crate::look::TABBAR);
-    assert_eq!(
-        children(subtree(view.tree(), tabs.id)).iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-        [b"Home".as_slice(), b"Needs you", b"Goals", b"Chats"]
-    );
+    let expected = [b"Home".as_slice(), b"Needs you", b"Goals", b"Chats"];
+    let mut names = List::with_capacity(u32::try_from(expected.len()).unwrap());
+    for node in &children(subtree(view.tree(), tabs.id)) {
+        names.push(node.name.as_deref().unwrap()).unwrap();
+    }
+    assert_eq!(names.as_slice(), expected);
 }
 
 const BRIEF_SENTENCE: &str = "41 changes landed overnight.";

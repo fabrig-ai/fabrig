@@ -101,8 +101,11 @@ fn stock(kind: u32) -> Option<c::SettingValue> {
             out.finish()
         }
         7 => {
-            let value = w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [true, false, false, false], way: 0 })
-                .expect("stock ways");
+            let value = w::ProjectWays::new(
+                &w::CEILINGS,
+                w::ProjectWaysParts { skein_bools: [true, false, false, false], way: 0 },
+            )
+            .expect("stock ways");
             let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
             value.encode(&mut out).expect("fixed stock record");
             out.finish()
