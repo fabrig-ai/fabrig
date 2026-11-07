@@ -487,7 +487,8 @@ fn tokens_name_the_required_scopes_the_issuer_withheld() {
     let event = redirected(&mut issuer, url);
     let request = http(client_step(&mut client, event));
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));
-    let Some(oauth::Request::Tokens { record, missing }) = client_step(&mut client, oauth::Event::Http(answer)) else {
+    let Some(oauth::Request::Tokens { record, missing, .. }) = client_step(&mut client, oauth::Event::Http(answer))
+    else {
         panic!("tokens")
     };
     assert_eq!(missing.as_ref(), b"profile");

@@ -273,7 +273,8 @@ refusals are 5.1's.
   `Invalid`, naming the value: a token past `token_bytes`, empty, or with
   a byte skein-http would refuse in a head; a user of 0; a credential of
   the other dialect's kind; an App key that is not a 2048-bit RSA key's
-  PKCS#1 DER, or that is past `key_bytes`; a secret on a GitHub forge
+  PKCS#1 DER, which `skein_tls::rs256_public_pkcs1` reads without signing
+  (tls.md, section 4), or that is past `key_bytes`; a secret on a GitHub forge
   (6.1) or on a forge with no listener, or one empty or past
   `hook_secret_bytes`.
 - **A replacement ends what the old access began, as a revocation
@@ -538,8 +539,10 @@ An installation's tokens are, by the component itself:
   anew, so no request goes out on a JWT that ends before its deadline.
   7.4 keeps `deadline` within half its life, so each JWT serves for at
   least half of it.
-- **A key that will not sign,** which 3.5's check makes impossible,
-  stops the forge, `Invalid`, naming the key.
+- **A key that will not sign** stops the forge, `Invalid`, naming the
+  key, before any request goes out on it. 3.5's check parses a key and
+  does not sign with it, so a key ring refuses only when it signs
+  (tls.md, section 4) passes that check and is stopped here.
 
 ### 5.3 Git's tokens
 

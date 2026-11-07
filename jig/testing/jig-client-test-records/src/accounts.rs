@@ -1,7 +1,7 @@
 //! Independent literals for complete accounts watch records.
 use super::live_values::{encoded, pieces, rows};
 use super::{limits, w, wire_text};
-use skein_lib::Duration;
+use skein_lib::{Duration, List};
 
 #[must_use]
 pub fn account_sources_record() -> Box<[u8]> {
@@ -48,6 +48,7 @@ pub fn account_line_record() -> w::AccountLine {
     w::AccountLine::new(
         &l,
         w::AccountLineParts {
+            facts: account_fact_records(),
             provider_name: None,
             manage_usage: None,
             number: 7,
@@ -83,6 +84,7 @@ pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
     let other = w::AccountLine::new(
         &l,
         w::AccountLineParts {
+            facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
             number: 9,
@@ -200,4 +202,62 @@ pub fn account_end_records() -> Vec<w::AccountEnd> {
         ));
     }
     ends
+}
+
+/// A full list at the schema's bound, carrying each fact value shape.
+#[must_use]
+pub fn account_fact_records() -> List<w::AccountFact> {
+    let l = limits();
+    let mut facts = List::with_capacity(24);
+    for _ in 0_u32..4 {
+        for value in [
+            w::AccountFactValue::Text(
+                w::AccountFactText::new(&l, w::AccountFactTextParts { text: Box::from(b"you@example.com".as_slice()) })
+                    .expect("literal"),
+            ),
+            w::AccountFactValue::Count(
+                w::AccountFactCount::new(&l, w::AccountFactCountParts { count: 123 }).expect("literal"),
+            ),
+            w::AccountFactValue::Instant(
+                w::AccountFactInstant::new(&l, w::AccountFactInstantParts { at: 127 }).expect("literal"),
+            ),
+            w::AccountFactValue::Span(
+                w::AccountFactSpan::new(&l, w::AccountFactSpanParts { nanos: Duration::from_nanos(131) })
+                    .expect("literal"),
+            ),
+            w::AccountFactValue::Share(
+                w::AccountFactShare::new(&l, w::AccountFactShareParts { basis: 10_000 }).expect("literal"),
+            ),
+            w::AccountFactValue::Window(
+                w::AccountWindow::new(
+                    &l,
+                    w::AccountWindowParts {
+                        length: Some(Duration::from_nanos(137)),
+                        used: Some(10_000),
+                        resets: Some(139),
+                        state: 2,
+                    },
+                )
+                .expect("literal"),
+            ),
+        ] {
+            facts
+                .push(
+                    w::AccountFact::new(
+                        &l,
+                        w::AccountFactParts {
+                            kind: 1,
+                            label: Box::from(b"label".as_slice()),
+                            value,
+                            seen: 149,
+                            source: Some(11),
+                            origin: 6,
+                        },
+                    )
+                    .expect("literal"),
+                )
+                .expect("24 facts");
+        }
+    }
+    facts
 }

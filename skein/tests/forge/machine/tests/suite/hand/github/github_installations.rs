@@ -167,13 +167,16 @@ fn new_accepted_set_discards_stale_read() {
     assert_eq!(h.connected_count, 1);
 }
 #[test]
-fn installation_login_at_name_bound_succeeds() {
-    name_bound(4, true);
+fn installation_login_bounds_accept_exactly_the_permitted_width() {
+    skein_rows::check(
+        [
+            ("installation_login_at_name_bound_succeeds", (4, true)),
+            ("installation_login_past_name_bound_fails_without_unkept", (5, false)),
+        ],
+        |(v0, v1)| name_bound(v0, v1),
+    );
 }
-#[test]
-fn installation_login_past_name_bound_fails_without_unkept() {
-    name_bound(5, false);
-}
+
 fn name_bound(width: usize, succeeds: bool) {
     let mut h = Harness::with(
         fixtures::limits(),

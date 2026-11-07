@@ -6,6 +6,10 @@ use jig_domain_accounts::Key;
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
+        Key::Facts { account } => {
+            writer.tag(5);
+            writer.u64(u64::from(*account));
+        }
         Key::Issued { number } => {
             writer.tag(4);
             writer.u64(u64::from(*number));
@@ -27,6 +31,7 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
     Some(match reader.tag()? {
         0 => Key::Next,
+        5 => Key::Facts { account: u32::try_from(reader.u64()?).ok()? },
         4 => Key::Issued { number: u32::try_from(reader.u64()?).ok()? },
         1 => Key::Account { number: u32::try_from(reader.u64()?).ok()? },
         2 => Key::Source { account: u32::try_from(reader.u64()?).ok()?, number: u32::try_from(reader.u64()?).ok()? },

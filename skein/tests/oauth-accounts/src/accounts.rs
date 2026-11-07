@@ -198,6 +198,7 @@ pub(crate) fn observe(client: &mut world::Client, env: &Env<accounts::Limits>) {
         | accounts::Event::SignedOut { .. }
         | accounts::Event::Taken { .. }
         | accounts::Event::SignedIn { .. }
+        | accounts::Event::Refreshed { .. }
         | accounts::Event::Expiring { .. }
         | accounts::Event::Refused { .. } => {
             panic!("unexpected added-account terminal")

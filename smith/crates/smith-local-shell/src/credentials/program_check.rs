@@ -69,7 +69,7 @@ fn state(program: ProgramName, answer: Result<SourceAnswer, String>) -> Credenti
 
 pub(crate) fn credential(program: ProgramName, answer: ProgramCheck) -> Credential {
     match answer {
-        ProgramCheck::Usable => Credential::Usable { until: None },
+        ProgramCheck::Usable { .. } => Credential::Usable { until: None },
         ProgramCheck::NotSignedIn => Credential::ProgramNotSignedIn { program },
         ProgramCheck::SignedInOtherwise(method) => {
             Credential::ProgramSignedInOtherwise { program, method: program_source::detail(method.as_bytes()) }

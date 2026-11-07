@@ -3,6 +3,14 @@ use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
+/// Who an account is: the email its provider gave, else what it was named.
+pub(crate) fn who<'a>(email: Option<&'a [u8]>, named: &'a [u8]) -> &'a [u8] {
+    match email {
+        Some(email) => email,
+        None => named,
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Word {
     UnusableOn,

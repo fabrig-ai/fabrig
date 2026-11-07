@@ -286,6 +286,7 @@ fn a_fresh_page_at_the_return_address_lands_on_accounts() {
         subject: b"subject".as_slice().into(),
         display: b"alice@example.com".as_slice().into(),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);
@@ -331,6 +332,7 @@ fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: 
         subject: b"subject".as_slice().into(),
         display: b"alice@example.com".as_slice().into(),
         declined,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(front, root);
 }
@@ -447,6 +449,7 @@ fn a_typed_welcome_ready_reads_the_sign_in_then_its_account() {
         subject: SUBJECT.into(),
         display: DISPLAY.into(),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);

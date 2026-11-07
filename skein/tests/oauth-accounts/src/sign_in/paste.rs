@@ -156,6 +156,7 @@ pub(super) fn paste(client: &mut Client, env: &Env<accounts::Limits>, uri: Box<[
         | Story::ListenerWrongState
         | Story::PasteClose
         | Story::Public
+        | Story::Profile(_)
         | Story::VaryingTaken
         | Story::TwoPorts
         | Story::Confidential

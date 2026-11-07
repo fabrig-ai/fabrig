@@ -171,9 +171,11 @@ impl StockBox {
                 }) = event
                 {
                     *logins = match &self.login {
-                        Some(state) => {
-                            Box::new([Login { name: SourceName::new(LOGIN).unwrap(), state: state.clone() }])
-                        }
+                        Some(state) => Box::new([Login {
+                            name: SourceName::new(LOGIN).unwrap(),
+                            state: state.clone(),
+                            email: None,
+                        }]),
                         None => Box::new([]),
                     };
                 }
@@ -248,6 +250,7 @@ impl StockBox {
             subject: b"plan-owner".as_slice().into(),
             display: b"ChatGPT plan".as_slice().into(),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         }));
         self.pump();
         self.driver.send(Event::Account(accounts::Event::Credential {
@@ -752,7 +755,11 @@ fn a_lapsed_login_withdraws_its_offer_and_marks_me_but_keeps_the_tasks_model() {
     world.driver.send(protocol::up(
         CHANNEL,
         host::LinkUp::Logins {
-            logins: Box::new([Login { name: SourceName::new(LOGIN).unwrap(), state: LoginState::NotSignedIn }]),
+            logins: Box::new([Login {
+                name: SourceName::new(LOGIN).unwrap(),
+                state: LoginState::NotSignedIn,
+                email: None,
+            }]),
         },
         engine::Parts::none(),
     ));

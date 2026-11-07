@@ -57,10 +57,21 @@ fn the_api_token_is_sent_to_the_users_route_and_the_git_token_after_it() {
 }
 
 #[test]
-fn a_user_not_yet_kept_is_written_as_eight_bytes_then_done_with_the_identity() {
-    let mut run = at(USER_READ);
-    assert_eq!(run.step(Event::Read(None)), Need::Write { item: Item::User, bytes: secret(&7u64.to_le_bytes()) });
-    assert_eq!(run.step(Event::Written), identity());
+fn absent_stored_identities_are_written_before_reporting_identity() {
+    skein_rows::check(
+        [
+            ("a_user_not_yet_kept_is_written_as_eight_bytes_then_done_with_the_identity", None),
+            ("an_empty_kept_user_is_none", Some(secret(b""))),
+        ],
+        |bytes| {
+            let mut run = at(USER_READ);
+            assert_eq!(
+                run.step(Event::Read(bytes)),
+                Need::Write { item: Item::User, bytes: secret(&7u64.to_le_bytes()) }
+            );
+            assert_eq!(run.step(Event::Written), identity());
+        },
+    );
 }
 
 #[test]
@@ -69,22 +80,14 @@ fn a_kept_user_equal_to_the_tokens_is_not_written_again() {
 }
 
 #[test]
-fn a_kept_user_that_differs_is_other_user_naming_api() {
-    assert_eq!(at(USER_READ).step(Event::Read(Some(secret(&8u64.to_le_bytes())))), failure(b"api", Why::OtherUser));
-}
-
-#[test]
-fn a_kept_value_that_does_not_decode_is_other_user() {
-    for value in [b"7".as_slice(), &0u64.to_le_bytes()] {
-        assert_eq!(at(USER_READ).step(Event::Read(Some(secret(value)))), failure(b"api", Why::OtherUser));
-    }
-}
-
-#[test]
-fn an_empty_kept_user_is_none() {
-    assert_eq!(
-        at(USER_READ).step(Event::Read(Some(secret(b"")))),
-        Need::Write { item: Item::User, bytes: secret(&7u64.to_le_bytes()) }
+fn nonmatching_kept_identities_stop_as_another_api_user() {
+    skein_rows::check(
+        [
+            ("a_kept_user_that_differs_is_other_user_naming_api", secret(&8u64.to_le_bytes())),
+            ("a_kept_value_that_does_not_decode_is_other_user: malformed", secret(b"7")),
+            ("a_kept_value_that_does_not_decode_is_other_user: zero", secret(&0u64.to_le_bytes())),
+        ],
+        |bytes| assert_eq!(at(USER_READ).step(Event::Read(Some(bytes))), failure(b"api", Why::OtherUser)),
     );
 }
 
@@ -105,17 +108,19 @@ fn a_user_of_id_zero_is_unexpected() {
 }
 
 #[test]
-fn a_missing_or_empty_api_token_stops_before_any_request() {
-    for value in [None, Some(secret(b""))] {
-        assert_eq!(at(API_READ).step(Event::Read(value)), failure(b"api", Why::Missing));
-    }
-}
-
-#[test]
-fn a_missing_or_empty_git_token_stops_naming_git() {
-    for value in [None, Some(secret(b""))] {
-        assert_eq!(at(GIT_READ).step(Event::Read(value)), failure(b"git", Why::Missing));
-    }
+fn missing_tokens_stop_before_requests_and_name_themselves() {
+    skein_rows::check(
+        [
+            ("a_missing_or_empty_api_token_stops_before_any_request: missing", (API_READ, None, b"api".as_slice())),
+            (
+                "a_missing_or_empty_api_token_stops_before_any_request: empty",
+                (API_READ, Some(secret(b"")), b"api".as_slice()),
+            ),
+            ("a_missing_or_empty_git_token_stops_naming_git: missing", (GIT_READ, None, b"git".as_slice())),
+            ("a_missing_or_empty_git_token_stops_naming_git: empty", (GIT_READ, Some(secret(b"")), b"git".as_slice())),
+        ],
+        |(phase, token, subject)| assert_eq!(at(phase).step(Event::Read(token)), failure(subject, Why::Missing)),
+    );
 }
 
 #[test]

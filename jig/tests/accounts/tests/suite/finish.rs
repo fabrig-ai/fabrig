@@ -81,8 +81,20 @@ fn an_ending_sign_in_answers_its_pending_finish_not_waiting_first() {
     for terminal in [
         Event::SignInFailed { source: 0, failure: Failure::Cancelled },
         Event::SignInFailed { source: 0, failure: Failure::Misconfigured },
-        Event::SignedIn { source: 0, subject: b"subject".as_slice().into(), display: Box::new([]), declined: false },
-        Event::SignedIn { source: 0, subject: Box::new([]), display: Box::new([]), declined: false },
+        Event::SignedIn {
+            source: 0,
+            subject: b"subject".as_slice().into(),
+            display: Box::new([]),
+            declined: false,
+            said: jig_domain_accounts::Said::default(),
+        },
+        Event::SignedIn {
+            source: 0,
+            subject: Box::new([]),
+            display: Box::new([]),
+            declined: false,
+            said: jig_domain_accounts::Said::default(),
+        },
         Event::Close,
     ] {
         let mut w = world(1);

@@ -19,7 +19,7 @@ pub(crate) enum Stage {
     Locking,
     Reading,
     Running,
-    Keeping { candidate: oauth::SavedToken, missing: Box<[u8]> },
+    Keeping { candidate: oauth::SavedToken, missing: Box<[u8]>, profile: oauth::ProfileClaims },
     Forgetting { revoked: bool },
     Finished,
 }
@@ -59,7 +59,7 @@ pub(crate) struct Exchange {
     pub(crate) listener: Option<crate::listener::Listener>,
     pub(crate) file_active: bool,
     pub(crate) lock: OwnerLock,
-    pub(crate) lock_candidate: Option<(oauth::SavedToken, Box<[u8]>)>,
+    pub(crate) lock_candidate: Option<(oauth::SavedToken, Box<[u8]>, oauth::ProfileClaims)>,
 }
 
 impl Exchange {

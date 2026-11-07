@@ -42,6 +42,7 @@ pub(super) fn own(
         account.provider,
         account.provider_name.as_ref(),
         &account.display,
+        account.email(),
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -71,6 +72,7 @@ pub(super) fn deployment(
         account.provider,
         account.provider_name.as_ref(),
         &account.display,
+        account.email(),
         account.holder,
         account.plan,
         account.uses.as_ref(),
@@ -97,6 +99,7 @@ fn draw(
     provider: Option<u32>,
     provider_text: Option<&c::DocumentText>,
     display: &c::DocumentText,
+    email: Option<&[u8]>,
     holder: c::AccountHolder,
     plan: bool,
     uses: Option<&List<c::AccountUse>>,
@@ -111,8 +114,18 @@ fn draw(
         return;
     }
     let name = provider_name(provider_text);
-    let title =
-        heading(w, row.account, provider, name, display, holder, plan, sources, accounts::current_me(root.client()));
+    let title = heading(
+        w,
+        row.account,
+        provider,
+        name,
+        display,
+        email,
+        holder,
+        plan,
+        sources,
+        accounts::current_me(root.client()),
+    );
     let deciding = sources.get(0);
     let mut moving = false;
     for source in sources {

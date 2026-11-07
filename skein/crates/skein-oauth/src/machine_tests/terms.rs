@@ -9,7 +9,11 @@ const NONCE_CAP: usize = 64; // limits().nonce_bytes.
 pub(super) fn terms(openid: bool, varying_port: bool) -> Terms {
     Terms {
         parameters: Box::new([]),
-        openid: if openid { Some(OpenId { issuer: boxed(b"https://issuer.example"), key_set: None }) } else { None },
+        openid: if openid {
+            Some(OpenId { profile: Profile::default(), issuer: boxed(b"https://issuer.example"), key_set: None })
+        } else {
+            None
+        },
         issued_client_id: false,
         varying_port,
         resource: None,
@@ -26,7 +30,7 @@ fn with_terms(additions: Terms) -> Registration {
 }
 fn urls(issuer: &[u8], key_set: Option<&[u8]>, revoke: Option<&[u8]>) -> Registration {
     let mut additions = terms(false, false);
-    let mut openid = OpenId { issuer: boxed(issuer), key_set: None };
+    let mut openid = OpenId { profile: Profile::default(), issuer: boxed(issuer), key_set: None };
     if let Some(value) = key_set {
         openid.key_set = Some(boxed(value));
     }

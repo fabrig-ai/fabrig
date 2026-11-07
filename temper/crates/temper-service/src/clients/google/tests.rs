@@ -48,7 +48,11 @@ fn finish(
     let exchange = *google.pending.first().expect("pending sign-in").0;
     let pending = google.pending.get_mut(&exchange).unwrap();
     pending.out = Queue::uncapped();
-    pending.out.push(oauth::Request::Tokens { record: record(payload, subject), missing: Box::new([]) });
+    pending.out.push(oauth::Request::Tokens {
+        record: record(payload, subject),
+        missing: Box::new([]),
+        profile: oauth::ProfileClaims::default(),
+    });
     world::pump(service, &mut peer);
     peer
 }

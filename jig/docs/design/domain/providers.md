@@ -277,7 +277,9 @@ legal and compliance page:
 - **Status without credentials:** `claude auth status` prints JSON and
   exits 1 when not signed in; its `authMethod` is one of `none`,
   `claude.ai`, `oauth_token`, `api_key`, `api_key_helper` or
-  `third_party`.
+  `third_party`. Read on 2026-11-07, signed in with a subscription, version
+  2.1.312's answer also names `email`, `orgId`, `orgName` and
+  `subscriptionType`; a reader takes a status that omits one as naming none.
 - **Kept by Claude Code, on each machine:** the macOS Keychain, or
   `~/.claude/.credentials.json` (`0600`) on Linux, and the same file
   under `%USERPROFILE%` on Windows. `CLAUDE_CONFIG_DIR` names a

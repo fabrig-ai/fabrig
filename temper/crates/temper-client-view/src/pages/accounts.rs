@@ -111,12 +111,14 @@ fn heading(
     provider: Option<u32>,
     name: Option<&[u8]>,
     display: &c::DocumentText,
+    email: Option<&[u8]>,
     held: c::AccountHolder,
     plan: bool,
     sources: &skein_lib::List<c::AccountSource>,
     me: Option<&c::Me>,
 ) -> Box<[u8]> {
     let separator = words::say(w, W::Separator, &[]);
+    let display = words::who(email, display.bytes());
     let Some(name) = name else {
         let account = words::say(w, W::Account, &[]);
         let number = words::say(w, W::Number, &[Hole::Number(u64::from(number_value))]);
@@ -131,8 +133,8 @@ fn heading(
             if provider.is_some() { &separator } else { b"" },
             if provider.is_some() { &provider_label } else { b"" },
             &provider_number,
-            if display.bytes().is_empty() { b"" } else { &separator },
-            display.bytes(),
+            if display.is_empty() { b"" } else { &separator },
+            display,
         ]);
     };
     let (brand, plan_name) = words::provider_words(name);
@@ -161,9 +163,9 @@ fn heading(
         },
     };
     let display = if program {
-        program_name.unwrap_or(display.bytes())
+        words::who(email, program_name.unwrap_or(display))
     } else if plan || sign_in {
-        display.bytes()
+        display
     } else {
         b""
     };
@@ -279,7 +281,8 @@ fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::AccountLine>,
         }
         let Some(name) = provider_name(row.provider_name.as_ref()) else { return false };
         let (_, plan) = words::provider_words(name);
-        if row.display.bytes().is_empty() {
+        let display = words::who(row.email(), row.display.bytes());
+        if display.is_empty() {
             if word == W::RenewedNamed {
                 return false;
             }
@@ -288,7 +291,7 @@ fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::AccountLine>,
         }
         let holes = [
             Hole::Name(skein_lib::bytes::copy_of(plan)),
-            Hole::Name(skein_lib::bytes::copy_of(row.display.bytes())),
+            Hole::Name(skein_lib::bytes::copy_of(display)),
             Hole::Name(skein_lib::bytes::copy_of(plan)),
         ];
         let holes = if word == W::RenewedNamed { &holes } else { holes.get(..2).expect("made has two holes") };
@@ -732,6 +735,7 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
         row.provider,
         name,
         &row.display,
+        row.email(),
         row.holder,
         row.plan,
         &row.sources,
@@ -740,7 +744,7 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
 }
 
 /// Ready names the first usable account by its kind and who it is, a
-/// signed-in plan as "PLAN plan · DISPLAY", with no holder: the model and
+/// signed-in plan as "PLAN plan · WHO", with no holder: the model and
 /// its effort are chosen elsewhere (client/README.md, 3.5).
 pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     first_usable(root, w, true)
@@ -819,14 +823,15 @@ pub(crate) fn account_words(
     };
     let (brand, plan_name) = words::provider_words(supplied);
     let (label, display) = match source.kind {
-        c::AccountKind::Program => {
-            (named(w, W::Subscription, plan_name), source.name.as_deref().unwrap_or(row.display.bytes()))
-        }
+        c::AccountKind::Program => (
+            named(w, W::Subscription, plan_name),
+            words::who(row.email(), source.name.as_deref().unwrap_or(row.display.bytes())),
+        ),
         c::AccountKind::SignIn if row.plan => (
             w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
-            row.display.bytes(),
+            words::who(row.email(), row.display.bytes()),
         ),
-        c::AccountKind::SignIn => (crate::choice::shown(brand, w), row.display.bytes()),
+        c::AccountKind::SignIn => (crate::choice::shown(brand, w), words::who(row.email(), row.display.bytes())),
         c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
         c::AccountKind::None => return account_heading(root, w, row),
     };

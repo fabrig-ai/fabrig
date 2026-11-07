@@ -22,6 +22,8 @@ const STORIES: &[Story] = &[
     Story::PasteCancelled,
     Story::PasteClose,
     Story::Public,
+    Story::Profile(true),
+    Story::Profile(false),
     Story::Restart,
 ];
 #[test]

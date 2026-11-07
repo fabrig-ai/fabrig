@@ -58,7 +58,7 @@ impl World {
         }))
     }
     fn checked(&mut self, owner: Token, state: LoginState) -> Vec<host::Request> {
-        self.step(host::Event::SourceAnswered { owner, answer: Answer::Checked(state) })
+        self.step(host::Event::SourceAnswered { owner, answer: Answer::Checked { state, email: None } })
     }
 }
 fn name_of(name: &[u8]) -> SourceName {
@@ -137,13 +137,36 @@ fn overlapping_explicit_checks_coalesce_into_one_fresh_check() {
     assert!(world.host.sources_settled());
 }
 #[test]
-fn unchanged_periodic_checks_publish_no_inventory() {
-    let mut world = World::usable();
-    world.env.now = Time::ZERO.saturating_add(Duration::from_secs(60));
-    host::resume(&mut world.host, &world.env, &mut world.out);
-    let periodic = world.out.pop().expect("interval check");
-    let periodic = command(&[periodic], b"a", Operation::Check);
-    assert!(world.checked(periodic, LoginState::Usable).is_empty());
+fn periodic_checks_publish_only_when_state_or_email_changes() {
+    for (state, before, after, changed) in [
+        (LoginState::Usable, None, None, false),
+        (LoginState::Usable, Some(b"you@example.com".as_slice()), Some(b"you@example.com".as_slice()), false),
+        (LoginState::Usable, Some(b"you@example.com".as_slice()), Some(b"other@example.com".as_slice()), true),
+        (LoginState::Usable, Some(b"you@example.com".as_slice()), None, true),
+        (LoginState::NotSignedIn, Some(b"you@example.com".as_slice()), None, true),
+    ] {
+        let (mut world, owner) = World::checking(&[b"a"]);
+        world.step(host::Event::SourceAnswered {
+            owner,
+            answer: Answer::Checked { state: LoginState::Usable, email: before.map(Box::from) },
+        });
+        world.env.now = Time::ZERO.saturating_add(Duration::from_secs(60));
+        host::resume(&mut world.host, &world.env, &mut world.out);
+        let periodic = world.out.pop().expect("interval check");
+        let periodic = command(&[periodic], b"a", Operation::Check);
+        let expected =
+            jig_domain_link::Login { name: name_of(b"a"), state: state.clone(), email: after.map(Box::from) };
+        let requests = world.step(host::Event::SourceAnswered {
+            owner: periodic,
+            answer: Answer::Checked { state, email: after.map(Box::from) },
+        });
+        let expected = if changed {
+            vec![host::Request::Up(host::LinkUp::Logins { logins: Box::new([expected]) })]
+        } else {
+            vec![]
+        };
+        assert_eq!(requests, expected);
+    }
 }
 #[test]
 fn a_fresh_explicit_check_answers_even_when_unchanged() {

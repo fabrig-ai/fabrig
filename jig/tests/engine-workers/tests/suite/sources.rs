@@ -10,7 +10,11 @@ fn frame(names: &[&[u8]]) -> skein_channel::Frame {
         rows.push(
             wire::Login::new(
                 &wire::CEILINGS,
-                wire::LoginParts { name: (*name).into(), state: wire::LoginState::Usable },
+                wire::LoginParts {
+                    name: (*name).into(),
+                    state: wire::LoginState::Usable,
+                    email: Some(b"you@example.com".as_slice().into()),
+                },
             )
             .expect("wire row"),
         )
@@ -27,7 +31,7 @@ fn source_records_are_host_wide_without_attempt_fences() {
     let (connection, channel) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
     world.play(connection, frame(&[b"alice"]));
     world.run();
-    assert!(world.root().iter().any(|request| matches!(request, Request::Up { channel: at, up: host::LinkUp::Logins { logins }, parts } if *at == channel && logins.len() == 1 && parts.is_empty())));
+    assert!(world.root().iter().any(|request| matches!(request, Request::Up { channel: at, up: host::LinkUp::Logins { logins }, parts } if *at == channel && logins.len() == 1 && logins[0].email.as_deref() == Some(b"you@example.com".as_slice()) && parts.is_empty())));
     let alice = SourceName::new(b"alice").expect("name");
     for down in [
         host::LinkDown::Sources { sources: Box::new([alice]) },
