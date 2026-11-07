@@ -60,56 +60,65 @@ fn a_marks_text_is_escaped_never_markup() {
 
 #[test]
 fn a_flows_scene_prints_its_case_byte_for_byte() {
-    use skein_ui::{
-        Limits,
-        flow::{self, Direction, Node},
-    };
+    use skein_ui::{Builder, Limits, Role, flow, markdown};
 
     // Four nodes, at most four marks each, with 256 data bytes and 25 arrow bytes each.
     const CASE_NODES: u32 = 4;
     const CASE_DATA: u32 = 256;
-    let limits = Limits {
-        scene_marks: flow::marks(CASE_NODES).expect("case marks fit"),
-        scene_bytes: flow::scene_bytes(CASE_NODES, CASE_DATA).expect("case bytes fit"),
-        ..LIMITS
-    };
-    let hello = [
-        Node { name: b"Design draft", caption: Some(b"you write it"), strong: false },
-        Node { name: b"Goal", caption: Some(b"you start it"), strong: false },
-        Node { name: b"Checked changes", caption: Some(b"CI and a review"), strong: false },
-        Node { name: b"main", caption: Some(b"the merge queue"), strong: true },
-    ];
-    let review = [
-        Node { name: b"A change pushed", caption: None, strong: false },
-        Node { name: b"A review by an agent", caption: None, strong: false },
-        Node { name: b"Landed", caption: None, strong: true },
-    ];
     let cases = [
         (
-            Direction::LeftToRight,
-            hello.as_slice(),
+            include_bytes!("../../../../docs/design/draft/diagrams/how-hello-works.md").as_slice(),
             640,
-            include_str!("../../../../docs/design/draft/diagrams/how-hello-works.640.svg"),
+            Some(include_str!("../../../../docs/design/draft/diagrams/how-hello-works.640.svg")),
         ),
         (
-            Direction::LeftToRight,
-            hello.as_slice(),
+            include_bytes!("../../../../docs/design/draft/diagrams/how-hello-works.md").as_slice(),
             600,
-            include_str!("../../../../docs/design/draft/diagrams/how-hello-works.600.svg"),
+            Some(include_str!("../../../../docs/design/draft/diagrams/how-hello-works.600.svg")),
         ),
         (
-            Direction::TopToBottom,
-            review.as_slice(),
+            include_bytes!("../../../../docs/design/draft/diagrams/review.md").as_slice(),
             400,
-            include_str!("../../../../docs/design/draft/diagrams/review.400.svg"),
+            Some(include_str!("../../../../docs/design/draft/diagrams/review.400.svg")),
         ),
+        (include_bytes!("../../../../docs/design/draft/diagrams/how-hello-works.md").as_slice(), 240, None),
     ];
-    for (direction, nodes, width, expected) in cases {
-        let data = flow::encode(direction, nodes, CASE_DATA).expect("case data fits");
+    for (input, width, expected) in cases {
+        let bytes = u32::try_from(input.len()).unwrap();
+        let limits = Limits {
+            nodes: markdown::max_nodes(bytes).unwrap().checked_add(1).unwrap(),
+            depth: 6, // ui.md, 10: the reader's five levels below the page.
+            text_per_node: bytes.checked_mul(2).unwrap(),
+            text_bytes: markdown::max_text_bytes(bytes).unwrap(),
+            markdown_depth: 0,
+            drawing_bytes: CASE_DATA,
+            scene_marks: flow::marks(CASE_NODES).expect("case marks fit"),
+            scene_bytes: flow::scene_bytes(CASE_NODES, CASE_DATA).expect("case bytes fit"),
+            ..LIMITS
+        };
+        let mut builder = Builder::new(&limits);
+        builder.open(Role::Page);
+        markdown::read(input, 0, &mut builder);
+        builder.close();
+        let tree = builder.finish();
+        let drawing = tree
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Drawing)
+            .expect("case reads as a drawing")
+            .drawing
+            .as_ref()
+            .expect("drawing has kind and data");
         for height in [0, 74, 999] {
             let mut scene = Scene::new(&limits);
-            assert!(flow::draw(flow::KIND, data.as_slice(), width, height, &mut scene));
-            assert_eq!(dom::print(&svg::draw(&scene, &[flow::NAMES], width, height)), expected.trim_end());
+            assert_eq!(
+                flow::draw(drawing.kind, drawing.data.as_ref(), width, height, &mut scene),
+                expected.is_some(),
+                "width {width}, height {height}"
+            );
+            if let Some(expected) = expected {
+                assert_eq!(dom::print(&svg::draw(&scene, &[flow::NAMES], width, height)), expected.trim_end());
+            }
         }
     }
 }
