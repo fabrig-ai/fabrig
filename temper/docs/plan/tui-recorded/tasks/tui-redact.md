@@ -61,3 +61,12 @@ The implementer's report, with: each original and place and its red run; how the
 - **Where and how they count:** both forms are sought in every field of every line, whatever its framing, since the replacement keeps the paste form's length. Each replaced place adds to `places`. The link stays one original, counted once under `Kind::Link`; `originals` and the contracts' signatures are unchanged. Take each link's bytes from the `Originals` given (`sought()`, `Kind::Link`, `forms()[0]`), so the scan works from the originals and not from the redacted lines.
 - **The scan** seeks both forms of each link original, in every field and every frame, as originals (`What` for an original). The placeholder's encodings aren't any original's form and match no shape, so they pass.
 - The browser's 3.8 (*Other encodings*) stays the browser's. In your report, say under `## Left` that `temper/docs/design/client/tui/journeys.md`, section 5, should name these two link forms; don't edit the design.
+
+## Rebase (2026-11-07, step merge, foreman tui-recorded/tui-redact/foreman-2)
+
+Resolve journey.rs by retaining both the walk exports and the redaction/scan exports.
+The merge conflicts in `temper/crates/temper-client-shell-tui/src/journey.rs`.
+Integration commit `d5bf1251d5` (“Check TUI journey walks against recordings and final frames”) adds `mod walk;` and `pub use walk::{WalkStep, browsed, follows, shows, walk};`.
+Preserve both additions alongside this branch’s `mod redact;`, `mod scan;`, their public exports, and the shared `Framing`, `Kind`, `Originals`, and `What` exports.
+The additions implement separate contracts (sections 7 and 8); resolve by combining them.
+No implementation changes outside this module’s declarations and exports are indicated by the refusal.
