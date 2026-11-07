@@ -4315,6 +4315,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-llm",
  "skein-shell",
  "skein-sim",
  "skein-tls-kit",
