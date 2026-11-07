@@ -4021,7 +4021,11 @@ Each is intended; what it needs is named with it.
   section 8 accepts of agents in standalone, the handover among them
   until the engine takes it. Until they are isolated, an owned forge
   runs the person's and temper's agents' code only, never a stranger's
-  pull request.
+  pull request. Such a job, or an agent's run, can read
+  `person_write.header` and post a review as the person, so a rule that
+  nothing lands without the person's approval stops an agent's mistakes
+  there, not one trying to get past it (`../draft/forge-identity.md`,
+  section 6, accepted by the user for now on 2026-11-07).
 - **Provisioning at adoption** (jig's `domain/connectors.md`, 12): a
   repository in a person's own namespace, made without the person.
 - **The forge as people's sign-in provider** (credentials.md, section

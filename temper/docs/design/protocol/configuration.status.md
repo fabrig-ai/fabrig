@@ -40,6 +40,7 @@ or in the terminal refusal naming the item and rejected way.
 
 Section 13.8 has no gap in note-backed settings transport within the call payload ceiling.
 
+- **Not yet:** 13: eligibility counts an account on any forge of the project, and the refusal names no forge; a rule covering the playground's fake forge has no words of its own.
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
   process and live stories. Init pins T at 16,803,810 bytes and

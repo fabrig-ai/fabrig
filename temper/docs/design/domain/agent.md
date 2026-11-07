@@ -934,7 +934,8 @@ and waits in the Needs you of each project it belongs to (jig's
   The same inventory names the caller project's people, one line each:
   its number, its login where temper holds one, its role's number, its
   account on each forge of the project's repositories, by the host their
-  lines use, that forge's user's id or unknown (`forge.md`, section 4), and
+  lines use, that forge's user's id or unknown (`forge.md`, section 4): a
+  box's person's by the forge's link (`forge.md`, 4.6), with no adoption, and
   marks for the task requester and for temper's own forge writer, who never
   counts as a person. Someone known on none of them is said so once: an
   absent forge identity is explicit and cannot count for
@@ -1004,8 +1005,12 @@ and waits in the Needs you of each project it belongs to (jig's
     check;
   - to ask who approves without equating the requester with the configured
     forge account, reading `landing-rule` first and using `read_permission`
-    to match a login to a forge user. An existing verified project role
-    determines the approval role; otherwise it reads the current project's
+    to match a login to a forge user. A person the inventory shows with an
+    account on the repository's forge, as a box's person by its link, needs
+    nothing added: it proposes a rule naming their own role, owner (0) on a
+    project they made, and says no more of forge identity. An existing
+    verified project role determines the approval role; otherwise it reads
+    the current project's
     `project-policy` permission mapping and describes what adoption would
     seed (`forge.md`, section 4). Stock admin seeds maintainer (1), never
     owner (0), and adoption preserves existing roles. It says which missing
@@ -1013,8 +1018,10 @@ and waits in the Needs you of each project it belongs to (jig's
     review alone beside it. It never promises that adding admin makes a
     role-0 proposal acceptable: after adoption it reads inventory again and
     proposes afresh against the newest revision;
-  - whenever someone is to approve or join, before a proposal or after one is
-    accepted, to say every step and who does each: on the forge, a repository
+  - whenever someone with no account the inventory shows on that forge is to
+    approve or join, before a proposal or after one is accepted, as on a
+    deployment of several members, to say every step and who does each: on the
+    forge, a repository
     admin adds the human collaborator at the mapped permission and, on
     Forgejo, grants temper's forge user repository admin, since write isn't
     enough; in temper, the person adopts the repository again, on Settings,
@@ -1474,16 +1481,15 @@ host:
   reaches every run with the forge reads, as the forge's own answer about
   a user of a repository that run may already read; holding it would be a
   condition in `temper-engine-domain`'s render. Default: every such run.
-- **A person known by a login alone** (8.1). On a fresh box the person is
-  often no collaborator, so adoption finds no person for them and the
-  inventory's forge person has no forge user id; `read_permission` takes
-  an id, so the agent cannot match them, and acceptance refuses an approval
-  only they could meet (`forge.md`, 8.9). It proposes, says what acceptance
-  checks and, refused, who to add on the forge before adopting again, in
-  the browser the adoption form typed afresh (`../client/README.md`, 4.4).
-  The box owner's link and its setup evidence, the per-forge eligibility
-  check and the approval card are separate work
-  (`../draft/forge-identity.md`, sections 3, 4, 7, 8 and 9).
+- **A person known by a login alone** (8.1), where no link vouches for them:
+  `temper serve` with several members, a managed Forgejo, a pasted App. Often
+  no collaborator, adoption finds no person for them and the inventory's forge
+  person has no forge user id; `read_permission` takes an id, so the agent
+  cannot match them, and acceptance refuses an approval only they could meet
+  (`forge.md`, 8.9). It proposes, says what acceptance checks and, refused,
+  who to add on the forge before adopting again, in the browser the adoption
+  form typed afresh (`../client/README.md`, 4.4). A family of links waits for
+  `temper serve`'s members (`../protocol/sign-in.md`, section 10).
   Default: adoption's seeds and the refusal above; a configured login alone
   supplies no verified forge identity.
 - **Which host tools a charter offers.** jig's charter carries the host

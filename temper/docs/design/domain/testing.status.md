@@ -36,6 +36,7 @@ the request's about 89; the unassigned 19.3 CPU s remains unexplained.
 Further mechanisms, including causes above that plan's stopping threshold,
 are deferred in section 11, with all bounds, orders and checks retained.
 
+- **Not yet:** 6.4, the row *a box's approval identities*: `a_box_inventory_distinguishes_the_requester_from_the_forge_approver` (`temper/tests/engine/domain/tests/suite/configuring.rs`) asserts the box's owner refused, with no link.
 - **Not yet:** 2.6: the hangup/rebind and Linux killed-box stories in
   `crates/temper/tests/suite/box_lifetime.rs` are registered in the
   process binary and compiled, but have no runtime result in that tier
