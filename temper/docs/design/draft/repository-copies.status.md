@@ -7,8 +7,8 @@
     where it has nothing to adopt. That step’s adoption links and a project
     with no repository’s Chats entry reach Settings’ “Add repositories”;
     the `connect-flows` request leaves both entry paths unmocked. Home’s
-    sheet unification and drawings of these two paths are deferred to
-    temper/ui’s repository-copies follow-up; `../client/README.md`, 3.5
+    sheet unification and drawings of these two paths belong to section
+    11's temper/ui repository-copies follow-up; `../client/README.md`, 3.5
     and 4.4 keep the current paths. Settings’ three-source sheet, plural
     adoption, making, copying and failed-copy acts are built. The browser
     proof and render comparison belong to temper/ui after landing

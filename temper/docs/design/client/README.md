@@ -6750,6 +6750,19 @@ own tests:
 
 ## 11. Open questions
 
+- **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
+  request pages 01–23 with main, including named states and open menus
+  and disclosures at 1440, 1000 and 420 px, with screenshots also at
+  1280 px (`../draft/look-requests.md`, 4). Default: the source and print
+  account is distinct from rendered equality; differences return as
+  findings after landing.
+- **One repository sheet from Home** (3.5, 4.3, 4.4): the
+  repository-copies follow-up, owned by temper/ui, unifies Home's own
+  empty-or-copy sheet with Add repositories and draws the entry from a
+  project with no repository and To begin's second step. Default: keep
+  the current entries and Settings destination; `connect-flows` leaves
+  those paths unmocked (`../draft/repository-copies.md`, 9 and 11).
+
 - **A failed link beside a live cookie** (5.1): the used, expired or
   unknown paragraph remains until another sign-in, even if the cookie
   still signs in on a reload. Falling back to the transport is jig's

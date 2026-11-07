@@ -1311,6 +1311,15 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The connect-flows proof** (2.5, 4.6): temper/ui owns the comparison
+  of request pages 01–23 with main, at 1440, 1000 and 420 px with
+  disclosures and menus open, and screenshots also at 1280 px
+  (`../draft/look-requests.md`, 4). The retained browser stories check
+  Accounts return/history and sheet scroll, search, adoption and phone
+  geometry; they do not compare all request pages. Default: findings
+  after landing, with a passing repaired-story run and the unchanged
+  whole-tier budget established by the after-landing tier.
+
 - **A failed link with a live cookie** (2.4): falling back to the cookie
   instead of keeping the link's reason is jig's client question
   (`jig/docs/design/client/domain/client.md`, section 18). Default: the
