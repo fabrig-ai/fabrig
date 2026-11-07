@@ -6,11 +6,6 @@ Sections 2.2 and 6.3 have no known gap in caller-selected profile claims,
 their bounds and verification flags, or delivery beside the kept record
 on sign-in and refresh, except for the nonce requirement below.
 
-- **Not yet:** 6.5, 6.7, 6.8: the driver's own redirect bound:
-  `skein-oauth-accounts/src/redirect.rs` bounds the listener's and the
-  pasted redirect by the client's `url_bytes`, the address the client
-  sends out; `Limits` has no `redirect_bytes`, and the crate exports no
-  `redirect_room`, `listener_head` or `BROWSER_FIELDS`.
 - **Not yet:** 6.3, 6.5, 6.7, 6.8: an over-long redirect:
   the listener answers it with its one refusal page and the sign-in waits
   until its deadline; `Failure` has no `LongRedirect`, `Component::new`

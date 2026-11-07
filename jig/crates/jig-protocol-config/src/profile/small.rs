@@ -334,6 +334,9 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
     lock_wait: Duration::from_secs(1),
     exchanges: 4,
     listeners: CORE.accounts.sign_ins.checked_mul(2).expect("a listener and a settling one per sign-in"),
+    // A full answer at the client's bounds, 13,407 bytes (redirect_room),
+    // with room to grow (jig's configuration.md, 6).
+    redirect_bytes: 16_384,
     server: skein_http::server::Limits { head: 4096, headers: 32, body: 1024, read: 1024, response: 4096, send: 1024 },
     refresh_lead: Duration::from_secs(60),
     client: skein_oauth::ClientLimits {

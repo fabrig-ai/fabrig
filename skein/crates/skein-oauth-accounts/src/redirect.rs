@@ -6,8 +6,8 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Secret, Writer, bytes};
 use skein_oauth::{ClientLimits, Redirect};
 
-pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
-    if uri.len() > usize::try_from(limits.url_bytes).ok()? || uri.contains(&b'#') {
+pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits, redirect_bytes: u32) -> Option<Redirect> {
+    if uri.len() > usize::try_from(redirect_bytes).ok()? || uri.contains(&b'#') {
         return None;
     }
     for byte in uri {
@@ -106,7 +106,12 @@ fn decode(value: &[u8], bound: u32) -> Option<Box<[u8]>> {
     Some(output.to_boxed())
 }
 
-pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
+pub(crate) fn from_head(
+    call: &skein_http::server::Call,
+    registered: &[u8],
+    limits: &ClientLimits,
+    redirect_bytes: u32,
+) -> Option<Redirect> {
     if call.method != skein_http::Method::Get {
         return None;
     }
@@ -129,7 +134,7 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
     let origin = call.target.starts_with(b"/");
     let length =
         if origin { 7_usize.checked_add(host?.len())?.checked_add(call.target.len())? } else { call.target.len() };
-    if length > usize::try_from(limits.url_bytes).ok()? {
+    if length > usize::try_from(redirect_bytes).ok()? {
         return None;
     }
     let mut uri = Writer::new(length);
@@ -138,7 +143,7 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
         uri.put(host?).ok()?;
     }
     uri.put(&call.target).ok()?;
-    parse(&uri.finish(), registered, limits)
+    parse(&uri.finish(), registered, limits, redirect_bytes)
 }
 
 /// The registered authority's port, including zero for a varying redirect.
