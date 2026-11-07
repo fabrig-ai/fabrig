@@ -3,7 +3,7 @@ id = "temper-view"
 part = "temper-approval"
 kind = "feature"
 needs = ["temper-domain"]
-files = ["temper/crates/temper-client-view/**", "temper/crates/temper-client-shell-web/temper.css", "temper/crates/temper-client-shell-web/tests/suite/main.rs", "temper/tools/gallery/src/samples.rs", "temper/tools/gallery/src/worlds.rs", "temper/tools/gallery/src/tests.rs", "temper/tools/gallery/names.txt"]
+files = ["temper/crates/temper-client-view/**", "temper/crates/temper-client-domain/src/approve.rs", "temper/crates/temper-client-domain/src/tests/approve.rs", "temper/crates/temper-client-shell-web/temper.css", "temper/crates/temper-client-shell-web/tests/suite/main.rs", "temper/tools/gallery/src/samples.rs", "temper/tools/gallery/src/worlds.rs", "temper/tools/gallery/src/tests.rs", "temper/tools/gallery/names.txt"]
 effort = "high"
 minutes = 180
 +++
@@ -63,3 +63,4 @@ As the implementer's text says, and: the choices among the options; the tokens' 
 ## Answers
 
 - 2026-11-07. *Should temper-domain repair its `CODE_TYPED_BYTES` dependency, or may temper-view edit the file?* Neither: the wire crate departed from the contract (`notes/contracts.md`, 6; `tasks/wire.md`), so the answer call renamed `jig_client_protocol_wire::CODE_INPUT_BYTES` to `CODE_TYPED_BYTES` in `jig/crates/jig-client-protocol-wire/src/{approval.rs,lib.rs}`; `temper-client-domain` is unchanged. Merge the trunk, check it compiles, and carry on from step 1 within your own files.
+- 2026-11-07. *Sign-out while the page's read is in flight leaves it Reading: fix the domain, or settle the read first in the sequence?* Fix the domain: README 5.1, *signed out at the approval*, draws "Sign in first" whatever the page was doing, and the gallery's `approve-signed-out` sequence stands. The files list now holds `temper/crates/temper-client-domain/src/approve.rs` and its `src/tests/approve.rs`, for this alone. In `approve::progress`, take the `Link::SignedOut` branch before the `Flight::Pending` guard, and have it set `root.approving = Flight::Idle` when it draws `State::SignedOut` (an answer arriving later then changes nothing, as `answered` already returns for a `SignedOut` page). A failing row first, in `signed_out_draws_sign_in_first`: from `reading()` (a read pending) and from the deciding state, `Up::SignedOut` draws `State::SignedOut` and sends nothing, and a later `Read` or `Decided` answer leaves it `SignedOut`. Run `heavy cargo nextest run -p temper-client-domain --lib -E 'test(approve)'`, then carry on from where your report left off.
