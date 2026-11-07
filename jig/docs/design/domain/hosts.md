@@ -839,6 +839,13 @@ host tools' calls (6.8).
 
 Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most 3584, which leaves its title and framing room within the agent's 4096-byte outcome, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
+A Finite run takes `deliver` in one of two ways; an Open run never does (8.1):
+
+- **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change` and a failure.
+- **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most 3584, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run.md`, 8.4).
+
+Every other run has no `deliver`: a verdict's run, and a report's run whose policy withholds `modify` or whose root doesn't say its workspace delivers.
+
 Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
@@ -853,7 +860,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   | the engine's tools (engine.md, 7.3) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
-  | a delivery, by its result contract or mid-run | smith's `deliver`, when the run has a workspace that delivers |
+  | a delivery, by its result contract or by its policy and workspace, as above | smith's `deliver`, when the run has a workspace that delivers |
 
   Each host tool's schema and description are written once, with the
   function that decodes its calls and the one that renders its answers;

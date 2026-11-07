@@ -1,34 +1,28 @@
-# ui-public-3: making a project public says what will show, and the public pages' last words
+# ui-model-next-turn: changing a started chat's model takes effect on its next turn
 
-The user's answer, 2026-11-06, on whether agent-written titles cross on public pages: **titles stay, and making a project public says that anything said in its chats may show.** Going public itself stays the user's word: public reading stays off, and nothing here turns it on.
+`look-round-11`'s proof found this on a fresh `temper box --fake-backends`. On a started chat, the picker applied and persisted GPT-6 Astra · low, across a reload too, and the note says "A change applies from the next turn." The following message's request to the provider still named `gpt-6.1-sol`. The page says one thing and the run does another, on the choice the user asked for.
 
-## 1. Saying so at making a project public
+No root cause is claimed. By the proof's reading only, `smith/crates/smith-domain/src/route.rs`, `resumed_model` near line 1061, selects a saved window's model when main changes, and is the place to look first. It could also be anywhere from the client's change to what the worker's opening carries.
 
-A title is the first line of a spec an agent wrote from what a person said, so a chat's words can reach a stranger. temper/qa's walks saw whole instruction lines in titles. Say so where a person makes a project public, before it happens, in these words:
+## What this plan makes true
 
-"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too."
+1. **A started chat's change of model or effort is what its next turn's request uses,** as the page says. Reproduce it first, in a failing focused test at the lowest tier that shows it, then fix the cause there.
+2. **Effort too:** check that the request's effort follows, whether or not the model changes.
+3. **A change across providers, or to a window too small for the conversation so far:** read what happens, and leave it if it already does what `temper/docs/design/draft/model-catalogue.md`, section 3, and `temper/docs/design/client/README.md`, 3.5, say. If they don't say, decide the plain thing, record it in the design's status, and say so in the report.
+4. A task keeps the model it has, until a person changes it (`model-catalogue.md`, section 4).
 
-Find every place a project goes public, and put it in each: `temper ctl project amend --visibility public`'s answer or its help; the configuring chat's instructions and its proposal, which are temper/ui's; a page, if one offers it. If a person can do it with no warning in between, say so in the report. `jig/docs/design/domain/people.md`, 13.3 keeps titles crossing; record there that this is the user's decision, reaffirmed, with these words as its condition, and take it out of `browser.status.md` if it's listed as open.
+## Beside it
 
-## 2. temper/qa's two notes from `r-public`
-
-- **finding-434, finding-435:** a stock landing's page ends with a bare "0 stale proofs", with nothing to explain it. Don't draw a zero.
-- **The board's link to Landings** is a small muted "LANDINGS" with nothing under it, reading like a heading to an empty section. Make it read as a link to them, per `temper/docs/design/client/browser.md`, 8.3.
-
-## 3. The help
-
-`temper/docs/help/open-public-reading.md` hasn't moved since `ui-public-2`: make it say what the pages now show: a goal's spend alone, a row's words, Landings holding a stock queue's merges, and that no link goes to the forge. It gives the two limits the board states, and section 1's words.
+`model-catalogue-2/smith-limits` changes how smith reads a saved window's model, in the same code, and `look-round-11` is landing the picker. Whichever lands second catches up: don't wait for them, and don't take on their work.
 
 ## Limits
 
-One or two tasks. No browser, no screenshots and no render check: the user's rule is that a plan runs focused and fuzzy alone and is complete when it lands. temper/ui and temper/qa look after it lands. Stay out of `browser_public`'s measuring, which `ui-public-story` is repairing. A browser story's words that change are updated and compiled, not run.
+One or two tasks. Focused and fuzzy alone: no browser, walk or render check, by the user's rule that a plan is complete when it lands. No stored format changes unless the cause needs it.
 
 ## Sources
 
-- `temper/docs/design/client/browser.status.md`
-- `temper/docs/help/open-public-reading.md`
-- `temper/crates/temper-client-view/src/public/lines.rs`
-- `temper/crates/temper-client-view/src/public/pages.rs`
+- `smith/crates/smith-domain/src/route.rs`
+- `temper/docs/design/draft/model-catalogue.md`
 
 ## For every task of this plan
 

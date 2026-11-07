@@ -132,16 +132,24 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **smith's own families** by the charter's policy: inspecting,
   modifying and the shell in the workspace, and sub-agents, each as the
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
-  `deliver`, for a finite change's contract (jig's `domain/hosts.md`,
-  section 8; smith's `domain/run.md`, 8.4), never in an Open run (4.6).
-  A run that cannot deliver cannot modify files: jig's charter
-  translation grants `modify` only with `deliver` and the charter's
-  permission (jig's `domain/hosts.md`, section 8). A chat's, a goal's, an advisor's and a reviewer's
-  runs inspect alone, whatever their charter's `modify` (a rail, not an
-  instruction). Stock charter 1 disables `modify`; repository edits,
-  including small fixes, go through `change` (4.3.1). The stock coder
-  has read, write, edit and remove: a file the change drops is removed
-  once read.
+  `deliver`, for a finite change's contract and for a goal's run (below)
+  (jig's `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4),
+  never in an Open run (4.6). A run that cannot deliver cannot modify
+  files: jig's charter translation grants `modify` only with `deliver`
+  and the charter's permission (jig's `domain/hosts.md`, section 8). A
+  chat's, an advisor's and a reviewer's runs inspect alone, whatever
+  their charter's `modify` (a rail, not an instruction). Stock charter 1
+  disables `modify`; repository edits, including small fixes, go through
+  `change` (4.3.1). The stock coder has read, write, edit and remove: a
+  file the change drops is removed once read.
+- **A goal's run may modify and deliver** where its charter's `modify` is
+  set and its task holds a goal branch in the repository; otherwise it
+  inspects alone. It delivers to its own run branch (`forge.md`, 11.1),
+  with a `title` and a `body` as a change's delivery has them, and the
+  project's checks run at it (section 6; smith's `domain/run.md`, 8.1).
+  Delivering isn't finishing: it has no change among its outcomes, its
+  `finish` offers a report and a failure, and it goes on after a delivery.
+  What it delivered lands by `change`'s `"branch": "run"` (4.3.1).
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but `read_task`, offered only with the task's read
   family, and those of the `settings` family, declared
@@ -451,6 +459,7 @@ delegate from what it knows:
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
 {"words": "...", "branch": "mine"}
+{"words": "...", "branch": "run", "landing": "goal"}
 ```
 
 - **`landing`:** `"goal"`, the requester's own goal branch,
@@ -468,8 +477,13 @@ delegate from what it knows:
   `"mine"` from a run whose task holds no goal branch in that repository
   is refused, saying so; with `"landing": "goal"`, a branch into
   itself, refused, saying so; while another live change of the task is
-  on that branch, refused, naming its task; any other value refused,
-  naming it.
+  on that branch, refused, naming its task. `"run"`, its requester's run
+  branch, `temper/<root>/r<task>` in the change's repository, which the
+  change lands as it stands, with no producer (forge.md, 8.1): what the
+  run delivered (4.3). `"run"` from a run whose task holds no goal branch
+  in that repository, or holds no run branch there, is refused, saying
+  so; while another live change of the task is on that branch, refused,
+  naming its task. Any other value refused, naming it.
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
@@ -701,7 +715,9 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   without one the charter's first whose LLM provider has an account
   usable for the payer (jig's `domain/tasks.md`, section 3),
   and the account the run's claim chose for each LLM provider (jig's
-  `domain/accounts.md`, 4.3). Their credentials, or a program source's
+  `domain/accounts.md`, 4.3). A chat's new choice answers its person's
+  next words, whether its run still listens or has parked (jig's
+  `domain/tasks.md`, section 7). Their credentials, or a program source's
   name, come to the agent as grants through the worker
   (`../protocol/credentials.md`, section 3). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
@@ -919,7 +935,9 @@ and waits in the Needs you of each project it belongs to (jig's
   its efforts and its default effort, and says so where it holds none. It
   is the list of models the agent may offer. A charter it reads goes back
   whole and may name others; the agent's instructions leave those as they
-  stand and neither propose nor mention them to the person. The settings
+  stand and neither propose nor mention them to the person. Asked for a
+  model no account can run, it says so and points, in one line, to
+  connecting an account: Settings, Accounts, in the browser. The settings
   check validates the catalogue's models, not the current offer. A model is
   a setting it reads whole and proposes as any other: its window, output,
   efforts, default effort, prices and shown name, whether the picker shows it,
@@ -1052,10 +1070,12 @@ and waits in the Needs you of each project it belongs to (jig's
   1's, holds the settings, read, delegation and message families. It
   has no workspace, its instructions never delegate, and it never
   calls `withdraw`, whose family, the decide family, policy 1 does not
-  give. Nor can it replace a proposal that waits: a task holds one pending
-  proposal (jig's `domain/tasks.md`, section 9), so a second is refused as
-  busy. Asked to withdraw or change one, it says so plainly: an owner rejects
-  it under Needs you, with a reason the chat hears, and it proposes afresh.
+  give. A fresh `propose_settings` replaces its own proposal that waits
+  (jig's `domain/tasks.md`, section 9). Asked to change one, it proposes again,
+  whole, against the newest revision, and never sends the person to Needs you
+  for it: the new card stands below, and the old one reads as replaced
+  (`../client/README.md`, 5.13). Refused, the one that waits stands, and it says
+  so.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`,
   `rules`, `landing-rule` (with its `project`, the deployment's when
@@ -1361,15 +1381,6 @@ host:
   the host part's budget (4.3) may force, and how a brief teaches an LLM
   when to delegate a task rather than a sub-agent. `withdraw`, offered to
   charter 3 and refused by its authority (8.1), is one such tool.
-- **A way out of a proposal that waits** (8.1): the configuring agent can neither
-  withdraw nor replace one, so a person who presses "Change something"
-  (`../client/README.md`, 5.13), where `../draft/configuring.md`, 5.2 has the agent
-  revise, hears that an owner rejects it first. Letting a fresh proposal replace a
-  waiting one, or moving `withdraw` out of the decide family, would give a run its
-  own way, and each is jig's to design (jig's `domain/tasks.md`, section 9); granting
-  the decide family as it stands would also let every chat under policy 1 decide
-  proposals and escalations. Default: an owner rejects it, until a walk shows whether
-  that asks too much of the person.
 - **What sizes temper's own way** (8.1): a read of the deployment's worker slots,
   offered to a run with the settings family, or an answer from the person.
   Default: the person's, as nothing reads

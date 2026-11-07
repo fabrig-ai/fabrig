@@ -323,6 +323,38 @@ fn a_tracked_goal_naming_its_own_goal_branch_holds_it_made_at_mains_tip() {
 }
 
 #[test]
+fn a_goal_without_push_authority_inspects_g_without_a_delivery_or_writer() {
+    let mut world = adopted_world();
+    let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal batch") };
+    batch[0].authority.grants = batch[0].authority.grants.iter().filter(|grant| grant.kind != 2).cloned().collect();
+    let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
+    world.until(Until::Ready);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task);
+    let run_branch = format!("temper/{}/r{}", goal.task, goal.task);
+    super::park_chat(&mut world, &goal);
+    let goal = world
+        .assigned
+        .iter()
+        .rev()
+        .find(|run| run.task == goal.task && run.attempt > goal.attempt)
+        .expect("confirmation wakes the next goal run")
+        .clone();
+    assert!(goal.run.policy.modify);
+    assert!(!goal.run.authority.grants.iter().any(|grant| grant.kind == 2));
+    let repository = &goal.workspace.repositories[0];
+    assert_eq!(repository.start, engine::ForgeStart::Branch(branch.as_bytes().into()));
+    assert_eq!(repository.push, None);
+    assert_eq!(repository.landing, None);
+    assert!(!repository.delivers);
+    assert_eq!(writer(&world, branch.as_bytes()), None);
+    assert_eq!(writer(&world, run_branch.as_bytes()), None);
+    let charter = temper_engine_smith::charter(&goal);
+    assert!(charter.grants.deliver.is_none());
+    assert!(!charter.grants.tools.modify);
+    world.close();
+}
+
+#[test]
 fn an_untracked_task_naming_its_own_goal_branch_is_refused() {
     let mut world = adopted_world();
     let before = world.external(1, raw::Op::Git(raw::Git::Clone));

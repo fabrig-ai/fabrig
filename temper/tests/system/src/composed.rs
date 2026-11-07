@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod long_chat;
+mod next_turn;
 mod parked;
 mod process;
 mod review;
@@ -1056,6 +1057,9 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        if next_turn::picked(to, &reply) {
+            return;
+        }
         if agreement::answered(to, &reply) {
             return;
         }

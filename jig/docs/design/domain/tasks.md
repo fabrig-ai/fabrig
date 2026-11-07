@@ -1112,6 +1112,34 @@ circle, each for another of the set, so that none of them could end.
   amendment's commit, even when the preference itself was already the same;
   the next successful claim keeps the new account. Clearing the optional
   preference alone keeps the pin. The live claim retains its recorded binding.
+- **On a task its requester ends, the next run is the next turn.** Its run
+  listens after a reply (5.8; smith's `domain/run.md`, section 6), and what
+  reaches it is answered on that run's models, so a person who kept talking
+  would keep the old choice. An amendment that changes such a task's LLM
+  choice, any of its models, efforts or account preference:
+  - **Says nothing.** One that changes nothing else puts no word in the
+    inbox: it wakes no idle task, reaches no live run and is no message of
+    the next run. Its history records it as any amendment's, and no provider
+    is asked anything.
+  - **Leaves what runs.** A turn under way finishes on its models, and a run
+    left listening parks at its waiting time as ever.
+  - **Marks a live run behind its choice.** Nothing more is relayed to that
+    run. The next message whose wake rule would have it reach the run (8.3)
+    stays in the inbox and stops the run, as a narrowing does: its terminal
+    parks it with no try spent, and the task goes due for that message. The
+    next run takes the new choice and carries the message. A turn under way
+    when such a message comes stops with its run: what it committed stays,
+    and the words it had not read are the next run's.
+  - **Resumes as any change does.** The words are answered on the new
+    choice. A changed model compacts first, with the window's own model
+    (smith's `domain/session.md`, 8.2), so that one request of the next turn
+    names the old model: the summary, never the answer. A changed effort
+    alone keeps the window.
+
+  Only such an amendment marks a run behind: nothing else that moves what a
+  next run would take, a revision of settings or an account's state, stops a
+  run. A task its result ends hears an LLM amendment as any amendment, and
+  its next run takes the choice.
 - **Adding and removing dependencies.** An amendment names a task's
   whole list of dependencies, with its spec's revision: what it names
   anew is added, what it leaves out is removed, at any phase before
@@ -1496,6 +1524,17 @@ proposed, what an action needs, and what an acceptance funds.
   is the change's decision, the accepter choosing whether running work
   moves; a revision made since its own withdraws it, as no longer
   applying.
+- **A run's fresh proposal of settings replaces its own.** A task holds
+  one pending proposal, and another is refused as busy, but for this: a
+  task whose pending proposal is of settings, proposing settings again,
+  withdraws its own in the commit that admits the new one. The new one's
+  every check runs first, so one refused leaves the pending one as it
+  was. Nothing else is replaced: a pending proposal of any other kind
+  still refuses the next, a proposal of settings refuses any other kind,
+  a party's stays one at a time, and no other proposer's is touched. The
+  one replaced ends as any task's withdrawn proposal does: its set goes,
+  and a decision asked of it after is refused, naming nothing, and changes
+  nothing. Its proposer hears no message of it, having asked.
 - **Their state.** A proposal: its proposer, a task or a party; the
   action, as the call, the step or the request asked for it; its reason,
   in words;
@@ -1569,7 +1608,8 @@ proposed, what an action needs, and what an acceptance funds.
   passes up to the next holder that covers it, and past the last, waits
   for the parties the policy names.
 - **Withdrawn** when the proposer withdraws it (a run's call, a
-  procedure's step, a party's `Withdraw`), when a proposing task closes,
+  procedure's step, a party's `Withdraw`), when its task's fresh proposal
+  of settings replaces it (above), when a proposing task closes,
   or when the state it was made against has changed so that it no longer
   applies (a batch naming a task since ended); an escalation ends with
   its hold. The

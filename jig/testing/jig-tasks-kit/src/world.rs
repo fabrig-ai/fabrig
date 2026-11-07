@@ -151,6 +151,8 @@ pub struct Frozen {
     pub runs: BTreeMap<u64, u64>,
     /// Requested stops awaiting terminal work (domain/tasks.md, 5.1).
     pub stops: BTreeSet<(u64, u64)>,
+    /// Relayed words by task, attempt and message (domain/tasks.md, section 7).
+    pub relays: BTreeSet<(u64, u64, u64)>,
     /// Effects settlement gates (domain/tasks.md, 5.1).
     pub closing: BTreeSet<u64>,
     /// Committed requester outcomes (domain/tasks.md, 5.6).
@@ -207,6 +209,8 @@ pub struct World {
     pub contexts: BTreeMap<u64, RunContext>,
     pub runs: BTreeMap<u64, u64>,
     pub stops: BTreeSet<(u64, u64)>,
+    /// Relayed words by task, attempt and message (domain/tasks.md, section 7).
+    pub relays: BTreeSet<(u64, u64, u64)>,
     pub closing: BTreeSet<u64>,
     pub results: BTreeMap<u64, Ending>,
     pub ended_topics: Vec<(u64, u64, u16)>,
@@ -246,6 +250,7 @@ impl World {
             contexts: BTreeMap::new(),
             runs: BTreeMap::new(),
             stops: BTreeSet::new(),
+            relays: BTreeSet::new(),
             closing: BTreeSet::new(),
             results: BTreeMap::new(),
             ended_topics: Vec::new(),
@@ -284,6 +289,7 @@ impl World {
             contexts: self.contexts,
             runs: self.runs,
             stops: self.stops,
+            relays: self.relays,
             closing: self.closing,
             results: self.results,
             ended_topics: self.ended_topics,
@@ -929,7 +935,6 @@ impl World {
                 | Request::Erase { .. }
                 | Request::Ended { .. }
                 | Request::EscalationNeeded { .. }
-                | Request::Relay { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
                 | Request::NothingAwaitedDue { .. }
@@ -975,6 +980,9 @@ impl World {
                 Request::TurnAcknowledged { reply_to, accepted, .. } => self.reply(reply_to, Reply::Turn(accepted)),
                 Request::Activate { context } => {
                     self.activate(*context);
+                }
+                Request::Relay { task, attempt, word, .. } => {
+                    self.relays.insert((task, attempt, word.number));
                 }
                 Request::Stop { task, attempt } => {
                     self.stops.insert((task, attempt));

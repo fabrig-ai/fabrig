@@ -530,6 +530,7 @@ pub(crate) struct SettingsFacts<'a> {
     pub(crate) projects: &'a [u32],
     pub(crate) reason: &'a c::DocumentText,
     pub(crate) items: &'a [c::RevisionItemHead],
+    pub(crate) review: &'a [c::ReviewItem],
     pub(crate) made: Option<u32>,
     /// The live proposal, for its acts and who it waits for; none once it has ended.
     pub(crate) live: Option<&'a c::Proposal>,
@@ -545,6 +546,10 @@ pub(crate) fn settings_facts(card: &temper_client_domain::pages::inbox::Card) ->
             projects: proposal.projects.as_slice(),
             reason: &proposal.reason,
             items: settings.items.as_slice(),
+            review: match &settings.review {
+                Some(review) => review.items.as_slice(),
+                None => &[],
+            },
             made: settings.made,
             live: Some(proposal),
         });
@@ -559,6 +564,7 @@ pub(crate) fn settings_facts(card: &temper_client_domain::pages::inbox::Card) ->
             projects: settings.projects.as_slice(),
             reason: &proposal.reason,
             items: settings.items.as_slice(),
+            review: &[],
             made: settings.made,
             live: None,
         });
@@ -602,6 +608,13 @@ fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsSt
             c::ProposalChoice::Stale => SettingsState::Other,
             c::ProposalChoice::Passed => settings_read_state(card),
         };
+    }
+    if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::Unknown,
+        ..
+    }))) = &card.outcome
+    {
+        return SettingsState::Withdrawn;
     }
     settings_read_state(card)
 }
@@ -655,12 +668,44 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
     b.style(crate::look::SETTINGS_PROPOSAL_REASON);
     super::document(b, facts.reason);
     b.close();
-    if facts.items.is_empty() {
+    let mut rows = skein_lib::List::uncapped();
+    for item in facts.items {
+        rows.push(item.clone()).expect("proposal heads fit");
+    }
+    for item in facts.review {
+        match item.setting {
+            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => {
+                rows.push(c::RevisionItemHead { setting: item.setting, edit: item.edit.clone() })
+                    .expect("review rows fit");
+            }
+            c::Setting::Charter(_)
+            | c::Setting::Template(_)
+            | c::Setting::Policy(_)
+            | c::Setting::Model(_)
+            | c::Setting::Rules => {}
+        }
+    }
+    if facts.live.is_none()
+        && let Some(values) = root.forge().proposed(facts.key.number)
+    {
+        for value in values {
+            let (kind, project) = match value {
+                Proposed::Ways { project, .. } => (7, *project),
+                Proposed::Questions { project, .. } => (6, *project),
+            };
+            rows.push(c::RevisionItemHead {
+                setting: c::Setting::Application { kind, scope: project, number: 1 },
+                edit: c::RevisionItemEdit::Set,
+            })
+            .expect("retained values fit");
+        }
+    }
+    if rows.is_empty() {
         return;
     }
     b.open(Role::List);
     b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
-    for item in facts.items {
+    for item in &rows {
         let mut rendered = false;
         if let Some(values) = root.forge().proposed(facts.key.number) {
             for value in values {
@@ -693,7 +738,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             }
         }
         if !rendered {
-            setting_line(b, &setting_name(item));
+            setting_line(b, &setting_name(root, item, words));
         }
     }
     b.close();
@@ -744,14 +789,29 @@ fn proposed_ways(
         &words.say(Word::SettingsProposalWay, &[super::name(skein_lib::Decimal::of(u64::from(ways.way)).as_bytes())]),
     );
 }
-fn setting_name(item: &c::RevisionItemHead) -> Box<[u8]> {
-    let base = setting_base(item.setting);
+fn setting_name(root: &temper_client_domain::Domain, item: &c::RevisionItemHead, words: &Words) -> Box<[u8]> {
+    let base = match template_name(root, item.setting, words) {
+        Some(name) => name,
+        None => setting_base(item.setting),
+    };
+
     let suffix = match item.edit {
         c::RevisionItemEdit::Set => b"".as_slice(),
         c::RevisionItemEdit::Removed => b" removed",
         c::RevisionItemEdit::Reset => b" reset",
     };
     joined(&[&base, suffix])
+}
+fn template_name(root: &temper_client_domain::Domain, setting: c::Setting, words: &Words) -> Option<Box<[u8]>> {
+    let c::Setting::Template(number) = setting else { return None };
+    for project in &root.pages().me(root.client())?.projects {
+        for template in &project.templates {
+            if template.number == number.number {
+                return Some(crate::pages::goals::way_name(template.name.bytes(), words));
+            }
+        }
+    }
+    None
 }
 fn setting_base(setting: c::Setting) -> Box<[u8]> {
     let (label, number) = match setting {
