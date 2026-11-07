@@ -5990,6 +5990,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-local-service",
  "smith-protocol-channel",
+ "smith-protocol-llm",
  "smith-protocol-program",
  "smith-transcript",
  "temper-box",
