@@ -818,6 +818,12 @@ terminal client, the captures and the faults.
   Musts depend on processes. A variant grows an existing story, never a
   copy of its setup.
 
+- **One printed link, counted.** A story that holds a box to one sign-in
+  link counts the lines of its stdout and never compares their bytes, which
+  would write the link's secret into the log. Its panic carries the box's
+  stderr with every line holding `secret=` filtered out, so that a second
+  link says why it came.
+
 - **Focused wiring,** one short test in the ordinary `suite` binary:
   a shipped `temper serve` on a scratch configuration signs in a native
   client, answers one chat through the fake model, drains, and exits 0.

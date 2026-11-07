@@ -206,19 +206,24 @@ fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
 }
 
 #[test]
-fn a_busy_link_says_to_open_it_again_in_either_shell() {
-    assert_link_main(
-        jig_client_protocol_wire::SignInAnswer::Busy,
-        b"temper is busy. This link stays usable until it expires: open it again in a moment.",
-    );
-}
-
-#[test]
-fn a_not_ready_link_says_starting_or_stopping_in_either_shell() {
-    assert_link_main(
-        jig_client_protocol_wire::SignInAnswer::NotReady,
-        b"temper is starting or stopping. This link stays usable until it expires: open it again in a moment.",
-    );
+fn each_link_reason_has_its_paragraph_in_either_shell() {
+    use jig_client_protocol_wire::SignInAnswer;
+    for (answer, expected) in [
+        (
+            SignInAnswer::Busy,
+            b"temper is busy. This link stays usable until it expires: open it again in a moment.".as_slice(),
+        ),
+        (
+            SignInAnswer::NotReady,
+            b"temper is starting or stopping. This link stays usable until it expires: open it again in a moment."
+                .as_slice(),
+        ),
+        (SignInAnswer::LinkUsed, b"This link was already used. A fresh one is in your terminal.".as_slice()),
+        (SignInAnswer::LinkExpired, b"This link has expired. A fresh one is in your terminal.".as_slice()),
+        (SignInAnswer::LinkUnknown, b"This link isn't from this temper. Use the one its terminal printed.".as_slice()),
+    ] {
+        assert_link_main(answer, expected);
+    }
 }
 
 fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[u8]) {

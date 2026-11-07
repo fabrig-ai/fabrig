@@ -68,7 +68,7 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     let link = given_link();
     let _signed_in = sign_in_with_link(engine, &link);
     let answer = sign_in_with_link(engine, &link);
-    assert!(answer == jig_client_protocol_wire::v19::SignInAnswer::Refused, "a spent secret is refused");
+    assert!(answer == jig_client_protocol_wire::v19::SignInAnswer::LinkUsed, "a spent secret is used");
     super::fixtures::turn(&mut service);
     let fresh = service.links().pop().expect("a fresh link is printed");
     assert!(fresh != link, "a later link has a fresh secret");
