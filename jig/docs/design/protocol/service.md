@@ -171,10 +171,10 @@ listed in section 9.
    them (`../domain/engine.md`, section 6); the clients' component
    answers clients not ready until decisions open
    (`../client/domain/contract.md`, section 4). Where configuration
-   enables the printed link, the startup first checks that the clients'
-   listener, a member of the application's own, is on a loopback
-   address, and refuses the start, naming both, if it is not
-   (`configuration.md`, section 3, clients); only then does the
+   enables the printed link, or a browser's approval, the startup first
+   checks that the clients' listener, a member of the application's own,
+   is on a loopback address, and refuses the start, naming both, if it
+   is not (`configuration.md`, section 3, clients); only then does the
    component give its secret, and `main` print its URL, on the
    application's origin and route (`client.md`, section 8; `browser.md`,
    section 11).

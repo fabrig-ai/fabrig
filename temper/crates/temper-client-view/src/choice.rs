@@ -44,7 +44,8 @@ fn account_link(b: &mut Builder, bindings: &mut Bindings, name: &[u8]) {
     control(b, bindings, Role::Link, name, Act::Go { address: Address::Accounts }, false);
 }
 pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    if crate::frame::unavailable(root).is_some()
+    if root.approval().is_some()
+        || crate::frame::unavailable(root).is_some()
         || match root.pages().address() {
             Address::Accounts | Address::ConnectModel { .. } | Address::Welcome { .. } => true,
             Address::Forges

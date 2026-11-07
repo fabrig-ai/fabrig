@@ -152,7 +152,9 @@ impl Front {
     }
     fn request(&mut self, now: Time, request: client::Request) {
         match request {
-            client::Request::Authorized(_) | client::Request::ServiceCredential { .. } => {}
+            client::Request::Approval(_)
+            | client::Request::Authorized(_)
+            | client::Request::ServiceCredential { .. } => {}
             client::Request::Told { told } => {
                 if let Told::Changed { handle } = &told
                     && let Some(subject) = self.subjects.get(handle)

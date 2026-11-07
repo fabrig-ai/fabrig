@@ -271,3 +271,4 @@ establish no rendered equality.
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`tools/gallery/names.txt`,
   `tools/gallery/src/samples.rs`) that the table does not list.
+- **Not yet:** 2.3: `/terminal` and its `code` query, `address::print_approve`, and the shell's place for it (`temper-client-shell-web`'s `host.rs`, replacing an address that prints otherwise). 2.4: the approval page's sign-in by the cookie and its signed-out card. 2.5: the approval page's card and the `temper-approve` rules in `temper.css`. 7.2: the `approve-*` states.

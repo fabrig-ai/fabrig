@@ -825,6 +825,17 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 .temper-sign-in a:focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
 @media (max-width: 600px) { .temper-main.temper-sign-in { padding-top: 28px; } .temper-sign-in > .temper-card { padding: 23.33px 21px 21px; } }
 
+/* ==== tui: approval ==== */
+.temper-approve-code { font: 28px var(--temper-mono); letter-spacing: 0.12em; color: var(--temper-ink); margin: 23.33px 0 16.33px; }
+.temper-approve-asked { color: var(--temper-muted); font-size: 13px; }
+.temper-approve-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 21px; }
+.temper-approve-acts > label { flex-basis: 100%; }
+.temper-approve-acts > input { flex: 1 1 10em; min-width: 0; width: auto; font: 16px var(--temper-mono); letter-spacing: 0.12em; }
+.temper-approve .temper-approve-primary { background: var(--temper-accent); border-color: var(--temper-accent); color: white; }
+.temper-approve .temper-approve-primary:hover { background: var(--temper-accent-dark); border-color: var(--temper-accent-dark); }
+.temper-approve [role=alert] { color: var(--temper-red); font-size: 12.83px; }
+@media (max-width: 600px) { .temper-main.temper-approve { padding-top: 28px; } .temper-approve > .temper-card { padding: 23.33px 21px 21px; } }
+
 /* Failure reasons repeat the mockup's red; shared account/sign-in rows keep their own styles. */
 :is(.temper-flow-details, .temper-model-key) > [role=alert] { color: var(--temper-red); font-size: 12.83px; margin: 0 0 11.67px; }
 /* Folded paste refusals keep the card's alert priority. */

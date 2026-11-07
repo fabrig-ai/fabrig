@@ -123,7 +123,8 @@
     },
     "clients": {
       "heartbeat_ms": 10000,
-      "link": true
+      "link": true,
+      "approval": true
     },
     "deployment": {
       "directory": "deployment",

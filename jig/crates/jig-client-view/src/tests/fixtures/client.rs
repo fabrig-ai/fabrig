@@ -223,6 +223,10 @@ impl Fixture {
             | jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskApproval
+            | jig_client::Event::ReadApproval { .. }
+            | jig_client::Event::DecideApproval { .. }
+            | jig_client::Event::ApprovalAnswer { .. }
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::SignOut
             | jig_client::Event::SignOutLost
@@ -242,6 +246,10 @@ impl Fixture {
             jig_client::Event::Start { .. }
             | jig_client::Event::StartUnlinked { .. }
             | jig_client::Event::SignIn { .. }
+            | jig_client::Event::AskApproval
+            | jig_client::Event::ReadApproval { .. }
+            | jig_client::Event::DecideApproval { .. }
+            | jig_client::Event::ApprovalAnswer { .. }
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::SignOut
             | jig_client::Event::SignOutLost
@@ -300,7 +308,9 @@ impl Fixture {
                         ui_out,
                     );
                 }
-                jig_client::UnlinkedRequest::Authorized(_)
+                jig_client::UnlinkedRequest::ApprovalAct(_)
+                | jig_client::UnlinkedRequest::Approval(_)
+                | jig_client::UnlinkedRequest::Authorized(_)
                 | jig_client::UnlinkedRequest::SignOut
                 | jig_client::UnlinkedRequest::Down {
                     down:
@@ -453,6 +463,10 @@ fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
         | jig_client::Event::Start { .. }
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
+        | jig_client::Event::AskApproval
+        | jig_client::Event::ReadApproval { .. }
+        | jig_client::Event::DecideApproval { .. }
+        | jig_client::Event::ApprovalAnswer { .. }
         | jig_client::Event::Authorize { .. }
         | jig_client::Event::SignOutLost
         | jig_client::Event::Reply { .. }

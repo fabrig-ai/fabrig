@@ -28,6 +28,7 @@ independent of readable turns.
 - **Not yet:** 12: no story relays a person's decision with their own credential.
   17, 20: the one-shot mode and its story, and a service in a host or world
   (the client takes `With::Service`).
+- **Not yet:** 4.1, 4.2, 12: an approval: `AskApproval`, `ReadApproval`, `DecideApproval`, the `Approval` told, `With::Approval` sent again while waiting, and `not_signed_in`'s `Approval`.
 - **Departs:** 19: `words` keys its phrases under skein-ui owner 65537 (`jig/crates/jig-client/src/words.rs`, `OWNER`), beside jig's 65536 (root.md, 15); no reason is written.
 - **Departs:** 16: a turn answer that `translate::turn::inspect` cannot decode
   ends malformed before the link emits `Fact::UndecodableDocument`

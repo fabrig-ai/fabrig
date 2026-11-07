@@ -192,6 +192,8 @@ pub struct Settings {
     pub addresses: Box<[u16]>,
     pub link: Option<people::Identity>,
     pub link_secret: Option<Secret>,
+    /// Whether the component holds sign-ins approved by a browser (protocol/client.md, 8).
+    pub approval: bool,
     pub deployment_provider: u16,
     pub heartbeat: Duration,
     /// Default watch window from the receiving core's document limits.
@@ -255,14 +257,34 @@ pub struct Served {
 /// Messages from an opaque transport (protocol/client.md, 4.2).
 #[derive(Debug, PartialEq)]
 pub enum FromTransport {
-    Exchange { exchange: Token, credential: Option<Secret>, message: Message },
-    StreamOpen { stream: Token, credential: Option<Secret> },
-    StreamTaken { stream: Token },
-    StreamGone { stream: Token },
-    PublicRead { exchange: Token, read: PublicRead },
+    Exchange {
+        exchange: Token,
+        credential: Option<Secret>,
+        /// Whether the transport carried the credential itself, as a browser's cookie (protocol/client.md, 17.3).
+        browser: bool,
+        message: Message,
+    },
+    StreamOpen {
+        stream: Token,
+        credential: Option<Secret>,
+    },
+    StreamTaken {
+        stream: Token,
+    },
+    StreamGone {
+        stream: Token,
+    },
+    PublicRead {
+        exchange: Token,
+        read: PublicRead,
+    },
 }
 #[derive(Debug, PartialEq)]
 pub enum Message {
+    ApprovalAsk(Box<[u8]>),
+    ApprovalRead(Box<[u8]>),
+    ApprovalDecide(Box<[u8]>),
+    SignInApproval(Box<[u8]>),
     Authorize(Box<[u8]>),
     Request(Box<[u8]>),
     Read(Box<[u8]>),
@@ -280,7 +302,7 @@ pub enum ToTransport {
     StreamEnded { stream: Token, why: Ended },
     Public { exchange: Token, reply: PublicReply },
 }
-#[derive(Debug)]
+/// Encoded replies may carry a secret (jig/docs/design/protocol/client.md, 8).
 pub enum Reply {
     Record(Box<[u8]>),
     NotARecord,
@@ -322,4 +344,15 @@ pub enum PublicReply {
     Unknown,
     Busy,
     NotServed { record: Box<[u8]> },
+}
+
+impl ::core::fmt::Debug for Reply {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        match self {
+            Self::Record(bytes) => f.debug_struct("Record").field("len", &bytes.len()).finish(),
+            Self::NotARecord => f.write_str("NotARecord"),
+            Self::Conflict => f.write_str("Conflict"),
+            Self::StreamsFull { size } => f.debug_struct("StreamsFull").field("size", size).finish(),
+        }
+    }
 }

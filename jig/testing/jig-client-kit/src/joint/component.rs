@@ -13,7 +13,7 @@ use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};
 use jig_test_domain as root;
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub(super) struct Composition {
     component: clients::Component,
@@ -32,6 +32,11 @@ pub(super) struct Composition {
     next_carried: u64,
     limits: link::Limits,
     callbacks: Vec<Incoming>,
+    browsers: BTreeSet<ClientId>,
+    approval_answers: BTreeMap<ClientId, VecDeque<link::Approval>>,
+    approval_takes: BTreeSet<ClientId>,
+    approval_signers: BTreeMap<Token, ClientId>,
+    approval_signing: BTreeMap<ClientId, VecDeque<link::Signing>>,
 }
 
 impl Composition {
@@ -65,6 +70,7 @@ impl Composition {
         let settings = clients::Settings {
             provider: None,
             link_secret: None,
+            approval: true,
             addresses: Box::new([]),
             link: None,
             deployment_provider: 2,
@@ -143,6 +149,11 @@ impl Composition {
             next_carried: 1 << 63,
             limits: link::Limits::new(limits, limits.requests.requests.max(64)).expect("joint link bounds"),
             callbacks: Vec::new(),
+            browsers: BTreeSet::new(),
+            approval_answers: BTreeMap::new(),
+            approval_takes: BTreeSet::new(),
+            approval_signers: BTreeMap::new(),
+            approval_signing: BTreeMap::new(),
         }
     }
 
@@ -150,6 +161,41 @@ impl Composition {
         let token = Token::new(self.next);
         self.next = self.next.checked_add(1).expect("transport names left");
         token
+    }
+
+    pub(super) fn as_browser(&mut self, client: ClientId) {
+        self.browsers.insert(client);
+    }
+
+    pub(super) fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
+        let event = match act {
+            jig_client::ApprovalAct::Ask => link::Event::AskApproval,
+            jig_client::ApprovalAct::Read { code } => link::Event::ReadApproval { code },
+            jig_client::ApprovalAct::Decide { code, approve } => link::Event::DecideApproval { code, approve },
+        };
+        self.link(client, event);
+    }
+
+    pub(super) fn take_approval(&mut self, client: ClientId, secret: Secret) {
+        assert!(self.approval_takes.insert(client), "one approval take per client in flight");
+        self.pending_reply = Some(Reply::SignIn { client });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret } });
+    }
+
+    pub(super) fn take_approval_answer(&mut self, client: ClientId) -> Option<link::Approval> {
+        self.approval_answers.get_mut(&client)?.pop_front()
+    }
+
+    pub(super) fn take_approval_signing(&mut self, client: ClientId) -> Option<link::Signing> {
+        self.approval_signing.get_mut(&client)?.pop_front()
+    }
+
+    pub(super) fn credential(&self, client: ClientId) -> Option<&Secret> {
+        self.links.get(&client)?.credential()
+    }
+
+    pub(super) fn next_deadline(&self) -> Option<Time> {
+        self.component.next_deadline()
     }
 
     #[cfg(test)]
@@ -242,8 +288,22 @@ impl Composition {
     }
 
     fn core(&mut self, driver: &mut Driver, mut event: core::Event) {
-        if let core::Event::SignIn { reply_to, .. }
-        | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. })
+        if let core::Event::SignIn { reply_to, .. } = &mut event
+            && let token = reply_token(reply_to)
+            && let Some(client) = self.approval_signers.remove(&token)
+        {
+            driver.transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::People(people::Event::Whose { reply_to, .. }) = &mut event {
+            let Some(Reply::SignIn { client }) = self.pending_reply.take() else {
+                panic!("approval signer correlation");
+            };
+            let token = reply_token(reply_to);
+            self.approval_signers.insert(token, client);
+            driver.transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::SignIn { reply_to, .. }
+        | core::Event::People(
+            people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. },
+        )
         | core::Event::Key { reply_to, .. }
         | core::Event::ProposeSettings { reply_to, .. }
         | core::Event::ChangeModel { reply_to, .. }
@@ -472,6 +532,7 @@ impl Composition {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "transport wiring carries the browser marker beside the credential")]
     fn link_request(&mut self, client: ClientId, request: link::Request, driver: &mut Driver) {
         let up = match request {
             link::Request::StreamsFull { full } => jig_client::Up::StreamsFull { full },
@@ -479,6 +540,10 @@ impl Composition {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));
                 let message = match message {
+                    link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
+                    link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
+                    link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
+                    link::Message::SignInApproval(bytes) => clients::Message::SignInApproval(bytes),
                     link::Message::Authorize(bytes) => clients::Message::Authorize(bytes),
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
@@ -489,7 +554,12 @@ impl Composition {
                     link::Message::SignInService => clients::Message::SignInService(Box::new([])),
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
-                self.event(Event::Transport(clients::FromTransport::Exchange { exchange: name, credential, message }));
+                self.event(Event::Transport(clients::FromTransport::Exchange {
+                    browser: self.browsers.contains(&client),
+                    exchange: name,
+                    credential,
+                    message,
+                }));
                 return;
             }
             link::Request::OpenStream { credential } => {
@@ -505,6 +575,17 @@ impl Composition {
                 return;
             }
             link::Request::Signing { signing } => {
+                if self.approval_takes.remove(&client) {
+                    self.approval_signers.retain(|_, owner| *owner != client);
+                    if matches!(self.pending_reply, Some(Reply::SignIn { client: owner }) if owner == client) {
+                        self.pending_reply = None;
+                    }
+                    if let link::Signing::SignedIn { party } = &signing {
+                        self.callbacks.push(Incoming::Authenticated { client, person: *party, expires: self.env.wall });
+                    }
+                    self.approval_signing.entry(client).or_default().push_back(signing);
+                    return;
+                }
                 match signing {
                     link::Signing::SignedIn { party } => {
                         self.callbacks.push(Incoming::Authenticated { client, person: party, expires: self.env.wall });
@@ -521,7 +602,8 @@ impl Composition {
                             why: people::Again::Full { held: sign_ins, room_at: earliest },
                         });
                     }
-                    link::Signing::LinkUsed
+                    link::Signing::Approval(_)
+                    | link::Signing::LinkUsed
                     | link::Signing::LinkExpired
                     | link::Signing::LinkUnknown
                     | link::Signing::Refused
@@ -564,6 +646,10 @@ impl Composition {
                 return;
             }
             link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
+            link::Request::Approval(answer) => {
+                self.approval_answers.entry(client).or_default().push_back(answer);
+                return;
+            }
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped

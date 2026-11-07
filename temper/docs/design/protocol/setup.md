@@ -2675,6 +2675,12 @@ override.
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
+- **Its sign-ins:** `engine.clients`' `link` and `approval` both
+  `true`, in both documents and the owned example (8.1): the printed
+  link (7.2) and a terminal approved by the person's browser
+  (`../client/README.md`, 7.1), on the clients' loopback listener
+  (configuration.md, section 3, clients). The box prints the link
+  alone; the approval prints nothing.
 - **Its limits:** the owned example's (8.1), the `standard` profiles,
   among them `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's

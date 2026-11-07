@@ -104,6 +104,22 @@ fn valid_refuses_each_unrepresentable_limit() {
             false,
         ),
         (
+            "approval_asked_secret",
+            crate::Limits {
+                wire: jig_client_protocol_wire::v19::Limits { approval_asked_secret: 31, ..limits.wire },
+                ..limits
+            },
+            false,
+        ),
+        (
+            "approval_sign_in_secret",
+            crate::Limits {
+                wire: jig_client_protocol_wire::v19::Limits { approval_sign_in_secret: 31, ..limits.wire },
+                ..limits
+            },
+            false,
+        ),
+        (
             "keyed_value_some",
             crate::Limits {
                 wire: jig_client_protocol_wire::v19::Limits { keyed_value_some: u32::MAX, ..limits.wire },
@@ -152,3 +168,9 @@ mod provider_claims {
 
 #[path = "tests/catalogue.rs"]
 mod catalogue;
+
+#[path = "tests/approval_surface.rs"]
+mod approval_surface;
+
+#[path = "tests/approval.rs"]
+mod approval;
