@@ -9,6 +9,7 @@ pub(crate) struct Table {
     scope: u64,
     first_sent: bool,
     version: u16,
+    picker: bool,
 }
 pub(crate) enum Event {
     Write { table: Vec<Table> },
@@ -24,6 +25,7 @@ impl fmt::Debug for Table {
             .field("scope", &self.scope)
             .field("first_sent", &self.first_sent)
             .field("version", &self.version)
+            .field("picker", &self.picker)
             .finish()
     }
 }
@@ -48,7 +50,9 @@ pub(crate) fn saved(history: &History) -> std::collections::BTreeSet<[u8; 16]> {
         .iter()
         .rev()
         .find_map(|(_, event)| match event {
-            Event::Sync { directory: true, table } => Some(table.iter().map(|entry| entry.key).collect()),
+            Event::Sync { directory: true, table } => {
+                Some(table.iter().filter(|entry| !entry.picker).map(|entry| entry.key).collect())
+            }
             Event::Write { .. }
             | Event::Sync { directory: false, .. }
             | Event::Rename { .. }
@@ -159,6 +163,7 @@ fn tables(bytes: &[u8], limits: &wire::Limits) -> Option<Vec<Table>> {
             scope: entry.scope(),
             first_sent: entry.first_sent().is_some(),
             version: kept.store_version(),
+            picker: super::picker(entry.owner(), entry.request()),
         });
     }
     reader.is_empty().then_some(table)

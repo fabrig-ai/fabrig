@@ -244,7 +244,7 @@ impl App for Temper {
     }
     fn window_changed(event: &Event) -> bool {
         match event.root() {
-            Some(domain::Event::Act { action: Action::Forge(_) }) => true,
+            Some(domain::Event::Went { .. } | domain::Event::Act { action: Action::Forge(_) }) => true,
             Some(domain::Event::Act { action: Action::Pages(act) }) => matches!(
                 act,
                 domain::pages::Act::Project { .. }
@@ -258,7 +258,6 @@ impl App for Temper {
                 domain::Event::Copied { .. }
                 | domain::Event::Act { action: Action::Copy { .. } }
                 | domain::Event::Start { .. }
-                | domain::Event::Went { .. }
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
                 | domain::Event::SignInKept { .. }
@@ -291,7 +290,7 @@ impl App for Temper {
             let mut state = jig_client_kit::harness::CardSeen::Waiting;
             for node in tree.nodes() {
                 if node.role == skein_ui::Role::Button
-                    && node.name.as_deref() == Some(b"Adopt")
+                    && node.name.as_deref().is_some_and(|name| name.starts_with(b"Adopt"))
                     && node.states.as_slice().contains(&skein_ui::State::Disabled)
                 {
                     state = jig_client_kit::harness::CardSeen::Deciding;
@@ -424,7 +423,7 @@ fn adoption_card() -> CardKey {
 }
 fn adoption_page(tree: &Tree) -> bool {
     tree.nodes().iter().any(|node| {
-        node.role == skein_ui::Role::Heading { level: 1 }
-            && node.text.as_slice().iter().any(|run| run.text.starts_with(b"Adopt a repository into "))
+        node.role == skein_ui::Role::Dialog
+            && node.name.as_deref().is_some_and(|name| name.starts_with(b"Add repositories to "))
     })
 }

@@ -206,7 +206,7 @@ fn repositories_lists_the_projects_and_no_others() {
     let root = f::forge_root(repositories(), forge_rows());
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         find(view.tree(), Role::Heading { level: 2 }, "Repositories · 2".as_bytes());
-        let adopt = find(view.tree(), Role::Link, b"Adopt a repository");
+        let adopt = find(view.tree(), Role::Link, b"Add repositories");
         assert_eq!(node(view.tree(), adopt).styles.as_slice(), [look::SETTINGS_BTN, look::SETTINGS_SMALL]);
         let rows = styled(view.tree(), look::SETTINGS_LINES);
         assert_eq!(f::nodes_text(rows).as_ref(), b"work/oneForgejo on this machinework/twoGitHub");
@@ -221,10 +221,10 @@ fn repositories_says_none_with_a_quiet_band() {
         find(view.tree(), Role::Heading { level: 2 }, "Repositories · 0".as_bytes());
         let band = styled(view.tree(), look::SETTINGS_QUIET_BAND);
         assert!(band[0].styles.as_slice().contains(&look::SETTINGS_BAND));
-        assert_eq!(f::nodes_text(band).as_ref(), b"No repository yetChats in Shop talk and plan, but change no code until a repository is in.Adopt a repository");
+        assert_eq!(f::nodes_text(band).as_ref(), b"No repository yetChats in Shop talk and plan, but change no code until a repository is in.Add repositories");
         let links: Vec<_> = main(view.tree())
             .iter()
-            .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Adopt a repository"))
+            .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Add repositories"))
             .map(|n| n.id)
             .collect();
         assert_eq!(links.len(), 2);
@@ -928,12 +928,6 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
             b"Accounts".as_slice(),
             b"/accounts".as_slice(),
             b"Connect a model".as_slice(),
-        ),
-        (
-            Address::Adopt { project: f::PROJECT },
-            b"Repositories".as_slice(),
-            b"/projects/1/settings/repositories".as_slice(),
-            b"Adopt a repository".as_slice(),
         ),
     ] {
         let root = root(address);

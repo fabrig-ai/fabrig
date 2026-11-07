@@ -10,9 +10,6 @@ accounts-renewed
 accounts-signing-in
 accounts-solo
 accounts-states
-adoption
-adoption-filled
-adoption-refused
 agent-work
 builders
 builders-none
@@ -232,6 +229,11 @@ settings-drafts-off
 settings-goals
 settings-goals-off
 settings-refused
+sheet-adopt
+sheet-empty
+sheet-few
+sheet-none
+sheet-searching
 signed-out
 start-goal
 start-goal-draft

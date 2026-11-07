@@ -102,10 +102,10 @@ pub fn run() {
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within },
         Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
-        Step::Type { find: Find::named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
         Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
         Step::Press { find: Find::named(Role::Button, b"Adopt") },
-        Step::See { find: Find::text(format!("Adopted {OWNER}/{NAME} on forge 1 as owned.").as_bytes()), within },
+        Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
     ]);
     let root = skein_shell::open_root(std::path::Path::new(".")).expect("sitting scratch root");
     let clock = Clock::new();
