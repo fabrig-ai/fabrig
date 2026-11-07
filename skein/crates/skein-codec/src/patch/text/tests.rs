@@ -50,44 +50,188 @@ fn every_value_form_is_read_before_typing() {
     }
 }
 
+struct GrammarRow {
+    text: Box<[u8]>,
+    line: u32,
+    at: Span,
+    wanted: Expected,
+}
+
 #[test]
-fn expected_refusals_name_the_offending_token() {
-    let rows: &[(&str, &[u8], u32, Span, Expected)] = &[
-        ("language", b"owner o 1", 1, Span { start: 0, end: 5 }, Expected::Language),
-        ("owner", b"patch 1\nmark m", 2, Span { start: 8, end: 12 }, Expected::Owner),
-        ("level", b"patch 1\nowner o nope", 2, Span { start: 16, end: 20 }, Expected::Level),
-        ("family", b"patch 1\nowner ? 0", 2, Span { start: 14, end: 15 }, Expected::Family),
-        ("version", b"patch 1\nowner o 0\nfamily f nope to 2", 3, Span { start: 27, end: 31 }, Expected::Version),
-        ("to", b"patch 1\nowner o 0\nfamily f 1 nope 2", 3, Span { start: 29, end: 33 }, Expected::To),
-        ("line", b"patch 1\nowner o 0\nbogus", 3, Span { start: 18, end: 23 }, Expected::Line),
-        ("name", b"patch 1\nowner o 0\nfamily f 1 to 2\nadd ?", 4, Span { start: 38, end: 39 }, Expected::Name),
-        ("type", b"patch 1\nowner o 0\nfamily f 1 to 2\nadd D.f ?", 4, Span { start: 42, end: 43 }, Expected::Type),
-        (
-            "value",
-            b"patch 1\nowner o 0\nfamily f 1 to 2\nadd D.f u8 .",
-            4,
-            Span { start: 45, end: 46 },
-            Expected::Value,
-        ),
-        (
-            "text",
-            b"patch 1\nowner o 0\nfamily f 1 to 2\nwritten D\nrefuses r word",
-            5,
-            Span { start: 54, end: 58 },
-            Expected::Text,
-        ),
-        (
-            "record",
-            b"patch 1\nowner o 0\nfamily f 1 to 2\npayload D.v ? -",
-            4,
-            Span { start: 46, end: 47 },
-            Expected::Record,
-        ),
-        ("end", b"patch 1 extra", 1, Span { start: 8, end: 13 }, Expected::End),
-    ];
-    for &(name, text, line, at, wanted) in rows {
-        assert_eq!(parse(text).expect_err(name), error(line, at, PatchWrong::Expected(wanted)), "{name}");
-    }
+#[expect(clippy::too_many_lines, reason = "one grammar diagnostic body checks every named data row")]
+fn grammar_refusals_identify_the_expected_token_at_its_span() {
+    skein_rows::check(
+        [
+            (
+                "expected_refusals_name_the_offending_token: language",
+                GrammarRow {
+                    text: b"owner o 1".as_slice().into(),
+                    line: 1,
+                    at: Span { start: 0, end: 5 },
+                    wanted: Expected::Language,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: owner",
+                GrammarRow {
+                    text: b"patch 1\nmark m".as_slice().into(),
+                    line: 2,
+                    at: Span { start: 8, end: 12 },
+                    wanted: Expected::Owner,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: level",
+                GrammarRow {
+                    text: b"patch 1\nowner o nope".as_slice().into(),
+                    line: 2,
+                    at: Span { start: 16, end: 20 },
+                    wanted: Expected::Level,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: family",
+                GrammarRow {
+                    text: b"patch 1\nowner ? 0".as_slice().into(),
+                    line: 2,
+                    at: Span { start: 14, end: 15 },
+                    wanted: Expected::Family,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: version",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f nope to 2".as_slice().into(),
+                    line: 3,
+                    at: Span { start: 27, end: 31 },
+                    wanted: Expected::Version,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: to",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 nope 2".as_slice().into(),
+                    line: 3,
+                    at: Span { start: 29, end: 33 },
+                    wanted: Expected::To,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: line",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nbogus".as_slice().into(),
+                    line: 3,
+                    at: Span { start: 18, end: 23 },
+                    wanted: Expected::Line,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: name",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 to 2\nadd ?".as_slice().into(),
+                    line: 4,
+                    at: Span { start: 38, end: 39 },
+                    wanted: Expected::Name,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: type",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 to 2\nadd D.f ?".as_slice().into(),
+                    line: 4,
+                    at: Span { start: 42, end: 43 },
+                    wanted: Expected::Type,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: value",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 to 2\nadd D.f u8 .".as_slice().into(),
+                    line: 4,
+                    at: Span { start: 45, end: 46 },
+                    wanted: Expected::Value,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: text",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 to 2\nwritten D\nrefuses r word".as_slice().into(),
+                    line: 5,
+                    at: Span { start: 54, end: 58 },
+                    wanted: Expected::Text,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: record",
+                GrammarRow {
+                    text: b"patch 1\nowner o 0\nfamily f 1 to 2\npayload D.v ? -".as_slice().into(),
+                    line: 4,
+                    at: Span { start: 46, end: 47 },
+                    wanted: Expected::Record,
+                },
+            ),
+            (
+                "expected_refusals_name_the_offending_token: end",
+                GrammarRow {
+                    text: b"patch 1 extra".as_slice().into(),
+                    line: 1,
+                    at: Span { start: 8, end: 13 },
+                    wanted: Expected::End,
+                },
+            ),
+            (
+                "a_part_in_a_name_statement_refuses_the_dot: reshape D.f",
+                GrammarRow {
+                    text: block("reshape D.f").into_bytes().into(),
+                    line: 4,
+                    at: Span { start: 43, end: 44 },
+                    wanted: Expected::End,
+                },
+            ),
+            (
+                "a_part_in_a_name_statement_refuses_the_dot: versioned D.f",
+                GrammarRow {
+                    text: block("versioned D.f").into_bytes().into(),
+                    line: 4,
+                    at: Span { start: 45, end: 46 },
+                    wanted: Expected::End,
+                },
+            ),
+            (
+                "a_part_in_a_name_statement_refuses_the_dot: unversioned D.f",
+                GrammarRow {
+                    text: block("unversioned D.f").into_bytes().into(),
+                    line: 4,
+                    at: Span { start: 47, end: 48 },
+                    wanted: Expected::End,
+                },
+            ),
+            (
+                "a_part_in_a_name_statement_refuses_the_dot: order D.f a",
+                GrammarRow {
+                    text: block("order D.f a").into_bytes().into(),
+                    line: 4,
+                    at: Span { start: 41, end: 42 },
+                    wanted: Expected::Name,
+                },
+            ),
+            (
+                "a_part_in_a_name_statement_refuses_the_dot: refuses r.f \"reason\"",
+                GrammarRow {
+                    text: block("refuses r.f \"reason\"").into_bytes().into(),
+                    line: 4,
+                    at: Span { start: 43, end: 44 },
+                    wanted: Expected::Text,
+                },
+            ),
+        ],
+        |row| {
+            assert_eq!(
+                parse(&row.text).expect_err("grammar refusal"),
+                error(row.line, row.at, PatchWrong::Expected(row.wanted))
+            );
+        },
+    );
 }
 
 #[test]
@@ -241,23 +385,5 @@ fn a_refusal_cannot_cross_an_operation_or_block() {
     ];
     for (name, lines) in rows {
         assert_eq!(parse(block(lines).as_bytes()).expect_err(name).wrong, PatchWrong::Stray, "{name}");
-    }
-}
-
-#[test]
-fn a_part_in_a_name_statement_refuses_the_dot() {
-    let rows = [
-        ("reshape D.f", Span { start: 43, end: 44 }, Expected::End),
-        ("versioned D.f", Span { start: 45, end: 46 }, Expected::End),
-        ("unversioned D.f", Span { start: 47, end: 48 }, Expected::End),
-        ("order D.f a", Span { start: 41, end: 42 }, Expected::Name),
-        ("refuses r.f \"reason\"", Span { start: 43, end: 44 }, Expected::Text),
-    ];
-    for (line, at, wanted) in rows {
-        assert_eq!(
-            parse(block(line).as_bytes()).expect_err(line),
-            error(4, at, PatchWrong::Expected(wanted)),
-            "{line}"
-        );
     }
 }

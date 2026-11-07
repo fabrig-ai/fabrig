@@ -23,26 +23,52 @@ fn each_written_item_has_its_u32_length() {
     assert_eq!(write_items(&[b"ab", b"", b"c"], 15).as_ref(), &[0, 0, 0, 2, b'a', b'b', 0, 0, 0, 0, 0, 0, 0, 1, b'c']);
 }
 
-#[test]
-fn an_item_that_exceeds_the_remaining_bound_writes_nothing() {
-    let mut out = Writer::new(6);
-    piece::write(&mut out, b"ab").expect("the first item fills the bound");
-    assert_eq!(piece::write(&mut out, b""), Err(Overflow));
-    assert_eq!(out.finish().as_ref(), &[0, 0, 0, 2, b'a', b'b']);
+struct WriteRefusal {
+    room: usize,
+    prior: &'static [&'static [u8]],
+    item: &'static [u8],
+    written: usize,
+    fill: &'static [u8],
+    expected: &'static [u8],
 }
 
 #[test]
-fn an_item_header_that_exceeds_the_bound_writes_nothing() {
-    let mut out = Writer::new(3);
-    assert_eq!(piece::write(&mut out, b""), Err(Overflow));
-    assert_eq!(out.written(), 0);
-}
-
-#[test]
-fn an_item_body_that_exceeds_the_bound_writes_no_header() {
-    let mut out = Writer::new(5);
-    assert_eq!(piece::write(&mut out, b"ab"), Err(Overflow));
-    assert_eq!(out.written(), 0);
+fn an_item_exceeding_writer_room_leaves_output_unchanged() {
+    skein_rows::check(
+        [
+            (
+                "an_item_that_exceeds_the_remaining_bound_writes_nothing",
+                WriteRefusal {
+                    room: 6,
+                    prior: &[b"ab"],
+                    item: b"",
+                    written: 6,
+                    fill: b"",
+                    expected: &[0, 0, 0, 2, b'a', b'b'],
+                },
+            ),
+            (
+                "an_item_header_that_exceeds_the_bound_writes_nothing",
+                WriteRefusal { room: 3, prior: &[], item: b"", written: 0, fill: b"abc", expected: b"abc" },
+            ),
+            (
+                "an_item_body_that_exceeds_the_bound_writes_no_header",
+                WriteRefusal { room: 5, prior: &[], item: b"ab", written: 0, fill: b"abcde", expected: b"abcde" },
+            ),
+        ],
+        |row| {
+            let mut out = Writer::new(row.room);
+            for item in row.prior {
+                piece::write(&mut out, item).expect("the first item fills the bound");
+            }
+            assert_eq!(piece::write(&mut out, row.item), Err(Overflow));
+            assert_eq!(out.written(), row.written);
+            // finish requires a full writer; filling the untouched room also
+            // detects any header or body left by the refused item.
+            out.put(row.fill).expect("the untouched remainder fits");
+            assert_eq!(out.finish().as_ref(), row.expected);
+        },
+    );
 }
 
 #[test]
@@ -52,28 +78,40 @@ fn small_and_large_items_fit_the_same_sum_bound() {
 }
 
 #[test]
-fn splitting_ends_only_between_complete_items() {
-    let items = split_items(&[0, 0, 0, 2, b'a', b'b', 0, 0, 0, 0, 0, 0, 0, 1, b'c']).expect("complete items");
-    assert_eq!(items.as_ref(), &[Box::from(&b"ab"[..]), Box::from(&b""[..]), Box::from(&b"c"[..])]);
+fn splitting_complete_pieces_returns_every_item_in_order() {
+    skein_rows::check(
+        [
+            (
+                "splitting_ends_only_between_complete_items",
+                (
+                    &[0, 0, 0, 2, b'a', b'b', 0, 0, 0, 0, 0, 0, 0, 1, b'c'][..],
+                    Box::<[Box<[u8]>]>::from([Box::from(&b"ab"[..]), Box::from(&b""[..]), Box::from(&b"c"[..])]),
+                ),
+            ),
+            ("an_empty_piece_has_no_items", (b"".as_slice(), Box::from([]))),
+        ],
+        |(bytes, expected)| {
+            let items = split_items(bytes).expect("complete items");
+            assert_eq!(items, expected);
+        },
+    );
 }
 
 #[test]
-fn an_empty_piece_has_no_items() {
-    assert_eq!(split_items(b""), Ok(Box::from([])));
-}
-
-#[test]
-fn an_item_length_past_the_end_is_malformed() {
-    assert_eq!(split_items(&[0, 0, 0, 2, b'a']), Err(Reason::Malformed));
-    assert_eq!(split_items(&[255, 255, 255, 255]), Err(Reason::Malformed));
-}
-
-#[test]
-fn a_partial_item_length_at_the_tail_is_malformed() {
-    for tail in [&b"\0"[..], &b"\0\0"[..], &b"\0\0\0"[..]] {
-        assert_eq!(split_items(tail), Err(Reason::Malformed));
-    }
-    assert_eq!(split_items(&[0, 0, 0, 1, b'a', 0]), Err(Reason::Malformed));
+fn splitting_refuses_incomplete_item_lengths_and_item_bodies() {
+    skein_rows::check(
+        [
+            ("an_item_length_past_the_end_is_malformed: short body", &[0, 0, 0, 2, b'a'][..]),
+            ("an_item_length_past_the_end_is_malformed: maximum length", &[255, 255, 255, 255][..]),
+            ("a_partial_item_length_at_the_tail_is_malformed: one byte", &b"\0"[..]),
+            ("a_partial_item_length_at_the_tail_is_malformed: two bytes", &b"\0\0"[..]),
+            ("a_partial_item_length_at_the_tail_is_malformed: three bytes", &b"\0\0\0"[..]),
+            ("a_partial_item_length_at_the_tail_is_malformed: after item", &[0, 0, 0, 1, b'a', 0][..]),
+        ],
+        |bytes| {
+            assert_eq!(split_items(bytes), Err(Reason::Malformed));
+        },
+    );
 }
 
 #[test]
@@ -90,23 +128,23 @@ fn bounded_splitting_charges_each_item_and_its_length() {
     assert_eq!(sum, MOST);
 }
 
-#[test]
-fn bounded_splitting_refuses_one_byte_past_the_sum() {
-    const MOST: u64 = 5; // One byte short of "ab" and its length.
-    const SIZE: usize = 6; // "ab" and its four-byte length.
-    let bytes = write_items(&[b"ab"], SIZE);
-    let mut sum = 0;
-    assert_eq!(piece::split_within(&mut Reader::new(&bytes), &mut sum, MOST), Err(Reason::Bound));
-}
+// "ab" and its four-byte length occupy six bytes. A bound of five is
+// one short; MAX - 2 leaves room for the body alone.
 
 #[test]
-fn bounded_splitting_refuses_overflow_in_bytes_or_length() {
-    const SIZE: usize = 6; // "ab" and its four-byte length.
-    const ROOM_FOR_BODY: u64 = u64::MAX - 2; // Only the two bytes in "ab" fit.
-    let bytes = write_items(&[b"ab"], SIZE);
-    for mut sum in [u64::MAX, ROOM_FOR_BODY] {
-        assert_eq!(piece::split_within(&mut Reader::new(&bytes), &mut sum, u64::MAX), Err(Reason::Bound));
-    }
+fn bounded_splitting_refuses_sums_outside_its_byte_bound() {
+    skein_rows::check(
+        [
+            ("bounded_splitting_refuses_one_byte_past_the_sum", (0, 5)),
+            ("bounded_splitting_refuses_overflow_in_bytes_or_length: header", (u64::MAX, u64::MAX)),
+            ("bounded_splitting_refuses_overflow_in_bytes_or_length: body", (u64::MAX - 2, u64::MAX)),
+        ],
+        |(mut sum, most)| {
+            const SIZE: usize = 6; // "ab" and its four-byte length.
+            let bytes = write_items(&[b"ab"], SIZE);
+            assert_eq!(piece::split_within(&mut Reader::new(&bytes), &mut sum, most), Err(Reason::Bound));
+        },
+    );
 }
 
 #[test]

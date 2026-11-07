@@ -2858,6 +2858,7 @@ name = "skein-codec"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3711,6 +3712,10 @@ dependencies = [
  "skein-shell",
  "skein-world",
 ]
+
+[[package]]
+name = "skein-rows"
+version = "0.0.0"
 
 [[package]]
 name = "skein-scratch"
