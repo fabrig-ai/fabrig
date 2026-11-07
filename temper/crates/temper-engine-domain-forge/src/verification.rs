@@ -229,7 +229,7 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     }
 }
 
-fn save(row: Verification, subject: Option<[u64; 2]>, out: &mut Queue<Request>) {
+fn save(row: Verification, subject: Option<[u64; 3]>, out: &mut Queue<Request>) {
     if let Some(subject) = subject {
         out.push(Request::Marked { tasks: Box::new(subject) });
     }

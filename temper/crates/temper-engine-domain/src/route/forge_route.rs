@@ -5590,7 +5590,7 @@ fn drop_landing(
 fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidence: &forge::ChangeEvidence) {
     let Some(row) = domain.forge.change(task) else { return };
     let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
-    if domain.forge.keep_review_facts(task, facts) {
+    if domain.forge.keep_review_facts(env.wall, task, facts) {
         let mut subjects = List::with_capacity(1);
         subjects.push(Token::new(task)).expect("one changed panel");
         domain
