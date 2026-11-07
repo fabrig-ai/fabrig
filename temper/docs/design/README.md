@@ -184,6 +184,9 @@ forge, temper adds:
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
+  Its documents go by surface (the user, 2026-11-07): what is generic
+  to the client in `client/` itself, the browser's in `client/web/`, the
+  TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.

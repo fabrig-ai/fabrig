@@ -529,7 +529,7 @@ in the lower world that owns it, never here.
   - **The peers are fakes:** skein's fake LLM, the fake forge and the
     fake git program (4.1 to 4.3), as for the tier's other stories.
   - **The terminal is the real loop's test surface.** People use the
-    browser, or a later full-screen terminal; the terminal client is the
+    browser, or the TUI; the line client is the
     way a real-loop story reads what a person would see
     (../client/README.md, section 6.9). The process tier's `temper open`
     tests stay smokes (2.6), outside the gate.

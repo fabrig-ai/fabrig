@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Section 6.3's TUI host runs in the joint world: pasted-link sign-in
+drawing `me`, a restart showing Offline then Live with `me` retained,
+and sign-out elsewhere returning to signing in with the token erased.
+These stories establish no real-terminal walk.
+
 Section 2.7 has no known implementation gap in refusing a chat's
 non-procedure delegate as its change, naming an agent's task and charter,
 or in naming successful and failed committed calls when `change` did not

@@ -2,8 +2,9 @@
 
 2026-11-07. Where skein's code lags or departs from [shell.md](shell.md).
 
-Section 6.3 has no known gap in requested hangup handling or preserving a
-hangup ignored at startup. The macOS build and runtime gaps in section 9
+Section 6.3 has no known gap in requested hangup handling, preserving a
+hangup ignored at startup, or `Kept::on_abort` restoring the terminal
+before a panic's report. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).

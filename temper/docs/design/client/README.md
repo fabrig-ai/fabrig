@@ -7637,6 +7637,11 @@ own tests:
   above the paste (`../draft/tui.md`, 4.2), the recording at the host's
   seam (its section 5), and everything of its sections 3 and 7. Default:
   the first pass alone, in `../draft/tui.execution.md`'s order.
+- **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
+  printed link into the TUI in another terminal and read the first
+  screen (`../draft/tui.execution.md`, M1). Its frames' refinement
+  follows the recording; simulated closing and client-world stories
+  do not establish the real terminal's look or macOS runtime.
 - **The TUI's address kept at closing** (6.12): the binary writes it once
   the loop has ended, so a TUI killed outright keeps the address it
   read. Default: so; writing it at the sign-in would give the loop file

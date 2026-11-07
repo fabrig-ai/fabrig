@@ -1,11 +1,18 @@
 # README: status
 
-2026-11-04. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
 The first milestone (section 2), including the stock chat's instructions to
 delegate repository changes, stands in the code, and section 9 names the crates
 there are.
 
+- **Not yet:** 6: the client's documents by surface. All of them are in
+  `client/` itself: `browser.md`, `journeys.md` with its journeys'
+  prints, `mockups/` and `greenfield/` are the browser's, for
+  `client/web/`; `tools.md` is `temper ctl`'s, for `client/ctl/`;
+  `client/README.md` holds the browser's pages' look and the TUI's
+  sections, 6.11 to 6.16, beside what is generic. They move in a cleanup
+  of their own, which fixes every citation to them.
 - **Departs:** 4: skein's `lib.md`, 6 has `len_u64` and `usize_of` widen a
   length and a `u32` count, so that no step writes `try_from` for either,
   and the user's request of 11-04 asked that temper's hand-written code
