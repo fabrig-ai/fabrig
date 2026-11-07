@@ -100,7 +100,7 @@ pub struct Domain {
 #[expect(clippy::struct_excessive_bools, reason = "each startup request has independent request and reply evidence")]
 pub struct Peers {
     oracle: oracle::Replies,
-    pub policy: r::Policy,
+    pub policy: r::PolicySnapshot,
     pub seed: u64,
     pub scenario: Option<jig_conformance::scenarios::Scenario>,
     pub story: Option<stories::Story>,
@@ -116,6 +116,7 @@ pub struct Peers {
     started: bool,
     applied: u64,
     first_start: Option<r::Snapshot>,
+    projection: jig_conformance::core::Projection,
     observed: Vec<r::Observed>,
     /// The protocol layer this world plays: decodes, renders, outcomes, accounts.
     protocol: Protocol,
@@ -259,7 +260,7 @@ impl Application for Temper {
             seed: config.seed,
             scenario: config.scenario,
             story: config.story,
-            policy: observations::policy(config.seed, config.scenario, config.story),
+            policy: observations::policy(config.seed, config.scenario, config.story).into(),
             worker: workers::Worker::new(
                 link::CHANNEL,
                 config.limits.fleet.slots,
@@ -275,6 +276,7 @@ impl Application for Temper {
             started: false,
             applied: 0,
             first_start: Some(observations::snapshot(&first)),
+            projection: jig_conformance::core::Projection::default(),
             observed: Vec::new(),
             protocol: Protocol::default(),
             requests: std::collections::BTreeMap::new(),
@@ -304,10 +306,14 @@ impl Application for Temper {
     fn policy(peers: &Peers) -> &r::Policy {
         &peers.policy
     }
+    fn policy_snapshot(peers: &Peers) -> Option<&r::PolicySnapshot> {
+        Some(&peers.policy)
+    }
     fn start(_: &Config, _: &mut Store) -> Vec<Event> {
         vec![Event::Root(engine::Event::Restart { pending: false })]
     }
     fn cold(peers: &mut Peers, store: &Store, _: Clock) {
+        peers.projection.invalidate();
         peers.observed.push(r::Observed::ColdStore { receipts: observations::snapshot(store).receipts });
         for record in store.rows.values() {
             if let root::Record::Forge { row } = record
@@ -589,6 +595,7 @@ impl Application for Temper {
         events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()
     }
     fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
+        observations::submitted(store, &mut peers.projection);
         if let Some((number, writes)) = store.pending.back() {
             let mut forgotten = Vec::new();
             for write in writes {
@@ -613,7 +620,7 @@ impl Application for Temper {
         }
         if peers.applied != store.applied {
             peers.applied = store.applied;
-            let mut snapshot = observations::snapshot(store);
+            let mut snapshot = observations::projected(store, &mut peers.projection);
             observations::resolved(store, &mut snapshot, &mut peers.effects, &mut peers.held, &mut peers.settled);
             for record in store.rows.values() {
                 if let root::Record::Core(jig_domain_core::Record::Tasks(
@@ -646,23 +653,7 @@ impl Application for Temper {
         }
         observations.append(&mut peers.observed);
         observations.extend(systems.take_observed());
-        let mut totals = std::collections::BTreeMap::<u64, (u64, u64)>::new();
-        for (&(task, attempt), expense) in &peers.worker.expenses {
-            if expense.lost_turns > 0 {
-                observations.push(r::Observed::LostTurns {
-                    task,
-                    attempt,
-                    turns: expense.lost_turns,
-                    spent: expense.lost,
-                });
-            }
-            let total = totals.entry(task).or_default();
-            total.0 += expense.spent;
-            total.1 += expense.lost;
-        }
-        for (task, (spent, lost_bound)) in totals {
-            observations.push(r::Observed::Spend { task, spent, lost_bound });
-        }
+        observations::expenses(&peers.worker.expenses, &mut observations);
         observations
     }
     fn ready(domain: &Domain) -> bool {

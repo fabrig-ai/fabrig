@@ -335,9 +335,8 @@ fn core_write(write: &root::Write) -> conformance::Write<'_> {
         root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
         root::Write::Save(root::Record::Connector { .. })
         | root::Write::Erase(root::Key::Connector { .. })
-        | root::Write::Wires
-        | root::Write::CopySettingsRevision(_)
-        | root::Write::DropTranscript { .. } => conformance::Write::Other,
+        | root::Write::Wires => conformance::Write::Other,
+        root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => conformance::Write::Refresh,
     }
 }
 
@@ -505,6 +504,13 @@ mod view_tests {
     use jig_domain_people as people;
     use jig_domain_tasks as tasks;
     use std::cell::Cell;
+
+    #[test]
+    fn a_bulk_core_write_requests_whole_projection() {
+        for write in [root::Write::CopySettingsRevision(1), root::Write::DropTranscript { task: 1 }] {
+            assert_eq!(core_write(&write), conformance::Write::Refresh, "{write:?}");
+        }
+    }
 
     #[test]
     fn an_event_that_reads_no_row_makes_no_view() {
