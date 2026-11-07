@@ -13,5 +13,8 @@ passes its optional `llm` into the task's ordinary admission and run
 checks. No choice keeps the default selection; a choice can hold it to
 one account.
 
-- **Not yet:** 7: a widening funded by whoever gives it
+- **Not yet:** 3: the asking family: `ToolFamilies` (`jig-domain-core`) has
+  no `ask`, the twelfth bit, 2,048, and `ToolKind` no `Ask`, so no call is
+  decided by it.
+  7: a widening funded by whoever gives it
   (the task's existing funder is charged).

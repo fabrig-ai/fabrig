@@ -166,6 +166,12 @@ outcomes stay typed (tools.md, section 4).
   appears in no path the prompt shows. With several, the first is the
   working directory, and the prompt says how each other is reached, as
   `/name/...`.
+- **No workspace, no word of one.** A run with no workspace has neither
+  the workspace's section nor the section on its tools that act on it:
+  nothing it could read, write or run is named, so that its system text
+  is its instructions, its brief and the mechanics it has (its budget,
+  how it finishes or replies, and waiting), as a run that only talks or
+  reads through host tools needs (the user, 2026-11-07).
 - **Fixed for the conversation's life.** The system text is written once,
   when the run opens a session, and does not change while that
   conversation lives, across its windows (session.md, sections 3 and 8):
