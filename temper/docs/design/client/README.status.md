@@ -1,12 +1,12 @@
 # README: status
 
-2026-11-06. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
-  starters. Tree and domain stories exercise these facts, including a
-  simulated plan sign-in; they do not prove the browser's geometry or a real
-  provider's response. The plan's slices deliberately have `walk = false`.
+  starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
+  geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
+  with the stored choice surviving a reload. It supplies no real-provider walk.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -149,7 +149,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Pause or Resume, and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
@@ -247,13 +247,9 @@
   Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
-- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
-  reason's lines and none of its items: jig's document heads leave out every
-  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
-  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
-  and the card has no "Drafts: on". The person accepts on the agent's words. The
-  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
-  document.
+- **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
   proposal, so a live card always takes the place of one no call names, and its call stays a line of
   its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
@@ -286,6 +282,10 @@
   changes; a new drawing and the terminal have only the prefix, where the request
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
+- **Not yet:** 5.15: the whole-bound manual reading check is not on record
+  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
+  history and the smaller window; they do not prove the person's whole-bound
+  layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

@@ -148,6 +148,7 @@ pub struct WorkspaceTools {
 
 /// One core charter with its explicit tool rights.
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent run grants and workspace facts (domain/hosts.md, 8)")]
 pub struct Charter {
     pub mode: smith_domain_run::Mode,
     pub instructions: Box<[u8]>,
@@ -156,6 +157,9 @@ pub struct Charter {
     pub wait: bool,
     pub agents: bool,
     pub workspace: WorkspaceTools,
+    /// The application's workspace delivers for this run, outside a change among its outcomes
+    /// (domain/hosts.md, section 8). A fact of the connectors' items; it grants nothing alone.
+    pub delivers: bool,
     pub conventions: Option<Conventions>,
     pub contract: Contract,
     pub budget: Budget,

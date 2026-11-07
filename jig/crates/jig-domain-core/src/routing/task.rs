@@ -420,8 +420,8 @@ fn tag_tasks(
         }
         tasks::Request::Done { reply_to } => done::done(core, env, reply_to, pending, out),
         tasks::Request::Save { record } => save::save(core, env, record, pending, out),
-        tasks::Request::Acknowledged { reply_to, task, attempt, .. } => {
-            terminals::acknowledged(core, reply_to, task, attempt, out);
+        tasks::Request::Acknowledged { reply_to, task, attempt, parked, .. } => {
+            terminals::acknowledged(core, reply_to, task, attempt, parked, out);
         }
         tasks::Request::TurnAcknowledged { reply_to, task, attempt, turn, accepted } => {
             terminals::turn_acknowledged(reply_to, task, attempt, turn, accepted, out);

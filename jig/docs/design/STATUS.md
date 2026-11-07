@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where jig's code lags or departs from its design, from the
+2026-11-07. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -27,7 +27,10 @@ mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public lines carry a goal's spend alone, no budget, and distinct endings
-(`domain/people.md`, `client/domain/contract.md`). Public reading's remaining
+(`domain/people.md`, `client/domain/contract.md`). Titles retain the user's
+publication decision, with temper's warning in its help and completed
+answer; an acknowledgement before publication is deferred
+(`domain/people.md`, 13.3). Public reading's remaining
 departure is the public index's memory fit check (`protocol/configuration.md`);
 ended goals across a restart or before publication are deferred
 (`domain/people.md`, section 12). The test root is not in `ops`'s
@@ -46,6 +49,11 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
 2026-11-06 has it read the commit's rows (`domain/testing.md`).
+A Finite report can deliver when its policy and workspace permit it,
+keeping its report contract; a procedure on its requester's resource can
+step beside that requester's writing run (`domain/hosts.md`, section 8;
+`domain/connectors.md`, section 11). The shell authority of a run without
+delivery still departs (`domain/hosts.md`).
 The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).

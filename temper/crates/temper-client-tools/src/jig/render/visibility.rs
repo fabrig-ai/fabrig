@@ -1,5 +1,5 @@
 //! Public paths come only from me (client/browser.md, 8.1).
-use super::Text;
+use super::{Text, outcome::newline};
 use crate::jig::{
     digest::Digest,
     runner::{FileEnd, Printed},
@@ -7,6 +7,9 @@ use crate::jig::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_json::writer::{Encoder, Limits};
+
+/// What making a project public says, word for word (jig's domain/people.md, 13.3).
+const MAY_SHOW: &[u8] = b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too.";
 
 pub(super) fn page(identifier: u64) -> [u8; 33] {
     let mut path = *b"/public/projects/0000000000000000";
@@ -41,7 +44,21 @@ pub(crate) fn print(project: u32, identifier: Option<u64>, json: bool) -> Printe
         text(project, identifier, &mut out);
         out.finish()
     };
-    Printed { file: FileEnd::Keep, status: 0, stdout, stderr: Box::default() }
+    let stderr = match identifier {
+        Some(_) if json => {
+            // The notice is one string in one object, followed by a newline.
+            let bounds = Limits { depth: 2, length: 256 };
+            let mut measure = Encoder::measure(&bounds);
+            may_show(&mut measure);
+            let size = measure.measured().expect("fixed visibility notice fits");
+            let mut out = Encoder::write(size, &bounds);
+            may_show(&mut out);
+            newline(&out.finish())
+        }
+        Some(_) => newline(MAY_SHOW),
+        None => Box::default(),
+    };
+    Printed { file: FileEnd::Keep, status: 0, stdout, stderr }
 }
 fn text(project: u32, identifier: Option<u64>, out: &mut Text) {
     out.put(b"project ");
@@ -69,5 +86,12 @@ fn encode(project: u32, identifier: Option<u64>, out: &mut Encoder) {
         None => out.null(),
     }
     out.object_end();
+    out.object_end();
+}
+
+fn may_show(out: &mut Encoder) {
+    out.object_start();
+    out.key(b"may_show");
+    out.string(MAY_SHOW);
     out.object_end();
 }
