@@ -1,0 +1,204 @@
+use super::fixtures as f;
+use crate::{Refusal, Signing, Told, Tui, look};
+use jig_client::{Link, Up};
+use jig_client_protocol_wire::SignInAnswer as Answer;
+use skein_ui::{Role, Style};
+
+fn signing(tui: &mut Tui, signing: &Signing) {
+    match signing {
+        Signing::Idle => {}
+        Signing::Refused(refusal) => tui.step(Told::Refused { refusal: refusal.clone() }),
+        Signing::Asked => tui.step(Told::Asked),
+        Signing::Answered { lost } => {
+            tui.step(Told::Asked);
+            tui.step(Told::Answered { lost: *lost });
+        }
+    }
+}
+#[test]
+fn the_sign_in_screen_says_each_line() {
+    type Row<'a> = (Signing, Option<Answer>, Option<&'a [u8]>, Option<Style>);
+    let rows: &[Row<'_>] = &[
+        (Signing::Idle, None, None, None),
+        (Signing::Idle, Some(Answer::Busy), None, None),
+        (Signing::Refused(Refusal::NotALink), None, Some(b"That is not a sign-in link: paste the whole link temper printed."), Some(look::REFUSED)),
+        (Signing::Refused(Refusal::OtherAddress { address: Box::from(*b"localhost:8367") }), Some(Answer::Busy), Some(b"That link is for localhost:8367. To sign in there, run temper http://localhost:8367."), Some(look::REFUSED)),
+        (Signing::Asked, None, Some("Signing in…".as_bytes()), Some(look::WAITING)),
+        (Signing::Answered { lost: true }, Some(Answer::LinkUsed), Some(b"Signing in: no answer from the engine; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::Busy), Some(b"Signing in: the engine is busy; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::NotReady), Some(b"Signing in: the engine is starting or stopping; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUsed), Some(b"This link was already used. A fresh one is in your terminal."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkExpired), Some(b"This link has expired. A fresh one is in your terminal."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUnknown), Some(b"This link isn't from this temper. Use the one its terminal printed."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(f::full()), Some(b"All 4294967295 sign-ins are in use; the earliest ends Jan 1, 00:00 UTC. This link stays usable until Jan 1, 00:00 UTC; after that, opening it has temper serve print a fresh one."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, None, Some(b"This link was refused. Use the fresh one temper printed."), Some(look::REFUSED)),
+    ];
+    for (index, (state, answer, line, style)) in rows.iter().enumerate() {
+        let root = match answer {
+            Some(answer) => f::refused(answer.clone()),
+            None => f::signed_out(),
+        };
+        let mut tui = Tui::new(f::ADDRESS);
+        signing(&mut tui, state);
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        let paragraphs = f::count(view.tree(), Role::Paragraph).checked_sub(1).unwrap();
+        assert_eq!(paragraphs, if line.is_some() { 3 } else { 2 }, "row {index}");
+        if let Some(line) = line {
+            let node = f::find(view.tree(), Role::Paragraph, line);
+            assert_eq!(node.styles.as_slice(), &[style.unwrap()], "row {index}");
+        }
+        let field = f::find(view.tree(), Role::TextField, b"Link");
+        assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
+        assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
+        assert_eq!(field.focus, Some(1));
+        assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
+        assert_eq!(f::find(view.tree(), Role::Status, "● Signed out".as_bytes()).styles.as_slice(), &[look::DOWN]);
+        assert_eq!(f::count(view.tree(), Role::Button), 0);
+    }
+    let root = f::signed_out();
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Link { link: Link::Live });
+    tui.step(Told::Link { link: Link::SignedOut });
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    let signed_out = f::find(view.tree(), Role::Paragraph, b"Signed out.");
+    assert_eq!(signed_out.styles.as_slice(), &[look::DOWN]);
+    let address = f::find(view.tree(), Role::Paragraph, b"Sign in this terminal to 127.0.0.1:8367");
+    let before = f::index(view.tree(), signed_out.id);
+    let after = f::index(view.tree(), address.id);
+    assert!(before < after);
+    assert_eq!(f::find(view.tree(), Role::TextField, b"Link").focus, Some(2));
+    // A refusal can change while the link stays SignedOut and Tui stays still.
+    let (mut root, exchange) = f::asking();
+    let mut tui = Tui::new(f::ADDRESS);
+    signing(&mut tui, &Signing::Answered { lost: false });
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    let before = temper_client_domain::shown(&root);
+    f::answer(&mut root, exchange, Answer::Busy);
+    assert_eq!(root.client().link().state, Link::SignedOut);
+    assert!(temper_client_domain::shown(&root) > before);
+    assert!(!f::build(&mut view, &tui, &root).is_empty());
+    f::find(view.tree(), Role::Paragraph, b"Signing in: the engine is busy; trying again.");
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table checks the first screen and its revision changes")]
+fn the_first_screen_says_the_links_state_and_me() {
+    let rows = [
+        (
+            Link::Live,
+            true,
+            true,
+            false,
+            "● Live",
+            look::LIVE,
+            b"Connected to 127.0.0.1:8367 as Owner".as_slice(),
+            Some("Projects: Hello · Demo".as_bytes()),
+        ),
+        (Link::Live, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
+        (Link::Starting, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
+        (
+            Link::Offline,
+            true,
+            true,
+            false,
+            "● Offline",
+            look::DOWN,
+            b"Connected to 127.0.0.1:8367 as Owner",
+            Some("Projects: Hello · Demo".as_bytes()),
+        ),
+        (
+            Link::OutOfDate,
+            true,
+            true,
+            false,
+            "● Out of date",
+            look::DOWN,
+            b"This temper is out of date: run the temper the engine runs.",
+            None,
+        ),
+        (
+            Link::Live,
+            true,
+            false,
+            false,
+            "● Live",
+            look::LIVE,
+            b"Connected to 127.0.0.1:8367 as Owner",
+            Some(b"No project yet".as_slice()),
+        ),
+        (
+            Link::Live,
+            true,
+            true,
+            true,
+            "● Live",
+            look::LIVE,
+            b"Connected to 127.0.0.1:8367 as Owner",
+            Some("Projects: Hello · Demo".as_bytes()),
+        ),
+    ];
+    for (link, has_me, has_projects, unkept, state, token, line, projects) in rows {
+        let me = if has_me { Some(f::me(if has_projects { &[b"Hello", b"Demo"] } else { &[] })) } else { None };
+        let (mut root, watch) = if link == Link::Starting { f::starting() } else { f::live(me) };
+        if link == Link::Offline {
+            f::client(
+                &mut root,
+                jig_client::Event::Up { up: Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped } },
+            );
+        }
+        if link == Link::OutOfDate {
+            f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
+        }
+        assert_eq!(root.client().link().state, link);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Link { link });
+        if unkept {
+            tui.step(Told::Kept { written: false });
+        }
+        let mut view = f::view();
+        assert!(!f::build(&mut view, &tui, &root).is_empty());
+        assert_eq!(f::find(view.tree(), Role::Status, state.as_bytes()).styles.as_slice(), &[token]);
+        f::find(view.tree(), Role::Paragraph, line);
+        if let Some(line) = projects {
+            f::find(view.tree(), Role::Paragraph, line);
+        }
+        let quit = f::find(view.tree(), Role::Button, b"q to quit");
+        assert_eq!(quit.shortcut, Some(skein_ui::Shortcut { key: b'q', modifier: skein_ui::Modifier::Plain }));
+        let alerts = f::count(view.tree(), Role::Alert);
+        assert_eq!(alerts, usize::from(unkept));
+        if unkept {
+            let alert = f::find(
+                view.tree(),
+                Role::Alert,
+                b"This sign-in could not be kept: the next temper asks for a link again.",
+            );
+            assert_eq!(alert.styles.as_slice(), &[look::REFUSED]);
+        }
+        assert!(f::build(&mut view, &tui, &root).is_empty(), "unchanged build has no patches");
+        assert_eq!(f::count(view.tree(), Role::TextField), 0);
+    }
+    // Reuse one view through the root's visible changes and the TUI's own ones.
+    let (mut root, watch) = f::starting();
+    f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } });
+    let mut tui = Tui::new(f::ADDRESS);
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    let before = temper_client_domain::shown(&root);
+    f::deliver(&mut root, watch, f::me(&[b"Hello", b"Demo"]));
+    assert!(temper_client_domain::shown(&root) > before);
+    f::build(&mut view, &tui, &root);
+    f::find(view.tree(), Role::Status, "● Live".as_bytes());
+    let before = temper_client_domain::shown(&root);
+    f::client(
+        &mut root,
+        jig_client::Event::Up { up: Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped } },
+    );
+    assert!(temper_client_domain::shown(&root) > before);
+    f::build(&mut view, &tui, &root);
+    f::find(view.tree(), Role::Status, "● Offline".as_bytes());
+    tui.step(Told::Kept { written: false });
+    assert!(!f::build(&mut view, &tui, &root).is_empty());
+}

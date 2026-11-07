@@ -5113,6 +5113,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-tui"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-screen",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view",
+]
+
+[[package]]
 name = "temper-client-view"
 version = "0.0.0"
 dependencies = [
