@@ -149,6 +149,24 @@ fn a_goal_without_modify_cannot_modify_but_its_change_producer_can() {
     assert!(charter.grants.deliver.is_some());
 }
 
+#[test]
+fn a_chats_an_advisors_and_a_reviewers_runs_inspect_alone() {
+    let mut configured = defaults();
+    for charter in &mut configured.charters {
+        charter.policy.modify = true;
+    }
+    let (mut world, chat) = world_with(&configured);
+    let tree = tree(&mut world, &chat);
+    for task in [tree.chat, tree.advisor, tree.first_workers[2]] {
+        let assignment = world.assigned.iter().find(|run| run.task == task).expect("the role ran");
+        assert!(assignment.run.policy.modify, "the rail holds with modification requested");
+        let charter = temper_engine_smith::charter(assignment);
+        assert!(charter.grants.deliver.is_none(), "task {task}");
+        assert!(!charter.grants.tools.modify, "task {task}");
+    }
+    world.close();
+}
+
 /// Smith rounds each completion's combined input/output charge upward once
 /// (smith's domain/session.md, 6; smith-domain-session's record.rs).
 fn charge(turns: u64, model: &engine::Model) -> u64 {

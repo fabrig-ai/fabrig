@@ -1,7 +1,9 @@
-//! A Start retains its attached directories until its result contract is known.
+//! A Start retains its attached directories until its result contract and delivery
+//! grant are known.
 //! No contract is known while idle or attaching. `attach`, `attached` and `take`
 //! move the Start; `follow` enters it after every mount, and `contract` serves effects.
-//! Contract: smith/docs/design/protocol/agent.md, sections 4–6.
+//! Contract: smith/docs/design/protocol/agent.md, sections 4–6;
+//! smith/docs/design/domain/run.md, sections 3.1 and 8.4.
 
 use super::{Frame, Stages};
 use alloc::boxed::Box;
@@ -17,8 +19,8 @@ pub(super) enum Opening {
     Idle,
     /// A Start waits for its mounts, with attached directories in Start order.
     Attaching { start: Box<DecodedStart>, directories: List<run::Directory> },
-    /// The run's result contract is known.
-    Started { outcome: run::outcome::OutcomeSpec },
+    /// The run's result contract and independent delivery grant are known.
+    Started { outcome: run::outcome::OutcomeSpec, deliver: Option<run::outcome::ChangeSpec> },
 }
 
 impl Opening {
@@ -77,18 +79,25 @@ impl Opening {
         *self = Self::Idle;
     }
 
-    pub(super) fn contract(&mut self, outcome: run::outcome::OutcomeSpec) {
+    pub(super) fn contract(&mut self, outcome: run::outcome::OutcomeSpec, deliver: Option<run::outcome::ChangeSpec>) {
         let state = mem::replace(self, Self::Idle);
         *self = match state {
-            Self::Idle | Self::Started { .. } => Self::Started { outcome },
+            Self::Idle | Self::Started { .. } => Self::Started { outcome, deliver },
             Self::Attaching { .. } => unreachable!("effects hold no Start"),
         };
     }
 
     pub(super) fn outcome(&self) -> &run::outcome::OutcomeSpec {
         match self {
-            Self::Started { outcome } => outcome,
+            Self::Started { outcome, .. } => outcome,
             Self::Idle | Self::Attaching { .. } => unreachable!("an admitted Start retains its result contract"),
+        }
+    }
+
+    pub(super) fn deliver(&self) -> Option<&run::outcome::ChangeSpec> {
+        match self {
+            Self::Started { deliver, .. } => deliver.as_ref(),
+            Self::Idle | Self::Attaching { .. } => unreachable!("an admitted Start retains its delivery grant"),
         }
     }
 }
