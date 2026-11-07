@@ -60,6 +60,7 @@ fn served(mut pages: serve::Pages, path: &str, peers: &[(Box<[u8]>, String)]) ->
             | Request::Reject { .. }
             | Request::Output { .. }
             | Request::Spawn { .. }
+            | Request::SpawnAlone { .. }
             | Request::Signal { .. }
             | Request::Usage { .. }
             | Request::Window { .. }

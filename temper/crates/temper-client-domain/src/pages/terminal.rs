@@ -199,6 +199,7 @@ pub(super) fn command_words(words: &[u8]) -> bool {
 impl super::Pages {
     pub(crate) fn restore_look(&mut self, look: Look) {
         self.look = look;
+        self.redraw();
     }
     /// The list a command opened, while it is open.
     #[must_use]
@@ -239,6 +240,9 @@ impl super::Pages {
             chats.words = Box::default();
             chats.beyond = 0;
         }
+        self.redraw();
+    }
+    fn redraw(&mut self) {
         self.shown = self.shown.checked_add(1).expect("pages shown fits");
     }
     pub(super) fn terminal_act(
@@ -406,21 +410,28 @@ pub(super) fn prepare(
     match event {
         Event::Act { act: P::Terminal(act) } => {
             pages.listing = None;
+            pages.redraw();
             Some(Event::Act { act: pages.terminal_act(env, client, act, out)? })
         }
         Event::Act { act: act @ (P::Send | P::StartChat) } => {
-            pages.listing = None;
+            if pages.listing.take().is_some() {
+                pages.redraw();
+            }
             match pages.terminal_send(env, client, out) {
                 Sending::Words => Some(Event::Act { act }),
                 Sending::Command(act) => Some(Event::Act { act: act? }),
             }
         }
         Event::Act { act } => {
-            pages.listing = None;
+            if pages.listing.take().is_some() {
+                pages.redraw();
+            }
             Some(Event::Act { act })
         }
         event @ (Event::Started | Event::Left) => {
-            pages.listing = None;
+            if pages.listing.take().is_some() {
+                pages.redraw();
+            }
             pages.notes.clear();
             Some(event)
         }

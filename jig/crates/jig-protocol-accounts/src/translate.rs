@@ -152,9 +152,10 @@ fn classify(failure: driver::Failure) -> accounts::Failure {
     match failure {
         driver::Failure::Busy | driver::Failure::NotKept => accounts::Failure::Later { after: None },
         driver::Failure::Exchange(failure) => exchange(failure),
-        driver::Failure::NotGranted | driver::Failure::AnotherSubject | driver::Failure::Expired => {
-            accounts::Failure::SignInAgain
-        }
+        driver::Failure::NotGranted
+        | driver::Failure::AnotherSubject
+        | driver::Failure::Expired
+        | driver::Failure::LongRedirect { .. } => accounts::Failure::SignInAgain,
         driver::Failure::Unloaded { at, why } => accounts::Failure::Unloaded { at: place(at), why: unread(why) },
     }
 }

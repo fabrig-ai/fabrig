@@ -418,6 +418,8 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
             task: TASK,
             attempt: 7,
@@ -1166,6 +1168,8 @@ fn claim_existing_open(core: &mut Core, limits: &Limits, attempt: u64) {
         core,
         limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
             task: OPEN_TASK,
             attempt,
@@ -1721,6 +1725,7 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
                 stop_run: false,
                 amendment: Box::new(tasks::Amendment {
                     llm: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 0, effort: Some(0) },
                         subagents: Box::new([]),
@@ -1762,4 +1767,48 @@ fn a_chat_stopped_for_its_next_choice_keeps_a_parked_terminal() {
     drop(step(&mut core, &env, answer));
     assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end, tasks::End::Parked);
     assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+}
+
+#[test]
+fn a_first_later_run_changes_provider_and_its_claim_keeps_the_account() {
+    let (mut core, limits) = ready(false);
+    granted(&mut core, &limits, 2);
+    core.current.test_charter_mut(1).policy.resume = false;
+    let mut row = core.tasks.task(TASK).unwrap().clone();
+    let ledger = *core.tasks.funding(row.funder).unwrap();
+    row.kept_account = Some(0);
+    row.reasons = tasks::Reasons::EMPTY;
+    row.llm = Some(tasks::LlmChoice {
+        account: None,
+        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        subagents: Box::new([]),
+        later: Some(tasks::LlmLater {
+            main: tasks::ModelEffort { model: 2, effort: Some(0) },
+            subagents: Box::new([]),
+        }),
+    });
+    fixtures::restore(&mut core, &limits, Box::new([row]));
+    send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    let choice = core.run_choice(TASK).unwrap();
+    assert_eq!(choice.policy.model.name.as_ref(), b"other");
+    assert_eq!(choice.accounts.as_ref(), [authority::AccountBinding { provider: 2, account: 3, source: 2 }]);
+    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(FIRST), task: TASK });
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Claim {
+            offered: tasks::Reasons::ALL,
+            reasons: tasks::Reasons::EMPTY,
+            reply_to: ReplyTo::new(FIRST),
+            task: TASK,
+            attempt: 7,
+            resumed: false,
+            budget: 10,
+            account: Some(choice.accounts[0].account),
+            writes: Box::new([]),
+        },
+    );
+    assert_eq!(core.tasks.task(TASK).unwrap().kept_account, Some(3));
 }

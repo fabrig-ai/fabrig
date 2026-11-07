@@ -345,7 +345,11 @@ connector's system.
 - **Asked again, never anew.** A call left unanswered (withdrawn past its
   deadline, or lost with a channel) or answered busy is asked again with
   the same name while the run lives, after a backoff, once the earlier
-  relay of it has ended. A host is owed that a name is decided once and
+  relay of it has ended. The backoff is `host_backoff` before the second
+  ask and doubles before each later one, to at most 64 times
+  `host_backoff`; an ask that would start at or past the caller's
+  deadline is not made, and the call returns busy, or unknown where an ask went
+  unanswered. A host is owed that a name is decided once and
   answered from its record when asked again (host.md, section 2); a name
   carries the start's activation number, so no later activation reuses
   it. Only

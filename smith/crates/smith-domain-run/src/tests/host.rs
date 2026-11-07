@@ -27,7 +27,7 @@ fn host_relay_retries_keep_the_call_name_and_input() {
             .step(Event::HostReturned { relay: second, reply: crate::HostReply::Unanswered(crate::Unanswered::Lost) })
             .is_empty()
     );
-    harness.after(LIMITS.host_backoff);
+    harness.after(LIMITS.host_backoff.saturating_mul(2));
     let third = host_submission(&harness.fire());
     assert_eq!(third.attempt, 3);
     let seen = crate::HostAnswer::new(bytes(b"recorded first decision"), true).expect("bounded exact error");
@@ -46,13 +46,22 @@ fn host_relay_retries_keep_the_call_name_and_input() {
 fn a_host_call_busy_many_times_keeps_its_name_until_it_succeeds() {
     let mut harness = Harness::new(LIMITS);
     let (_, conversation) = harness.running(71, 99);
-    let deadline = harness.env.now.saturating_add(Duration::from_secs(30));
+    let deadline = harness.env.now.saturating_add(LIMITS.host_backoff.saturating_mul(256));
     let mut relay = host_submission(&harness.step(host_ask(conversation, 41, deadline)));
-    for attempt in 1..=8 {
+    let owner = relay.owner;
+    for (attempt, growth) in [(1, 1), (2, 2), (3, 4), (4, 8), (5, 16), (6, 32), (7, 64), (8, 64)] {
         assert_eq!(relay.attempt, attempt);
         assert!(harness.step(Event::HostReturned { relay, reply: crate::HostReply::Busy }).is_empty());
-        harness.after(LIMITS.host_backoff);
-        relay = host_submission(&harness.fire());
+        let wait = LIMITS.host_backoff.saturating_mul(growth).as_nanos();
+        harness.after(Duration::from_nanos(wait - 1));
+        fire(&mut harness.domain, &harness.env, &mut harness.out);
+        assert!(harness.drain().is_empty(), "attempt {attempt}: no ask before backoff ends");
+        harness.after(Duration::from_nanos(1));
+        fire(&mut harness.domain, &harness.env, &mut harness.out);
+        let requests = harness.drain();
+        assert_eq!(requests.len(), 1, "attempt {attempt}: one ask when backoff ends");
+        relay = host_submission(&requests);
+        assert_eq!((relay.owner, relay.attempt), (owner, attempt + 1));
     }
     let answer = crate::HostAnswer::new(bytes(b"decided after eight busy attempts"), false).expect("bounded text");
     assert_eq!(
@@ -96,31 +105,42 @@ fn host_uncertainty_survives_busy_until_withdrawal_or_caller_expiry() {
     enum Stop {
         Withdraw,
         CallerExpiry,
+        NextWaitAtCallerExpiry,
     }
-    for stop in [Stop::Withdraw, Stop::CallerExpiry] {
+    for (stop, first_reply, expected) in [
+        (Stop::Withdraw, crate::HostReply::Unanswered(crate::Unanswered::Lost), Returned::HostUnknown),
+        (Stop::CallerExpiry, crate::HostReply::Unanswered(crate::Unanswered::Lost), Returned::HostUnknown),
+        (Stop::NextWaitAtCallerExpiry, crate::HostReply::Busy, Returned::Busy),
+        (Stop::NextWaitAtCallerExpiry, crate::HostReply::Unanswered(crate::Unanswered::Lost), Returned::HostUnknown),
+    ] {
         let mut harness = Harness::new(LIMITS);
         let (_, conversation) = harness.running(71, 99);
-        let deadline = harness.env.now.saturating_add(Duration::from_secs(30));
+        let remaining = match stop {
+            Stop::Withdraw | Stop::CallerExpiry => Duration::from_secs(30),
+            Stop::NextWaitAtCallerExpiry => LIMITS.host_backoff.saturating_mul(3),
+        };
+        let deadline = harness.env.now.saturating_add(remaining);
         let first = host_submission(&harness.step(host_ask(conversation, 41, deadline)));
-        assert!(
-            harness
-                .step(Event::HostReturned {
-                    relay: first,
-                    reply: crate::HostReply::Unanswered(crate::Unanswered::Lost)
-                })
-                .is_empty()
-        );
+        assert!(harness.step(Event::HostReturned { relay: first, reply: first_reply }).is_empty());
         harness.after(LIMITS.host_backoff);
         let second = host_submission(&harness.fire());
-        assert!(harness.step(Event::HostReturned { relay: second, reply: crate::HostReply::Busy }).is_empty());
+        let busy = harness.step(Event::HostReturned { relay: second, reply: crate::HostReply::Busy });
         let requests = match stop {
-            Stop::Withdraw => harness.step(Event::Withdraw { conversation, call: Token::new(41) }),
+            Stop::Withdraw => {
+                assert!(busy.is_empty());
+                harness.step(Event::Withdraw { conversation, call: Token::new(41) })
+            }
             Stop::CallerExpiry => {
+                assert!(busy.is_empty());
                 harness.env.now = deadline;
                 harness.fire()
             }
+            Stop::NextWaitAtCallerExpiry => busy,
         };
-        assert_eq!(&*requests, &[Request::Return { spent: 0, call: Token::new(41), result: Returned::HostUnknown }]);
+        assert_eq!(&*requests, &[Request::Return { spent: 0, call: Token::new(41), result: expected }]);
+        harness.env.now = deadline;
+        fire(&mut harness.domain, &harness.env, &mut harness.out);
+        assert!(harness.drain().is_empty(), "no further ask after caller expiry");
         assert_eq!(
             (harness.domain.runs(), harness.domain.conversations()),
             (1, 1),

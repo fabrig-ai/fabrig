@@ -1,5 +1,5 @@
 //! Temper's clients component and link joined in memory
-//! (jig/docs/design/client/domain/testing.md, 5; temper/docs/design/client/README.md, 8).
+//! (temper/docs/design/domain/testing.md, 6.3; jig/docs/design/protocol/client.md, 8).
 use jig_client::contract as c;
 use jig_client_kit::harness::ClientId;
 use jig_client_kit::joint::transport::{KeyedOwner, Reply, Transport, Watched};
@@ -8,7 +8,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain as root;
 
 pub struct Composition {
@@ -16,6 +16,12 @@ pub struct Composition {
     env: Env<clients::Limits>,
     out: Queue<Request>,
     links: BTreeMap<ClientId, link::Link>,
+    browsers: BTreeSet<ClientId>,
+    asked: BTreeMap<ClientId, (Secret, jig_client::ApprovalCode, Wall)>,
+    approval_signers: BTreeMap<Token, ClientId>,
+    signing_identities: BTreeMap<ClientId, people::Identity>,
+    authenticated: BTreeMap<ClientId, (people::Identity, u64)>,
+    linked: BTreeMap<ClientId, Vec<jig_client::Event>>,
     link_out: BTreeMap<ClientId, Queue<link::Request>>,
     receiving: BTreeMap<ClientId, link::Limits>,
     exchanges: BTreeMap<Token, (ClientId, Token)>,
@@ -35,11 +41,36 @@ pub struct Composition {
 
 impl Composition {
     #[must_use]
+    pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+        Self::build(configuration, limits, false, None, None)
+    }
+
+    #[must_use]
+    pub fn new_with_approval(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+        Self::build(configuration, limits, true, None, None)
+    }
+
+    #[must_use]
+    pub fn with_printed_link(
+        configuration: &root::Config,
+        limits: jig_client::DomainLimits,
+        identity: people::Identity,
+        secret: Secret,
+    ) -> Self {
+        Self::build(configuration, limits, false, Some(identity), Some(secret))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "the world's constructor names every limit and setting of the joint component"
     )]
-    pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+    fn build(
+        configuration: &root::Config,
+        limits: jig_client::DomainLimits,
+        approval: bool,
+        identity: Option<people::Identity>,
+        secret: Option<Secret>,
+    ) -> Self {
         let (now, wall) = (Time::ZERO, Wall::EPOCH);
         let env = Env {
             now,
@@ -65,8 +96,9 @@ impl Composition {
         let settings = clients::Settings {
             provider: None,
             addresses: Box::new([]),
-            link: None,
-            link_secret: None,
+            link: identity,
+            link_secret: secret,
+            approval,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
@@ -136,6 +168,12 @@ impl Composition {
             env,
             out,
             links: BTreeMap::new(),
+            browsers: BTreeSet::new(),
+            asked: BTreeMap::new(),
+            approval_signers: BTreeMap::new(),
+            signing_identities: BTreeMap::new(),
+            authenticated: BTreeMap::new(),
+            linked: BTreeMap::new(),
             link_out: BTreeMap::new(),
             receiving: BTreeMap::new(),
             exchanges: BTreeMap::new(),
@@ -295,7 +333,88 @@ impl Composition {
         self.receiving.insert(client, limits);
     }
 
+    pub fn link_client(&mut self, client: ClientId, limits: jig_client::DomainLimits) {
+        self.receiving(client, limits);
+        self.linked.entry(client).or_default();
+    }
+
+    pub fn heard(&mut self, client: ClientId) -> Vec<jig_client::Event> {
+        std::mem::take(self.linked.get_mut(&client).expect("linked client"))
+    }
+
+    pub fn carry(&mut self, client: ClientId, request: jig_client::Request) {
+        match request {
+            jig_client::Request::Exchange { exchange, credential, message } => {
+                let name = self.token();
+                self.exchanges.insert(name, (client, exchange));
+                let message = match message {
+                    link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
+                    link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
+                    link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
+                    link::Message::SignInApproval(bytes) => clients::Message::SignInApproval(bytes),
+                    link::Message::Authorize(bytes) => clients::Message::Authorize(bytes),
+                    link::Message::Request(bytes) => clients::Message::Request(bytes),
+                    link::Message::Read(bytes) => clients::Message::Read(bytes),
+                    link::Message::Watch(bytes) => clients::Message::Watch(bytes),
+                    link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
+                    link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
+                    link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
+                    link::Message::SignInService => clients::Message::SignInService(Box::new([])),
+                    link::Message::SignOut => clients::Message::SignOut(Box::new([])),
+                };
+                self.event(Event::Transport(clients::FromTransport::Exchange {
+                    browser: self.browsers.contains(&client),
+                    exchange: name,
+                    credential,
+                    message,
+                }));
+            }
+            jig_client::Request::OpenStream { credential } => {
+                let stream = self.token();
+                self.streams.insert(client, stream);
+                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
+            }
+            jig_client::Request::CloseStream => {
+                if let Some(stream) = self.streams.remove(&client) {
+                    self.event(Event::Transport(clients::FromTransport::StreamGone { stream }));
+                }
+            }
+            jig_client::Request::Save { .. } | jig_client::Request::Erase { .. } => {
+                self.linked.get_mut(&client).expect("linked client's store").push(jig_client::Event::Stored);
+            }
+            jig_client::Request::Told { .. }
+            | jig_client::Request::Approval(_)
+            | jig_client::Request::Authorized(_)
+            | jig_client::Request::ServiceCredential { .. } => {}
+        }
+    }
+
     fn link(&mut self, client: ClientId, event: link::Event) {
+        if let Some(heard) = self.linked.get_mut(&client) {
+            heard.push(match event {
+                link::Event::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
+                link::Event::Lost { exchange } => jig_client::Event::Lost { exchange },
+                link::Event::Streamed { message } => jig_client::Event::Streamed { message },
+                link::Event::StreamGone => jig_client::Event::StreamGone,
+                link::Event::AskApproval
+                | link::Event::ReadApproval { .. }
+                | link::Event::DecideApproval { .. }
+                | link::Event::SignIn { .. }
+                | link::Event::SignOut
+                | link::Event::Authorize { .. }
+                | link::Event::Start { .. }
+                | link::Event::Save { .. }
+                | link::Event::Erase { .. }
+                | link::Event::Stored
+                | link::Event::NotStored
+                | link::Event::Send { .. }
+                | link::Event::Read { .. }
+                | link::Event::Open { .. }
+                | link::Event::Continue { .. }
+                | link::Event::Close { .. } => panic!("a linked client's own link speaks for it"),
+            });
+            return;
+        }
         let limits = self.receiving.get(&client).unwrap_or(&self.limits);
         let link = self.links.entry(client).or_insert_with(|| link::Link::new(limits).expect("joint link"));
         let out = self.link_out.entry(client).or_insert_with(|| Queue::with_capacity(256));
@@ -304,6 +423,45 @@ impl Composition {
 
     pub fn event(&mut self, event: Event) {
         self.component.down(&self.env, event, &mut self.out);
+    }
+
+    pub fn as_browser(&mut self, client: ClientId) {
+        self.browsers.insert(client);
+    }
+
+    pub fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
+        let event = match act {
+            jig_client::ApprovalAct::Ask => link::Event::AskApproval,
+            jig_client::ApprovalAct::Read { code } => link::Event::ReadApproval { code },
+            jig_client::ApprovalAct::Decide { code, approve } => link::Event::DecideApproval { code, approve },
+        };
+        self.link(client, event);
+    }
+
+    pub fn ask_approval(&mut self, client: ClientId) {
+        self.approval(client, jig_client::ApprovalAct::Ask);
+    }
+
+    #[must_use]
+    pub fn asked(&self, client: ClientId) -> Option<(jig_client::ApprovalCode, Wall)> {
+        self.asked.get(&client).map(|(_, code, expires)| (*code, *expires))
+    }
+
+    pub fn take_approval(&mut self, client: ClientId) {
+        let (secret, _, _) = self.asked.get(&client).expect("client asked for approval");
+        let secret = secret.clone();
+        self.pending_reply = Some(Reply::SignIn { client });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret } });
+    }
+
+    /// Bind the identity answered by the engine before the front releases parked work.
+    pub fn bind_authenticated(&mut self, client: ClientId, party: u64, transport: &mut Transport) -> bool {
+        let Some((identity, sign_in)) = self.authenticated.remove(&client) else { return false };
+        if !transport.is_bound(client) {
+            transport.bind(client, party, identity);
+        }
+        transport.signed_in(client, party, sign_in);
+        true
     }
 
     pub fn sign_in(&mut self, client: ClientId, identity: people::Identity) {
@@ -371,23 +529,45 @@ impl Composition {
             self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
         }
         self.link_out.remove(&client);
+        self.linked.remove(&client);
         self.exchanges.retain(|_, (owner, _)| *owner != client);
     }
 
     fn core(&mut self, transport: &mut Transport, mut event: core::Event) {
-        if let core::Event::SignIn { reply_to, .. }
-        | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. })
+        // Only unlinked clients need the harness's typed reply and watch routes.
+        // Linked clients correlate the component's wire replies in their own link.
+        if let core::Event::SignIn { reply_to, identity, .. } = &mut event
+            && let token = reply_token(reply_to)
+            && let Some(client) = self.approval_signers.remove(&token)
+        {
+            self.signing_identities.insert(client, identity.clone());
+            transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::People(people::Event::Whose { reply_to, .. }) = &mut event
+            && let Some(Reply::SignIn { client }) = self.pending_reply.take()
+        {
+            let token = reply_token(reply_to);
+            self.approval_signers.insert(token, client);
+            transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::SignIn { reply_to, .. }
+        | core::Event::People(
+            people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. },
+        )
         | core::Event::Key { reply_to, .. }
         | core::Event::ProposeSettings { reply_to, .. }
         | core::Event::ChangeModel { reply_to, .. }
         | core::Event::ChangeSettings { reply_to, .. } = &mut event
         {
-            transport.route_reply(reply_token(reply_to), self.pending_reply.take().expect("request correlation"));
+            if let Some(reply) = self.pending_reply.take() {
+                transport.route_reply(reply_token(reply_to), reply);
+            }
         } else if let core::Event::Read { reply, .. } = &mut event {
-            transport.route_reply(reply_token(reply), self.pending_reply.take().expect("read correlation"));
+            if let Some(route) = self.pending_reply.take() {
+                transport.route_reply(reply_token(reply), route);
+            }
         } else if let core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } = &event {
-            let (client, native, subject) = self.pending_watch.take().expect("watch correlation");
-            transport.route_watch(*watcher, client, native, subject);
+            if let Some((client, native, subject)) = self.pending_watch.take() {
+                transport.route_watch(*watcher, client, native, subject);
+            }
         } else if let core::Event::Unwatch { watcher } = &event {
             transport.end_watch(*watcher);
         }
@@ -407,7 +587,11 @@ impl Composition {
         if let Some(Reply::SignIn { client }) = transport.reply(token)
             && let people::Reply::SignedIn { person, sign_in, .. } = &reply
         {
-            transport.signed_in(*client, *person, *sign_in);
+            if let Some(identity) = self.signing_identities.remove(client) {
+                self.authenticated.insert(*client, (identity, *sign_in));
+            } else {
+                transport.signed_in(*client, *person, *sign_in);
+            }
         }
         transport.take_reply(token);
         self.event(Event::Reply { to: skein_lib::ReplyTo::new(token), reply });
@@ -466,13 +650,13 @@ impl Composition {
                     | root::PartyInput::ForgeRead { reply: reply_to, .. },
                 ) = &mut event
                 {
-                    transport.route_reply(
-                        reply_token(reply_to),
-                        self.pending_reply.take().expect("family request correlation"),
-                    );
+                    if let Some(reply) = self.pending_reply.take() {
+                        transport.route_reply(reply_token(reply_to), reply);
+                    }
                 } else if let root::Event::Party(root::PartyInput::Watch { watcher, .. }) = &event {
-                    let (client, native, subject) = self.pending_watch.take().expect("family watch correlation");
-                    transport.route_watch(*watcher, client, native, subject);
+                    if let Some((client, native, subject)) = self.pending_watch.take() {
+                        transport.route_watch(*watcher, client, native, subject);
+                    }
                     self.admissions.push(*watcher);
                 }
                 self.events.push(event);
@@ -592,39 +776,28 @@ impl Composition {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "the joint transport translates each link request and signing result")]
     fn link_request(&mut self, client: ClientId, request: link::Request, transport: &mut Transport) {
         let up = match request {
             link::Request::StreamsFull { full } => jig_client::Up::StreamsFull { full },
             link::Request::Exchange { exchange, credential, message } => {
-                let name = self.token();
-                self.exchanges.insert(name, (client, exchange));
-                let message = match message {
-                    link::Message::Authorize(bytes) => clients::Message::Authorize(bytes),
-                    link::Message::Request(bytes) => clients::Message::Request(bytes),
-                    link::Message::Read(bytes) => clients::Message::Read(bytes),
-                    link::Message::Watch(bytes) => clients::Message::Watch(bytes),
-                    link::Message::Unwatch(bytes) => clients::Message::Unwatch(bytes),
-                    link::Message::StreamGone(bytes) => clients::Message::Gone(bytes),
-                    link::Message::SignInLink(bytes) => clients::Message::SignInLink(bytes),
-                    link::Message::SignInService => clients::Message::SignInService(Box::new([])),
-                    link::Message::SignOut => clients::Message::SignOut(Box::new([])),
-                };
-                self.event(Event::Transport(clients::FromTransport::Exchange { exchange: name, credential, message }));
+                self.carry(client, jig_client::Request::Exchange { exchange, credential, message });
                 return;
             }
             link::Request::OpenStream { credential } => {
-                let stream = self.token();
-                self.streams.insert(client, stream);
-                self.event(Event::Transport(clients::FromTransport::StreamOpen { stream, credential }));
+                self.carry(client, jig_client::Request::OpenStream { credential });
                 return;
             }
             link::Request::CloseStream => {
-                if let Some(stream) = self.streams.remove(&client) {
-                    self.event(Event::Transport(clients::FromTransport::StreamGone { stream }));
-                }
+                self.carry(client, jig_client::Request::CloseStream);
                 return;
             }
             link::Request::Signing { signing } => {
+                self.approval_signers.retain(|_, owner| *owner != client);
+                self.signing_identities.remove(&client);
+                if matches!(self.pending_reply, Some(Reply::SignIn { client: owner }) if owner == client) {
+                    self.pending_reply = None;
+                }
                 match signing {
                     link::Signing::SignedIn { party } => {
                         self.callbacks.push(Incoming::Authenticated { client, person: party, expires: self.env.wall });
@@ -640,6 +813,9 @@ impl Composition {
                             client,
                             why: people::Again::Full { held: sign_ins, room_at: earliest },
                         });
+                    }
+                    link::Signing::Approval(taking) => {
+                        self.callbacks.push(Incoming::Taking { client, taking });
                     }
                     link::Signing::LinkUsed
                     | link::Signing::LinkExpired
@@ -682,6 +858,18 @@ impl Composition {
                 return;
             }
             link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
+            link::Request::Approval(answer) => {
+                if let link::Approval::Asked { secret, code, expires } = &answer {
+                    self.asked.insert(client, (secret.clone(), *code, *expires));
+                }
+                self.callbacks.push(Incoming::Callback {
+                    client,
+                    event: jig_client_test_domain::Event::Client {
+                        event: jig_client::Event::ApprovalAnswer { answer },
+                    },
+                });
+                return;
+            }
             link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
@@ -739,6 +927,7 @@ pub enum SignInFailure {
 
 #[derive(Debug)]
 pub enum Incoming {
+    Taking { client: ClientId, taking: jig_client::Taking },
     Authenticated { client: ClientId, person: u64, expires: Wall },
     SignInAgain { client: ClientId, why: people::Again },
     SignInFailed { client: ClientId, failure: SignInFailure },

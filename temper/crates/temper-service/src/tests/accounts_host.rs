@@ -201,6 +201,7 @@ impl SignInWorld {
                 }
                 io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => panic!("only sign-in socket io"),

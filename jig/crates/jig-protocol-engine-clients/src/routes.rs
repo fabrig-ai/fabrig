@@ -3,6 +3,10 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
+    ApprovalAsk,
+    ApprovalRead,
+    ApprovalDecide,
+    ApprovalTake,
     Link,
     Service,
     SignOut,
@@ -16,6 +20,10 @@ pub(crate) enum Route {
 }
 pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
     match message {
+        crate::Message::ApprovalAsk(body) => (Route::ApprovalAsk, body),
+        crate::Message::ApprovalRead(body) => (Route::ApprovalRead, body),
+        crate::Message::ApprovalDecide(body) => (Route::ApprovalDecide, body),
+        crate::Message::SignInApproval(body) => (Route::ApprovalTake, body),
         crate::Message::Request(body) => (Route::Request, body),
         crate::Message::Read(body) => (Route::Read, body),
         crate::Message::Watch(body) => (Route::Watch, body),
@@ -43,6 +51,30 @@ pub(crate) fn signed_in(answer: w::SignedIn) -> Box<[u8]> {
     let answer = w::SignInAnswer::SignedIn(answer);
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("admitted sign-in");
+    out.finish()
+}
+
+pub(crate) fn approval_ask_answer(answer: w::ApprovalAskAnswer) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut out).expect("measured approval answer");
+    out.finish()
+}
+
+pub(crate) fn approval_state(answer: w::ApprovalState) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut out).expect("measured approval answer");
+    out.finish()
+}
+
+pub(crate) fn approval_decided(answer: w::ApprovalDecided) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut out).expect("measured approval answer");
+    out.finish()
+}
+
+pub(crate) fn approval_sign_in(answer: w::ApprovalSignInAnswer) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut out).expect("measured approval answer");
     out.finish()
 }
 
@@ -86,6 +118,10 @@ pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
         Route::Read => read_none(jig_domain_core::reads::Why::SignedOut, limits),
         Route::Watch => open_answer(Some(jig_domain_core::WatchRefusal::SignedOut), limits),
         Route::Unwatch => close_answer(true),
+        Route::ApprovalAsk => approval_ask_answer(w::ApprovalAskAnswer::Refused),
+        Route::ApprovalRead => approval_state(w::ApprovalState::SignedOut),
+        Route::ApprovalDecide => approval_decided(w::ApprovalDecided::SignedOut),
+        Route::ApprovalTake => approval_sign_in(w::ApprovalSignInAnswer::Unknown),
         Route::Gone | Route::Stream => Box::new([]),
         Route::Link | Route::Service => refused(),
         Route::SignOut => sign_out_answer(),
@@ -145,6 +181,10 @@ pub(crate) fn stopped(route: Route) -> Option<Box<[u8]>> {
         Route::SignOut => Some(sign_out_not_ready()),
         Route::Authorize => Some(authorize_answer(w::AuthorizeAnswer::NotReady)),
         Route::Request => Some(not_ready()),
+        Route::ApprovalAsk => Some(approval_ask_answer(w::ApprovalAskAnswer::NotReady)),
+        Route::ApprovalRead => Some(approval_state(w::ApprovalState::NotReady)),
+        Route::ApprovalDecide => Some(approval_decided(w::ApprovalDecided::NotReady)),
+        Route::ApprovalTake => Some(approval_sign_in(w::ApprovalSignInAnswer::NotReady)),
         Route::Read | Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => None,
     }
 }

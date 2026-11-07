@@ -1,19 +1,23 @@
 //! Exhaustive routing between the domain and link (client/domain/client.md, 3).
 use crate::{
-    Ask, Document, DomainLimits, Handle, Key, Limits, Link, Message, Pending, Readable, Record, Streamed, Told,
-    Unusable, Watchable, With,
+    Approval, ApprovalCode, Ask, Document, DomainLimits, Handle, Key, Limits, Link, Message, Pending, Readable, Record,
+    Streamed, Taking, Told, Unusable, Watchable, With,
 };
 use alloc::boxed::Box;
 use jig_client_domain::{self as domain, Down, Up};
 use jig_client_protocol_link as link;
 use skein_lib::{Duration, Env, List, Queue, Rng, Secret, Time, Token, Wall};
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum Event {
     Start { kept: List<Record> },
     StartUnlinked { kept: List<skein_lib::RequestRecord<crate::Held>> },
     SignIn { with: With },
     SignOut,
     Authorize { query: Box<[u8]> },
+    AskApproval,
+    ReadApproval { code: ApprovalCode },
+    DecideApproval { code: ApprovalCode, approve: bool },
+    ApprovalAnswer { answer: Approval },
     SignOutLost,
     Watch { handle: Handle, subject: Watchable },
     Unwatch { handle: Handle },
@@ -50,6 +54,7 @@ pub enum Request {
         told: Told,
     },
     Authorized(crate::Authorized),
+    Approval(Approval),
     /// Shown once by the host; the client never retains it.
     ServiceCredential {
         party: u64,
@@ -59,14 +64,17 @@ pub enum Request {
 /// What an unlinked client asks of its host (client/domain/client.md, 4.4).
 #[derive(Debug, PartialEq, Eq)]
 pub enum UnlinkedRequest {
+    ApprovalAct(ApprovalAct),
     Told { told: Told },
     Authorized(crate::Authorized),
+    Approval(Approval),
     Down { down: Down },
     SignOut,
 }
-/// Why the last printed-link sign-in installed no credential (client/domain/client.md, 12).
+/// Why the last sign-in installed no credential (jig/docs/design/client/domain/client.md, 12).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotSignedIn {
+    Approval(Taking),
     LinkUsed,
     LinkExpired,
     LinkUnknown,
@@ -92,12 +100,14 @@ pub(crate) struct DeferredRead {
 }
 #[derive(Debug)]
 enum SendAgain {
+    Approval { secret: Secret },
     Service(Secret),
     Link { secret: Secret, held: Option<Secret> },
 }
 impl SendAgain {
     fn with(&self) -> With {
         match self {
+            Self::Approval { secret } => With::Approval { secret: secret.clone() },
             Self::Service(credential) => With::Service(credential.clone()),
             Self::Link { secret, held } => With::Link { secret: secret.clone(), held: held.clone() },
         }
@@ -213,12 +223,13 @@ impl Client {
             }
             Event::SignIn { with } => {
                 self.signing_link = match &with {
-                    With::Link { .. } => true,
+                    With::Link { .. } | With::Approval { .. } => true,
                     With::Service(_) | With::Held(_) | With::Transport => false,
                 };
                 self.not_signed_in(None);
                 self.send_again = match &with {
                     With::Service(credential) if credential.len() == 40 => Some(SendAgain::Service(credential.clone())),
+                    With::Approval { secret } => Some(SendAgain::Approval { secret: secret.clone() }),
                     With::Link { secret, held } => Some(SendAgain::Link { secret: secret.clone(), held: held.clone() }),
                     With::Service(_) | With::Held(_) | With::Transport => None,
                 };
@@ -228,15 +239,23 @@ impl Client {
                 self.sign_out_lost = false;
                 let held = match &with {
                     With::Held(_) | With::Transport => true,
-                    With::Link { .. } | With::Service(_) => false,
+                    With::Link { .. } | With::Approval { .. } | With::Service(_) => false,
                 };
                 self.link_step(now, link::Event::SignIn { with });
                 if held {
                     self.up(&env, Up::SignedIn);
                 }
             }
+            Event::AskApproval => self.link_step(now, link::Event::AskApproval),
+            Event::ReadApproval { code } => self.link_step(now, link::Event::ReadApproval { code }),
+            Event::DecideApproval { code, approve } => {
+                self.link_step(now, link::Event::DecideApproval { code, approve });
+            }
             Event::Authorize { query } => self.link_step(now, link::Event::Authorize { query }),
             Event::SignOut => {
+                self.send_again = None;
+                self.signing_until = None;
+                self.signing_link = false;
                 self.signing_out = true;
                 self.sign_out_lost = false;
                 self.link_step(now, link::Event::SignOut);
@@ -249,7 +268,7 @@ impl Client {
             Event::StreamGone => self.link_step(now, link::Event::StreamGone),
             Event::Stored => self.store_answer(&env, true),
             Event::NotStored => self.store_answer(&env, false),
-            Event::Up { .. } | Event::StartUnlinked { .. } | Event::SignOutLost => {
+            Event::ApprovalAnswer { .. } | Event::Up { .. } | Event::StartUnlinked { .. } | Event::SignOutLost => {
                 assert!(self.link.is_none(), "Up and StartUnlinked require an unlinked client");
             }
         }
@@ -265,7 +284,7 @@ impl Client {
             if let Some(send_again) = &self.send_again {
                 let with = send_again.with();
                 self.signing_link = match send_again {
-                    SendAgain::Link { .. } => true,
+                    SendAgain::Link { .. } | SendAgain::Approval { .. } => true,
                     SendAgain::Service(_) => false,
                 };
                 self.link_step(now, link::Event::SignIn { with });
@@ -371,6 +390,12 @@ impl Client {
                 assert!(with == With::Transport, "unlinked sign-in belongs to the transport");
                 self.up(env, Up::SignedIn);
             }
+            Event::AskApproval => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Ask)),
+            Event::ReadApproval { code } => out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Read { code })),
+            Event::DecideApproval { code, approve } => {
+                out.push(UnlinkedRequest::ApprovalAct(ApprovalAct::Decide { code, approve }));
+            }
+            Event::ApprovalAnswer { answer } => out.push(UnlinkedRequest::Approval(answer)),
             Event::Authorize { .. } => out.push(UnlinkedRequest::Authorized(crate::Authorized::Lost)),
             Event::SignOut => {
                 self.signing_out = true;
@@ -394,18 +419,20 @@ impl Client {
     fn signing(&mut self, env: &Env<DomainLimits>, signing: link::Signing) {
         if self.signing_link {
             let why = match &signing {
+                link::Signing::Approval(taking) => Some(NotSignedIn::Approval(*taking)),
                 link::Signing::LinkUsed => Some(NotSignedIn::LinkUsed),
                 link::Signing::LinkExpired => Some(NotSignedIn::LinkExpired),
                 link::Signing::LinkUnknown => Some(NotSignedIn::LinkUnknown),
                 link::Signing::Again => Some(NotSignedIn::NotReady),
                 link::Signing::Busy => Some(NotSignedIn::Busy),
+                link::Signing::Lost => match self.send_again {
+                    Some(SendAgain::Approval { .. }) => Some(NotSignedIn::Busy),
+                    Some(SendAgain::Link { .. } | SendAgain::Service(_)) | None => None,
+                },
                 link::Signing::Full { sign_ins, earliest, link_until } => {
                     Some(NotSignedIn::Full { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until })
                 }
-                link::Signing::SignedIn { .. }
-                | link::Signing::SignedOut
-                | link::Signing::Lost
-                | link::Signing::Refused => None,
+                link::Signing::SignedIn { .. } | link::Signing::SignedOut | link::Signing::Refused => None,
             };
             self.not_signed_in(why);
         }
@@ -438,7 +465,12 @@ impl Client {
                 self.signing_until =
                     Some(env.now.saturating_add(Duration::from_nanos(self.rng.between(nanos.div_euclid(2), nanos))));
             }
-            link::Signing::Busy
+            link::Signing::Approval(Taking::Waiting) if !self.signing_out && self.send_again.is_some() => {
+                self.signing_span = None;
+                self.signing_until = Some(env.now.saturating_add(APPROVAL_AGAIN));
+            }
+            link::Signing::Approval(_)
+            | link::Signing::Busy
             | link::Signing::Full { .. }
             | link::Signing::Again
             | link::Signing::Lost
@@ -639,6 +671,7 @@ impl Client {
             link::Request::Hello { family: Some(family), versions } => {
                 self.up(env, Up::FamilyServed { family, versions });
             }
+            link::Request::Approval(answer) => out.push(Request::Approval(answer)),
             link::Request::Authorized(answer) => out.push(Request::Authorized(answer)),
             link::Request::Signing { signing } => self.signing(env, signing),
             link::Request::Kept { record: link::Saved { record, .. } } => {
@@ -663,5 +696,60 @@ fn down_event(down: Down) -> link::Event {
         Down::Continue { watch, subject } => link::Event::Continue { watch, subject },
         Down::Close { watch } => link::Event::Close { watch },
         Down::Read { read, what } => link::Event::Read { read, what },
+    }
+}
+
+/// The interval between approval takes answered waiting (jig/docs/design/client/domain/client.md, 12).
+pub const APPROVAL_AGAIN: Duration = Duration::from_secs(1);
+
+/// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client.md, 4.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalAct {
+    Ask,
+    Read { code: ApprovalCode },
+    Decide { code: ApprovalCode, approve: bool },
+}
+
+// Replies can carry credentials (jig/docs/design/protocol/client.md, 8).
+impl core::fmt::Debug for Event {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Start { kept } => f.debug_struct("Start").field("kept", kept).finish(),
+            Self::StartUnlinked { kept } => f.debug_struct("StartUnlinked").field("kept", kept).finish(),
+            Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
+            Self::SignOut => f.write_str("SignOut"),
+            Self::Authorize { query } => f.debug_struct("Authorize").field("query", query).finish(),
+            Self::AskApproval => f.write_str("AskApproval"),
+            Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
+            Self::DecideApproval { code, approve } => {
+                f.debug_struct("DecideApproval").field("code", code).field("approve", approve).finish()
+            }
+            Self::ApprovalAnswer { answer } => f.debug_struct("ApprovalAnswer").field("answer", answer).finish(),
+            Self::SignOutLost => f.write_str("SignOutLost"),
+            Self::Watch { handle, subject } => {
+                f.debug_struct("Watch").field("handle", handle).field("subject", subject).finish()
+            }
+            Self::Unwatch { handle } => f.debug_struct("Unwatch").field("handle", handle).finish(),
+            Self::Read { handle, read } => f.debug_struct("Read").field("handle", handle).field("read", read).finish(),
+            Self::Send { key, name, request } => {
+                f.debug_struct("Send").field("key", key).field("name", name).field("request", request).finish()
+            }
+            Self::Carry { key, name, request, value } => f
+                .debug_struct("Carry")
+                .field("key", key)
+                .field("name", name)
+                .field("request", request)
+                .field("value", value)
+                .finish(),
+            Self::Reply { exchange, message } => {
+                f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
+            Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
+            Self::StreamGone => f.write_str("StreamGone"),
+            Self::Stored => f.write_str("Stored"),
+            Self::NotStored => f.write_str("NotStored"),
+            Self::Up { up } => f.debug_struct("Up").field("up", up).finish(),
+        }
     }
 }

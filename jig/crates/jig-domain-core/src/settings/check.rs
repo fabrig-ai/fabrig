@@ -225,7 +225,12 @@ fn check_set(
                 match named_fault(charter, &models, limits) {
                     Some(fault) => Some(fault),
                     None => match super::charters::resolved(charter, &catalogue, limits) {
-                        Some(resolved) => charter_fault(&resolved, limits),
+                        Some(resolved) => {
+                            if let Some(failure) = charter_fault(setting, &resolved, limits) {
+                                return Err(failure);
+                            }
+                            None
+                        }
                         None => Some(Fault::Reference),
                     },
                 }
@@ -294,10 +299,10 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
             if let Some(detail) = documents_fit(value, limits) {
                 return Err(document_failure(setting, detail));
             }
-            match crate::limits::policy_owned_bytes(&value.policy) {
-                Some(bytes) => bytes <= u64::from(limits.run_bytes),
-                None => false,
+            if let Some(failure) = parts_fault(setting, value, limits) {
+                return Err(failure);
             }
+            true
         }
         Value::Template(value) => {
             value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
@@ -541,24 +546,61 @@ fn named_fault(charter: &crate::Charter, models: &[crate::Model], limits: &Limit
     None
 }
 
-fn charter_fault(charter: &crate::Charter, limits: &Limits) -> Option<Fault> {
+fn charter_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> Option<Failure> {
     let policy = &charter.policy;
     if policy.alternatives.len() > skein_lib::length::usize_of(limits.settings.alternatives.min(tasks::MODELS)) {
-        return Some(Fault::Count);
+        return Some(Failure { setting, fault: Fault::Count, detail: None });
     }
     if policy.turns <= policy.reserve_turns || policy.time <= policy.reserve_time {
-        return Some(Fault::Budget);
+        return Some(Failure { setting, fault: Fault::Budget, detail: None });
     }
     if match crate::runs::state::reserve_floor(policy) {
         Some(floor) => charter.spend < floor,
         None => true,
     } {
-        return Some(Fault::Budget);
+        return Some(Failure { setting, fault: Fault::Budget, detail: None });
     }
-    if crate::limits::policy_owned_bytes(policy)? > u64::from(limits.run_bytes) {
-        return Some(Fault::Shape);
+    parts_fault(setting, charter, limits)
+}
+
+/// The parts' shape and stored policy bound also hold for restored values
+/// (jig/docs/design/protocol/configuration.md, 6; jig/docs/design/domain/tasks.md, 8.6).
+fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> Option<Failure> {
+    if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
+        return Some(Failure { setting, fault: Fault::Count, detail: None });
     }
-    None
+    if charter.policy.resume && !charter.parts.is_empty() {
+        return Some(Failure { setting, fault: Fault::Shape, detail: None });
+    }
+    for part in &charter.parts {
+        if part.on.is_empty() || !part.on.is_known() {
+            return Some(Failure { setting, fault: Fault::Shape, detail: None });
+        }
+    }
+    let bytes = match crate::limits::policy_owned_bytes(&charter.policy) {
+        Some(policy) => match crate::limits::parts_owned_bytes(&charter.parts) {
+            Some(parts) => policy.checked_add(parts),
+            None => None,
+        },
+        None => None,
+    };
+    let supplied = match bytes {
+        Some(bytes) if bytes <= u64::from(limits.run_bytes) => return None,
+        Some(bytes) => u32::try_from(bytes).unwrap_or(u32::MAX),
+        None => u32::MAX,
+    };
+    Some(Failure {
+        setting,
+        fault: Fault::Shape,
+        detail: Some(people::SettingDetail {
+            member: people::SettingMember::StoredPolicy,
+            document: 0,
+            segment: 0,
+            rule: people::SettingRule::Maximum,
+            supplied,
+            bound: limits.run_bytes,
+        }),
+    })
 }
 fn contract_fault(contract: &tasks::Contract, connectors: &[u16]) -> Option<Fault> {
     match contract {
@@ -630,14 +672,20 @@ fn template_fault(
     None
 }
 fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
-    if choice.subagents.len() > skein_lib::length::usize_of(tasks::MODELS) {
+    if !agents_valid(models, choice.main, &choice.subagents) {
         return false;
     }
-    if !effort_valid(models, choice.main) {
+    match &choice.later {
+        Some(later) => agents_valid(models, later.main, &later.subagents),
+        None => true,
+    }
+}
+fn agents_valid(models: &[crate::Model], main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
+    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !effort_valid(models, main) {
         return false;
     }
-    for (at, chosen) in choice.subagents.iter().enumerate() {
-        for earlier in choice.subagents.iter().take(at) {
+    for (at, chosen) in subagents.iter().enumerate() {
+        for earlier in subagents.iter().take(at) {
             if earlier.model == chosen.model {
                 return false;
             }
@@ -648,6 +696,7 @@ fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     }
     true
 }
+
 fn policy_fault(
     current: &Current,
     defaults: bool,

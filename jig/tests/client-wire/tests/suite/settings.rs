@@ -4,6 +4,55 @@ use skein_lib::{Reader, Writer};
 #[expect(clippy::too_many_lines, reason = "the record table checks every new wire type and enum arm")]
 #[test]
 fn settings_records_and_all_enum_arms_round_trip() {
+    let parts = skein_lib::List::from_boxed(Box::new([
+        w::CharterPart::new(&w::CEILINGS, w::CharterPartParts { on: 1, instructions: b"first part".as_slice().into() })
+            .unwrap(),
+        w::CharterPart::new(
+            &w::CEILINGS,
+            w::CharterPartParts { on: 2050, instructions: "later part λ".as_bytes().into() },
+        )
+        .unwrap(),
+    ]));
+    for part in &parts {
+        let mut out = Writer::new(usize::try_from(part.measure()).unwrap());
+        part.encode(&mut out).unwrap();
+        assert_eq!(w::CharterPart::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), *part);
+    }
+    {
+        let named = w::ModelEffort::new(
+            &w::CEILINGS,
+            w::ModelEffortParts { model: b"careful".as_slice().into(), effort: Some(b"high".as_slice().into()) },
+        )
+        .unwrap();
+        let later = w::LlmLater::new(
+            &w::CEILINGS,
+            w::LlmLaterParts {
+                main: w::ModelEffort::new(
+                    &w::CEILINGS,
+                    w::ModelEffortParts { model: b"quick".as_slice().into(), effort: None },
+                )
+                .unwrap(),
+                subagents: skein_lib::List::from_boxed(Box::new([named.clone()])),
+            },
+        )
+        .unwrap();
+        let mut out = Writer::new(usize::try_from(later.measure()).unwrap());
+        later.encode(&mut out).unwrap();
+        assert_eq!(w::LlmLater::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), later);
+        let choice = w::LlmChoice::new(
+            &w::CEILINGS,
+            w::LlmChoiceParts {
+                account: Some(21),
+                main: named,
+                subagents: skein_lib::List::with_capacity(0),
+                later: Some(later),
+            },
+        )
+        .unwrap();
+        let mut out = Writer::new(usize::try_from(choice.measure()).unwrap());
+        choice.encode(&mut out).unwrap();
+        assert_eq!(w::LlmChoice::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), choice);
+    }
     {
         let bytes =
             include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_setting_number_smallest.bin");
@@ -113,6 +162,12 @@ fn settings_records_and_all_enum_arms_round_trip() {
         let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
         value.encode(&mut out).unwrap();
         assert_eq!(out.finish().as_ref(), bytes.as_slice());
+        let mut populated = value.into_parts();
+        populated.parts = parts;
+        let value = w::Charter::new(&w::CEILINGS, populated).unwrap();
+        let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
+        value.encode(&mut out).unwrap();
+        assert_eq!(w::Charter::decode(&w::CEILINGS, &mut Reader::new(&out.finish())).unwrap(), value);
     }
     {
         let bytes =

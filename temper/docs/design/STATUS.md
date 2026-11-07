@@ -1,13 +1,46 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The reference
-merges a 65,536-byte journal run bound from `room.json`. A pull's files
+its design from its drafts, from the status files below. The TUI's
+connected milestone is built: bare `temper` or `temper ADDRESS`, a
+pasted-link sign-in and a live first screen, with golden frames,
+simulated closing and joint-world restart and sign-out stories. Its
+post-landing terminal walks and later surfaces remain deferred; the
+sign-in field takes `q` as text and Ctrl+C closes there
+(`client/README.md`, sections 6.11 to 6.16 and 11;
+`draft/tui.status.md`). Browser-approved sign-in's engine configuration,
+native client-root half and web page at `/terminal` are built, with eleven
+gallery states and joint-client stories. The TUI's approval ask, locally
+constructed address, opener, fallback lines and Enter retry are built,
+with joint-world approval and refusal stories (`client/README.md`, 7.1).
+Its recording build, replay, shared redaction and scan, themed frame
+prints and pseudo-terminal/headless-browser generation are built, with
+`sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+The user's look at those frames and the terminal and web checks follow
+landing (`client/README.md`, section 11; `client/browser.md`, section 5).
+The reference merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
 decision. Settings-position wording and progress from the repository's
 quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
-`domain/forge.md`, 8.4 and 20). The first
+`domain/forge.md`, 8.4 and 20). Root forge reads have their own owner
+range, and unexpected answer kinds become refused reads with a
+`host-render` note. The owner-collision regression and rendering table
+cover the mechanism below live; the existing ChatGPT and Claude Code
+landing stories remain the after-landing check (`domain/forge.md`, 5.3
+and 20; `domain/agent.md`, sections 8 and 10). Goal's declaration directs
+a plain repository change to `change`; refused branch reads name their
+next reads. The owned-forge referee rejects a non-procedure delegate and
+names the chat's successful and failed committed calls. Focused tables
+hold those words; the real model's choice remains unobserved until after
+landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
+and 11). The Claude Code landing fixture takes `claude-haiku-5-5` by name
+at `low` in both selected charters; ChatGPT keeps stock row 7. Its focused
+settings table establishes no real launch or live landing; that proof
+follows landing (`domain/testing.md`, 2.7 and 11).
+The standard brief follows the declarations at 354,988 bytes;
+the larger requested brief remains undecided (`protocol/configuration.md`,
+11 and 13.4). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -15,7 +48,11 @@ reference keeps its numbered words without figures (`client/README.md`,
 3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
 A browser's other chat look is built: its terminal frame, commands, kept
 mode/theme/font, full screen, document, question list and compact cards,
-with nine gallery states. Its quiet line retains the bar's budget words,
+with nine gallery states. Terminal acts and closing lists advance the
+shown count in their step; the terminal ground wins in phone Split, the
+draft scrolls thin without a reserved gutter, the quiet model button is
+plain and the running line sits inside the foot. Their rendered comparison
+remains temper/ui's after-landing work. Its quiet line retains the bar's budget words,
 settings proposals retain Accept and Change something, commands match
 case exactly, background presses do not focus the box, options do not
 select on hover, adjacent help notes share paragraph spacing, and Plex
@@ -27,7 +64,22 @@ Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
-(`client/README.md`, sections 5.1 and 11). Stock instructions hold forge
+(`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
+charter parts, offered-message fences and a task's later LLM choice.
+Temper's settings form and ctl carry parts and later; the reference has
+four goal-charter parts, a first/later template choice and focused
+charters checked against a stock worker and the run bound. The combined
+cut-and-answer domain story is unignored, with its store retaining the
+configured catalogue across restart and forks. Charter-size refusals
+name the charter, supplied stored-policy bytes and the run bound across
+ctl, a run's settings tool and JSON. The cut relies on the core's
+landing subscriptions; an unknown task read explains when a result
+exists and directs the run to the specification. Host-call retries use
+smith's growing, capped backoff, and tasks given no LLM choice take
+their charter's selected effort. The draft's departures and open
+decisions remain (`client/tools.md`, section 5.3; `domain/root.md`,
+section 10; `protocol/llm.md`, section 4; `protocol/configuration.md`,
+13.9 and 11; `draft/per-wake.status.md`). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
 (`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link
@@ -67,7 +119,21 @@ a recorded departure; the fake-model `chat-draft` journey starts with
 drafts on, and the real-box checks follow landing (`client/README.md`,
 `client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
-on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
+on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
+Serve's orderly stop cancels its worker's runs and waits for every agent
+to end, letting each end its program before the worker closes. The engine
+settles in-process agent claims as interrupted before draining, spending
+no try. The one-process chat and coding drain table checks unchanged
+tries, saved work and change counts across restart, with the coding
+attempt's new writer slot and checkout at its saved head
+(`protocol/README.md`, section 8). A worker stopped apart from its engine
+still spends an agent try; changing that remains cluster work
+(`protocol/README.md`, 15.7). The
+real-loop held-Claude-turn test checks the interrupt and both ends; the
+owned-forge live no-survivor proof remains after landing. Forced agent
+stops still need contained trees (`protocol/README.md`, sections 8 and 14;
+`protocol/setup.md`, 7.2 and 15;
+`protocol/setup.status.md`, **Not yet:** 7.2). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
 name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
@@ -520,7 +586,12 @@ the ladder has no twin past B1 and no live story but B0's, neither
 GitHub proof has yet run on `fabrig-ai` alone, the held record's guard
 is shown on the fake issuer alone, and the live scripts
 default to a scratch layout of whoever runs fabrig's development, in a
-form the outward check does not match (`domain/testing.md`). temper's one story on macOS has not run green
+form the outward check does not match (`domain/testing.md`). The fresh
+Claude Code sitting's two settings applies are covered through ctl on
+the joined world's Claude catalogue, with a declared program account
+and model and charter readback. Its real Haiku launch at `low`, landing
+and restart remain after-landing proof (`domain/testing.md`, sections
+2.7 and 11). temper's one story on macOS has not run green
 on the runner, so `draft/macos.md`'s acceptance stands open
 (`domain/testing.md`). The forge's connect refusals that
 ctl renders name no remedy (`protocol/documentation.md`). Six
@@ -590,9 +661,11 @@ Design documents:
 - [`client/forge.md`](client/forge.status.md)
 - [`client/browser.md`](client/browser.status.md)
 - [`client/journeys.md`](client/journeys.status.md)
+- [`client/tui/journeys.md`](client/tui/journeys.status.md)
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)

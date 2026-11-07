@@ -394,9 +394,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 3's room (356,495) less 1,472
+    // tests/stock_brief.rs derives charter 3's room (356,461) less 1,472
     // bytes for 64 titles and framing and 1 margin; below 395,520.
-    brief_bytes: 355_022,
+    brief_bytes: 354_988,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
@@ -412,8 +412,9 @@ const STANDARD_ROOT: Root = Root {
     },
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
-        // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
-        transcript_bytes: 22_467_664,
+        // Deep task row at jig standard's bounds, including its inbox, later choice
+        // and two reason sets (engine::row_bound).
+        transcript_bytes: 22_467_696,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

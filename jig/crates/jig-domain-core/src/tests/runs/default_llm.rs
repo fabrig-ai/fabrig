@@ -12,15 +12,27 @@ fn model_with_default() -> Model {
     model
 }
 
-fn task_with_default(choice: Option<tasks::LlmChoice>) -> Core {
+fn task_with_default(
+    choice: Option<tasks::LlmChoice>,
+    main_effort: Option<&str>,
+    subagent_effort: Option<&str>,
+) -> Core {
     let (base, limits) = tree_core();
     let mut configuration = config(17);
-    let main = model_with_default();
+    let mut main = model_with_default();
     let mut subagent = main.clone();
     subagent.name = b"subagent".as_slice().into();
     subagent.effort = Some(b"high".as_slice().into());
     configuration.settings.models = Box::new([main.clone(), subagent.clone()]);
 
+    main.effort = match main_effort {
+        Some(effort) => Some(effort.as_bytes().into()),
+        None => None,
+    };
+    subagent.effort = match subagent_effort {
+        Some(effort) => Some(effort.as_bytes().into()),
+        None => None,
+    };
     configuration.defaults.charters[0].policy.model = main;
     configuration.defaults.charters[0].policy.alternatives = Box::new([subagent]);
     let mut core = seeded_core(configuration, &limits).unwrap();
@@ -53,24 +65,35 @@ fn a_models_default_is_named_else_first_else_none() {
 
 #[test]
 fn an_omitted_choice_takes_each_models_own_default() {
-    let core = task_with_default(None);
-    let choice = core.next_llm(core.tasks.task(TASK).unwrap()).unwrap();
-    assert_eq!(choice.main, tasks::ModelEffort { model: 0, effort: Some(1) });
-    assert_eq!(choice.subagents.as_ref(), [tasks::ModelEffort { model: 1, effort: Some(2) }]);
-    let policy = core.chosen_policy(TASK);
-    assert_eq!(policy.model.effort.as_deref(), Some(b"medium".as_slice()));
-    assert_eq!(policy.alternatives[0].effort.as_deref(), Some(b"high".as_slice()));
+    for (main, subagent, main_index, subagent_index, main_name, subagent_name) in [
+        (None, None, 1, 2, "medium", "high"),
+        (Some("low"), Some("medium"), 0, 1, "low", "medium"),
+        (Some("high"), None, 2, 2, "high", "high"),
+    ] {
+        let core = task_with_default(None, main, subagent);
+        let choice = core.next_llm(core.tasks.task(TASK).unwrap()).unwrap();
+        assert_eq!(choice.main, tasks::ModelEffort { model: 0, effort: Some(main_index) }, "{main:?}, {subagent:?}");
+        assert_eq!(
+            choice.subagents.as_ref(),
+            [tasks::ModelEffort { model: 1, effort: Some(subagent_index) }],
+            "{main:?}, {subagent:?}"
+        );
+        let policy = core.chosen_policy(TASK);
+        assert_eq!(policy.model.effort.as_deref(), Some(main_name.as_bytes()), "{main:?}, {subagent:?}");
+        assert_eq!(policy.alternatives[0].effort.as_deref(), Some(subagent_name.as_bytes()), "{main:?}, {subagent:?}");
+    }
 }
 
 #[test]
 fn a_given_choice_keeps_low_despite_the_models_default() {
-    let core = task_with_default(Some(chosen(0)));
+    let core = task_with_default(Some(chosen(0)), Some("high"), None);
     assert_eq!(core.next_llm(core.tasks.task(TASK).unwrap()).unwrap(), chosen(0));
     assert_eq!(core.chosen_policy(TASK).model.effort.as_deref(), Some(b"low".as_slice()));
 }
 
 fn chosen(effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: 0, effort: Some(effort) },
         subagents: Box::new([]),

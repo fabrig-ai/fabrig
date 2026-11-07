@@ -3465,6 +3465,21 @@ whole.
 
 ## 20. Open questions
 
+- **The connector's own retries** (5.3): a brief read or lost-read
+  recovery waiting for client room is retried when the connector resumes
+  with room, without a timed backoff. A run's host call instead uses
+  smith's growing, capped backoff (`smith/docs/design/domain/run.md`,
+  5.2). Whether those internal reads need a timed backoff is separate
+  connector work. Default: retry when room is available; the host-call
+  rule changes no connector timer or admission bound.
+
+- **Forge-read recovery with real agents** (5.3): the existing ChatGPT
+  and Claude Code owned-forge landing stories are the after-landing
+  check under real traffic. A fake-forge owner-collision regression
+  establishes the routing mechanism alone, not either real-agent
+  outcome or resumption after `serve` restarts. Default: keep those live
+  stories; the ownership contract requires no change to them. Forge
+  bounds and room figures remain separate work, as below.
 - **Links beyond a box's one person** (4.6): several members need a
   family of links and evidence of the connecting owner; a pasted App or
   a second account needs user authorization or a verified claim on a

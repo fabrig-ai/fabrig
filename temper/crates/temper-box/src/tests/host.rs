@@ -1182,7 +1182,7 @@ fn each_child_gets_only_its_listeners_and_serve_pipes_follow_them() {
                     assert_eq!(pipe.child, given.checked_add(3).unwrap());
                     given = given.checked_add(1).unwrap();
                 }
-                Way::In | Way::Out => {}
+                Way::In | Way::Out | Way::Null => {}
             }
         }
         assert_eq!(given, count);
@@ -1223,7 +1223,7 @@ fn a_document_port_zero_step_is_given_no_listener_or_activation_environment() {
     for pipe in &launch.pipes {
         match pipe.way {
             Way::Given(_) => panic!("port zero is not held or given"),
-            Way::In | Way::Out => {}
+            Way::In | Way::Out | Way::Null => {}
         }
     }
     for entry in &launch.environment {

@@ -325,6 +325,28 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   the numeric host bound with the same tool-specific recovery. A compare's
   forge size refusal follows the compare guidance above. At a host bound too small
   for the guidance, the refusal itself is cut to fit.
+- **A refused branch read says what to read instead.** Both refusals
+  are right: `read_branches` takes a nonempty prefix, an empty one
+  ending as `Error::Empty` before any request (skein's `forge.md`,
+  section 9), and `read_branch` of a name the forge lacks is
+  `Error::Missing`. That is so for a goal's own branch where its goal
+  holds none (a chat's `goal` names none, 4.3.2), and for a run branch
+  before its first push (`forge.md`, section 11). `read_branches`'s
+  `prefix` is declared "A nonempty prefix of the names, as temper/."
+  Each refusal keeps its first line, `Forge read failed: empty` or
+  `Forge read failed: missing`, and goes on after a full stop:
+  - `read_branches`, `Empty`: "read_branches needs a nonempty prefix,
+    as temper/ for temper's branches. read_settings names the default
+    branch, and read_branch reads one branch by its name."
+  - `read_branch`, `Missing`: "The forge has no branch of that name in
+    this repository. read_settings names its default branch, and
+    read_branches lists the names under a prefix, as temper/. A goal's
+    own branch is there only where its goal holds one, and a run branch
+    from its first push."
+
+  Every other tool's `Missing` and `Empty` keep their one line. The
+  refusal stays marked an error and is cut to fit the host answer's
+  bound, as the compare's is.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
@@ -539,6 +561,10 @@ delegate from what it knows:
   charter's models or the authority's refuses the call, naming the
   model and why. A role left out names none, and each of its agents takes
   its models at each run's check (jig's `domain/tasks.md`, section 3).
+  A role's choice carries no `later` (`../draft/per-wake.md`, section
+  5): a change's producers resume or finish in one activation, so each
+  of its agents takes the one choice at every run, and the root makes
+  each with no `later`.
 - **`repairs`:** the red landing the change repairs
   (`after-landing.md`, section 7), by its merge commit's full
   hexadecimal digits, as the red's news names it: a landing of temper's
@@ -667,6 +693,19 @@ its goal asks for an advisor), and any `goal` with both `agree` and
 both), and the run goes on, as any refused host call does. A person who
 wants a survey alone gets a goal that asks its advisor and reports,
 changing nothing.
+
+`goal`'s declaration says when a run calls it, as `delegate`'s says
+to call `change` for a change to a repository, since a run chooses
+among its tools by what their declarations say as much as by its
+instructions: "Have one goal tracked, only for work your person wants
+agreed first (set agree) or a survey that changes nothing. For a change
+to a repository, call change." It fits a declaration's 160 bytes
+(`../protocol/documentation.md`, 8), so it says when alone: what a goal
+may do is its charter's, and what `advisor` does is that member's
+description. The root decides a chat's `goal` without
+`agree` as before: a goal made for a plain change still makes its
+change, and the change lands, at a goal's run more than the chat's own
+`change` would take.
 
 ### 4.4 Result contracts
 
@@ -1405,6 +1444,22 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
+  landing story requires the chat's own successful `change`, rather than
+  a goal's change. Observe whether `goal`'s declaration steers a plain
+  repository change there, and whether the branch-read guidance gives a
+  real run its next read. Default: declarations and bounded refusal
+  guidance, without a new admission restriction; the existing live story
+  runs after landing (`testing.md`, 2.7). A scripted call establishes
+  neither model choice nor recovery.
+
+- **Forge-read fallout with real agents** (section 8): the existing
+  ChatGPT and Claude Code owned-forge landing stories check that a real
+  run completes without losing `temper serve`. Refusal-rendering checks
+  alone do not establish either outcome. Default: those live stories
+  run after landing, with no change required by the refusal contract;
+  `forge.md`, section 20 keeps the routing proof's limits.
 
 - **A direct change result's rendering room** (4.4): the landing procedure
   reserves 59 bytes for its result's label and sender before fitting its

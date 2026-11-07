@@ -51,6 +51,7 @@ fn has_playground(w: World) -> bool {
 }
 fn model(w: World) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: Some(1),
         main: c::ModelEffort {
             model: text(if has_playground(w) { "Scripted model" } else { "Opus" }),
@@ -172,6 +173,7 @@ fn template_preview(member: &mut c::MeProject) {
         .push(c::MeDefault {
             template: jig_client::shapes::CHAT,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
                 subagents: List::with_capacity(0),
@@ -258,6 +260,67 @@ fn configure_frame(me: &mut c::Me) {
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
+}
+/// Approval cards reached through the root's events (client/browser.md, 7.2).
+pub(super) fn approve_world(name: &str) -> Domain {
+    use jig_client::{Approval, ApprovalCode, ApprovalState, Decided};
+    use temper_client_domain::{Action, Place, approve::Act};
+    let (mut root, _) =
+        world(World::Bare, Address::Inbox { filter: temper_client_domain::address::Filter::ALL }, Then::Shown);
+    let mut out = Queue::uncapped();
+    let code = ApprovalCode::parse(b"WDJB-MJHT").expect("gallery code");
+    step(
+        &mut root,
+        Event::Went {
+            place: Place::Approve {
+                code: if matches!(name, "approve-typing" | "approve-unread") { None } else { Some(code) },
+            },
+        },
+        &mut out,
+    );
+    let asked = Wall::from_nanos(
+        sample_now(World::Bare, name).as_nanos().checked_sub(120_000_000_000).expect("two minutes before gallery now"),
+    );
+    match name {
+        "approve-typing" | "approve-unread" => {
+            let words = if name == "approve-typing" { b"wdjb mjht".as_slice() } else { b"WDJB-MJH" };
+            step(&mut root, Event::Act { action: Action::Approve(Act::Words { words: words.into() }) }, &mut out);
+            if name == "approve-unread" {
+                step(&mut root, Event::Act { action: Action::Approve(Act::Check) }, &mut out);
+            }
+        }
+        "approve-signed-out" => step(&mut root, Event::SignedOut, &mut out),
+        _ => {
+            let state = match name {
+                "approve-asking" | "approve-used" => ApprovalState::Waiting { asked },
+                "approve-approved" => ApprovalState::Approved,
+                "approve-signed-in" => ApprovalState::Taken,
+                "approve-refused" => ApprovalState::Refused,
+                "approve-expired" => ApprovalState::Expired,
+                "approve-unknown" => ApprovalState::Unknown,
+                "approve-busy" => ApprovalState::Busy,
+                _ => unreachable!("named approval sample"),
+            };
+            step(
+                &mut root,
+                Event::Client { event: jig_client::Event::ApprovalAnswer { answer: Approval::Read { code, state } } },
+                &mut out,
+            );
+            if name == "approve-used" {
+                step(&mut root, Event::Act { action: Action::Approve(Act::Approve) }, &mut out);
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::ApprovalAnswer {
+                            answer: Approval::Decided { code, decided: Decided::Used },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+        }
+    }
+    root
 }
 fn agent_work_task() -> c::Task {
     let mut task = chat_work::task("chat-work-running");
@@ -2531,6 +2594,7 @@ fn document(w: World, number: u64) -> c::Task {
         None
     } else {
         Some(c::LlmChoice {
+            later: None,
             account: Some(f.account),
             main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
             subagents: List::with_capacity(0),
@@ -4385,6 +4449,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
@@ -5430,6 +5495,7 @@ fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelS
     member.defaults = List::from_boxed(Box::new([c::MeDefault {
         template: jig_client::shapes::CHAT,
         choice: c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
             subagents: List::with_capacity(0),

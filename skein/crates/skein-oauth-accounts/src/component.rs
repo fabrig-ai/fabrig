@@ -218,6 +218,7 @@ pub struct Component {
     lifecycle: Lifecycle,
     crypto: CryptoRng,
     file_owner: u64,
+    long_page: Box<[u8]>,
 }
 
 // skein/docs/design/oauth.md, 4: private exchanges carry credential bytes.
@@ -235,9 +236,26 @@ impl Component {
         Ok(())
     }
 
-    /// Validates configuration before the loop; the owner keys its generator on a process-distinct stream.
-    pub fn new(accounts: List<Account>, limits: &Limits, crypto: CryptoRng) -> Result<Component, Unusable> {
-        Ok(Self::configure(accounts, limits, Some(crypto))?.expect("a generator makes the component"))
+    /// Validates configuration; the owner keys its generator on a process-distinct stream.
+    /// `application` names the listener's long page: 1 to `APPLICATION_BYTES` bytes of
+    /// visible ASCII and spaces, or `Unusable::Limits` (skein/docs/design/oauth.md, 6.5 and 6.7).
+    pub fn new(
+        accounts: List<Account>,
+        limits: &Limits,
+        crypto: CryptoRng,
+        application: &[u8],
+    ) -> Result<Component, Unusable> {
+        if application.is_empty() || application.len() > crate::APPLICATION_BYTES {
+            return Err(Unusable::Limits);
+        }
+        for byte in application {
+            if !(0x20..=0x7e).contains(byte) {
+                return Err(Unusable::Limits);
+            }
+        }
+        let mut component = Self::configure(accounts, limits, Some(crypto))?.expect("a generator makes the component");
+        component.long_page = crate::listener::long_page(application);
+        Ok(component)
     }
 
     #[expect(clippy::manual_map, reason = "explicit generator presence keeps step code free of closures")]
@@ -260,6 +278,7 @@ impl Component {
                 lifecycle: Lifecycle::Live,
                 crypto,
                 file_owner: 0,
+                long_page: Box::new([]),
             }),
             None => None,
         };
@@ -681,6 +700,7 @@ impl Component {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exchange turn orders deadlines, client work and listener judgement")]
     fn progress(&mut self, env: &Env<Limits>, id: Id<Exchange>, up: &mut Queue<Event>, io: &mut Queue<Lower>) {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
         match exchange.stage {
@@ -730,9 +750,29 @@ impl Component {
                     self.fail_exchange(env, id, Failure::Exchange(failure), up, io);
                     return;
                 }
-                if let Some(redirect) = listener.read.take() {
-                    let taken = sign_in::judge(exchange, redirect, env.now).is_ok();
-                    exchange.listener.as_mut().expect("redirect listener").answer(taken);
+                if let Some(read) = listener.read.take() {
+                    match read {
+                        crate::redirect::Read::Redirect(redirect) => {
+                            let taken = sign_in::judge(exchange, redirect, env.now).is_ok();
+                            exchange.listener.as_mut().expect("redirect listener").answer(taken);
+                        }
+                        crate::redirect::Read::Long { length, state } => {
+                            let own = exchange.waiting() && exchange.client.awaits_state(state.expose(), env.now);
+                            let listener = exchange.listener.as_mut().expect("redirect listener");
+                            if own {
+                                listener.answer_long(&self.long_page);
+                                self.fail_exchange(
+                                    env,
+                                    id,
+                                    Failure::LongRedirect { length, bound: env.limits.redirect_bytes },
+                                    up,
+                                    io,
+                                );
+                            } else {
+                                listener.answer(false);
+                            }
+                        }
+                    }
                     return;
                 }
                 if listener.has_work() {

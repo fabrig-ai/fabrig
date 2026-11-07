@@ -1,4 +1,4 @@
-//! Drain before closing children, close the store last (protocol/README.md, 6).
+//! Drain before closing children, close the store last (protocol/README.md, 6, 8).
 use crate::{End, Stop, engine::Engine};
 use jig_protocol_config::{Path, Problems, What};
 use temper_engine_domain as root;
@@ -6,6 +6,7 @@ use temper_engine_domain as root;
 pub(crate) struct Drain {
     pub(crate) closing: bool,
     pub(crate) requested: bool,
+    pub(crate) agents_ended: bool,
     stopped: Option<Stop>,
     pub(crate) unsettled: skein_lib::List<root::Unsettled>,
 }
@@ -22,6 +23,8 @@ pub(crate) fn shutdown(engine: &mut Engine) {
     engine.drain = Some(Drain {
         closing: false,
         requested: false,
+        // The standalone owner supplies its worker's state each pass.
+        agents_ended: true,
         stopped: None,
         unsettled: skein_lib::List::with_capacity(engine.env.limits.forge.entries),
     });
@@ -69,7 +72,8 @@ pub(crate) fn advance(engine: &mut Engine) {
         Some(accounts) => accounts.idle(),
         None => true,
     };
-    if closed
+    if drain.agents_ended
+        && closed
         && engine.setup.closed
         && engine.setup.io.is_empty()
         && engine.forge.closed

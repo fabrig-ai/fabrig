@@ -2,6 +2,13 @@
 
 2026-11-07. Where smith's code lags or departs from [run.md](run.md).
 
+Section 5.2 has no known gap in a busy or unanswered host call's retry
+backoff: it doubles from `host_backoff` to 64 times that first wait,
+preserving the call's name. The eight-busy-answer table checks waits
+of 1, 2, 4, 8, 16, 32, 64 and 64 units. A next ask at or past the
+caller's deadline is suppressed; an unanswered ask's uncertainty remains
+until the terminal answer or caller expiry.
+
 Section 8.1 has no known gap in failed-check feedback: it carries the
 repository, convention path, exit, given milliseconds, cut count and
 output tail. The given span is retained when the check starts, bounded

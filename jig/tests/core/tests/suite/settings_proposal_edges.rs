@@ -857,6 +857,7 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
             release: None,
             amendment: people::Amendment {
                 llm: Some(people::LlmChoice {
+                    later: None,
                     account: None,
                     main: people::ModelEffort { model: 0, effort: Some(0) },
                     subagents: Box::new([]),

@@ -12,7 +12,7 @@ impl core::fmt::Debug for Below {
             Below::Io(request) => (
                 "Io",
                 match request {
-                    io::Request::Spawn { spawn, .. } => {
+                    io::Request::Spawn { spawn, .. } | io::Request::SpawnAlone { spawn, .. } => {
                         let mut bytes = spawn.program.len().saturating_add(spawn.dir.len());
                         for entry in &spawn.args {
                             bytes = bytes.saturating_add(entry.len());

@@ -98,6 +98,8 @@ fn worker(document: &Document) -> Problems {
 // Optional objects and nonempty lists from the charters, providers, templates, domain and policy
 // fixtures. Shared shapes are exercised at every path; alternate forms are exercised below.
 const EXTRAS: &[(&str, &str, &[u8])] = &[
+    ("charters.0", "resume", b"false"),
+    ("charters.0", "parts", br#"[{"on":["first","question"],"instructions":"part.md"}]"#),
     ("charters.0", "models", br#"["small"]"#),
     ("charters.0", "rest", b"true"),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
@@ -119,6 +121,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.providers.0", "signed_in_plan", b"true"),
     ("llm.providers.0", "manage_usage", br#""https://usage.example/""#),
     ("llm.providers.0", "sources", br#"{"sign_in":{"issuer":"https://issuer.example","client":"client-a","scopes":["chat","offline_access"],"name_hint":"jig","authorization":"https://issuer.example/authorize","token":"https://issuer.example/token","revocation":"https://issuer.example/revoke","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","trust":"roots.pem","must_grant":["chat"],"resource":"https://resource.example","redirect_path":"callback","redirect_port":8080},"keys":true,"programs":["claude_code"]}"#),
+    ("clients", "approval", b"true"),
     ("clients", "provider", br#"{"key":"secrets/provider.pem","clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}],"addresses":[]}"#),
     ("charters.0", "documents", br#"[{"connector":1,"name":["service"],"path":"guide.md","heading":"How"}]"#),
     ("charters.0", "wake", br#"{"words":{"batch":{"count":2,"age_ms":5000}},"notices":{"paced":{"span_ms":1000}},"news":"immediate","results":"each","questions":true,"answers":true,"timers":true}"#),
@@ -126,6 +129,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("templates.0", "resources", br#"[{"connector":1,"symbol":1}]"#),
     ("templates.0", "deadline", br#"{"span_ms":1000}"#),
     ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
+    ("templates.0.llm", "later", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
     ("projects.0", "name", br#""Project One""#),
     ("projects.0.policy", "templates", br#"[{"template":1,"executor":{"charter":1},"budget":{"amount":10},"deadline":{"span_ms":1000},"priority":5}]"#),
     ("", "policies", b"[]"),

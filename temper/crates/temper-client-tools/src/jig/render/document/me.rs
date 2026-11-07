@@ -248,6 +248,7 @@ fn encode_setting_detail(value: jig_client::contract::SettingDetail, out: &mut E
         M::Path => b"path",
         M::Heading => b"heading",
         M::Connector => b"connector",
+        M::StoredPolicy => b"stored_policy",
     });
     out.key(b"rule");
     out.string(match value.rule {

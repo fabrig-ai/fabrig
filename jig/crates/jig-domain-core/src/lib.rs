@@ -67,7 +67,7 @@ pub use crate::{
     funding::pools::CreateStart,
     limits::{
         CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY,
-        brief_holds_documents, charter_owned_bytes, policy_owned_bytes, valid,
+        brief_holds_documents, charter_owned_bytes, parts_owned_bytes, policy_owned_bytes, valid,
     },
     numbers::{Counters, Deployment, Family, fresh},
     public::{
@@ -98,7 +98,7 @@ pub use crate::{
         transcript_text::{TranscriptRow, TranscriptText},
     },
     settings::{
-        charters::{Charter, Document},
+        charters::{Charter, CharterPart, Document},
         templates::Template,
     },
     start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
@@ -359,8 +359,8 @@ pub struct Core {
     pub(crate) restoring_proofs: Map<u64, RestoringProof>,
     /// Restored claims not yet reported by a host.
     pub(crate) unreported_restored: Map<u64, u64>,
-    /// Claims awaiting completion of their route.
-    pub claiming: Map<u64, u64>,
+    /// Claims awaiting completion of their route: attempt and prepared offered kinds.
+    pub claiming: Map<u64, (u64, tasks::Reasons)>,
     /// Child work due to activation.
     pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.

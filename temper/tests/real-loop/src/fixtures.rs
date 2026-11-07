@@ -471,6 +471,7 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
         }
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Requester;
         defaults.templates[0].llm = Some(jig_domain_tasks::LlmChoice {
+            later: None,
             account: None,
             main: jig_domain_tasks::ModelEffort {
                 model: u8::try_from(model).expect("configured model index"),

@@ -15,7 +15,7 @@ fn every_account_holds_a_maximal_record_under_its_heap_ceiling() {
     meter.start();
     let configured = shared_memory_accounts(&limits);
     let crypto = skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("32-byte world seed");
-    let mut component = Component::new(configured, &limits, crypto).expect("component");
+    let mut component = Component::new(configured, &limits, crypto, b"oauth-accounts-world").expect("component");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     let mut shared_reads = Queue::with_capacity(limits.accounts);
@@ -95,7 +95,7 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
         );
     }
     let crypto = skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("32-byte world seed");
-    let mut component = Component::new(configured, &limits, crypto).expect("configured slots");
+    let mut component = Component::new(configured, &limits, crypto, b"oauth-accounts-world").expect("configured slots");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut io = Queue::uncapped();
@@ -141,7 +141,7 @@ fn every_listener_slot_keeps_a_bounded_partial_head_under_its_heap_ceiling() {
     meter.start();
     let configured = listener_accounts(&limits);
     let crypto = skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("32-byte world seed");
-    let mut component = Component::new(configured, &limits, crypto).expect("component");
+    let mut component = Component::new(configured, &limits, crypto, b"oauth-accounts-world").expect("component");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     drive_partial_heads(&mut component, &env, response);
     let measured = meter.end();
@@ -266,6 +266,7 @@ impl ListenerSockets {
             other @ (IoRequest::Reject { .. }
             | IoRequest::Output { .. }
             | IoRequest::Spawn { .. }
+            | IoRequest::SpawnAlone { .. }
             | IoRequest::Signal { .. }
             | IoRequest::Window { .. }
             | IoRequest::Usage { .. }
@@ -332,7 +333,8 @@ fn every_private_keeper_retains_its_maximal_paths_and_pending_load() {
         );
     }
     let crypto = skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("32-byte world seed");
-    let mut component = Component::new(configured, &limits, crypto).expect("maximal private keepers");
+    let mut component =
+        Component::new(configured, &limits, crypto, b"oauth-accounts-world").expect("maximal private keepers");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::with_capacity(32);
     let mut io = Queue::with_capacity(32);
@@ -505,6 +507,7 @@ fn shared_memory_limits() -> Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 4,
         listeners: 0,
+        redirect_bytes: 512,
         server: skein_http::server::Limits {
             head: 2048,
             headers: 16,

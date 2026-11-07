@@ -48,6 +48,7 @@ pub(super) struct Child {
     pub pipes: Vec<ChildPipe>,
     pub service: Option<Pid>,
     pub given: Vec<(u32, crate::net::SocketId)>,
+    pub nulls: Vec<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -67,10 +68,17 @@ pub(super) struct ChildPipe {
     pub waiting: Option<Token>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum InheritedWay {
+    Read,
+    Write,
+    Null,
+}
+
 /// One pipe inherited by a process, with the other end held by its world.
 #[derive(Debug)]
 pub(super) struct InheritedPipe {
-    pub readable: bool,
+    pub way: InheritedWay,
     pub process_open: bool,
     pub peer_open: bool,
     pub bytes: VecDeque<u8>,
@@ -117,7 +125,7 @@ impl Sim {
     }
 
     /// Starts the service selected by a successful spawn. The returned
-    /// descriptors are the child's inherited pipes and given listeners, keyed by the
+    /// descriptors are the child's inherited pipes, given listeners and nulls, keyed by the
     /// descriptor numbers requested in `Spawn`. The world hosts this process
     /// and drives it through `submit` and `reap` (simulator.md, section 3).
     pub fn bind_service(&mut self, parent: Pid, pidfd: Fd) -> (Pid, Vec<(u32, Fd)>) {
@@ -128,6 +136,7 @@ impl Sim {
         assert!(child.exit.is_none(), "a finished service cannot be bound");
         let specs: Vec<Pipe> = child.pipes.iter().map(|pipe| pipe.spec).collect();
         let given = core::mem::take(&mut self.process_mut(parent).children.get_mut(&child_id).expect("child").given);
+        let nulls = core::mem::take(&mut self.process_mut(parent).children.get_mut(&child_id).expect("child").nulls);
         let pid = self.spawn_process();
         for &(descriptor, socket) in &given {
             assert!(!self.fds_full(pid), "a bound service needs a descriptor slot");
@@ -148,7 +157,7 @@ impl Sim {
             self.process_mut(pid).inherited_pipes.insert(
                 fd,
                 InheritedPipe {
-                    readable: spec.way == Way::In,
+                    way: if spec.way == Way::In { InheritedWay::Read } else { InheritedWay::Write },
                     process_open: true,
                     peer_open: true,
                     bytes: VecDeque::new(),
@@ -157,6 +166,13 @@ impl Sim {
                 },
             );
             inherited.push((spec.child, fd));
+        }
+        for descriptor in nulls {
+            let fd = self.open_inherited(pid, true);
+            let pipe = self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("new null descriptor");
+            pipe.way = InheritedWay::Null;
+            pipe.peer_open = false;
+            inherited.push((descriptor, fd));
         }
         self.process_mut(parent).children.get_mut(&child_id).expect("the spawned child").service = Some(pid);
         (pid, inherited)
@@ -295,7 +311,7 @@ impl Sim {
         self.process_mut(pid).inherited_pipes.insert(
             fd,
             InheritedPipe {
-                readable,
+                way: if readable { InheritedWay::Read } else { InheritedWay::Write },
                 process_open: true,
                 peer_open: true,
                 bytes: VecDeque::new(),
@@ -329,9 +345,9 @@ impl Sim {
     /// Closes the world's end of an inherited pipe. Buffered bytes can still
     /// be read by the process when it is the world's writer.
     pub fn peer_close(&mut self, pid: Pid, fd: Fd) {
-        let pipe = self.inherited_peer(pid, fd, self.process(pid).inherited_pipes[&fd].readable);
+        let pipe = self.inherited_peer(pid, fd, self.process(pid).inherited_pipes[&fd].way == InheritedWay::Read);
         pipe.peer_open = false;
-        if !pipe.readable {
+        if pipe.way != InheritedWay::Read {
             pipe.bytes.clear();
         }
         self.wake_inherited(pid, fd);
@@ -343,21 +359,21 @@ impl Sim {
     pub fn peer_eof(&self, pid: Pid, fd: Fd) -> bool {
         let pipe = self.process(pid).inherited_pipes.get(&fd).expect("an inherited pipe");
         assert!(pipe.bound.is_none(), "a bound pipe has a process peer");
-        assert!(!pipe.readable, "peer_eof needs an inherited write pipe");
+        assert!(pipe.way != InheritedWay::Read, "peer_eof needs an inherited write pipe");
         !pipe.process_open && pipe.bytes.is_empty()
     }
 
     fn inherited_peer(&mut self, pid: Pid, fd: Fd, readable: bool) -> &mut InheritedPipe {
         let pipe = self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("an inherited pipe");
         assert!(pipe.bound.is_none(), "a bound pipe has a process peer");
-        assert_eq!(pipe.readable, readable, "the wrong end of an inherited pipe");
+        assert_eq!(pipe.way == InheritedWay::Read, readable, "the wrong end of an inherited pipe");
         assert!(pipe.peer_open, "the world's pipe end is closed");
         pipe
     }
 
     fn wake_inherited(&mut self, pid: Pid, fd: Fd) {
         let pipe = self.process(pid).inherited_pipes.get(&fd).expect("an inherited pipe");
-        let ready = if pipe.readable {
+        let ready = if pipe.way == InheritedWay::Read {
             !pipe.bytes.is_empty() || !pipe.peer_open
         } else {
             !pipe.peer_open || pipe.bytes.len() < usize_of(self.config.buffer)
@@ -377,6 +393,10 @@ impl Sim {
 
     fn recv_inherited(&mut self, pid: Pid, token: Token, mut op: Op, fd: Fd) {
         let pipe = self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("an inherited pipe");
+        if pipe.way == InheritedWay::Null {
+            self.complete(pid, token, op, Ok(Done::Count(0)));
+            return;
+        }
         let Op::PipeRead { ref mut buf, .. } = op else { self.bug("a pipe read holds a buffer") };
         if pipe.bytes.is_empty() && pipe.peer_open {
             pipe.waiting = Some(token);
@@ -393,6 +413,12 @@ impl Sim {
     fn send_inherited(&mut self, pid: Pid, token: Token, op: Op, fd: Fd) {
         let room = usize_of(self.config.buffer);
         let pipe = self.process_mut(pid).inherited_pipes.get_mut(&fd).expect("an inherited pipe");
+        if pipe.way == InheritedWay::Null {
+            let Op::PipeWrite { ref bytes, from, .. } = op else { self.bug("a null write holds bytes") };
+            let count = u32::try_from(bytes.len()).expect("a count").checked_sub(from).expect("validated write offset");
+            self.complete(pid, token, op, Ok(Done::Count(count)));
+            return;
+        }
         if !pipe.peer_open {
             self.complete(pid, token, op, Err(Error::BrokenPipe));
             return;
@@ -456,8 +482,8 @@ impl Sim {
             Summary::PipeRead { .. } | Summary::PipeWrite { .. } | Summary::Close { .. } => {
                 if let Some(pipe) = process.inherited_pipes.get(&fd).filter(|pipe| pipe.process_open) {
                     let valid = match kind {
-                        Summary::PipeRead { .. } => pipe.readable,
-                        Summary::PipeWrite { .. } => !pipe.readable,
+                        Summary::PipeRead { .. } => pipe.way != InheritedWay::Write,
+                        Summary::PipeWrite { .. } => pipe.way != InheritedWay::Read,
                         Summary::Close { .. } => true,
                         _ => false,
                     };
@@ -647,9 +673,10 @@ impl Sim {
     }
 
     fn close_process_fd(&mut self, pid: Pid, fd: Fd) {
+        self.process_mut(pid).windows.remove(&fd);
         if let Some(pipe) = self.process_mut(pid).inherited_pipes.get_mut(&fd) {
             pipe.process_open = false;
-            if pipe.readable {
+            if pipe.way == InheritedWay::Read {
                 pipe.bytes.clear();
             }
             if let Some(bound) = pipe.bound {
@@ -740,7 +767,7 @@ impl Sim {
                             );
                             Some((spec.child, socket))
                         }
-                        Way::In | Way::Out => None,
+                        Way::In | Way::Out | Way::Null => None,
                     })
                     .collect();
                 let specs = spawn.pipes.clone();
@@ -779,6 +806,11 @@ impl Sim {
                         pipes,
                         service: None,
                         given: if exit.is_none() { given } else { Vec::new() },
+                        nulls: if exit.is_none() {
+                            specs.iter().filter(|spec| spec.way == Way::Null).map(|spec| spec.child).collect()
+                        } else {
+                            Vec::new()
+                        },
                     },
                 );
                 let pidfd = self.new_process_fd(pid);
@@ -955,7 +987,7 @@ impl Sim {
         let Some(token) = pipe.waiting else { return };
         let shared = &child.pipes[end.index];
         let ready = match shared.spec.way {
-            Way::Given(_) => unreachable!("a given descriptor has no child pipe"),
+            Way::Given(_) | Way::Null => unreachable!("a given or null descriptor has no child pipe"),
             Way::In => !shared.bytes.is_empty() || shared.ended || child.exit.is_some(),
             Way::Out => {
                 !shared.open
@@ -1024,7 +1056,7 @@ impl Sim {
                 (pipe.spec, pipe.ended, !pipe.bytes.is_empty(), child.exit.is_some() && !child.descendant_running)
             };
             let ready = match spec.way {
-                Way::Given(_) => unreachable!("a given descriptor has no child pipe"),
+                Way::Given(_) | Way::Null => unreachable!("a given or null descriptor has no child pipe"),
                 Way::Out => available || ended || exit,
                 Way::In => ended || exit || self.echo_room(pid, child_id, index),
             };
@@ -1077,13 +1109,17 @@ fn add_resources(total: &mut Resources, child: Resources) {
 fn is_pipe(way: Way) -> bool {
     match way {
         Way::In | Way::Out => true,
-        Way::Given(_) => false,
+        Way::Given(_) | Way::Null => false,
     }
 }
 
 #[cfg(test)]
 #[path = "../tests/closed_input.rs"]
 mod closed_input;
+
+#[cfg(test)]
+#[path = "../tests/null_descriptor.rs"]
+mod null_descriptor;
 
 #[cfg(test)]
 #[path = "../tests/given_listener.rs"]

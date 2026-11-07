@@ -1,6 +1,7 @@
 //! A task's named or current default LLM choice (domain/tasks.md, section 3;
 //! domain/engine.md, 7.1).
 
+use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
@@ -92,6 +93,28 @@ impl Core {
 
     fn task_llm(&self, row: &tasks::TaskRecord, fallback: bool) -> Option<tasks::LlmChoice> {
         if let Some(choice) = &row.llm {
+            if !row.reasons.meets(tasks::Reasons::FIRST)
+                && let Some(later) = &choice.later
+            {
+                let charter = match row.executor {
+                    tasks::Executor::Agent { charter } => Some(charter),
+                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                        None
+                    }
+                };
+                let revision = row.settings.run.unwrap_or(row.settings.task);
+                if let Some(charter) = charter
+                    && let Some(charter) = self.charter_at(charter, revision)
+                    && !charter.policy.resume
+                {
+                    return Some(tasks::LlmChoice {
+                        account: choice.account,
+                        main: later.main,
+                        subagents: later.subagents.clone(),
+                        later: None,
+                    });
+                }
+            }
             return Some(choice.clone());
         }
         let charter = match row.executor {
@@ -186,7 +209,7 @@ impl Core {
     pub(crate) fn chosen_main(&self, task: u64) -> &Model {
         let policy = &self.charter_of(task).policy;
         if let Some(choice) = self.next_llm(self.tasks.task(task).expect("live agent task"))
-            && takes(&self.settings.models, policy, &choice)
+            && takes_models(&self.settings.models, policy, choice.main, &choice.subagents)
         {
             let configured = self.settings.models.get(usize::from(choice.main.model)).expect("validated model index");
             return charter_model(policy, &configured.name).expect("validated charter model");
@@ -242,11 +265,26 @@ pub(super) fn defaults(
 /// both: tasks checks it when it makes or amends the task (domain/tasks.md, section 3).
 pub(crate) fn choice(value: Option<&people::LlmChoice>) -> Option<tasks::LlmChoice> {
     let value = value?;
-    let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("people bounds sub-agents"));
-    for subagent in &value.subagents {
-        subagents.push(model_effort(*subagent)).expect("same number of sub-agents");
+    let later = match &value.later {
+        Some(later) => {
+            Some(tasks::LlmLater { main: model_effort(later.main), subagents: model_efforts(&later.subagents) })
+        }
+        None => None,
+    };
+    Some(tasks::LlmChoice {
+        later,
+        account: value.account,
+        main: model_effort(value.main),
+        subagents: model_efforts(&value.subagents),
+    })
+}
+
+fn model_efforts(values: &[people::ModelEffort]) -> Box<[tasks::ModelEffort]> {
+    let mut result = List::with_capacity(u32::try_from(values.len()).expect("people bounds sub-agents"));
+    for value in values {
+        result.push(model_effort(*value)).expect("same number of sub-agents");
     }
-    Some(tasks::LlmChoice { account: value.account, main: model_effort(value.main), subagents: subagents.into_boxed() })
+    result.into_boxed()
 }
 
 fn model_effort(value: people::ModelEffort) -> tasks::ModelEffort {
@@ -268,10 +306,25 @@ fn chosen(settings: &Settings, policy: &RunPolicy, choice: &tasks::LlmChoice) ->
 /// The same charter model/effort rules used to construct a run's chosen policy, without
 /// allocating its models. Templates use these before publishing their retained choice.
 pub(crate) fn takes(models: &[Model], policy: &RunPolicy, choice: &tasks::LlmChoice) -> bool {
-    if !takes_model(models, policy, choice.main) {
+    if !takes_models(models, policy, choice.main, &choice.subagents) {
         return false;
     }
-    for chosen in &choice.subagents {
+    match &choice.later {
+        Some(later) => !policy.resume && takes_models(models, policy, later.main, &later.subagents),
+        None => true,
+    }
+}
+
+fn takes_models(
+    models: &[Model],
+    policy: &RunPolicy,
+    main: tasks::ModelEffort,
+    subagents: &[tasks::ModelEffort],
+) -> bool {
+    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !takes_model(models, policy, main) {
+        return false;
+    }
+    for chosen in subagents {
         if !takes_model(models, policy, *chosen) {
             return false;
         }

@@ -126,7 +126,12 @@ fn a_refused_grant_or_refresh_requests_record_erasure() {
 }
 #[test]
 fn other_needs_sign_in_failures_do_not_request_record_erasure() {
-    for cause in [driver::Failure::Expired, driver::Failure::NotGranted, driver::Failure::AnotherSubject] {
+    for cause in [
+        driver::Failure::Expired,
+        driver::Failure::NotGranted,
+        driver::Failure::AnotherSubject,
+        driver::Failure::LongRedirect { length: 16_385, bound: 16_384 },
+    ] {
         assert_eq!(failure(cause), child_failure(accounts::Failure::SignInAgain));
     }
     assert_eq!(refused(driver::Refusal::NoRecord), child_failure(accounts::Failure::SignInAgain));

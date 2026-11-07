@@ -9,6 +9,7 @@ use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub mod rung;
+mod survivors;
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
@@ -1269,17 +1270,34 @@ impl LiveModel<'_> {
         }
     }
 
+    /// The model every charter the story selects runs, and the chat's `--model`.
     #[must_use]
     pub const fn name(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "gpt-6-luna",
+            Self::ClaudeCode { .. } => "claude-haiku-5-5",
+        }
+    }
+    /// The stock row read after startup: the selected model's own, or the
+    /// provider's dearest, whose figures a model taken by name copies
+    /// (jig's `domain/engine.md`, 17.11).
+    const fn number(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "7",
+            Self::ClaudeCode { .. } => "3",
+        }
+    }
+    const fn row(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
             Self::ClaudeCode { .. } => "claude-fable-5-1",
         }
     }
-    const fn number(self) -> &'static str {
+    /// A model taken by name: its default effort; `None` for a stock row.
+    const fn by_name(self) -> Option<&'static str> {
         match self {
-            Self::ChatGpt { .. } => "7",
-            Self::ClaudeCode { .. } => "3",
+            Self::ChatGpt { .. } => None,
+            Self::ClaudeCode { .. } => Some("low"),
         }
     }
     const fn unavailable(self) -> &'static str {
@@ -1409,6 +1427,78 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
 }
 
+/// A settings change a fresh sitting applies, and its `settings apply`'s key.
+#[derive(Debug, PartialEq)]
+pub struct LiveChange {
+    pub key: &'static str,
+    pub file: serde_json::Value,
+}
+
+/// The settings changes a fresh sitting applies, in order (domain/testing.md, 2.7):
+/// a model taken by name first, alone, at the highest model number the inventory
+/// leaves free, from the stock row it copies (`live-model`); then charters 1 and 2
+/// naming the story's model alone (`live-settings`).
+pub fn live_settings(
+    model: LiveModel<'_>,
+    inventory: &serde_json::Value,
+    charters: [&serde_json::Value; 2],
+    row: &serde_json::Value,
+) -> Result<Vec<LiveChange>, String> {
+    require(row["value"]["model"]["name"] == model.row(), &format!("the selected live stock model: {}", model.row()))?;
+    let mut value = row["value"].clone();
+    let mut changes = Vec::new();
+    if let Some(effort) = model.by_name() {
+        let settings = inventory["settings"].as_array().ok_or("settings inventory missing")?;
+        let number = (1..=jig_domain_tasks::MODELS)
+            .rev()
+            .find(|number| {
+                !settings.iter().any(|line| line["setting"]["kind"] == "model" && line["setting"]["number"] == *number)
+            })
+            .ok_or_else(|| format!("no free model number for {}", model.name()))?;
+        require(
+            value["model"]["efforts"].as_array().is_some_and(|efforts| efforts.iter().any(|offered| offered == effort)),
+            &format!("the selected live stock model {} offers no {effort} effort for {}", model.row(), model.name()),
+        )?;
+        value["number"] = number.into();
+        value["model"]["name"] = model.name().into();
+        value["model"]["effort"] = effort.into();
+        value["shown"] = serde_json::Value::Null;
+        value["description"] = serde_json::Value::Null;
+        value["picker"] = true.into();
+        value["withdrawn"] = false.into();
+        value["source"] = "person".into();
+        value["estimated"] = true.into();
+        changes.push(LiveChange {
+            key: "live-model",
+            file: serde_json::json!({"items":[{"setting":{"kind":"model","number":number},"set":value}]}),
+        });
+    }
+    let mut items = Vec::new();
+    for charter in charters {
+        let mut charter_value = charter["value"].clone();
+        charter_value["model"] = value["model"].clone();
+        charter_value["alternatives"] = serde_json::json!([]);
+        charter_value["rest"] = false.into();
+        charter_value["time"] = 240_000_000_000_u64.into();
+        items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
+    }
+    changes.push(LiveChange { key: "live-settings", file: serde_json::json!({"items":items}) });
+    Ok(changes)
+}
+
+/// The `settings apply` of the change at `at` in `live_settings`' order, read from
+/// `file`: the first against the inventory's `newest`, each later one against the
+/// revision the one before it made.
+#[must_use]
+pub fn live_apply(change: &LiveChange, at: usize, newest: u64, file: &str) -> Vec<String> {
+    let revision =
+        newest.checked_add(u64::try_from(at).expect("change index fits revision")).expect("settings revision fits");
+    ["settings", "apply", file, "--against", &revision.to_string(), "--key", change.key]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
 pub struct LivePlan<'a> {
     pub paths: &'a [PathBuf; 3],
     pub client: &'a std::path::Path,
@@ -1501,12 +1591,57 @@ pub fn replies_after(
     Ok(replies)
 }
 
+/// domain/testing.md, 2.7: the chat's one delegate is its change; an agent's
+/// task, as a goal is, fails the story at once, naming it.
+pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
+    let task = row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?;
+    let (kind, executor) = row["chip"]["executor"]
+        .as_object()
+        .and_then(|executor| executor.iter().next())
+        .ok_or("delegate executor missing (chip.executor)")?;
+    if kind == "procedure" {
+        return Ok(task);
+    }
+    let description = if kind == "agent" {
+        let charter = executor["charter"].as_u64().ok_or("delegate charter missing (chip.executor.agent.charter)")?;
+        format!("an agent's on charter {charter}")
+    } else {
+        format!("a {kind}'s")
+    };
+    Err(format!(
+        "the chat's delegate task {task} is {description}, not a change: the shipped chat chooses change (testing.md 2.7)"
+    ))
+}
+
+/// domain/testing.md, 2.7: the landing check's words name the chat's
+/// committed calls, those that succeeded and those that failed.
+pub fn require_chat_change(evidence: &conversation::Evidence) -> Result<(), String> {
+    let succeeded = evidence.tools.iter().cloned().collect::<Vec<_>>().join(", ");
+    let failed = evidence.failed.iter().cloned().collect::<Vec<_>>().join(", ");
+    require(
+        evidence.tools.contains("change"),
+        &format!(
+            "the chat's committed change call succeeded: its committed calls succeeded [{succeeded}] and failed [{failed}]"
+        ),
+    )
+}
+
 /// Names from actual committed call blocks, never from the model's prose.
 #[must_use]
 pub fn successful_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
     let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
     committed_tools(rows)
         .filter(|call| call["failed"] == false && !call["outcome"].is_null())
+        .filter_map(|call| call["tool"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// Names of the chat's failed committed calls from detailed activity.
+#[must_use]
+pub fn failed_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
+    let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
+    committed_tools(rows)
+        .filter(|call| call["failed"] == true)
         .filter_map(|call| call["tool"].as_str().map(str::to_owned))
         .collect()
 }
@@ -1578,6 +1713,7 @@ enum LivePhase {
     Stopping,
     Settled,
 }
+#[expect(clippy::struct_excessive_bools, reason = "the judge tracks independent observations beside its story phase")]
 struct LiveJudge<'a> {
     plan: LivePlan<'a>,
     visitor: Option<usize>,
@@ -1600,6 +1736,8 @@ struct LiveJudge<'a> {
     account_checked: bool,
     linked: bool,
     cleanup: bool,
+    at_stop: Vec<survivors::Row>,
+    survivors_noted: bool,
     ending: Option<super::held_login::Ending>,
     return_at: Option<usize>,
     phase: LivePhase,
@@ -1785,33 +1923,22 @@ impl LiveJudge<'_> {
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
         let reads = &calls.ends()[calls.ends().len() - 4..];
-        let revision = live_json(&reads[0])?["newest"].as_u64().ok_or("settings revision missing")?;
+        let inventory = live_json(&reads[0])?;
+        let revision = inventory["newest"].as_u64().ok_or("settings revision missing")?;
         let catalogue = live_json(&reads[3])?;
-        let model = &catalogue["value"]["model"];
-        require(model["name"] == self.plan.model.name(), "the selected live stock model")?;
-        let mut items = Vec::new();
-        for read in &reads[1..3] {
-            let setting = live_json(read)?;
-            let mut value = setting["value"].clone();
-            value["model"] = model.clone();
-            value["alternatives"] = serde_json::json!([]);
-            value["rest"] = false.into();
-            value["time"] = 240_000_000_000_u64.into();
-            items.push(serde_json::json!({"setting":setting["setting"],"set":value}));
+        let charters = [live_json(&reads[1])?, live_json(&reads[2])?];
+        let changes = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
+        for (at, change) in changes.iter().enumerate() {
+            let file = self.plan.client.join(format!("{}.json", change.key));
+            fs::write(&file, serde_json::to_vec(&change.file).map_err(|error| error.to_string())?)
+                .map_err(|error| error.to_string())?;
+            self.pending.push_back(live_apply(
+                change,
+                at,
+                revision,
+                file.to_str().ok_or("settings FILE path is not UTF-8")?,
+            ));
         }
-        let file = self.plan.client.join("settings.json");
-        let change = serde_json::json!({"items":items});
-        fs::write(&file, serde_json::to_vec(&change).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
-        self.queue(&[
-            "settings",
-            "apply",
-            file.to_str().ok_or("settings FILE path is not UTF-8")?,
-            "--against",
-            &revision.to_string(),
-            "--key",
-            "live-settings",
-        ]);
         self.phase = LivePhase::SettingsChanged;
         Ok(())
     }
@@ -1823,7 +1950,7 @@ impl LiveJudge<'_> {
     ) -> Result<(), String> {
         let mut delegates = Vec::new();
         for row in last["live"].as_array().ok_or("live delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("delegate number missing")?);
+            delegates.push(row);
         }
         let ended = &last["ended"]["rows"];
         require(
@@ -1831,7 +1958,7 @@ impl LiveJudge<'_> {
             "whole chat delegation set",
         )?;
         for row in ended["rows"].as_array().ok_or("ended delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("ended delegate number missing")?);
+            delegates.push(row);
         }
         if delegates.is_empty() {
             let chat = live_json(calls.ends().iter().rev().nth(1).ok_or("chat snapshot missing")?)?;
@@ -1853,7 +1980,7 @@ impl LiveJudge<'_> {
             self.queue_delegates();
         } else {
             require(delegates.len() == 1, "one change delegated by the new chat")?;
-            self.tasks.change = delegates[0];
+            self.tasks.change = change_delegate(delegates[0])?;
             super::live::notice(&format!(
                 "CHANGE task={} chat={} project={}",
                 self.tasks.change, self.tasks.chat, self.tasks.project
@@ -1934,7 +2061,7 @@ impl LiveJudge<'_> {
             require_closed_roots(&last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
-        require(self.conversation.tools.contains("change"), "the chat's committed change call succeeded")?;
+        require_chat_change(&self.conversation)?;
         let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.conversation.tools.contains("delegate"), "no raw delegate started the task")?;
@@ -2234,6 +2361,7 @@ impl LiveJudge<'_> {
     fn stop(&mut self, binary: &mut skein_world::end_to_end::Binary, calls: &mut super::ctl::Calls) {
         calls.release();
         calls.cancel();
+        self.at_stop = survivors::rows(&binary.tree_status().live_pids);
         binary.signal(skein_io::kernel::Signal::Terminate);
         self.phase = LivePhase::Stopping;
     }
@@ -2244,6 +2372,15 @@ impl LiveJudge<'_> {
         calls: &mut super::ctl::Calls,
     ) {
         use skein_shell::Host;
+        if self.stopping()
+            && !self.survivors_noted
+            && let Some(left) = &binary.tree_status().live_at_leader_exit
+        {
+            if !left.is_empty() {
+                super::live::notice(&survivors::lines(left, &survivors::rows(left), &self.at_stop));
+            }
+            self.survivors_noted = true;
+        }
         calls.observe_box_stderr(binary.stderr(), now);
         if !self.linked && super::printed_link(calls.stdout()).is_some() {
             super::live::client_notice(&String::from_utf8_lossy(calls.link()));
@@ -2457,6 +2594,8 @@ pub fn run_live(
         account_checked: false,
         linked: false,
         cleanup: false,
+        at_stop: Vec::new(),
+        survivors_noted: false,
         ending: None,
         return_at: None,
         phase: plan.starting_phase(),
@@ -2664,6 +2803,45 @@ fn kept_project(
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
+
+    #[test]
+    fn survivor_lines_name_each_process_its_parent_and_group() {
+        use super::survivors::{Row, lines, parse};
+
+        let row = |pid, parent, group, command: &str| Row { pid, parent, group, session: 1, command: command.into() };
+        let now = [row(30, 20, 10, "child --flag"), row(40, 20, 20, "other")];
+        let stopped = [row(10, 1, 10, "leader"), row(20, 10, 10, "parent"), row(99, 1, 99, "unrelated")];
+        for (left, at_stop, expected) in [
+            (vec![30], &[][..], "SURVIVOR pid=30 parent=20 group=10 session=1 command=child --flag\n"),
+            (vec![31], &stopped[..], "SURVIVOR pid=31 gone\n"),
+            (
+                vec![30, 31, 40],
+                &stopped[..],
+                concat!(
+                    "SURVIVOR pid=30 parent=20 group=10 session=1 command=child --flag\n",
+                    "AT STOP pid=10 parent=1 group=10 session=1 command=leader\n",
+                    "AT STOP pid=20 parent=10 group=10 session=1 command=parent\n",
+                    "SURVIVOR pid=31 gone\n",
+                    "SURVIVOR pid=40 parent=20 group=20 session=1 command=other\n",
+                    "AT STOP pid=20 parent=10 group=10 session=1 command=parent\n",
+                ),
+            ),
+        ] {
+            assert_eq!(lines(&left, &now, at_stop), expected);
+        }
+        for (stat, expected) in [
+            ("30 (a name ) ( with spaces) S 20 10 1 0 999", Some((20, 10, 1))),
+            ("30 (name) S 20 10", None),
+            ("30 (name) S bad 10 1", None),
+            ("no closing delimiter", None),
+        ] {
+            let parsed = parse(30, stat, b"child\0--flag\0");
+            assert_eq!(parsed.as_ref().map(|row| (row.parent, row.group, row.session)), expected, "{stat}");
+            if let Some(parsed) = parsed {
+                assert_eq!(lines(&[30], &[parsed], &[]), lines(&[30], &now, &[]));
+            }
+        }
+    }
 
     fn person() -> Value {
         json!({"projects":[{"project":2,"name":{"bytes":"hello"}},

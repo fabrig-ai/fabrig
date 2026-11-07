@@ -339,7 +339,13 @@ impl OneShot {
                         self.finish(1, false);
                         return;
                     }
-                    Some(NotSignedIn::LinkUsed | NotSignedIn::LinkExpired | NotSignedIn::LinkUnknown) | None => {
+                    Some(
+                        NotSignedIn::Approval(_)
+                        | NotSignedIn::LinkUsed
+                        | NotSignedIn::LinkExpired
+                        | NotSignedIn::LinkUnknown,
+                    )
+                    | None => {
                         self.fail(b"the sign-in link was refused");
                         return;
                     }

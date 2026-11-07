@@ -709,6 +709,7 @@ fn a_result_ended_task_parking_after_its_delegate_ends_is_due_with_a_notice() {
     world.settle(ASKER);
     world.claim(REQUESTER, ATTEMPT);
     let read = world.record(REQUESTER).last_message;
+    let outstanding = world.record(REQUESTER).inbox.iter().map(|word| word.number).collect();
     response(&mut world, |reply_to| Event::Turn {
         reply_to,
         task: REQUESTER,
@@ -718,7 +719,7 @@ fn a_result_ended_task_parking_after_its_delegate_ends_is_due_with_a_notice() {
         refused: Box::new([]),
         cumulative: 0,
         offered: Some(read),
-        outstanding: Box::new([]),
+        outstanding,
     });
     world.terminal(REQUESTER, End::Parked);
     let row = world.record(REQUESTER);
@@ -730,6 +731,7 @@ fn a_result_ended_task_parking_after_its_delegate_ends_is_due_with_a_notice() {
 fn read_inbox(world: &mut World, task: u64, attempt: u64) {
     let read = world.record(task).last_message;
     if read > 0 {
+        let outstanding = world.record(task).inbox.iter().map(|word| word.number).collect();
         response(world, |reply_to| Event::Turn {
             reply_to,
             task,
@@ -738,7 +740,7 @@ fn read_inbox(world: &mut World, task: u64, attempt: u64) {
             read: Some(read),
             offered: Some(read),
             refused: Box::new([]),
-            outstanding: Box::new([]),
+            outstanding,
             cumulative: 0,
         });
     }

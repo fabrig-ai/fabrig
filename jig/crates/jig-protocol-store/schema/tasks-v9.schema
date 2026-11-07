@@ -37,7 +37,8 @@ enum Contract { approval: Approval, report: Report, verdict: Choices, change: Ch
 record Tools { bits: u64 }
 record Models { bits: u64 all: bool }
 record ModelEffort { model: u8 effort: option u8 }
-record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater account: option u32 }
 record Scopes { bits: u8 }
 record AuthoritySegment { bytes: bytes 4096 }
 enum Last { exact: AuthoritySegment, open: AuthoritySegment }
@@ -279,6 +280,8 @@ record TaskRun {
     milestone: u64
     activity: u64
     due_reason: Why
+    reasons: u32
+    offered: u32
     narrowing: bool llm_changed: bool
     result_position: u64
     last_reply: u64

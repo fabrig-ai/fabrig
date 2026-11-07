@@ -1290,102 +1290,112 @@ fn amend_and_release_calls_name_their_revision() {
     }
 }
 
-const ANSWER_CASES: &[(engine::CallAnswer, &[u8], bool)] = &[
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Placed { hold: u64::MAX } },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, because a placed hold holds it",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Circle },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, for a circle of waits",
-        true,
-    ),
-    (
-        engine::CallAnswer::Again { task: CALL_TASK, required: true },
-        b"Refused: task 23 holds an effect whose outcome is uncertain; say again: true or false",
-        true,
-    ),
-    (
-        engine::CallAnswer::Again { task: CALL_TASK, required: false },
-        b"Refused: task 23 holds no uncertain effect; leave again out",
-        true,
-    ),
-    (
-        engine::CallAnswer::PassedUp { task: CALL_TASK },
-        b"Beyond your authority: task 23's escalation was passed up",
-        false,
-    ),
-    (engine::CallAnswer::Revised { task: CALL_TASK, revision: 2 }, b"Done: task 23 is at spec revision 2", false),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed { tracked: None, fields: 0 } },
-        b"Done: task 3 is at spec revision 1",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed {
-            tracked: None, fields: engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS,
-        } },
-        b"Done: task 3 is at spec revision 1; changed: authority, instructions",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 0, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Tracked { priority: 8 }), fields: 0,
-        } },
-        b"Done: task 3 is at spec revision 0; changed: priority 8",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Untracked), fields: engine::Changed::SPEC,
-        } },
-        b"Done: task 3 is at spec revision 2; changed: untracked, spec",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Tracked { priority: u32::MAX }),
-            fields: engine::Changed::SPEC | engine::Changed::WAKE | engine::Changed::DEPENDENCIES
-                | engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS | engine::Changed::LLM,
-        } },
-        b"Done: task 3 is at spec revision 2; changed: priority 4294967295, spec, wake, dependencies, authority, instructions, llm",
-        false,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Spec { revision: 2 } },
-        b"Moved: task 23 is at spec revision 2 now",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Stopped },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, because it was stopped",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Person { revision: 2 } },
-        b"Moved: task 23 is at person revision 2 now",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Note { revision: 2 } },
-        b"Moved: task 23 is at note revision 2 now",
-        true,
-    ),
-];
-
 #[test]
+#[expect(clippy::too_many_lines, reason = "the answer table allocates boxed task-read cases at runtime")]
 fn each_of_jigs_new_call_answers_renders_its_task_and_value() {
-    for (value, words, error) in ANSWER_CASES {
+    let answer_cases: &[(engine::CallAnswer, &[u8], bool)] = &[
+        (
+            engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Unknown))),
+            b"Task read refused: unknown: no such task, no result yet, or no text at that offset. A task has a result only once it has ended, and its requester hears it then as a result message; while it runs, read its specification (leave out field) for its state, holds and questions.",
+            true,
+        ),
+        (
+            engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Reference))),
+            b"Task read refused: no reference",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Placed { hold: u64::MAX } },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, because a placed hold holds it",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Circle },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, for a circle of waits",
+            true,
+        ),
+        (
+            engine::CallAnswer::Again { task: CALL_TASK, required: true },
+            b"Refused: task 23 holds an effect whose outcome is uncertain; say again: true or false",
+            true,
+        ),
+        (
+            engine::CallAnswer::Again { task: CALL_TASK, required: false },
+            b"Refused: task 23 holds no uncertain effect; leave again out",
+            true,
+        ),
+        (
+            engine::CallAnswer::PassedUp { task: CALL_TASK },
+            b"Beyond your authority: task 23's escalation was passed up",
+            false,
+        ),
+        (engine::CallAnswer::Revised { task: CALL_TASK, revision: 2 }, b"Done: task 23 is at spec revision 2", false),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed { tracked: None, fields: 0 } },
+            b"Done: task 3 is at spec revision 1",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed {
+                tracked: None, fields: engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS,
+            } },
+            b"Done: task 3 is at spec revision 1; changed: authority, instructions",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 0, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Tracked { priority: 8 }), fields: 0,
+            } },
+            b"Done: task 3 is at spec revision 0; changed: priority 8",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Untracked), fields: engine::Changed::SPEC,
+            } },
+            b"Done: task 3 is at spec revision 2; changed: untracked, spec",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Tracked { priority: u32::MAX }),
+                fields: engine::Changed::SPEC | engine::Changed::WAKE | engine::Changed::DEPENDENCIES
+                    | engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS | engine::Changed::LLM,
+            } },
+            b"Done: task 3 is at spec revision 2; changed: priority 4294967295, spec, wake, dependencies, authority, instructions, llm",
+            false,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Spec { revision: 2 } },
+            b"Moved: task 23 is at spec revision 2 now",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Stopped },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, because it was stopped",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Person { revision: 2 } },
+            b"Moved: task 23 is at person revision 2 now",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Note { revision: 2 } },
+            b"Moved: task 23 is at note revision 2 now",
+            true,
+        ),
+    ];
+    for (value, words, error) in answer_cases {
         let rendered = answer(value);
         assert_eq!(rendered.text(), *words, "{value:?}");
         assert_eq!(rendered.error(), *error, "{value:?}");
@@ -1467,6 +1477,7 @@ fn a_delegate_keeps_its_llm_preference() {
     assert_eq!(
         batch[0].llm,
         Some(tasks::LlmChoice {
+            later: None,
             account: Some(43),
             main: tasks::ModelEffort { model: 2, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
@@ -1487,6 +1498,7 @@ fn an_amendment_keeps_its_llm_preference() {
     assert_eq!(
         amendment.llm,
         Some(tasks::LlmChoice {
+            later: None,
             account: Some(43),
             main: tasks::ModelEffort { model: 2, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
@@ -1920,11 +1932,13 @@ fn change_decodes_a_producer_and_llm_by_role() {
         producer: Some(6),
         llm: engine::ChangeLlm {
             producer: Some(tasks::LlmChoice {
+                later: None,
                 account: None,
                 main: tasks::ModelEffort { model: 0, effort: Some(1) },
                 subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
             }),
             review: Some(tasks::LlmChoice {
+                later: None,
                 account: None,
                 main: tasks::ModelEffort { model: 0, effort: Some(0) },
                 subagents: Box::new([]),
@@ -1951,6 +1965,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                 llm: engine::ChangeLlm {
                     producer: None,
                     review: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 1, effort: None },
                         subagents: Box::new([]),
@@ -1962,6 +1977,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
             engine::ChangeCall {
                 llm: engine::ChangeLlm {
                     producer: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 0, effort: None },
                         subagents: Box::new([]),
@@ -2744,6 +2760,55 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
     assert_eq!(unrelated.text(), b"Forge read failed: too large");
     let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
     assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
+}
+
+/// agent.md, 4.3: a refused branch read says what to read instead; every
+/// other refusal keeps its one line.
+#[test]
+fn a_refused_branch_read_says_what_to_read_instead() {
+    use skein_forge::api::Error;
+    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
+    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    for (tool, error, expected) in [
+        (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
+        (b"read_branch", Error::Missing, BRANCH_MISSING),
+        (b"read_branch", Error::Empty, "Forge read failed: empty"),
+        (b"read_branches", Error::Missing, "Forge read failed: missing"),
+        (b"read_file", Error::Missing, "Forge read failed: missing"),
+        (b"read_pull", Error::Empty, "Forge read failed: empty"),
+    ] {
+        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(error)));
+        let rendered = crate::answer_for_tool(&refused, tool, 2048);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+        for cap in [0, 32, 64] {
+            let bounded = crate::answer_for_tool(&refused, tool, cap);
+            assert!(bounded.error());
+            assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+            assert_eq!(bounded.text(), &expected.as_bytes()[..bounded.text().len()]);
+        }
+    }
+}
+
+/// agent.md, 4.3 and 4.3.2: a declaration says what a run calls instead.
+#[test]
+fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
+    let mut count = 0_usize;
+    for tool in tools(Duration::from_secs(1)) {
+        match tool.name.as_ref() {
+            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
+            b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
+            b"read_branches" => {
+                let schema = crate::json::parse(&tool.schema).expect("JSON schema");
+                let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
+                let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
+                assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+            }
+            _ => continue,
+        }
+        count += 1;
+    }
+    assert_eq!(count, 3);
 }
 
 #[test]

@@ -215,6 +215,7 @@ pub fn retained_response(
                 | io::Request::Output { .. }
                 | io::Request::Abort { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => {}

@@ -70,6 +70,7 @@ pub fn limits() -> accounts::Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
+        redirect_bytes: client.url_bytes,
         server: crate::streams::server_limits(&issuer_limits(&client)),
         refresh_lead: Duration::from_secs(10),
         client,
@@ -407,6 +408,7 @@ impl Client {
             configured,
             &self.limits,
             skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("32-byte world seed"),
+            b"oauth-accounts-world",
         )
         .expect("configured accounts");
         if self.story == Story::HandedIn {
@@ -1206,6 +1208,7 @@ pub fn delayed_oauth_output() -> Vec<&'static str> {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }

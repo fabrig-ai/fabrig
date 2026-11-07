@@ -93,6 +93,7 @@ impl Owner {
                 configured,
                 &profile,
                 CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("seed"),
+                b"oauth-accounts-world",
             )
             .expect("component"),
             env: Env { now: time(0), wall: wall(0), limits: profile },

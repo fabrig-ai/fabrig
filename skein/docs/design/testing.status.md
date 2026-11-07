@@ -8,6 +8,9 @@ admission, continuation, failure diagnostics and expected-panic helper.
 Section 9 carries deferred cost work, including further folds,
 allocation layout and the native fork floor.
 
+Section 6's full-screen renderer and terminal crates, golden frames and
+simulated-terminal world are present.
+
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.

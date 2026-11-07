@@ -129,6 +129,7 @@ pub(super) fn component_down(service: &mut Stages) {
             | io::Request::Stream { .. }
             | io::Request::Output { .. }
             | io::Request::Spawn { .. }
+            | io::Request::SpawnAlone { .. }
             | io::Request::Signal { .. }
             | io::Request::Window { .. }
             | io::Request::Usage { .. }

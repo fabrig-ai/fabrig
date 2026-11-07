@@ -171,13 +171,14 @@ listed in section 9.
    them (`../domain/engine.md`, section 6); the clients' component
    answers clients not ready until decisions open
    (`../client/domain/contract.md`, section 4). Where configuration
-   enables the printed link, the startup first checks that the clients'
-   listener, a member of the application's own, is on a loopback
-   address, and refuses the start, naming both, if it is not
-   (`configuration.md`, section 3, clients); only then does the
-   component give its secret, and `main` print its URL, on the
-   application's origin and route (`client.md`, section 8; `browser.md`,
-   section 11).
+   enables the printed link, or a browser's approval, the startup first
+   checks that the clients' listener, a member of the application's own,
+   is on a loopback address, and refuses the start, naming both, if it
+   is not (`configuration.md`, section 3, clients). With the printed
+   link enabled, only after that check does the component give the link's
+   secret, and `main` print its URL, on the application's origin and
+   route (`client.md`, section 8; `browser.md`, section 11). Approval
+   alone prints nothing; its secret is drawn when a client asks.
 5. **The root's restart:** `iterate` gives the root its start, and the
    core's script asks for one step at a time; the protocol layer does the
    store's and the connectors' parts of each step as the root asks; the
@@ -225,9 +226,10 @@ down:  released and door outputs → components → io submissions
 - **A shutdown drains,** from a signal or an operator:
   1. **The listeners stop admitting:** workers' openings refused as
      stopping, clients' requests answered not ready.
-  2. **The core hears that the engine is stopping** and from then on
-     takes nothing that would make a commit, and ends every watch saying
-     so (`../domain/engine.md`, 6.1).
+  2. **The core hears that the engine is stopping,** settles the claims
+     of its agent runs in this process as interrupted, spending no try,
+     in one decision, and from then on takes nothing that would make a
+     commit, and ends every watch saying so (`../domain/engine.md`, 6.1).
   3. **What is in flight finishes:** the commits made before are answered,
      and their held outputs released, until nothing waits for a commit,
      which the core says.
@@ -248,9 +250,12 @@ down:  released and door outputs → components → io submissions
 
   A second signal turns the drain into an abort: what is in flight is
   dropped, which a restart recovers from, as from a crash.
-- **Runs in the engine** die with it: the next start settles their claims
-  (`../domain/engine.md`, section 6). Runs on workers go on for the
-  engine's grace and are adopted when their workers dial in again.
+- **Runs in the engine** die with it: a drain has settled its agent
+  claims as interrupted (step 2), leaving job claims for the next start
+  to settle, since their effects may have happened. After a crash the
+  next start settles both (`../domain/engine.md`, section 6). Runs on
+  workers in other processes go on for the engine's grace and are
+  adopted when their workers dial in again.
 
 ## 6. A worker's service
 
@@ -433,10 +438,25 @@ Each within jig's suites' budgets.
 
 ## 9. Open questions
 
+- **Approval on a listener beyond loopback** (3): the public-name flow
+  and its transport are `client.md`, section 15's later work. Enabling
+  approval continues to require a loopback clients' listener.
+
 - **Generating the routing:** `iterate`'s routing has one shape, as the
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
+- **A worker stopping in another process** (section 6): its Shutdown
+  cancel reaches the running engine, where an agent's cancelled answer
+  counts as `Failed(Agent)` and spends an agent try. Whether an orderly
+  worker restart should instead interrupt that attempt is left for
+  workers apart. Default: the no-try interruption applies only when
+  the engine stops its own in-process agent claims (section 5).
+- **Programs after a forced agent stop** (section 10): a second signal
+  kills an agent's group, leaving a program in its own group outside the
+  kill. Contained trees (README.md, section 10) must cover both, including
+  in one process. Default: the orderly stop cancels runs so agents end
+  their programs; forced stops have no such guarantee.
 - **The server's home.** The server and its bundle helpers (11.4) name
   no type of jig's, and a generic mechanism belongs in skein. `kind`
   spells skein's closed list a second time, since skein's own is in
@@ -498,11 +518,21 @@ between hosts.
 - **Starting and ending together:** configuration for all, then the
   engine's start (section 3), then each worker's (section 6). A signal
   drains the engine (section 5); once it has drained, the service ends
-  the workers at once, with no grace, since no engine will come back
-  while they live: their agent processes' groups are killed as io closes
-  them, and their runs end with the service, as the engine's own slots'
-  do. The next start settles their claims at once (`../domain/engine.md`,
-  section 6).
+  the workers with no grace for their turns and answers, since no engine
+  will come back while they live. Each worker's hub cancels every run,
+  as at a worker's ending (section 6), so that each agent process ends
+  what it started, a program among them (smith's `protocol/programs.md`,
+  section 2), within its host's cancel, then kill (smith's
+  `domain/host.md`, section 4). Once no agent process is left, the
+  service closes the worker, its other children's groups killed as io
+  closes them. A second signal closes the workers at once: their agent
+  processes' groups are killed, and whatever an agent started in a group
+  of its own outlives it until agents run in contained trees (README.md,
+  section 10). Their runs end with the service, as the engine's own
+  slots' do, so the engine settled their agent claims as interrupted when
+  it heard it was stopping, spending no try of their tasks
+  (`../domain/engine.md`, 6.1). After a crash the next start settles
+  them at once (`../domain/engine.md`, section 6).
 - **Its world** is the protocol world of section 8, with workers: the
   engine's and a test worker's services in one loop, joined by in-process
   addresses, the test worker's agents smith's agent processes over skein's

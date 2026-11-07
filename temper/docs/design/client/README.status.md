@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 2 and 6.11 to 6.16 have no known implementation gap in the
+TUI's crates, command, private directory, host seam, pasted-link sign-in,
+live first screen, themes and closing. Section 10's frame goldens,
+host rows, simulated loop and joined-client stories are present. The
+post-landing walk and later passes remain section 11's work; no real
+terminal or macOS runtime result is supplied here.
+
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
 rail and banner totals, and Later under the change's task key. A kind
@@ -48,12 +55,21 @@ section 11's later work.
 
 Section 3.5's terminal frame, commands, kept look, full screen, document,
 questions and compact cards have no known implementation gap beyond
-the departures below. The four request accounts are `2f653fffa3`
+the departures below. Every terminal act, look restoration and closing
+of an open command list advances the pages' shown count. The domain's
+existing table checks the count across acts, restoration and full-screen
+departure, including a list with no command words left in the box.
+The redraw repair account is `703628ea00`: it corrects the Escape
+account's claim that Enter already drew the terminal in its press's step.
+The four request accounts are `2f653fffa3`
 (`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
 (`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
 render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
-section 11).
+section 11). The ground, scrollbar and foot repairs are recorded in
+`browser.status.md`, 2.5. The ordinary bar's two-row title at 1000 px
+remains intentional: `>_` and the status words leave the path less than
+its 320 px, as the user accepted in `look-round-17`.
 
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
@@ -839,3 +855,17 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
+
+Sections 3.5, 5.1 and 5.12 have the browser's approval page, its root
+state and actions, the asked time, signed-out card and approved read each
+second. Section 7.1's native half asks and starts the take, keeping only
+the code and expiry in the root. The domain and view tables, eleven
+gallery states and joint-client stories cover the page and an approving
+browser's party, with a non-browser refused. Sections 6.13 and 7.1 have
+no known implementation gap in the TUI's ask, locally constructed
+address, single-argument opener with null descriptors, `Opened` report,
+fallback lines, pasted-link replacement or Enter to ask again. Golden
+frames and simulated opener rows cover the lines and closing; joined
+TUI stories cover approval by the browser's party, credential keeping,
+the first screen and refusal followed by another ask. Browser and real
+terminal checks remain section 11's after-landing work.

@@ -249,6 +249,12 @@ pub enum Event {
         run: Token,
         attempt: Token,
     },
+    /// The engine stops and settles this attempt as interrupted: forget it,
+    /// telling its host nothing (jig/docs/design/domain/engine.md, 6.1).
+    Interrupt {
+        run: Token,
+        attempt: Token,
+    },
     /// From the parent, the one answer to a `Relay`.
     Relayed {
         to: ReplyTo,

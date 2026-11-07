@@ -354,6 +354,7 @@ pub(super) fn models_frame(
     project.defaults = List::from_boxed(Box::new([c::MeDefault {
         template: jig_client::shapes::CHAT,
         choice: c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
             subagents: List::with_capacity(0),

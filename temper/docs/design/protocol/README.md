@@ -175,7 +175,8 @@ deployment     temper init [DIRECTORIES] [--box]
                temper program-login [DIRECTORIES] NAME
                temper forge fetch|prepare|sign-in|remove [DIRECTORIES] FORGE
                temper forge run [DIRECTORIES] FORGE forgejo|runner
-clients        temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+clients        temper [ADDRESS]
+               temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
                temper ctl DIRECTORY --call FILE [--json]
                temper ctl help [GROUP [VERB]]
                temper open DIRECTORY LINK_OR_ADDRESS
@@ -263,6 +264,15 @@ default; the document is `temper.json` in the configuration directory
   temper reads it, a `"fetched"` program naming its launcher
   (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
   one process per run; a person never does.
+- **`temper [ADDRESS]`:** a person's full-screen terminal client, the
+  TUI (`../client/README.md`, 6.11). Bare `temper`, with stdin and
+  stdout both terminals, runs it at the address it last signed in to,
+  else at `http://127.0.0.1:8367`; with either not a terminal, it prints
+  `temper: no command; temper --help lists them` and exits 1, as before
+  the TUI. ADDRESS is the engine's clients' listener on loopback; the
+  sign-in link is pasted on the TUI's screen, never given. Its
+  directory is its own, under the person's state directory
+  (`../client/README.md`, 6.12). It reads no configuration file.
 - **`temper open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/README.md`, 6.1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
@@ -652,7 +662,10 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `temper box` before it starts serve (`setup.md`, 7.2).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
-  10); contained process trees are for hosts apart (section 14).
+  10); containment after a forced stop remains open (section 14). An
+  agent's program, `claude`, is the agent's child in a group of its own
+  (smith's `protocol/programs.md`, section 2), so killing an agent's
+  group leaves its program running: only the agent's own stop ends it.
 - **The forge outside,** reached over HTTP, and over TLS when it is not
   on loopback; its deliveries reach the webhooks' listener on loopback,
   so a forge on another host polls alone (forge.md, section 5).
@@ -662,10 +675,25 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `../domain/root.md`, section 2).
 - **Starting and ending together:** configuration for both, then the
   engine's start, then the worker's. A signal drains the engine; once it
-  has drained, the service ends the worker at once, its agent processes'
-  and git invocations' groups killed as io closes them. No worker
-  outlives the engine, so the next start settles the worker's claims at
-  once (jig's `domain/engine.md`, section 6; `../domain/root.md`, 9.1).
+  has drained, the service stops the worker, with no grace for its turns
+  and answers: its runs are cancelled, each agent process ending its
+  program before it exits, within smith's cancel, then kill, and the
+  service closes the worker once no agent process is left, its git
+  invocations' groups killed as io closes them (jig's
+  `protocol/service.md`, section 10). The service exits only after. A
+  second signal closes the worker at once, its agent processes' groups
+  killed, and a program they started outlives them until agents run in
+  contained trees (section 14). No worker outlives the engine, so the
+  engine, on hearing the signal, settles the worker's agent claims
+  as interrupted (jig's `domain/engine.md`, 6.1): a stop spends no try
+  of a run's task, a coding run's among them, and moves none of its
+  change's counts; the task is due again at the next start, its next
+  attempt resuming from the turns it committed and starting from the
+  work it saved last (`../domain/worker.md`, 4.2 and 5). After a crash,
+  the next start settles them at once, lost or not started (jig's
+  `domain/engine.md`, section 6; `../domain/root.md`, 9.1). Job claims
+  remain for restart recovery even after a drain, since their effects
+  may have happened.
 - **Its world** is `tests/one-process` (`../domain/testing.md`, 2.5).
 
 ### 8.1 A long pass
@@ -951,6 +979,9 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 
 Each document keeps its own; these cross them:
 
+- **The TUI's later passes** (section 4): the browser's approval,
+  recording and post-landing terminal walk stay with the client's
+  design (`../client/README.md`, section 11).
 - **Names while running.** io connects to addresses, resolved at
   startup, while a forge's address may move behind its CDN, and a name
   that does not resolve at the start leaves its forge unreachable for
@@ -975,10 +1006,15 @@ Each document keeps its own; these cross them:
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
   section 10). Default: agent processes, as `temper internal agent`.
+- **Programs after a forced agent stop** (section 8): killing an agent's
+  group leaves a program in its own group running, even in standalone.
+  Ending both needs contained trees or a parent-death signal for the
+  program (setup.md, section 15). Default: the orderly stop lets agents
+  end their programs; a second signal or forced close has no such guarantee.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,
-  contained process trees, a worker alone on another host (jig's
+  containment for shared hosts, a worker alone on another host (jig's
   `protocol/README.md`, section 10; on one machine it is the cluster's,
   section 15); the forge as people's sign-in
   provider (credentials.md, section 8); the forge's client documents and
@@ -1290,6 +1326,11 @@ worker added later, 4.6's hung worker.
 
 ### 15.7 Later
 
+- **A worker stopped apart from its engine** (15.4): its Shutdown
+  cancel's agent answer counts as `Failed(Agent)`, spending an agent
+  try while the engine stays up. Giving that restart the standalone
+  stop's no-try interruption (section 8) is left for the cluster
+  (jig's `protocol/service.md`, section 9).
 - **The case's restart story** (15.6): jig's fleet must take a draining
   worker out of placement before its runs end, so a retry cannot be
   journaled as an extra refused attempt on its still-linked channel.

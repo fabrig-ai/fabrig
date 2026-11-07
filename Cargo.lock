@@ -3892,6 +3892,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-ui-screen"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-ui",
+]
+
+[[package]]
+name = "skein-ui-screen-terminal"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-screen",
+]
+
+[[package]]
+name = "skein-ui-screen-tests"
+version = "0.0.0"
+dependencies = [
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "skein-sim",
+ "skein-ui",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
+]
+
+[[package]]
 name = "skein-ui-tests"
 version = "0.0.0"
 dependencies = [
@@ -4795,6 +4826,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
@@ -4834,6 +4866,8 @@ dependencies = [
  "skein-tls",
  "skein-tls-kit",
  "skein-ui",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
  "skein-world",
  "smith-agent-service",
  "smith-agent-shell",
@@ -4851,12 +4885,15 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
+ "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tools",
+ "temper-client-tui",
  "temper-client-world",
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
@@ -4976,17 +5013,24 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-client-protocol-wire",
  "skein-browser",
  "skein-fail-stop",
  "skein-fake-person",
  "skein-fake-person-browser",
+ "skein-io",
  "skein-lib",
  "skein-scratch",
+ "skein-shell",
  "skein-ui",
  "skein-ui-bundle",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
  "skein-ui-web",
+ "temper-client-shell-tui",
  "temper-client-shell-web",
+ "temper-client-tui",
 ]
 
 [[package]]
@@ -5047,6 +5091,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-shell-tui"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-http",
+ "jig-client-protocol-wire",
+ "jig-client-shell-native",
+ "skein-fake-machine",
+ "skein-io",
+ "skein-lib",
+ "skein-shell",
+ "skein-sim",
+ "skein-ui",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
+ "temper-client-domain",
+ "temper-client-shell-terminal",
+ "temper-client-shell-web",
+ "temper-client-tui",
+ "temper-client-view",
+]
+
+[[package]]
 name = "temper-client-shell-web"
 version = "0.0.0"
 dependencies = [
@@ -5092,6 +5159,20 @@ dependencies = [
  "temper-docs",
  "temper-fixtures",
  "temper-settings-form",
+]
+
+[[package]]
+name = "temper-client-tui"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-screen",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view",
 ]
 
 [[package]]
@@ -5143,6 +5224,8 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-ui",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
  "skein-ui-text",
  "skein-world",
  "smith-domain-session",
@@ -5150,7 +5233,9 @@ dependencies = [
  "smith-transcript",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-shell-tui",
  "temper-client-tools",
+ "temper-client-tui",
  "temper-client-view",
  "temper-engine-domain",
  "temper-engine-domain-forge",

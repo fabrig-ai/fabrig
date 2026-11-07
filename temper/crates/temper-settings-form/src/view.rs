@@ -14,6 +14,7 @@ pub struct ChangeSettings {
     pub items: List<SettingItem>,
     pub running: Running,
 }
+/// A charter and its parts (temper/docs/design/client/tools.md, 5.3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
     pub rest: bool,
@@ -34,6 +35,41 @@ pub struct Charter {
     pub spend: u64,
     pub wake: WakePolicy,
     pub documents: List<CharterDocument>,
+    pub parts: List<CharterPart>,
+}
+/// The store names in bit order (temper/docs/design/client/tools.md, 5.3).
+pub const REASON_NAMES: [&[u8]; 14] = [
+    b"first",
+    b"question",
+    b"question_answered",
+    b"question_ended",
+    b"question_owed",
+    b"escalation",
+    b"proposal",
+    b"person_stalled",
+    b"result",
+    b"notice",
+    b"nothing_awaited",
+    b"news",
+    b"timer",
+    b"words",
+];
+/// The kinds every run is offered, which choose no part (temper/docs/design/client/tools.md, 5.3).
+pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
+    b"answer",
+    b"proposal_decision",
+    b"settings_decision",
+    b"effect_not_made",
+    b"met",
+    b"amendment",
+    b"finish_requested",
+];
+/// A charter's part (temper/docs/design/client/tools.md, 5.3).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterPart {
+    /// Bits of `REASON_NAMES`, as jig's client `CharterPart.on`.
+    pub on: u32,
+    pub instructions: Text,
 }
 /// A charter document (temper/docs/design/protocol/configuration.md, 13.7).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -65,10 +101,18 @@ pub struct HeldRevision {
     pub head: RevisionHead,
     pub holders: u32,
 }
+/// A template's model choice (temper/docs/design/client/tools.md, 5.3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
     pub account: Option<u32>,
+    pub main: ModelEffort,
+    pub subagents: List<ModelEffort>,
+    pub later: Option<LlmLater>,
+}
+/// The choice after a task's first activation (temper/docs/design/client/tools.md, 5.3).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LlmLater {
     pub main: ModelEffort,
     pub subagents: List<ModelEffort>,
 }
@@ -621,7 +665,7 @@ pub enum SizedEdit {
     Reset,
 }
 
-/// The charter document member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
+/// The charter member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.
@@ -636,8 +680,10 @@ pub enum SettingMember {
     Heading,
     /// The document connector's registration.
     Connector,
+    /// The charter's stored policy and parts byte length.
+    StoredPolicy,
 }
-/// The failed document rule; scalar bounds are carried beside it.
+/// The failed setting rule; scalar bounds are carried beside it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingRule {
     /// The supplied count or length exceeds the configured maximum.
@@ -647,12 +693,12 @@ pub enum SettingRule {
     /// The supplied connector number is not registered.
     Registered,
 }
-/// Bounded refusal facts, without copying any of the rejected document's bytes.
+/// Bounded refusal facts, without copying any of the rejected charter's bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDetail {
-    /// The member relative to the charter's documents.
+    /// The member relative to the charter.
     pub member: SettingMember,
-    /// Document index; zero for the whole documents member.
+    /// Document index; zero for documents or stored policy.
     pub document: u32,
     /// Name segment index; zero for members other than `NameSegmentBytes`.
     pub segment: u32,

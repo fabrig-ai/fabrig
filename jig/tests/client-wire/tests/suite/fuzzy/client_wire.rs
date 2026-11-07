@@ -18,6 +18,9 @@ macro_rules! check {
 mod documents;
 
 fn records_1(bytes: &[u8]) {
+    check!(CharterPart, bytes);
+    check!(LlmLater, bytes);
+    check!(LlmChoice, bytes);
     check!(CharterDocument, bytes);
     check!(Charter, bytes);
     check!(ReadValue, bytes);
@@ -37,6 +40,17 @@ fn records_1(bytes: &[u8]) {
     check!(SignInAnswer, bytes);
     check!(SignOut, bytes);
     check!(SignOutAnswer, bytes);
+    check!(ApprovalAsk, bytes);
+    check!(ApprovalAsked, bytes);
+    check!(ApprovalAskAnswer, bytes);
+    check!(ApprovalRead, bytes);
+    check!(ApprovalWaiting, bytes);
+    check!(ApprovalState, bytes);
+    check!(ApprovalDecide, bytes);
+    check!(ApprovalDecided, bytes);
+    check!(ApprovalSignIn, bytes);
+    check!(ApprovalFull, bytes);
+    check!(ApprovalSignInAnswer, bytes);
     check!(Authorize, bytes);
     check!(AuthorizeGo, bytes);
     check!(AuthorizeWhy, bytes);

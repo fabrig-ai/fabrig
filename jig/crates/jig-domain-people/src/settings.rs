@@ -38,7 +38,7 @@ pub enum Running {
     Moves,
 }
 
-/// The charter document member rejected by the settings check (engine.md, 17.9).
+/// The charter member rejected by the settings check (engine.md, 17.9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.
@@ -53,8 +53,10 @@ pub enum SettingMember {
     Heading,
     /// The document connector's registration.
     Connector,
+    /// The charter's stored policy and parts byte length.
+    StoredPolicy,
 }
-/// The failed document rule; scalar bounds are carried beside it.
+/// The failed setting rule; scalar bounds are carried beside it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingRule {
     /// The supplied count or length exceeds the configured maximum.
@@ -64,12 +66,12 @@ pub enum SettingRule {
     /// The supplied connector number is not registered.
     Registered,
 }
-/// Bounded refusal facts, without copying any of the rejected document's bytes.
+/// Bounded refusal facts, without copying any of the rejected charter's bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDetail {
-    /// The member relative to the charter's documents.
+    /// The member relative to the charter.
     pub member: SettingMember,
-    /// Document index; zero for the whole documents member.
+    /// Document index; zero for documents or stored policy.
     pub document: u32,
     /// Name segment index; zero for members other than `NameSegmentBytes`.
     pub segment: u32,

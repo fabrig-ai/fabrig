@@ -10,6 +10,8 @@ extern crate alloc;
 pub mod acts;
 pub mod address;
 pub mod amend;
+pub mod approve;
+pub mod asked;
 pub mod authorize;
 pub mod boundary;
 pub mod copy;

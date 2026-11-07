@@ -226,10 +226,10 @@ impl Rules {
                         .or_insert(revision);
                 }
             }
-            Receipt::Answer { attempt, final_answer, words } => {
+            Receipt::Answer { attempt, final_answer, unconfigured_model, words } => {
                 if final_answer && let Some(key) = self.attempts.get(&(client, attempt)) {
                     judge.check(
-                        self.made.contains_key(key),
+                        self.made.contains_key(key) || unconfigured_model,
                         "nothing shown done before durable: final answer has no write",
                     );
                     judge.meet(&Deadline::Request(key.0, key.1));

@@ -134,7 +134,12 @@ impl<const BAD: u8> App for Broken<BAD> {
     }
     fn received(event: &Event) -> Vec<Receipt> {
         match event {
-            Event::Answer => vec![Receipt::Answer { attempt: Token::new(1), final_answer: true, words: Some((9, 1)) }],
+            Event::Answer => vec![Receipt::Answer {
+                attempt: Token::new(1),
+                final_answer: true,
+                unconfigured_model: false,
+                words: Some((9, 1)),
+            }],
             Event::Start | Event::Press => vec![],
         }
     }

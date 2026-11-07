@@ -8,6 +8,19 @@ pub(in crate::codec) fn wire_llm_choice(value: &c::LlmChoice, limits: &w::Limits
     w::LlmChoice::new(
         limits,
         w::LlmChoiceParts {
+            later: value
+                .later
+                .as_ref()
+                .map(|later| {
+                    w::LlmLater::new(
+                        limits,
+                        w::LlmLaterParts {
+                            main: wire_model_effort(&later.main, limits)?,
+                            subagents: list(later.subagents.iter().map(|item| wire_model_effort(item, limits)))?,
+                        },
+                    )
+                })
+                .transpose()?,
             account: value.account.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             main: wire_model_effort(&value.main, limits)?,
             subagents: list(value.subagents.iter().map(|item| wire_model_effort(item, limits)))?,

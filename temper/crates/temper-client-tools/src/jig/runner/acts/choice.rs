@@ -55,7 +55,7 @@ pub(crate) fn llm(
     let main = c::ModelEffort { model: model.name.clone(), effort };
     let mut choice = match before {
         Some(choice) => choice.clone(),
-        None => c::LlmChoice { account: None, main: main.clone(), subagents: List::with_capacity(0) },
+        None => c::LlmChoice { later: None, account: None, main: main.clone(), subagents: List::with_capacity(0) },
     };
     choice.main = main;
     Ok(Some(choice))

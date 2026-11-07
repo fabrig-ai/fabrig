@@ -10,7 +10,7 @@ pub(crate) fn mapping() -> Mapping {
 pub(crate) fn credential() -> Secret {
     Secret::new(Box::new(CREDENTIAL))
 }
-pub(crate) fn messages() -> [Message; 9] {
+pub(crate) fn messages() -> [Message; 13] {
     [
         Message::Request(Box::new([])),
         Message::Read(Box::new([])),
@@ -21,6 +21,10 @@ pub(crate) fn messages() -> [Message; 9] {
         Message::SignInService,
         Message::SignOut,
         Message::Authorize(Box::new([])),
+        Message::ApprovalAsk(Box::new([])),
+        Message::ApprovalRead(Box::new([])),
+        Message::ApprovalDecide(Box::new([])),
+        Message::SignInApproval(Box::new([])),
     ]
 }
 

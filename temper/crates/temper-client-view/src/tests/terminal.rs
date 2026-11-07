@@ -169,10 +169,27 @@ fn the_terminal_says_where_it_is_and_what_runs() {
         if let Some(run) = run {
             assert_eq!(run.name, status);
             assert_eq!(run.role, Role::Status);
+            let foot = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::SESSION_FOOT)).unwrap();
+            assert_eq!(foot.role, Role::Form);
+            assert_eq!(super::connect_forge::parent(tree, run.id), Some(foot.id), "running line's form: state {state}");
+            let at = tree.nodes().iter().position(|n| n.id == foot.id).unwrap();
+            assert_eq!(tree.nodes()[at.checked_add(1).unwrap()].id, run.id, "running line first: state {state}");
+            let next = at.checked_add(1).unwrap().checked_add(usize::try_from(run.size).unwrap()).unwrap();
+            let composer = &tree.nodes()[next];
+            assert!(
+                composer.styles.as_slice().contains(&look::SESSION_COMPOSER),
+                "composer follows running line: state {state}"
+            );
+            assert_eq!(super::connect_forge::parent(tree, composer.id), Some(foot.id));
         }
         assert!(styled(tree, look::SESSION_COMPOSER));
         assert!(styled(tree, look::TERMINAL_LINE));
         if !ended {
+            let line = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::TERMINAL_LINE)).unwrap();
+            let size = usize::try_from(tree.nodes()[line].size).unwrap();
+            let model =
+                tree.nodes()[line..line.checked_add(size).unwrap()].iter().find(|n| n.role == Role::Button).unwrap();
+            assert!(!model.styles.as_slice().contains(&look::TERMINAL_BTN), "plain model button: state {state}");
             let hint = if paused { "paused · a message resumes it" } else { "/ for commands" };
             assert!(f::find(tree, Role::Paragraph, hint.as_bytes()).is_some(), "state {state}");
             assert!(f::find(tree, Role::TextArea, b"Message").is_some());
@@ -182,6 +199,7 @@ fn the_terminal_says_where_it_is_and_what_runs() {
             assert!(f::find(tree, Role::Button, name).is_none(), "{name:?}");
         }
         let exit = f::find(tree, Role::Button, b"Exit").unwrap();
+        assert!(tree.find(exit).unwrap().styles.as_slice().contains(&look::TERMINAL_BTN));
         assert_eq!(
             crate::act(&mut view, exit, skein_ui::Act::Press),
             Some(Action::Pages(Act::Terminal(terminal::Act::Leave)))
@@ -230,6 +248,7 @@ fn command_root(state: u8) -> d::Domain {
         account: Some(1),
         main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
         subagents: skein_lib::List::with_capacity(0),
+        later: None,
     });
     if state != 4 {
         let mut acts = skein_lib::List::with_capacity(4);

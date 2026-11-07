@@ -1834,8 +1834,16 @@ temper box
 - **Its environment:** each step gets the box's; `temper forge run`
   clears it for Forgejo (6.4).
 - **Its children** are skein-io's (skein's `io.md`, section 6), each in a
-  process group of its own; closing one kills its group, so nothing the
-  box started outlives its stop, nor, on Linux, its death (7.1).
+  process group of its own; closing one kills its group. A descendant
+  that starts another group or session is outside that kill. Nothing the
+  box starts may outlive its stop, nor, on Linux, its death (7.1); each
+  spawning owner must end descendants outside its group too. serve's
+  agent processes and their programs are serve's children, not the box's
+  steps: serve's first signal stops them, each agent ending its program,
+  before serve exits (README.md, section 8). A serve the box closes, or
+  one a second signal aborts, kills its agents' groups, and a program an
+  agent started outlives it until agents run in contained trees
+  (section 15).
 
 ### 7.3 What it names
 
@@ -2667,6 +2675,12 @@ override.
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
+- **Its sign-ins:** `engine.clients`' `link` and `approval` both
+  `true`, in both documents and the owned example (8.1): the printed
+  link (7.2) and a terminal approved by the person's browser
+  (`../client/README.md`, 7.1), on the clients' loopback listener
+  (configuration.md, section 3, clients). The box prints the link
+  alone; the approval prints nothing.
 - **Its limits:** the owned example's (8.1), the `standard` profiles,
   among them `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's
@@ -3919,6 +3933,14 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **The TUI's browser sign-in and its walk** (8.3): its host and view
+  ask, open the locally constructed `/terminal?code=...` address or show
+  it with the code when no browser opens, draw each outcome and offer to
+  ask again (`../client/README.md`, 7.1; `../draft/tui.execution.md`, M2).
+  The fresh-box terminal walk follows that flow's landing; recording
+  follows in M3. A public-name deployment and its Google sign-in remain
+  `../draft/tui.md`, section 7's later pass.
+
 - **Links for several members or a pasted App** (5.3, 17.2): several
   members need a family of links and a connecting owner's evidence; a
   pasted App needs user authorization or an owner's verified claim.
@@ -3940,6 +3962,13 @@ Each is intended; what it needs is named with it.
   the process tier, within its standing budget. The separate killed-test
   story checks another ownership link; it does not replace killing a
   box whose playground steps run (`../domain/testing.md`, 2.6 and 11).
+
+- **The owned-forge Claude Code lifetime proof** (7.2): after landing,
+  run the live landing story with its no-survivor assertion and the box's
+  stop bounds unchanged. For any survivor, use its rows and stop snapshot
+  to identify the spawning owner, then repair that lifetime at its lowest
+  place under a failing test. A coding run's own child belongs to the
+  run's sandbox lifetime.
 
 - **Four agents on a laptop** (8.1, 8.3): measure their combined resident
   memory, including any program an agent launches, after landing. The
@@ -4092,6 +4121,13 @@ Each is intended; what it needs is named with it.
   there fails until it has write" (`../client/README.md`, 4.7) does not
   say so. Reading each adopted repository's permission at a connect is
   what would close it.
+- **Agents in contained trees** (7.2; README.md, sections 8 and 14): a
+  serve the box closes, or one a second signal aborts, kills its agents'
+  groups, and a program an agent started, in a group of its own,
+  outlives it. Ending both needs skein's contained trees (skein's
+  `io.md`, 6.3 and 6.4), or a parent-death signal skein-io's spawn can
+  ask for. Default: serve's first signal stops its agents, which end
+  their programs (7.2).
 - **Reading a runner's row** (6.3): a preparation goes by
   `runner/config.yaml`, since Forgejo's command line cannot read the
   row. So a row a person removed stays gone until that file is removed

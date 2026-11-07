@@ -12,6 +12,9 @@ name = "temper"
 path = "src/main.rs"
 test = false
 
+[features]
+record = ["temper-client-shell-tui/record"]
+
 [dependencies]
 settings-form.workspace = true
 temper-docs.workspace = true
@@ -32,6 +35,10 @@ temper-box.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true
 temper-client-shell-terminal.workspace = true
+temper-client-shell-tui.workspace = true
+temper-client-tui.workspace = true
+skein-ui-screen.workspace = true
+skein-ui-screen-terminal.workspace = true
 skein-ui.workspace = true
 temper-worker-domain.workspace = true
 skein-forge-connection.workspace = true
@@ -59,6 +66,8 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+jig-client-kit.workspace = true
+temper-engine-domain-world = { path = "../../tests/engine/domain" }
 temper-fixtures.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-playground.workspace = true

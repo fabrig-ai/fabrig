@@ -1605,6 +1605,7 @@ pub fn playground_frame_with_watch(
     me.projects.get_mut(0).unwrap().defaults = List::from_boxed(Box::new([c::MeDefault {
         template: jig_client::shapes::CHAT,
         choice: c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort {
                 model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
@@ -1715,6 +1716,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     doc.readiness = readiness;
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
@@ -1747,6 +1749,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
     let me = template.pages().me(template.client()).unwrap().clone();
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort {
             model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),

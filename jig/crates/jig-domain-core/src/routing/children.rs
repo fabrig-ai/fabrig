@@ -81,13 +81,7 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
             brief::GatherRequest::Complete { brief, order } => {
                 let task = brief.raw();
                 let current = match core.contexts.get(&task) {
-                    Some(context) => match core.tasks.task(task) {
-                        Some(row) => {
-                            row.phase == tasks::Phase::Active(tasks::Active::Preparing)
-                                && core.tasks.run_message(task) == Some(context.last_message)
-                        }
-                        None => false,
-                    },
+                    Some(context) => super::run::parts::preparation_current(core, context),
                     None => false,
                 };
                 if !current {
@@ -160,6 +154,11 @@ pub(crate) fn tag_fleet(
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
             fleet::Request::SignedOut { to, channel, name, result } => {
                 Request::Held(Box::new(Held::SourceSignedOut { to, channel, name, result }))
+            }
+            fleet::Request::Acknowledge { run, attempt, .. } | fleet::Request::AcknowledgeTurn { run, attempt, .. }
+                if super::stopping::interrupted(core, run, attempt) =>
+            {
+                continue;
             }
             fleet::Request::Acknowledge { channel, run, attempt } => {
                 Request::Held(Box::new(Held::Acknowledge { channel, run, attempt }))
@@ -780,6 +779,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
+        | fleet::Event::Interrupt { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
@@ -873,6 +873,7 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
+        | fleet::Event::Interrupt { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Answer { .. }
         | fleet::Event::Inbound { .. }

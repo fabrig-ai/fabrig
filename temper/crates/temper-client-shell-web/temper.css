@@ -825,6 +825,17 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 .temper-sign-in a:focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 3.5px; }
 @media (max-width: 600px) { .temper-main.temper-sign-in { padding-top: 28px; } .temper-sign-in > .temper-card { padding: 23.33px 21px 21px; } }
 
+/* ==== tui: approval ==== */
+.temper-approve-code { font: 28px var(--temper-mono); letter-spacing: 0.12em; color: var(--temper-ink); margin: 23.33px 0 16.33px; }
+.temper-approve-asked { color: var(--temper-muted); font-size: 13px; }
+.temper-approve-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 21px; }
+.temper-approve-acts > label { flex-basis: 100%; }
+.temper-approve-acts > input { flex: 1 1 10em; min-width: 0; width: auto; font: 16px var(--temper-mono); letter-spacing: 0.12em; }
+.temper-approve .temper-approve-primary { background: var(--temper-accent); border-color: var(--temper-accent); color: white; }
+.temper-approve .temper-approve-primary:hover { background: var(--temper-accent-dark); border-color: var(--temper-accent-dark); }
+.temper-approve [role=alert] { color: var(--temper-red); font-size: 12.83px; }
+@media (max-width: 600px) { .temper-main.temper-approve { padding-top: 28px; } .temper-approve > .temper-card { padding: 23.33px 21px 21px; } }
+
 /* Failure reasons repeat the mockup's red; shared account/sign-in rows keep their own styles. */
 :is(.temper-flow-details, .temper-model-key) > [role=alert] { color: var(--temper-red); font-size: 12.83px; margin: 0 0 11.67px; }
 /* Folded paste refusals keep the card's alert priority. */
@@ -1672,6 +1683,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
   --gf-mono: 'IBM Plex Mono', ui-monospace, monospace;
   border-left: 1px solid var(--line); padding: 36px 44px 72px; background: var(--doc-bg); color: var(--doc-ink);
   font: 400 15.5px/1.7 var(--gf-sans); font-variant-ligatures: normal; scrollbar-color: var(--doc-line) transparent;
+  scrollbar-width: thin; scrollbar-gutter: auto;
 }
 #app > .temper-session.temper-terminal-light > .temper-doc {
   --doc-bg: #f8f6f1; --doc-ink: #34312c; --doc-title: #26241f; --doc-muted: #7a736a; --doc-faint: #a09889; --doc-line: #e9e4db;
@@ -1745,7 +1757,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 
 /* The main and conversation carry the request's panes and left column. */
 #app > .temper-terminal > .temper-terminal-top { grid-column: 1 / -1; }
-#app > .temper-terminal > .temper-convo { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+#app > .temper-session.temper-terminal > .temper-convo { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
 #app > .temper-terminal .temper-thread { min-height: 0; min-width: 0; }
 #app > .temper-terminal .temper-thread > [role=log] { flex: 1; min-height: 0; padding: 22px 3ch 6px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; scrollbar-gutter: auto; }
 #app > .temper-terminal .temper-thread-inner { max-width: 100ch; margin: 0; gap: 0; }
@@ -1835,7 +1847,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-session-composer > textarea { min-height: 1.6em; max-height: 12.8em; margin: 0; font: inherit; line-height: inherit; color: var(--ink); caret-color: var(--accent); }
 #app > .temper-terminal .temper-session-composer > textarea::placeholder { color: var(--faint); opacity: 1; }
 #app > .temper-terminal .temper-session-composer > .temper-terminal-star { flex: none; color: var(--accent); }
-#app > .temper-terminal .temper-terminal-run { margin: 0 3ch; max-width: 100ch; border: 0; border-radius: 0; background: none; font: inherit; font-weight: 400; text-transform: none; }
+#app > .temper-terminal .temper-terminal-run { border: 0; border-radius: 0; background: none; font: inherit; font-weight: 400; text-transform: none; }
 #app > .temper-terminal .temper-terminal-line { align-items: baseline; }
 #app > .temper-terminal .temper-terminal-line > .temper-terminal-hint { flex: 1; margin: 0; color: var(--dim); }
 #app > .temper-terminal .temper-terminal-line > div > p:last-child { flex: none; margin: 0; color: var(--dim); white-space: nowrap; }
@@ -1861,7 +1873,6 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
   #app > .temper-terminal .temper-thread > [role=log] { padding: 16px 2ch 4px; }
   #app > .temper-terminal .temper-convo > .temper-session-foot { padding: 4px 2ch max(8px, env(safe-area-inset-bottom)); }
   #app > .temper-terminal .temper-terminal-btn { padding: 4px 1ch; }
-  #app > .temper-terminal .temper-terminal-run { margin-inline: 2ch; }
   #app > .temper-terminal .temper-terminal-line > div > p:last-child { display: none; }
 }
 

@@ -107,6 +107,23 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
     }
 }
 
+/// The attempt's kept reasons and the kinds that wake this activation
+/// (jig/docs/design/domain/tasks.md, 8.6).
+pub(crate) fn reasons(domain: &Domain, number: u64, inbox: &[Word]) -> crate::Reasons {
+    let mut reasons = record(domain, number).expect("activation task live").reasons;
+    for word in inbox {
+        let wakes = match rule(domain, number, word) {
+            WakeRule::Immediate => true,
+            WakeRule::Batch { .. } | WakeRule::Paced { .. } => word.eligible,
+            WakeRule::Never => false,
+        };
+        if wakes {
+            reasons = reasons.union(crate::Reasons::of(&word.kind));
+        }
+    }
+    reasons
+}
+
 fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
     let task = record(domain, number).expect("inbox task live");
     let mut hits = 0_u32;
@@ -249,6 +266,9 @@ pub(crate) fn after_message(
             activate(domain, number, out);
         }
         Phase::Active(Active::Claimed { attempt } | Active::Running { attempt }) => {
+            if !crate::offered(&word, row.offered) {
+                return;
+            }
             // A run behind its choice hears nothing more: the message starts the next run
             // (domain/tasks.md, section 7).
             if row.llm_changed {
@@ -291,6 +311,18 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
     task.record.refused = Box::new([]);
     if task.record.phase == Phase::Active(Active::Idle) {
         after_step(domain, env, number, out);
+    }
+    if record(domain, number).expect("answered task live").phase != Phase::Active(Active::Idle) {
+        return;
+    }
+    // Only an idle task judges its entries again: a live run already heard them.
+    for entries in [crate::proposals::waiting_for(domain, number), crate::escalation::waiting_for(domain, number)] {
+        for word in entries {
+            if record(domain, number).expect("decision holder live").phase != Phase::Active(Active::Idle) {
+                return;
+            }
+            after_message(domain, env, number, None, word, out);
+        }
     }
 }
 

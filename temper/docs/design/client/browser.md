@@ -266,6 +266,7 @@ replay says the same clocks (`README.md`, 5.12).
   | `ConnectForge { forge }` | `/forges/connect`, and its choice's query |
   | `ConnectModel { way }` | `/accounts/connect`, and its way's query |
   | `Authorize { query }` | `/oauth/authorize`, and the query as the address carried it, within jig's bound on an authorization's query (`../protocol/sign-in.md`, 9.3) |
+  | `Approve { code }` | `/terminal`, and `?code=` the code as shown, `WDJB-MJHT` (`README.md`, 3.5, *The approval page*) |
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
@@ -287,7 +288,8 @@ replay says the same clocks (`README.md`, 5.12).
   person's projects: a project the person isn't in shows an empty
   inbox, which its unfiltered address undoes. The inbox's filter, the chats
   list's (below), the welcome's step,
-  `ConnectForge`'s choice, `ConnectModel`'s way (below) and
+  `ConnectForge`'s choice, `ConnectModel`'s way (below),
+  `Approve`'s code (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
   are in an address, and another page's query is dropped, `/chats/7?x=1`
   replaced with `/chats/7`.
@@ -336,6 +338,27 @@ replay says the same clocks (`README.md`, 5.12).
   `/accounts/connect?provider=1&way=sign-in&source=7`. A source on
   another way, or one that doesn't read as a number, is dropped as
   above.
+- **The approval page's code is its query:** `/terminal` is the page
+  asking for a code, and `?code=WDJB-MJHT` carries one, the code as
+  shown, four letters, a hyphen and four (`README.md`, 3.5, *The
+  approval page*). The codec reads the first `code` field whose value
+  reads by jig's `ApprovalCode::parse`: eight letters of the code's
+  alphabet in either case, hyphens and spaces ignored, within 32 bytes,
+  with no percent-decoding; it drops one that doesn't read, one named
+  again after it and a field of another name, and the address is
+  replaced with the printed one: `/terminal?code=wdjb-mjht` with
+  `/terminal?code=WDJB-MJHT`, `/terminal?code=AEIO` and
+  `/terminal?x=1` with `/terminal`. Its printing,
+  `address::print_approve(code: Option<ApprovalCode>)`, `/terminal`
+  for none, is the shown form, upper case, and the only one: the TUI makes its tab's address from the engine's
+  address and this path alone (`README.md`, 7.1). The place is no
+  page's address, as `Authorize` is none: the pages' links never lead
+  to it, and the person reaches it by the address alone. The code is
+  no secret (jig's `protocol/client.md`, section 8, *Its risk*), and
+  the server's `Referrer-Policy: no-referrer` (2.2) keeps it from any
+  other site the page might link to. temper's server answers `GET
+  /terminal` with the page, as it answers every path that is no route
+  of its own (2.2).
 - **A filter chosen is a move** (below), with its history entry: a
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
@@ -411,6 +434,22 @@ replay says the same clocks (`README.md`, 5.12).
   A link forgotten by the engine, after a restart included, is unknown.
   A cookie still live does not override that paragraph; a reload uses
   the cookie instead (section 5).
+- **A terminal's approval** (`README.md`, 3.5, *The approval page*):
+  the page at `/terminal` signs in with `Transport`, by the cookie, as a
+  reload does. jig's cookie is `SameSite=Strict` under jig's prefix, so
+  the tab's navigation, started by the terminal, carries none; the
+  page's own exchanges, same-origin and started by temper's page,
+  carry it, whatever opened the tab, as the `Authorize` place's do
+  (`../protocol/sign-in.md`, 9.3). Its read and its decision go under
+  jig's browser guards (jig's `protocol/browser.md`, 12.2), and the
+  mapping tells the engine they carried the cookie, so the engine
+  takes them as a browser's (jig's `protocol/client.md`, 17.3); `temper
+  ctl`'s bearer is refused (`tools.md`, section 9). Signed out,
+  the page says "Sign in first": to open the printed link first, then
+  the page's address again, since the link's sign-in lands on
+  `/welcome`, not back on the page. It offers no Google sign-in: the
+  approval is enabled on loopback alone, where the printed link is the
+  way in.
 - **One person, on loopback,** as `README.md`, section 7 says. A browser
   on another machine is open (`README.md`, section 11).
 
@@ -701,7 +740,9 @@ replay says the same clocks (`README.md`, 5.12).
     `temper-terminal-plex` for `[data-font="plex"]`; `temper-terminal-top`,
     `-where`, `-star`, `-place`, `-sep`, `-task`, `-acts` and `-btn` for the top
     line; `temper-terminal-run` for the running line; `temper-terminal-line` and
-    `-hint` for the quiet line; `temper-terminal-head` for a list's head;
+    `-hint` for the quiet line, whose model button takes no token, as the
+    request's `.tt-model`, and so none of `-btn`'s padding or ground;
+    `temper-terminal-head` for a list's head;
     `temper-terminal-note` for a note; `temper-to-terminal` for `>_` in the bar.
     The conversation, the box, the list and the pane keep the page's own tokens
     (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
@@ -724,15 +765,21 @@ replay says the same clocks (`README.md`, 5.12).
   - *Its layout:* fixed over the whole window, a grid of the top line and the
     panes; the conversation's column 100 characters at most, left; Split two
     halves behind a rule, the phone's one pane with the box at the foot; the
-    request's 760 px rules.
+    request's 760 px rules. The running line is the first line of the box's
+    form, the request's `.tt-foot`, so that only its own padding stands between
+    it and the box. The conversation's ground is the terminal's `--bg` in every
+    mode and at every width, scoped above the shell's own Split and Draft rules,
+    whose `--gf-surface` is the browser look's.
   - *The draft beside it:* the pane keeps `.temper-doc`'s rules from *A chat's
     document*, above; the terminal sets their variables on its pane, its ground
     `--doc-bg` a shade lighter than the terminal's, its ink softer, a box a shade
     above the ground, the strong box in the ink, a changed section's pale block
     and note in the terminal's accent (the request's `--doc-*` values, light and
     dark), and adds only what the shell's rules don't say: the pane's ground, its
-    padding and its rule. It restates none of the shell's document rules, which
-    `terminal.css` restates as a page outside `#app` must.
+    padding, its rule and its scrollbar, the request's `scrollbar-width: thin`
+    with `scrollbar-gutter: auto` at every width, where the shell's pane keeps a
+    stable gutter on both edges. It restates none of the shell's document rules,
+    which `terminal.css` restates as a page outside `#app` must.
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
@@ -805,6 +852,21 @@ replay says the same clocks (`README.md`, 5.12).
   restores the words' position when lines are read above, including in
   a browser without `overflow-anchor`; Latest or sending on a chat
   returns to its end, reading it again where the window let it go.
+- **The approval page's card** (`README.md`, 3.5, *The approval
+  page*) is the sign-in page's (`../protocol/sign-in.md`, section 7):
+  the main a centred column, `temper-sign-in`, its card, temper's mark
+  and its level-1 heading under the sign-in's rules, and
+  `temper-approve` beside it for its own. The code, `temper-approve-code`,
+  is the card's largest words: the mono face, 28 px, letter-spaced, in
+  the ink, so that a person compares it at a glance with the terminal's;
+  its asked time and the warning below it, the warning in the muted
+  ink. Approve is the card's primary button, in the accent, and Refuse
+  a plain one beside it; the field and Check share a line, the field the
+  mono face at the code's letter-spacing. An alert is the red of the
+  forms' failures. At 600 px and under, the card's padding is the
+  sign-in card's narrow one, and the buttons share the line still. The
+  rules sit in `temper.css` beside the sign-in's, under their own
+  marker.
 
 ### 2.6 The bundle in the binary
 
@@ -1367,6 +1429,17 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The terminal approval page after landing** (2.3 to 2.5, 7.2):
+  check `/terminal` in a signed-in browser on a fresh box, its typed-code
+  entry and the eleven `approve-*` gallery states at narrow and wide
+  widths. Domain, view and shell tables and gallery prints establish no
+  rendered browser result. The TUI's own flow and walk follow
+  `../draft/tui.execution.md`, M2.
+- **Terminal approval at a public name** (2.4): Google's browser sign-in,
+  the code typed rather than carried in the address, the request's origin
+  and age, and a person's list of sign-ins with each ended from there
+  (`../draft/tui.md`, section 7). The loopback page uses the printed link.
+
 - **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
   3.5): temper/ui compares the four `chat-terminal` requests' pages,
   rules and named states with the nine gallery states and live page
@@ -1374,7 +1447,13 @@ Not in the tier, each in the lowest world that shows it:
   open (`../draft/look-requests.md`, sections 4 and 5). Include dark
   and light, both fonts, phone Split, a draft being written, tables,
   changed-section flash, the figure, questions, proposals, delegations
-  and failures. Real keys check the full-screen behaviours named in
+  and failures. Include the phone Split conversation and composer's dark
+  ground, the draft's thin scrollbar without a reserved gutter at every
+  width, the quiet model button's line height and the running line's
+  placement inside the foot without a gap above the box. The ordinary
+  bar's two-row title at 1000 px stays: `>_` and its status words share
+  the bar, by the user's `look-round-17` request.
+  Real keys check the full-screen behaviours named in
   `README.md`, section 11. Default: the shared document rules and
   focused tables and prints; these establish no rendered equality or
   real-key result. Temper/ui retains the departures in
@@ -1921,6 +2000,17 @@ from the engine's own answers, is where the look is tuned.
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
 | `signed-out` | signed out |
 | `out-of-date` | a bundle older than the engine |
+| `approve-typing` | the approval page at `/terminal`, no code: "Sign in a terminal?", the field holding a code typed in lower case with a space, `wdjb mjht`, and Check (`README.md`, 3.5, *The approval page*) |
+| `approve-unread` | the same field after Check with a code that doesn't read, `WDJB-MJH`: its alert |
+| `approve-asking` | `/terminal?code=WDJB-MJHT` read waiting, asked two minutes before: the code, "Asked 2 min ago", the warning, Approve and Refuse |
+| `approve-approved` | the same approved, waiting for the terminal's take: "Approved" and the code |
+| `approve-signed-in` | the same taken: "Signed in. You can close this tab." |
+| `approve-refused` | the same refused |
+| `approve-expired` | the same read expired |
+| `approve-used` | the same decided twice: Approve answered used |
+| `approve-unknown` | a code the engine doesn't know: "Unknown code" and "Type a code" |
+| `approve-signed-out` | the approval page with the browser signed out: "Sign in first", the printed link first, then the page's address again |
+| `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |

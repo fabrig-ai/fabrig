@@ -50,6 +50,16 @@ pub struct LlmChoice {
     /// The models its runs' sub-agents may use, each named once, at most `MODELS`, among which
     /// smith chooses within a run.
     pub subagents: Box<[ModelEffort]>,
+    pub later: Option<LlmLater>,
+}
+
+/// The choice every run whose reasons hold no `first` takes
+/// (jig/docs/design/domain/tasks.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LlmLater {
+    pub main: ModelEffort,
+    /// Each named once, at most `MODELS`.
+    pub subagents: Box<[ModelEffort]>,
 }
 
 /// Why an LLM choice is refused (domain/tasks.md, sections 4 and 7).
@@ -75,6 +85,7 @@ pub enum LlmFault {
 pub struct CharterModels {
     /// The charter's number.
     pub number: u32,
+    pub resumes: bool,
     /// The revision that set this charter value.
     pub revision: u32,
     /// Its configured model indices, at most `MODELS`; none marks a removal.
@@ -84,7 +95,12 @@ pub struct CharterModels {
 /// Whether `choice` has the shape a task keeps: its sub-agents at most `MODELS`.
 #[must_use]
 pub(crate) fn valid_shape(choice: &LlmChoice) -> bool {
-    choice.subagents.len() <= skein_lib::length::usize_of(MODELS)
+    let bound = skein_lib::length::usize_of(MODELS);
+    choice.subagents.len() <= bound
+        && match &choice.later {
+            Some(later) => later.subagents.len() <= bound,
+            None => true,
+        }
 }
 
 /// Whether `new`'s choice, if any, has the shape a task keeps; a recurrence checks the rest.
@@ -123,9 +139,34 @@ fn check_agent(
     choice: &LlmChoice,
 ) -> Result<(), Refusal> {
     let models = domain.charter_models(charter, revision).unwrap_or(&[]);
-    fits(domain, models, allowed, choice.main)?;
-    for (at, chosen) in choice.subagents.iter().enumerate() {
-        for earlier in choice.subagents.iter().take(at) {
+    check_models(domain, models, allowed, choice.main, &choice.subagents)?;
+    if let Some(later) = &choice.later {
+        let mut latest = 0;
+        let mut resumes = false;
+        for version in &domain.charters {
+            if version.number == charter && version.revision <= revision && version.revision >= latest {
+                latest = version.revision;
+                resumes = version.resumes;
+            }
+        }
+        if resumes {
+            return Err(Refusal::Llm { model: later.main.model, why: LlmFault::Charter });
+        }
+        check_models(domain, models, allowed, later.main, &later.subagents)?;
+    }
+    Ok(())
+}
+
+fn check_models(
+    domain: &Domain,
+    models: &[u8],
+    allowed: Models,
+    main: ModelEffort,
+    subagents: &[ModelEffort],
+) -> Result<(), Refusal> {
+    fits(domain, models, allowed, main)?;
+    for (at, chosen) in subagents.iter().enumerate() {
+        for earlier in subagents.iter().take(at) {
             if earlier.model == chosen.model {
                 return Err(Refusal::Llm { model: chosen.model, why: LlmFault::Repeated });
             }
@@ -224,7 +265,7 @@ impl Domain {
                 Some(_) => subagents.push(chosen).expect("one per charter model"),
             }
         }
-        Some(LlmChoice { account: None, main: main?, subagents: subagents.into_boxed() })
+        Some(LlmChoice { later: None, account: None, main: main?, subagents: subagents.into_boxed() })
     }
 }
 

@@ -1,7 +1,20 @@
 # Status
 
 2026-11-07. Where jig's code lags or departs from its design, from the
-status files below. The deployment's sole-owner read is built, including
+status files below. Browser-approved sign-in is built through the wire,
+clients' component, HTTP mapping, configuration and linked and unlinked
+clients. Only the secret's take makes the approving browser's party's
+sign-in; bearers cannot read or decide approvals. An admitted take's
+reservation can outlive expiry (`protocol/client.status.md`, section 8).
+Approval between hosts and listing sign-ins remain deferred
+(`protocol/client.md`, section 15). Both profiles hold returning
+redirects of 16,384 bytes and a browser's request head of 24,593;
+configuration refuses a driver that holds less than its parts. An
+over-long listener answer fails its own sign-in at once with a specific
+page; carrying its length and bound beyond `SignInAgain` to the
+application's page remains deferred (`protocol/configuration.md`,
+sections 6 and 9). The deployment's sole-owner read is
+built, including
 during restore, answering none with no owner, several or an unreadable
 roster (`domain/people.md`, section 4). Agents in a host's own process
 are the widest gap:
@@ -11,8 +24,17 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 `domain/hosts.md`, `domain/root.md`, `protocol/README.md`,
 `protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). TLS
 between hosts and contained process trees for workers' agents are not
-built (the protocol documents), nor the store's retention, rehearsal and
-going back (`protocol/store.md`, `protocol/client.md`). An
+built (the protocol documents). The reference test service still aborts
+workers without first cancelling their runs; temper's service implements
+that ordering (`protocol/service.md`, section 10). An orderly engine stop
+settles its in-process agent claims as interrupted before draining,
+keeping their committed work and spending no try; crash recovery still
+settles claims as lost or not started (`domain/engine.md`, sections 6
+and 6.1; `domain/tasks.md`, 5.2). A worker stopped in another process
+still spends an agent try on its Shutdown cancel; changing that remains
+deferred (`protocol/service.md`, section 9). The store's retention,
+rehearsal and going back are not built (`protocol/store.md`,
+`protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a
@@ -31,8 +53,23 @@ charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Run reasons, ordered charter parts and first/later LLM choices are built
+through configuration, store and client records. A run takes the parts
+its reasons meet, and its fences leave unoffered or paced messages for
+the next run; an undecided entry wakes it again. The core-world table
+holds the per-wake story, including an arrival between preparation and
+claim (`domain/tasks.md`, 8.6; `domain/engine.md`, 7.1, 7.2 and 7.4;
+`domain/hosts.md`, 6.4). Resumed parts, documents per part and choices
+per wake kind remain deferred (`domain/tasks.md`, section 13), as do
+tool access to `later` and client refusal paths within parts
+(`domain/engine.md`, section 16; `client/domain/contract.md`, section 11).
 Settings refusals name the last matching request item's position from 0;
-settings key order agrees with the store, with Model after Application
+charter-size refusals carry stored-policy bytes and the run bound through
+client wire 19 and people store 14 (`domain/engine.md`, 17.9).
+A task given no LLM choice takes its charter's selected effort when
+supported, otherwise its model's default (`domain/tasks.md`, section 3;
+`domain/engine.md`, 17.11).
+Settings key order agrees with the store, with Model after Application
 and ProjectPolicy. A turn read alone retains call input past `turn_text`
 within its archive bound (`domain/engine.md`, 17.2;
 `protocol/store.md`, 4.1; `client/domain/client.md`, section 10).

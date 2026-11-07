@@ -157,6 +157,7 @@ pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Tra
                 other @ (io::Request::Reject { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Window { .. }
                 | io::Request::Usage { .. }) => panic!("token exchange emits only socket requests: {other:?}"),

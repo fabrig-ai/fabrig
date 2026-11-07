@@ -529,7 +529,7 @@ in the lower world that owns it, never here.
   - **The peers are fakes:** skein's fake LLM, the fake forge and the
     fake git program (4.1 to 4.3), as for the tier's other stories.
   - **The terminal is the real loop's test surface.** People use the
-    browser, or a later full-screen terminal; the terminal client is the
+    browser, or the TUI; the line client is the
     way a real-loop story reads what a person would see
     (../client/README.md, section 6.9). The process tier's `temper open`
     tests stay smokes (2.6), outside the gate.
@@ -1231,7 +1231,13 @@ section 8; testing-strategy.md, 2.9).
   final nonempty line matches exactly, skipping only zero-length lines.
   Before discovering a change, an attempted idle/news chat with no live
   child, run wait or subscription and the shipped immediate wake policy
-  fails promptly. Active work and final parked replies remain valid. A
+  fails promptly. Active work and final parked replies remain valid.
+  The chat's one delegate is its change: a delegate whose executor is an
+  agent, as a goal's is, fails the story as soon as it is found, naming
+  the task and its charter, never watched as though it were the change.
+  Where the chat made no successful `change`, the failure names the
+  tools of the chat's committed calls, those that succeeded and those
+  that failed, so a refused `change` before another call shows. A
   fresh client finds the same chat, pull and merge hash after the box
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
@@ -1270,8 +1276,21 @@ section 8; testing-strategy.md, 2.9).
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
-  role on Claude Code on `claude-haiku-5-5`, on a held login used in place
-  (../protocol/credentials.md, 3): `TEMPER_LIVE_CLAUDE` names the
+  role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
+  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  a fresh sitting takes it by name, as a person adds a Claude
+  subscription's model on Settings' Models and then chooses it (jig's
+  `domain/engine.md`, 17.11), in two `settings apply`s. The first sets a
+  model at the highest number its catalogue leaves free, with the figures
+  of the provider's dearest stock model, `claude-fable-5-1`, marked
+  estimated and the person's, its efforts with `low` its default; the
+  second, against the revision the first made, has every charter the
+  story selects name it. One change can't hold both: the clients'
+  component refuses a change whose charter names a model the catalogue
+  lacks before the core sees it, and a model the change itself sets is
+  not in the catalogue yet. A focused test applies the fixture's own
+  changes through ctl on the joined world (6.3), its engine holding the
+  Claude deployment's stock catalogue. `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
@@ -2377,6 +2396,11 @@ world of temper's on a scripted engine (../client/README.md, section 10).
   engine root alone.
 - **The agents' tools** run there too: their root, as a scripted agent
   beside the fake person (../client/tools.md, 11.2).
+- **The TUI's host** runs there too (../client/README.md, 6.13): its
+  shipped host with its root linked, as a native shell holds it, whose
+  exchanges and stream the world's front carries to the engine's
+  clients' component as the transport would, signed in by the printed
+  link the component makes; its stories read the host's frames as text.
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
   the first (jig's `protocol/channel.md`, 6.4), and the fake person
@@ -2810,6 +2834,27 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **Haiku's live landing proof** (2.7): use the after-landing Claude Code
+  owned-forge story on a fresh store to verify the catalogue apply
+  (`live-model`), then charters 1 and 2 selecting that model in a second
+  apply (`live-settings`) against the first's revision, and the real
+  launch with
+  `--model claude-haiku-5-5 --effort low`, through landing and restart.
+  Keep the ChatGPT story on stock row 7, `gpt-6-luna`. The focused
+  joined-world apply checks settings acceptance; a real launch and model
+  outcome need this live story. Keep the live story compiled during the
+  plan; its held login and real execution
+  belong to after-landing. Repair any live red there.
+
+- **The plain-change live outcome** (2.7): run the existing owned-forge
+  landing story after landing to observe the real chat's choice with
+  `goal`'s declaration (`agent.md`, 4.3.2). Keep the requirement for the
+  chat's own successful `change`; a goal making a change does not satisfy
+  this story. The referee's executor and committed-call tables establish
+  its diagnostics, not a model's choice. If the live story still fails,
+  diagnose the named delegate and committed calls at that red, rather
+  than accepting the goal path.
 
 - **The box's approval story on GitHub** (6.4): extend the configuring
   and change-wait stories to a manifest-made personal App on the fake

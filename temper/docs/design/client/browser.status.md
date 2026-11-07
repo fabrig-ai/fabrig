@@ -81,8 +81,16 @@ keeps it; publication is not a cutoff on a handed change's commit.
 
 Section 2.5's terminal rules, tokens and bundled fonts and 7.2's nine
 `chat-terminal-*` gallery states have no known implementation gap beyond
-the departures below. The shared shell document and flow rules win over
-the request's restated strong,
+the departures below. The conversation's terminal ground outranks the
+shell's Split and Draft grounds, including phone Split. The pane has a
+thin scrollbar and no reserved gutter at every width. The quiet model
+button is plain, and the running line is first inside the composer form,
+before the box, with its outer margins removed. The existing view table
+checks that parent and order, the plain button and Exit's retained token.
+The repair accounts are `463459a7d1` (`chat-terminal`) and `078e99c4ed`
+(`chat-terminal-draft`); the stylesheet and tree establish no measured
+line heights, pane geometry or rendered equality. The shared shell
+document and flow rules win over the request's restated strong,
 code, marker and figure-margin rules, as section 2.5 requires. Temper/ui's
 render comparison follows landing (section 5;
 `../draft/look-requests.md`, 4 and 5). Compilation and print checks
@@ -263,3 +271,10 @@ establish no rendered equality.
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`tools/gallery/names.txt`,
   `tools/gallery/src/samples.rs`) that the table does not list.
+
+Sections 2.3, 2.4 and 2.5 have `/terminal`, its parsed and canonical
+`code` query, transport sign-in by cookie, the signed-out card and the
+approval stylesheet beside the sign-in rules. Section 7.2's eleven
+`approve-*` gallery states are present, with domain, view and shell
+coverage. Section 5 keeps the rendered browser check and approval at a
+public name for later; no real-browser result is supplied here.

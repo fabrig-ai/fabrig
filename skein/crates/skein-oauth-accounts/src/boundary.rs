@@ -102,6 +102,10 @@ pub enum Failure {
     NotGranted,
     /// A sign-in or shared record has another subject than expected.
     AnotherSubject,
+    /// A public sign-in's listener read its own redirect and state past the
+    /// redirect bound: the address's `length` and `bound`, `redirect_bytes`;
+    /// the sign-in ends at once (skein/docs/design/oauth.md, 6.3 and 6.5).
+    LongRedirect { length: u32, bound: u32 },
     /// A sign-in's candidate could not be durably kept; nothing of it is lent.
     NotKept,
     /// The issuer exchange failed, as named by the OAuth client.

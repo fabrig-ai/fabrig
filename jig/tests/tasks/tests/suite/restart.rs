@@ -93,6 +93,8 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        offered: jig_domain_tasks::Reasons::ALL,
+        reasons: jig_domain_tasks::Reasons::FIRST,
         account: Some(BEFORE_CLAIM_ACCOUNT),
         reply_to,
         task: 2,
@@ -110,6 +112,8 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        offered: jig_domain_tasks::Reasons::ALL,
+        reasons: jig_domain_tasks::Reasons::FIRST,
         account: Some(DURABLE_CLAIM_ACCOUNT),
         reply_to,
         task: 2,
@@ -135,6 +139,8 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     w.claim(1, 4);
     let reply_to = w.to();
     w.send(Event::Claim {
+        offered: jig_domain_tasks::Reasons::ALL,
+        reasons: jig_domain_tasks::Reasons::FIRST,
         account: None,
         reply_to,
         task: 1,
@@ -738,7 +744,7 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
         let mut rows = source.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
         for row in &mut rows {
             if let Stored::Live(row) = row {
-                row.llm = Some(LlmChoice { account: None, main, subagents: Box::new([]) });
+                row.llm = Some(LlmChoice { later: None, account: None, main, subagents: Box::new([]) });
             }
         }
         let mut domain = jig_tasks_world::domain(&LIMITS, 49);

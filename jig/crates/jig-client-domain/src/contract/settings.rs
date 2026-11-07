@@ -57,11 +57,37 @@ pub struct CharterDocument {
     pub path: Box<[u8]>,
     pub heading: Option<Box<[u8]>>,
 }
+/// A charter's instructions for runs whose reasons meet `on`
+/// (jig/docs/design/client/domain/contract.md, 3.2).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterPart {
+    pub on: u32,
+    pub instructions: Text,
+}
+/// The reasons in bit order (jig/docs/design/client/domain/contract.md, 3.2).
+pub const REASON_NAMES: [&str; 14] = [
+    "first",
+    "question",
+    "question_answered",
+    "question_ended",
+    "question_owed",
+    "escalation",
+    "proposal",
+    "person_stalled",
+    "result",
+    "notice",
+    "nothing_awaited",
+    "news",
+    "timer",
+    "words",
+];
+/// A charter whole (jig/docs/design/client/domain/contract.md, 3.2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
     pub rest: bool,
     pub documents: List<CharterDocument>,
+    pub parts: List<CharterPart>,
     pub number: u32,
     pub instructions: Text,
     pub waiting: Duration,
@@ -399,7 +425,7 @@ pub struct OutcomeMovedToNewest {
     pub stayed: u32,
 }
 
-/// The charter document member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
+/// The charter member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.
@@ -414,8 +440,10 @@ pub enum SettingMember {
     Heading,
     /// The document connector's registration.
     Connector,
+    /// The charter's stored policy and parts byte length.
+    StoredPolicy,
 }
-/// The failed document rule; scalar bounds are carried beside it.
+/// The failed setting rule; scalar bounds are carried beside it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingRule {
     /// The supplied count or length exceeds the configured maximum.
@@ -425,12 +453,12 @@ pub enum SettingRule {
     /// The supplied connector number is not registered.
     Registered,
 }
-/// Bounded refusal facts, without copying any of the rejected document's bytes.
+/// Bounded refusal facts, without copying any of the rejected charter's bytes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDetail {
-    /// The member relative to the charter's documents.
+    /// The member relative to the charter.
     pub member: SettingMember,
-    /// Document index; zero for the whole documents member.
+    /// Document index; zero for documents or stored policy.
     pub document: u32,
     /// Name segment index; zero for members other than `NameSegmentBytes`.
     pub segment: u32,

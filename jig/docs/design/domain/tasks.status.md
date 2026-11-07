@@ -2,8 +2,25 @@
 
 2026-11-07. Where jig's code lags or departs from [tasks.md](tasks.md).
 
+Section 5.2 has no known gap in an agent claim interrupted by its
+engine's orderly stop: `End::Recheck` keeps committed turns, calls and
+saved work, spends no try, adds no backoff and makes the task due again.
+A crash retains the lost-or-not-started recovery rule. The core restart
+table and one-process drain story check the distinction.
+
+Sections 3, 7, 8.2, 8.3, 8.6 and 9 have no known gap in run reasons,
+their retention across kept continuations and retries, offered-message
+fences or wakes for undecided entries. A choice's `later` is checked with
+its first choice, and an amended choice without it removes the old one.
+Resumed parts, documents per part, choices per wake kind and offering a
+message with its part remain section 13's later work.
+
 Section 3 has no known gap in model indices retaining their catalogue
 numbers and a task checking against its own revision's charter resolution.
+A task given no LLM choice takes each model's supported charter-selected
+effort, or its catalogue default when none is selected. The default-LLM
+table covers main and sub-agent selections and an explicit task choice
+retains its own effort.
 Unlisted sections have no known gap.
 Section 9's replacement of a run's own pending settings proposal has no
 known gap: refusal preserves the old set, late acceptance changes nothing,

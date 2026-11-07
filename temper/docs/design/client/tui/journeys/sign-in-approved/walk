@@ -1,0 +1,6 @@
+walk 1
+see "then press Approve."
+mark
+approve
+see "Connected to"
+end

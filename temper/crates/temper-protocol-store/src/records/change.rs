@@ -930,7 +930,7 @@ fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
     jig_domain_tasks::ModelEffort { model, effort }
 }
 fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
-    let jig_domain_tasks::LlmChoice { main, subagents, account } = value?;
+    let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;
     let mut models = List::with_capacity(u32::try_from(subagents.len()).expect("admitted count"));
     for model in subagents {
         models.push(encode_model_effort(*model)).expect("same count");
@@ -949,7 +949,12 @@ fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice
     for model in subagents.into_boxed() {
         models.push(decode_model_effort(model)).expect("same count");
     }
-    Some(jig_domain_tasks::LlmChoice { main: decode_model_effort(main), subagents: models.into_boxed(), account })
+    Some(jig_domain_tasks::LlmChoice {
+        later: None,
+        main: decode_model_effort(main),
+        subagents: models.into_boxed(),
+        account,
+    })
 }
 
 fn encode_questions(value: &d::Questions) -> w::Questions {
