@@ -41,6 +41,8 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     let scratch = root("replay");
     let directory = scratch.path().join("root");
     let arm = replay_arm(&directory);
+    let shared = directory.join("shared-tmp");
+    std::fs::create_dir(&shared).expect("shared temporary directory");
     let login = directory.join("state/smith-bench/logins/smith");
     std::fs::create_dir_all(login.join("config/smith")).expect("synthetic configuration");
     std::fs::write(login.join("config/smith/config.toml"), []).expect("setup marker");
@@ -49,6 +51,8 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
         .args(["probe", "probes/smoke-tools", "--arm"])
         .arg(&arm)
+        .arg("--shared-temporary")
+        .arg(&shared)
         .env("HOME", &directory)
         .env("XDG_CONFIG_HOME", directory.join("config"))
         .env("XDG_STATE_HOME", directory.join("state"))
@@ -321,4 +325,17 @@ fn a_missing_smoke_login_refuses_before_calibration() {
             directory.join("state/smith-bench/logins/smith/config").display()
         )
     );
+}
+
+#[test]
+fn only_the_probe_command_names_another_shared_temporary() {
+    for (command, name) in [("suite", "smoke"), ("calibrate", "probes/smoke-tools"), ("fix", "probes/smoke-tools")] {
+        let fault = smith_bench::probe::command(
+            command,
+            &[name.into(), "--shared-temporary".into(), "/owned/shared-tmp".into()],
+        )
+        .expect_err("shared temporary is a probe option alone");
+        assert_eq!(fault.kind, smith_bench::FaultKind::Input, "{command}: {fault}");
+        assert_eq!(fault.detail, "unknown or repeated command option", "{command}");
+    }
 }

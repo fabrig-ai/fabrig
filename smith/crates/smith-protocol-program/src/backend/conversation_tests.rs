@@ -175,12 +175,9 @@ fn dense_result(element: &[u8], length: u32) -> alloc::vec::Vec<u8> {
     let width = element.len().checked_add(1).unwrap();
     let count = room.checked_add(1).unwrap().checked_div(width).unwrap();
     let mut bytes = PREFIX.to_vec();
-    for index in 0..count {
-        if index != 0 {
-            bytes.push(b',');
-        }
-        bytes.extend_from_slice(element);
-    }
+    let mut elements = [element, b",".as_slice()].concat().repeat(count);
+    elements.pop();
+    bytes.append(&mut elements);
     bytes.extend_from_slice(SUFFIX);
     bytes.resize(length, b' ');
     bytes
@@ -206,12 +203,10 @@ fn result_in_stdout(element: &[u8], length: u32) -> Queue<ToDomain> {
 
 #[test]
 fn a_dense_result_at_the_line_bound_decodes() {
-    // Empty array elements retain more tokens per byte than one-digit numbers.
-    for element in [b"0".as_slice(), b"[]".as_slice()] {
-        let mut up = result_in_stdout(element, REVIEW_LINE_BYTES);
-        let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("result at line bound") };
-        assert_eq!(completion.stop, llm::Stop::EndTurn);
-    }
+    // Empty arrays hold more tokens and depth per byte: the line bound's worst case.
+    let mut up = result_in_stdout(b"[]", REVIEW_LINE_BYTES);
+    let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("result at line bound") };
+    assert_eq!(completion.stop, llm::Stop::EndTurn);
 }
 
 #[test]
