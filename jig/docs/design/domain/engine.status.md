@@ -5,7 +5,6 @@
 Sections 17.1, 17.7, 17.8 and 17.11 have no known implementation gap in
 numbered model settings, release-default overlays, resolved charter versions,
 withdrawal, catalogue notifications or the owner's newest-revision act.
-Provider-list reads and their decider remain the gap below.
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
@@ -24,7 +23,6 @@ a due expiry marks and delivers the changed offer.
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
 
-- **Not yet:** 17.7, 17.11's person's removal, 17.12: no read is placed and no revision is decided by a provider's list.
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.

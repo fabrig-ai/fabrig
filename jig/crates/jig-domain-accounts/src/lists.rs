@@ -15,6 +15,19 @@ pub(crate) struct Reading {
     read: Option<u64>,
 }
 
+impl Domain {
+    /// The account still holding this volatile list read (accounts.md, 3.7).
+    #[must_use]
+    pub fn reading_list(&self, read: u64) -> Option<u32> {
+        for (account, state) in &self.list_reads {
+            if state.read == Some(read) && self.accounts.contains_key(account) {
+                return Some(*account);
+            }
+        }
+        None
+    }
+}
+
 fn first(domain: &Domain, account: u32) -> Option<u32> {
     if !domain.has_list(account) {
         return None;
