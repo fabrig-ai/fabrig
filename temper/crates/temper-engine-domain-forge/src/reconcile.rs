@@ -4,7 +4,7 @@ use skein_forge::api::Repository;
 use skein_lib::List;
 
 /// A restored record's family.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RecordKind {
     Forge,
     Call,
@@ -39,7 +39,7 @@ pub enum RecordKind {
     Away,
     Decided,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
     Forge(u16),
     Repository(Repository),
@@ -47,7 +47,7 @@ pub enum Need {
     EntryOwner { task: u64, entry: u64 },
     Entry { task: u64, entry: u64 },
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Reference {
     kind: RecordKind,
     client_repository: bool,
@@ -59,7 +59,7 @@ pub struct MissingLink {
     pub key: Key,
     pub need: Need,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Reconciliation {
     references: List<Reference>,
 }

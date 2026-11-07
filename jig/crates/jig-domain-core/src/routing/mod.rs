@@ -85,7 +85,7 @@ impl Core {
 }
 
 /// Person choice retained only while the task child decides its exact revision.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct PersonEscalation {
     pub(crate) request: Token,
     pub(crate) requester: u64,
@@ -97,14 +97,14 @@ pub(crate) struct PersonEscalation {
     pub(crate) notice: Option<tasks::Message>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum CreationKind {
     Batch { person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
     Propose { person: u64, reason: Box<[u8]>, to: u32, stubs: Box<[tasks::Stub]> },
 }
 
 /// A party's batch waiting for the task child's make result.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Hash, Debug, PartialEq, Eq)]
 pub(crate) struct Made {
     pub first: u64,
     pub given: Option<people::Given>,
@@ -112,7 +112,7 @@ pub(crate) struct Made {
 }
 
 /// One person task pending all numbered connector holdings in this decision.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Creation {
     kind: CreationKind,
     members: Box<[tasks::New]>,
@@ -125,7 +125,7 @@ pub(crate) struct Creation {
     refused: Option<crate::HoldingsRefusal>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct DelegateCreation {
     key: CallKey,
     kind: BatchKind,
@@ -136,13 +136,13 @@ pub(crate) struct DelegateCreation {
     refused: Option<crate::HoldingsRefusal>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum BatchKind {
     Delegation { stubs: Box<[tasks::Stub]>, given: Option<people::Given> },
     Proposal { reason: Box<[u8]>, as_holder: bool },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct ProcedureCreation {
     decision: tasks::ProcedureDecision,
     members: Box<[tasks::New]>,
@@ -277,7 +277,7 @@ impl Core {
 }
 
 /// The parent caller held while the notes child reads its store pages.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum NoteRoute {
     Deletion { project: u32 },
     Call { to: ReplyTo, key: CallKey },
@@ -286,7 +286,7 @@ pub(crate) enum NoteRoute {
 }
 
 /// One brief's wait within the existing `limits.brief.briefs` table.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum NoteBrief {
     Operation,
     /// The tasks child's next Activate returns to the owner's due queue.

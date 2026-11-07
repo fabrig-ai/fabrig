@@ -3,7 +3,7 @@
 //! participating objects are shared; private task branches have one holder.
 use crate::{Access, Domain, Name, Role, What};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldKind {
     Shared,
     Exclusive { wait: bool },

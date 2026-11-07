@@ -238,8 +238,7 @@ impl Scalars {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_h = &self.h;
-        size = size.checked_add(field_h.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 

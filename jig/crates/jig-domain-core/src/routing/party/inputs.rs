@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Inputs {
     pub person: u64,
     pub project: u32,

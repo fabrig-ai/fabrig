@@ -9,7 +9,7 @@ pub(crate) struct Signed {
     pub key: [u8; 16],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Party {
     pub request: Token,
     pub person: u64,

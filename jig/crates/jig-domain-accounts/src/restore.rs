@@ -34,7 +34,7 @@ pub(crate) fn left(now: Wall, reset: Wall) -> Option<Duration> {
 
 /// Representation and retained-set fit (jig/docs/design/domain/accounts.md, 3.6;
 /// jig/docs/design/domain/engine.md, 6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestoreSet {
     Accounts,
     Sources { account: u32 },
@@ -45,7 +45,7 @@ pub enum RestoreSet {
 
 /// The first fit failure of a start (jig/docs/design/domain/accounts.md, 3.6;
 /// jig/docs/design/domain/engine.md, 6), retained until the next cold start.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RestoreLimit {
     pub key: Key,
     pub set: RestoreSet,

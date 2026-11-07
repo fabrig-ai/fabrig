@@ -10,7 +10,7 @@ use jig_domain_host as host;
 use skein_lib::{Decimal, List, ReplyTo, Token, Writer};
 
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostRequest {
     Decode {
         to: ReplyTo,
@@ -31,7 +31,7 @@ pub enum HostRequest {
 
 /// An adopted repository's canonical resource identity for settings discovery
 /// (temper/docs/design/domain/agent.md, 8.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RepositoryIdentity {
     /// The host in resource names, including any port.
     pub host: Box<[u8]>,
@@ -43,7 +43,7 @@ pub struct RepositoryIdentity {
 
 /// One person of the caller's project, for an authorized inventory
 /// (temper/docs/design/domain/agent.md, 8.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectPerson {
     pub person: u64,
     pub role: u32,
@@ -56,7 +56,7 @@ pub struct ProjectPerson {
     pub you: bool,
 }
 /// What the lookup answers for one person on one forge (domain/agent.md, 8.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PersonForge {
     /// The forge's host, as the inventory's repository lines name it.
     pub host: Box<[u8]>,
@@ -66,7 +66,7 @@ pub struct PersonForge {
     pub writer: bool,
 }
 /// One model of the offer, for an authorized inventory (temper/docs/design/domain/agent.md, 8.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OfferedModel {
     pub name: Box<[u8]>,
     pub provider: Box<[u8]>,
@@ -75,7 +75,7 @@ pub struct OfferedModel {
 }
 
 /// An owned forge's person, the login made for whoever runs the box.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgePerson {
     pub host: Box<[u8]>,
     pub login: Box<[u8]>,
@@ -84,7 +84,7 @@ pub struct ForgePerson {
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
 /// the hub's link names only as text (jig's `domain/hosts.md`, 2).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostDelivery {
     /// Settings reads have no durable call part; inventories include project repositories and people.
     Settings {
@@ -114,7 +114,7 @@ pub enum HostDelivery {
     },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Flight {
     pub task: u64,
     pub attempt: u64,
@@ -127,7 +127,7 @@ pub(crate) struct Flight {
 
 /// Only one tool's rendering context is kept per flight. Boxing the change
 /// keeps the slot the same size as the existing amendment context.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum FlightRender {
     Plain,
     TaskRead,
@@ -147,7 +147,7 @@ impl FlightRender {
     }
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct ChangeChoice {
     named: Option<Box<[u8]>>,
     project: u32,

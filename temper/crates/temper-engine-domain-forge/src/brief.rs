@@ -38,7 +38,7 @@ pub fn home_access_reason(owner: &[u8], repository: &[u8], bytes: u32) -> BriefR
     brief_part(&words, 1, bytes)
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct BriefFetch {
     owner: Token,
     item: BriefItem,
@@ -64,7 +64,7 @@ pub(crate) struct BriefFetch {
     ci: Option<crate::brief_ci::Section>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct BriefWords {
     bytes: List<u8>,
     left: u64,
@@ -77,7 +77,7 @@ impl BriefWords {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum BriefStage {
     Item,
     Pull,
@@ -89,7 +89,7 @@ enum BriefStage {
     Job,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 enum PullMode {
     Review,
     Conflict(skein_forge::api::Commit),

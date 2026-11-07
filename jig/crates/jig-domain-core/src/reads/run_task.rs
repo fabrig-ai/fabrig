@@ -7,7 +7,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, Queue, ReplyTo, length::len_u64};
 
 /// The application-named task text and answer room (engine.md, 7.3).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Read {
     pub task: u64,
     pub field: TaskTextField,

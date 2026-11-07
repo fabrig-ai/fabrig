@@ -149,6 +149,35 @@ pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script
     }
     peer
 }
+/// Adoption defaults do not vary with a seed or a deployment phase.
+pub(crate) fn adoption_given() -> temper_service::stock::Given {
+    use temper_service::stock::Given;
+    static GIVEN: std::sync::OnceLock<Given> = std::sync::OnceLock::new();
+    match GIVEN.get_or_init(|| crate::stories::given(&serde_json::from_slice(&document()).expect("deployment JSON"))) {
+        Given::Stock => Given::Stock,
+        Given::Own { jig, forge } => {
+            let mut policies = skein_lib::Map::with_capacity(jig.policies.capacity());
+            for (number, policy) in &jig.policies {
+                policies.insert(*number, policy.clone()).expect("adoption policies");
+            }
+            Given::Own {
+                jig: jig_domain_core::settings::Defaults {
+                    charters: jig.charters.clone(),
+                    templates: jig.templates.clone(),
+                    policies,
+                    rules: jig.rules.clone(),
+                    models: jig.models.clone(),
+                },
+                forge: forge.clone(),
+            }
+        }
+    }
+}
+/// The adoption story has the same codec bounds across seeds, cuts and cold starts.
+pub(crate) fn adoption_codec() -> jig_protocol_store::codec::View {
+    static CODEC: std::sync::OnceLock<jig_protocol_store::codec::View> = std::sync::OnceLock::new();
+    *CODEC.get_or_init(codec)
+}
 pub(crate) fn codec() -> jig_protocol_store::codec::View {
     let limits = jig_test_service_limits(&engine().limits);
     jig_protocol_store::codec::limits(&limits.root.core).expect("codec")

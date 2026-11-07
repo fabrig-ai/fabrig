@@ -21,7 +21,7 @@ use crate::{
 use skein_forge::api::{self, Answer, Commit, Error, Op, Read, Repository, Write};
 use skein_lib::{Duration, Env, Map, Queue, Time, Wall};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Outbox {
     entries: Map<u64, Writing>,
     ready: bool,
@@ -30,7 +30,7 @@ pub(crate) struct Outbox {
     clock: RecoveryClock,
     stop: stop::State,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent recovery facts of one outbox write")]
 struct Writing {
     entry: Entry,

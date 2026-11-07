@@ -11,7 +11,7 @@ use crate::{Fact, Limits, Priority, Request, bounds};
 use skein_forge::api::{self, Answer, Error, Op, Repository};
 use skein_lib::{Duration, Env, Id, Map, Queue, Slab, Time, Token, Wall};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Call {
     owner: Owner,
     repository: Repository,
@@ -35,7 +35,7 @@ enum State {
     Waiting,
     Closed,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Calls {
     slab: Slab<Call>,
     flights: Map<Token, Id<Call>>,

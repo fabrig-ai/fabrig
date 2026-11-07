@@ -18,7 +18,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Change, Commit, Error, Op, Read, Repository};
 use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, usize_of};
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Keep {
     live: Map<Resource, Live>,
     repos: Map<Repository, Repo>,
@@ -27,7 +27,7 @@ pub(crate) struct Keep {
     failed: bool,
     fresh_active: bool,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Live {
     record: LiveRecord,
     alarm: u64,
@@ -44,7 +44,7 @@ struct Live {
     inbox: Inbox,
 }
 // Which side of this client's own push the branch read in flight was sent.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Sent {
     Current,
     // A read sent before a push this client reported answers from before
@@ -52,13 +52,13 @@ enum Sent {
     BeforePush,
 }
 // Presence is live-only; a restart observes absence again.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Presence {
     Unknown,
     Present,
     Missing,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Inbox {
     repair_at: Time,
     needs_repair: bool,
@@ -79,7 +79,7 @@ enum Phase {
     Branch,
     BranchCompare { before: Commit, after: Commit },
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Repo {
     record: RepositoryRecord,
     active: bool,
@@ -87,7 +87,7 @@ struct Repo {
     state: Scan,
     hinted: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Fresh {
     Pending,
     Complete,

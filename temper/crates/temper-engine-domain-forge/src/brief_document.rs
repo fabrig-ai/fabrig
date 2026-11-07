@@ -8,7 +8,7 @@ use skein_lib::{Decimal, Queue, Time, Token, Writer};
 use crate::brief_words::{self, BOUNDS, BUSY, ROOM};
 use crate::{BriefDocument, BriefRead, Domain, Request};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Fetch {
     section: Token,
     document: Box<BriefDocument>,
@@ -20,7 +20,7 @@ pub(crate) struct Fetch {
     deadline: Option<Time>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Section {
     prefix: Box<[u8]>,
     text: Box<[u8]>,
