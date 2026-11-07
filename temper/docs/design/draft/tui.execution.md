@@ -32,8 +32,8 @@ milestone that meets a question the draft leaves open takes its section
   and its focused and fuzzy tests.
 - **Its walk** follows its landing and blocks nothing.
 - **Its state** is section 3's table, kept current. When M3 has landed
-  and the user has taken its frames, the draft's status holds none of
-  section 4's or 5's lags, and this file goes with the draft
+  and the user has taken its frames, `tui.status.md` holds none of
+  the lags of `tui.md`, sections 4 and 5, and this file goes with the draft
   (`DESIGN.md`, section 3).
 
 ## 3. The milestones
