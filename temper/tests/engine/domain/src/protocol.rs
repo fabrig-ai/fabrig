@@ -142,6 +142,8 @@ pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
     /// The deployment models used by internal settings-note decoding.
     pub(crate) models: Box<[engine::Model]>,
+    /// Catalogue replacements for the clients component joined to this world.
+    pub catalogues: Vec<Box<[core::settings::CatalogueModel]>>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
     decode_answers: BTreeMap<Box<[u8]>, DecodeAnswer>,
     ends: BTreeMap<Box<[u8]>, tasks::End>,
@@ -251,15 +253,17 @@ impl Protocol {
     ///
     /// # Errors
     /// Returns the request when it is not the protocol layer's to answer.
+    #[expect(clippy::too_many_lines, reason = "the protocol fixture routes each root request at one boundary")]
     pub fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         match request {
             engine::Request::Party(engine::PartyRequest::Catalogue { models }) => {
                 let highest = models.iter().map(|entry| entry.number).max().unwrap_or(0);
                 self.models = vec![engine::Model::hole(); usize::try_from(highest).expect("bounded catalogue")].into();
-                for entry in models {
+                for entry in &models {
                     let at = usize::try_from(entry.number - 1).expect("bounded model number");
-                    self.models[at] = entry.model;
+                    self.models[at] = entry.model.clone();
                 }
+                self.catalogues.push(models);
                 Ok(Vec::new())
             }
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
