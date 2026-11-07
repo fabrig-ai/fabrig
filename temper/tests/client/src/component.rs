@@ -67,6 +67,7 @@ impl Composition {
             addresses: Box::new([]),
             link: None,
             link_secret: None,
+            approval: false,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
@@ -609,7 +610,7 @@ impl Composition {
                     link::Message::SignInService => clients::Message::SignInService(Box::new([])),
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
-                self.event(Event::Transport(clients::FromTransport::Exchange { exchange: name, credential, message }));
+                self.event(Event::Transport(clients::FromTransport::Exchange { browser: false, exchange: name, credential, message }));
                 return;
             }
             link::Request::OpenStream { credential } => {

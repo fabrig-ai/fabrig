@@ -973,6 +973,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         files: temper_service::settings::Files { entries },
         seeds: temper_service::settings::Seeds {
             link_secret: None,
+            approval: false,
             deployment: [7; 16],
             installation: [8; 16],
             seed: 7,
@@ -1046,6 +1047,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
             seed: 7,
             crypto: Secret::new(Box::new([9; 32])),
             link_secret: None,
+            approval: false,
         },
         forges: forges.into_boxed(),
     }

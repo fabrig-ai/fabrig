@@ -107,6 +107,7 @@ pub(crate) fn seeds() -> temper_service::settings::Seeds {
         crypto: seed.crypto,
         installation: seed.installation,
         link_secret: None,
+        approval: false,
     }
 }
 pub(crate) fn provider() -> skein_fake_peers::llm::Peer {

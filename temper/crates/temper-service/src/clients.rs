@@ -211,6 +211,7 @@ impl Clients {
             };
             Ok(kit::Settings {
                 link_secret: seeds.link_secret.clone(),
+                approval: false,
                 provider,
                 addresses: match &config.clients.provider {
                     Some(provider) => provider.addresses.clone(),

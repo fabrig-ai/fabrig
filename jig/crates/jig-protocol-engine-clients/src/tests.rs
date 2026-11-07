@@ -152,3 +152,6 @@ mod provider_claims {
 
 #[path = "tests/catalogue.rs"]
 mod catalogue;
+
+#[path = "tests/approval_surface.rs"]
+mod approval_surface;

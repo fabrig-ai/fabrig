@@ -3,6 +3,10 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
+    ApprovalAsk,
+    ApprovalRead,
+    ApprovalDecide,
+    ApprovalTake,
     Link,
     Service,
     SignOut,
@@ -16,6 +20,10 @@ pub(crate) enum Route {
 }
 pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
     match message {
+        crate::Message::ApprovalAsk(body) => (Route::ApprovalAsk, body),
+        crate::Message::ApprovalRead(body) => (Route::ApprovalRead, body),
+        crate::Message::ApprovalDecide(body) => (Route::ApprovalDecide, body),
+        crate::Message::SignInApproval(body) => (Route::ApprovalTake, body),
         crate::Message::Request(body) => (Route::Request, body),
         crate::Message::Read(body) => (Route::Read, body),
         crate::Message::Watch(body) => (Route::Watch, body),
@@ -86,7 +94,8 @@ pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
         Route::Read => read_none(jig_domain_core::reads::Why::SignedOut, limits),
         Route::Watch => open_answer(Some(jig_domain_core::WatchRefusal::SignedOut), limits),
         Route::Unwatch => close_answer(true),
-        Route::Gone | Route::Stream => Box::new([]),
+        Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake
+        | Route::Gone | Route::Stream => Box::new([]),
         Route::Link | Route::Service => refused(),
         Route::SignOut => sign_out_answer(),
         Route::Authorize => authorize_answer(w::AuthorizeAnswer::SignedOut),
@@ -145,7 +154,8 @@ pub(crate) fn stopped(route: Route) -> Option<Box<[u8]>> {
         Route::SignOut => Some(sign_out_not_ready()),
         Route::Authorize => Some(authorize_answer(w::AuthorizeAnswer::NotReady)),
         Route::Request => Some(not_ready()),
-        Route::Read | Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => None,
+        Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake
+        | Route::Read | Route::Watch | Route::Unwatch | Route::Gone | Route::Stream => None,
     }
 }
 

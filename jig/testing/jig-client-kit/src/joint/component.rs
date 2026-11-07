@@ -65,6 +65,7 @@ impl Composition {
         let settings = clients::Settings {
             provider: None,
             link_secret: None,
+            approval: false,
             addresses: Box::new([]),
             link: None,
             deployment_provider: 2,
@@ -489,7 +490,7 @@ impl Composition {
                     link::Message::SignInService => clients::Message::SignInService(Box::new([])),
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
-                self.event(Event::Transport(clients::FromTransport::Exchange { exchange: name, credential, message }));
+                self.event(Event::Transport(clients::FromTransport::Exchange { browser: false, exchange: name, credential, message }));
                 return;
             }
             link::Request::OpenStream { credential } => {

@@ -528,6 +528,7 @@ impl Seeds {
             installation: self.installation,
             crypto: self.crypto.clone(),
             link_secret: None,
+            approval: false,
         }
     }
 }

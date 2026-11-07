@@ -187,7 +187,7 @@ fn public_calls_past_their_room_are_503_and_signed_in_calls_are_not() {
     f::call_named(&mut mount, &mut out, Token::new(20), Method::Post, b"/jig/v1/read", &f::bearer(), b"");
     assert_eq!(
         f::component(&mut out).as_ref(),
-        &[kit::FromTransport::Exchange {
+        &[kit::FromTransport::Exchange { browser: false,
             exchange: Token::new(20),
             credential: Some(f::credential()),
             message: kit::Message::Read(Box::new([]))

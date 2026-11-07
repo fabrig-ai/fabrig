@@ -327,7 +327,8 @@ impl Component {
                     Route::Request => self.request(env, exchange, sign_in, &body, out),
                     Route::SignOut => self.sign_out(env, exchange, sign_in, &body, out),
                     Route::Authorize => self.authorize_checked(env, exchange, sign_in, &body, out),
-                    Route::Link | Route::Service => {}
+                    Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake
+                    | Route::Link | Route::Service => {}
                 },
                 Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -376,12 +377,12 @@ impl Component {
     }
     fn transport(&mut self, env: &Env<Limits>, message: crate::FromTransport, out: &mut Queue<Request>) {
         match message {
-            crate::FromTransport::Exchange { exchange, credential, message } => {
+            crate::FromTransport::Exchange { exchange, credential, browser, message } => {
                 let (route, body) = routes::message(message);
-                self.receive(env, exchange, credential, route, body, out);
+                self.receive(env, exchange, (credential, browser), route, body, out);
             }
             crate::FromTransport::StreamOpen { stream, credential } => {
-                self.receive(env, stream, credential, Route::Stream, Box::new([]), out);
+                self.receive(env, stream, (credential, false), Route::Stream, Box::new([]), out);
             }
             crate::FromTransport::StreamTaken { stream } => {
                 if let Some(stream) = self.streams.get_mut(&stream)
@@ -408,11 +409,12 @@ impl Component {
         &mut self,
         env: &Env<Limits>,
         owner: Token,
-        credential: Option<skein_lib::Secret>,
+        authentication: (Option<skein_lib::Secret>, bool),
         route: Route,
         body: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
+        let (credential, _browser) = authentication;
         let exchange = self.name();
         let mut connection = Exchange::new(exchange, route == Route::Stream);
         self.body(env, &mut connection, route, body, credential, out);
@@ -442,6 +444,7 @@ impl Component {
             return;
         }
         match route {
+            Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake => {}
             Route::Link => {
                 let Ok(record) = w::LinkSignIn::decode(&env.limits.wire, &mut skein_lib::Reader::new(&body)) else {
                     connection.respond(crate::Reply::NotARecord);
