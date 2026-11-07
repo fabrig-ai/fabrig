@@ -34,6 +34,10 @@ pub enum Up {
         subject: Box<[u8]>,
         display: Box<[u8]>,
     },
+    Refreshed {
+        source: u32,
+        profile: oauth::ProfileClaims,
+    },
     Finishing {
         source: u32,
     },
@@ -119,7 +123,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
                 Up::Visited { source: account, address: url.into_exposed() }
             }
         }
-        driver::Event::SignedIn { account, generation: _, missing, subject } => {
+        driver::Event::SignedIn { account, generation: _, missing, subject, profile: _ } => {
             let Some(subject) = subject else {
                 return Up::SignInFailed { source: account, failure: accounts::Failure::Misconfigured };
             };
@@ -131,6 +135,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
             }
             Up::SignedIn { source: account, subject, display: Box::default() }
         }
+        driver::Event::Refreshed { account, generation: _, profile } => Up::Refreshed { source: account, profile },
         driver::Event::Keep { account, record } => Up::Keep { account, record: Candidate(record) },
         driver::Event::Lock { .. } | driver::Event::Unlock { .. } => {
             unreachable!("no record is shared: each source's record has one keeper, the engine's store")

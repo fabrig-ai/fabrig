@@ -61,6 +61,7 @@ pub(super) fn openai(host_id: &str, redirect_port: Option<u16>, moved: &Moved) -
                 },
             ]),
             openid: Some(oauth::OpenId {
+                profile: skein_oauth::Profile::default(),
                 issuer: address(&moved.issuer, "https://auth.openai.com"),
                 key_set: Some(address(&moved.keys_url, "https://auth.openai.com/.well-known/jwks.json")),
             }),

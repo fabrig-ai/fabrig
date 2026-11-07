@@ -37,6 +37,7 @@ fn visited(client: &mut Client, env: &Env<accounts::Limits>) {
         | Story::AnotherSubject
         | Story::RequiredScopes
         | Story::Public
+        | Story::Profile(_)
         | Story::VaryingTaken
         | Story::TwoPorts
         | Story::Confidential
@@ -148,6 +149,7 @@ fn set_return(client: &mut Client, env: &Env<accounts::Limits>) {
         | Story::AnotherSubject
         | Story::RequiredScopes
         | Story::Public
+        | Story::Profile(_)
         | Story::Restart
         | Story::VaryingTaken
         | Story::TwoPorts
@@ -190,6 +192,9 @@ fn keep(client: &mut Client, env: &Env<accounts::Limits>, account: u32, record: 
     let yes = story != Story::NotKept;
     let size = if super::owner(client).large { 256 } else { 16 };
     assert_eq!(record.access_token.expose(), vec![if generation == 1 { b'a' } else { b'b' }; size]);
+    if matches!(story, Story::Profile(_)) && generation == 2 {
+        assert!(record.id_token == super::owner(client).records.first().expect("sign-in record").id_token);
+    }
     super::owner_mut(client).records.push(record);
     if story == Story::PasteThenListener && super::owner(client).callback != super::paste::Callback::Finished {
         super::owner_mut(client).pending_keep = Some((account, generation));
@@ -249,11 +254,25 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             accounts::Event::Keep { account, record } => {
                 keep(client, env, account, record);
             }
-            accounts::Event::SignedIn { account, generation, missing, subject } => {
+            accounts::Event::SignedIn { account, generation, missing, subject, profile } => {
                 if matches!(story, Story::OpenIdAgain | Story::IssuedClientId) {
                     assert!(subject.as_deref() == Some(super::SUBJECT));
                 }
                 signed_in(client, env, account, generation, missing);
+                let expected = if matches!(story, Story::Profile(_)) {
+                    super::owner_mut(client).facts.push(Fact::Profile);
+                    super::issuer::profile_claims(false)
+                } else {
+                    skein_oauth::ProfileClaims::default()
+                };
+                assert_eq!(profile, expected);
+            }
+            accounts::Event::Refreshed { account, generation, profile } => {
+                let state = super::owner_mut(client);
+                state.contracts[usize::try_from(account).expect("account index")].granted(generation);
+                assert!(!state.facts.contains(&Fact::Granted(generation)), "profile before grant");
+                assert_eq!(profile, super::issuer::profile_claims(true));
+                state.facts.push(Fact::Refreshed(generation));
             }
             accounts::Event::Granted { account, generation, .. } => {
                 super::owner_mut(client).contracts[usize::try_from(account).expect("account index")]
@@ -262,7 +281,7 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
                 if generation == 1 && super::again(story) {
                     client.ask(env, accounts::Request::Release { account });
                     super::owner_mut(client).again_at = Some(env.now.saturating_add(skein_lib::Duration::from_secs(1)));
-                } else if generation == 1 && story == Story::Public {
+                } else if generation == 1 && matches!(story, Story::Public | Story::Profile(_)) {
                     client.ask(env, accounts::Request::Rejected { account, generation });
                 } else if story == Story::ListenerThenPaste {
                     // The browser receives its page before the person pastes.

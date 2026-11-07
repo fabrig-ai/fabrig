@@ -60,7 +60,11 @@ pub fn party_account(
             },
         ]);
     }
-    terms.openid = Some(oauth::OpenId { issuer: configured.issuer.clone(), key_set: Some(configured.keys.clone()) });
+    terms.openid = Some(oauth::OpenId {
+        profile: skein_oauth::Profile::default(),
+        issuer: configured.issuer.clone(),
+        key_set: Some(configured.keys.clone()),
+    });
     terms.issued_client_id = true;
     terms.varying_port = configured.redirect_port.is_none();
     terms.resource.clone_from(&configured.resource);

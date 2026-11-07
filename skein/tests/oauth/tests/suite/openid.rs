@@ -186,6 +186,8 @@ fn a_google_like_sign_in_keeps_an_access_only_identity() {
     for confidential in [false, true] {
         let mut registration = openid_registration();
         registration.scope = boxed(b"openid email profile");
+        registration.terms.as_mut().expect("terms").openid.as_mut().expect("openid").profile =
+            oauth::Profile { email: true, name: true };
         if confidential {
             registration.client_secret = Some(skein_lib::Secret::new(boxed(b"test-secret")));
         }
@@ -202,7 +204,7 @@ fn a_google_like_sign_in_keeps_an_access_only_identity() {
         issuer
             .sign_in_as(fake::Account {
                 subject: boxed(b"user-42"),
-                email: Some(fake::Email { address: boxed(b"person@example.test"), verified: true }),
+                email: Some(fake::Email { address: boxed(b"person@example.com"), verified: true }),
                 name: Some(boxed(b"Test Person")),
             })
             .expect("account");
@@ -217,7 +219,14 @@ fn a_google_like_sign_in_keeps_an_access_only_identity() {
             response(fake_step(&mut issuer, fake::Event::Post { request: post, now: time(2), wall: wall(100) }));
         let json = oauth::Json::from_bytes(&answer.body, &documents()).expect("answer");
         let id_token = oauth::decode_response(&json, &documents()).expect("token answer").id_token;
-        let record = record(client_step(&mut client, oauth::Event::Http(answer)));
+        let Some(oauth::Request::Tokens { record, profile, .. }) = client_step(&mut client, oauth::Event::Http(answer))
+        else {
+            panic!("tokens")
+        };
+        assert_eq!(
+            profile,
+            oauth::ProfileClaims { email: Some(boxed(b"person@example.com")), name: Some(boxed(b"Test Person")) }
+        );
         assert!(record.refresh_token.is_none());
         assert!(record.subject.as_deref() == Some(b"user-42"));
         assert!(record.id_token.is_some() && record.id_token == id_token);

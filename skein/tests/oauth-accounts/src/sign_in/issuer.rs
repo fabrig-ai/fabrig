@@ -54,6 +54,9 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
         profile.server,
     )
     .expect("issuer");
+    if matches!(story, Story::Profile(_)) {
+        issuer.sign_in_as(profile_account()).expect("profile account");
+    }
     for (access, refresh) in [(b'a', b"r1".as_slice()), (b'b', b"r2".as_slice())] {
         issuer
             .queue(fake::Plan {
@@ -77,7 +80,7 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
                         .map(skein_lib::Secret::new),
                     expires_in: 30,
                     scope: (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
-                    id_token: None,
+                    id_token: refresh_profile_token(story, access),
                     earliest_refresh_at: None,
                 }),
                 delay: Duration::from_millis(5),
@@ -91,7 +94,11 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
 pub(super) fn port_terms(story: Story) -> Option<fake::Terms> {
     if matches!(
         story,
-        Story::OpenIdAgain | Story::Return(super::Return::After) | Story::IssuedClientId | Story::AnotherSubject
+        Story::Profile(_)
+            | Story::OpenIdAgain
+            | Story::Return(super::Return::After)
+            | Story::IssuedClientId
+            | Story::AnotherSubject
     ) {
         return Some(fake::Terms {
             issued: if story == Story::IssuedClientId {
@@ -158,4 +165,34 @@ pub fn key_set() -> Box<[u8]> {
         &mut out,
     );
     if let Some(fake::Request::Http(answer)) = out.pop() { answer.body } else { panic!("issuer keys") }
+}
+
+pub(super) fn profile_account() -> fake::Account {
+    fake::Account {
+        subject: bytes::copy_of(super::SUBJECT),
+        email: Some(fake::Email { address: bytes::copy_of(b"you@example.com"), verified: true }),
+        name: Some(bytes::copy_of(b"Example Person")),
+    }
+}
+
+pub(super) fn profile_claims(refreshed: bool) -> oauth::ProfileClaims {
+    oauth::ProfileClaims {
+        email: Some(bytes::copy_of(if refreshed { b"renewed@example.com" } else { b"you@example.com" })),
+        name: Some(bytes::copy_of(if refreshed { b"Renewed Person" } else { b"Example Person" })),
+    }
+}
+
+pub(super) fn refresh_profile_token(story: Story, access: u8) -> Option<skein_lib::Secret> {
+    use skein_lib::{Writer, base64};
+    const PAYLOAD: &[u8] = br#"{"iss":"http://127.0.0.1:31000","aud":"client","exp":4000000000,"sub":"account-subject","nonce":"not-compared","email":"renewed@example.com","email_verified":true,"name":"Renewed Person"}"#;
+    if story != Story::Profile(true) || access != b'b' {
+        return None;
+    }
+    let length =
+        base64::encoded_len(base64::Alphabet::Url, u32::try_from(PAYLOAD.len()).expect("fixture")).expect("fixture");
+    let mut writer = Writer::new(usize::try_from(length).expect("fixture").checked_add(7).expect("fixture"));
+    writer.put(b"e30.").expect("measured");
+    base64::encode(base64::Alphabet::Url, PAYLOAD, &mut writer).expect("measured");
+    writer.put(b".AA").expect("measured");
+    Some(skein_lib::Secret::new(writer.finish()))
 }

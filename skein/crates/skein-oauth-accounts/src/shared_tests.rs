@@ -36,7 +36,8 @@ fn seen(events: &mut Queue<Event>) -> Seen {
         Some(Event::Failed { failure, .. }) => Seen::Failed(failure),
         None => Seen::None,
         Some(
-            Event::Visit { .. }
+            Event::Refreshed { .. }
+            | Event::Visit { .. }
             | Event::Taken { .. }
             | Event::Refused { .. }
             | Event::Expiring { .. }
