@@ -66,7 +66,72 @@ To be filled by the task.
 
 ### rows-codec
 
-To be filled by the task.
+Counts are from the package's before and after nextest listings. Tables and
+rows count the folds made here, including inner cases taken from existing
+tables. Floor saved uses the request's 1.5 ms codec floor, not a suite timing.
+
+| Binary | Module | Tests before | Tests after | Tables | Rows | Floor saved, ms |
+|---|---|---:|---:|---:|---:|---:|
+| `skein-codec` | `patch::run` | 64 | 57 | 5 | 39 | 10.5 |
+| `skein-codec` | `patch::plan` | 39 | 31 | 6 | 77 | 12.0 |
+| `skein-codec` | `patch::text` | 15 | 14 | 1 | 18 | 1.5 |
+| `skein-codec` | `patch` | 12 | 10 | 2 | 5 | 3.0 |
+| `skein-codec` | `tests::piece` | 19 | 14 | 4 | 14 | 7.5 |
+| `skein-codec` | `tests` | 5 | 5 | 0 | 0 | 0.0 |
+| `skein-codec` | `value` | 16 | 15 | 1 | 2 | 1.5 |
+| `skein-codec` | `schema` | 20 | 18 | 2 | 6 | 3.0 |
+| `skein-codec` | `schema::fingerprint` | 14 | 13 | 1 | 2 | 1.5 |
+| `skein-rows` | `tests` | 0 | 5 | 0 | 0 | — |
+
+All 21 listed groups fold. Three further folds take the rename-then-widen
+admission into the layout admission table, missing written sites into the
+missing-operation table, and byte-sum overflow refusals into the piece bound
+table. Together these replace 49 tests with 22 tables holding 163 rows,
+removing 27 codec processes, or 40.5 ms by the request's floor. The new kit
+has five tests of its own; no floor for its new binary is assumed.
+
+Every removed test name is retained: 49 removed, 49 found in row names.
+Former inner cases use `old_name: label`.
+
+Left apart:
+
+- `patch::run`, 52 tests: distinct builder operations, stops, recovery paths,
+  capacity lifecycles, and process-local allocation checks; existing tables
+  with those contracts remain.
+- `patch::plan`, 25 tests: matching and evidence, value encoding, pieces,
+  flags, retained tables and ordering each have their own assertions;
+  existing tables remain.
+- `patch::text`, 13 tests: scanning, grammar admission, numeric refusals,
+  statement kinds, numbering and header-only parsing are different phases
+  or contracts, many already tables.
+- `patch`, 8 tests: lookup, family admission, plan ownership, handles and
+  shared plan capacity have different checks.
+- `tests::piece`, 10 tests: writing, counting, bounded and counted splitting
+  have different operations or extra assertions; the two panic tests stay
+  separate.
+- `tests`, 5 tests: length, count, text, version and reason checks show
+  different operations.
+- `value`, 14 tests: accessors, refusal paths, index ownership, iteration,
+  capacities and secret access have different checks or are already tables.
+- `schema`, 16 tests: grammar and layout phases, encoded limits, nesting,
+  widths and source lines have different assertions or are already tables.
+- `schema::fingerprint`, 12 tests: headers, type productions, child and
+  family digests, layout invariance and ceiling walks are different
+  contracts or existing tables.
+- `skein-rows::tests`, 5 tests: continuation, failure diagnostics, success
+  and the two admission rules each pin their own invariant.
+
+The wrong-scalar rows both check the expected halt, the next call's order
+error and a fresh start at their own root. Writer refusals retain the
+written-count checks, then fill untouched room before finishing: a sized
+writer must finish full. Missing-operation rows all check the complete
+family-block diagnostic. No assertion is weakened.
+
+The final focused package run passes all 177 codec tests and five kit
+tests. With one test process at a time, the 22 folded tables take 5–14 ms
+on their PASS lines, each within the 40 ms unit-test guide. Each changed
+codec test file has a two-row expected-value mutation that reports both
+failures; all five kit tests also reject a broken rule.
 
 ### judge-parses
 
