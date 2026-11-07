@@ -1745,7 +1745,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 
 /* The main and conversation carry the request's panes and left column. */
 #app > .temper-terminal > .temper-terminal-top { grid-column: 1 / -1; }
-#app > .temper-terminal > .temper-convo { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
+#app > .temper-session.temper-terminal > .temper-convo { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg); }
 #app > .temper-terminal .temper-thread { min-height: 0; min-width: 0; }
 #app > .temper-terminal .temper-thread > [role=log] { flex: 1; min-height: 0; padding: 22px 3ch 6px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; scrollbar-gutter: auto; }
 #app > .temper-terminal .temper-thread-inner { max-width: 100ch; margin: 0; gap: 0; }
@@ -1835,7 +1835,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-session-composer > textarea { min-height: 1.6em; max-height: 12.8em; margin: 0; font: inherit; line-height: inherit; color: var(--ink); caret-color: var(--accent); }
 #app > .temper-terminal .temper-session-composer > textarea::placeholder { color: var(--faint); opacity: 1; }
 #app > .temper-terminal .temper-session-composer > .temper-terminal-star { flex: none; color: var(--accent); }
-#app > .temper-terminal .temper-terminal-run { margin: 0 3ch; max-width: 100ch; border: 0; border-radius: 0; background: none; font: inherit; font-weight: 400; text-transform: none; }
+#app > .temper-terminal .temper-terminal-run { border: 0; border-radius: 0; background: none; font: inherit; font-weight: 400; text-transform: none; }
 #app > .temper-terminal .temper-terminal-line { align-items: baseline; }
 #app > .temper-terminal .temper-terminal-line > .temper-terminal-hint { flex: 1; margin: 0; color: var(--dim); }
 #app > .temper-terminal .temper-terminal-line > div > p:last-child { flex: none; margin: 0; color: var(--dim); white-space: nowrap; }
@@ -1861,7 +1861,6 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
   #app > .temper-terminal .temper-thread > [role=log] { padding: 16px 2ch 4px; }
   #app > .temper-terminal .temper-convo > .temper-session-foot { padding: 4px 2ch max(8px, env(safe-area-inset-bottom)); }
   #app > .temper-terminal .temper-terminal-btn { padding: 4px 1ch; }
-  #app > .temper-terminal .temper-terminal-run { margin-inline: 2ch; }
   #app > .temper-terminal .temper-terminal-line > div > p:last-child { display: none; }
 }
 
