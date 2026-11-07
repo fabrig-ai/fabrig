@@ -907,38 +907,39 @@ fn refuses_limits(bounds: Limits, given: Endpoint, error: EndpointError) {
 }
 
 #[test]
-fn valid_refuses_zero_endpoints() {
-    refuses_limits(Limits { endpoints: 0, ..limits() }, endpoint(), EndpointError::TooMany);
-}
-
-#[test]
-fn valid_refuses_zero_connections() {
-    refuses_limits(Limits { connections: 0, ..limits() }, endpoint(), EndpointError::Limits);
-}
-
-#[test]
-fn valid_refuses_zero_calls() {
-    refuses_limits(Limits { calls: 0, ..limits() }, endpoint(), EndpointError::Limits);
-}
-
-#[test]
-fn valid_refuses_zero_per_endpoint() {
-    refuses_limits(Limits { per_endpoint: 0, ..limits() }, endpoint(), EndpointError::Limits);
-}
-
-#[test]
-fn valid_refuses_per_endpoint_past_connections() {
-    refuses_limits(Limits { per_endpoint: 2, ..limits() }, endpoint(), EndpointError::Limits);
-}
-
-#[test]
-fn valid_refuses_calls_past_connections() {
-    refuses_limits(
+fn invalid_connection_limits_refuse_validation_and_construction() {
+    skein_rows::check(
+        [
+            ("valid_refuses_zero_endpoints", (Limits { endpoints: 0, ..limits() }, endpoint(), EndpointError::TooMany)),
+            ("valid_refuses_zero_connections", (Limits { connections: 0, ..limits() }, endpoint(), EndpointError::Limits)),
+            ("valid_refuses_zero_calls", (Limits { calls: 0, ..limits() }, endpoint(), EndpointError::Limits)),
+            ("valid_refuses_zero_per_endpoint", (Limits { per_endpoint: 0, ..limits() }, endpoint(), EndpointError::Limits)),
+            ("valid_refuses_per_endpoint_past_connections", (Limits { per_endpoint: 2, ..limits() }, endpoint(), EndpointError::Limits)),
+            ("valid_refuses_calls_past_connections", (
         Limits { calls: 2, ..limits() },
         endpoint(),
         EndpointError::ConnectionsCalls { connections: 1, calls: 2 },
+    )),
+            ("valid_refuses_unrepresentable_tls_intake", (
+        Limits { tls: skein_tls::client::Limits { read: u32::MAX, ..limits().tls }, ..limits() },
+        endpoint(),
+        EndpointError::Limits,
+    )),
+            ("valid_refuses_unrepresentable_client_edges", { let mut given = endpoint(); given.limits.tokens = u32::MAX; (limits(), given, EndpointError::Limits) }),
+        ],
+        |(bounds, given, error)| refuses_limits(bounds, given, error),
     );
 }
+
+
+
+
+
+
+
+
+
+
 
 #[test]
 fn valid_refuses_more_endpoints_than_the_cap() {
@@ -966,21 +967,9 @@ fn valid_refuses_a_call_larger_than_the_pool() {
     refuses_limits(Limits { memory: 0, ..limits() }, given, EndpointError::MemoryLargestCall { memory: 0, call });
 }
 
-#[test]
-fn valid_refuses_unrepresentable_client_edges() {
-    let mut given = endpoint();
-    given.limits.tokens = u32::MAX;
-    refuses_limits(limits(), given, EndpointError::Limits);
-}
 
-#[test]
-fn valid_refuses_unrepresentable_tls_intake() {
-    refuses_limits(
-        Limits { tls: skein_tls::client::Limits { read: u32::MAX, ..limits().tls }, ..limits() },
-        endpoint(),
-        EndpointError::Limits,
-    );
-}
+
+
 
 #[test]
 fn valid_ignores_heap_pool_sum() {
