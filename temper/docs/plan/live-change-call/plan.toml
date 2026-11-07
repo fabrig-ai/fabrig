@@ -1,0 +1,6 @@
+draft = "live-change-call"
+repo = "fabrig"
+sources = ["temper/docs/plan/live-change-call/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
