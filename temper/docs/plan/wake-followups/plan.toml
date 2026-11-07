@@ -1,0 +1,6 @@
+draft = "wake-followups"
+repo = "fabrig"
+sources = ["temper/docs/plan/wake-followups/inputs/request.md", "temper/docs/design/draft/per-wake.md", "temper/docs/design/draft/per-wake.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
