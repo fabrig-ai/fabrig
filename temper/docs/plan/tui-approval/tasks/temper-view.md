@@ -59,3 +59,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the choices among the options; the tokens' numbers; each red test and what it failed on; each rule broken by hand and the failure seen; the gallery suite's time before and after.
+
+## Answers
+
+- 2026-11-07. *Should temper-domain repair its `CODE_TYPED_BYTES` dependency, or may temper-view edit the file?* Neither: the wire crate departed from the contract (`notes/contracts.md`, 6; `tasks/wire.md`), so the answer call renamed `jig_client_protocol_wire::CODE_INPUT_BYTES` to `CODE_TYPED_BYTES` in `jig/crates/jig-client-protocol-wire/src/{approval.rs,lib.rs}`; `temper-client-domain` is unchanged. Merge the trunk, check it compiles, and carry on from step 1 within your own files.
