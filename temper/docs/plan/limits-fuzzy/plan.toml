@@ -1,0 +1,5 @@
+draft = "limits-fuzzy"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-fuzzy/inputs/request.md", "temper/tests/one-process/tests/suite/fuzzy/one_process.rs", "temper/tests/engine/domain/tests/suite/fuzzy/escalation.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+early = false
