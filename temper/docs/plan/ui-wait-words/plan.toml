@@ -1,0 +1,20 @@
+draft = "ui-wait-words"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-wait-words/inputs/request.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "bounds"
+title = "A run its admitted hosts are all too small for reads which bound keeps it out, with the figures, in the client's task document"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 8"
+
+[[slice]]
+id = 1
+story = "A due task whose charter grew past its admitted worker's turns reads Refused(Bounds) with the charter's turns and the worker's, through server bytes to the client's task"
+parts = ["bounds"]
+walk = false
