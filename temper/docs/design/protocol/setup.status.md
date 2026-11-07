@@ -31,6 +31,15 @@ Sections 7.1 and 7.2 have no known implementation gap in an ordered hangup
 stop, ignored hangups, or Linux's parent-death wrapper. macOS's lack of
 a parent-death signal is the designed limit, deferred in section 15.
 
+- **Not yet:** 13.4: the hangup/rebind and Linux killed-box stories in
+  `crates/temper/tests/suite/box_lifetime.rs` are present in the process
+  binary and compiled, with their assertions retained. Their process-tier
+  runtime is unobserved in `limits-heavy`; both passed before the move in
+  the focused suite. The original 15.9 CPU s estimate transfers to the
+  process tier, whose current total and remaining margin are unknown
+  (`../domain/testing.status.md`, 2.6). The ignored-hangup path remains
+  focused in `crates/temper/tests/suite/box_listeners/lifetime.rs`.
+
 - **Not yet:** 13.4: the supplied inventory contains no run results for
   `ui-restart-red`'s five repaired process stories: the CSV landing, the
   playground copy's source read, the person's plan change, the person's

@@ -13,11 +13,30 @@ The sampled setup median falls 59.63%, the engine question/restart median
 20.48% in instructions. Remaining costs and the work they need are
 deferred in section 11; these samples establish no whole-suite CPU total.
 
+Sections 2.2, 2.6 and 6.1 have the `limits-heavy` row repairs: cheaper
+fake preparation, unique-position page ordering, projection updates,
+protocol readiness/deadline reuse, gallery inputs and checks, launcher
+snapshots and the four single-test fixtures/byte constructions. The
+permanent account is `temper/docs/development/limits-heavy.md`; its
+selected instruction counts, including increases and unknowns, establish
+no whole-suite CPU total. Its listed request rows total 69.7 CPU s against
+the request's about 89; the unassigned 19.3 CPU s remains unexplained.
+Further mechanisms, including causes above that plan's stopping threshold,
+are deferred in section 11, with all bounds, orders and checks retained.
+
+- **Not yet:** 2.6: the hangup/rebind and Linux killed-box stories in
+  `crates/temper/tests/suite/box_lifetime.rs` are registered in the
+  process binary and compiled, but have no runtime result in that tier
+  from `limits-heavy`. Both passed in focused tests before moving whole.
+  Their original CPU medians transfer about 15.9 CPU s to a tier whose
+  current margin is unknown; neither a current tier total nor its fit
+  within 360 CPU s is established by the instruction account.
+
 - **Not yet:** 6.1: temper's focused suite meeting its 30 CPU s budget.
   The `limits-fixtures` request measures about 336 CPU s before its
-  repairs; its closing figures measure individual instruction counts,
-  with intervening plans included, and supply no new whole-suite CPU
-  result. The current total and remaining overage are unknown.
+  repairs; its closing figures and `limits-heavy`'s measure individual
+  instruction counts, with intervening plans included, and supply no new
+  whole-suite CPU result. The current total and remaining overage are unknown.
 
 Section 2.4's real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
