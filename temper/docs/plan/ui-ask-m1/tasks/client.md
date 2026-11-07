@@ -117,3 +117,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says; list each file regenerated and what moved in it.
+
+## Answers
+
+2026-11-07 (temper/ui). The user's word, 2026-11-07, after this plan's cut: Ask temper is temper's own AI, and its place is the rail, not Settings. Its name is Ask temper, with no persona, and the client never offers Ask temper on Settings. So this task builds the rail's row and its opening of the chat, not a Settings row. Build it as look request ask-temper-place shows: origin/look-requests, trailer Look-request: ask-temper-place, at 180f76e480. Its page is temper/docs/design/client/journeys/ask-temper-place/01.html, with one rule in overlay.css, and every state and word its message names. Follow temper/docs/design/draft/look-requests.md, sections 3 and 5. The draft's sections 1 and 9, the execution's M1 and the status changed on main at c0ac935335: read them, as they win over what the cut read. Leave Configure temper, template 3 and charter 3 as they are in this task. A plan of their own drops them straight after this one, and Settings' look without Configure is that plan's.
