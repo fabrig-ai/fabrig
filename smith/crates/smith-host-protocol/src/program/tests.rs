@@ -20,7 +20,12 @@ fn each_ending_answers_as_hosts_md_says() {
         }
     }
     for (code, stdout, expected) in [
-        (0, Some(br#"{"loggedIn":true,"authMethod":"claude.ai"}"#.as_slice()), ProgramCheck::Usable),
+        (0, Some(br#"{"loggedIn":true,"authMethod":"claude.ai"}"#.as_slice()), ProgramCheck::Usable { email: None }),
+        (
+            0,
+            Some(br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you@example.com"}"#.as_slice()),
+            ProgramCheck::Usable { email: Some(b"you@example.com".as_slice().into()) },
+        ),
         (
             0,
             Some(br#"{"loggedIn":true,"authMethod":"api_key"}"#.as_slice()),

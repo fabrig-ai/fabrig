@@ -50,7 +50,10 @@ mod tests {
     #[test]
     fn a_source_signed_in_is_usable() {
         let first = check(Some(b"claude.ai"), None);
-        assert_eq!(first.answers, [SourceAnswer::Check(ProgramCheck::Usable)]);
+        assert_eq!(
+            first.answers,
+            [SourceAnswer::Check(ProgramCheck::Usable { email: Some(b"you@example.com".as_slice().into()) })]
+        );
         assert_eq!(first.trace, check(Some(b"claude.ai"), None).trace, "same seed replays the source world");
     }
 
@@ -99,7 +102,10 @@ mod tests {
             &[b"ANTHROPIC_API_KEY=x".as_slice().into()],
             [Some(0o700); 2],
         );
-        assert_eq!(run.answers, [SourceAnswer::Check(ProgramCheck::Usable)]);
+        assert_eq!(
+            run.answers,
+            [SourceAnswer::Check(ProgramCheck::Usable { email: Some(b"you@example.com".as_slice().into()) })]
+        );
         assert_eq!(run.observations.len(), 1);
         assert_eq!(run.observations.first().expect("one observation").arguments, ["auth", "status"]);
         assert_eq!(run.observations.first().expect("one observation").environment, ["HOME", "CLAUDE_CONFIG_DIR"]);
