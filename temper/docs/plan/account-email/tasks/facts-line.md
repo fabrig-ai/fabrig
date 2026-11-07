@@ -68,3 +68,7 @@ Each new test breaks its rule once by hand. `cargo fmt`; `python3 -I -B jig/scri
 ## Report
 
 As the implementer's text says, with the journeys recorded again and what each print's diff held.
+
+## Answers
+
+2026-11-07 (temper/ui). Accept: generated ids that renumber, with their label references still paired, are recording noise, as times and ports are. Markup, text and attributes being identical otherwise is what matters. Finish.
