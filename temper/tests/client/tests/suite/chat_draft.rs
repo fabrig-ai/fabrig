@@ -268,7 +268,7 @@ fn answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe) {
         "Which colour?\n\n{}\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
         "Choose the colour for the work, keeping both options available. ".repeat(10),
     );
-    assert!(question.len() > usize::try_from(limits().client.domain.text).unwrap());
+    assert!(question.len() > usize::try_from(limits().client.domain.text).expect("document text bound fits usize"));
     let mut child = temper_engine_domain_world::fixtures::report_delegate(question.as_bytes(), Box::new([]));
     child.executor = tasks::Executor::Person(tasks::PersonAddress::Person(fixtures::PARTY));
     child.contract = tasks::Contract::Report { words: 4096 };
