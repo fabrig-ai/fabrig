@@ -1552,7 +1552,7 @@ reads it, and whatever is Linux's may be degraded there.
   |---|---|
   | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
   | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
-  | `crates/temper/tests/suite/box_listeners.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
+  | `crates/temper/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
   | `crates/temper/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `crates/temper/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
   | `crates/temper/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup.md`, 6.4) |
   | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |

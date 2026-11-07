@@ -1,7 +1,8 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
 #[path = "suite/box_kinds.rs"]
 mod box_kinds;
-#[cfg(target_os = "linux")]
+#[path = "suite/box_lifetime.rs"]
+mod box_lifetime;
 #[path = "fake_backends/box_link.rs"]
 mod box_link;
 #[path = "fake_backends/mod.rs"]
