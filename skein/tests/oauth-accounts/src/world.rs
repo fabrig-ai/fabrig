@@ -70,6 +70,7 @@ pub fn limits() -> accounts::Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
+        redirect_bytes: client.url_bytes,
         server: crate::streams::server_limits(&issuer_limits(&client)),
         refresh_lead: Duration::from_secs(10),
         client,

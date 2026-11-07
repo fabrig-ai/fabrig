@@ -116,8 +116,13 @@ fn redirect_uri_is_checked_before_bounded_query_decoding() {
     let limits = limits();
     let registered = b"http://localhost:31234/callback";
     assert!(
-        redirect::parse(b"http://localhost:31234/callback?state=a%2Bb&code=c%20d", registered, &limits.client)
-            .is_some()
+        redirect::parse(
+            b"http://localhost:31234/callback?state=a%2Bb&code=c%20d",
+            registered,
+            &limits.client,
+            limits.redirect_bytes
+        )
+        .is_some()
     );
     for uri in [
         b"http://127.0.0.1:31234/callback?state=a&code=b".as_slice(),
@@ -127,7 +132,7 @@ fn redirect_uri_is_checked_before_bounded_query_decoding() {
         b"http://localhost:31234/callback?state=%xx&code=b",
         b"http://localhost:31234/callback?state=a&code=b#fragment",
     ] {
-        assert!(redirect::parse(uri, registered, &limits.client).is_none());
+        assert!(redirect::parse(uri, registered, &limits.client, limits.redirect_bytes).is_none());
     }
 }
 

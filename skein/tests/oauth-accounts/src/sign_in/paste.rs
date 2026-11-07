@@ -84,7 +84,7 @@ enum Wrong {
     Long,
 }
 impl Wrong {
-    fn edit(&self, uri: &[u8], url_bytes: u32) -> Box<[u8]> {
+    fn edit(&self, uri: &[u8], redirect_bytes: u32) -> Box<[u8]> {
         let (mut address, _, target) = super::browser::url_parts(uri);
         match self {
             Self::Host => {
@@ -109,7 +109,7 @@ impl Wrong {
                 match self {
                     Self::Fragment => edited.extend_from_slice(b"#fragment"),
                     Self::DuplicateState => edited.extend_from_slice(b"&state=another-state"),
-                    Self::Long => edited.resize(usize::try_from(url_bytes).expect("URL bound") + 1, b'x'),
+                    Self::Long => edited.resize(usize::try_from(redirect_bytes).expect("redirect bound") + 1, b'x'),
                     Self::Host | Self::Port | Self::Path => unreachable!("address edits returned"),
                 }
                 edited.into_boxed_slice()
@@ -131,7 +131,7 @@ pub(super) fn paste(client: &mut Client, env: &Env<accounts::Limits>, uri: Box<[
                     env,
                     accounts::Request::Redirected {
                         account: 0,
-                        uri: skein_lib::Secret::new(wrong.edit(&uri, client.limits.client.url_bytes)),
+                        uri: skein_lib::Secret::new(wrong.edit(&uri, client.limits.redirect_bytes)),
                     },
                 );
             }

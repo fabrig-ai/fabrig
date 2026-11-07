@@ -136,6 +136,7 @@ pub fn limits(mut io: skein_io::Limits, accounts: u32, refresh_lead: Duration) -
         lock_wait: Duration::from_secs(1),
         exchanges: 1,
         listeners: 1,
+        redirect_bytes: 8192,
         server: skein_http::server::Limits {
             head: 16_384,
             headers: 64,

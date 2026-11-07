@@ -84,8 +84,8 @@ fn a_redirect_is_matched_against_the_bound_uri() {
         };
         assert_eq!(
             (
-                redirect::parse(uri, BOUND, &limits().client).is_some(),
-                redirect::from_head(&call, BOUND, &limits().client).is_some()
+                redirect::parse(uri, BOUND, &limits().client, limits().redirect_bytes).is_some(),
+                redirect::from_head(&call, BOUND, &limits().client, limits().redirect_bytes).is_some()
             ),
             (expected, expected)
         );
