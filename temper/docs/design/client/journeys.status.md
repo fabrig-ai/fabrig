@@ -2,6 +2,8 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 3.6: the TUI's originals, `Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, and the shared code's `Originals::new` and `redact::field` for the TUI's lines (`tui-recorded`).
+
 Section 9 has no known implementation gap in the terminal's drawing
 route: the request pages remain hand-made references, nine gallery
 states draw the shared view, and `chat-draft` and `welcome-playground`

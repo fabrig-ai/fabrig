@@ -634,6 +634,7 @@ Design documents:
 - [`client/forge.md`](client/forge.status.md)
 - [`client/browser.md`](client/browser.status.md)
 - [`client/journeys.md`](client/journeys.status.md)
+- [`client/tui/journeys.md`](client/tui/journeys.status.md)
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
