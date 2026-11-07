@@ -473,7 +473,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
                 }
                 None => {
                     text.add(
-                        b"Ask: your person is here or this kind waits for them. Ask with message, as a question.",
+                        b"Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N.",
                     )?;
                 }
             }
@@ -856,7 +856,7 @@ fn authority_findings(
         }
     }
     if reference_hint {
-        text.add(b". Your brief's [Requested by ...] line names your requester; [This task: N] is you.")?;
+        text.add(b". Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.")?;
     }
     if change_hint {
         text.add(b". For a change to a repository, call change with what to change.")?;
