@@ -16,7 +16,7 @@ use skein_lib::{List, Queue, Wall};
 use crate::{CallKey, CallPart, Core, translate};
 
 /// A dependency named by a delegate before the core assigns batch task IDs.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Dependency {
     /// One member of the same batch, by zero-based position.
     Batch(u32),
@@ -25,7 +25,7 @@ pub enum Dependency {
 }
 
 /// One proposed direct child before the core supplies its number and funder.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Delegate {
     pub executor: tasks::Executor,
     pub spec: tasks::Spec,
@@ -49,7 +49,7 @@ pub struct Delegate {
 }
 
 /// A connector-owned procedure's chosen task action before core admission.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ProcedureStep {
     /// Replace this procedure task's specification words, within the specification byte bound.
     pub words: Option<Box<[u8]>>,
@@ -64,28 +64,28 @@ pub struct ProcedureStep {
     pub end: StepEnd,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct StepAmendment {
     pub task: u64,
     pub revision: u64,
     pub amendment: tasks::Amendment,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct StepCancel {
     pub task: u64,
     pub reason: Box<[u8]>,
     pub grace: Option<skein_lib::Duration>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct StepMessage {
     pub target: u64,
     pub kind: tasks::MessageKind,
     pub words: Box<[u8]>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StepEnd {
     Result(tasks::TaskResult),
     Hold(tasks::Hold),

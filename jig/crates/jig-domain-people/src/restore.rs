@@ -26,18 +26,18 @@ pub enum RestoreProjection {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct RestoreFailure {
     pub key: Key,
     pub cause: RestoreCause,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
     Bound { which: RestoreBound, held: u64, limit: u64 },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreBound {
     IdentityBytes,
     People,

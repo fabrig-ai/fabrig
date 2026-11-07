@@ -16,7 +16,7 @@ use parts::{
     candidate, dispatch_operation, part_branch, part_inputs, part_number, probe_branch, report_read, reported,
 };
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) dirty: bool,
     pub(crate) due: Map<u64, Wall>,
@@ -40,7 +40,7 @@ impl State {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Walk {
     owner: Token,
     commit: Commit,

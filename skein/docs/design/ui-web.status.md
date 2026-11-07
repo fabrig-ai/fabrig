@@ -11,6 +11,12 @@ the step's bound, including without a new event. The script table holds
 pressed at the first or a later look, unpressed until the bound, and
 absent until the bound, with the latter two failing for their reasons.
 
+Section 14.2 has no known gap in the three `folds_away` stories' arrival:
+each starts with a `Go` and awaits the fixture's `Editor` disclosure
+within 2 s before any act or read. Every folding, focus and outside-press
+check stays in order, with the existing deadlines. This arrival changes
+no page-part behaviour; section 7's departures below remain.
+
 Unlisted sections, including 7's requested focus bringing its node into
 view even when already focused, have no known gap. A bound continuing
 list reports its foot near through the page's scroll and apply paths,

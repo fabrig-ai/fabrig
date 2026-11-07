@@ -9,13 +9,13 @@ use skein_lib::{Decimal, Queue, Token, Writer};
 use crate::brief_words::{BOUNDS, CHECKS, ROOM};
 use crate::{BriefRead, BriefSource, Domain, Request, brief};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Planned {
     pub(crate) source: BriefSource,
     pub(crate) partner: Option<Token>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     source: BriefSource,
     partner: Option<Token>,
@@ -24,7 +24,7 @@ pub(crate) struct Pending {
     dropped: bool,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Held {
     source: BriefSource,
     partner: Option<Token>,

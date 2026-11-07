@@ -12,7 +12,7 @@ use crate::turn::{self, Pending};
 use alloc::boxed::Box;
 
 /// The engine's construction hello is reserved once heard, even if it fails admission.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum EngineHello {
     Expected,
     Heard,
@@ -20,7 +20,7 @@ pub(crate) enum EngineHello {
 }
 
 /// The fleet's state.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) versions: u32,
     pub(crate) reads: crate::reads::Reads,

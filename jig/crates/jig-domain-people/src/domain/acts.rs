@@ -4,13 +4,13 @@ use crate::{Act, ActKey, ActKind, Again, Key, LimitKind, Limits, Outcome, Outcom
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Time, Wall};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingAct {
     key: ActKey,
     act: Act,
     replies: List<ReplyTo>,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Acted {
     act: Act,
     outcome: Outcome,

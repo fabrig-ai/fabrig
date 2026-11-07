@@ -411,21 +411,21 @@ pub(crate) fn signed_out(domain: &mut Domain, source: u32, confirmed: bool, out:
 }
 
 /// A move owns a number apart from its source's (accounts.md, section 6).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Move {
     request: Token,
     holder: Holder,
     number: u32,
     out: bool,
 }
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Arriving {
     request: Token,
     holder: Holder,
     carried: u64,
     opened: Option<Opened>,
 }
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 struct Opened {
     provider: u32,
     subject: Box<[u8]>,

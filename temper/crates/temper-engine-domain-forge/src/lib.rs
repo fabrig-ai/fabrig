@@ -118,7 +118,7 @@ pub use views::{
     LandingLine, LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Access {
     Owned,
     Participant,
@@ -127,7 +127,7 @@ pub enum Access {
 }
 
 /// What a forge write does to its named target.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EffectForm {
     Creation,
     Transition,
@@ -135,7 +135,7 @@ pub enum EffectForm {
 }
 
 /// Recovery promise of one forge effect kind.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Recovery {
     Keyed,
     Conditional,
@@ -652,7 +652,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
 }
 
 /// Connector-owned description of one goal projection write.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionEffect {
     pub resource: What,
     pub kind: u16,

@@ -10,7 +10,7 @@ use temper_engine_domain::{Key, Record, Write};
 
 /// One independently expected successful roster replacement, including the
 /// exact task rows permitted to change (jig's domain/engine.md, section 5.1).
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Replacement {
     /// Complete project roster supplied by the outside owner (jig's
     /// domain/people.md, section 4).
@@ -21,7 +21,7 @@ pub struct Replacement {
     pub tasks: BTreeMap<u64, tasks::TaskRecord>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 struct Obligation {
     person: u64,
     key: [u8; 16],
@@ -33,7 +33,7 @@ struct Obligation {
 /// Frozen pre-transaction observer used unchanged by positive controls and
 /// corruption negatives. Its ledger consists entirely of actual store rows
 /// and registered outside asks.
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Referee {
     rows: BTreeMap<Key, Record>,
     asks: BTreeMap<Token, Obligation>,

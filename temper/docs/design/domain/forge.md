@@ -3453,6 +3453,14 @@ whole.
 
 ## 20. Open questions
 
+- **A forge read past its bound** (8.4): distinguishing
+  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
+  size, needs skein's bare `TooLarge` to carry the bound and an exact or
+  lower-bound measure, then temper's stored answer to retain them.
+  Those public-interface and stored-format decisions belong to their
+  owners. Default: keep the files-omitted notice and the tool's unknown
+  measure; neither raise the room nor split a file across pages. A host
+  answer's rendered-size bound is separate from the forge client's bound.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a

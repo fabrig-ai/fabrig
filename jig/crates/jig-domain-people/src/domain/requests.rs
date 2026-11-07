@@ -16,7 +16,7 @@ pub(crate) struct Answered {
     pub(super) due: Time,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PartyPending {
     pub(super) part: Option<Ask>,
     pub(super) key: RequestKey,
@@ -25,7 +25,7 @@ pub(crate) struct PartyPending {
     pub(super) replies: List<ReplyTo>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "one shared slab prices the largest admitted flight inline")]
 pub(crate) enum Pending {
     Party(PartyPending),

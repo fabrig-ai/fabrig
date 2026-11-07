@@ -21,7 +21,7 @@ use temper_engine_domain_forge as forge;
 /// The protocol layer encodes it as the hub's assignment, with the forge
 /// workspace beside it as temper's application part (jig's
 /// `protocol/channel.md`, 6.2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
     /// Root-issued durable task number.
     pub task: u64,
@@ -56,21 +56,21 @@ pub struct Assignment {
 }
 
 /// One root-owned section in a worker assignment (jig's domain/engine.md, section 9).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BriefSection {
     pub kind: BriefKind,
     pub body: BriefBody,
 }
 
 /// The core's typed section or a section owned by temper's forge connector.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BriefKind {
     Core(brief::Core),
     Forge(ForgeBriefKind),
 }
 
 /// The forge connector's brief section kinds.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeBriefKind {
     Document(Box<[u8]>),
     Ci,
@@ -80,14 +80,14 @@ pub enum ForgeBriefKind {
 }
 
 /// Bytes handed to the worker, or why a section was unavailable.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BriefBody {
     Text(Box<[u8]>),
     Missing(brief::GatherMissing),
 }
 
 /// A checkout's authoritative forge start, prepared afresh by the worker.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeStart {
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
@@ -105,7 +105,7 @@ pub enum ForgeStart {
 }
 
 /// One adopted repository translated for the worker's workspace.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeRepository {
     /// This repository delivers for a goal run (temper/docs/design/domain/forge.md, 11.1).
     pub delivers: bool,
@@ -124,14 +124,14 @@ pub struct ForgeRepository {
 
 /// Concrete checkout roots for one assignment; the workstream that owns
 /// their cache is the hub's (jig's `domain/hosts.md`, 2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeWorkspace {
     pub repositories: Box<[ForgeRepository]>,
 }
 
 /// A decoded value of temper's settings kinds, retained for its request's decision
 /// (temper/docs/design/domain/root.md, 5.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct KindValue {
     pub kind: u32,
     pub scope: u32,
@@ -141,7 +141,7 @@ pub struct KindValue {
 
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Tool {
     /// Ask whether a goal may decide while its person is away (domain/forge.md, 5.9).
     Decided(forge::DecidedCall),
@@ -229,7 +229,7 @@ pub enum Tool {
 }
 
 /// One change of a `change` call (domain/agent.md, 4.3.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCall {
     pub words: Box<[u8]>,
     pub repository: Option<Box<[u8]>>,
@@ -245,7 +245,7 @@ pub struct ChangeCall {
 }
 
 /// A change's LLM choices by role (domain/agent.md, 4.3.1; domain/forge.md, 8.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeLlm {
     pub producer: Option<tasks::LlmChoice>,
     pub review: Option<tasks::LlmChoice>,
@@ -278,14 +278,14 @@ impl ChangeCall {
 }
 
 /// A change's landing choice (domain/agent.md, 4.3.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
 }
 
 /// How a change takes its agents' questions (domain/agent.md, 4.3.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
     Foreman,
@@ -293,7 +293,7 @@ pub enum ChangeQuestions {
 }
 
 /// A change's branch choice (domain/agent.md, 4.3.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeBranch {
     /// Its requester's held branch: the goal branch it holds in the change's repository.
     Mine,
@@ -302,14 +302,14 @@ pub enum ChangeBranch {
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeAfter {
     Task(u64),
     Name(Box<[u8]>),
 }
 
 /// Action a worker can submit for an authority holder's decision.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     not(target_arch = "wasm32"),
     expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")
@@ -323,7 +323,7 @@ pub enum ProposedAction {
 }
 
 /// A task holder's answer to one proposal.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProposalChoice {
     Accept,
     Reject { reason: Box<[u8]> },
@@ -331,7 +331,7 @@ pub enum ProposalChoice {
 }
 
 /// A task ancestor's decision on one held descendant.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum EscalationChoice {
     Release,
     Reject { reason: Box<[u8]> },
@@ -339,7 +339,7 @@ pub enum EscalationChoice {
 }
 
 /// The sendable portion of the task inbox vocabulary.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MessageForm {
     Words,
     Question,
@@ -348,7 +348,7 @@ pub enum MessageForm {
 
 /// A run-named tool call. The root fills the task and attempt from the
 /// worker envelope before looking up its durable decision.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Call {
     pub completion: u32,
     pub position: u32,
@@ -356,13 +356,13 @@ pub struct Call {
 }
 
 /// A setup result contains no credential (protocol/credentials.md, 1).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum SetupOutcome {
     Done,
     Manifest { state: Box<[u8]> },
     Install { state: Box<[u8]>, url: Box<[u8]> },
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum SetupEnd {
     Done { forge: u16, outcome: SetupOutcome },
     Stopped { forge: u16, reason: Box<[u8]> },
@@ -371,7 +371,7 @@ pub enum SetupEnd {
 /// `try_step`'s: an input the journal cannot take returns to its owner, and
 /// store answers are always taken (jig's `domain/root.md`, 3).
 /// The input union, with one variant for each typed peer.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Event {
     /// Terminal of the protocol-owned plan named by `run`.
     Setup {
@@ -402,7 +402,7 @@ pub enum Event {
 /// Optional protocol renderings in the same order as a transcript load's rows.
 pub type TranscriptTexts = Box<[Option<Box<[u8]>>]>;
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum StoreInput {
     /// A startup page's missing owner, handed in before that page's Loaded.
     MissingLink {
@@ -448,7 +448,7 @@ pub enum StoreInput {
 
 /// The three inputs of a worker channel, in the hub's vocabulary (jig's
 /// `domain/hosts.md`, 2 and 6.4).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Link {
     Hello {
         worker: u32,
@@ -464,7 +464,7 @@ pub enum Link {
 
 /// Temper's application parts beside a hub answer, named by its work tokens
 /// (jig's `protocol/channel.md`, 6.2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Parts {
     /// Full set of repository tags with saved work after this terminal, when the worker made
     /// a save; absent preserves the previous set.
@@ -529,7 +529,7 @@ pub enum Fact {
     StepRefused { task: u64, step: u64, problem: jig_domain_tasks::Problem },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum WorkerInput {
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
@@ -542,7 +542,7 @@ pub enum WorkerInput {
 }
 /// A keyed request owned by the root, or forwarded to the forge (client/README.md, 8).
 /// Trials: temper/docs/design/domain/trial.md, 6.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
     Forge(forge::Ask),
     Try { account: u32, again: bool },
@@ -552,7 +552,7 @@ pub enum Application {
     Overturn { project: u32, number: u32 },
 }
 /// The family's terminal answer (client/README.md, 4.6).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
     Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
@@ -571,7 +571,7 @@ pub enum ApplicationAnswer {
     Overturn(forge::OverturnAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum TryAnswer {
     Tried,
     NotTheirs,
@@ -582,7 +582,7 @@ pub use temper_engine_domain_forge::APPROVALS_SUBJECT;
 pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 
 /// Forge reads through party authorization (temper/docs/design/client/README.md, 4.6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
     /// The owner's program-login environment (temper/docs/design/client/README.md, 4.6).
     ProgramEnvironment,
@@ -603,7 +603,7 @@ pub enum ForgeRead {
     },
 }
 /// Typed forge read answers, encoded at the clients' boundary.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
     ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),
@@ -613,7 +613,7 @@ pub enum ForgeReadAnswer {
         owned_approval: bool,
     },
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum PartyInput {
     /// A visitor read (jig/docs/design/domain/people.md, 13.5).
     PublicRead {
@@ -763,7 +763,7 @@ pub enum PartyInput {
 /// Root to shell/worker/web. Commit and load requests each have one store
 /// terminal; deliveries are notices or consume a `ReplyTo` (domain/root.md, 3
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// A making's copy mark has crossed the root (temper/docs/design/domain/forge.md, 4.5).
     MakingCopied {
@@ -871,7 +871,7 @@ pub enum Request {
     Drained,
     Stop,
 }
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StoreRequest {
     /// Replace the names before the catalogue decision commits (jig domain/engine.md, 17.11).
     Catalogue {
@@ -905,7 +905,7 @@ pub enum StoreRequest {
         range: Box<core::reads::Range>,
     },
 }
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum WorkerRequest {
     Host(Box<HostRequest>),
     /// Read an ended answer's opaque outcome in the protocol routing.
@@ -915,7 +915,7 @@ pub enum WorkerRequest {
     },
     Deliver(Delivery),
 }
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum PartyRequest {
     /// Replace the clients' catalogue before its decision commits (jig domain/engine.md, 17.11).
     Catalogue {
@@ -945,7 +945,7 @@ pub enum PartyRequest {
     Deliver(Delivery),
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
     StartDone(jig_domain_core::start::Phase),
@@ -973,7 +973,7 @@ pub(crate) enum Work {
     EndedFailed { waiter: Token },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct BriefConnector {
     pub(crate) deadline: skein_lib::Time,
     pub(crate) task: u64,
@@ -983,7 +983,7 @@ pub(crate) struct BriefConnector {
     pub(crate) cutting: bool,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PreparedWorkspace {
     pub(crate) workspace: forge_route::RunWorkspace,
     pub(crate) claim_names: Box<[forge::Name]>,
@@ -993,7 +993,7 @@ pub(crate) use jig_domain_hub_link::Payload;
 
 /// Temper's connector parts beside the link's prepared assignment
 /// (temper/docs/design/domain/root.md, 7.1).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct AssignmentParts {
     pub saved: Box<[u64]>,
     pub workstream: u64,
@@ -1002,7 +1002,7 @@ pub(crate) struct AssignmentParts {
 }
 
 /// An ended owner row the core asked the root to load.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum EndedRead {
     EndedTask { request: Token, task: u64 },
     SeenConversation { request: Token, task: u64 },
@@ -1011,7 +1011,7 @@ pub(crate) enum EndedRead {
     PersonTask { request: Token, person: u64, project: u32, task: u64 },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Read {
     Escalation(escalation::Query),
     Proposal(proposals::Query),
@@ -1024,7 +1024,7 @@ pub(crate) enum Read {
     SettingsNote { to: Token, call: Box<Call> },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct GoalWords {
     pub(crate) to: Token,
     pub(crate) key: CallKey,
@@ -1034,7 +1034,7 @@ pub(crate) struct GoalWords {
     pub(crate) person_words: Box<[u8]>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct InputCheck {
     pub(crate) to: Token,
     pub(crate) key: CallKey,
@@ -1047,7 +1047,7 @@ pub(crate) struct InputCheck {
 
 /// A child continuation that has crossed its journal barrier. Its payload is
 /// private; iterate may only return it as `Event::Released`.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Released(pub(crate) Delivery);
 
 /// Put an owner-produced held output in its destination envelope, by variant only.
@@ -1094,7 +1094,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
 }
 
 /// A forge write a settling stop left without its outcome (domain/root.md, 9.2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
@@ -1102,7 +1102,7 @@ pub struct Unsettled {
 
 /// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunDiagnostic {
     /// The task whose accepted answer failed.
     pub task: u64,
@@ -1118,7 +1118,7 @@ pub struct RunDiagnostic {
 
 /// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunRefusalDiagnostic {
     /// The task whose accepted assignment was refused.
     pub task: u64,

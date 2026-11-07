@@ -1304,6 +1304,17 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Settings refusal positions** (13.2; jig's `domain/engine.md`, 17.2):
+  the core's `at` counts from 0, and temper's form prints it as given,
+  while a settings file and temper's translation refusal count from 1.
+  Consistent person-facing numbering is later work. Default: keep the
+  protocol's position and the current words until both temper paths agree.
+- **Progress from the repository's checks** (13.9): `.temper/pre-pr`
+  can run its quiet snapshot and format check before a baseline prints
+  anything. A timeout there can truthfully carry an empty tail. Naming
+  phases in that script is later repository work. Default: keep its output
+  and the agent's 60-second `check_timeout`, with smith's check path and
+  given time in the refusal; no larger figure follows from a silent tail.
 - **A reference call of 128 KB** (13.8): the 131,072-byte payload and
   98,500-token output pass the session's rendered feedback beyond the
   transcript's `said_text` ceiling. Raising that ceiling changes a stored
@@ -2697,6 +2708,10 @@ that changes the stock changes nothing of them.
   `forge.change_policy.questions` and its engine's and application's
   share of 13.8's room, and `room.json` the agent's, the workers' and
   the journal's run bound a charter's policy needs.
+
+  A charter's turns, time and run spend must also fit a worker's
+  advertised bounds (jig's `domain/hosts.md`, section 6): journal room
+  alone does not make a worker eligible to run it.
 
   The settings file sizes its charters and template to the box: charters
   2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),

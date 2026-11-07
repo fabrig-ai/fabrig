@@ -31,6 +31,24 @@ fn a_list_refuses_past_its_capacity() {
 }
 
 #[test]
+fn a_grown_list_refuses_at_its_logical_cap_after_refilling() {
+    // Zero, below the growth floor, and caps reached after one or two doublings.
+    const CAPS: [u32; 4] = [0, 3, 5, 9];
+    for cap in CAPS {
+        let mut list = List::with_capacity(cap);
+        for item in 0..cap {
+            list.push(item).expect("within the logical cap");
+        }
+        list.clear();
+        for item in 0..cap {
+            list.push(item).expect("refill within the logical cap");
+        }
+        assert_eq!(list.push(cap), Err(cap), "cap {cap}");
+        assert_eq!(list.len(), cap, "cap {cap}");
+    }
+}
+
+#[test]
 fn a_list_from_owned_items_is_full_and_keeps_their_order() {
     let items: Box<[Box<u8>]> = Box::new([Box::new(3), Box::new(7)]);
     let address = items.as_ptr();

@@ -5,7 +5,7 @@ use crate::Core;
 use alloc::boxed::Box;
 use skein_lib::{Id, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Flight {
     Party { request: Token },
     PartyPart { application: Token, original: Token, connector: u16 },
@@ -38,7 +38,7 @@ pub(crate) enum Flight {
     Retired,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Internal {
     Admission,
     Deletion { project: u32 },

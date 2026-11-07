@@ -15,27 +15,27 @@ pub struct Limits {
 }
 
 /// A project's settings the verdict reads (temper/docs/design/domain/after-landing.md, 11).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Settings {
     pub retries: u32,
     pub suspects: Suspects,
 }
 /// Several landings' new failures: bisected, or every landing told.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Suspects {
     Bisect,
     TellAll,
 }
 
 /// A tier's report file's format (temper/docs/design/domain/after-landing.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Format {
     Junit,
     Lines,
 }
 
 /// The failing tests a run names.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Failures {
     /// Sorted, unique, at most `failing_tests`; empty is none.
     Tests(Box<[TestId]>),
@@ -67,7 +67,7 @@ pub enum Receipt {
 }
 
 /// A tier's record, the top's (store family 25, `Tier`).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Record {
     /// Judged runs so far; the next run is numbered `sequence + 1`.
     pub sequence: u64,
@@ -80,19 +80,19 @@ pub struct Record {
     /// The run in flight.
     pub run: Option<Run>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Judged {
     pub tip: Commit,
     pub key: Key,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Flake {
     pub test: TestId,
     pub count: u32,
 }
 
 /// A run in flight: its tip, its range and the part dispatched now.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
     /// Its number in the tier's sequence.
     pub number: u64,
@@ -109,14 +109,14 @@ pub struct Run {
 /// One landing in a run's range (temper/docs/design/domain/after-landing.md, 3): its commit, the
 /// last of its own range, and the tier's key there (the last landing's
 /// is the tip's).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Landing {
     pub commit: Commit,
     pub key: Key,
 }
 
 /// The part of the tier dispatched now.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Part {
     /// The whole tier at the tip.
     Whole,
@@ -126,14 +126,14 @@ pub enum Part {
     Probe { landing: u32, tests: Selection, finding: Finding },
 }
 /// What a probe runs: these tests alone, or, after many, the whole tier.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Selection {
     Tests(Box<[TestId]>),
     All,
 }
 
 /// A verdict being found, kept across probes.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Finding {
     /// The run's failures once rerun: the tier's at the tip once judged.
     pub failing: Failures,
@@ -144,7 +144,7 @@ pub struct Finding {
 }
 
 /// What a verdict lays on one landing for this tier (5.2, 5.3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Blame {
     /// Nothing: cleared.
     Cleared,

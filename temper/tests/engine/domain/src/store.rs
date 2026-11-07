@@ -79,6 +79,17 @@ impl fmt::Debug for Store {
             .finish_non_exhaustive()
     }
 }
+// Replay covers the four fields Debug exposes, preserving the world's store
+// comparison boundary (skein/docs/design/lib.md, 5.1). The real component and
+// file machinery remain exercised by each world's commits and reads.
+impl core::hash::Hash for Store {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        core::hash::Hash::hash(&self.applied, state);
+        core::hash::Hash::hash(&self.rows, state);
+        core::hash::Hash::hash(&self.pending, state);
+        core::hash::Hash::hash(&self.held, state);
+    }
+}
 impl Default for Store {
     fn default() -> Self {
         Self::new()
@@ -173,7 +184,7 @@ impl Store {
         }
     }
 
-    /// Transfer the store to a consuming driver; its broken oracle never uses the empty shell.
+    /// Transfer the store, leaving an empty shell that is never driven.
     pub(crate) fn take_for_drop(&mut self) -> Store {
         let empty = Self::empty(&self.limits, &self.component_limits, Box::new([]));
         std::mem::replace(self, empty)

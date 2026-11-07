@@ -7,7 +7,7 @@ use skein_lib::{List, Map, Wall};
 
 const QUEUES: u32 = 32;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesView {
     pub project: u32,
     pub landing: Box<[u8]>,
@@ -16,21 +16,21 @@ pub struct ChangesView {
     pub landed: Box<[ChangesLanded]>,
     pub landed_more: u32,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesQueue {
     pub repository: Box<[u8]>,
     pub branch: Box<[u8]>,
     pub red: bool,
     pub changes: Box<[ChangesQueued]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesQueued {
     pub task: u64,
     pub title: Box<[u8]>,
     pub ready_since: Wall,
     pub checks_since: Option<Wall>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {
     pub task: u64,
     pub title: Box<[u8]>,

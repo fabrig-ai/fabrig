@@ -135,7 +135,7 @@ fn tree(core: &Core, limits: &Limits, range: &Range, raw: &[Row], more: bool) ->
 
 /// A watch's authenticated owner and concrete construction inputs.
 /// `client/domain/contract.md`, sections 7.1 and 7.2.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct WatchBinding {
     /// The party whose document is constructed.
     pub(crate) party: u64,
@@ -148,7 +148,7 @@ pub(crate) struct WatchBinding {
 }
 
 /// A concrete subject shared by watches, with its opaque child name.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct WatchedSubject {
     pub(crate) subject: Subject,
     pub(crate) watchers: u32,

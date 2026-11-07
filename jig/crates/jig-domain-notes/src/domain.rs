@@ -23,7 +23,7 @@ use crate::read::{self, Cached, ReadPending};
 use crate::{LineChange, LineRange, line_change, splice};
 
 /// One write waiting for the store.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     owner: Token,
     load_owner: Token,
@@ -31,21 +31,21 @@ pub(crate) struct Pending {
     phase: Phase,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Action {
     Write { entry: New, recalled: Option<u32> },
     WriteLines { entry: New, recalled: u32, range: LineRange },
     Edit { party: u64, name: u64, scope: Scope, change: Change },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Phase {
     Entry,
     Count { scope: Scope, count: u32, after: Option<u64> },
 }
 
 /// The notes child keeps pending work and scope indexes; entries live in the store.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pending: Option<Pending>,
     pub(crate) read: Option<ReadPending>,

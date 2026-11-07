@@ -61,13 +61,13 @@ pub enum Family {
 }
 
 /// Deployment numbers retained by the core.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Counters {
     pub(crate) deployment: Deployment,
     header: Header,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Header {
     Clean,
     Dirty,

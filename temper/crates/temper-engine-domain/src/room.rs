@@ -9,7 +9,7 @@ use skein_lib::{Decimal, Writer};
 pub const BRIEF_ROOM: u64 = 2_048;
 
 /// A charter's non-brief host part in smith's bytes, built by temper-engine-smith.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HostPart {
     /// Smith's host part in the receiving profile.
     pub bound: u64,
@@ -27,7 +27,7 @@ pub struct HostPart {
 }
 
 /// A charter that leaves its brief less than [`BRIEF_ROOM`].
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Short {
     pub charter: u32,
     /// Zero where the non-brief part alone passes the bound.
