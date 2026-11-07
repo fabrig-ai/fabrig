@@ -11,6 +11,7 @@ use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Reques
 use skein_llm_connection_world::plaintext::Wire;
 use skein_tls_kit::{drive::Wire as TlsWire, pki, server::Server};
 use skein_world::domain::assert_replays;
+use skein_world::stream::Trace;
 
 fn limits() -> Limits {
     Limits {
@@ -143,7 +144,7 @@ impl World {
         world
     }
 
-    fn report(mut self) -> (Vec<String>, Vec<String>) {
+    fn report(mut self) -> (Trace, Vec<String>) {
         for _ in 0_u32..1000 {
             self.tick();
             if self.closed && self.io.is_empty() && self.up.is_empty() && !self.component.has_work() {
