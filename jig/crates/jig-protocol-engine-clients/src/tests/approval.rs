@@ -156,6 +156,7 @@ fn only_a_browser_reads_or_decides() {
                 };
                 e.component.down(&e.env, Event::Secrets(SecretsAnswer::Got { owner, value }), &mut e.out);
             }
+            if case == "bearer" { assert!(e.out.is_empty(), "bearer must be refused before credential lookup"); }
             let bytes = e.response(owner).1;
             if deciding {
                 assert_eq!(w::ApprovalDecided::decode(&f::wire(), &mut Reader::new(bytes)).expect("answer"),
@@ -289,6 +290,18 @@ fn an_approval_never_taken_makes_no_sign_in() {
     assert!(e.out.is_empty());
     assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Expired);
     assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Expired);
+    let first = approved(&mut e);
+    let first_end = e.env.now.saturating_add(SPAN);
+    e.env.now = e.env.now.saturating_add(Duration::from_secs(1));
+    let second = approved(&mut e);
+    let second_end = e.env.now.saturating_add(SPAN);
+    assert_eq!(e.component.next_deadline(), Some(first_end));
+    e.env.now = first_end;
+    e.component.fire(&e.env);
+    assert_eq!(e.component.next_deadline(), Some(second_end));
+    assert_eq!(read(&mut e, *first.code()), w::ApprovalState::Expired);
+    assert_eq!(read(&mut e, *second.code()), w::ApprovalState::Approved);
+    assert!(e.out.is_empty());
 }
 #[test]
 fn no_print_of_the_component_shows_a_secret() {
@@ -379,7 +392,7 @@ fn admission_refusals_leave_approvals_alone() {
 #[test]
 fn a_take_drains_on_stop_close_or_abort() {
     for stage in ["whose", "core", "keep"] {
-        for action in ["stop", "close", "abort", "refuse"] {
+        for action in ["stop", "close", "abort", "refuse", "close refused"] {
             let mut e = new(); let a = approved(&mut e);
             let owner = e.send(take_message(a.secret().expose()));
             let to = if stage == "whose" { Some(e.approval_whose()) }
@@ -389,12 +402,13 @@ fn a_take_drains_on_stop_close_or_abort() {
                 e.out.pop().expect("Keep");
                 None
             } else { to };
-            if action == "refuse" {
+            if action == "refuse" || action == "close refused" {
+                if action == "close refused" { e.component.down(&e.env, Event::Close, &mut e.out); }
                 if let Some(to) = to {
                     e.component.down(&e.env, Event::SignInRefused { to }, &mut e.out);
                     assert_eq!(w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer"), w::ApprovalSignInAnswer::Refused);
                     finish(&mut e, owner);
-                    assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Refused);
+                    if action != "close refused" { assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Refused); }
                 } else {
                     e.component.down(&e.env, Event::SignInEnded { sign_in: 91 }, &mut e.out);
                     e.out.pop().expect("Erase");
