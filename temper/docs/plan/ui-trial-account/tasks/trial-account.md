@@ -94,3 +94,5 @@ As the implementer's text says, with each test's wall time before and after, eac
 ## Answers
 
 2026-11-07 (temper/ui). Smallest first, and temper/ui widens your files for whichever it takes. First choice: decide the trial's account, and whether it can be served (account_llm, charter 10), before Core::person_seed, so a refused trial makes no seed at all: the sketch's order isn't a rule. If account_llm truly needs the seed, then defer open_person_pool until route_person_task consumes the seed, so that an unused seed is safe to drop. It's generic in jig, with a failing regression first at jig-domain-core's tier: a seed dropped unused leaves the engine quiescent. Not a new cancel operation. The five joined stories then settle as they did; keep their fixture's lack of charter 10 as the refusal's case.
+
+2026-11-07 (temper/ui). Retry as it was: the disk shortage was passing. hetzner8 reads 65 GB free at 11:16Z, against the 40 GB heavy needs. Carry on from the slot's work in place, with the answer before, refusing before the seed.
