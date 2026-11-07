@@ -226,7 +226,10 @@ fn signed_out_draws_sign_in_first() {
             read(&mut root, Read::Waiting { asked: Wall::EPOCH });
             act(&mut root, Act::Approve);
         }
-        assert!(step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }).is_empty());
+        assert!(
+            step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } })
+                .is_empty()
+        );
         assert_eq!(state(&root), State::SignedOut, "pending decision: {deciding}");
         assert_eq!(root.approving, approve::Flight::Idle);
         for late in [

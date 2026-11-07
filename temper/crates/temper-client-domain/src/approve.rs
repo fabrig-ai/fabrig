@@ -138,9 +138,6 @@ pub(crate) fn act(root: &mut Domain, act: Act) {
 }
 pub(crate) fn progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let Some(page) = &mut root.approval else { return };
-    if root.approving == Flight::Pending {
-        return;
-    }
     match root.client.link().state {
         jig_client::Link::SignedOut => {
             match page.state {
@@ -155,6 +152,7 @@ pub(crate) fn progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
                 | State::Busy => {
                     page.state = State::SignedOut;
                     page.again = None;
+                    root.approving = Flight::Idle;
                     changed(root);
                 }
             }
@@ -162,6 +160,9 @@ pub(crate) fn progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
         }
         jig_client::Link::Live => {}
         jig_client::Link::Starting | jig_client::Link::Offline | jig_client::Link::OutOfDate => return,
+    }
+    if root.approving == Flight::Pending {
+        return;
     }
     if root.client.admission().attempts >= env.limits.client.exchanges {
         return;
