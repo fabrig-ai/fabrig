@@ -103,3 +103,13 @@ The ownership rule says: “A row that fails for a reason in jig's code, not the
 The reported invalidation lies in `jig/crates/jig-domain-core/src/routing/task/save.rs` and `jig/crates/jig-domain-core/src/routing/run/preparation.rs`, outside this task’s files.
 The repair run preserves the prepared offering; the story run then completes row 6’s restart oracle and the remaining acceptance checks.
 This does not accept the story as done: its report explicitly says acceptance remains blocked.
+
+### 2026-11-07: Row 6 still hits the preparation defect; integrate the separately assigned jig-domain-core repair and rerun (recommended), or leave this story pending until that repair is ready. (per-wake/story-2, foreman per-wake/story/foreman-2)
+
+Keep the story pending until the separately assigned jig-domain-core repair is integrated, then rerun and complete acceptance.
+The existing Answer settles this: “Retain row 6’s contract; route the preparation defect to a separate jig-domain-core repair.”
+It specifies: “The repair run preserves the prepared offering; the story run then completes row 6’s restart oracle and the remaining acceptance checks.”
+The ownership rule says: “A row that fails for a reason in jig's code, not the story, is not yours to fix.”
+The story run must not repair `jig/crates/jig-domain-core/src/routing/task/save.rs` or `jig/crates/jig-domain-core/src/routing/run/preparation.rs`.
+After fab integrates the separate repair, resume the story run for row 6 and all remaining acceptance checks.
+The pushed story is not accepted as done: its report explicitly says acceptance remains blocked.
