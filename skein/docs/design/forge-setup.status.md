@@ -2,12 +2,7 @@
 
 2026-11-07. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
-- **Not yet:** 4.1, 4.2, 4.3 (step 7), 4.4: `Reconcile` is given no
-  person's login, reads none and answers none, and no failure names
-  `Person`.
-  4.2, 5.2, 5.6, 5.8, 6.4, 7, 10: `Convert` writes no `AppMade`, and no
-  plan answers the App's account.
-  8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
+- **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
   reading `.forgejo/workflows` alone, which a copy's starter workflow

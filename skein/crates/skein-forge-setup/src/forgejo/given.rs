@@ -16,6 +16,8 @@ pub struct Given {
     pub orgs: Box<[Box<[u8]>]>,
     /// Who owns the orgs made; set with `orgs`.
     pub org_owner: Option<Box<[u8]>>,
+    /// The person whose id reconcile answers, when given (4.3, step 7).
+    pub person: Option<Box<[u8]>>,
     /// The repositories adopted, by id, in the order given; none when no repository is.
     pub adopted: Box<[u64]>,
     pub listener: Option<SocketAddr>,
@@ -34,6 +36,7 @@ pub enum Place {
     Orgs,
     Org(u32),
     OrgOwner,
+    Person,
     Repositories,
     Repository(u32),
     OrgsLimit,
@@ -83,6 +86,11 @@ pub fn check(given: &Given) -> Result<(), Refused> {
         && !login(owner)
     {
         return Err(Refused { place: Place::OrgOwner, other: None });
+    }
+    if let Some(person) = &given.person
+        && !login(person)
+    {
+        return Err(Refused { place: Place::Person, other: None });
     }
     limits::check(&given.limits)?;
     if given.orgs.len() > usize_of(given.limits.orgs) {

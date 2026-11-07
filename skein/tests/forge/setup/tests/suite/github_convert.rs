@@ -14,7 +14,7 @@ const FORGE: u16 = 4; // fixtures::github_forge.
 const SEED: u64 = 7;
 const APP: u64 = 8; // The fake starts at App 7; conversion advances its id.
 const BOT: u64 = 9; // The fake's stable bot id, distinct from its App id.
-const ITEMS: [Item; 4] = [Item::AppId, Item::AppSlug, Item::AppKey, Item::User];
+const ITEMS: [Item; 5] = [Item::AppMade, Item::AppId, Item::AppSlug, Item::AppKey, Item::User];
 
 fn empty(script: &[Connect]) -> HostWorld {
     let mut world = HostWorld::github(SEED, script);
@@ -207,8 +207,19 @@ fn stop(run: u64, stage: Stage, why: Why, at: Duration) -> Heard {
         at,
     }
 }
-fn done(run: u64) -> Heard {
-    Heard::Done { run: Token::new(run), outcome: Outcome::Nothing, at: Duration::ZERO }
+fn done(run: u64, account: skein_forge::github::document::Account) -> Heard {
+    use skein_forge::github::document::Account;
+    let (id, login) = match account {
+        Account::User => (31, b"alice".as_slice()),
+        Account::Organization => (22, b"acme".as_slice()),
+    };
+    Heard::Done {
+        run: Token::new(run),
+        outcome: Outcome::Made {
+            owner: Some(skein_forge::github::document::AppOwner { id, login: login.into(), kind: account }),
+        },
+        at: Duration::ZERO,
+    }
 }
 fn closed(world: &mut HostWorld) {
     world.close();
@@ -237,6 +248,7 @@ fn kept_manifest(world: &HostWorld, state: &[u8], account: &[u8]) -> Box<[u8]> {
 }
 fn identity(world: &HostWorld, slug: &[u8]) {
     for (item, value) in [
+        (Item::AppMade, APP.to_le_bytes().as_slice()),
         (Item::AppId, APP.to_le_bytes().as_slice()),
         (Item::AppSlug, slug),
         (Item::AppKey, app_key()),
@@ -258,6 +270,7 @@ fn the_host_keeps_conversion_items_before_answering_the_browser() {
     world.pause_writes();
     convert(&mut world, 2, &callback);
     for (index, (item, value)) in [
+        (Item::AppMade, APP.to_le_bytes().as_slice()),
         (Item::AppId, APP.to_le_bytes().as_slice()),
         (Item::AppSlug, slug.as_ref()),
         (Item::AppKey, app_key()),
@@ -278,7 +291,7 @@ fn the_host_keeps_conversion_items_before_answering_the_browser() {
         assert_eq!(world.file(item), Some(&fixtures::secret(value)));
     }
     // This is the owner's simulated browser response, released only after Done (5.2).
-    assert_eq!(world.heard().last(), Some(&done(2)));
+    assert_eq!(world.heard().last(), Some(&done(2, skein_forge::github::document::Account::User)));
     identity(&world, &slug);
     assert_eq!(kept_manifest(&world, &callback.state, b"alice"), slug);
     world.run_plan(3, Plan::Install { forge: FORGE });
@@ -302,7 +315,7 @@ fn an_organisation_manifest_returns_through_its_own_state() {
     let callback = created(&mut world, Target::Org(b"acme".as_slice().into()));
     let slug = kept_manifest(&world, &callback.state, b"acme");
     convert(&mut world, 2, &callback);
-    assert_eq!(world.heard().last(), Some(&done(2)));
+    assert_eq!(world.heard().last(), Some(&done(2, skein_forge::github::document::Account::Organization)));
     identity(&world, &slug);
     world.run_plan(3, Plan::Install { forge: FORGE });
     world.settle();
@@ -327,7 +340,7 @@ fn a_reused_or_unknown_conversion_state_never_sends_a_code() {
     let mut world = empty(&[]);
     let callback = created(&mut world, Target::Personal);
     convert(&mut world, 2, &callback);
-    assert_eq!(world.heard().last(), Some(&done(2)));
+    assert_eq!(world.heard().last(), Some(&done(2, skein_forge::github::document::Account::User)));
     for state in [callback.state.clone(), b"00000000000000000000000000000000".as_slice().into()] {
         let sends = world.connects().len();
         let writes = world.needs().len();
@@ -416,7 +429,7 @@ fn conversion_trace_and_failures_hold_no_secret() {
     let plan = Plan::Convert { forge: FORGE, code: callback.code.clone(), state: callback.state.clone() };
     let mut diagnostics = format!("{plan:?} {callback:?}");
     convert(&mut world, 2, &callback);
-    assert_eq!(world.heard().last(), Some(&done(2)));
+    assert_eq!(world.heard().last(), Some(&done(2, skein_forge::github::document::Account::User)));
     convert(&mut world, 3, &callback);
     // Manifest's form/state is public; the conversion's trace and failure are not secrets.
     write!(diagnostics, "{:?} {:?}", &world.heard()[1..], world.needs()).expect("String accepts text");

@@ -30,7 +30,7 @@ fn paste(world: &mut HostWorld) {
 }
 fn done(world: &HostWorld) {
     diagnostics(world, &keys::pem(app_key()).expect("PEM"), app_key());
-    let [Heard::Done { outcome: Outcome::Lacking { lacking }, .. }] = world.heard() else { panic!("Lacking") };
+    let [Heard::Done { outcome: Outcome::Lacking { lacking, .. }, .. }] = world.heard() else { panic!("Lacking") };
     assert!(
         lacking
             .iter()

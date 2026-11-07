@@ -196,7 +196,7 @@ pub fn access(
             item::Item::Accepted,
         ];
         // AppMade shares AppId's bytes (protocol/credentials.md, 2.1).
-        let kit = if index == 11 { item::Item::AppId } else { *kit.get(index).expect("nine setup items") };
+        let kit = if index == 11 { item::Item::AppMade } else { *kit.get(index).expect("nine setup items") };
         if !item::fits(kit, bytes, bounds) {
             return Err(NotConnected::Unreadable);
         }

@@ -298,6 +298,20 @@ fn app_json(row: &document::App, grants: bool, json: &mut Encoder) {
     json.unsigned(row.id);
     json.key(b"slug");
     json.string(&row.slug);
+    if let Some(owner) = &row.owner {
+        json.key(b"owner");
+        json.object_start();
+        json.key(b"id");
+        json.unsigned(owner.id);
+        json.key(b"login");
+        json.string(&owner.login);
+        json.key(b"type");
+        json.string(match owner.kind {
+            document::Account::User => b"User",
+            document::Account::Organization => b"Organization",
+        });
+        json.object_end();
+    }
     if grants {
         json.key(b"permissions");
         json.object_start();
