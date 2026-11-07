@@ -44,3 +44,18 @@ fn a_resumed_producer_holding_the_tip_pushes_no_merge() {
 fn a_resumed_producers_clean_merge_is_committed_before_its_run() {
     let _ = merges::run(73, Case::Resumed, 64);
 }
+
+#[test]
+fn a_goals_later_run_holding_its_run_branch_in_g_starts_on_gs_tip() {
+    merges::goal_later_run(Case::Contained);
+}
+
+#[test]
+fn a_goals_later_run_merges_its_run_branch_into_gs_tip_and_fast_forwards_it() {
+    merges::goal_later_run(Case::Resumed);
+}
+
+#[test]
+fn a_goals_later_run_keeps_a_conflict_with_its_run_branch_in_progress() {
+    merges::goal_later_run(Case::Conflict);
+}

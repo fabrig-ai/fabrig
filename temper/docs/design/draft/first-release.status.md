@@ -1,8 +1,15 @@
 # first-release: status
 
-2026-11-06. Where the design lags or departs from [first-release.md](first-release.md).
+2026-11-07. Where the design lags or departs from [first-release.md](first-release.md).
 
 `../release.md` carries the download (9). `../protocol/sign-in.md`, 2 carries a deployment at a name of its own behind a TLS proxy (2). Reading without signing in (5.3) is carried by jig's `domain/people.md`, section 13 (the public party, a project's visibility, the public documents, who sees what, the admission, which tasks are public, public identifiers, the public index and a read under way), jig's `protocol/client.md`, 17.5 and section 19 (the public reads and their `GET`) and `client/domain/contract.md`, section 12 (jig's public records), and by temper's `../client/forge.md`, section 11 (the forge's public documents), `../client/browser.md`, section 8 (the pages' anonymous mode), `../protocol/sign-in.md`, 2.4 and 2.5 (the proxy, the figures and the negative walk) and `../client/tools.md`, 5.3 (`project amend --visibility`); the deployment's proxy configuration and public figures still lag, and the negative walk plays the proxy's own rules against scripted upstreams rather than temper's service, as `../protocol/sign-in.status.md`, Not yet records. The security review of that design, of 2026-11-03, is settled in it.
+
+The title condition in 5.3 is expressed in ctl's help and completed answer,
+and in the help walk before its command. A person can bypass that help and
+publish without first seeing the words; a preceding acknowledgement is
+Later (`../client/tools.md`, section 14). The configuring chat offers no
+visibility act or proposal, and its instructions give the words when asked
+(`../domain/agent.md`, 8.1).
 
 - **Design lags:**
   - 3: the site has no design.
@@ -11,7 +18,7 @@
   - 5.3: "spend" on a public page is a goal's alone: no task's and no budget, in the records as on the page (jig's `domain/people.md`, 13.3; `../client/browser.md`, 8.3). The user's ruling in the request `ui-public-2`, 2026-11-06.
   - 5.3: "Linked, not shown" and "its change on git.fabrig.ai": a visitor's pages link to no forge, and the public records hold no forge's address. A forge answers a stranger 404 on a private repository, and the forge's state does not hold which are public (`../client/forge.md`, 11.3). The user's ruling in the request `ui-public-2`, 2026-11-06, was to drop the links if the index can't know; taking the addresses out of the records too is fabrig/ui's judgement under that request.
   - 5.3: "A request with no credential is served as that party" holds for public reads alone: any other exchange with no credential is answered signed out (jig's `protocol/client.md`, section 19), so a client still learns it must sign in and the public party's surface is one message. Decided 2026-11-03 while the user is away; the security review kept it.
-  - 5.3: a goal's and a task's title, the spec's first line, and a public project's name cross without an author flag or a human publication capability (jig's `domain/people.md`, 13.3; `jig/docs/design/client/domain/contract.md`, section 12). Decided by the user on 2026-11-03 at 15:40Z. Charter, procedure, role, gate and landing branch names stay hidden (`../client/forge.md`, 11.3); a human publication capability for other configured names is Later (jig's `domain/people.md`, section 12).
+  - 5.3: a goal's and a task's title, the spec's first line, and a public project's name cross without an author flag or a human publication capability (jig's `domain/people.md`, 13.3; `jig/docs/design/client/domain/contract.md`, section 12). Decided by the user on 2026-11-03 at 15:40Z, and reaffirmed on 2026-11-06 (the request `ui-public-3`), on the condition that making a project public says so (`../client/tools.md`, 5.3). Charter, procedure, role, gate and landing branch names stay hidden (`../client/forge.md`, 11.3); a human publication capability for other configured names is Later (jig's `domain/people.md`, section 12).
   - 5.3: "task 1234" on a public page: a task and a project are named by opaque public identifiers, never their numbers, which would show how many were made in between (jig's `domain/people.md`, 13.8). At the user's request (2026-11-03), after the review's eighth finding.
 - **Open:**
   - 5.3: people's names on public pages (12). For now hidden, decided conservatively while the user is away (2026-11-03): no public document carries a party's name, login or number, nor a person executor's or a role's holder (jig's `domain/people.md`, 13.3); charter names stay hidden too (Design departs, above).

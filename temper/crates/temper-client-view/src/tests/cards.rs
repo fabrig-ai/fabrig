@@ -393,7 +393,7 @@ const SETTINGS_KEY: c::ProposalKey = fixtures::chat::PROPOSAL;
 const SETTINGS_REASON: &[u8] = b"I work alone\nKeep drafts beside the code";
 const SETTINGS_KINDS: [(c::Setting, &[u8]); 11] = [
     (c::Setting::Charter(c::SettingNumber { number: 2 }), b"charter 2"),
-    (c::Setting::Template(c::SettingNumber { number: 4 }), b"template 4"),
+    (c::Setting::Template(c::SettingNumber { number: 40 }), b"template 40"),
     (c::Setting::Policy(c::SettingNumber { number: 1 }), b"policy 1"),
     (c::Setting::Rules, b"rules"),
     (c::Setting::Application { kind: 1, scope: 0, number: 1 }, b"landing rule 1"),
@@ -416,13 +416,29 @@ fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept: bool) -> c
         p.acts.push(c::Offered { act: c::ActKind::Accept, admission: c::Admission::Allowed, effect: None }).unwrap();
     }
     let mut heads = List::with_capacity(u32::try_from(items.len()).unwrap());
+    let mut review = List::with_capacity(u32::try_from(items.len()).unwrap());
     for (setting, edit) in items {
-        heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
+        match setting {
+            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => {}
+            c::Setting::Charter(_) | c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules => {
+                heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
+            }
+        }
+        review
+            .push(c::ReviewItem {
+                setting: *setting,
+                edit: edit.clone(),
+                now: c::ReviewValue::None,
+                origin: c::SettingOrigin::NotOffered,
+                would_be: c::ReviewValue::None,
+                application: None,
+            })
+            .unwrap();
     }
     p.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
         against: 0,
         items: heads,
-        review: None,
+        review: Some(c::SettingsReview { key: Some(9001), newest: 0, items: review, cut: false }),
         made: None,
     }));
     c::ReadValue::Proposal(p)
@@ -646,6 +662,30 @@ fn kinds_six_and_seven_are_named_until_their_values_are_read() {
             assert!(skein_lib::bytes::find(&said, expected).is_some(), "{expected:?}");
         }
         assert!(skein_lib::bytes::find(&said, b"project-ways").is_none());
+        let mut card = settings_card(&root);
+        card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
+            key: card.object,
+            at: None,
+            by: None,
+            value: c::EndedValue::Proposal(c::ProposalHistory {
+                number: SETTINGS_KEY.number,
+                proposer: fixtures::chat::DELEGATE,
+                as_holder: true,
+                reason: c::DocumentText::complete(c::Text::new(SETTINGS_REASON.into(), 128).unwrap()),
+                state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) },
+                action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                    projects: List::with_capacity(0),
+                    against: 0,
+                    items: List::with_capacity(0),
+                    made: Some(1),
+                }),
+            }),
+        })));
+        let said = fixtures::text(&draw_settings(&root, &card, false));
+        assert!(
+            skein_lib::bytes::find(&said, if on { b"Goals: shown" } else { b"Goals: hidden" }).is_some(),
+            "decided cards retain the application values already read"
+        );
     }
 }
 #[test]
@@ -961,5 +1001,94 @@ fn a_decided_card_draws_from_what_jig_retains() {
             assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
             assert!(fixtures::find(&tree, Role::Button, b"Accept").is_none());
         }
+    }
+}
+
+#[test]
+fn an_empty_proposal_has_no_items_list() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    let tree = draw_settings(&root, &settings_card(&root), false);
+    for node in tree.nodes() {
+        assert!(!node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_ITEMS));
+    }
+}
+
+#[test]
+fn a_review_adds_application_and_policy_rows_without_repeating_jigs_heads() {
+    let items = [
+        (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
+        (c::Setting::Application { kind: 5, scope: 7, number: 3 }, c::RevisionItemEdit::Removed),
+        (c::Setting::ProjectPolicy { project: 2 }, c::RevisionItemEdit::Reset),
+        (c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set),
+    ];
+    let (mut root, out) = settings_root(settings_page(&items, true));
+    proposed_values(&mut root, &out, true, w::QuestionsRoute::None);
+    let tree = draw_settings(&root, &settings_card(&root), false);
+    for expected in
+        [b"Goals: shown".as_slice(), b"application kind 5, 7, 3 removed", b"project policy 2 reset", b"charter 2"]
+    {
+        let mut count = 0_usize;
+        for node in tree.nodes() {
+            for run in &node.text {
+                if run.text.as_ref() == expected {
+                    count = count.checked_add(1).unwrap();
+                }
+            }
+        }
+        assert_eq!(count, 1, "{expected:?}");
+    }
+}
+
+#[test]
+fn templates_use_the_first_known_name_even_without_tracking() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    let number = root.pages().me(root.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap().number;
+    for (number, expected) in
+        [(number, b"Chat".as_slice()), (4, b"Task by task"), (8, b"Plan, tasks, land whole"), (40, b"template 40")]
+    {
+        for (edit, suffix) in [
+            (c::RevisionItemEdit::Set, b"".as_slice()),
+            (c::RevisionItemEdit::Removed, b" removed"),
+            (c::RevisionItemEdit::Reset, b" reset"),
+        ] {
+            let mut card = settings_card(&root);
+            card.page = Some(settings_page(&[(c::Setting::Template(c::SettingNumber { number }), edit)], true));
+            let tree = draw_settings(&root, &card, false);
+            let mut wanted = Writer::new(expected.len().checked_add(suffix.len()).unwrap());
+            wanted.put(expected).unwrap();
+            wanted.put(suffix).unwrap();
+            let wanted = wanted.finish();
+            let mut found = false;
+            for node in tree.nodes() {
+                for run in &node.text {
+                    if run.text.as_ref() == wanted.as_ref() {
+                        found = true;
+                    }
+                }
+            }
+            assert!(found, "{wanted:?}");
+        }
+    }
+}
+
+#[test]
+fn a_refused_accept_ends_the_withdrawn_card() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    for (replaced, expected) in [(false, "Withdrawn · nothing changes"), (true, "Replaced by the proposal below")] {
+        let mut card = settings_card(&root);
+        card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::Unknown,
+            at: None,
+        })));
+        let tree = draw_settings(&root, &card, replaced);
+        let mut found = false;
+        for node in tree.nodes() {
+            if node.role == Role::Paragraph && node.name.as_deref() == Some(expected.as_bytes()) {
+                assert!(node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_STATE));
+                found = true;
+            }
+            assert_ne!(node.role, Role::Button);
+        }
+        assert!(found, "{expected}");
     }
 }

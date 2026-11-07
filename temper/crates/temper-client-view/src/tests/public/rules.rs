@@ -156,7 +156,7 @@ fn the_board_says_what_it_is_and_when_it_has_no_goals() {
 #[test]
 fn landings_show_below_the_goals_only_with_a_queue_or_a_landing() {
     for (queue, landed, show) in [(false, false, false), (true, false, true), (false, true, true)] {
-        let page = render(
+        let mut page = render(
             Public::Board { project: PROJECT },
             &[(Doc::JigBoard, board()), (Doc::ForgeLandings, records::landings_with(queue, landed))],
             0,
@@ -168,6 +168,11 @@ fn landings_show_below_the_goals_only_with_a_queue_or_a_landing() {
             let goal = nodes.iter().position(|node| node.name.as_deref() == Some(b"Goal 9abcdef0")).expect("goal");
             assert!(at > goal, "Landings follows goals");
             assert_eq!(paragraphs(&page).contains(&"No landings to show yet.".into()), !landed);
+            let link = super::fixtures::find(page.tree(), Role::Link, b"Landings").expect("Landings link");
+            assert_eq!(
+                crate::public::href(&mut page, link).as_deref(),
+                Some(b"/public/projects/3f2a9c0176543210/landings".as_slice())
+            );
         }
         let list = render(
             Public::Landings { project: PROJECT },
@@ -199,7 +204,7 @@ fn a_queue_merges_line_and_landing_read_as_a_landing() {
     let lines = paragraphs(&page);
     assert!(lines.contains(&"landed".into()));
     assert!(lines.contains(&"task 3f2a9c01 · Its change: 789ada1".into()));
-    assert!(lines.contains(&"0 stale proofs".into()));
+    assert!(!lines.contains(&"0 stale proofs".into()));
     assert!(!lines.iter().any(|line| line.starts_with("Gate ")), "a queue merge has no gate row");
     for view in [&list, &page] {
         assert!(!text(view.tree().nodes()).contains("Holds the turn"));
