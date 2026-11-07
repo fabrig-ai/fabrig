@@ -41,4 +41,11 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.most.columns > 0
         && limits.paste > 0
         && limits.interval > Duration::ZERO
+        && skein_ui_screen_terminal::Terminal::operations(&terminal(limits, skein_ui_screen_terminal::Depth::True))
+            .is_some()
+}
+
+#[must_use]
+pub fn terminal(limits: &Limits, depth: skein_ui_screen_terminal::Depth) -> skein_ui_screen_terminal::Settings {
+    skein_ui_screen_terminal::Settings { interval: limits.interval, depth, most: limits.most, paste: limits.paste }
 }
