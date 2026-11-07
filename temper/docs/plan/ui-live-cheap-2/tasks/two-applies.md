@@ -220,3 +220,7 @@ As the implementer's text has it, and: the red's stderr and status and the `--js
 quoted; which option each choice took; the new test's time as nextest prints it; the bite
 and its failure; the files changed outside `files`, each with its one-line reason; and
 that the live story was compiled, not run.
+
+## Answers
+
+2026-11-07 (temper/ui). Repair the oracle in jig: your first option. The clients component's refusal before admission is designed, and a final answer with no durable write is right for it. Keep the exemption narrow. Only a Final that answers a refusal the component gave before core admission, with nothing stored, is exempt from Made. Every other Final keeps its durability check. Do it in jig-client-kit's observe.rs or referee.rs, whichever is the lowest place, and hold it with one row in the kit's own tests: such a refusal accepted, and an ordinary Final with no write still refused. Then go on as the task says: the red with the live refusal and its why, then the two applies. Name the kit change in the report, as jig is shared.
