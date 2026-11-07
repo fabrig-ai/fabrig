@@ -619,15 +619,19 @@ section 8).
     section 19);
   - the sign-in part reads the secret from the address's `secret` and at
     once rewrites the address to the application's home, `/` in the
-    reference (why: section 19); the client host then signs the client
+    reference (why: section 19). An address at the link's route with no
+    `secret` is no link. A `secret` that doesn't decode to 32 bytes is
+    taken as an empty one, so that a made-up link takes the same path as
+    any other link not this deployment's. The client host then signs the client
     in by the link, whose exchange is the link route's POST, the one a
     native client makes, with the browser header; the engine end answers
     it signed in, the credential in the cookie and none in the body;
-  - refused (a spent or expired secret), the application prints a fresh
-    link, as for any refused link (`client.md`, section 8), and the
-    client is signed out, which the reference UI shows as its sign-in
-    page, saying to open the link printed. Not ready or lost, the same;
-    a link not spent still works opened again.
+  - answered why it can't sign in (`client.md`, section 8), the application
+    prints a fresh link if none is live, and the client is signed out, its
+    link's view saying which, for the application's words. Refused, not
+    ready or lost, the client is signed out as well, which the reference UI
+    shows as its sign-in page, saying to open the link printed; a link not
+    spent still works opened again.
 - **An application's sign-in** runs on its own routes (an OAuth or
   OpenID server, a company's directory, a chat platform's identity), as
   the application's server's code: it verifies the identity, asks the

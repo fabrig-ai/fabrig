@@ -65,6 +65,13 @@ An account is how a deployment pays an LLM provider for its runs, through its so
 
 ## Acting on it
 
+- **In Settings:** Accounts leads to Connect a model, with the welcome’s
+  plan cards and API key rows. Connected plans say “Connected”; the first
+  unconnected way is primary. ChatGPT signs in in a new tab; the page
+  stays with a folded paste for a browser on another computer. Claude’s
+  panel has its command, Copy and “I’ve signed in”; a key is pasted once.
+  Success returns to Accounts with a confirmation and Start a chat.
+  Open an account for its sources and acts; Manage usage stays there.
 - **ctl:** `account list` reads the accounts and waits for one usable
   or settled; `account connect`, `account add-key` and `account
   declare` add a source, and `account verify` checks a program's

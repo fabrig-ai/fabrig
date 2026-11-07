@@ -12,6 +12,13 @@ landings omit a zero stale-proof count while retaining a positive count.
 The view and sheet tests hold these rules. Titles retain the user's
 publication decision; no page offers a visibility change.
 
+Section 8.4's public landings check accepts one queued member or none,
+followed by no landing or the stock queue's merge. The tier's library
+table holds all four forms and refuses malformed identifiers, phases,
+times and extra text. The story keeps its other page and geometry checks.
+No implementation gap remains for the request `ui-public-queue`; the
+public geometry and console-expectation limits below remain separate.
+
 Public history retains two limits the request `ui-public-history` leaves
 for later (section 5), which the board's own line states (8.3): goals ended
 before publication are absent; a restart empties the ended-goal history
@@ -32,12 +39,6 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
-- **Not yet:** 4.6: test 16, `the_model_picker_at_the_composer`, is written and
-  compiled, not run, under the plan's focused-and-fuzzy-only rule. Its
-  retained 420 px, one-press model and effort, outside and Escape checks
-  await the browser tier after landing. The look's separate render and
-  fake-box proof is accounted for at `1d82a937df`; it does not establish
-  a passing run of this story.
 - **Not yet:** 8.4: the browser kit returns the first content quad of each text
   node, so the public geometry story cannot check every wrapped fragment.
   Its result needs a browser testing interface decision before it can retain those
@@ -131,11 +132,17 @@ keeps it; publication is not a cutoff on a handed change's commit.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Not yet:** 4.3, 4.2, 4.6: the merged forms of tests 2, 4, 9 and 14 are compiled,
-  and have not run in Chromium, under the user's rule that plans run focused and
-  fuzzy alone: nothing has yet seen a step change anchoring on a live page (4.3), or
-  a second sign-in after the welcome's in one browser (4.2). Whether reading's four
-  stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
+- **Not yet:** 4.2, 4.3, 4.6: the tier holds twelve test functions. Its merged
+  tests 2 (with 11 and the call line), 4 (with 5 and the model picker), 9
+  (welcome then ConnectModel) and 14 (short, Latest, unanchored and long)
+  are compiled, with story labels for failed steps, but have not run in
+  Chromium, under the user's focused-and-fuzzy-only rule. The call line's
+  retained open node, the picker's 420 px, one-press model and effort,
+  outside and Escape checks, a step changing and restoring anchoring on a
+  live page (4.3), and both sign-ins in one browser (4.2) await after-landing
+  proof (section 5). The picker's separate render and fake-box proof at
+  `1d82a937df` establishes no passing run of the merged story. Whether
+  reading's four stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
   25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
   share. The long story's replies are smaller than those figures' by the bytes that
   leave room for the position story's in the fake's joint allowance, with no line

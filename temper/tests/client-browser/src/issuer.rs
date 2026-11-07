@@ -15,7 +15,7 @@ pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         codes: 2,
         rotations: 2,
         carried: 5,
-        plans: 1,
+        plans: 2,
     };
     let mut peer = oauth::Peer::new(
         address,
@@ -60,6 +60,11 @@ pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         },
     )
     .expect("local issuer");
+    sign_in_grants(&mut peer, registration);
+    peer
+}
+
+fn sign_in_grants(peer: &mut oauth::Peer, registration: &serde_json::Value) {
     let scopes = registration["scopes"]
         .as_array()
         .expect("shipped scopes")
@@ -67,19 +72,34 @@ pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         .map(|scope| scope.as_str().expect("scope"))
         .collect::<Vec<_>>()
         .join(" ");
-    peer.queue(skein_fake_oauth::Plan {
-        status: 200,
-        body: skein_fake_oauth::Body::Token(skein_oauth::TokenResponse {
-            access_token: skein_lib::Secret::new(b"browser-access".as_slice().into()),
-            refresh_token: Some(skein_lib::Secret::new(b"fake-refresh".as_slice().into())),
-            expires_in: 300,
-            scope: Some(scopes.into_bytes().into()),
-            id_token: None,
-            earliest_refresh_at: None,
-        }),
-        delay: Duration::ZERO,
-        retry_after: Duration::ZERO,
-    })
-    .expect("one fake grant");
-    peer
+    for _ in 0..2 {
+        peer.queue(skein_fake_oauth::Plan {
+            status: 200,
+            body: skein_fake_oauth::Body::Token(skein_oauth::TokenResponse {
+                access_token: skein_lib::Secret::new(b"browser-access".as_slice().into()),
+                refresh_token: Some(skein_lib::Secret::new(b"fake-refresh".as_slice().into())),
+                expires_in: 300,
+                scope: Some(scopes.as_bytes().into()),
+                id_token: None,
+                earliest_refresh_at: None,
+            }),
+            delay: Duration::ZERO,
+            retry_after: Duration::ZERO,
+        })
+        .expect("each sign-in has a fake grant");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_issuer_scripts_both_sign_ins() {
+        let sign_in = serde_json::json!({
+            "issuer":"http://127.0.0.1:9", "authorization":"http://127.0.0.1:9/authorize",
+            "token":"http://127.0.0.1:9/token", "revocation":"http://127.0.0.1:9/revoke",
+            "keys":"http://127.0.0.1:9/keys", "client":"temper-test", "scopes":["openid","chat"]
+        });
+        let peer = super::peer("127.0.0.1:9".parse().expect("issuer address"), &sign_in);
+        assert_eq!(peer.granted().len(), 2, "each sign-in redeems its own scripted code grant");
+    }
 }

@@ -69,10 +69,10 @@ fn signed_in(front: &mut Joint, root: &mut Root, source: u32) {
 }
 
 #[test]
-fn a_second_providers_sign_in_reaches_ready_after_the_welcomes() {
+fn a_second_providers_sign_in_reaches_accounts_after_the_welcomes() {
     let (mut front, mut root) = accounts::two_sign_ins_fixture(fixtures::SEED);
     accounts::reopen(&mut front, &mut root, Address::Welcome { step: d::Step::Model { way: None } });
-    press(&mut front, &mut root, b"Continue with ChatGPT");
+    press(&mut front, &mut root, b"Continue with Welcome fake");
     let first = accounts::signing(&front);
     visit(&mut front, &mut root, first);
     signed_in(&mut front, &mut root, first);
@@ -100,8 +100,9 @@ fn a_second_providers_sign_in_reaches_ready_after_the_welcomes() {
         }
     );
     signed_in(&mut front, &mut root, second);
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
     let words = text(&root);
-    assert!(words.contains("Signed in to Other fake"), "{words}");
+    assert!(words.contains("Added your Other fake plan"), "{words}");
     assert!(!words.contains("the same account again"), "{words}");
     assert!(front.leaves.is_empty());
     accounts::answer_trial(&mut front, &mut root);

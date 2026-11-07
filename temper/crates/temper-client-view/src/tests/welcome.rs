@@ -1110,13 +1110,15 @@ fn in_welcome(root: &mut d::Domain, kind: d::WayKind) {
     f::root_event(root, d::Event::Went { place: d::Place::Address(model_address(kind)) });
 }
 fn model_back(root: &d::Domain) {
-    let view = f::page_view(root);
-    let tree = view.tree();
-    assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some("‹ Back".as_bytes())).count(), 1);
-    for back in ["‹ Back", "All ways"] {
+    for mut view in [f::page_view(root), f::browser_page_view(root)] {
+        let tree = view.tree();
+        assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some("‹ Back".as_bytes())).count(), 1);
+        assert!(f::find(tree, Role::Link, b"All ways").is_none());
+        assert!(!String::from_utf8_lossy(&f::text(tree)).contains("All ways"));
+        let back = node(tree, Role::Link, "‹ Back");
         assert_eq!(
-            press(root, Role::Link, back),
-            d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } })
+            crate::act(&mut view, back, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } }))
         );
     }
 }
@@ -1169,33 +1171,25 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
         }
     }
 }
+fn model_ending_in_welcome(end: jig_client::contract::AccountEnd) -> d::Domain {
+    let mut root = super::connect_model::ending(end, b"alice@example.com");
+    in_welcome(&mut root, d::WayKind::SignIn);
+    root
+}
 #[test]
-fn model_endings_have_their_heading_and_one_back() {
-    use jig_client::contract::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
-    for (end, heading) in [
-        (E::Made { account: 1, declined: false }, "Signed in to ChatGPT as alice@example.com"),
-        (E::Renewed { account: 1, declined: false }, "Signing in to ChatGPT"),
-        (E::Made { account: 1, declined: true }, "Signing in to ChatGPT"),
-        (E::Renewed { account: 1, declined: true }, "Signing in to ChatGPT"),
-        (E::Refused { refusal: R::Held { provider: 17 } }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::Misconfigured }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::SignInAgain }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::MissingScope { scope: 19 } }, "Signing in to ChatGPT"),
-    ] {
-        let mut root = super::connect_model::ending(end, b"alice@example.com");
-        let standalone = f::page_view(&root);
-        node(standalone.tree(), Role::Heading { level: 2 }, heading);
-        in_welcome(&mut root, d::WayKind::SignIn);
-        let view = f::page_view(&root);
-        if pages::welcome::model_usable(&root) == Some(true) {
-            node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
-            node(view.tree(), Role::Status, "ChatGPT plan · alice@example.com");
-            node(view.tree(), Role::Link, "Continue");
-        } else {
-            model_back(&root);
-            node(view.tree(), Role::Heading { level: 1 }, "Signing in to ChatGPT");
-        }
-    }
+fn a_made_model_keeps_the_welcomes_connected_frame() {
+    let root = model_ending_in_welcome(jig_client::contract::AccountEnd::Made { account: 1, declined: false });
+    let view = f::page_view(&root);
+    node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
+    node(view.tree(), Role::Status, "ChatGPT plan · alice@example.com");
+    node(view.tree(), Role::Link, "Continue");
+}
+#[test]
+fn a_failed_model_keeps_the_welcomes_sign_in_back() {
+    use jig_client::contract::{AccountEnd, AccountFailure};
+    let root = model_ending_in_welcome(AccountEnd::Failed { failure: AccountFailure::Misconfigured });
+    model_back(&root);
+    node(f::page_view(&root).tree(), Role::Heading { level: 1 }, "Signing in to ChatGPT");
 }
 
 fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
@@ -1878,7 +1872,11 @@ fn forge_step_keeps_recovery_installation_and_admin_steps_without_view() {
     parts.admin = true;
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    cases.push((rows, Some(d::Choice::Forge(HERE)), "Connect as its admin"));
+    cases.push((
+        rows,
+        Some(d::Choice::Forge(HERE)),
+        "Scopes: write:admin, read:user, write:organization, write:repository",
+    ));
     for (rows, choice, expected) in cases {
         let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: choice } }, rows);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -2143,14 +2141,12 @@ fn model_panels_enable_the_primary_only_after_a_secret_is_written() {
                     !tree.nodes().iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Pressed)
                 );
                 if !paste {
-                    let all = node(tree, Role::Link, "All ways");
-                    assert_eq!(forge::parent(tree, button), forge::parent(tree, all));
-                    assert!(all > button);
+                    let back = node(tree, Role::Link, "‹ Back");
                     if !browser {
-                        f::terminal_command(tree, &view.limits().tree, all, b"All ways", primary.as_bytes());
+                        f::terminal_command(tree, &view.limits().tree, back, "‹ Back".as_bytes(), primary.as_bytes());
                     }
                     assert_eq!(
-                        crate::act(&mut view, all, Act::Press),
+                        crate::act(&mut view, back, Act::Press),
                         Some(d::Action::Pages(pages::Act::Go {
                             address: Address::Welcome { step: Step::Model { way: None } }
                         }))
@@ -2381,7 +2377,7 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                 );
                 assert!(has_style(tree, crate::look::WELCOME_CMD));
                 node(tree, Role::Button, "I’ve signed in");
-                node(tree, Role::Link, "All ways");
+                node(tree, Role::Link, "‹ Back");
             }
         }
         let browser = f::browser_page_view(&root);

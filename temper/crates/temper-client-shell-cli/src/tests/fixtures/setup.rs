@@ -55,7 +55,8 @@ impl Frame {
             | f::Request::Connect(_)
             | f::Request::Accept(_)
             | f::Request::MakeRepository(_)
-            | f::Request::Reachable(_) => return false,
+            | f::Request::Reachable(_)
+            | f::Request::DismissMaking(_) => return false,
         };
         let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).expect("valid setup fixture");
         let document = owned(wire::answer(&answer));

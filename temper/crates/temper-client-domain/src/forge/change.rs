@@ -135,7 +135,7 @@ pub fn line(panel: &w::ChangePanel) -> Said {
         w::Step::Repairing(repair) => match repair.reason() {
             w::Reason::Ci => W::RepairCi,
             w::Reason::Gate(gate) => return (W::RepairGate, Box::new([Hole::Number(gate.gate())])),
-            w::Reason::Semantic => return landing_line(W::RepairSemantic, panel),
+            w::Reason::Semantic => W::RepairSemantic,
         },
         w::Step::Landing => W::LandingLine,
         w::Step::Landed(landed) => return merged_line(W::LandedLine, landed.merge()),

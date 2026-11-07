@@ -283,8 +283,12 @@ MakeRepository {
   (the picker, then the adoption form, `../client/README.md`, 4.4), a
   new empty one, or a copy of a public one.
 - **One sheet, "Add repositories",** a dialog over the page (a sheet
-  from the bottom on a phone), with the three as its sources,
-  the forge chosen above them where there are several; the adoption's
+  from the bottom on a phone), with the three as its sources. The forge
+  is chosen inside the first, where there are several: a repository is
+  only made or copied on a Forgejo, so GitHub chosen above them would
+  leave two sources with nothing to do. Those two say which forge they
+  land on, and take a Forge field of their own only where there are
+  several Forgejos (the user, 2026-11-06). The adoption's
   own fields (role, home, landing branch, CI, checks) under "More",
   their defaults those of section 5.1. From Settings' project
   repositories, from a project with no repository (`first-run-projects.md`,

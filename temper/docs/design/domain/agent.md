@@ -336,11 +336,13 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   call past those refused at decoding, saying so. The forge judges it
   (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
   saved, or "Ask: your person is here or this kind waits for them. Ask
-  with message, as a question." Named and decided once, as `change`. Funds,
-  sign-ins, machines, a plan's go-ahead and anything hard to reverse are
+  with message, as a question; if your brief says [Requested by person N],
+  with delegate, a person task addressed to person N." Named and decided
+  once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
+  anything hard to reverse are
   kind `other`, by the charter's words (`../protocol/configuration.md`,
   13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
-  asks it with `message`, as a question, and waits. Nothing in the engine
+  asks it by its requester's route (8.2), and waits. Nothing in the engine
   answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
@@ -964,6 +966,10 @@ and waits in the Needs you of each project it belongs to (jig's
   its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
+  - to raise a person's forge identity only when approvals are what is being
+    asked about or proposed: the inventory's "forge identity unknown: cannot
+    count for approvals" stays a fact it reads, and with no approval required
+    it changes nothing the person needs to hear;
   - to speak in the person's terms: what happens to their work, who does
     it, what must pass before a change lands, who approves and which
     model runs, naming a charter, template, revision or kind only in a
@@ -1153,15 +1159,15 @@ of `../draft/v0.1.0.md`, 2.1.
   what its delegate waits on and that it waits in their inbox, then
   waits for their decision.
 - Every Finite charter 1 run keeps `message` in smith's reserve; the owing fact is enforced at the root and is not known when the worker builds the charter.
-- **The goal asks its requester,** the chat, with `message` in the
-  question form, before it calls `change`, and waits. jig puts the
+- **A goal a chat calls asks its requester,** the chat, with `message`
+  in the question form, before it calls `change`, and waits. jig puts the
   question in the inbox of the chat's person, since the person requested
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
 - **A goal a person started asks that person.** A goal from the sheet or
-  from Goals (`../client/README.md`, 5.14) has a person as its requester,
-  whose brief says `[Requested by person N]`, and `message` reaches tasks
+  from Goals (`../client/README.md`, 5.14) has a person as its requester.
+  Its brief says `[Requested by person N]`, and `message` reaches tasks
   alone (jig's `domain/tasks.md`, 8.5). So, wherever it would ask, it
   calls `delegate` with one person task addressed to its requester (jig's
   `domain/people.md`, section 8): executor `{kind: person, person: N}`,
@@ -1169,7 +1175,7 @@ of `../draft/v0.1.0.md`, 2.1.
   contract and an authority of nothing; then it waits. Its result is the
   person's answer, and it wakes the goal with those words, as any
   delegate's does (jig's `domain/tasks.md`, 5.6). The goal's paragraph of
-  charter 1 says so in one sentence, `decided`'s Ask and the hint of a
+  charter 1 says so in its one paragraph, `decided`'s Ask and the hint of a
   `message` refused for its reference say so too, and a goal a chat calls
   goes on asking its chat. A person's `Create` never sets `asks`, so the
   rail below, which a `message` question alone answers, holds no goal a
@@ -1180,8 +1186,9 @@ of `../draft/v0.1.0.md`, 2.1.
     and each project's `policy.ceiling` name roles 0, 1 and 2, those
     whose people may create work, and a role's authority names its own
     role alone. So what a person starts may address only someone holding
-    that person's role, and a person with no role or another is refused:
-    `missing executor permission`. A goal a chat calls loses every role
+    that person's role. Another role is refused with
+    `missing executor permission`; a person with no project role is
+    refused with `Refused: executor`. A goal a chat calls loses every role
     kind as `goal` narrows its authority (4.3.1 names what it keeps), so
     it may address no one. Among holders of one role, the charter's words
     alone say "its requester" (section 10).
@@ -1367,6 +1374,13 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **A real model asking its person** (8.2; the request `ui-goal-asks`):
+  the client world's sheet-to-answer story supplies a typed `delegate`
+  call, and the stock and host-answer tests hold the instructions. They
+  do not establish a real model choosing that call from the sheet or
+  Goals, with Away on or off or with always-ask words. Default: those
+  instructions and focused stories; real-model observation follows landing.
 
 - **A permission for its own requester alone** (8.2): a goal a person
   started may address anyone holding that person's role, since jig's

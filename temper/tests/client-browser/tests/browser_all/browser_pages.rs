@@ -372,7 +372,7 @@ fn latest_steps(tier: &Tier) -> Vec<Step> {
     let words = reading::latest_words;
     let mut steps = vec![
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
-        see(Find::exactly_named(Role::Link, FIRST_CHAT)),
+        see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
     ];
     let history: Vec<_> = (1..=reading::LATEST_MESSAGES).map(words).collect();
     let then: Vec<_> = history.iter().map(|words| std::str::from_utf8(words).expect("latest words")).collect();

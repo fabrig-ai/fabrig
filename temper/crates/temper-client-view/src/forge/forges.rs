@@ -67,6 +67,7 @@ pub(crate) fn main(
         );
     }
     b.close();
+    confirmation(b, root, w, bindings, project);
     match root.forges() {
         State::Unknown => {}
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
@@ -111,11 +112,39 @@ pub(crate) fn main(
     b.close();
 }
 
+fn confirmation(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: Option<u32>) {
+    if let Some(number) = root.pages().forges_opened()
+        && let Some(row) = forge::connect::row(number, root.forges(), forge::connect::playground(root.forge()))
+        && let Connection::Connected { .. } = row.connection
+        && !forge::connect::underway(row)
+        && !forge::connect::failed(row)
+    {
+        b.open(Role::Paragraph);
+        b.style(look::CONNECT_CONFIRM);
+        let line = w.say(Word::ForgeConnectedConfirm, &[Hole::Name(row_name(w, row, root))]);
+        b.name(&line);
+        b.text(skein_ui::Run::Plain, &line);
+        if let Some(project) = project {
+            flow::connect_control(
+                b,
+                flow::Control::Link {
+                    name: &w.say(Word::ForgeAdopt, &[]),
+                    to: bindings.insert(Act::Go { address: Address::Adopt { project } }),
+                },
+            );
+        }
+        b.close();
+    }
+}
+
 fn connection(row: &Row, root: &Domain, w: &Words) -> Box<[u8]> {
     if let Some(draft) = root.forge().replacement(row.number)
         && draft.connecting()
     {
         return w.say(Word::Connecting, &[]);
+    }
+    if row.mode == Mode::Managed && forge::connect::underway(row) && !forge::connect::failed(row) {
+        return w.say(Word::ForgeRowSettingUp, &[]);
     }
     if forge::connect::failed(row) {
         return forge::words::forge_connection(row);
@@ -133,6 +162,40 @@ fn connection(row: &Row, root: &Domain, w: &Words) -> Box<[u8]> {
         | Connection::Stopped { .. } => forge::words::forge_connection(row),
     }
 }
+fn row_name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
+    if row.kind == Kind::Forgejo && row.mode == Mode::Managed {
+        w.say(Word::ConnectManaged, &[])
+    } else {
+        connect::name(w, row, root)
+    }
+}
+fn description(root: &Domain, w: &Words, row: &Row, setting_up: bool) -> Box<[u8]> {
+    let kind = match row.kind {
+        Kind::Forgejo => Word::ForgeOther,
+        Kind::GitHub => Word::ForgeGitHub,
+    };
+    let summary = forge::words::forge_summary(
+        &w.say(Word::ForgeSummary, &[Hole::Number(u64::from(row.number)), Hole::Name(w.say(kind, &[]))]),
+        &connection(row, root, w),
+    );
+    let line = repository_line(root, w, row);
+    if let Some(line) = line {
+        let bytes = summary
+            .len()
+            .checked_add(if setting_up { 4 } else { 1 })
+            .expect("summary fits")
+            .checked_add(line.len())
+            .expect("summary fits");
+        let mut text = skein_lib::Writer::new(bytes);
+        text.put(&summary).expect("summary counted");
+        text.put(if setting_up { b" \xc2\xb7 " } else { b"\n" }).expect("separator counted");
+        text.put(&line).expect("repository line counted");
+        text.finish()
+    } else {
+        summary
+    }
+}
+
 fn personal(
     b: &mut Builder,
     root: &Domain,
@@ -144,25 +207,21 @@ fn personal(
 ) {
     b.open(Role::Disclosure);
     b.style(look::SETTINGS_ROW);
-    b.name(&connect::name(w, row, root));
-    let kind = match row.kind {
-        Kind::Forgejo => Word::ForgeOther,
-        Kind::GitHub => Word::ForgeGitHub,
-    };
-    let summary = forge::words::forge_summary(
-        &w.say(Word::ForgeSummary, &[Hole::Number(u64::from(row.number)), Hole::Name(w.say(kind, &[]))]),
-        &connection(row, root, w),
-    );
-    let line = repository_line(root, w, row);
-    if let Some(line) = line {
-        let bytes = summary.len().checked_add(1).expect("summary fits").checked_add(line.len()).expect("summary fits");
-        let mut text = skein_lib::Writer::new(bytes);
-        text.put(&summary).expect("summary counted");
-        text.put(b"\n").expect("separator counted");
-        text.put(&line).expect("repository line counted");
-        b.description(&text.finish());
-    } else {
-        b.description(&summary);
+    let setting_up = forge::connect::underway(row) || forge::connect::failed(row);
+    if setting_up || root.pages().forges_opened() == Some(row.number) {
+        b.state(skein_ui::State::Expanded);
+    }
+    b.name(&row_name(w, row, root));
+    b.description(&description(root, w, row, setting_up));
+    if setting_up {
+        connect::live(b, root, w, row);
+        if row.kind == Kind::Forgejo && row.mode == Mode::Managed && !forge::connect::failed(row) {
+            b.close();
+            return;
+        }
+    }
+    if row.admin && forge::connect::admin_stopped(row) {
+        connect::admin_details(b, root, w, forge, bindings, row);
     }
     if let Some(first) = &row.first {
         match first.state {
@@ -183,6 +242,25 @@ fn personal(
     }
     owned(b, w, row);
     repositories(b, w, row, sign_in);
+    if row.admin
+        && !setting_up
+        && let Some(first) = &row.first
+    {
+        let repository = forge::words::full_name(&first.org, &first.repository);
+        crate::cards::text(
+            b,
+            Role::Paragraph,
+            &w.say(Word::AdminReady, &[Hole::Name(repository.clone()), Hole::Name(first.label.clone())]),
+        );
+        if let Some(web) = &row.web
+            && let Some(address) = super::repository::web_address(web, &first.org, &first.repository)
+        {
+            b.open(Role::Link);
+            b.name(&w.say(Word::AdminRepository, &[Hole::Name(repository)]));
+            b.external(&address);
+            b.close();
+        }
+    }
     connect::app_line(b, w, row, true);
     if let Some(line) = forge::words::last_connect(row) {
         crate::cards::text(b, Role::Paragraph, &line);
@@ -190,35 +268,22 @@ fn personal(
     if row.kind == Kind::GitHub {
         github(b, root, w, bindings, forge, row);
     }
-    if forge::tokens::offered(row) {
-        connect::link(
-            b,
-            w,
-            bindings,
-            Word::TokensLink,
-            Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
-        );
-    }
+    tokens(b, root, w, bindings, forge, row);
     if forge::connect::failed(row) && row.offer == Offer::Offered {
-        connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
+        connect::setup_control(b, root, w, forge, row.number, Word::WelcomeTryAgain);
     } else {
         match row.connection {
             Connection::SetUpFailed { .. } if row.offer == Offer::Offered => {
-                connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
+                connect::setup_control(b, root, w, forge, row.number, Word::WelcomeTryAgain);
             }
-            Connection::SettingUp { .. } | Connection::Connecting => connect::link(
-                b,
-                w,
-                bindings,
-                Word::ForgeOpenSetup,
-                Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
-            ),
             Connection::Stopped { .. } if row.mode == Mode::Owned => {
                 connect::text(b, w, Role::Paragraph, Word::ForgeRestartBox);
             }
             Connection::Connected { .. } => connect::adopt(b, root, w, bindings),
             Connection::NotConnected
             | Connection::NotSetUp
+            | Connection::SettingUp { .. }
+            | Connection::Connecting
             | Connection::SetUpFailed { .. }
             | Connection::Stopped { .. } => {}
         }
@@ -261,6 +326,22 @@ fn repository(
     b.close();
     b.close();
 }
+fn tokens(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {
+    if forge::tokens::offered(row) {
+        if root.pages().forges_opened() == Some(row.number) {
+            connect::tokens_details(b, root, w, forge, bindings, row);
+        } else {
+            connect::link(
+                b,
+                w,
+                bindings,
+                Word::TokensLink,
+                Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
+            );
+        }
+    }
+}
+
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {
     if let Some(web) = &row.web {
         b.open(Role::Link);

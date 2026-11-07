@@ -943,13 +943,15 @@ for any presentation of a chat or of any agent task's activity.
     an answer that gives none keeps `held`, the sign-in the engine kept
     (`../../protocol/client.md`, section 8), unless the transport keeps
     it: a browser's `held` is none, its cookie carried by the transport.
-    An answer refused, not ready, busy, full or lost installs nothing,
-    and `held` stays the application's to give again. Not ready, busy
-    and full leave the link's secret usable until its expiry
-    (`../../protocol/client.md`, section 8), and the link's view says
-    which, as `not_signed_in`: not ready, busy, or full with the
+    An answer refused, not ready, busy, full, why a link can't sign in
+    or lost installs nothing, and `held` stays the application's to give
+    again. Not ready, busy and full leave the link's secret usable until
+    its expiry (`../../protocol/client.md`, section 8), and the link's
+    view says which, as `not_signed_in`: not ready, busy, or full with the
     deployment's room for sign-ins, the earliest saved expiry among
-    them and the link's own expiry, for the application's words. The client keeps no secret and
+    them and the link's own expiry, for the application's words. It says
+    too why a link can't sign in, `link_used`, `link_expired` or
+    `link_unknown`, as the answer did, and these are not sent again. The client keeps no secret and
     signs in again by itself never: the person's retry is the
     application's, the same `Link { secret, held }` given again, as a
     native shell does, or the printed link opened again, as a browser

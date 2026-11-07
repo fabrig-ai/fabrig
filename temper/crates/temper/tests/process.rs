@@ -94,7 +94,7 @@ fn temper_open_adopts_a_repository_by_commands() {
     typist.type_on(b"Forges", b"");
     typist.wait_for(b"Forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
     typist.type_on(b"Repositories", b"");
-    typist.type_on(b"Adopt a repository", b"");
+    typist.type_on(b"Add repositories", b"");
     for (control, words, printed) in [
         (b"Owner: (empty)".as_slice(), b"acme".as_slice(), b"Owner: acme".as_slice()),
         (b"Name: (empty)", b"widget", b"Name: widget"),
@@ -111,7 +111,7 @@ fn temper_open_adopts_a_repository_by_commands() {
     typist.type_on(b"[x] It runs CI", b"");
     typist.wait_for(b"[ ] It runs CI", support::WITHIN);
     typist.type_on(b"Adopt", b"");
-    typist.wait_for(b"Adopted acme/widget on forge 1 as owned.", support::WITHIN);
+    typist.wait_for(b"## Repositories \xc2\xb7 1", support::WITHIN);
     typist.type_line(b"q");
     assert_eq!(typist.exit(support::WITHIN), 0, "stderr: {}", typist.stderr());
     forgejo.stop();
@@ -574,8 +574,7 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
         let support::first_repository::Evidence { address, version, .. } = evidence;
         let version = version.unwrap_or_else(|why| panic!("{run}: live Forgejo version: {why:?}; box: {stderr}"));
         assert_eq!(version["version"].as_str().expect("version").split('+').next(), Some(VERSION));
-        let link = support::printed_link(&ended.stdout).expect("box sign-in link");
-        assert_eq!(ended.stdout, [link, b"\n"].concat(), "one printed link");
+        support::assert_one_printed_link(run, &ended.stdout, &ended.stderr);
         assert_eq!(support::boxed::status(address, "/api/v1/version"), None, "Forgejo stopped with its box");
         assert_cache_untouched(&cached, &sources);
         if run == "first" {
@@ -701,8 +700,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
         // After the restart, the chat's lost attempt answers again, then Close's
         // finish request takes its last text.
         forge_land::assert_requests(&seen, if first { 8 } else { 2 }, words.as_bytes(), first);
-        let link = support::printed_link(&outcome.stdout).expect("printed link");
-        assert_eq!(outcome.stdout, [link, b"\n"].concat(), "one printed link");
+        support::assert_one_printed_link(run, &outcome.stdout, &outcome.stderr);
         assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None);
         assert_eq!(
             evidence.version.expect("live Forgejo")["version"].as_str().expect("version").split('+').next(),

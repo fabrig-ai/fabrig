@@ -106,6 +106,15 @@ pub(crate) fn not_ready() -> Box<[u8]> {
     out.finish()
 }
 
+pub(crate) fn link_used() -> Box<[u8]> {
+    sign_in_answer(w::SignInAnswer::LinkUsed)
+}
+pub(crate) fn link_expired() -> Box<[u8]> {
+    sign_in_answer(w::SignInAnswer::LinkExpired)
+}
+pub(crate) fn link_unknown() -> Box<[u8]> {
+    sign_in_answer(w::SignInAnswer::LinkUnknown)
+}
 pub(crate) fn sign_in_busy() -> Box<[u8]> {
     sign_in_answer(w::SignInAnswer::Busy)
 }

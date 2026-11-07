@@ -232,7 +232,7 @@ fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
     numbered_question();
 }
 
-// temper/docs/design/domain/agent.md, 8.2; temper/docs/plan/ui-goal-asks/notes/contracts.md.
+// temper/docs/design/domain/agent.md, 8.2.
 #[test]
 fn a_person_started_goal_asks_its_person_and_no_stranger() {
     // start_goal creates one root task; a refusal adds no live or ended child.

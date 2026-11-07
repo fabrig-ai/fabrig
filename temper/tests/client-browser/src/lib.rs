@@ -189,6 +189,10 @@ impl Tier {
         css.extend_from_slice(
             b"\n@media (height: 801px) { #app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; margin-top: 7px !important; } }\n",
         );
+        let mut compressed = vec![0; skein_http::gzip::bound(css.len()).expect("stylesheet gzip bound")];
+        let length = skein_http::gzip::encode(&css, &mut compressed).expect("compressed private stylesheet");
+        compressed.truncate(length);
+        fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
@@ -201,7 +205,7 @@ impl Tier {
     fn with_replies(self, replies: &[(String, String)]) -> Self {
         let path = self.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["demo"]["llm"]["asked"] = reading::scripts(replies);
+        reading::configure(&mut value, replies);
         configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
         self
     }
@@ -259,8 +263,11 @@ impl Tier {
             "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
             "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
         });
-        account_provider(&mut value, &sign_in);
-        welcome_provider(&mut value, &sign_in);
+        let agent_path = tier.scratch.path().join("agent.json");
+        let mut agent =
+            serde_json::from_slice(&fs::read(&agent_path).expect("worker declaration")).expect("agent JSON");
+        sign_in_providers(&mut value, &mut agent, &sign_in);
+        configuration::private(&agent_path, &serde_json::to_vec(&agent).expect("welcome agent JSON"));
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         let mut peer = issuer::peer(address, &sign_in);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held issuer listener");
@@ -270,6 +277,11 @@ impl Tier {
     /// A GitHub forge on the browser harness's loop, with a fixed clients' listener.
     #[must_use]
     pub fn github(name: &str) -> (Self, skein_fake_peers::forge::Peer) {
+        Self::github_repositories(name, 1, 1)
+    }
+    /// A fake GitHub with enough repositories to read on by scrolling the sheet.
+    #[must_use]
+    pub fn github_repositories(name: &str, repositories: u32, page: u32) -> (Self, skein_fake_peers::forge::Peer) {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let tier = Self::reserved(name);
         let listener = TcpListener::bind("127.0.0.1:0").expect("reserve GitHub port");
@@ -281,8 +293,11 @@ impl Tier {
             "remote":format!("http://{address}"), "web":format!("http://{address}")
         });
         github::project_creation(&mut value, address);
+        value["application"]["limits"]["overrides"]["picker.page"] = page.into();
+        // repo-NN is longer than the single-repository fixture's app.
+        value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
         configuration::private(&path, &serde_json::to_vec(&value).expect("GitHub deployment JSON"));
-        let mut peer = github::peer(address);
+        let mut peer = github::peer_repositories(address, repositories, page);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held GitHub listener");
         let _ = listener.into_raw_fd();
         (tier, peer)
@@ -388,6 +403,18 @@ fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     }));
 }
 
+/// Declare both sign-in providers and the welcome model with the same worker bounds.
+fn sign_in_providers(value: &mut serde_json::Value, agent: &mut serde_json::Value, sign_in: &serde_json::Value) {
+    account_provider(value, sign_in);
+    welcome_provider(value, sign_in);
+    let model = &value["engine"]["llm"]["models"][1];
+    let mut declared = agent["endpoints"][0]["models"][0].clone();
+    for field in ["name", "window", "output"] {
+        declared[field] = model[field].clone();
+    }
+    agent["endpoints"][0]["models"].as_array_mut().expect("worker models").push(declared);
+}
+
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
 fn copy_bundle(from: &Path, to: &Path) {
     fs::create_dir(to).expect("private bundle directory");
@@ -421,7 +448,7 @@ mod tests {
     }
     #[test]
     fn the_sign_in_tiers_two_providers_pass_startup_validation() {
-        let (_, mut value) = tier_configuration();
+        let (mut agent, mut value) = tier_configuration();
         let origin = "http://127.0.0.1:9";
         let sign_in = serde_json::json!({
             "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
@@ -429,14 +456,31 @@ mod tests {
             "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
             "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
         });
-        super::account_provider(&mut value, &sign_in);
-        super::welcome_provider(&mut value, &sign_in);
+        super::sign_in_providers(&mut value, &mut agent, &sign_in);
         let shape = temper_service::startup::shape(
             &serde_json::to_vec(&value).expect("two-provider deployment JSON"),
             &jig_protocol_config::Directories::working(),
         )
         .expect("browser deployment admits two sign-in providers");
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
+        let engine = super::configuration::stock_engine(&value);
+        let declared = agent["endpoints"][0]["models"].as_array().expect("worker models");
+        assert_eq!(engine.charters.len(), 7);
+        for charter in &engine.charters {
+            assert_eq!(charter.policy.alternatives.len(), 1);
+            for model in std::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
+                let name = std::str::from_utf8(&model.name).expect("model name");
+                assert!(
+                    declared.iter().any(|bound| {
+                        bound["name"] == name
+                            && bound["window"].as_u64().expect("window") >= u64::from(model.window)
+                            && bound["output"].as_u64().expect("output") >= u64::from(model.output)
+                    }),
+                    "charter {}: model {name} and its bounds must be declared by the worker",
+                    charter.number
+                );
+            }
+        }
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {

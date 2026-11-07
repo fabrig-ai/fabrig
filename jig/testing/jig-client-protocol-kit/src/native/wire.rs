@@ -95,7 +95,13 @@ impl Wire {
     pub fn sign_in_refused(&self, event: &Event) -> bool {
         let Event::Reply { exchange, message } = event else { return false };
         matches!(self.exchanges.get(exchange), Some(Kind::SignIn))
-            && matches!(w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)), Ok(w::SignInAnswer::Refused))
+            && matches!(
+                w::SignInAnswer::decode(&w::CEILINGS, &mut Reader::new(message)),
+                Ok(w::SignInAnswer::LinkUsed
+                    | w::SignInAnswer::LinkExpired
+                    | w::SignInAnswer::LinkUnknown
+                    | w::SignInAnswer::Refused)
+            )
     }
     #[must_use]
     pub fn additional_receipts(&self, event: &Event) -> Vec<jig_client_kit::harness::Receipt> {
@@ -177,7 +183,10 @@ impl Wire {
                             self.credential.clone_from(value.token());
                             vec![Received::SignedIn { person: value.party() }]
                         }
-                        w::SignInAnswer::Refused
+                        w::SignInAnswer::LinkUsed
+                        | w::SignInAnswer::LinkExpired
+                        | w::SignInAnswer::LinkUnknown
+                        | w::SignInAnswer::Refused
                         | w::SignInAnswer::NotReady
                         | w::SignInAnswer::Busy
                         | w::SignInAnswer::Full(_) => vec![],

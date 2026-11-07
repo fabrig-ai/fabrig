@@ -12,9 +12,9 @@ const CONNECTIONS: u32 = 1 + 1 + 2;
 // The forge's Full and Contents tokens, plus the setup client's picker token.
 const INSTALLATION_TOKENS: u32 = 3;
 // Browser navigation (3), connect/conversion (4), reconcile/accept (5),
-// forge token/identity reads (4), picker (2), and adoption's seven read stages.
+// forge token/identity reads (4), two picker pages (4), and adoption's seven read stages.
 // Each adoption stage may use two HTTP requests (metadata/protection or pagination).
-const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 2 + 2 * 7;
+const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 4 + 2 * 7;
 const SEED: u64 = 23;
 const ACCOUNT: u64 = 10;
 const BOT: u64 = 11;
@@ -24,13 +24,22 @@ const FULL_NAME: &[u8] = b"acme/app";
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
 pub(super) fn peer(address: SocketAddr) -> Peer {
+    peer_repositories(address, 1, 1)
+}
+
+pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u32) -> Peer {
     let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
-    let config = domain_config();
+    let mut config = domain_config();
+    config.limits.repositories = repositories;
     let mut domain = domain::Domain::new(&config, SEED);
     seed_repository(&mut domain, &config);
+    for id in 2..=repositories {
+        seed_named(&mut domain, &config, id, format!("acme/repo-{id:02}").as_bytes());
+    }
     let forge = Rc::new(RefCell::new(Forge::new(domain, config)));
-    let config = github_config();
+    let config = github_config(repositories);
     let http = skein_http::server::Limits { body: 32768, response: 32768, ..profile.driver.server };
     // Each retained head owns at most its wire-head bytes and its Header array.
     let observation_bytes = http
@@ -56,7 +65,7 @@ pub(super) fn peer(address: SocketAddr) -> Peer {
         },
         installations: layer::installations::Limits { installations: 1, tokens: INSTALLATION_TOKENS, listed: 1 },
         pages: layer::pages::Limits { states: 1, manifest_bytes: 8192 },
-        page: 1,
+        page,
         body: 32768,
         response: 32768,
         blob_records: 1,
@@ -82,22 +91,28 @@ pub(super) fn peer(address: SocketAddr) -> Peer {
     .expect("loopback GitHub peer")
 }
 
-fn github_config() -> layer::Config {
+fn github_config(count: u32) -> layer::Config {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(layer::service::Account { login: b"acme".as_slice().into(), id: ACCOUNT, organization: false })
         .expect("one account");
-    let mut repositories = List::with_capacity(1);
-    repositories
-        .push(layer::service::Row {
-            id: REPOSITORY,
-            owner: b"acme".as_slice().into(),
-            owner_id: ACCOUNT,
-            organization: false,
-            name: b"app".as_slice().into(),
-            private: true,
-        })
-        .expect("one seeded repository");
+    let mut repositories = List::with_capacity(count);
+    for id in 1..=count {
+        repositories
+            .push(layer::service::Row {
+                id,
+                owner: b"acme".as_slice().into(),
+                owner_id: ACCOUNT,
+                organization: false,
+                name: if id == REPOSITORY {
+                    b"app".as_slice().into()
+                } else {
+                    format!("repo-{id:02}").into_bytes().into()
+                },
+                private: true,
+            })
+            .expect("seeded repositories");
+    }
     layer::Config {
         deliveries: layer::delivery::Config { log_entries: 1, ..layer::delivery::Config::standard() },
         rate_quota: 5000,
@@ -163,13 +178,17 @@ pub(super) fn project_creation(value: &mut serde_json::Value, address: SocketAdd
 
 // The picker and adoption both read this repository through the GitHub layer.
 fn seed_repository(domain: &mut domain::Domain, config: &domain::Config) {
+    seed_named(domain, config, REPOSITORY, FULL_NAME);
+}
+
+fn seed_named(domain: &mut domain::Domain, config: &domain::Config, id: u32, name: &[u8]) {
     domain::repository(
         domain,
         config,
         domain::api::Setup {
             workflows: Box::new([]),
-            id: REPOSITORY,
-            name: FULL_NAME.into(),
+            id,
+            name: name.into(),
             default: b"main".as_slice().into(),
             tree: Box::new([]),
             labels: Box::new([]),
@@ -187,7 +206,7 @@ fn seed_repository(domain: &mut domain::Domain, config: &domain::Config) {
             hooked: false,
         },
     );
-    domain::grant(domain, FULL_NAME, BOT, domain::api::Permission::Admin);
+    domain::grant(domain, name, BOT, domain::api::Permission::Admin);
 }
 
 // Adoption reads metadata and protection, without changing repository contents.

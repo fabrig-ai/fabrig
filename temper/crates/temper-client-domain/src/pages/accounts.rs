@@ -1,4 +1,4 @@
-//! Borrowed account facts and row-bound operations (client/README.md, 3.5–3.6).
+//! Borrowed account facts and row-bound operations (temper/docs/design/client/README.md, 3.5–3.6).
 use super::Request;
 use crate::owner::Owner;
 use jig_client::{Client, Handle, Latest, State, contract as c};
@@ -42,8 +42,20 @@ pub fn document(client: &Client) -> Option<&c::Accounts> {
     if let Latest::Jig(c::Delivery::Accounts(accounts)) = doc.latest? { Some(accounts) } else { None }
 }
 
+/// A page-local confirmation, never kept across a reload (client/README.md, 3.5, Ready's place).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Added {
+    pub provider: u32,
+    pub kind: crate::WayKind,
+}
+
 #[derive(Debug)]
 pub struct Accounts {
+    pub added: Option<Added>,
+    /// The standalone connection’s Ready place keeps its automatic trial alive.
+    pub added_from_connect: bool,
+    /// The row request whose successful end has already supplied its line.
+    pub announced: Option<jig_client::Key>,
     pub deployment: Option<Handle>,
     pub key_for: Option<(Row, Option<u32>)>,
     pub request_row: Option<Row>,
@@ -59,7 +71,15 @@ impl Default for Accounts {
 impl Accounts {
     #[must_use]
     pub fn new() -> Self {
-        Self { deployment: None, key_for: None, request_row: None, request: request::Request::default() }
+        Self {
+            added: None,
+            added_from_connect: false,
+            announced: None,
+            deployment: None,
+            key_for: None,
+            request_row: None,
+            request: request::Request::default(),
+        }
     }
 
     pub(crate) fn configure(&mut self, owner: bool, next: &mut u64, out: &mut Queue<Request>) {
@@ -86,6 +106,8 @@ impl Accounts {
     }
 
     pub(crate) fn leave(&mut self, out: &mut Queue<Request>) {
+        self.added = None;
+        self.added_from_connect = false;
         self.request.clear_key();
         self.request.confirm = None;
         self.key_for = None;
@@ -115,4 +137,36 @@ pub fn current_me(client: &Client) -> Option<&c::Me> {
         return None;
     }
     if let Latest::Jig(c::Delivery::Me(me)) = doc.latest? { Some(me) } else { None }
+}
+
+/// Only this request's successful end supplies a line; declined usage stays in its panel.
+pub(crate) fn signed_in(request: &request::Request, client: &Client, chosen: Option<u32>) -> Option<Added> {
+    let SignInState::Ended { source } = request.sign_in_state(client) else { return None };
+    let last = document(client)?.last_end.as_ref()?;
+    if last.source != source {
+        return None;
+    }
+    let account = match last.end {
+        c::AccountEnd::Made { account, declined: false } | c::AccountEnd::Renewed { account, declined: false } => {
+            account
+        }
+        c::AccountEnd::Made { declined: true, .. }
+        | c::AccountEnd::Renewed { declined: true, .. }
+        | c::AccountEnd::Refused { .. }
+        | c::AccountEnd::Failed { .. } => return None,
+    };
+    if let Some(pending) = &request.pending
+        && let c::Ask::SignIn { provider, .. } = &pending.ask
+    {
+        return Some(Added { provider: *provider, kind: crate::WayKind::SignIn });
+    }
+    if let Some(provider) = chosen {
+        return Some(Added { provider, kind: crate::WayKind::SignIn });
+    }
+    for row in &document(client)?.accounts {
+        if row.number == account {
+            return Some(Added { provider: row.provider?, kind: crate::WayKind::SignIn });
+        }
+    }
+    None
 }
