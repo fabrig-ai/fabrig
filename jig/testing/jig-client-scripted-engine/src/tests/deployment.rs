@@ -158,6 +158,7 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
             value
                 .accounts
                 .push(Account {
+                    list: account_list_rows()[usize::from(flags)],
                     provider_name: None,
                     manage_usage: None,
                     place: 0,

@@ -1107,6 +1107,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::AccountFinishing { .. }
         | people::Outcome::AccountMovedIn { .. }
+        | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountRemoved { .. }
         | people::Outcome::AccountSignedOut { .. }

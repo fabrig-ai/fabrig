@@ -497,6 +497,7 @@ pub(super) fn document(count: u32) -> c::Accounts {
         }
         accounts
             .push(c::AccountLine {
+                list: None,
                 number,
                 place: number,
                 uses: None,

@@ -311,6 +311,7 @@ fn demo_me() -> contract::Me {
     let mut models = List::with_capacity(1);
     models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,
@@ -413,6 +414,7 @@ fn demo_accounts() -> contract::Accounts {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            list: None,
             number: 1,
             place: 1,
             uses: None,

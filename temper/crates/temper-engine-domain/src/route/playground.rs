@@ -384,6 +384,7 @@ pub(crate) fn acted(
         | people::Outcome::AccountSignedOut { .. }
         | people::Outcome::AccountKeyKept { .. }
         | people::Outcome::AccountProgramDeclared { .. }
+        | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::Lifted { .. }

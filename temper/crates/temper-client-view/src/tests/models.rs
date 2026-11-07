@@ -26,6 +26,7 @@ fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
 }
 fn model(name: &str, provider: u32, shown: &str) -> c::MeModel {
     c::MeModel {
+        new_until: None,
         number: 1,
         source: jig_client::contract::ModelSource::Stock,
         estimated: false,

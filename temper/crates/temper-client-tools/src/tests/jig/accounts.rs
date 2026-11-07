@@ -88,6 +88,7 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         project
             .models
             .push(c::MeModel {
+                new_until: None,
                 number: 1,
                 source: jig_client::contract::ModelSource::Stock,
                 estimated: false,
@@ -354,6 +355,7 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     project
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,
