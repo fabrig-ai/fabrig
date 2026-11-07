@@ -142,7 +142,15 @@ pub(crate) fn tag_fleet(
             fleet::Request::ReadList { channel, read, endpoint, grant } => {
                 Request::Held(Box::new(Held::ReadList { channel, read, endpoint, grant }))
             }
-            fleet::Request::ListRead { .. } => continue,
+            fleet::Request::ListRead { read, outcome } => {
+                let mut routed = super::party::dispatch::Routed::new(work);
+                super::lists::answered(core, env, &mut routed, read, outcome);
+                let mut answered = routed.finish(work);
+                for _ in 0..answered.len() {
+                    out.push(answered.pop().expect("list answer output count"));
+                }
+                continue;
+            }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
             fleet::Request::Check { channel, name } => Request::Held(Box::new(Held::CheckSource { channel, name })),
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
@@ -482,7 +490,23 @@ pub(crate) fn tag_account(
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
-            accounts::Request::ReadList { .. } => {}
+            accounts::Request::ReadList { read, provider, grant, .. } => {
+                let mut endpoint = None;
+                for facts in &core.settings.endpoints {
+                    if facts.providers.contains(&provider) {
+                        endpoint = Some(facts.number);
+                        break;
+                    }
+                }
+                let endpoint = endpoint.expect("a listed provider has an endpoint");
+                append_fleet(
+                    core,
+                    env,
+                    work,
+                    fleet::Event::ReadList { read, endpoint, grant: super::sibling_routes::fleet_grant(grant) },
+                    &mut out,
+                );
+            }
             accounts::Request::Programs { names } => {
                 let mut sources = skein_lib::List::with_capacity(env.limits.accounts.program_names);
                 let mut cleanup = skein_lib::List::with_capacity(env.limits.accounts.program_names);
@@ -609,9 +633,26 @@ pub(crate) fn route_account(
     let party = account_party(core, &event);
     let mut out = Queue::uncapped();
     super::step::step_accounts(core, env, event, &mut out);
-    core.touch_deployment();
-    core.touch_run_waits();
-    core.touch_accounts(party);
+    let mut changes = out.is_empty();
+    for request in &out {
+        match request {
+            accounts::Request::ReadList { .. } | accounts::Request::Answer { .. } => {}
+            accounts::Request::Programs { .. }
+            | accounts::Request::CheckProgram { .. }
+            | accounts::Request::SignOutProgram { .. }
+            | accounts::Request::Component(_)
+            | accounts::Request::Signing(_)
+            | accounts::Request::Granted { .. }
+            | accounts::Request::Save { .. }
+            | accounts::Request::Erase { .. }
+            | accounts::Request::Closed => changes = true,
+        }
+    }
+    if changes {
+        core.touch_deployment();
+        core.touch_run_waits();
+        core.touch_accounts(party);
+    }
     tag_account(core, env, work, out)
 }
 

@@ -16,6 +16,11 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, Set, Token};
 
 impl Core {
+    /// A list answer changes account lines and deployment facts without marking frames.
+    pub(crate) fn touch_account_lines(&mut self, party: Option<u64>) {
+        self.touch_views(Touch::AccountLines(party));
+    }
+
     /// Connector settlement changes the chips nested in watched documents.
     pub(crate) fn touch_task_number(&mut self, limits: &Limits, task: u64) {
         touch_number(self, limits, task);
