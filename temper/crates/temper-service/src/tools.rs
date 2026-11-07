@@ -89,6 +89,7 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         ),
         Problem::Range(member) => (b"host call out of range", Some(member)),
         Problem::UnknownTool => (b"unknown tool", None),
+        Problem::Unasked(_) => (b"host call answer of an unasked kind", None),
     };
     let body = match member {
         None => body.into(),
