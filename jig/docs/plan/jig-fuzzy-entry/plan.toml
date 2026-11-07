@@ -1,3 +1,20 @@
 draft = "jig-fuzzy-entry"
 repo = "fabrig"
 sources = ["jig/docs/plan/jig-fuzzy-entry/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "fuzzy-entry"
+title = "jig's fuzzy suite has its gate entry beside the other trees'"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "budgets.toml holds [gate.jig.fuzzy] at 120 and the validator accepts it"
+parts = ["fuzzy-entry"]
+walk = false
