@@ -4,6 +4,9 @@ use crate::domain::{Domain, record};
 
 pub(crate) fn next(domain: &Domain, task: u64, after: Option<u64>) -> Option<Word> {
     let task_record = record(domain, task)?;
+    if task_record.llm_changed {
+        return None;
+    }
     let mut next = None;
     for word in &task_record.inbox {
         if !task_record.refused.contains(&word.number) {

@@ -318,6 +318,7 @@ pub fn live_task(number: u64) -> core::Record {
         activity: 0,
         due_reason: tasks::Why::Made,
         narrowing: false,
+        llm_changed: false,
         result_position: 0,
         last_reply: 0,
         replies: Box::new([]),

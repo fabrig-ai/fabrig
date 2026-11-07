@@ -144,14 +144,24 @@ pub(crate) fn writer_waiting(
     }
 }
 
-pub(crate) fn acknowledged(core: &mut Core, reply_to: ReplyTo, task: u64, attempt: u64, out: &mut Queue<Request>) {
+pub(crate) fn acknowledged(
+    core: &mut Core,
+    reply_to: ReplyTo,
+    task: u64,
+    attempt: u64,
+    parked: bool,
+    out: &mut Queue<Request>,
+) {
     let token = reply_to.into_token();
     match core.land_task(token) {
         Some(Flight::Internal(Internal::Acknowledge)) => {}
         Some(_) | None => out.push(Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload: token })))),
     }
-    if let Some(proof) = core.proofs.get(&task) {
-        if let Some(terminal) = &proof.terminal {
+    if let Some(proof) = core.proofs.get_mut(&task) {
+        if let Some(terminal) = &mut proof.terminal {
+            if parked {
+                terminal.end = tasks::End::Parked;
+            }
             out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Terminal(terminal.clone())))));
         }
         out.push(Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof.clone())))));
