@@ -5428,6 +5428,7 @@ dependencies = [
 name = "temper-fake"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core",
  "jig-protocol-config",
  "serde_json",
  "skein-fake-forge-domain",

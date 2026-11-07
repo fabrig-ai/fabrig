@@ -80,16 +80,7 @@ pub(crate) fn llm(
         configuration.listen,
         if configuration.tls { skein_fake_peers::Transport::Tls } else { skein_fake_peers::Transport::Plaintext },
         limits,
-        provider::Config {
-            list: None,
-            list_status: None,
-            without_credential: false,
-            echo: skein_llm::openai::Echo::NONE,
-            usage_fields: documents::UsageFields::ALL,
-            provider: documents::Provider::OpenAi,
-            path: llm::ROUTE.into(),
-            headers: Box::new([]),
-        },
+        llm_config(&configuration.models),
         Credential::key(configuration.key.expose().into()),
         llm_limits(),
         configuration.domain,
@@ -99,4 +90,18 @@ pub(crate) fn llm(
         peer.accept(Credential::key(key.expose().into()))?;
     }
     if recording { Ok(peer) } else { Ok(peer.without_records()) }
+}
+
+/// The OpenAI route's advertised list (skein/docs/design/fake-llm.md, 3.2).
+pub(crate) fn llm_config(models: &[llm::Model]) -> provider::Config {
+    provider::Config {
+        list: Some(llm::list(models)),
+        list_status: None,
+        without_credential: false,
+        echo: skein_llm::openai::Echo::NONE,
+        usage_fields: documents::UsageFields::ALL,
+        provider: documents::Provider::OpenAi,
+        path: llm::ROUTE.into(),
+        headers: Box::new([]),
+    }
 }
