@@ -73,6 +73,9 @@ use core::ptr;
 use std::alloc::System;
 use std::process;
 
+#[cfg(test)]
+mod tests;
+
 /// The allocator: System's, counted.
 #[derive(Debug)]
 pub struct Counting;
@@ -147,12 +150,20 @@ fn warm_runtime() {
 // and never fails, so the allocator can use them. Nothing allocates while it
 // borrows the highs.
 thread_local! {
-    static LIVE: Cell<i64> = const { Cell::new(0) };
-    static PEAK: Cell<i64> = const { Cell::new(0) };
-    // Allocations made so far, which numbers them from one.
-    static MADE: Cell<u64> = const { Cell::new(0) };
-    static PHASE: Cell<Phase> = const { Cell::new(Phase::Idle) };
+    static COUNTS: Counts = const { Counts {
+        live: Cell::new(0), peak: Cell::new(0), made: Cell::new(0), phase: Cell::new(Phase::Idle),
+    } };
     static HIGHS: RefCell<Highs> = const { RefCell::new(Highs::NONE) };
+}
+
+/// Counters reached together on every allocation and free (testing.md, 5).
+/// Cells keep their values independent while sharing one thread-local lookup.
+struct Counts {
+    live: Cell<i64>,
+    peak: Cell<i64>,
+    /// Allocations made so far, which numbers them from one.
+    made: Cell<u64>,
+    phase: Cell<Phase>,
 }
 
 /// Counts a block of `layout` allocated, and numbers it. The heap's counts
@@ -160,29 +171,33 @@ thread_local! {
 /// thread's below what it allocated, and wrap rather than trap: a panic
 /// here would allocate.
 fn allocated(layout: Layout) -> u64 {
-    let made = MADE.get().wrapping_add(1);
-    MADE.set(made);
-    let live = LIVE.get().wrapping_add(size(layout));
-    LIVE.set(live);
-    if live > PEAK.get() {
-        PEAK.set(live);
-        if PHASE.get() == Phase::Stepping {
-            with_highs(|highs| highs.push(High { made, low: live, live, handed: 0 }));
+    COUNTS.with(|counts| {
+        let made = counts.made.get().wrapping_add(1);
+        counts.made.set(made);
+        let live = counts.live.get().wrapping_add(size(layout));
+        counts.live.set(live);
+        if live > counts.peak.get() {
+            counts.peak.set(live);
+            if counts.phase.get() == Phase::Stepping {
+                with_highs(|highs| highs.push(High { made, low: live, live, handed: 0 }));
+            }
         }
-    }
-    made
+        made
+    })
 }
 
 /// Counts the block of `layout` numbered `number` freed.
 fn freed(layout: Layout, number: u64) {
-    LIVE.set(LIVE.get().wrapping_sub(size(layout)));
-    let Phase::Handing { before } = PHASE.get() else {
-        return;
-    };
-    if number > before {
-        let bytes = u64::try_from(layout.size()).unwrap_or(u64::MAX);
-        with_highs(|highs| highs.hand(number, bytes));
-    }
+    COUNTS.with(|counts| {
+        counts.live.set(counts.live.get().wrapping_sub(size(layout)));
+        let Phase::Handing { before } = counts.phase.get() else {
+            return;
+        };
+        if number > before {
+            let bytes = u64::try_from(layout.size()).unwrap_or(u64::MAX);
+            with_highs(|highs| highs.hand(number, bytes));
+        }
+    });
 }
 
 fn size(layout: Layout) -> i64 {
@@ -385,20 +400,24 @@ impl Meter {
     #[must_use]
     pub fn new() -> Meter {
         warm_runtime();
-        Meter { base: LIVE.get(), before: MADE.get() }
+        COUNTS.with(|counts| Meter { base: counts.live.get(), before: counts.made.get() })
     }
 
     /// Bytes allocated since the base and not freed.
     #[must_use]
     pub fn held(&self) -> u64 {
-        self.since(LIVE.get()).expect("nothing freed that was not allocated since the base")
+        let live = COUNTS.with(|counts| counts.live.get());
+        self.since(live).expect("nothing freed that was not allocated since the base")
     }
 
     /// Starts a step: the highs from now on are the step's, the first being
     /// what is live now.
     pub fn start(&self) {
-        let (made, live) = (MADE.get(), LIVE.get());
-        PEAK.set(live);
+        let (made, live) = COUNTS.with(|counts| {
+            let live = counts.live.get();
+            counts.peak.set(live);
+            (counts.made.get(), live)
+        });
         HIGHS.with_borrow_mut(|highs| {
             highs.step = highs.step.wrapping_add(1);
             highs.len = 0;
@@ -406,7 +425,7 @@ impl Meter {
             highs.merge_span = None;
             highs.push(High { made, low: live, live, handed: 0 });
         });
-        PHASE.set(Phase::Stepping);
+        COUNTS.with(|counts| counts.phase.set(Phase::Stepping));
     }
 
     /// Ends a step: the most held at once since it started, and what is held
@@ -414,10 +433,13 @@ impl Meter {
     /// starts.
     #[must_use]
     pub fn end(&self) -> Measured {
-        assert!(PHASE.get() == Phase::Stepping, "a step ends after it starts");
-        PHASE.set(Phase::Handing { before: self.before });
+        let peak = COUNTS.with(|counts| {
+            assert!(counts.phase.get() == Phase::Stepping, "a step ends after it starts");
+            counts.phase.set(Phase::Handing { before: self.before });
+            counts.peak.get()
+        });
         let step = HIGHS.with_borrow(|highs| highs.step);
-        let peak = self.since(PEAK.get()).expect("nothing freed that was not allocated since the base");
+        let peak = self.since(peak).expect("nothing freed that was not allocated since the base");
         Measured { peak, held: self.held(), step }
     }
 
@@ -430,7 +452,7 @@ impl Meter {
     pub fn check(&self, step: Measured, bound: u64, what: &dyn Debug) -> u64 {
         let last = HIGHS.with_borrow(|highs| highs.step);
         assert!(
-            last == step.step && PHASE.get() != Phase::Stepping,
+            last == step.step && COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping,
             "a step is checked once it has ended, before the next starts"
         );
         let own = HIGHS.with_borrow(|highs| highs.own(self));
@@ -473,16 +495,21 @@ impl Span {
     /// Measures from now.
     #[must_use]
     pub fn start() -> Span {
-        assert!(PHASE.get() != Phase::Stepping, "a span is measured outside a meter's step");
+        assert!(COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping, "a span is measured outside a meter's step");
         warm_runtime();
-        let live = LIVE.get();
-        PEAK.set(live);
-        Span { start: live }
+        COUNTS.with(|counts| {
+            let live = counts.live.get();
+            counts.peak.set(live);
+            Span { start: live }
+        })
     }
 
     /// What the heap grew by since the start: at its peak, and now.
     #[must_use]
     pub fn end(self) -> Grown {
-        Grown { peak: PEAK.get().wrapping_sub(self.start), net: LIVE.get().wrapping_sub(self.start) }
+        COUNTS.with(|counts| Grown {
+            peak: counts.peak.get().wrapping_sub(self.start),
+            net: counts.live.get().wrapping_sub(self.start),
+        })
     }
 }
