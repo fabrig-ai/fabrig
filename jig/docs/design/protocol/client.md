@@ -352,7 +352,7 @@ the engine's messages to the client as they come.
 | opening a watch | the stream's name; the client's name for the watch; the subject, with its owner, version and window | admitted, or refused (section 7) |
 | closing a watch | the stream's name and the watch's | closed, once the engine has ended it |
 | a stream gone | the stream's name | nothing more: the engine ends the stream and its watches, when it is the sign-in's and still open (section 4) |
-| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential | a sign-in's credential, refused, or not ready (section 8) |
+| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential | a sign-in's credential, refused, not ready, or why a printed link's secret can't sign in (section 8) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 
 On the stream, in its owner's version: the hello; a delivery (a watch's
@@ -662,9 +662,19 @@ recipient.
   it. The URL is the application's; the default mapping's is its link
   route (17.1). Signing in with the secret signs that person in as the
   deployment's first owner it names, and spends it. One link is live at
-  a time: a sign-in with a secret spent, expired or unknown is refused,
-  and the component draws a fresh one, which the startup prints again,
-  unless the live one is reserved (below).
+  a time: a sign-in with a secret spent, expired or unknown is answered
+  why (below), and the component draws a fresh one, which the startup
+  prints again, unless a link is live or the live one is reserved (below).
+  - *Why a link can't sign in.* The component keeps, in memory, the digests
+    of its last 8 links no longer live, each marked used or expired; a
+    restart forgets them. A link's sign-in whose secret isn't live is
+    answered by what it finds: `link_used`, a link a sign-in spent, signed
+    in or refused; `link_expired`, one past its expiry; `link_unknown`, any
+    other, whether another deployment's link, one past those 8, or bytes
+    that were never a secret. The three differ only for whoever holds a
+    secret this component drew, so they tell a stranger nothing. They leave
+    the live link as it is, and none is sent again. Where the printed link
+    isn't enabled, no link is any of these, and the answer stays refused.
   - *How long it lives.* The small profile's `link_span` is 2 hours, because
     a link may be opened late on a person's own machine: they start a box,
     leave it, and come back to its terminal. It is one value, so a server's
@@ -689,7 +699,7 @@ recipient.
     the secret live, before its expiry, reserves it for its exchange
     until people answers. While it is reserved, a sign-in with the same
     secret is answered *busy* and changes nothing, and one with another
-    secret is refused and draws no fresh link: an attempt that crosses
+    secret is answered why (above) and draws no fresh link: an attempt that crosses
     the exchange never replaces its secret. A sign-in the component has
     no room for among its exchanges is answered busy, and the secret
     stays the link's.
@@ -708,7 +718,8 @@ recipient.
     monotonic clock, and full says it at the answer's clocks. Full is the
     printed link's answer alone: a `Mint` and a service's sign-in are
     answered busy for it. On the wire, a sign-in's answer is signed in,
-    refused, not ready, busy, or full with those three.
+    refused, not ready, busy, full with those three, `link_used`,
+    `link_expired` or `link_unknown`.
   - *A sign-in held is kept* (`../domain/people.md`, section 3). The
     link's exchange carries a credential as every exchange may, a
     browser's cookie or a native client's bearer (17.3). Once the secret
@@ -1020,8 +1031,9 @@ Each within jig's suites' budgets.
   while its check is pending signed in afresh and refused nothing; the
   link's sign-in answered not ready, busy and full, its secret the
   link's again with its expiry as drawn, and the same link signing in
-  once there is room, or refused past that expiry; the same secret sent
-  again while reserved answered busy, another refused with no fresh link
+  once there is room, or answered `link_expired` past that expiry; a spent
+  secret answered `link_used`, another's `link_unknown`, an empty one's too; the
+  same secret sent again while reserved answered busy, another with no fresh link
   drawn; the reservation dropped by the core's refusal, a close and an
   abort; the exchanges' admission full answered busy; full carrying the
   link's expiry as drawn; a `Mint` and a service's sign-in answered busy

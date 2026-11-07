@@ -3722,8 +3722,15 @@ client removes no account and closes no chat of its own.
     the link serves a little past what it says); busy, "temper is busy. This
     link stays usable until it expires: open it again in a moment."; not
     ready, "temper is starting or stopping. This link stays usable until
-    it expires: open it again in a moment." A link opened again past its
-    expiry is refused, and `temper serve` prints a fresh one;
+    it expires: open it again in a moment.";
+  - *signed out, the link spent:* while the link's view says why it can't
+    sign in, the paragraph says so in place of the shell's words and of the
+    sign-in page, in either shell, saying only what whoever holds the link already knows: used,
+    "This link was already used. A fresh one is in your terminal."; past
+    its expiry, "This link has expired. A fresh one is in your terminal.";
+    any other, a real link of an older box or one that never was, "This
+    link isn't from this temper. Use the one its terminal printed." A page
+    reached with no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "This temper is out of date: run the temper the
     engine runs." What is pending stays in the small store (jig's
