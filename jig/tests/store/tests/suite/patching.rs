@@ -87,25 +87,44 @@ fn an_empty_shelf_refuses_again_from_an_unchanged_source() {
     // The second attempt removed the first marker before making a fresh copy.
 }
 
-#[test]
-fn every_patch_write_cut_recovers_all_records_and_no_stray() {
+pub(crate) fn a_patch_cut_recovers(cut: u32) {
     let records = Records::story();
-    let mut completed = records.committed(908, BASE);
+    let mut world = records.committed(908, BASE);
+    world.patch_sets(SETS);
+    world.trace_writes();
+    world.cut_at(cut);
+    assert_eq!(world.open_switched(), None, "cut {cut} reached");
+    assert_eq!(world.operation_count(), cut, "patch cut reached");
+    world.crash(u64::from(cut));
+    assert!(world.open_switched().is_some(), "clean start after cut {cut}: {:?}", world.refusal());
+    patches::whole(&mut world);
+    records.check(&mut world, 2, &(908, cut));
+}
+
+#[test]
+fn a_patch_cut_at_its_copy_its_pages_and_its_switch_recovers_all_records_and_no_stray() {
+    let mut completed = Records::story().committed(908, BASE);
     completed.patch_sets(SETS);
     completed.trace_writes();
     assert!(completed.open_switched().is_some());
     let cuts = patches::cuts(&completed);
-    eprintln!("patch-phase disk-changing cuts: {}", cuts.len());
-    for cut in cuts {
-        let mut world = records.committed(908, BASE);
-        world.patch_sets(SETS);
-        world.trace_writes();
-        world.cut_at(cut);
-        assert_eq!(world.open_switched(), None, "cut {cut} reached");
-        world.crash(u64::from(cut));
-        assert!(world.open_switched().is_some(), "clean start after cut {cut}: {:?}", world.refusal());
-        patches::whole(&mut world);
-        records.check(&mut world, 2, &(908, cut));
+    let middle = completed
+        .changes()
+        .iter()
+        .filter(|(operation, _)| cuts.contains(operation))
+        .nth(cuts.len() / 2)
+        .expect("middle copy or patch-page mutation");
+    let copy = patches::first_change(&completed, jig_store_world::world::Change::Make);
+    let rename = patches::last_change(&completed, jig_store_world::world::Change::Rename);
+    let sync = *cuts.last().expect("switch sync");
+    for (why, cut) in [
+        ("copy directory", copy),
+        ("middle copy or patch-page mutation", middle.0),
+        ("switch rename", rename),
+        ("switch sync", sync),
+    ] {
+        eprintln!("{why}: {cut}");
+        a_patch_cut_recovers(cut);
     }
 }
 

@@ -135,7 +135,7 @@ impl World {
             tasks.extend(peers.parties.iter().filter_map(|party| party.last_task));
         }
         let before = self.oracle_documents(&parties, &tasks);
-        self.restart_with(configuration(&self.restart_config.0));
+        self.restart_configured(configuration(&self.restart_config.0));
         self.settle_oracle();
         assert!(self.domain.ready(), "restart oracle: decisions did not open");
         let after = self.oracle_documents(&parties, &tasks);

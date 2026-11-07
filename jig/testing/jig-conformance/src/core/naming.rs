@@ -6,7 +6,7 @@ use jig_domain_notes as notes;
 /// Project and task names carried by a durable row, independently of live arenas.
 #[must_use]
 pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
-    let mut name = r::Naming { row: format!("{key:?}"), project: None, task: None, outlives: None };
+    let mut name = r::Naming { row: r::Row::Core(key.clone()), project: None, task: None, outlives: None };
     match key {
         core::Key::Core(key) => match key {
             core::CoreKey::Deployment => {}

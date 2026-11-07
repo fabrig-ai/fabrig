@@ -6,7 +6,7 @@ use jig_store_world::{World, patches, root};
 use skein_fake_machine::Item;
 use skein_lib::Secret;
 
-const SEED: u64 = 401;
+pub(crate) const SEED: u64 = 401;
 // fixture-token's schema bounds its payload at 64 bytes.
 const TOKEN_BOUND: usize = 64;
 // Manifest's family and name bounds (store.md 10.3).
@@ -467,15 +467,9 @@ fn manifest_bounds_refuse_sets_behind_without_removing_strays() {
     }
 }
 
-#[test]
-fn cuts_across_check_and_switch_recover_whole_maps() {
-    let records = patches::Records::story();
-    let mut complete = records.committed(SEED, patches::BASE);
-    complete.patch_sets(patches::SETS);
-    complete.trace_writes();
-    complete.open_switched().expect("complete patch to enumerate its cuts");
-    let cuts = patches::cuts(&complete);
-    // suite::patching::every_patch_write_cut_recovers_all_records_and_no_stray
+pub(crate) fn seal_and_switch(complete: &World) -> (u32, u32, u32) {
+    let cuts = patches::cuts(complete);
+    // fuzzy::patching::every_patch_write_cut_recovers_all_records_and_no_stray
     // owns the copy's mutations. Start here at the seal's sync, then cut
     // every operation through the read-only check and the final switch.
     let seal = complete
@@ -498,41 +492,70 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
         .expect("seal sync precedes the check")
         .0;
     let after_switch = cuts.last().expect("switch has cut points") + 1;
+
+    let rename = patches::last_change(complete, jig_store_world::world::Change::Rename);
+    (first, after_switch, rename)
+}
+
+pub(crate) fn a_check_cut_recovers(records: &patches::Records, cut: u32) -> bool {
+    let mut world = records.committed(SEED, patches::BASE);
+    let before = patches::source(&mut world);
+    world.patch_sets(patches::SETS);
+    world.trace_writes();
+    world.cut_at(cut);
+    world.open_switched();
+    assert_eq!(world.operation_count(), cut, "check/switch cut reached");
+    world.crash(SEED);
+    // A build at the source levels either opens the untouched source or refuses the switched copy as ahead.
+    world.patch_sets(patches::BASE);
+    let source_active = world.active() == b"1\n";
+    if source_active {
+        assert_eq!(world.open_switched(), Some(1), "cut {cut}");
+        world.accept_recovery(1);
+        records.check_public(&mut world, 1, &cut);
+        assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
+    } else {
+        assert_eq!(world.open_switched(), None, "cut {cut}");
+        assert!(matches!(world.refusal(), Some(OpenRefusal::Ahead { .. })), "cut {cut}: {:?}", world.refusal());
+    }
+    patches::kept(&before, &patches::source(&mut world), &cut);
+    // Observe recovery before check commits the start's wires to serve secrets (store.md 5.3).
+    if source_active {
+        records.check(&mut world, 1, &cut);
+    }
+    world.crash(SEED);
+    world.patch_sets(patches::SETS);
+    world.open_switched().expect("retry after cut");
+    patches::whole(&mut world);
+    records.check(&mut world, 2, &cut);
+    source_active
+}
+
+#[test]
+fn cuts_at_the_seal_the_check_and_the_switch_recover_whole_maps() {
+    let records = patches::Records::story();
+    let mut complete = records.committed(SEED, patches::BASE);
+    complete.patch_sets(patches::SETS);
+    complete.trace_writes();
+    complete.open_switched().expect("complete patch to enumerate its cuts");
+    let (seal_sync, after_switch, rename) = seal_and_switch(&complete);
+    let check_read = seal_sync + 1;
+    assert!(
+        !complete.changes().iter().any(|(operation, _)| *operation == check_read),
+        "the check's first read changes nothing"
+    );
     let mut source_opened = false;
     let mut switched = false;
-    // Include every check read: the check itself has no writes at which to cut.
-    for cut in first..=after_switch {
-        let mut world = records.committed(SEED, patches::BASE);
-        let before = patches::source(&mut world);
-        world.patch_sets(patches::SETS);
-        world.trace_writes();
-        world.cut_at(cut);
-        world.open_switched();
-        world.crash(SEED);
-        // A build at the source levels either opens the untouched source or refuses the switched copy as ahead.
-        world.patch_sets(patches::BASE);
-        let source_active = world.active() == b"1\n";
-        if source_active {
-            source_opened = true;
-            assert_eq!(world.open_switched(), Some(1), "cut {cut}");
-            world.accept_recovery(1);
-            records.check_public(&mut world, 1, &cut);
-            assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
-        } else {
-            switched = true;
-            assert_eq!(world.open_switched(), None, "cut {cut}");
-            assert!(matches!(world.refusal(), Some(OpenRefusal::Ahead { .. })), "cut {cut}: {:?}", world.refusal());
-        }
-        patches::kept(&before, &patches::source(&mut world), &cut);
-        // Observe recovery before check commits the start's wires to serve secrets (store.md 5.3).
-        if source_active {
-            records.check(&mut world, 1, &cut);
-        }
-        world.crash(SEED);
-        world.patch_sets(patches::SETS);
-        world.open_switched().expect("retry after cut");
-        patches::whole(&mut world);
-        records.check(&mut world, 2, &cut);
+    for (why, cut) in [
+        ("seal sync", seal_sync),
+        ("check read", check_read),
+        ("switch rename", rename),
+        ("past switch sync", after_switch),
+    ] {
+        eprintln!("{why}: {cut}");
+        let source_active = a_check_cut_recovers(&records, cut);
+        source_opened |= source_active;
+        switched |= !source_active;
     }
     assert!(source_opened && switched, "cuts reached each whole generation");
 }

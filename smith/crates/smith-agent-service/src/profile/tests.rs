@@ -51,7 +51,6 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
     // smith/docs/design/protocol/limits.md, section 4: turn-in-channel.
     const TURN_BODY_CEILING: u32 = 33_554_432;
     let mut selected = standard();
-    selected.declared.tool_payload = 10_662;
     selected.declared.read_window = 256;
     selected.declared.conversations = 26;
     selected.declared.calls_per_response = 48;
@@ -66,7 +65,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
     for (endpoint, (number, _name, window, reasoning_item)) in configuration
         .endpoints
         .iter_mut()
-        .zip([(1, b"gpt-6-luna".as_slice(), 1_048_576, 65_536), (3, b"demo".as_slice(), 177_523, 2_048)])
+        .zip([(1, b"gpt-6-luna".as_slice(), 1_048_576, 65_536), (3, b"demo".as_slice(), 1_048_576, 2_048)])
     {
         endpoint.number = number;
         endpoint.connect = Duration::from_millis(10_000);
@@ -78,10 +77,40 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
         model.head = Duration::from_millis(60_000);
         model.idle = Duration::from_millis(30_000);
     }
-    let limits = super::derive(&selected, &configuration).expect("two-model profile derives");
-    let turn = limits.channel.bodies.turn_body;
-    assert!(turn <= TURN_BODY_CEILING);
-    eprintln!("T {turn}");
+    // Arithmetic only: the rows derive bounds without allocating their payloads.
+    for (tool_payload, output, turn, run_bytes, outcome_bytes) in [
+        (10_662, 8_192, Ok(16_803_810), 65_536, 10_662),
+        (63_740, 48_000, Ok(18_431_842), 127_480, 63_740),
+        (
+            131_072,
+            98_500,
+            Err(Refusal::Broken {
+                check: Check::TurnInTranscript,
+                left: LimitName::deployment(Layer::Session, "said_text").value(Value::Bytes(1_245_440)),
+                right: LimitName::deployment(Layer::Transcript, "said_text").value(Value::Bytes(1_048_576)),
+            }),
+            262_144,
+            131_072,
+        ),
+    ] {
+        selected.declared.tool_payload = tool_payload;
+        for endpoint in &mut configuration.endpoints {
+            endpoint.limits.output = output;
+        }
+        let derived = super::derive(&selected, &configuration);
+        match turn {
+            Ok(expected) => {
+                let limits = derived.expect("two-model profile derives");
+                assert_eq!(limits.domain.run.run_bytes, run_bytes);
+                assert_eq!(limits.domain.run.outcome_bytes, outcome_bytes);
+                let turn = limits.channel.bodies.turn_body;
+                assert_eq!(turn, expected);
+                assert!(turn <= TURN_BODY_CEILING);
+                eprintln!("T {turn}");
+            }
+            Err(expected) => assert_eq!(derived.expect_err("larger output exceeds transcript text"), expected),
+        }
+    }
 }
 
 #[test]

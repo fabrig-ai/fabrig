@@ -1363,7 +1363,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  355,965, is what the host part leaves charter 3 at init's models, a
+  355,022, is what the host part leaves charter 3 at init's models, a
   whole spec among it, past the largest fabrig's development has had,
   200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
@@ -2345,7 +2345,8 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `checkout.message_bytes` equals it, so the checkout accepts the
   agent's largest call, and the engine's message and result bounds are
   the payload less two (13.4). A deployment whose models' output is
-  larger raises them with its T. A note's body is not bound by it: a
+  larger raises them with its T, up to 262,144, smith's own bound on a
+  host's input and answer (smith's `protocol/limits.md`, 2.4). A note's body is not bound by it: a
   run builds a body past one call in parts, by line ranges, up to
   `notes.body_bytes` (jig's `domain/engine.md`, section 10;
   `../domain/agent.md`, 8.3). `propose_settings` can name that note and
@@ -2364,6 +2365,47 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   the owned deployment and do not move with a box's.
 - **The budgets** follow the model's C (13.4), so a larger output gives
   larger spends with no setting changed: output 32,000 gives C 1,081.
+- **The reference's room** (`../draft/goal-as-designer.md`, section 6): a
+  call of about 128 KB, to carry a whole spec in a `change`'s words. Its
+  agent declares `tool_payload` 131,072 and, on every endpoint, an
+  `output` of 98,500, and its charters' models take the same `output`
+  (13.9). skein's rule between them is (payload + 260) × 6 ≤ output × 8.
+  `output` isn't sent to the providers it uses, so it changes no model's
+  behaviour. It takes 63,740 and 48,000 instead, about 64 KB, if the
+  start's checks refuse the larger; `docs/examples/reference/room.json`
+  holds which. T is measured for each pair by `smith-agent-service`'s
+  profile test and stays within smith's ceiling of 33,554,432. The stock
+  keeps its figures, 10,662 and 8,192, and `temper init`'s T.
+- **What moves with the payload,** P, each named by the start at its path
+  against the agent's figure, beside the limits T sets above:
+
+| Limit | Relation | The start names it against |
+|---|---|---|
+| `tasks.message_bytes`, `tasks.result_bytes` | P − 2 | the agent's message (`tool_payload` less 2) |
+| `tasks.inbox_bytes` | 82 × (P − 2), one of each for the standard inbox | its own bound |
+| each worker's `hub.event_bytes` | P − 2 | `tool_payload` less the 2-byte separator |
+| `checkout.message_bytes` | P | the agent's `call_bytes` |
+| `forge.client.op_bytes` | at least `tasks.result_bytes` | `tasks.result_bytes` |
+| `forge_component.body_bytes` | 2 × `forge.client.op_bytes` + 21 | `forge.client.op_bytes` |
+| both `hub.outcome_bytes` | at least P; `standard`'s 131,072 holds the reference's | the agent's outcome (`tool_payload`) |
+| both `core.call_answer_bytes` | at least P; follows it unless overridden | the agent's call input |
+
+- **A batch:** `standard`'s `authority.batch` is 32, so a `change` of up to
+  32 changes passes (jig's `domain/authority.md`, section 8), still
+  within `tasks.batch`, `tasks.batch_bytes` and the task room a batch
+  needs. Each model's figures don't enter it. It costs a retained denial
+  300 findings at most where it took 92, and a batch's aggregate 512
+  grants and 544 executors where it took 144 and 153: bounds on what a
+  value may hold, none of them allocated ahead. It stands in jig's profile
+  and not the reference's, because `tasks.batch`, 160, already sizes
+  `standard` for it and a batch's count isn't a model's figure.
+- **A brief:** `standard`'s `hub.charter_bytes` is 262,144, and smith's
+  charter allowance is the larger of 65,536 and twice the payload (smith's
+  `protocol/limits.md`, 3.10), so the reference's charter holds a whole
+  spec beside its instructions and tools, and the box's stays at 65,536.
+  Past whichever is smaller, a brief is cut (`../domain/agent.md`, 4.3).
+- **A report:** a change's `body` follows the call's payload
+  (`../domain/agent.md`, 4.4).
 
 ### 13.9 The reference's configuration
 
@@ -2587,6 +2629,11 @@ that changes the stock changes nothing of them.
     document before its first start, member by member, an object's
     members over the document's and any other value replacing it, as
     `jq -s '.[0] * .[1]'` merges two files;
+  - `room.json`, what such a merge can't reach, a call's room (13.8): its
+    `agent` member, `tool_payload` and `output`, which `jq` sets on the
+    box's `agent.json`, the output on every endpoint; and its `worker`
+    member, merged over each worker of the document's array, as its
+    `README.md` gives both commands. All of it before the first start;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
@@ -2608,18 +2655,18 @@ that changes the stock changes nothing of them.
   |---|---|---|---|
   | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
   | `forge.change_policy.questions` | 80 | 4 | questions per change (`../draft/reference-code-production.md`, sections 8 and 14) |
+  | the agent's `tool_payload`, its endpoints' and charters' `output`, and what moves with them | 10,662, 8,192 | 131,072, 98,500 | a call's room, a whole spec (13.8) |
 
   Every other limit the case needs the box's `standard` profiles hold
   (13.4): G's live delegates (80) with the operations and the inbox
-  that follow them, a designer's report (the box's result bound, its
-  agent's message), a family's
-  changes in one `change` call (up to `tasks.batch`, 160, subject to
+  that follow them, a family's
+  changes in one `change` call (up to `authority.batch`, 32, subject to
   the requester's remaining lifetime task capacity), the live changes, holds and tasks
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
-  (800); so `limits.json` holds `tasks.tree_tasks` and
-  `forge.change_policy.questions`, and the reference sets nothing of
-  the agent's configuration.
+  (800); so `limits.json` holds `tasks.tree_tasks`,
+  `forge.change_policy.questions` and its engine's and application's
+  share of 13.8's room, and `room.json` the agent's and the workers'.
 
   The settings file sizes its charters and template to the box: charters
   2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),
@@ -2659,9 +2706,10 @@ that changes the stock changes nothing of them.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
-  a walk meets it; and a test merges `limits.json` over `temper
-  init`'s document, runs the start's checks on it with init's agent
-  configuration, and holds the settings file to them: its charters
+  a walk meets it; and a test merges `limits.json` and `room.json` over
+  `temper init`'s document, runs the start's checks on it with init's
+  agent configuration as `room.json` sets it, holds its figures to 13.8's
+  relations from that agent, and holds the settings file to them: its charters
   within `tasks.charters`, their documents within
   `tasks.charter_documents`, their turns within the agent's
   `max_turns`, template 4's report within `tasks.result_bytes`.

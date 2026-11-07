@@ -68,7 +68,7 @@ mod tests {
         let limits = product_limits();
         assert_eq!(
             limits.line_ceiling(Capture::Everything),
-            Some(19_855_104),
+            Some(20_117_248),
             "V6 writer ceiling with the 415-byte summary instruction",
         );
         let mut messages = List::with_capacity(8);

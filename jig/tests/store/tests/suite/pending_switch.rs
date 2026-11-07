@@ -15,7 +15,7 @@ const RESTORED_KEY: &[u8] = b"restored";
 const RESTORED_VALUE: &[u8] = b"copy alone";
 const SWITCH: Token = Token::new(961);
 
-fn pending() -> World {
+pub(crate) fn pending() -> World {
     let mut world = Records::story().committed(SEED, BASE);
     world.patch_sets(SETS);
     world.trace_writes();
@@ -138,29 +138,49 @@ fn a_second_switch_is_refused() {
     assert!(matches!(events.as_slice(), [Event::OpenRefused { owner: SWITCH, why: OpenRefusal::Failed }]));
 }
 
+pub(crate) fn a_switch_cut_leaves_one_generation_whole(cut: u32) -> bool {
+    let mut world = pending();
+    let original = patches::source(&mut world);
+    world.cut_at(cut);
+    assert_eq!(world.switch(), None, "cut {cut}");
+    assert_eq!(world.operation_count(), cut, "switch cut reached");
+    world.crash(u64::from(cut));
+    let old_active = world.active() == b"1\n";
+    assert_eq!(world.open(), Some(PATCHED_LAST), "cut {cut}");
+    assert_eq!(world.pending, old_active, "only the old generation patches again: cut {cut}");
+    if world.pending {
+        world.switch();
+    }
+    patches::whole(&mut world);
+    patches::kept(&original, &patches::source(&mut world), &cut);
+    Records::story().check(&mut world, 2, &cut);
+    old_active
+}
+
 #[test]
-fn each_cut_around_the_switch_leaves_one_generation_whole() {
+fn a_cut_at_the_switch_s_first_mutation_and_around_its_rename_leaves_one_generation_whole() {
+    use jig_store_world::world::Change;
     let mut completed = pending();
     let first = completed.operation_count();
     completed.switch();
-    let cuts: Vec<_> = patches::cuts(&completed).into_iter().filter(|cut| *cut >= first).collect();
-    assert!(!cuts.is_empty());
-    for cut in cuts {
-        let mut world = pending();
-        let original = patches::source(&mut world);
-        world.cut_at(cut);
-        assert_eq!(world.switch(), None, "cut {cut}");
-        world.crash(u64::from(cut));
-        let old_active = world.active() == b"1\n";
-        assert_eq!(world.open(), Some(PATCHED_LAST), "cut {cut}");
-        assert_eq!(world.pending, old_active, "only the old generation patches again: cut {cut}");
-        if world.pending {
-            world.switch();
-        }
-        patches::whole(&mut world);
-        patches::kept(&original, &patches::source(&mut world), &cut);
-        Records::story().check(&mut world, 2, &cut);
+    let first_mutation =
+        completed.changes().iter().find(|(operation, _)| *operation >= first).expect("switch's first mutation").0;
+    let rename = patches::last_change(&completed, Change::Rename);
+    let sync = completed
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > rename && *change == Change::Sync)
+        .expect("switch sync")
+        .0;
+    let mut old = false;
+    let mut new = false;
+    for (why, cut) in [("switch first mutation", first_mutation), ("switch rename", rename), ("switch sync", sync)] {
+        eprintln!("{why}: {cut}");
+        let old_active = a_switch_cut_leaves_one_generation_whole(cut);
+        old |= old_active;
+        new |= !old_active;
     }
+    assert!(old && new, "cuts reached both old and new generations");
 }
 
 const WIRES: &[Wire] = &[Wire { name: "channel", version: 3 }, Wire { name: "payload", version: 7 }];

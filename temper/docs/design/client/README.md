@@ -3027,9 +3027,10 @@ that said "Adopt a repository", go to it; its Cancel and its Escape go to
 - **Make empty:** "Organization" (`work`), "Name", then "On FORGE, with a
   README and a starter CI check.". The button says "Make ORG/NAME", or "Make
   it" until both are typed.
-- **Copy public:** "Their addresses, one per line", the caption drawn over
-  a field four lines high, read as typed, a line at a time, each with its own words: "Not an address: LINE. Write it as
-  github.com/owner/name."; "HOST isn’t a host. Did you mean
+- **Copy public:** "Their addresses, one per line", the browser's caption over
+  a field four lines high; the terminal prints the field's name once.
+  Read as typed, a line at a time, each with its own words: "Not an address:
+  LINE. Write it as github.com/owner/name."; "HOST isn’t a host. Did you mean
   github.com/OWNER/NAME?", with "Use it"; and, for a name the target forge
   has already, among the rows read of it and its makings, "OWNER/NAME is
   already on this forge.", with "Adopt it", which moves to "Adopt" with its
@@ -6764,6 +6765,9 @@ own tests:
   including the named states and screenshots (`../draft/look-requests.md`,
   section 4). Default: the client world's switch and add-by-name stories
   across reloads; browser and real-provider checks remain after landing.
+  The comparison includes Provider's chevron, the single-row add form
+  and its section headings. Settings' shared H1 and the open project
+  menu row keep their frame's design, as the repair request leaves them.
 
 - **A document's drawing after landing** (3.5): temper/ui looks at a flow
   in a chat and in its document, including both layouts and the narrow
@@ -6776,7 +6780,10 @@ own tests:
   and disclosures at 1440, 1000 and 420 px, with screenshots also at
   1280 px (`../draft/look-requests.md`, 4). Default: the source and print
   account is distinct from rendered equality; differences return as
-  findings after landing.
+  findings after landing. Compare the request-owned parts, including
+  Settings' select chevrons, the sheet's chooser, captions, list and empty
+  search, More's summary, connection actions and each model way's path;
+  the shared H1 and open project menu row keep their frame's design.
 - **One repository sheet from Home** (3.5, 4.3, 4.4): the
   repository-copies follow-up, owned by temper/ui, unifies Home's own
   empty-or-copy sheet with Add repositories and draws the entry from a

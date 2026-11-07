@@ -285,7 +285,7 @@ fn settings_pages_price_escapes_cut_long_lines_and_keep_utf8_offsets() {
 
 #[test]
 fn a_large_settings_decoder_error_is_bounded_host_feedback() {
-    let key = "x".repeat(smith_domain_run::HostInput::CAPACITY.checked_sub(128).expect("input envelope room"));
+    let key = "x".repeat(65_536 - 128);
     let input =
         format!("{{\"against\":1,\"reason\":\"why\",\"items\":[{{\"setting\":{{\"kind\":\"rules\"}},\"{key}\":0}}]}}");
     let crate::Decoded::Answered(answer) =

@@ -174,7 +174,7 @@ impl Backend {
                 self.turns.event(document, event)?;
             }
             Some(b"assistant") => {
-                self.turns.assistant(document, self.settings.translation.client.answer)?;
+                self.turns.assistant(document, self.settings.translation.client.input)?;
             }
             Some(b"result") => return self.result_record(env, document, up, below),
             Some(b"user") => self.builtin_results(document, up)?,
@@ -213,7 +213,7 @@ impl Backend {
         match json::field(document, 0, b"structured_output") {
             Some(index) if self.result_contract() => {
                 let input = json::outcome_value(document, index).ok_or(Rejection::Malformed)?;
-                let input = turns::bounded_input(document, input, self.settings.translation.client.answer)?;
+                let input = turns::bounded_input(document, input, self.settings.translation.client.input)?;
                 self.turns.structured(input)?;
             }
             Some(_) | None => {
