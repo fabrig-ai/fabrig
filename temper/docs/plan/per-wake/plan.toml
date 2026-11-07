@@ -1,0 +1,22 @@
+draft = "per-wake"
+repo = "fabrig"
+sources = ["temper/docs/plan/per-wake/inputs/request.md", "temper/docs/design/draft/per-wake.md", "temper/docs/design/draft/per-wake.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "surface"
+title = "jig's tasks, core and people hold a run's reasons, a charter's parts and a later choice"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[slice]]
+id = 1
+story = "Every tree builds with a run's reasons, a charter's parts and a later choice, empty, and behaves as before"
+parts = ["surface"]
+walk = false

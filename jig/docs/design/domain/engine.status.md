@@ -45,6 +45,16 @@ and catalogue-number reuse remain section 16's open questions.
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
 
+- **Not yet:** 7.1, 9: a run's preparation chooses no parts: it reads its
+  charter's instructions alone, is offered every message waiting
+  (`jig-domain-core/src/routing/run/preparation.rs`, `start_messages`), and
+  its claim passes no reasons or offered kinds to the tasks child.
+  7.2, 7.4: a turn's commit takes every message up to its fence, and a run
+  that parks idle or finishes ends no first activation; the code's side is
+  `tasks.status.md`, 8.6.
+  7.1: a run's check takes its task's first choice whatever its reasons
+  (`jig-domain-core/src/runs/llm.rs`, `chosen_policy`).
+
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
