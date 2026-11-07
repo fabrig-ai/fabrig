@@ -24,6 +24,7 @@ fn resources_at(parent: Option<Fd>) -> crate::sources::Resources {
         1024,
         1000,
         parent,
+        None,
     )
     .expect("explicit command resources fit")
 }
@@ -150,4 +151,49 @@ fn an_inspection_deadline_cancels_in_the_workers_namespace() {
     assert_eq!(reason, SourceFailure::Deadline);
     assert!(below.is_empty() && submitted.is_empty());
     assert!(component.settled() && stage.settled());
+}
+
+#[test]
+fn list_reads_without_a_launch_or_value_fail_without_io() {
+    for configured in 0_u32..3 {
+        let mut component = crate::sources::Component::new(8);
+        if configured > 0 {
+            let mut resources = resources();
+            if configured == 2 {
+                resources.list_launch(smith_host_protocol::ListLaunch {
+                    program: b"agent".as_slice().into(),
+                    arguments: Box::new([]),
+                    environment: Box::new([]),
+                    root: Fd::new(9),
+                    directory: b".".as_slice().into(),
+                });
+            }
+            component.configure(resources).expect("startup resources");
+        }
+        let mut below = Queue::uncapped();
+        let credential = if configured < 2 {
+            Some(
+                smith_channel::CredentialValue::new(
+                    &smith_channel::CEILINGS,
+                    smith_channel::CredentialValueParts {
+                        scheme: smith_channel::Scheme::Key,
+                        bytes: skein_lib::Secret::new(b"fixture".as_slice().into()),
+                    },
+                )
+                .expect("fixture credential"),
+            )
+        } else {
+            None
+        };
+        assert_eq!(
+            component.read(7, Token::new(2), 1, credential, Time::ZERO, &mut below),
+            Some((
+                Token::new(7),
+                sources::Answer::Read(jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent))
+            )),
+            "binding {configured}"
+        );
+        assert!(below.is_empty(), "binding {configured}: no spawn");
+        assert!(component.settled(), "binding {configured}");
+    }
 }

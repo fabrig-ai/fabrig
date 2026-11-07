@@ -371,3 +371,33 @@ fn exited(exit: Option<skein_io::kernel::Exit>) -> Option<smith::Exit> {
         None => None,
     }
 }
+
+/// Translate a settled agent list answer without exposing its credential (channel.md, 5.1).
+#[must_use]
+pub fn list_outcome(outcome: smith::ListOutcome) -> jig_domain_link::ListOutcome {
+    use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
+    match outcome {
+        smith::ListOutcome::Listed(rows) => {
+            let mut listed = List::with_capacity(u32::try_from(rows.len()).expect("bounded agent list"));
+            for row in rows {
+                listed
+                    .push(ListedModel {
+                        name: row.name,
+                        shown: row.shown,
+                        window: row.window,
+                        output: row.output,
+                        efforts: row.efforts,
+                    })
+                    .expect("one slot per list row");
+            }
+            ListOutcome::Listed(listed.into_boxed())
+        }
+        smith::ListOutcome::Failed(failure) => ListOutcome::Failed(match failure {
+            smith::ListFailure::Refused { status } => ListFailure::Refused { status },
+            smith::ListFailure::Unreachable => ListFailure::Unreachable,
+            smith::ListFailure::Unreadable => ListFailure::Unreadable,
+            smith::ListFailure::Deadline => ListFailure::Deadline,
+            smith::ListFailure::Agent => ListFailure::Agent,
+        }),
+    }
+}

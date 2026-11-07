@@ -867,6 +867,7 @@ dependencies = [
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-lib",
+ "skein-llm",
  "skein-sim",
  "skein-world",
  "smith-agent-process-world",
