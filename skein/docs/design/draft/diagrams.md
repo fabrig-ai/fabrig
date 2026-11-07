@@ -39,8 +39,11 @@ whose document draws how work reaches main (the look request
   plain text; `<br>` (or `<br/>`) splits it into the box's name, the
   first line, and its caption, the second; a third line is past the
   subset. A node with no label is named by its id.
-- **Emphasis:** `:::strong` after a node marks it; `classDef` lines,
-  which a forge needs to style it, are read and ignored.
+- **Emphasis and who acts:** one mark after a node: `:::strong`; or who
+  acts at it, `:::code`, `:::agent` or `:::person`, or the same with
+  `-strong` added, as `:::person-strong`, which marks it as `:::strong`
+  does (`temper/docs/design/draft/ask-temper.md`, 6.3); `classDef`
+  lines, which a forge needs to style it, are read and ignored.
 - **An edge:** `-->` between two nodes, chained or not (`a --> b -->
   c`, or a line each).
 - **Its name:** `accTitle: words`, the drawing's name; `accDescr:` is
@@ -57,7 +60,7 @@ whose document draws how work reaches main (the look request
   any owner's (`../ui.md`, 11.1).
 - **Its data,** within the limit on a drawing's bytes: the direction,
   then each node in the path's order, its name, its caption or none,
-  and whether it is strong.
+  whether it is strong, and who acts at it, or none.
 - **Its name,** the `accTitle`, or none.
 - **Its fallback,** one paragraph: each node's name, a comma and its
   caption where it has one, joined by "; then ", ended by a full stop:
@@ -138,6 +141,8 @@ value. Centred is at a box's left plus half its width, rounded down.
 - **An agent illustrates with a flow** where a sequence says more
   drawn: the owner's instructions say so, and name the subset (temper's
   configuring agent's: `temper/docs/design/domain/agent.md`, 8.1).
+- **Who acts at each node:** temper's Ask temper marks each node by who
+  acts at it (section 2; `temper/docs/design/draft/ask-temper.md`, 6.3).
 - **The same block reads in a repository:** a forge that renders
   Mermaid shows it there, so a document moved from a chat into a
   repository keeps its picture.
@@ -147,7 +152,8 @@ value. Centred is at a box's left plus half its width, rounded down.
 - **The acceptance cases,** `diagrams/` (its `README.md` says what each
   file is): each case's block, the scene the web mapping prints for it
   at given widths, byte for byte (`../ui-web.md`, section 8), its name
-  and its fallback's words; a case that stays code. The tests read
+  and its fallback's words; a case with who acts at each node; a case that
+  stays code. The tests read
   them, and a change of the look is a change of a case, made with the
   user.
 - **The reader's:** each rule of section 2, the subset read and each
