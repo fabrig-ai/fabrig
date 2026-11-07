@@ -31,7 +31,11 @@ The binding calls are `notes/contracts.md`. In short:
 - **`client`** builds both halves in the client, the take sent again each second while it waits, and the unlinked mode the gallery and temper's joint world step.
 - **`jig-story`** is the meeting point: jig's joint world, real component, real core.
 
-temper's part follows in the next batch (its design is being written): configuration, the client root's half and the page's state, the view and the gallery, the client world's story.
+| `temper-approval` | `temper-config` | `config`, `component`, `http` | `temper-init`'s documents, `temper-service`'s tests, the configuration reference pages | 60 |
+
+- **`temper-config`** turns the approval on beside the printed link in `temper init`'s two documents (so every box's) and the owned example, and proves the service passes it on: a box answers an ask.
+
+temper's design is `temper/docs/design/client/README.md`, 3.5 (*The approval page*), 5.1, 5.12 and 7.1 (*A terminal signed in from the browser*, the root's half and the TUI's flow, the latter designed and built by the follow-up plan), `client/browser.md`, 2.3, 2.4, 2.5 and 7.2, `protocol/configuration.md`, section 3, and `protocol/setup.md`, 8.3. Its remaining tasks follow in the next batch: the client root's half and the page's state (`temper-domain`), the view, `temper.css` and the gallery (`temper-view`), and the client world's story (`temper-story`).
 
 ## Critical path, as it stands
 
