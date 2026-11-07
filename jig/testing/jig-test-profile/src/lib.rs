@@ -423,7 +423,7 @@ pub fn config(seed: u64) -> root::Config {
 mod charters;
 mod connector;
 pub mod fixtures;
-pub use charters::{research_charter, two_charters};
+pub use charters::{per_wake_charter, research_charter, two_charters};
 mod credentials;
 pub use credentials::with_workspace_credential;
 
