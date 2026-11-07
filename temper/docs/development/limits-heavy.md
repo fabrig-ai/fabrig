@@ -2,15 +2,21 @@
 
 ## The result
 
-2026-11-07. The merged measurement tree is `6755dae86e`: integration
-`30294e75e1`, including gallery `436caabd1e`, combined with scale/restart
-`b925a75f81`. Its seven task figures are preserved in that commit under
-`temper/docs/plan/limits-heavy/figures/`. Each task's before/after pair uses
-its own base, not one common baseline. The closing measurements use
+2026-11-07. Final measurements use `bdd65d61b3`, whose product code
+matches merged integration `8822d7db70`. The earlier closing pass uses
+`6755dae86e`: integration `30294e75e1`, including gallery
+`436caabd1e`, combined with scale/restart `b925a75f81`.
+The seven task figures are preserved in that earlier commit under
+`temper/docs/plan/limits-heavy/figures/`. Each task's before/after pair
+uses its own base, not one common baseline. Both closing passes use
 16 CPUs, AMD EPYC-Genoa Processor, and unoptimized test builds.
+The later integration merges newer main through `8822d7db70`, including
+JSON string handling, bounded store-page reads and an additional UI phrase.
+Trunk counts therefore include changes beyond this plan.
 
-Every merged count below is one exact named test through nextest and
-Callgrind, with double spawn disabled. All 13 selected tests passed.
+Each closing pass measures one exact named test per row through nextest
+and Callgrind, with double spawn disabled. All 13 tests passed in each
+pass: 26 successful profiles. Both snapshots remain in the table.
 Discovery processes are excluded. The refused-port count sums four traced
 processes; the launcher sums 74, excluding external readlink executables
 on both sides of its comparison. The other counts are single processes;
@@ -35,22 +41,22 @@ the whole row; it is not a row CPU measurement. This assumption is
 especially weak for the listener move, the gallery's consolidated rules,
 and view limits with different remaining drawing costs.
 
-| Request row / selected test | Request CPU s | Before Ir | Task after Ir | Merged Ir | Estimated CPU s after |
-|---|---:|---:|---:|---:|---:|
-| box_listeners: `temper::suite::box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document` | 17.6 | 975,595,748 | 5,413,110,171 | 4,924,326,388 | 97.654 |
-| gallery: `temper-client-gallery::lib::tests::print_writes_every_page_and_the_bundle` | 12.1 | 31,170,701,091 | 8,292,374,426 | 8,292,406,046 | 3.219 |
-| fake_backends: `temper::lib::fake_backends::tests::retained_peer_edits_are_checked_without_replacement` | 11.5 | 19,892,711,440 | 2,481,957,851 | 2,287,284,908 | 1.435 |
-| view limits: `temper-client-view::lib::tests::limits::kept_words_at_the_threads_bytes_build` | 9.1 | 12,148,031,421 | 11,991,007,201 | 11,910,812,477 | 8.982 |
-| forge_land: `temper::suite::forge_land::the_launcher_gives_each_landing_story_its_own_store` | 4.0 | 79,217,172,205 | 211,172,655 | 200,883,688 | 0.011 |
-| rate: `temper-engine-protocol-forge-world::suite::rate::moving_main_installation_requests_per_hour` | 3.5 | 8,321,536,270 | 8,008,904,224 | 8,008,707,539 | 3.369 |
-| fabrig_scale: `temper-engine-domain-world::suite::fabrig_scale::a_goal_tree_takes_384_tasks` | 3.1 | 17,457,265,311 | 9,362,561,515 | 9,362,290,442 | 1.663 |
-| restart: `temper-box::lib::tests::restart::early_reply_pipe_failure_and_busy_logs_allow_restarting` | 2.6 | 3,834,834,688 | 3,834,837,463 | 3,834,834,619 | 2.600 |
-| github_land: `temper-engine-protocol-forge-world::suite::github_land::pending_ci_across_token_hour_completes_on_fresh_token` | 2.4 | 5,476,039,300 | 5,234,863,065 | 5,234,738,080 | 2.294 |
-| turn: `temper-client-tools::lib::tests::jig::turn::a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits` | 1.1 | 6,995,481,808 | 6,832,067,781 | 6,826,361,994 | 1.074 |
-| document: `temper-client-tools::lib::tests::jig::reads::a_document_at_its_byte_bound_prints_its_maximal_json_escapes` | 0.6 | 5,180,449,245 | 3,363,194,720 | 3,362,385,613 | 0.390 |
-| malformed setup: `temper-service::lib::setup::tests::lifecycle_tests::setup_malformed_queries_are_bad_requests` | 1.1 | 1,033,151,661 | 140,501,808 | 140,513,975 | 0.150 |
-| expiry/paste race: `temper-service::lib::accounts::tests::expiry_and_native_paste_race_take_at_most_one_redirect` | 0.9 | 3,361,893,352 | 1,097,274,466 | 1,097,088,898 | 0.294 |
-| **Total of listed rows and four single tests** | **69.7** | — | — | — | **123.133 (estimate)** |
+| Request row / selected test | Request CPU s | Before Ir | Task after Ir | Early merged Ir | Merged trunk Ir | Estimated CPU s after |
+|---|---:|---:|---:|---:|---:|---:|
+| box_listeners: `temper::suite::box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document` | 17.6 | 975,595,748 | 5,413,110,171 | 4,924,326,388 | 3,146,142,721 | 97.654 |
+| gallery: `temper-client-gallery::lib::tests::print_writes_every_page_and_the_bundle` | 12.1 | 31,170,701,091 | 8,292,374,426 | 8,292,406,046 | 8,293,436,601 | 3.219 |
+| fake_backends: `temper::lib::fake_backends::tests::retained_peer_edits_are_checked_without_replacement` | 11.5 | 19,892,711,440 | 2,481,957,851 | 2,287,284,908 | 1,637,101,265 | 1.435 |
+| view limits: `temper-client-view::lib::tests::limits::kept_words_at_the_threads_bytes_build` | 9.1 | 12,148,031,421 | 11,991,007,201 | 11,910,812,477 | 11,910,975,872 | 8.982 |
+| forge_land: `temper::suite::forge_land::the_launcher_gives_each_landing_story_its_own_store` | 4.0 | 79,217,172,205 | 211,172,655 | 200,883,688 | 203,251,483 | 0.011 |
+| rate: `temper-engine-protocol-forge-world::suite::rate::moving_main_installation_requests_per_hour` | 3.5 | 8,321,536,270 | 8,008,904,224 | 8,008,707,539 | 7,237,418,084 | 3.369 |
+| fabrig_scale: `temper-engine-domain-world::suite::fabrig_scale::a_goal_tree_takes_384_tasks` | 3.1 | 17,457,265,311 | 9,362,561,515 | 9,362,290,442 | 9,239,941,643 | 1.663 |
+| restart: `temper-box::lib::tests::restart::early_reply_pipe_failure_and_busy_logs_allow_restarting` | 2.6 | 3,834,834,688 | 3,834,837,463 | 3,834,834,619 | 3,834,837,883 | 2.600 |
+| github_land: `temper-engine-protocol-forge-world::suite::github_land::pending_ci_across_token_hour_completes_on_fresh_token` | 2.4 | 5,476,039,300 | 5,234,863,065 | 5,234,738,080 | 4,875,944,719 | 2.294 |
+| turn: `temper-client-tools::lib::tests::jig::turn::a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits` | 1.1 | 6,995,481,808 | 6,832,067,781 | 6,826,361,994 | 6,853,631,494 | 1.074 |
+| document: `temper-client-tools::lib::tests::jig::reads::a_document_at_its_byte_bound_prints_its_maximal_json_escapes` | 0.6 | 5,180,449,245 | 3,363,194,720 | 3,362,385,613 | 1,587,522,677 | 0.390 |
+| malformed setup: `temper-service::lib::setup::tests::lifecycle_tests::setup_malformed_queries_are_bad_requests` | 1.1 | 1,033,151,661 | 140,501,808 | 140,513,975 | 139,842,307 | 0.150 |
+| expiry/paste race: `temper-service::lib::accounts::tests::expiry_and_native_paste_race_take_at_most_one_redirect` | 0.9 | 3,361,893,352 | 1,097,274,466 | 1,097,088,898 | 1,004,497,108 | 0.294 |
+| **Total of listed rows and four single tests** | **69.7** | — | — | — | — | **123.133 (estimate)** |
 
 The request's listed rows total **69.7 CPU s**, including the four single
 tests, against its headline **about 89 CPU s**. The unexplained **19.3 CPU s**
@@ -68,22 +74,50 @@ estimate dominated by random key generation. The other rows contribute
 after landing and is not this page's. CPU budgets and wall starvation
 remain separate (`skein/docs/foundation/testing-strategy.md`, 8.1).
 
-Two merged counts are above their task-after figures, and neither is
-silently replaced by the smaller number:
+Three final trunk counts are above their task-after figures. The profiles
+identify the intervening merge where possible; none is repaired here:
 
-- Gallery print: 8,292,374,426 → 8,292,406,046 Ir, **+31,620**, about
-  0.0004%. No relevant gallery, view, ordering or renderer source changed
-  between `436caabd1e` and the measurement tree. The profile retains
-  exactly 1,913,349,338 Ir for input cloning and 989,777,800 for capacity;
-  rendering is 4,179,949,680 versus 4,179,957,236. The small whole-process
-  increase does not identify a causal merge.
-- Malformed setup queries: 140,501,808 → 140,513,975 Ir, **+12,167**, about
-  0.009%. Service construction is 74,625,655 versus 74,625,022; visits
-  are 45,525,924 versus 45,525,946. Its service source did not change
-  after `ecc95c38ec`. The intervening scale merge `6755dae86e` changes
-  projection saving, not this request path; the profile offers no
-  evidence of a behavioral regression from it. Startup/allocation
-  variation is a possible explanation, not an attributed fix or fault.
+- Gallery print: 8,292,374,426 → 8,293,436,601 Ir, **+1,062,175**,
+  about 0.013%. Main merge `8822d7db70` brings `ead6125140` through
+  `31990916c8`: one additional box-capacity phrase. Input cloning rises
+  1,913,349,338 → 1,936,794,027 Ir and capacity validation
+  989,777,800 → 990,220,788; HTML rendering is
+  4,179,957,236 → 4,179,894,898. These inclusive frames overlap and do
+  not add to the net change. The gallery source itself is unchanged.
+- Maximal turn: 6,832,067,781 → 6,853,631,494 Ir,
+  **+21,563,713**, about 0.316%. The same main merge brings JSON changes
+  through `586451b10a`, including `ae9260a7e2` and `bc0d8f4c4f`.
+  Lossless JSON/duplicate-key validation rises
+  5,214,465,400 → 5,368,214,692 Ir. The decoder's original sample was
+  4,891,609,446; its final frame is 5,045,572,462. The new run path
+  helps plain strings, but this test prints maximally escaped NULs.
+  The profile locates the larger decoding work in the shared JSON
+  changes, while writing also changes; it is not an isolated
+  decode-only experiment. No assertion or byte bound changes.
+- Faulted restart: 3,834,837,463 → 3,834,837,883 Ir, **+420**,
+  about 0.000011%. The only later merge is the rebuilt tree above;
+  no box, restart harness, I/O or fake-machine source changes.
+  `probing_serve` is 797,602,253 Ir versus the figures' 797,602,028
+  before sample, and all 720 orders pass. No source cause can be
+  attributed for this tiny whole-process difference.
+
+The earlier merged column also retains its increases: gallery
+8,292,374,426 → 8,292,406,046 (**+31,620**) and malformed queries
+140,501,808 → 140,513,975 (**+12,167**). At that snapshot the relevant
+sources were unchanged; gallery input cloning and capacity matched their
+task counts exactly, while service construction was 74,625,655 versus
+74,625,022 and visits 45,525,924 versus 45,525,946. The final malformed
+query count is lower, 139,842,307. The earlier counts are not substituted
+for final ones.
+
+Other main-merge changes matter too: maximal-document printing is now
+1,587,522,677 Ir versus its task-after 3,363,194,720, and retained-peer
+preparation is 1,637,101,265 versus 2,481,957,851. The merge includes
+bulk JSON reading/writing and changed stock box configuration; these
+whole-test comparisons do not isolate their individual contributions.
+The scale story is 9,239,941,643 versus 9,362,561,515; the merge includes
+`3d0fa8130d`'s restart-inventory reuse and bounded map-page loading.
+These are later shared changes, not extra savings credited to this plan.
 
 ## What moved
 
@@ -91,7 +125,8 @@ silently replaced by the smaller number:
 and `a_killed_box_takes_its_steps_with_it` moved whole to
 `temper::process::box_lifetime`, because running playground steps and
 their deaths need real processes. They were compiled, not run, in the
-new tier during this plan. Their assertions stayed. The original CPU
+new tier during this plan. The final merged process binary also compiled without executing a story.
+Their assertions stayed. The original CPU
 medians, **8.1 + 7.8 = 15.9 CPU s**, transfer to the process tier. Its
 standing figures are 360 CPU s for the suite, 60 per test and a 1080 s
 wall hard limit; its remaining margin and its runtime after this move
@@ -121,6 +156,9 @@ and 1,096,040 Ir. No other task reports a test that went.
 
 ## Each row
 
+These paragraphs account for each task's own changes. The result table
+and merge findings above add the later trunk observations.
+
 **Box listeners.** The move removes 15.9 of the request's 17.6 CPU s
 from focused tests without claiming a faster process story. The six
 remaining listeners' adjusted timing medians are 2.430 → 2.287 CPU s,
@@ -129,8 +167,10 @@ behavior is unchanged, and the difference includes key-generation noise.
 Fresh-box block timing is 0.320 → 0.322 CPU s, with no instruction count;
 its failed instrumentation is not treated as a valid sample.
 The refused-port RSA generation alone was 704,660,593 → 5,142,084,149 Ir;
-the merged OpenSSL child is 4,689,274,084. Init and box together were
-253,648,112 → 253,716,953 in that task, versus 217,694,081 here.
+the early merged OpenSSL child is 4,689,274,084 and the final one
+2,948,195,182. Init and box together were
+253,648,112 → 253,716,953 in that task, versus 217,694,081 in the
+early pass and 180,300,857 in the final pass.
 The intervening startup reuse in `efde31e01a`, brought in by main merge
 `cbdffcb951`, retains the checked machine rather than decoding it again.
 The preparation task explicitly does not change ordinary box startup.
@@ -252,7 +292,10 @@ issuers, redirect/exchange/terminal checks and the 512-turn backstop stay.
 
 ## Found and not fixed
 
-Every finding in the seven figures files follows, largest recorded
+These are the row tasks' records at their after commits, including work
+later affected by the main merge described above. They are not a claim
+that every frame still has the same count on final trunk. Every finding
+in the seven figures files follows, largest recorded
 inclusive instruction count first. This ordering includes baseline
 costs, required work and overlapping frames; the counts are not additive
 savings. The box RSA line is supplemented with its figures' counts, and
@@ -286,7 +329,7 @@ closing task, which changes documents only.
 - **box-lifetime; largest recorded count 5,142,084,149 Ir.** RSA-3072 key creation is required for each fresh sign-in provider. The
   refused-port profiles above show its variable cost. Sharing private
   keys across real boxes, shortening the key or changing the algorithm
-  would change the product's behaviour; none is done. The RSA generation samples were 704,660,593 Ir before and 5,142,084,149 Ir after; the merged OpenSSL child used 4,689,274,084 Ir.
+  would change the product's behaviour; none is done. The RSA generation samples were 704,660,593 Ir before and 5,142,084,149 Ir after; the early merged OpenSSL child used 4,689,274,084 Ir and the final one 2,948,195,182 Ir.
 
 - **view-limits; largest recorded count 4,679,394,088 Ir.** Markdown's full three-pattern window still costs 4,679,394,088 Ir in
   `markdown::read` after. The calls' conversation costs 851,754,746 Ir,
@@ -495,6 +538,10 @@ the single-sample floor. None is near 0.2 CPU s at the request's prices.
 
 ## What stays heavy and why
 
+The task profiles below price required work; current whole-test counts
+and intervening changes are in the result table. Faster mechanics remain
+possible without removing the required bytes, orders or assertions.
+
 - **Bounds are the assertions.** Pending words still draw 65,536 and
   1,048,576 newline bytes, including 2,230,288 body paragraphs across
   both shells. Conversation and freeing cost 8,181,360,880 and
@@ -508,24 +555,25 @@ the single-sample floor. None is near 0.2 CPU s at the request's prices.
   better equivalent renderer exists. Phrasebook copying and repeated
   validation are separate avoidable-work candidates above, not asserted
   necessary merely because each page must render.
-- **Every ending and cold restart stays.** The faulted restart test's
-  3,834,837,463 Ir pays for all 720 lifecycles. The 384-task story's
+- **Every ending and cold restart stays.** The faulted restart test's final
+  3,834,837,883 Ir pays for all 720 lifecycles. The 384-task story's
   2,463,099,017-Ir restart/read oracle compares retained state and every
   task/result answer. Removing orders or reads would remove coverage;
   a cross-owner snapshot or store optimization is different work.
 - **The protocol tests still carry real bytes and token lifetimes.**
-  Moving main remains about 8.009 billion Ir and the token-hour landing
-  5.235 billion. App signing is 236,401,606 Ir in iterating and
+  Moving main is now about 7.237 billion Ir and the token-hour landing
+  4.876 billion. App signing is 236,401,606 Ir in iterating and
   247,671,321 in the token-hour story. The retained requests, fragmented
   framing, leak checks and credential renewal are their checks; scans
   and parsing can still be investigated without skipping that behavior.
 - **The maximal turn still validates its JSON.** Lossless parsing and
-  duplicate-key validation cost 5,214,465,400 Ir, about 0.820 CPU s at
-  the request's price. Dropping the assertion is not a saving.
+  duplicate-key validation cost 5,214,465,400 Ir in the task profile,
+  about 0.820 CPU s at the request's price, and 5,368,214,692 Ir on
+  final trunk, about 0.844 CPU s at that same price. Dropping the assertion is not a saving.
   A better shared decoder could be one.
 - **Fresh provider keys remain a product obligation.** Real boxes still
   generate their own 3072-bit keys. The refused-port whole trace's
-  975,595,748 → 5,413,110,171 → 4,924,326,388 Ir shows how much random
+  975,595,748 → 5,413,110,171 → 4,924,326,388 → 3,146,142,721 Ir shows how much random
   prime search can change one observation. Preparation tests that do
   not assert provider-key generation now omit it through explicit facts;
   the dedicated key-generation test remains. Sharing private keys or
