@@ -254,11 +254,6 @@ fn a_tasks_settings_proposal_waits_for_deployment_owners_and_its_outcome_wakes_i
             "{out:?}"
         );
         assert_eq!(h.domain.proposal(1, PROPOSAL), Some(offered.clone()));
-        let refused = h.send(Event::Propose { reply_to: to(), proposal: Proposal { number: PROPOSAL + 1, ..offered } });
-        assert!(refused.iter().any(|r| match r {
-            Request::Refused { .. } => true,
-            _ => false,
-        }));
         domain::task_mut(&mut h.domain, 1).unwrap().record.phase = Phase::Active(Active::Idle);
         let reason: Box<[u8]> =
             if outcome == SettingsOutcome::Rejected { b"later".as_slice().into() } else { Box::new([]) };

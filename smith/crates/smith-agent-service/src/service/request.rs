@@ -32,7 +32,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
             }
             let deltas = service.live.deltas(&prompt, observation.is_some());
             let outcome = service.opening.outcome().clone();
-            let deliver = outcome.change.clone();
+            let deliver = service.opening.deliver().cloned();
             let request = llm::FromDomain::Complete {
                 owner,
                 grant,

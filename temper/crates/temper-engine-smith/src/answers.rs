@@ -1189,7 +1189,7 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
         CapacityCause::Proposals { limit } => {
             text.add(b": it has a proposal pending (at most ")?;
             text.number(u64::from(limit))?;
-            text.add(b" at once): wait for its decision, or withdraw it")
+            text.add(b" at once): wait for its decision")
         }
         CapacityCause::PlacedHolds { .. }
         | CapacityCause::ProjectPlacedHolds { .. }

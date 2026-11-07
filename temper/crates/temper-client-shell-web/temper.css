@@ -1956,7 +1956,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-settings-proposal .temper-settings-proposal-reason p { margin: 8px 0; font-size: inherit; color: inherit; }
 .temper-settings-proposal .temper-settings-proposal-reason > :first-child { margin-top: 0; }
 .temper-settings-proposal .temper-settings-proposal-reason > :last-child { margin-bottom: 0; }
-.temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
+.temper-settings-proposal-items small { font: 12px var(--gf-sans); color: var(--gf-faint); }
 .temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
 .temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
 .temper-settings-proposal .temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
@@ -2346,6 +2346,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 /* ==== ui: phone ==== */
 @media (max-width: 760px) {
+  #app > .temper-session .temper-thread > .temper-latest { position: static; transform: none; margin: 0 auto 12px; align-self: center; flex: none; }
+  .temper-agent-page .temper-thread > .temper-latest { position: static; transform: none; margin: 0 auto 12px; align-self: center; flex: none; }
   /* The tabs occupy 63px; keep a pixel clear when scrolling a control. */
   :root:has(#app > .temper-tabbar):not(:has(#app > .temper-session)) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }

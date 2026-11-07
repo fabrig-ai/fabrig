@@ -56,9 +56,15 @@ pub(super) fn task(entries: &[crate::CatalogueTask], name: &str) -> Result<crate
 // Fixed machine and directory observations supplied to request construction.
 struct RequestInputs<'a> {
     repository: &'a Path,
+    shared_temporary: &'a Path,
     logins: PathBuf,
     host: String,
     cpus: Vec<u32>,
+}
+
+/// The directory a planned request's scope gate lists: `/tmp`, unless `probe` was told another.
+pub(super) fn planned_temporary(named: Option<&str>) -> PathBuf {
+    named.unwrap_or(crate::run::MACHINE_TEMPORARY).into()
 }
 
 #[derive(Clone, Copy)]
@@ -93,6 +99,7 @@ fn request(
     };
     Ok(crate::run::Request {
         task: entry.manifest.clone(),
+        shared_temporary: inputs.shared_temporary.into(),
         program,
         arguments: Vec::new(),
         configuration: Some(pin_file),
@@ -146,24 +153,6 @@ fn request(
 }
 
 fn task_requests(
-    repository: &Path,
-    entry: &crate::CatalogueTask,
-    suite: &Suite,
-    arms: (&ArmRef, &[(String, ArmRef)]),
-    run: RunIdentity<'_>,
-    repetitions: u32,
-    requests: &mut Vec<crate::run::Request>,
-) -> Result<(), Fault> {
-    let inputs = RequestInputs {
-        repository,
-        logins: crate::arm::state_root(&Guard::from_environment()?)?.join("logins/codex"),
-        host: fs::read_to_string("/proc/sys/kernel/hostname")?.trim().into(),
-        cpus: cpus()?,
-    };
-    task_requests_in(&inputs, entry, suite, arms, run, repetitions, requests)
-}
-
-fn task_requests_in(
     inputs: &RequestInputs<'_>,
     entry: &crate::CatalogueTask,
     suite: &Suite,
@@ -261,7 +250,7 @@ fn narrowed(file: &Path, order: &Order) -> Result<toml::Value, Fault> {
 pub fn plan(repository: &Path, order: &Order, arm: &ArmRef) -> Result<Planned, Fault> {
     refuse_if(!order.probe.starts_with("probes/") || order.attempts == 0, Input, "invalid probe order")?;
     let value = narrowed(&repository.join("benchmarks/suites/probes.toml"), order)?;
-    prepare(repository, &order.probe, &value, (arm, None), true, &[])
+    prepare(repository, &order.probe, &value, (arm, None), true, &[], &order.shared_temporary)
 }
 
 pub(super) fn prepare(
@@ -271,6 +260,7 @@ pub(super) fn prepare(
     arms: (&ArmRef, Option<&ArmRef>),
     logical: bool,
     asked: &[String],
+    shared_temporary: &Path,
 ) -> Result<Planned, Fault> {
     let harness_commit = crate::arm::commit(repository, "HEAD")?;
     let suite: Suite = value.clone().try_into()?;
@@ -323,13 +313,20 @@ pub(super) fn prepare(
             binaries.push((name.clone(), binary));
         }
     }
+    let inputs = RequestInputs {
+        repository,
+        shared_temporary,
+        logins: crate::arm::state_root(&guard)?.join("logins/codex"),
+        host: fs::read_to_string("/proc/sys/kernel/hostname")?.trim().into(),
+        cpus: cpus()?,
+    };
     let mut requests = Vec::new();
     for name in names {
         let entry = task(&entries, &name)?;
         let task = &entry.task;
         let repetitions = suite.task_repetitions(&name, task.repetitions, logical)?;
         task_requests(
-            repository,
+            &inputs,
             &entry,
             &suite,
             (arm, &binaries),

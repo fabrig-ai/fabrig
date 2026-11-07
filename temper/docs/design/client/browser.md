@@ -3,10 +3,10 @@
 Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
-`forge.md`). What temper draws is the source of truth, recorded and
-printed as journeys (`journeys.md`); the mockups (`mockups/`) are the
-design of what is not built yet, reconciled to temper where they
-differ (the user, 10-26). How a view runs in a browser is
+`forge.md`). The greenfield mock (`greenfield/README.md`) is the look's
+target, with later look requests, and takes precedence over `mockups/`
+(the user, 2026-11-05). Journeys record and print what temper draws
+(`journeys.md`). How a view runs in a browser is
 skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 (jig's `protocol/browser.md`). What is still open is section 5.
 
@@ -1144,7 +1144,7 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
   and the browser's address becomes the callback's, its `code` and the
   link's `state` there. Nothing of the token's is the browser's.
 
-### 4.6 The twelve
+### 4.6 The stories
 
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
@@ -1181,6 +1181,12 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
 14. **Reading back** (4.1, 5).
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`.
+16. **The composer's model picker** (`README.md`, 3.5): on a started chat,
+    open the menu at 420 px, press a model and then an effort, each changing
+    the line with one press; outside and Escape fold it. This checks the
+    browser's disclosure, viewport and focus behaviour; the domain and view
+    tests hold account filtering, amendments, refusal and search. It does
+    not prove which model a subsequent provider request uses.
 
 The cap includes all browser tests, whatever their names.
 
@@ -1314,7 +1320,8 @@ Not in the tier, each in the lowest world that shows it:
   change; the repaired long story's query count alone gives no reason to add it.
 - **The remaining browser cost** (4.3, 4.6): another repair may prepare the
   other stories' histories outside the page, and combine stories sharing a setup
-  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
+  before dropping a browser-only proof, including the picker with another
+  started-chat story. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
 - **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
@@ -1322,9 +1329,27 @@ Not in the tier, each in the lowest world that shows it:
   but leave the 1,048,576-byte window's manual reading check separate. Default:
   keep the person's bound and check opening, position, both ends, Latest and
   sending there by hand.
-- **A public page's text in one query** (8.4): the public walk reads each page's text
-  a node at a time, about 0.8 CPU s over its seven pages. Default: so, until that
+- **A public page's plain text in one query** (8.4): the page-text walk,
+  apart from geometry measurement, reads a node at a time, about 0.8 CPU s
+  over its seven pages. Default: so, until that
   passes 1 CPU s, when the browser kit would read a page's text at once.
+- **Every wrapped text fragment** (8.4): checking all of a title's wrapped
+  fragments needs a browser testing interface decision (skein's
+  `browser.md`, 11). Default: keep `Seen` and its first content quad;
+  missing rectangles remain failures, with the text and measurement stage.
+- **A public page changing during measurement** (8.2, 8.4): one terminal
+  boxed query avoids repeating every rectangle request for each text node,
+  but is no atomic snapshot of the page. Default: keep the field, gutter,
+  wrapping, navigation and overlap assertions and read a missing box's text
+  and stage from its failure. A node gone between requests refuses the
+  query, which fails the page assertions; that alone does not explain an
+  answered query with a missing rectangle. A timer-driven read remains an
+  unproved explanation.
+- **Expected browser errors scoped to an act** (8.4): the public walk's
+  sign-out permits an expired stream's 401 console message. Expectations
+  match text for the whole walk, so the same words from a later public
+  read are accepted too. Default: keep that expectation; distinguishing
+  the act or resource needs a harness interface decision.
 - **A compile cache across the tier's tests** (4.3): each test's fresh profile
   compiles the bundle's wasm again, where a second load in one profile hits
   Chromium's own cache. Default: none, since a shared profile would change what each
@@ -1769,8 +1794,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
   A title is the first line of a spec an agent wrote from what a person
-  said, so a chat's words can show here; making a project public says so
-  (`tools.md`, 5.3), and no page makes a project public.
+  said, so a chat's words can show here; ctl's publication help and completed
+  answer say so (`tools.md`, 5.3). A preceding acknowledgement is Later
+  (`tools.md`, section 14), and no page makes a project public.
 - **The look:** one plain column, the same at every width from 320 to
   1440 px, in the client's type and colours (`temper.css`'s tokens), its
   rows modelled on the Chats page's: no table, no monospace, and nothing
