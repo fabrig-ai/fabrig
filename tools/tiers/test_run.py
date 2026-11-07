@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,6 +105,8 @@ class RunnerTests(unittest.TestCase):
             "default", "fuzzy", "browser-skein", "browser-jig", "browser-temper",
             "qa-temper", "qa-smith", "process-jig", "exhaustive-skein")))
         (self.root / "tools/tiers").mkdir(parents=True)
+        self.bundles = self.root / "tools/tiers/bundles.toml"
+        shutil.copyfile(RUN.with_name("bundles.toml"), self.bundles)
         (self.root / "tools/tiers/budgets.toml").write_text('')
         self.packages = self.root / "tools/tiers/packages.toml"
         self.packages.write_text(''.join(f'{name} = ["a-package", "z-package"]\n' for name in (
@@ -358,6 +361,63 @@ class RunnerTests(unittest.TestCase):
         result, calls = self.invoke("smith", "qa")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(calls, [])
+
+    def test_bundle_list_refusals_name_the_file_and_field(self):
+        fields = {"package": '"temper-client-shell-web"', "out": '"temper-bundle"',
+                  "variable": '"TEMPER_TEST_BUNDLE"', "options": '[]', "features": '[]'}
+
+        def table(**changes):
+            values = dict(fields, **changes)
+            return "[temper]\n" + ''.join(f'{key} = {value}\n' for key, value in values.items()
+                                         if value is not None)
+
+        metadata = [["metadata", "--format-version", "1", "--no-deps"]]
+        cases = (
+            ("", "has no [temper] table"),
+            ("temper = 1\n", "has no [temper] table"),
+            ("[temper\n", "read tools/tiers/bundles.toml from the checkout root"),
+            (table(title='"temper"'), "temper.title is no bundle field"),
+            (table(zebra='1', alpha='1', package=None), "temper.alpha is no bundle field"),
+            (table(package=None), "temper.package must be a non-empty string"),
+            (table(package='1'), "temper.package must be a non-empty string"),
+            (table(package='""'), "temper.package must be a non-empty string"),
+            (table(package='""', out=None), "temper.package must be a non-empty string"),
+            (table(variable=None), "temper.variable must be a non-empty string"),
+            (table(variable='[]'), "temper.variable must be a non-empty string"),
+            (table(variable='""'), "temper.variable must be a non-empty string"),
+            (table(out=None), "temper.out must be a plain directory name"),
+            (table(out='1'), "temper.out must be a plain directory name"),
+            (table(out='""'), "temper.out must be a plain directory name"),
+            (table(out='"."'), "temper.out must be a plain directory name"),
+            (table(out='".."'), "temper.out must be a plain directory name"),
+            (table(out='"a/b"'), "temper.out must be a plain directory name"),
+            (table(out='"/abs"'), "temper.out must be a plain directory name"),
+            (table(out=None, variable=None), "temper.out must be a plain directory name"),
+            (table(options=None), "temper.options must be an array of strings"),
+            (table(options='"--title"'), "temper.options must be an array of strings"),
+            (table(options='[1]'), "temper.options must be an array of strings"),
+            (table(variable=None, options=None), "temper.variable must be a non-empty string"),
+            (table(options=None, features=None), "temper.options must be an array of strings"),
+            (table(features=None), "temper.features must be an array of strings"),
+            (table(features='"small-window"'), "temper.features must be an array of strings"),
+            (table(features='[true]'), "temper.features must be an array of strings"),
+        )
+        for contents, message in cases:
+            with self.subTest(contents=contents):
+                self.bundles.write_text(contents)
+                result, calls = self.invoke("temper", "browser")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("tiers: failed step bundle list: ", result.stderr)
+                self.assertIn("tools/tiers/bundles.toml", result.stderr)
+                self.assertIn(message, result.stderr)
+                self.assertEqual([call['args'] for call in calls], metadata)
+        self.bundles.unlink()
+        result, calls = self.invoke("temper", "browser")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("tiers: failed step bundle list: ", result.stderr)
+        self.assertIn("tools/tiers/bundles.toml", result.stderr)
+        self.assertIn("read tools/tiers/bundles.toml from the checkout root", result.stderr)
+        self.assertEqual([call['args'] for call in calls], metadata)
 
     def test_verify_lists_both_selections_without_prerequisites(self):
         result, calls = self.invoke("--verify", "temper", "qa")

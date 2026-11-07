@@ -7,7 +7,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::{CallKey, CallPart, Core, Limits, Request};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Replay {
     Agent {
         token: Token,
@@ -27,7 +27,7 @@ pub(crate) enum Replay {
     },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Evidence {
     pub loaded: List<u64>,
     pub places: List<tasks::DependencyPlace>,
@@ -50,7 +50,7 @@ impl Evidence {
         None
     }
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct AmendmentRead {
     pub replay: Replay,
     pub evidence: Evidence,

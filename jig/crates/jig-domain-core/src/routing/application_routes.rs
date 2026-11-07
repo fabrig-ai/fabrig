@@ -13,7 +13,7 @@ use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Flight {
     pub connector: u16,
     pub token: Token,
@@ -25,7 +25,7 @@ pub(crate) struct Flight {
 
 /// The request in admission: its connector, the owner retaining its
 /// value, and the number of the value it carried.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Input {
     pub connector: u16,
     pub owner: Token,

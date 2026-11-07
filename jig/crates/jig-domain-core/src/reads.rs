@@ -117,7 +117,7 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
     }
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     destination: Destination,
     sign_in: u64,
@@ -126,7 +126,7 @@ pub(crate) struct Pending {
     tasks: Option<Box<TaskPage>>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Destination {
     Read(ReplyTo),
     RevisionMetadata { reply: ReplyTo, project: u32 },

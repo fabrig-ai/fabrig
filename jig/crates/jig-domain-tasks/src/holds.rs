@@ -674,7 +674,7 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>) {
 }
 
 /// Project-local access key; holds themselves remain global by name.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct ResourceKey {
     project: u32,
     name: Name,

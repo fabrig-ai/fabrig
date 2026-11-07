@@ -253,6 +253,9 @@ impl Engine {
             }
             let Some(fact) = self.domain.pop_fact() else { break };
             match fact {
+                root::Fact::ForgeLink { forge, note } => {
+                    self.notes.push(crate::Note::ForgeLink { forge, note });
+                }
                 root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
                     self.notes.push(crate::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error });
                 }

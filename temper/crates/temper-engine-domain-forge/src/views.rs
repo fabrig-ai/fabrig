@@ -8,6 +8,9 @@ use temper_engine_domain_forge_landing as policy;
 mod changes;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
 
+/// The changes waiting on a person's approval, the party's own scope (domain/forge.md, 8.12).
+pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
+
 /// A project changes subject lies outside task and landing list subjects.
 #[must_use]
 pub fn changes_subject(project: u32) -> u64 {
@@ -19,7 +22,7 @@ pub fn changes_subject(project: u32) -> u64 {
 pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     target_pointer_width = "64",
     expect(
@@ -38,7 +41,7 @@ pub enum Document {
     Dismissals(Box<[PersonFact]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingView {
     pub task: u64,
     pub project: u32,
@@ -48,7 +51,7 @@ pub struct LandingView {
     pub stale_proofs: u32,
     pub turn: Option<u64>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingMember {
     pub change: u64,
     pub forge: u16,
@@ -62,7 +65,7 @@ pub struct LandingMember {
     pub landed: Option<[u8; 32]>,
     pub gates: Box<[LandingGate]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingGate {
     pub name: Box<[u8]>,
     pub blocking: bool,
@@ -70,7 +73,7 @@ pub struct LandingGate {
     pub proof: GateProof,
     pub faults: u32,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum GateProof {
     Unkeyed,
     Keyed,
@@ -80,13 +83,13 @@ pub enum GateProof {
     Failed(ReceiptRun),
 }
 /// A project's retained landings, turn holder first, then newest task first.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingsView {
     pub project: u32,
     pub turn: Option<u64>,
     pub landings: Box<[LandingLine]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLine {
     pub task: u64,
     pub phase: policy::Phase,
@@ -433,7 +436,7 @@ fn phase_bytes(phase: &policy::Phase) -> usize {
 }
 
 /// The adopted repository's project owns its changes document (domain/forge.md, 9).
-pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 2]> {
+pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 3]> {
     let project = d.repositories.get(&repository)?.project;
-    Some([changes_subject(project), crate::status_subject(project)])
+    Some([changes_subject(project), crate::status_subject(project), APPROVALS_SUBJECT])
 }

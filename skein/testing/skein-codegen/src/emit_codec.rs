@@ -16,18 +16,7 @@ fn add_size(size: &str, out: &mut Vec<String>) {
     out.push(format!("        size = size.checked_add({size}).expect(\"schema ceilings fit u32\");\n"));
 }
 
-fn fixed_size(ty: &Type) -> Option<u32> {
-    match ty {
-        Type::U8 | Type::Bool => Some(1),
-        Type::U16 => Some(2),
-        Type::U32 => Some(4),
-        Type::U64 | Type::Duration => Some(8),
-        Type::Fixed(bound) => Some(*bound),
-        Type::Bytes(_) | Type::Secret(_) | Type::Text(_) | Type::List(_, _) | Type::Option(_) | Type::Named(_) => None,
-    }
-}
-
-fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
+fn measure_type(ty: &Type, schema: &Context<'_>, value: &str, depth: usize, out: &mut Vec<String>) {
     match ty {
         Type::U8 | Type::Bool => add_size("1", out),
         Type::U16 => add_size("2", out),
@@ -40,7 +29,7 @@ fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
         }
         Type::List(_, item) => {
             add_size("4", out);
-            match fixed_size(item) {
+            match schema.fixed_bytes(item) {
                 Some(fixed) => add_size(
                     &format!(
                         "{value}.len().checked_mul({}).expect(\"schema ceilings fit u32\")",
@@ -51,7 +40,7 @@ fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
                 None => {
                     let item_name = format!("item_{depth}");
                     let mut body = Vec::new();
-                    measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+                    measure_type(item, schema, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
                     out.push(format!(
                         "        for {item_name} in {value}.as_slice() {{\n{}        }}\n",
                         body.concat()
@@ -62,16 +51,19 @@ fn measure_type(ty: &Type, value: &str, depth: usize, out: &mut Vec<String>) {
         Type::Option(item) => {
             add_size("1", out);
             let item_name = format!("some_{depth}");
-            let head = if fixed_size(item).is_some() {
+            let head = if schema.fixed_bytes(item).is_some() {
                 format!("if {value}.is_some()")
             } else {
                 format!("if let Some({item_name}) = {value}")
             };
             let mut body = Vec::new();
-            measure_type(item, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
+            measure_type(item, schema, &item_name, depth.checked_add(1).expect("schema depth"), &mut body);
             out.push(format!("        {head} {{\n{}        }}\n", body.concat()));
         }
-        Type::Named(_) => add_size(&format!("{value}.measure()"), out),
+        Type::Named(_) => match schema.fixed_bytes(ty) {
+            Some(fixed) => add_size(&emit_limits::literal(fixed), out),
+            None => add_size(&format!("{value}.measure()"), out),
+        },
     }
 }
 
@@ -188,9 +180,14 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
     }
 }
 
-fn emit_fields(record: &Record, method: &mut Method, emit: fn(&Type, &str, usize, &mut Vec<String>)) {
+fn emit_fields(
+    schema: &Context<'_>,
+    record: &Record,
+    method: &mut Method,
+    emit: impl Fn(&Type, &str, usize, &mut Vec<String>),
+) {
     for field in &record.fields {
-        if method.name != "measure" || fixed_size(&field.ty).is_none() {
+        if method.name != "measure" || schema.fixed_bytes(&field.ty).is_none() {
             method.body.push(Statement::new(
                 format!("        let field_{} = &{};\n", field.name, member(record, &field.name)),
                 true,
@@ -218,7 +215,9 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
             add_size("2", &mut text);
             method.body.extend(text.into_iter().map(|text| Statement::new(text, false)));
         }
-        emit_fields(record, &mut method, measure_type);
+        emit_fields(schema, record, &mut method, |ty, value, depth, text| {
+            measure_type(ty, schema, value, depth, text);
+        });
         emit_functions::render(record, &method, out, &mut helpers);
         out.push('\n');
     }
@@ -235,7 +234,7 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
             false,
         ));
     }
-    emit_fields(record, &mut method, encode_type);
+    emit_fields(schema, record, &mut method, encode_type);
     emit_functions::render(record, &method, out, &mut helpers);
     out.push_str("\n    /// Reads a whole record and refuses trailing bytes.\n    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n");
     if record.fields.is_empty() && !record.versioned {

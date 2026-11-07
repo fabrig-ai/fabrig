@@ -46,7 +46,7 @@ pub struct Limits {
 /// Owned root effects held after the decision they follow (domain/root.md, section 4). External notices have no acknowledgement of their own; web
 /// replies consume one reply destination. Internal fleet/load deliveries are
 /// resumed by the root and never passed to the protocol as child events.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
     /// A job and its typed forge workspace, held behind the assignment's commit.
     AssignedJob {
@@ -85,6 +85,11 @@ pub enum Delivery {
     Trials {
         watcher: Token,
         rows: Box<[temper_engine_domain_trials::Row]>,
+    },
+    /// The watcher's changes waiting on a person's approval (domain/forge.md, 8.12).
+    Approvals {
+        watcher: Token,
+        document: Box<crate::Approvals>,
     },
     /// Whole forge panel, held with the decision that requested it (domain/root.md, 5.1).
     Panel {
@@ -443,6 +448,9 @@ impl Decision {
             Delivery::Trials { rows, .. } => {
                 rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
                     <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
+            }
+            Delivery::Approvals { document, .. } => {
+                document.owned_bytes() <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }
             Delivery::ForgeDocument { document, .. } => {
                 document.owned_bytes() <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))

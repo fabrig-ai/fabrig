@@ -11,13 +11,13 @@ use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum DefaultsPosition {
     Given,
     Stored,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(
     clippy::struct_excessive_bools,
     reason = "restore tracks independent row families and its one catalogue notification"

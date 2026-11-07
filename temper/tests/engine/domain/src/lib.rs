@@ -4,6 +4,7 @@ pub mod host_tool;
 pub mod journal_limits;
 /// The protocol layer the world plays: link records, tool decode and render, outcomes, accounts.
 pub mod protocol;
+pub mod replay;
 pub mod store;
 pub mod walking;
 pub mod walking_referee;

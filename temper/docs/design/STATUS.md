@@ -1,7 +1,13 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The first
+its design from its drafts, from the status files below. The reference
+merges a 65,536-byte journal run bound from `room.json`. A pull's files
+page past the forge client's bound leaves an omitted-page notice;
+the exact bound and measure still need an interface and stored-answer
+decision. Settings-position wording and progress from the repository's
+quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
+`domain/forge.md`, 8.4 and 20). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -469,8 +475,13 @@ launcher. Remaining representation and algorithm work is deferred.
 Individual instruction savings establish no whole-suite CPU total, so the
 focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
 6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
-130.202313 fuzzy CPU s for the measured packages alone; whole-suite totals
-remain unknown. The real-loop focused median is 31.769481 CPU s against
+130.202313 fuzzy CPU s for the measured packages alone; the whole focused
+total remains unknown. The whole fuzzy suite's three warm serial runs
+pass all 81 tests each, but their median is 125.579032 CPU s against 120
+(119.288299–127.664356, including the driver).
+The requested roughly 15 CPU s reduction and reliable headroom remain
+unachieved; gate accounting is distinct (`domain/testing.md`, sections 6,
+6.1 and 11). The real-loop focused median is 31.769481 CPU s against
 its standing 15 s ceiling. Eighteen named real-loop stories remain in
 fuzzy pending the user's placement decision. Exhaustive conformance cuts
 share their prefix, and the remaining representation, observation and

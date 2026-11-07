@@ -2155,7 +2155,9 @@ fn forge_set_items(kind: u32) -> jig_client::Readout {
 }
 fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let record =
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
+            .unwrap();
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
 }
 fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {

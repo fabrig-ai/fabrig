@@ -85,6 +85,7 @@ fn an_owned_setup_maps_every_given_value() {
     let expected = skein_forge_setup::given::Given {
         forge: 2,
         orgs: Box::new([]),
+        person: Some(b"ada".as_slice().into()),
         org_owner: Some(b"ada".as_slice().into()),
         listener: Some(listener),
         ..expected_given()

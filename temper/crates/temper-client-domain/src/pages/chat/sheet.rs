@@ -99,6 +99,11 @@ pub(crate) fn snapshot(name: &[u8], path: &[u8], body: &[u8], chat: Option<u64>)
 
 /// Supply the shared sheet's project facts at its page boundary.
 pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    if let Event::Act { act: Act::Needs(act) } = event {
+        pages::needs::act(&mut root.pages, env, &root.client, root.forge.approvals(), act, out);
+        root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown count fits");
+        return;
+    }
     if let Event::Act { act: Act::AddDraft } = &event
         && let Some(chat) = root.pages.chat()
         && let Some(task) = chat.task(root.client())

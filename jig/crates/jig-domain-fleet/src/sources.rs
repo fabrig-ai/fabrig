@@ -4,7 +4,7 @@ use crate::{Login, LoginState, SignOutResult, SourceName};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, ReplyTo, Set, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Sources {
     pub(crate) sent: Box<[SourceName]>,
     previous: Option<Box<[SourceName]>>,
@@ -264,14 +264,14 @@ fn unique(names: &[SourceName]) -> bool {
     true
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Reply {
     Direct(ReplyTo),
     DirectProgram { to: ReplyTo, source: u32, worker: crate::Worker },
     Program { source: u32, worker: crate::Worker },
     Cleanup,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     pub(crate) reply: Reply,
     pub(crate) sent: bool,

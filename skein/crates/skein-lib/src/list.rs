@@ -71,23 +71,18 @@ impl<T> List<T> {
 
     /// Appends an item, or hands it back when the list is full.
     pub fn push(&mut self, item: T) -> Result<(), T> {
-        if self.room() == 0 {
+        let len = self.items.len();
+        let cap = crate::usize_of(self.capacity);
+        if len == cap {
             return Err(item);
         }
-        self.grow();
-        self.items.push(item);
-        Ok(())
-    }
-
-    /// Grows a full buffer exactly, while the logical capacity has room.
-    fn grow(&mut self) {
-        let len = self.items.len();
         if len == self.items.capacity() {
-            let cap = crate::usize_of(self.capacity);
             let needed = len.checked_add(1).expect("room for another item");
             let additional = grown(len, needed, cap).checked_sub(len).expect("room for another item");
             self.items.reserve_exact(additional);
         }
+        self.items.push(item);
+        Ok(())
     }
 
     /// The item at `index`, counted from the first pushed.

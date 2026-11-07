@@ -504,7 +504,19 @@ fn box_help_locates_forgejo_lifecycle_and_hands() {
 
 #[test]
 fn approval_help_names_the_forge_and_project_policy_route() {
-    for name in [b"landing-rule".as_slice(), b"party", b"configure"] {
+    for (name, instructions) in [
+        (
+            b"landing-rule".as_slice(),
+            [
+                "An enforcing approval rule on a box needs nothing added for your approval:",
+                "Name your role in the rule, owner (0) on a project you made.",
+                "On this machine temper's agents and CI jobs run as you, so this stops their mistakes, not one trying to get past it.",
+            ]
+            .as_slice(),
+        ),
+        (b"party", ["on a box you need none of these steps:"].as_slice()),
+        (b"configure", ["On a box you need none of these steps:"].as_slice()),
+    ] {
         let text = find(name).expect("approval setup help").text;
         let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for words in [
@@ -516,7 +528,12 @@ fn approval_help_names_the_forge_and_project_policy_route() {
             "maintainer",
             "member",
             "observer",
-        ] {
+            "temper knows your account on the box's own Forgejo, and on GitHub when temper made the App from your own account.",
+            "With several members (`temper serve`), a managed Forgejo or a pasted App:",
+        ]
+        .into_iter()
+        .chain(instructions.iter().copied())
+        {
             assert!(text.contains(words), "{name:?} must explain {words:?}: {text}");
         }
         assert!(text.contains("writer") && text.contains("counts") || text.contains("writer is excluded"));

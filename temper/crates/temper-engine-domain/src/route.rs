@@ -1,5 +1,6 @@
 //! Exhaustive child routing and synchronous handoffs (jig's domain/root.md, 5).
 mod applications;
+pub(crate) mod approvals;
 mod asks;
 pub(crate) mod calendar;
 mod diagnostics;
@@ -454,6 +455,8 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     return;
                 }
                 domain.forge.reconcile(&domain.core.tasks);
+                let party = domain.core.people.sole_owner();
+                forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(
                     domain,
                     env,

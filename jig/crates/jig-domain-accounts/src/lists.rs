@@ -6,7 +6,7 @@ use skein_lib::{Duration, Env, List, Queue, Wall};
 
 pub(crate) const EVERY: Duration = Duration::from_secs(86_400);
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Reading {
     first: u32,
     usable: bool,

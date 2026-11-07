@@ -15,7 +15,7 @@ type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
 type ProjectLanding = (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>);
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
     pub(crate) due: Map<u64, Wall>,
@@ -29,7 +29,7 @@ pub(crate) struct State {
     pub(crate) results: Map<(u64, u16, u16, u8), policy::Status>,
     pub(crate) limits: Limits,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     task: u64,
     entry: u64,
@@ -42,7 +42,7 @@ pub(crate) struct Pending {
     woken: bool,
     evidence: Box<[crate::LandingEvidence]>,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 enum Stage {
     Branch(u16),
     Main(u16),

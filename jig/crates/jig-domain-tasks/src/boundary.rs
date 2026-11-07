@@ -290,7 +290,7 @@ pub struct QuestionCredit {
 }
 
 /// Root-numbered notices for one asker's retired questions.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionNotice {
     pub question: u64,
     pub message: u64,
@@ -382,7 +382,7 @@ pub struct RecurringState {
 
 /// One procedure decision. Each step commits its task changes with the owner's state.
 /// (domain/tasks.md, section 5.3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProcedureDecision {
     /// Replace this procedure task's specification words, within the specification byte bound.
     pub words: Option<Box<[u8]>>,
@@ -397,13 +397,13 @@ pub struct ProcedureDecision {
 }
 
 /// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks.md, 8.2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Message {
     pub task: u64,
     pub word: Word,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProcedureEnd {
     Result(TaskResult),
     Hold(Hold),
@@ -1518,7 +1518,7 @@ pub enum Accepted {
 
 /// Root-issued semantic task/finance inputs after authorization and transport fencing;
 /// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
     /// Close project rows (jig/docs/design/domain/tasks.md, 7).
@@ -1918,7 +1918,7 @@ pub enum Event {
 
 /// Tasks-to-root persistence, lifecycle and terminal reply outputs; root groups resulting
 /// saves/erases with effects and delays outward replies until durability. (domain/tasks.md, section 5).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Placed hold lifted; count of tasks released from their held phase.
     Lifted { reply_to: ReplyTo, released: u32 },
@@ -2141,7 +2141,7 @@ pub struct Added {
 /// Owned semantic preparation snapshot emitted to root, bounded by task limits; not a
 /// second mutable `TaskRecord` or `funding` ledger. (domain/tasks.md, section 3).
 /// (domain/engine.md, sections 7.1 and 9).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunContext {
     /// Why this run runs (jig/docs/design/domain/tasks.md, 8.6).
     pub reasons: crate::Reasons,
@@ -2192,7 +2192,7 @@ pub struct RunContext {
 }
 
 /// One direct child's current lifecycle in its requester's next brief.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DelegateState {
     pub task: u64,
     pub phase: Phase,

@@ -121,6 +121,7 @@ fn every_row_is_a_member_its_decoder_takes() {
     let input = expanded();
     startup::load(&input, &config::Directories::working(), false).expect("expanded decoder example");
     let signing_in = fixtures::with(&input, b"application.machine.owned.sign_in", br#""forge-client""#);
+    let signing_in = fixtures::with(&signing_in, b"application.sign_in", b"null");
     let mut signing_in: serde_json::Value = serde_json::from_slice(&signing_in).unwrap();
     let owned = signing_in.pointer_mut("/application/machine/owned").unwrap().as_object_mut().unwrap();
     assert!(owned.remove("public").is_some());

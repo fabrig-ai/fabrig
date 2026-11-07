@@ -911,6 +911,7 @@ fn inbox_facts_at(
         let (root, _, watch) = root_at(address, &limits);
         (root, watch)
     };
+    let finish = root.pages().home().is_some();
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     let mut out = Queue::uncapped();
     let mut entries = List::with_capacity(6);
@@ -970,6 +971,7 @@ fn inbox_facts_at(
         &mut out,
     );
     if let Some((read, page)) = document {
+        let mut page = Some(page);
         while let Some(request) = out.pop() {
             if let temper_client_domain::Request::Unlinked {
                 request:
@@ -1003,20 +1005,27 @@ fn inbox_facts_at(
                         down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(what) },
                     },
             } = request
-                && what == read
             {
-                root_event(
+                let result = if what == read && page.is_some() {
+                    contract::ReadResult::Value(page.take().expect("one matching card read"))
+                } else if finish {
+                    contract::ReadResult::None(contract::ReadNone::Unknown)
+                } else {
+                    continue;
+                };
+                temper_client_domain::step(
                     &mut root,
+                    &env,
                     temper_client_domain::Event::Client {
                         event: jig_client::Event::Up {
-                            up: jig_client::Up::ReadDone {
-                                read: token,
-                                result: jig_client::Readout::Jig(contract::ReadResult::Value(page)),
-                            },
+                            up: jig_client::Up::ReadDone { read: token, result: jig_client::Readout::Jig(result) },
                         },
                     },
+                    &mut out,
                 );
-                break;
+                if !finish {
+                    break;
+                }
             }
         }
     }

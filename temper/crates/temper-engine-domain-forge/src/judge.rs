@@ -11,7 +11,7 @@ use temper_engine_domain_forge_change as change;
 use crate::{ChangeEvidence, Repository};
 
 /// Which prior head can still carry a gate or review verdict.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Freshness {
     /// The report names the landing head itself.
     Exact,
@@ -44,7 +44,7 @@ pub enum Verdict {
 }
 
 /// A reviewer identity and project role verified by the root's people child.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reviewer {
     pub person: u64,
     pub role: u32,

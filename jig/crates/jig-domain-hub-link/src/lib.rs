@@ -20,7 +20,7 @@ pub use leaves::{brief_plan, job_assignment, settled_answer};
 pub use payload::{Ending, Payload, up};
 
 /// A job the core has claimed, for the fleet to place (jig/docs/design/domain/engine.md, 7.5).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct JobStart {
     pub task: u64,
     pub attempt: u64,
@@ -44,39 +44,39 @@ pub struct Limits {
     pub turns: u32,
 }
 /// A relay's destination, fenced by its attempt.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub struct HostCall {
     pub channel: Token,
     pub run: Token,
     pub attempt: Token,
 }
 /// A procedure's continuation in the core's numbered connector vocabulary.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub struct Procedure {
     pub step: u64,
     pub connector: u16,
     pub code: u32,
 }
 /// An effect's application-owned encoding, handed back to its connector.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Effect {
     pub connector: u16,
     pub input: Box<[u8]>,
 }
 /// A connector read's caller and opaque tool envelope.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct ReadCall {
     pub to: Token,
     pub tool: Box<[u8]>,
 }
 /// The identity kept beside a connector's durable outbox entry.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub struct OutboxOwner {
     pub task: u64,
     pub projection: bool,
 }
 /// Volatile hub wiring; random jitter is supplied by the root.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Link {
     assignments: Map<u64, Assignment>,
     jobs: Map<u64, JobStart>,

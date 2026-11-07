@@ -97,6 +97,7 @@ fn draw(parts: w::ChangePanelParts) -> Tree {
         &mut crate::frame::Bindings::new(limits.tree.bindings),
         f::limits().client.domain.rows,
         &mut crate::words::Times::new(super::fixtures::NOW),
+        &crate::forge_sign_in::Forges::new(),
     );
     builder.finish()
 }

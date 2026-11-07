@@ -9,7 +9,7 @@ use skein_lib::{Decimal, Writer};
 pub const BRIEF_ROOM: u64 = 2_048;
 
 /// A charter's non-brief host part in smith's bytes, built by temper-engine-smith.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HostPart {
     /// Smith's host part in the receiving profile.
     pub bound: u64,
@@ -27,7 +27,7 @@ pub struct HostPart {
 }
 
 /// A charter that leaves its brief less than [`BRIEF_ROOM`].
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Short {
     pub charter: u32,
     /// Zero where the non-brief part alone passes the bound.
@@ -139,6 +139,21 @@ pub(crate) fn trial_rows(limits: &crate::Limits) -> u32 {
         .checked_div(row)
         .expect("a trial row has fields");
     limits.accounts.accounts.min(64).min(room)
+}
+
+/// Approvals fit the wire and one whole delivery at the largest row (domain/forge.md, 8.12).
+pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
+    let row = u32::try_from(size_of::<crate::ApprovalRow>())
+        .expect("approval row size fits u32")
+        .saturating_add(limits.forge.name_bytes.saturating_mul(2))
+        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"));
+    limits
+        .journal
+        .result_bytes
+        .max(limits.journal.transcript_bytes)
+        .checked_div(row)
+        .expect("an approval row has fields")
+        .min(32)
 }
 
 #[cfg(test)]

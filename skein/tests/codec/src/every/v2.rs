@@ -932,20 +932,16 @@ impl Nest {
         let mut size = 0_u32;
         let field_blanks = &self.blanks;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_blanks.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_blanks.len().checked_mul(2).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_lights = &self.lights;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_lights.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_lights.len().checked_mul(1).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_maybe_lights = &self.maybe_lights;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         for item_0 in field_maybe_lights.as_slice() {
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_1) = item_0 {
-        size = size.checked_add(some_1.measure()).expect("schema ceilings fit u32");
+        if item_0.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         }
         }
         let field_grid = &self.grid;
@@ -962,8 +958,8 @@ impl Nest {
         }
         let field_maybe_numbers = &self.maybe_numbers;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_maybe_numbers {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_maybe_numbers.is_some() {
+        size = size.checked_add(27).expect("schema ceilings fit u32");
         }
         let field_shapes = &self.shapes;
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -1096,21 +1092,19 @@ impl Every {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_numbers = &self.numbers;
-        size = size.checked_add(field_numbers.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(27).expect("schema ceilings fit u32");
         let field_strings = &self.strings;
         size = size.checked_add(field_strings.measure()).expect("schema ceilings fit u32");
         let field_light = &self.light;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_light {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_light.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         }
         let field_shape = &self.shape;
         size = size.checked_add(field_shape.measure()).expect("schema ceilings fit u32");
         let field_stamp = &self.stamp;
         size = size.checked_add(field_stamp.measure()).expect("schema ceilings fit u32");
-        let field_empty = &self.empty;
-        size = size.checked_add(field_empty.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(2).expect("schema ceilings fit u32");
         let field_nest = &self.nest;
         size = size.checked_add(field_nest.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");

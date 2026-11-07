@@ -3,7 +3,7 @@ use crate::Core;
 use skein_lib::Map;
 
 /// Which projects are public (jig/docs/design/domain/people.md, 13.2).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Visibility {
     pub(crate) public: Map<u32, ()>,
 }

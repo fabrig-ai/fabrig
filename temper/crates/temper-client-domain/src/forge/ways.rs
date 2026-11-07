@@ -66,6 +66,7 @@ struct ProposalRead {
     key: u64,
     pending: Option<Handle>,
     values: Option<List<Proposed>>,
+    owned_approval: bool,
     again: bool,
 }
 #[derive(Debug)]
@@ -141,6 +142,17 @@ impl State {
     }
 }
 impl Side {
+    /// Whether the proposal's items read answered `owned_approval`; false until it has.
+    #[must_use]
+    pub fn owned_approval(&self, proposal: u64) -> bool {
+        for read in &self.ways.proposals {
+            if read.number == proposal {
+                return read.owned_approval;
+            }
+        }
+        false
+    }
+
     /// Kinds 6 and 7 from a proposal's deployment-scoped items read.
     #[must_use]
     pub fn proposed(&self, number: u64) -> Option<&[Proposed]> {
@@ -354,7 +366,16 @@ pub(crate) fn told(
                 let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
                 if read.pending == Some(*handle) {
                     read.pending = None;
-                    read.values = proposal_values(page, limits);
+                    match proposal_values(page, limits) {
+                        Some((values, owned_approval)) => {
+                            read.values = Some(values);
+                            read.owned_approval = owned_approval;
+                        }
+                        None => {
+                            read.values = None;
+                            read.owned_approval = false;
+                        }
+                    }
                     side.changed();
                     return true;
                 }
@@ -635,7 +656,7 @@ pub(crate) fn proposals(
         let number = proposal.key.number;
         let mut needed = false;
         for item in &review.items {
-            if let c::Setting::Application { kind: 6 | 7, .. } = item.setting {
+            if let c::Setting::Application { kind: 1 | 2 | 6 | 7, .. } = item.setting {
                 needed = true;
             }
         }
@@ -662,7 +683,7 @@ pub(crate) fn proposals(
                 let index = side.ways.proposals.len();
                 side.ways
                     .proposals
-                    .push(ProposalRead { number, key, pending: None, values: None, again: true })
+                    .push(ProposalRead { number, key, pending: None, values: None, owned_approval: false, again: true })
                     .expect("bounded proposals");
                 index
             }
@@ -703,10 +724,11 @@ pub(crate) fn proposals(
         });
     }
 }
-fn proposal_values(page: &Readout, limits: Limits) -> Option<List<Proposed>> {
+fn proposal_values(page: &Readout, limits: Limits) -> Option<(List<Proposed>, bool)> {
     let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
     let bounds = wire_limits(&limits)?;
     let answer = wire::decode_proposal_items_answer(bytes, &bounds)?;
+    let owned_approval = answer.owned_approval();
     let mut values = List::with_capacity(answer.items().len());
     for item in answer.into_parts().items.into_boxed() {
         let item = item.into_parts();
@@ -734,5 +756,5 @@ fn proposal_values(page: &Readout, limits: Limits) -> Option<List<Proposed>> {
             })
             .expect("one value per item");
     }
-    Some(values)
+    Some((values, owned_approval))
 }

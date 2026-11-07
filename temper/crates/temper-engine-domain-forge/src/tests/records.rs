@@ -4,6 +4,7 @@ use crate::settings as setting;
 
 pub(super) fn record(number: u16) -> ForgeRecord {
     ForgeRecord {
+        person: None,
         git_program: None,
         number,
         kind: Kind::Forgejo,
@@ -47,6 +48,19 @@ fn a_restored_record_is_listed_and_told_to_the_routing() {
         }
     }
     assert_eq!(next, 4);
+    let link = Link { user: 71, person: 29 };
+    for (number, state, person, expected) in [
+        (1, Some(ForgeState::Kept), Some(link), Some(link)),
+        (2, Some(ForgeState::Kept), None, None),
+        (3, Some(ForgeState::Ended { secrets_erased: false, box_removed: false }), Some(link), None),
+        (4, None, None, None),
+    ] {
+        if let Some(state) = state {
+            let row = ForgeRecord { state, person, ..record(number) };
+            outputs(&mut d, Event::Restore { record: Stored::Forge(row) });
+        }
+        assert_eq!(d.link(number), expected, "forge {number}");
+    }
 }
 
 fn make(d: &mut Domain, out: &mut Queue<Request>) -> Option<u16> {

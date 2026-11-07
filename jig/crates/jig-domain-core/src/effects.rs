@@ -51,7 +51,7 @@ pub struct EffectKey {
 }
 
 /// Who requested the connector-owned effect and when a call must answer.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum EffectOrigin {
     /// A connector-owned goal projection, independent of executable task grants.
     Projection {
@@ -114,7 +114,7 @@ impl Making {
 }
 
 /// A real procedure step awaiting the task child's proposal admission.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct ProcedureProposal {
     pub task: u64,
     pub step: u64,
@@ -122,7 +122,7 @@ pub(crate) struct ProcedureProposal {
     pub proposal: u64,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Flight {
     connector: u16,
     origin: EffectOrigin,
@@ -131,7 +131,7 @@ pub(crate) struct Flight {
     given: List<authority::Given>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Waiting {
     to: ReplyTo,
     key: CallKey,

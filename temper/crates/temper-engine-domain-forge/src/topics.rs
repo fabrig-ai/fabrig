@@ -11,19 +11,19 @@ use skein_lib::{Env, List, Queue, Token};
 use temper_engine_domain_forge_change as change;
 
 /// One bounded file list pinned to an open pull's head.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Files {
     pub head: skein_forge::api::Commit,
     pub paths: Option<Box<[Box<[u8]>]>>,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 enum Stage {
     Before,
     Page(u32),
     After,
 }
 /// One coherent pull-file read chain; at most one per live change.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     task: u64,
     pub(crate) repository: skein_forge::api::Repository,

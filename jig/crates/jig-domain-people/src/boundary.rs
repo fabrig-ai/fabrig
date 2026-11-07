@@ -147,7 +147,7 @@ pub struct Holding {
     pub role: Role,
 }
 /// One connector-known party mapped to a project role at adoption.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Seed {
     pub identity: IdentityKey,
     pub candidate: u64,
@@ -997,7 +997,7 @@ pub struct KeptDeletion {
 
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "the people boundary carries the complete request including its later choice"

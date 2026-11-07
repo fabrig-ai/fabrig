@@ -30,7 +30,7 @@ fn same_decision(actual: &tasks::Escalation, expected: &tasks::Escalation) -> bo
 pub const REASON: &[u8] = b"keep held";
 
 /// Finite outside choices, without live role administration or delegates
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Story {
     /// Requester releases revision one.
     Release,
@@ -62,7 +62,7 @@ impl Story {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 struct AskReply {
     person: u64,
     key: [u8; 16],
@@ -70,7 +70,7 @@ struct AskReply {
     terminal: ExpectedTerminal,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "test referee keeps the exact prior typed ask inline")]
 enum ExpectedTerminal {
     Outcome(people::Outcome),
@@ -79,7 +79,7 @@ enum ExpectedTerminal {
 
 /// Outside observer of exactly the scripted people, decisions and worker costs.
 /// It owns obligations, not a second live task/authority model
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Referee {
     story: Story,
     people: [Option<u64>; 2],

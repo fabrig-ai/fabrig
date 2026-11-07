@@ -39,7 +39,7 @@ impl Kind {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRule {
     pub pattern: GatePattern,
     pub enforce: bool,
@@ -49,21 +49,21 @@ pub struct LandingRule {
     pub approvals: Box<[RuleApproval]>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RuleGate {
     pub number: u32,
     pub blocking: bool,
     pub freshness: JudgeFreshness,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RuleApproval {
     pub role: u32,
     pub people: u32,
     pub freshness: JudgeFreshness,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each project way is an independent client visibility choice")]
 pub struct ProjectWays {
     pub drafts: bool,
@@ -73,7 +73,7 @@ pub struct ProjectWays {
     pub way: u32,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Rule(LandingRule),
     Charter(u32),
@@ -83,7 +83,7 @@ pub enum Value {
 
 /// A value and the bytes of its encoding counted by jig, measured where it
 /// was decoded or made (temper/docs/design/domain/root.md, 5.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SizedValue {
     pub value: Value,
     pub size: u32,
@@ -117,7 +117,7 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Edit {
     Set(SizedValue),
     Remove,
@@ -139,7 +139,7 @@ pub enum Judged {
     Refuse(Refusal),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Stock {
     pub kind: u32,
     pub scope: u32,
@@ -157,7 +157,7 @@ pub struct DefaultState {
     pub differs: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeCharters {
     pub change: u32,
     pub review: u32,
@@ -180,7 +180,7 @@ pub struct SettingKey {
     pub slot: SettingSlot,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingRow {
     pub key: SettingKey,
     pub edit: Edit,
@@ -329,7 +329,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     Ok(())
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Held {
     pub scope: u32,
     pub number: u32,
@@ -337,7 +337,7 @@ pub struct Held {
 }
 
 /// Current rules by scope (temper/docs/design/domain/forge.md, 8.9).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct HeldRules {
     pub deployment: Box<[Held]>,
     pub projects: skein_lib::Map<u32, Box<[Held]>>,

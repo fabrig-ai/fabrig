@@ -179,7 +179,7 @@ pub use run::run_attempt;
 pub use hold_origin::ACCOUNT_BYTES as HOLD_ACCOUNT_BYTES;
 
 /// What the core's settings hold, which this child sizes by (domain/engine.md, 17.8).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct Kept {
     pub revisions: u32,
     pub versions: u32,

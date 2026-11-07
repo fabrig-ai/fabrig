@@ -2209,6 +2209,12 @@ pub enum Path {
     EndedForgeTail,
     /// The tag of `ForgeState`.
     ForgeStateTag,
+    /// The `user` field of `ForgeLink`.
+    ForgeLinkUser,
+    /// The `person` field of `ForgeLink`.
+    ForgeLinkPerson,
+    /// Bytes after `ForgeLink`.
+    ForgeLinkTail,
     /// The `number` field of `Forge`.
     ForgeNumber,
     /// The `kind` field of `Forge`.
@@ -2229,6 +2235,8 @@ pub enum Path {
     ForgeAsked,
     /// The `first` field of `Forge`.
     ForgeFirst,
+    /// The `person` field of `Forge`.
+    ForgePerson,
     /// Bytes after `Forge`.
     ForgeTail,
     /// The `last` field of `ForgeNumber`.
@@ -14540,6 +14548,44 @@ impl ForgeState {
 
 }
 
+/// Movable fields of `ForgeLink`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ForgeLinkParts {
+    /// The `user` field.
+    pub user: u64,
+    /// The `person` field.
+    pub person: u64,
+}
+
+/// `ForgeLink` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ForgeLink {
+    user: u64,
+    person: u64,
+}
+
+impl ForgeLink {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ForgeLinkParts) -> Result<Self, Problem> {
+        let ForgeLinkParts { user, person } = parts;
+        let value = Self { user, person };
+        Ok(value)
+    }
+
+    /// Reads the `user` field.
+    #[must_use]
+    pub fn user(&self) -> u64 { self.user }
+
+    /// Reads the `person` field.
+    #[must_use]
+    pub fn person(&self) -> u64 { self.person }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ForgeLinkParts { ForgeLinkParts { user: self.user, person: self.person } }
+
+}
+
 /// Movable fields of `Forge`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ForgeParts {
@@ -14563,6 +14609,8 @@ pub struct ForgeParts {
     pub asked: bool,
     /// The `first` field.
     pub first: Option<FirstIntent>,
+    /// The `person` field.
+    pub person: Option<ForgeLink>,
 }
 
 /// `Forge` in this codec family.
@@ -14578,13 +14626,14 @@ pub struct Forge {
     bot: Bot,
     asked: bool,
     first: Option<FirstIntent>,
+    person: Option<ForgeLink>,
 }
 
 impl Forge {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ForgeParts) -> Result<Self, Problem> {
-        let ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first } = parts;
-        let value = Self { number, kind, mode, state, place, git_program, read_only, bot, asked, first };
+        let ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first, person } = parts;
+        let value = Self { number, kind, mode, state, place, git_program, read_only, bot, asked, first, person };
         value.check(limits)?;
         Ok(value)
     }
@@ -14629,9 +14678,13 @@ impl Forge {
     #[must_use]
     pub fn first(&self) -> &Option<FirstIntent> { &self.first }
 
+    /// Reads the `person` field.
+    #[must_use]
+    pub fn person(&self) -> &Option<ForgeLink> { &self.person }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ForgeParts { ForgeParts { number: self.number, kind: self.kind, mode: self.mode, state: self.state, place: self.place, git_program: self.git_program, read_only: self.read_only, bot: self.bot, asked: self.asked, first: self.first } }
+    pub fn into_parts(self) -> ForgeParts { ForgeParts { number: self.number, kind: self.kind, mode: self.mode, state: self.state, place: self.place, git_program: self.git_program, read_only: self.read_only, bot: self.bot, asked: self.asked, first: self.first, person: self.person } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.place.check(limits)?;
@@ -16577,8 +16630,7 @@ impl Protection {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_bypass = &self.bypass;
-        size = size.checked_add(field_bypass.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -16819,8 +16871,7 @@ impl Adopted {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_provider = &self.provider;
-        size = size.checked_add(field_provider.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_host = &self.host;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_host.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -16833,14 +16884,12 @@ impl Adopted {
         let field_prefix = &self.prefix;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_prefix.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_role = &self.role;
-        size = size.checked_add(field_role.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_checks = &self.checks;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_checks.len().checked_mul(4).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
-        let field_kinds = &self.kinds;
-        size = size.checked_add(field_kinds.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(9).expect("schema ceilings fit u32");
         let field_protection = &self.protection;
         size = size.checked_add(field_protection.measure()).expect("schema ceilings fit u32");
         let field_settings = &self.settings;
@@ -17250,8 +17299,7 @@ impl LandingsTopic {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_branch = &self.branch;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -17287,8 +17335,7 @@ impl CiTopic {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
         size
     }
@@ -17321,8 +17368,7 @@ impl NumberTopic {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size
     }
@@ -17521,10 +17567,8 @@ impl PullState {
         let field_name = &self.name;
         size = size.checked_add(field_name.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_ci = &self.ci;
-        size = size.checked_add(field_ci.measure()).expect("schema ceilings fit u32");
-        let field_state = &self.state;
-        size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -17562,11 +17606,9 @@ impl CiState {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_status = &self.status;
-        size = size.checked_add(field_status.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -17717,8 +17759,7 @@ impl ReleaseRow {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_ending = &self.ending;
-        size = size.checked_add(field_ending.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_close_pull = &self.close_pull;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_close_pull.is_some() {
@@ -18031,8 +18072,7 @@ impl PostReview {
         let field_key = &self.key;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_key.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_verdict = &self.verdict;
-        size = size.checked_add(field_verdict.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_body = &self.body;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_body.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -18289,8 +18329,7 @@ impl MergeWrite {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_how = &self.how;
-        size = size.checked_add(field_how.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -18326,8 +18365,7 @@ impl UpdateWrite {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_style = &self.style;
-        size = size.checked_add(field_style.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -18452,8 +18490,7 @@ impl SetStatus {
         let field_context = &self.context;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_context.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_status = &self.status;
-        size = size.checked_add(field_status.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_description = &self.description;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_description.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -18873,19 +18910,18 @@ impl Entry {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_effect = &self.effect;
         size = size.checked_add(field_effect.measure()).expect("schema ceilings fit u32");
         let field_start = &self.start;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_start {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_start.is_some() {
+        size = size.checked_add(28).expect("schema ceilings fit u32");
         }
         let field_attempt = &self.attempt;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_attempt {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_attempt.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
         }
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -19399,8 +19435,7 @@ impl Pull {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_reviewers.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_state = &self.state;
-        size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_head = &self.head;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_head.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -19419,8 +19454,7 @@ impl Pull {
         size = size.checked_add(32).expect("schema ceilings fit u32");
         }
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_ci = &self.ci;
-        size = size.checked_add(field_ci.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -19529,8 +19563,7 @@ impl JobAnswer {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_attempt = &self.attempt;
-        size = size.checked_add(field_attempt.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(52).expect("schema ceilings fit u32");
         let field_step = &self.step;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_step {
@@ -19672,8 +19705,7 @@ impl DirectoryEntry {
         let field_name = &self.name;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_kind = &self.kind;
-        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -19824,8 +19856,7 @@ impl PermissionValue {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_permission = &self.permission;
-        size = size.checked_add(field_permission.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_login = &self.login;
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -19865,8 +19896,7 @@ impl BranchCreationValue {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_creation = &self.creation;
-        size = size.checked_add(field_creation.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -19973,10 +20003,8 @@ impl Summary {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_labels.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_kind = &self.kind;
-        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
-        let field_state = &self.state;
-        size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_key = &self.key;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -20054,8 +20082,7 @@ impl Comment {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_provenance = &self.provenance;
-        size = size.checked_add(field_provenance.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
@@ -20123,12 +20150,10 @@ impl Review {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_provenance = &self.provenance;
-        size = size.checked_add(field_provenance.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_verdict = &self.verdict;
-        size = size.checked_add(field_verdict.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
         let field_key = &self.key;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -20325,8 +20350,7 @@ impl Status {
         let field_context = &self.context;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_context.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_verdict = &self.verdict;
-        size = size.checked_add(field_verdict.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_description = &self.description;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_description.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -20335,8 +20359,8 @@ impl Status {
         size = size.checked_add(u32::try_from(field_url.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         let field_job = &self.job;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_job {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_job.is_some() {
+        size = size.checked_add(52).expect("schema ceilings fit u32");
         }
         size
     }
@@ -20506,8 +20530,7 @@ impl Collaborator {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_permission = &self.permission;
-        size = size.checked_add(field_permission.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -20539,8 +20562,7 @@ impl StatusesAnswer {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_ci = &self.ci;
-        size = size.checked_add(field_ci.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_statuses = &self.statuses;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_statuses.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -20743,9 +20765,7 @@ impl CollaboratorsAnswer {
         let mut size = 0_u32;
         let field_collaborators = &self.collaborators;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_collaborators.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_collaborators.len().checked_mul(9).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
@@ -21184,8 +21204,7 @@ impl Call {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_key = &self.key;
-        size = size.checked_add(field_key.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(24).expect("schema ceilings fit u32");
         let field_answer = &self.answer;
         size = size.checked_add(field_answer.measure()).expect("schema ceilings fit u32");
         size
@@ -21293,8 +21312,7 @@ impl LiveResource {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_what = &self.what;
         size = size.checked_add(field_what.measure()).expect("schema ceilings fit u32");
         size
@@ -21500,8 +21518,7 @@ impl LiveRecord {
         let mut size = 0_u32;
         let field_watch = &self.watch;
         size = size.checked_add(field_watch.measure()).expect("schema ceilings fit u32");
-        let field_position = &self.position;
-        size = size.checked_add(field_position.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(28).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -21510,14 +21527,10 @@ impl LiveRecord {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         let field_comments = &self.comments;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_comments.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_comments.len().checked_mul(16).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_reviews = &self.reviews;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_reviews.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_reviews.len().checked_mul(16).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_cached = &self.cached;
         size = size.checked_add(field_cached.measure()).expect("schema ceilings fit u32");
         let field_pushed = &self.pushed;
@@ -21609,8 +21622,7 @@ impl RepositoryRecord {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_mark = &self.mark;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_mark.is_some() {
@@ -21876,8 +21888,7 @@ impl AuthorityHold {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_lack = &self.lack;
-        size = size.checked_add(field_lack.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
@@ -22163,8 +22174,7 @@ impl MergeDelegate {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_base = &self.base;
-        size = size.checked_add(field_base.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
         let field_from = &self.from;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_from.is_some() {
@@ -22812,11 +22822,9 @@ impl Gate {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_kind = &self.kind;
-        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_freshness = &self.freshness;
-        size = size.checked_add(field_freshness.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
@@ -22860,8 +22868,7 @@ impl GateReport {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_status = &self.status;
-        size = size.checked_add(field_status.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -23040,9 +23047,7 @@ impl EarlyHeads {
         let mut size = 0_u32;
         let field_heads = &self.heads;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_heads.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_heads.len().checked_mul(40).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -23120,9 +23125,7 @@ impl Change {
         size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
         let field_gates = &self.gates;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_gates.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_gates.len().checked_mul(12).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_clean = &self.clean;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(field_clean.len().checked_mul(32).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
@@ -23143,16 +23146,13 @@ impl Change {
         }
         let field_gate_failures = &self.gate_failures;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_gate_failures.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_gate_failures.len().checked_mul(12).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_released = &self.released;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_released {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
-        let field_way = &self.way;
-        size = size.checked_add(field_way.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_landing = &self.landing;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_landing.is_some() {
@@ -23265,8 +23265,7 @@ impl ChangeCi {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_status = &self.status;
-        size = size.checked_add(field_status.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -23734,8 +23733,7 @@ impl Questions {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_route = &self.route;
-        size = size.checked_add(field_route.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         let field_open = &self.open;
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -23843,8 +23841,7 @@ impl ChangeRow {
         let field_result = &self.result;
         size = size.checked_add(field_result.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_branch = &self.branch;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_branch.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -23862,8 +23859,8 @@ impl ChangeRow {
         size = size.checked_add(field_change.measure()).expect("schema ceilings fit u32");
         let field_ci = &self.ci;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_ci {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_ci.is_some() {
+        size = size.checked_add(33).expect("schema ceilings fit u32");
         }
         let field_pull = &self.pull;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -23875,20 +23872,16 @@ impl ChangeRow {
         if field_pending.is_some() {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         }
-        let field_effect = &self.effect;
-        size = size.checked_add(field_effect.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_delegate = &self.delegate;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_delegate {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
-        let field_delegate_status = &self.delegate_status;
-        size = size.checked_add(field_delegate_status.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_verdicts = &self.verdicts;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_verdicts.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_verdicts.len().checked_mul(41).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_gate_remarks = &self.gate_remarks;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         for item_0 in field_gate_remarks.as_slice() {
@@ -23913,18 +23906,18 @@ impl ChangeRow {
         if let Some(some_0) = field_producing_llm {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
-        size
-    }
-}
-
-impl ChangeRow {
-    fn measure_1(&self, mut size: u32) -> u32 {
         let field_review_llm = &self.review_llm;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_review_llm {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+}
+
+impl ChangeRow {
+    fn measure_1(&self, mut size: u32) -> u32 {
         let field_effect_account = &self.effect_account;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_effect_account {
@@ -24189,8 +24182,7 @@ impl PlanItem {
         let field_text = &self.text;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_text.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_phase = &self.phase;
-        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -24377,8 +24369,7 @@ impl GoalView {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_phase = &self.phase;
-        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_title = &self.title;
@@ -24544,8 +24535,7 @@ impl IssueRow {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_state = &self.state;
         size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
         let field_number = &self.number;
@@ -24642,19 +24632,16 @@ impl ApplicationAdopted {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_owner = &self.owner;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_owner.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         let field_name = &self.name;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_role = &self.role;
-        size = size.checked_add(field_role.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_kinds = &self.kinds;
-        size = size.checked_add(field_kinds.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(9).expect("schema ceilings fit u32");
         let field_protection = &self.protection;
         size = size.checked_add(field_protection.measure()).expect("schema ceilings fit u32");
         size
@@ -24793,8 +24780,7 @@ impl ForgeRefused {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_reason = &self.reason;
-        size = size.checked_add(field_reason.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -25091,8 +25077,7 @@ impl MakingFailed {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_step = &self.step;
-        size = size.checked_add(field_step.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_reason = &self.reason;
         size = size.checked_add(field_reason.measure()).expect("schema ceilings fit u32");
         let field_words = &self.words;
@@ -25321,8 +25306,7 @@ impl MakeRefused {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_reason = &self.reason;
-        size = size.checked_add(field_reason.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -25653,8 +25637,8 @@ impl LandingPhase {
         size = size.checked_add(field_place.measure()).expect("schema ceilings fit u32");
         let field_held = &self.held;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_held {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_held.is_some() {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
         }
         size
     }
@@ -25839,8 +25823,7 @@ impl GateProof {
         let mut size = 0_u32;
         let field_proof = &self.proof;
         size = size.checked_add(field_proof.measure()).expect("schema ceilings fit u32");
-        let field_posted = &self.posted;
-        size = size.checked_add(field_posted.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size
     }
@@ -25877,8 +25860,7 @@ impl LandingMember {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_head = &self.head;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -26239,8 +26221,7 @@ impl LandingEntry {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(2).expect("schema ceilings fit u32");
         size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_operation = &self.operation;
-        size = size.checked_add(field_operation.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -26287,9 +26268,7 @@ impl LandingRow {
         }
         let field_entries = &self.entries;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_entries.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_entries.len().checked_mul(13).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -26399,8 +26378,7 @@ impl ReceiptKey {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_check_name = &self.check_name;
         size = size.checked_add(field_check_name.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
@@ -26796,8 +26774,7 @@ impl Verification {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
         let field_changes = &self.changes;
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -27161,9 +27138,7 @@ impl TierRun {
         size = size.checked_add(32).expect("schema ceilings fit u32");
         let field_landings = &self.landings;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_landings.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_landings.len().checked_mul(64).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_part = &self.part;
         size = size.checked_add(field_part.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
@@ -27216,8 +27191,8 @@ impl TierRecord {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         let field_judged = &self.judged;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_judged {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_judged.is_some() {
+        size = size.checked_add(64).expect("schema ceilings fit u32");
         }
         let field_failing = &self.failing;
         size = size.checked_add(field_failing.measure()).expect("schema ceilings fit u32");
@@ -27499,13 +27474,11 @@ impl TierFlight {
         }
         let field_pending = &self.pending;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_pending.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_pending.len().checked_mul(52).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_fault = &self.fault;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_fault {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_fault.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         }
         let field_report = &self.report;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -27745,8 +27718,7 @@ impl TierRow {
         let field_observations = &self.observations;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_observations.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_tier = &self.tier;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_tier.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
@@ -27788,8 +27760,8 @@ impl TierRow {
         }
         let field_held = &self.held;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_held {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_held.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         }
         let field_result = &self.result;
         size = size.checked_add(1).expect("schema ceilings fit u32");
@@ -28425,16 +28397,47 @@ impl ForgeState {
     }
 }
 
+impl ForgeLink {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_user = &self.user;
+        writer.put(&field_user.to_be_bytes())?;
+        let field_person = &self.person;
+        writer.put(&field_person.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ForgeLinkTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_user = reader.u64().ok_or(Problem { path: Path::ForgeLinkUser, reason: skein_codec::Reason::Short })?;
+        let decoded_person = reader.u64().ok_or(Problem { path: Path::ForgeLinkPerson, reason: skein_codec::Reason::Short })?;
+        Ok(Self { user: decoded_user, person: decoded_person })
+    }
+}
+
 impl Forge {
     /// Measures this record's wire encoding.
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_kind = &self.kind;
-        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
-        let field_mode = &self.mode;
-        size = size.checked_add(field_mode.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_state = &self.state;
         size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
         let field_place = &self.place;
@@ -28453,6 +28456,11 @@ impl Forge {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_first {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        let field_person = &self.person;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_person.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         }
         size
     }
@@ -28492,6 +28500,14 @@ impl Forge {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_person = &self.person;
+        match field_person {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -28513,7 +28529,8 @@ impl Forge {
         let decoded_bot = Bot::decode_from(limits, reader)?;
         let decoded_asked = match reader.u8().ok_or(Problem { path: Path::ForgeAsked, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ForgeAsked, reason: skein_codec::Reason::Bool }) };
         let decoded_first = match reader.u8().ok_or(Problem { path: Path::ForgeFirst, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(FirstIntent::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ForgeFirst, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { number: decoded_number, kind: decoded_kind, mode: decoded_mode, state: decoded_state, place: decoded_place, git_program: decoded_git_program, read_only: decoded_read_only, bot: decoded_bot, asked: decoded_asked, first: decoded_first })
+        let decoded_person = match reader.u8().ok_or(Problem { path: Path::ForgePerson, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ForgeLink::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ForgePerson, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { number: decoded_number, kind: decoded_kind, mode: decoded_mode, state: decoded_state, place: decoded_place, git_program: decoded_git_program, read_only: decoded_read_only, bot: decoded_bot, asked: decoded_asked, first: decoded_first, person: decoded_person })
     }
 }
 
@@ -28589,8 +28606,7 @@ impl Resetting {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_step = &self.step;
-        size = size.checked_add(field_step.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -28795,8 +28811,7 @@ impl RuleGate {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_freshness = &self.freshness;
-        size = size.checked_add(field_freshness.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -28833,8 +28848,7 @@ impl RuleApproval {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_freshness = &self.freshness;
-        size = size.checked_add(field_freshness.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -28876,14 +28890,10 @@ impl LandingRule {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_gates = &self.gates;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_gates.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_gates.len().checked_mul(6).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_approvals = &self.approvals;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_approvals.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_approvals.len().checked_mul(9).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -28962,8 +28972,7 @@ impl ProjectQuestions {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_route = &self.route;
-        size = size.checked_add(field_route.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -29483,8 +29492,7 @@ impl LandingLog {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_repository = &self.repository;
-        size = size.checked_add(field_repository.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(6).expect("schema ceilings fit u32");
         let field_landings = &self.landings;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         for item_0 in field_landings.as_slice() {
@@ -37889,6 +37897,34 @@ impl ForgeState {
     }
 }
 
+impl ForgeLink {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Forge {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -37904,6 +37940,7 @@ impl Forge {
         size = size.checked_add(Place::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.forge_git_program_some))?)?)?;
         size = size.checked_add(1_u64)?.checked_add(Bot::encoded_bound_within(limits)?)?;
         size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(FirstIntent::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(ForgeLink::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -37921,6 +37958,7 @@ impl Forge {
         heap = heap.checked_add(Place::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.forge_git_program_some))?;
         heap = heap.checked_add(0_u64)?.checked_add(Bot::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(FirstIntent::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(ForgeLink::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -39218,14 +39256,15 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(FirstIntent::encoded_bound_within(limits)?);
     biggest = biggest.max(EndedForge::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeState::encoded_bound_within(limits)?);
+    biggest = biggest.max(ForgeLink::encoded_bound_within(limits)?);
     biggest = biggest.max(Forge::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeNumber::encoded_bound_within(limits)?);
     biggest = biggest.max(ResetStep::encoded_bound_within(limits)?);
-    biggest = biggest.max(Resetting::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Resetting::encoded_bound_within(limits)?);
     biggest = biggest.max(PlaygroundState::encoded_bound_within(limits)?);
     biggest = biggest.max(Playground::encoded_bound_within(limits)?);
     biggest = biggest.max(PatternLast::encoded_bound_within(limits)?);
@@ -39546,14 +39585,15 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(FirstIntent::decoded_bound_within(limits)?);
     biggest = biggest.max(EndedForge::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeState::decoded_bound_within(limits)?);
+    biggest = biggest.max(ForgeLink::decoded_bound_within(limits)?);
     biggest = biggest.max(Forge::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeNumber::decoded_bound_within(limits)?);
     biggest = biggest.max(ResetStep::decoded_bound_within(limits)?);
-    biggest = biggest.max(Resetting::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(Resetting::decoded_bound_within(limits)?);
     biggest = biggest.max(PlaygroundState::decoded_bound_within(limits)?);
     biggest = biggest.max(Playground::decoded_bound_within(limits)?);
     biggest = biggest.max(PatternLast::decoded_bound_within(limits)?);
@@ -39589,7 +39629,7 @@ fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, CallDecided, CallDecidedParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, EmptyIntent, EmptyIntentParts, CopyIntent, CopyIntentParts, FirstIntent, EndedForge, EndedForgeParts, ForgeState, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, StatusBrief, StatusBriefParts, StatusRunning, StatusRunningParts, ProjectFacts, ProjectFactsParts, Looked, LookedParts, Away, AwayParts, Decided, DecidedParts, Value, Row, RowParts, Path};
+    use super::{CEILINGS, Repository, RepositoryParts, Number, NumberParts, Commit, CommitParts, Segment, SegmentParts, AnswerName, AnswerNameParts, Segments, SegmentsParts, What, Name, NameParts, ItemState, Ci, Bypass, Protection, ProtectionParts, Settings, SettingsParts, Role, Kinds, KindsParts, RepositoryProtection, Adopted, AdoptedParts, RunWriter, RunWriterParts, Writer, BranchDrift, BranchDriftParts, Retargeted, RetargetedParts, DriftChange, Drift, DriftParts, Hold, HoldParts, Names, NamesParts, LandingsTopic, LandingsTopicParts, CiTopic, CiTopicParts, NumberTopic, NumberTopicParts, Topic, Subscriber, SubscriberParts, BranchHead, BranchHeadParts, PullState, PullStateParts, CiState, CiStateParts, Landed, LandedParts, ReleaseEnding, PendingRelease, PendingReleaseParts, ReleaseRow, ReleaseRowParts, Verdict, Check, CreateIssue, CreateIssueParts, OpenPull, OpenPullParts, Post, PostParts, PostReview, PostReviewParts, Edit, EditParts, SetReviewers, SetReviewersParts, JobAttempt, JobAttemptParts, MergeHow, UpdateStyle, MergeWrite, MergeWriteParts, UpdateWrite, UpdateWriteParts, DispatchInput, DispatchInputParts, DispatchWrite, DispatchWriteParts, SetStatus, SetStatusParts, CreateBranch, CreateBranchParts, DeleteBranch, DeleteBranchParts, Write, MergeCondition, MergeConditionParts, UpdateCondition, UpdateConditionParts, Condition, Effect, EffectParts, Position, PositionParts, Attempt, AttemptParts, Entry, EntryParts, EntryRow, EntryRowParts, ProposedEffect, ProposedEffectParts, RateLimited, RateLimitedParts, Error, ErrorValue, ErrorValueParts, Made, OutcomeMade, OutcomeMadeParts, OutcomeRaced, OutcomeRacedParts, Outcome, Permission, BranchCreation, Pull, PullParts, Step, StepParts, JobAnswer, JobAnswerParts, FileAnswer, FileAnswerParts, DirectoryKind, DirectoryEntry, DirectoryEntryParts, DirectoryAnswer, DirectoryAnswerParts, BranchesAnswer, BranchesAnswerParts, ProtectionAnswer, ProtectionAnswerParts, PermissionValue, PermissionValueParts, BranchCreationValue, BranchCreationValueParts, Kind, Provenance, Summary, SummaryParts, Comment, CommentParts, Review, ReviewParts, ItemsAnswer, ItemsAnswerParts, ItemAnswer, ItemAnswerParts, ReviewsAnswer, ReviewsAnswerParts, Status, StatusParts, Remark, RemarkParts, File, FileParts, Collaborator, CollaboratorParts, StatusesAnswer, StatusesAnswerParts, RemarksAnswer, RemarksAnswerParts, PullFilesAnswer, PullFilesAnswerParts, CompareAnswer, CompareAnswerParts, ChecksAnswer, ChecksAnswerParts, CollaboratorsAnswer, CollaboratorsAnswerParts, Located, LocatedParts, Answer, AnswerValue, AnswerValueParts, ReadResult, CallRead, CallReadParts, CallEffect, CallEffectParts, CallDecided, CallDecidedParts, CallPayload, NamedCall, NamedCallParts, Call, CallParts, LiveBranch, LiveBranchParts, LiveWhat, LiveResource, LiveResourceParts, Watch, WatchParts, Delivery, DeliveryParts, Echo, Cached, CachedParts, LiveRecord, LiveRecordParts, RepositoryRecord, RepositoryRecordParts, ClientValue, ClientRow, ClientRowParts, ChangeStatus, Freshness, GateKind, AuthorityLack, AuthorityHold, AuthorityHoldParts, ChangeHold, EffectResult, LandingRepair, LandingRepairParts, Repair, RepairValue, RepairValueParts, DelegateGate, DelegateGateParts, MergeDelegate, MergeDelegateParts, Delegate, DelegateRef, DelegateRefParts, Producing, ProducingParts, ChangeHead, ChangeHeadParts, Reopening, ReopeningParts, Gating, GatingParts, ReadyHead, ReadyHeadParts, Updating, UpdatingParts, Resolving, ResolvingParts, Repairing, RepairingParts, MergeChange, MergeChangeParts, LandedChange, LandedChangeParts, NoChange, NoChangeParts, Preparing, PreparingParts, ChangeLive, ChangeState, ChangeStateParts, Gate, GateParts, GateReport, GateReportParts, GateFailure, GateFailureParts, GateRemark, GateRemarkParts, Way, StartedFrom, StartedFromParts, EarlyHeads, EarlyHeadsParts, Early, Change, ChangeParts, ChangeCi, ChangeCiParts, EffectAccount, EffectAccountParts, ResultText, ResultTextParts, ChangeResult, ChangeResultParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Route, Foreman, ForemanParts, Held, HeldParts, Stands, Open, OpenParts, Questions, QuestionsParts, ChangeRow, ChangeRowParts, Phase, PlanItem, PlanItemParts, Lifecycle, LifecycleParts, TaskRevision, TaskRevisionParts, MilestoneKey, Milestone, MilestoneParts, GoalView, GoalViewParts, Projected, ProjectedParts, IssueRow, IssueRowParts, ApplicationAdopted, ApplicationAdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, MakingKey, MakingKeyParts, CopyFrom, CopyFromParts, MakeFrom, MakeInto, MakeIntoParts, MakeStep, MakeStatus, MakeStatusParts, MakeFailure, MakingFailed, MakingFailedParts, MakingMade, MakingMadeParts, MakingState, RepositoryMaking, RepositoryMakingParts, MakeRefusal, MakeRefused, MakeRefusedParts, ApplicationOutcome, Application, ApplicationParts, ForgeWriter, ForgeWriterParts, Binding, BindingParts, Flight, FlightParts, LandingAt, LandingAtParts, LandingPlace, LandingFaults, LandingFaultsParts, LandingPhase, LandingPhaseParts, GateKey, GateKeyParts, DispatchedKey, DispatchedKeyParts, GateProofState, GatePosted, GateProof, GateProofParts, LandingMember, LandingMemberParts, LandingState, LandingStateParts, LandingPrepare, LandingPrepareParts, LandingRepairAsk, LandingRepairAskParts, LandingAsk, LandingAskSlot, LandingAskSlotParts, LandingOperation, LandingEntry, LandingEntryParts, LandingRow, LandingRowParts, ReceiptName, ReceiptNameParts, ReceiptCheck, ReceiptKey, ReceiptKeyParts, ReceiptRun, ReceiptRunParts, FailingTest, FailingTestParts, FailedTests, FailedTestsParts, Failures, BlamedFailures, BlamedFailuresParts, Blame, TierVerdict, TierVerdictParts, TierRepair, TierRepairParts, TierVerification, TierVerificationParts, Verification, VerificationParts, TierJudged, TierJudgedParts, TierFlake, TierFlakeParts, TierLanding, TierLandingParts, TierTests, TierTestsParts, TierSelection, TierFinding, TierFindingParts, TierProbe, TierProbeParts, TierPart, TierRun, TierRunParts, TierRecord, TierRecordParts, TierPending, TierPendingParts, TierBranchEntry, TierBranchEntryParts, TierBranch, TierFault, TierProbeBranch, TierProbeBranchParts, TierFlight, TierFlightParts, Receipt, ReceiptParts, TierGoal, TierGoalParts, TierRow, TierRowParts, ReceiptRow, ReceiptRowParts, ForgeKind, ForgeMode, Address, AddressParts, Place, PlaceParts, Bot, BotParts, EmptyIntent, EmptyIntentParts, CopyIntent, CopyIntentParts, FirstIntent, EndedForge, EndedForgeParts, ForgeState, ForgeLink, ForgeLinkParts, Forge, ForgeParts, ForgeNumber, ForgeNumberParts, ResetStep, Resetting, ResettingParts, PlaygroundState, Playground, PlaygroundParts, PatternLast, RulePattern, RulePatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, CharterValue, CharterValueParts, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, SettingValue, SizedValue, SizedValueParts, SettingEdit, SettingSlot, SettingRow, SettingRowParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismissed, DismissedParts, LoggedChange, LoggedChangeParts, LoggedLanding, LoggedLandingParts, LandingLog, LandingLogParts, StatusBrief, StatusBriefParts, StatusRunning, StatusRunningParts, ProjectFacts, ProjectFactsParts, Looked, LookedParts, Away, AwayParts, Decided, DecidedParts, Value, Row, RowParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -40674,7 +40714,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static GOLDEN_1: [Case; 196] = [
+    static GOLDEN_1: [Case; 198] = [
         ("enum_forge_kind_forgejo_smallest", || { let value = ForgeKind::Forgejo; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_kind_forgejo_full", || { let value = ForgeKind::Forgejo; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_kind_github_smallest", || { let value = ForgeKind::Github; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeKind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -40709,8 +40749,10 @@ mod golden_tests {
         ("enum_forge_state_kept_full", || { let value = ForgeState::Kept; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_ended_smallest", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: false, box_removed: false }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_forge_state_ended_full", || { let value = ForgeState::Ended(EndedForge::new(&CEILINGS, EndedForgeParts { secrets_erased: true, box_removed: true }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_forge_smallest", || { let value = Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_link_smallest", || { let value = ForgeLink::new(&CEILINGS, ForgeLinkParts { user: 0_u64, person: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeLink::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_link_full", || { let value = ForgeLink::new(&CEILINGS, ForgeLinkParts { user: u64::MAX, person: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeLink::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_smallest", || { let value = Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None, person: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_forge_full", || { let value = Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))), person: Some(ForgeLink::new(&CEILINGS, ForgeLinkParts { user: u64::MAX, person: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Forge::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_smallest", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_number_full", || { let value = ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeNumber::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_reset_step_project_smallest", || { let value = ResetStep::Project; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ResetStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -40843,8 +40885,8 @@ mod golden_tests {
         ("enum_value_landing_full", || { let value = Value::Landing(LandingRow::new(&CEILINGS, LandingRowParts { landing: LandingState::new(&CEILINGS, LandingStateParts { task: u64::MAX, project: u32::MAX, phase: LandingPhase::new(&CEILINGS, LandingPhaseParts { place: LandingPlace::Waiting, held: Some(LandingFaults::new(&CEILINGS, LandingFaultsParts { member: u16::MAX, gate: u16::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"), members: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingMember::new(&CEILINGS, LandingMemberParts { change: u64::MAX, repository: Repository::new(&CEILINGS, RepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), pull: u64::MAX, head: Some([165_u8; 32]), base: Some([165_u8; 32]), candidate: Some([165_u8; 32]), gates: { let mut items = skein_lib::List::with_capacity(1); items.push(GateProof::new(&CEILINGS, GateProofParts { proof: GateProofState::Unkeyed, posted: GatePosted::Nothing, faults: u32::MAX }).expect("golden within ceilings")).expect("one slot"); items }, asked: Some(u16::MAX), landed: Some([165_u8; 32]) }).expect("golden within ceilings")).expect("one slot"); items }, preparation: u16::MAX, stale_proofs: u32::MAX }).expect("golden within ceilings"), asks: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingAskSlot::new(&CEILINGS, LandingAskSlotParts { ask: Some(LandingAsk::Prepare(LandingPrepare::new(&CEILINGS, LandingPrepareParts { head: [165_u8; 32], main: [165_u8; 32] }).expect("golden within ceilings"))) }).expect("golden within ceilings")).expect("one slot"); items }, entries: { let mut items = skein_lib::List::with_capacity(1); items.push(LandingEntry::new(&CEILINGS, LandingEntryParts { entry: u64::MAX, member: u16::MAX, gate: u16::MAX, operation: LandingOperation::Dispatch }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[19, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 0, 0, 255, 255, 255, 255, 1, 255, 255, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 1, 0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_receipt_smallest", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: 0_u32, repository: Repository::new(&CEILINGS, RepositoryParts { forge: 0_u16, repository: 0_u32 }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([].as_slice()) }).expect("golden within ceilings")), key: [0_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { failures: None, passed: false, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: 0_u64, number: 0_u64, url: Box::from([].as_slice()) }).expect("golden within ceilings"), candidate: [0_u8; 32], ended: 0_u64 }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_receipt_full", || { let value = Value::Receipt(ReceiptRow::new(&CEILINGS, ReceiptRowParts { key: ReceiptKey::new(&CEILINGS, ReceiptKeyParts { project: u32::MAX, repository: Repository::new(&CEILINGS, RepositoryParts { forge: u16::MAX, repository: u32::MAX }).expect("golden within ceilings"), check_name: ReceiptCheck::Gate(ReceiptName::new(&CEILINGS, ReceiptNameParts { name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")), key: [165_u8; 32] }).expect("golden within ceilings"), receipt: Receipt::new(&CEILINGS, ReceiptParts { failures: Some(Failures::Tests(FailedTests::new(&CEILINGS, FailedTestsParts { tests: { let mut items = skein_lib::List::with_capacity(1); items.push(FailingTest::new(&CEILINGS, FailingTestParts { test_id: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"))), passed: true, run: ReceiptRun::new(&CEILINGS, ReceiptRunParts { id: u64::MAX, number: u64::MAX, url: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), candidate: [165_u8; 32], ended: u64::MAX }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[20, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 1, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_forge_smallest", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_forge_smallest", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: 0_u16, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([].as_slice()), port: 0_u16, tls: None }).expect("golden within ceilings"), git: Box::from([].as_slice()), web: None }).expect("golden within ceilings"), git_program: None, read_only: false, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([].as_slice()), name: Box::from([].as_slice()), email: Box::from([].as_slice()) }).expect("golden within ceilings"), asked: false, first: None, person: None }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_forge_full", || { let value = Value::Forge(Forge::new(&CEILINGS, ForgeParts { number: u16::MAX, kind: ForgeKind::Forgejo, mode: ForgeMode::Connected, state: ForgeState::Kept, place: Place::new(&CEILINGS, PlaceParts { api: Address::new(&CEILINGS, AddressParts { host: Box::from([0_u8, 127_u8, 255_u8].as_slice()), port: u16::MAX, tls: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git: Box::from([0_u8, 127_u8, 255_u8].as_slice()), web: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"), git_program: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), read_only: true, bot: Bot::new(&CEILINGS, BotParts { login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), email: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), asked: true, first: Some(FirstIntent::Empty(EmptyIntent::new(&CEILINGS, EmptyIntentParts { playground: true, org: Box::from([0_u8, 127_u8, 255_u8].as_slice()), repository: Box::from([0_u8, 127_u8, 255_u8].as_slice()), label: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"))), person: Some(ForgeLink::new(&CEILINGS, ForgeLinkParts { user: u64::MAX, person: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[21, 255, 255, 0, 0, 0, 0, 0, 0, 3, 0, 127, 255, 255, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 1, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_smallest", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: 0_u16 }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_forge_number_full", || { let value = Value::ForgeNumber(ForgeNumber::new(&CEILINGS, ForgeNumberParts { last: u16::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[22, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_playground_smallest", || { let value = Value::Playground(Playground::new(&CEILINGS, PlaygroundParts { state: PlaygroundState::Starting, forge: 0_u16, project: None, account: None }).expect("golden within ceilings")); let bytes: &[u8] = &[23, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -41060,7 +41102,7 @@ mod golden_tests {
         ("bound_empty_intent_label", || bound((Path::EmptyIntentLabel, skein_codec::Reason::Bound), &Limits { empty_intent_label: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match EmptyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_copy_intent_addresses", || bound((Path::CopyIntentAddresses, skein_codec::Reason::Bound), &Limits { copy_intent_addresses: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match CopyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_copy_intent_addresses_item", || bound((Path::CopyIntentAddresses, skein_codec::Reason::Bound), &Limits { copy_intent_addresses_item: 3, ..CEILINGS }, &[0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match CopyIntent::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_forge_git_program_some", || bound((Path::ForgeGitProgram, skein_codec::Reason::Bound), &Limits { forge_git_program_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Forge::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_forge_git_program_some", || bound((Path::ForgeGitProgram, skein_codec::Reason::Bound), &Limits { forge_git_program_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Forge::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_rule_pattern_segments", || bound((Path::RulePatternSegments, skein_codec::Reason::Bound), &Limits { rule_pattern_segments: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match RulePattern::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_rule_gates", || bound((Path::LandingRuleGates, skein_codec::Reason::Bound), &Limits { landing_rule_gates: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_rule_approvals", || bound((Path::LandingRuleApprovals, skein_codec::Reason::Bound), &Limits { landing_rule_approvals: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingRule::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),

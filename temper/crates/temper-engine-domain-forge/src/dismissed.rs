@@ -8,7 +8,7 @@ pub enum PersonFact {
 }
 
 /// A dismissal's answer (temper/docs/design/domain/forge.md, 5.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DismissAnswer {
     Dismissed,
     TooLarge,

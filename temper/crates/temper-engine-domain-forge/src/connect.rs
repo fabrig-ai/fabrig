@@ -6,7 +6,7 @@ use jig_domain_people::Role;
 use skein_lib::{Map, Queue, Token};
 
 /// The run's admission determines its end (temper/docs/design/protocol/forge.md, 2.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 enum RunKind {
     Admin,
     Tokens,
@@ -14,7 +14,7 @@ enum RunKind {
     App,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) answers: Map<Token, Answered>,
     pending: Map<Token, Token>,

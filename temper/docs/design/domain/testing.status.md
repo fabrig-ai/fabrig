@@ -2,6 +2,20 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 2.5, 6 and 6.1 have the profiled fuzzy repairs: engine walking,
+terminal-cut, escalation and role sweeps compare exact traces and
+complete frozen-state digests each iteration, with full text on a
+mismatch and at each seed's end. Reachable state types derive `Hash`;
+role observations consume new history, and teardown transfers the store
+to its cold oracle. One-process setups reuse fixed codec/default/settings
+construction and refresh observations at history or durable changes,
+including the initial empty observation. The public-record sweep keeps
+all 2,000 seeds and 24,000 drawn checks, with six fixed checks once.
+Shared list append bookkeeping and fixed-width generated measurement
+are cheaper. No test, draw, crash, invariant or ending is removed or
+moved. Remaining mechanisms and reliability investigations are deferred
+in section 11; the measured suite overage remains below.
+
 Section 5.2's conformance sweeps fork every live commit from one baseline,
 retaining cold restart and independent readback. Section 5.3's retained
 stories and lower holders agree with its table; further costs and the
@@ -46,12 +60,21 @@ are deferred in section 11, with all bounds, orders and checks retained.
 
 - **Departs:** 6.1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
-  is 31.769481 CPU s against its standing 15 s ceiling. The measured fuzzy
-  request-world sum is 130.202313 CPU s against 120.
-  The measurements, their load and accounting limits, retained causes and
-  the next decisions are in
+  is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
+  fuzzy median is 125.579032 CPU s against 120, in three warm serial runs
+  including the driver (119.288299–127.664356 CPU s).
+  All 81 tests passed in each run, but two runs and the median exceed
+  120; the request's roughly 15 CPU s reduction and reliable headroom
+  are not achieved. The gate's own per-test CPU result is unknown from
+  these serial samples, whose driver and feature unions differ from
+  the request's gate baseline.
+  [`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
+  their accounting limits, retained causes and next decisions.
+  The focused measurements, their load and accounting limits, retained
+  causes and next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
-  suite totals remain unknown; package sums include warm nextest overhead.
+  focused suite total remains unknown; package sums include warm nextest
+  overhead.
   No budget or ceiling has been raised.
 
 - **Departs:** 5.3 and 6.1: eighteen named real-loop stories remain in the fuzzy
@@ -209,10 +232,7 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   (`../client/README.status.md`); the joined world's configuring chat
   starts from `Configure` and `Settings`' "Configure temper" finds it,
   but it proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
-  digest for replay (`testing-strategy.md`, section 6); the walking
-  world compares its formatted state
-  (`tests/engine/domain/src/walking.rs`, `run_replayed`).
+  through ctl alone (`tests/client`'s `configuring_chat.rs`).
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.

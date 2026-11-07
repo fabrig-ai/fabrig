@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Queue, ReplyTo};
 pub use staged::CompoundTask;
 
 /// One authenticated party operation in a single project's whole request.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
     Cancel(crate::Cancel),
     Move(crate::Move),

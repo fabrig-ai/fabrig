@@ -2331,9 +2331,12 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
         (SettingKey { kind: 2, scope: 9, number: 2, slot: SettingSlot::Proposal(7) }, Edit::Remove),
         (SettingKey { kind: 1, scope: 0, number: 3, slot: SettingSlot::Proposal(7) }, Edit::Reset),
     ]);
-    let record = family::forge_read(root::ForgeReadAnswer::ProposalItems(items), &[], &w::CEILINGS).unwrap();
+    let record =
+        family::forge_read(root::ForgeReadAnswer::ProposalItems { items, owned_approval: true }, &[], &w::CEILINGS)
+            .unwrap();
     let decoded = wire::decode_proposal_items_answer(&record, &w::CEILINGS).unwrap();
     assert_eq!(decoded.items().len(), 3);
+    assert!(decoded.owned_approval());
     for (item, (kind, scope, number)) in decoded.items().iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
         assert_eq!((item.kind(), item.scope(), item.number()), (kind, scope, number));
     }
@@ -2703,8 +2706,11 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
 
 #[test]
 fn dismissed_and_trials_watches_name_the_partys_own_subjects() {
-    for (watch, expected) in [(w::Watch::Dismissed, forge::DISMISSED_SUBJECT), (w::Watch::Trials, root::TRIALS_SUBJECT)]
-    {
+    for (watch, expected) in [
+        (w::Watch::Dismissed, forge::DISMISSED_SUBJECT),
+        (w::Watch::Trials, root::TRIALS_SUBJECT),
+        (w::Watch::Approvals, root::APPROVALS_SUBJECT),
+    ] {
         let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
@@ -3534,5 +3540,100 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
             )
             .is_none()
         );
+    }
+}
+
+#[test]
+fn approvals_encode_each_row_with_its_kind_and_files_address() {
+    let forgejo = fixtures::forges().first().unwrap().clone();
+    let mut github = forgejo.clone();
+    github.number = 2;
+    github.kind = crate::settings::Kind::GitHub;
+    github.git = b"https://api.github.example".as_slice().into();
+    github.web = Some(b"https://github.example".as_slice().into());
+    let mut fake = forgejo.clone();
+    fake.number = 3;
+    fake.mode = forge::Mode::Fake;
+    let forges = fixtures::forge_table(&[forgejo, github, fake]);
+    let cases = [
+        (
+            1,
+            root::YourReview::Counts,
+            w::Kind::Forgejo,
+            w::ApprovalYours::Counts,
+            b"https://forge.example/org/repo/pulls/5/files".as_slice(),
+        ),
+        (
+            2,
+            root::YourReview::NoAccount,
+            w::Kind::Github,
+            w::ApprovalYours::NoAccount,
+            b"https://github.example/org/repo/pull/5/files".as_slice(),
+        ),
+        (3, root::YourReview::TooFew, w::Kind::Forgejo, w::ApprovalYours::TooFew, b"".as_slice()),
+        (4, root::YourReview::OtherRole, w::Kind::Forgejo, w::ApprovalYours::OtherRole, b"".as_slice()),
+    ];
+    let mut rows = List::with_capacity(4);
+    for &(forge, yours, ..) in &cases {
+        rows.push(root::ApprovalRow {
+            task: u64::from(forge),
+            project: 7,
+            goal: Some(8),
+            forge,
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            pull: 5,
+            title: b"Change".as_slice().into(),
+            since: skein_lib::Wall::from_nanos(9),
+            scope: 7,
+            rule: 10,
+            role: 1,
+            required: 2,
+            counted: 1,
+            behind: 3,
+            whole: false,
+            yours,
+        })
+        .unwrap();
+    }
+    let rows = rows.into_boxed();
+    let document = root::Approvals { rows, more: 6 };
+    let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
+    let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(decoded.more(), 6);
+    assert_eq!(decoded.rows().len(), 4);
+    for ((actual, row), (_, _, kind, yours, address)) in decoded.rows().iter().zip(document.rows.iter()).zip(&cases) {
+        assert_eq!(actual.task(), row.task);
+        assert_eq!(actual.project(), row.project);
+        assert_eq!(*actual.goal(), row.goal);
+        assert_eq!(actual.forge(), row.forge);
+        assert_eq!(actual.kind(), kind);
+        assert_eq!(actual.owner(), row.owner.as_ref());
+        assert_eq!(actual.name(), row.name.as_ref());
+        assert_eq!(actual.pull(), row.pull);
+        assert_eq!(actual.address(), *address);
+        assert_eq!(actual.title(), row.title.as_ref());
+        assert_eq!(actual.since(), row.since.as_nanos());
+        assert_eq!((actual.scope(), actual.rule(), actual.role()), (row.scope, row.rule, row.role));
+        assert_eq!((actual.required(), actual.counted(), actual.behind()), (row.required, row.counted, row.behind));
+        assert_eq!(actual.whole(), row.whole);
+        assert_eq!(actual.yours(), yours);
+    }
+    for limits in [w::Limits { approvals_rows: 3, ..w::CEILINGS }, w::Limits { approval_row_title: 0, ..w::CEILINGS }] {
+        assert!(family::approvals(document.clone(), &forges, &limits).is_none());
+    }
+    let mut forges = forges;
+    for (length, expected) in [(2048, 2048), (2049, 0)] {
+        let length = length - b"/org/repo/pulls/5/files".len();
+        let prefix = b"https://forge.example/";
+        let mut base = skein_lib::Writer::new(length);
+        base.put(prefix).unwrap();
+        for _ in prefix.len()..length {
+            base.put(b"x").unwrap();
+        }
+        forges.get_mut(1).unwrap().git = base.finish();
+        let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
+        let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
     }
 }

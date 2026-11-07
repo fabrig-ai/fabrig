@@ -246,7 +246,7 @@ impl CallPart {
 }
 
 /// A retained named-call decision, keyed by its live run and block name.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CallRecord {
     pub key: CallKey,
     pub part: CallPart,
@@ -255,7 +255,7 @@ pub struct CallRecord {
 
 /// Core-owned durable rows before the application's store wrapper assigns
 /// its own child-family variant (domain/engine.md, 5.4).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CoreRecord {
     /// Settings have their own independently versioned store family.
     Settings(crate::settings::Record),
@@ -336,7 +336,7 @@ impl CoreKey {
 
 /// The core's store vocabulary wraps each durable child under one variant.
 /// A root wraps this enum once more beside its connector records.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Record {
     /// Rows owned by the core itself.
     Core(CoreRecord),

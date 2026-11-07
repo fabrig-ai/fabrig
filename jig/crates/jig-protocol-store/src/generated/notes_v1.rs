@@ -1114,9 +1114,7 @@ impl Entry {
         size = size.checked_add(u32::try_from(field_body.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         let field_references = &self.references;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_references.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_references.len().checked_mul(8).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_author = &self.author;
         size = size.checked_add(field_author.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
