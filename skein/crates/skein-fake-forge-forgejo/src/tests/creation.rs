@@ -114,20 +114,31 @@ fn an_existing_file_is_422_and_keeps_the_same_head() {
     assert_eq!(h.domain.branch(NEW, b"main"), head);
 }
 #[test]
-fn creating_a_file_on_a_missing_branch_is_404() {
-    let mut h = repository();
-    let mut file = file();
-    let Request::CreateFile { branch, .. } = &mut file else { unreachable!() };
-    *branch = boxed(b"missing");
-    h.send(&file);
-    assert_eq!(h.status(), 404);
+fn file_creation_refuses_missing_repository_or_branch_targets() {
+    skein_rows::check(
+        [
+            (
+                "creating_a_file_on_a_missing_branch_is_404",
+                (&[(REPO_ROUTE, REPO_BODY)][..], {
+                    let mut request = file();
+                    let Request::CreateFile { branch, .. } = &mut request else { unreachable!() };
+                    *branch = boxed(b"missing");
+                    request
+                }),
+            ),
+            ("creating_a_file_in_a_missing_repository_is_404", (&[][..], file())),
+        ],
+        |(setup, request)| {
+            let mut h = org();
+            for &(route, body) in setup {
+                h.ask(b"POST", route, body);
+            }
+            h.send(&request);
+            assert_eq!(h.status(), 404);
+        },
+    );
 }
-#[test]
-fn creating_a_file_in_a_missing_repository_is_404() {
-    let mut h = org();
-    h.send(&file());
-    assert_eq!(h.status(), 404);
-}
+
 #[test]
 fn a_missing_file_reads_raw_404() {
     let mut h = repository();

@@ -539,13 +539,16 @@ fn effect_admission_and_restoration_require_authenticated_writer_configuration()
 }
 
 #[test]
-fn a_write_meeting_no_connection_fails_at_once() {
-    fresh_write_refusal_fails_at_once(Error::NotConnected);
+fn missing_provider_configuration_fails_fresh_writes_exactly_once() {
+    skein_rows::check(
+        [
+            ("a_write_meeting_no_connection_fails_at_once", Error::NotConnected),
+            ("a_write_meeting_no_installation_fails_at_once", Error::NotInstalled),
+        ],
+        fresh_write_refusal_fails_at_once,
+    );
 }
-#[test]
-fn a_write_meeting_no_installation_fails_at_once() {
-    fresh_write_refusal_fails_at_once(Error::NotInstalled);
-}
+
 fn fresh_write_refusal_fails_at_once(error: Error) {
     let mut h = Harness::new();
     h.make(1, comment(), Condition::None);
@@ -557,13 +560,16 @@ fn fresh_write_refusal_fails_at_once(error: Error) {
     assert!(h.send().is_none());
 }
 #[test]
-fn a_find_meeting_no_connection_is_tried_again() {
-    uncertain_find_refusal_is_tried_again(Error::NotConnected);
+fn missing_provider_configuration_retries_finds_without_another_write() {
+    skein_rows::check(
+        [
+            ("a_find_meeting_no_connection_is_tried_again", Error::NotConnected),
+            ("a_find_meeting_no_installation_is_tried_again", Error::NotInstalled),
+        ],
+        uncertain_find_refusal_is_tried_again,
+    );
 }
-#[test]
-fn a_find_meeting_no_installation_is_tried_again() {
-    uncertain_find_refusal_is_tried_again(Error::NotInstalled);
-}
+
 fn uncertain_find_refusal_is_tried_again(error: Error) {
     use super::fixtures::recovery as fixture;
     let mut h = fixture::uncertain_comment();

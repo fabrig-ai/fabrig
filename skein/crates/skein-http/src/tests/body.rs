@@ -38,33 +38,29 @@ fn response(head: &[u8], body: &[u8]) -> Vec<u8> {
 const CHUNKED: &[u8] = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n";
 
 #[test]
-fn a_body_by_length_is_read_to_its_length_and_ended() {
-    // What each read sees of `hello\nworld`: a read larger than what is
-    // left never meets the rest (lib.md, 7).
-    let reads: [(Read, &[u8]); 5] = [
-        (Read::Fill(1), b"hello\nworld"),
-        (Read::Fill(3), b"hello\nwor"),
-        (Read::Fill(16), b""),
-        (LINE, b"hello\n"),
-        (Read::Scan { until: Delimiter::CRLF, max: 5 }, b"hello\nworl"),
-    ];
-    for (read, seen) in reads {
-        let exchanged = respond(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld", read);
-        assert!(exchanged.ended, "{read:?}");
-        assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
-        assert_eq!(exchanged.body, seen, "{read:?}");
-    }
-}
+fn framed_response_bodies_satisfy_reads_and_end_reusable() {
+    skein_rows::check(
+        [
+            ("a_body_by_length_is_read_to_its_length_and_ended: 1", (Vec::from(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld".as_slice()), Read::Fill(1), b"hello\nworld".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 2", (Vec::from(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld".as_slice()), Read::Fill(3), b"hello\nwor".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 3", (Vec::from(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld".as_slice()), Read::Fill(16), b"".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 4", (Vec::from(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld".as_slice()), LINE, b"hello\n".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 5", (Vec::from(b"HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello\nworld".as_slice()), Read::Scan { until: Delimiter::CRLF, max: 5 }, b"hello\nworl".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 1", (response(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(1), b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 2", (response(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(13), b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 3", (response(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), LINE, b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 4", (response(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Scan { until: Delimiter::LF, max: 4 }, b"hello\nworld!\n".as_slice())),
+            ("a_read_of_what_has_arrived_never_reads_past_the_body: 1", (Vec::from(&b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhelloHTTP/1.1 204 No Content\r\n\r\n"[..]), Read::Arrived { max: 64 }, b"hello".as_slice())),
+            ("a_read_of_what_has_arrived_never_reads_past_the_body: 2", (Vec::from(&b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nhe\r\n3\r\nllo\r\n0\r\n\r\nHTTP/1.1 204 No Content\r\n\r\n"[..]), Read::Arrived { max: 64 }, b"hello".as_slice())),
+        ],
+        |(wire, read, body)| {
+            let exchanged = respond(&wire, read);
+            assert!(exchanged.ended, "{read:?}");
+            assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
+            assert_eq!(exchanged.body, body, "{read:?}");
 
-#[test]
-fn a_chunked_body_is_read_across_its_chunks_whatever_the_demands() {
-    let body = b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n";
-    for read in [Read::Fill(1), Read::Fill(13), LINE, Read::Scan { until: Delimiter::LF, max: 4 }] {
-        let exchanged = respond(&response(CHUNKED, body), read);
-        assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
-        assert!(exchanged.ended);
-        assert_eq!(exchanged.body, b"hello\nworld!\n", "{read:?}");
-    }
+        },
+    );
 }
 
 #[test]
@@ -440,18 +436,4 @@ fn a_demand_past_what_the_intake_holds_is_the_side_above_s_bug() {
     machine.bytes(b"HTTP/1.1 200 OK\r\n");
     machine.bytes(b"\r\n");
     machine.down(Request::Body(Down::Demand { read: Read::Fill(5), room: 0 }));
-}
-
-#[test]
-fn a_read_of_what_has_arrived_never_reads_past_the_body() {
-    let read = Read::Arrived { max: 64 };
-    for wire in [
-        &b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhelloHTTP/1.1 204 No Content\r\n\r\n"[..],
-        &b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nhe\r\n3\r\nllo\r\n0\r\n\r\nHTTP/1.1 204 No Content\r\n\r\n"[..],
-    ] {
-        let exchanged = respond(wire, read);
-        assert_eq!(exchanged.body, b"hello");
-        assert!(exchanged.ended);
-        assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)));
-    }
 }

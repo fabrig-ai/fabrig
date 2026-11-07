@@ -6,7 +6,7 @@ use skein_lib::base64::{Alphabet, decode};
 
 use super::fixture;
 use crate::rs256::integers;
-use crate::{RS256_KEY_BYTES, sign_rs256, verify_rs256};
+use crate::{RS256_KEY_BYTES, rs256_public_pkcs1, sign_rs256, verify_rs256};
 
 const N: &str = "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ";
 const E: &str = "AQAB";
@@ -82,6 +82,12 @@ fn rs256_key_bytes_is_the_largest_2048_bit_key() {
 
 #[test]
 fn rs256_signs_with_a_2048_bit_pkcs1_key_alone() {
+    for (label, key) in refused_app_keys() {
+        assert_eq!(sign_rs256(&key, INPUT), None, "{label}");
+    }
+}
+
+fn refused_app_keys() -> [(&'static str, Vec<u8>); 9] {
     let der = test_key(false);
     let truncated = Vec::from(&der[..der.len().checked_sub(1).expect("RFC key is nonempty")]);
     let mut trailing = Vec::from(der.as_ref());
@@ -91,7 +97,7 @@ fn rs256_signs_with_a_2048_bit_pkcs1_key_alone() {
     version_one[6] = 1;
     let mut oversized = Vec::from(der.as_ref());
     oversized.resize(RS256_KEY_BYTES.checked_add(1).expect("past the key bound"), 0);
-    for (label, key) in [
+    [
         ("empty", Vec::new()),
         ("truncated RFC key", truncated),
         ("trailing zero", trailing),
@@ -99,10 +105,36 @@ fn rs256_signs_with_a_2048_bit_pkcs1_key_alone() {
         ("past the key bound", oversized),
         ("P-256 PKCS#8", fixture("leaf.key")),
         ("1024-bit PKCS#1", fixture("rsa-1024.der")),
+        ("2050-bit PKCS#1", fixture("rsa-2050.der")),
         ("3072-bit PKCS#1", fixture("rsa-3072.der")),
-    ] {
-        assert_eq!(sign_rs256(&key, INPUT), None, "{label}");
+    ]
+}
+
+#[test]
+fn the_app_public_half_refuses_every_key_signing_refuses() {
+    let mut failures = Vec::new();
+    for (label, key) in refused_app_keys() {
+        if rs256_public_pkcs1(&key).is_some() {
+            failures.push(label);
+        }
     }
+    assert!(failures.is_empty(), "refused keys have public halves: {failures:?}");
+}
+
+#[test]
+fn the_app_public_half_of_the_rfc_key_verifies_its_signature() {
+    let public = rs256_public_pkcs1(&test_key(false)).expect("RFC PKCS#1 key");
+    assert_eq!(public.modulus, raw(N), "RFC modulus without sign byte");
+    assert_eq!(public.exponent, raw(E), "RFC exponent");
+    assert!(verify_rs256(&public.modulus, &public.exponent, INPUT, &raw(SIGNATURE)), "RFC signature verifies");
+}
+
+#[test]
+fn a_key_with_another_e_has_a_public_half_and_will_not_sign() {
+    let key = integers(&[&[0], &raw(N), &[1, 0, 3], &raw(D), &raw(P), &raw(Q), &raw(DP), &raw(DQ), &raw(QI)])
+        .expect("RFC key with another exponent");
+    assert!(rs256_public_pkcs1(&key).is_some(), "ring parses the changed exponent");
+    assert_eq!(sign_rs256(&key, INPUT), None, "ring refuses at signing");
 }
 
 // RFC 7515 Appendix A.2: a public test key, never a secret.

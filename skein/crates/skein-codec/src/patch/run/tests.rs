@@ -50,194 +50,349 @@ fn restart(patcher: &mut Patcher, plan: PlanIx, bytes: &[u8]) {
     patcher.start(plan, D, bytes.into()).expect("fresh start after halt");
 }
 
+#[derive(Clone, Copy)]
 struct Derived {
+    root: &'static str,
     old: &'static str,
     new: &'static str,
     lines: &'static str,
     bytes: &'static [u8],
     expected: &'static [u8],
 }
-const DERIVED: &[Derived] = &[
-    Derived {
-        old: "record D { a: u8 b: u8 gone: u8 }",
-        new: "record D { b: u8 fresh: u8 renamed: u8 }",
-        lines: "rename D.a renamed\nadd D.fresh u8 99\ndrop D.gone\norder D b renamed\n",
-        bytes: &[11, 22, 33],
-        expected: &[22, 99, 11],
-    },
-    Derived {
-        old: "record D { f: list 2 option u8 }",
-        new: "record D { f: list 3 option option u16 }",
-        lines: "wrap D.f list 2 option u8 list 3 option option u16\n",
-        bytes: &[0, 0, 0, 2, 0, 1, 255],
-        expected: &[0, 0, 0, 2, 0, 1, 1, 0, 255],
-    },
-    Derived {
-        old: "versioned record E {} versioned record D { f: list 3 E }",
-        new: "versioned record E {} versioned record D { f: list 3 E }",
-        lines: "",
-        bytes: &[0, 1, 0, 0, 0, 3, 0, 1, 0, 1, 0, 1],
-        expected: &[0, 2, 0, 0, 0, 3, 0, 2, 0, 2, 0, 2],
-    },
-    Derived {
-        old: "record E { x: u8 } record D { gone: E keep: u8 }",
-        new: "record E { x: u8 } record D { keep: u8 }",
-        lines: "written E.x\ndrop D.gone\n",
-        bytes: &[5, 6],
-        expected: &[6],
-    },
-    Derived {
-        old: "versioned record E { x: u8 } record D { a: E b: E }",
-        new: "record E { x: u8 } record D { b: E a: E }",
-        lines: "unversioned E\norder D b a\n",
-        bytes: &[0, 1, 8, 0, 1, 9],
-        expected: &[9, 8],
-    },
-    Derived {
-        old: "record D { f: bytes 4 }",
-        new: "record D { f: bytes 4 holds other Thing }",
-        lines: "",
-        bytes: &[0, 0, 0, 1, 9],
-        expected: &[0, 0, 0, 1, 9],
-    },
-    Derived { old: "record D {}", new: "record D { f: u8 }", lines: "add D.f u8 42\n", bytes: b"", expected: &[42] },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: duration }",
-        lines: "add D.f duration 42\n",
-        bytes: b"",
-        expected: &[0, 0, 0, 0, 0, 0, 0, 42],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: bool }",
-        lines: "add D.f bool true\n",
-        bytes: b"",
-        expected: &[1],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: fixed 2 }",
-        lines: "add D.f fixed 2 0xabcd\n",
-        bytes: b"",
-        expected: &[0xab, 0xcd],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: bytes 2 }",
-        lines: "add D.f bytes 2 0xabcd\n",
-        bytes: b"",
-        expected: &[0, 0, 0, 2, 0xab, 0xcd],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: text 2 }",
-        lines: "add D.f text 2 \"hi\"\n",
-        bytes: b"",
-        expected: &[0, 0, 0, 2, b'h', b'i'],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: option u8 }",
-        lines: "add D.f option u8 none\n",
-        bytes: b"",
-        expected: &[0],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: option u8 }",
-        lines: "add D.f option u8 some 42\n",
-        bytes: b"",
-        expected: &[1, 42],
-    },
-    Derived {
-        old: "record D {}",
-        new: "record D { f: list 2 u8 }",
-        lines: "add D.f list 2 u8 []\n",
-        bytes: b"",
-        expected: &[0, 0, 0, 0],
-    },
-    Derived {
-        old: "enum E { a b } record D {}",
-        new: "enum E { a b } record D { f: E }",
-        lines: "add D.f E b\n",
-        bytes: b"",
-        expected: &[1],
-    },
-    Derived { old: "record D { f: u8 }", new: "record D {}", lines: "drop D.f\n", bytes: &[42], expected: b"" },
-    Derived {
-        old: "record D { f: u8 }",
-        new: "record D { g: u8 }",
-        lines: "rename D.f g\n",
-        bytes: &[42],
-        expected: &[42],
-    },
-    Derived {
-        old: "record D { a: u8 b: u16 }",
-        new: "record D { b: u16 a: u8 }",
-        lines: "order D b a\n",
-        bytes: &[1, 2, 3],
-        expected: &[2, 3, 1],
-    },
-    Derived {
-        old: "record D { f: u8 }",
-        new: "record D { f: u16 }",
-        lines: "widen D.f u8 u16\n",
-        bytes: &[255],
-        expected: &[0, 255],
-    },
-    Derived {
-        old: "record D { f: text 1 }",
-        new: "record D { f: bytes 2 }",
-        lines: "",
-        bytes: &[0, 0, 0, 1, 97],
-        expected: &[0, 0, 0, 1, 97],
-    },
-    Derived {
-        old: "record D { f: u8 }",
-        new: "record D { f: option option u16 }",
-        lines: "wrap D.f u8 option option u16\n",
-        bytes: &[42],
-        expected: &[1, 1, 0, 42],
-    },
-    Derived {
-        old: "record D { f: list 2 u8 }",
-        new: "record D { f: list 3 option u8 }",
-        lines: "wrap D.f list 2 u8 list 3 option u8\n",
-        bytes: &[0, 0, 0, 2, 4, 5],
-        expected: &[0, 0, 0, 2, 1, 4, 1, 5],
-    },
-    Derived { old: "enum D { a b }", new: "enum D { x a b }", lines: "add D.x\n", bytes: &[1], expected: &[2] },
-    Derived { old: "enum D { a b }", new: "enum D { a b x }", lines: "", bytes: &[1], expected: &[1] },
-    Derived { old: "enum D { a b }", new: "enum D { b a }", lines: "order D b a\n", bytes: &[0], expected: &[1] },
-    Derived {
-        old: "record D { f: u8 }",
-        new: "versioned record D { f: u8 }",
-        lines: "versioned D\n",
-        bytes: &[42],
-        expected: &[0, 2, 42],
-    },
-    Derived {
-        old: "versioned record D { f: u8 }",
-        new: "record D { f: u8 }",
-        lines: "unversioned D\n",
-        bytes: &[0, 1, 42],
-        expected: &[42],
-    },
+const DERIVED: &[(&str, Derived)] = &[
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 1",
+        Derived {
+            root: "D",
+            old: "record D { a: u8 b: u8 gone: u8 }",
+            new: "record D { b: u8 fresh: u8 renamed: u8 }",
+            lines: "rename D.a renamed\nadd D.fresh u8 99\ndrop D.gone\norder D b renamed\n",
+            bytes: &[11, 22, 33],
+            expected: &[22, 99, 11],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 2",
+        Derived {
+            root: "D",
+            old: "record D { f: list 2 option u8 }",
+            new: "record D { f: list 3 option option u16 }",
+            lines: "wrap D.f list 2 option u8 list 3 option option u16\n",
+            bytes: &[0, 0, 0, 2, 0, 1, 255],
+            expected: &[0, 0, 0, 2, 0, 1, 1, 0, 255],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 3",
+        Derived {
+            root: "D",
+            old: "versioned record E {} versioned record D { f: list 3 E }",
+            new: "versioned record E {} versioned record D { f: list 3 E }",
+            lines: "",
+            bytes: &[0, 1, 0, 0, 0, 3, 0, 1, 0, 1, 0, 1],
+            expected: &[0, 2, 0, 0, 0, 3, 0, 2, 0, 2, 0, 2],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 4",
+        Derived {
+            root: "D",
+            old: "record E { x: u8 } record D { gone: E keep: u8 }",
+            new: "record E { x: u8 } record D { keep: u8 }",
+            lines: "written E.x\ndrop D.gone\n",
+            bytes: &[5, 6],
+            expected: &[6],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 5",
+        Derived {
+            root: "D",
+            old: "versioned record E { x: u8 } record D { a: E b: E }",
+            new: "record E { x: u8 } record D { b: E a: E }",
+            lines: "unversioned E\norder D b a\n",
+            bytes: &[0, 1, 8, 0, 1, 9],
+            expected: &[9, 8],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 6",
+        Derived {
+            root: "D",
+            old: "record D { f: bytes 4 }",
+            new: "record D { f: bytes 4 holds other Thing }",
+            lines: "",
+            bytes: &[0, 0, 0, 1, 9],
+            expected: &[0, 0, 0, 1, 9],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 7",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: u8 }",
+            lines: "add D.f u8 42\n",
+            bytes: b"",
+            expected: &[42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 8",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: duration }",
+            lines: "add D.f duration 42\n",
+            bytes: b"",
+            expected: &[0, 0, 0, 0, 0, 0, 0, 42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 9",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: bool }",
+            lines: "add D.f bool true\n",
+            bytes: b"",
+            expected: &[1],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 10",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: fixed 2 }",
+            lines: "add D.f fixed 2 0xabcd\n",
+            bytes: b"",
+            expected: &[0xab, 0xcd],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 11",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: bytes 2 }",
+            lines: "add D.f bytes 2 0xabcd\n",
+            bytes: b"",
+            expected: &[0, 0, 0, 2, 0xab, 0xcd],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 12",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: text 2 }",
+            lines: "add D.f text 2 \"hi\"\n",
+            bytes: b"",
+            expected: &[0, 0, 0, 2, b'h', b'i'],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 13",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: option u8 }",
+            lines: "add D.f option u8 none\n",
+            bytes: b"",
+            expected: &[0],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 14",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: option u8 }",
+            lines: "add D.f option u8 some 42\n",
+            bytes: b"",
+            expected: &[1, 42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 15",
+        Derived {
+            root: "D",
+            old: "record D {}",
+            new: "record D { f: list 2 u8 }",
+            lines: "add D.f list 2 u8 []\n",
+            bytes: b"",
+            expected: &[0, 0, 0, 0],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 16",
+        Derived {
+            root: "D",
+            old: "enum E { a b } record D {}",
+            new: "enum E { a b } record D { f: E }",
+            lines: "add D.f E b\n",
+            bytes: b"",
+            expected: &[1],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 17",
+        Derived {
+            root: "D",
+            old: "record D { f: u8 }",
+            new: "record D {}",
+            lines: "drop D.f\n",
+            bytes: &[42],
+            expected: b"",
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 18",
+        Derived {
+            root: "D",
+            old: "record D { f: u8 }",
+            new: "record D { g: u8 }",
+            lines: "rename D.f g\n",
+            bytes: &[42],
+            expected: &[42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 19",
+        Derived {
+            root: "D",
+            old: "record D { a: u8 b: u16 }",
+            new: "record D { b: u16 a: u8 }",
+            lines: "order D b a\n",
+            bytes: &[1, 2, 3],
+            expected: &[2, 3, 1],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 20",
+        Derived {
+            root: "D",
+            old: "record D { f: u8 }",
+            new: "record D { f: u16 }",
+            lines: "widen D.f u8 u16\n",
+            bytes: &[255],
+            expected: &[0, 255],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 21",
+        Derived {
+            root: "D",
+            old: "record D { f: text 1 }",
+            new: "record D { f: bytes 2 }",
+            lines: "",
+            bytes: &[0, 0, 0, 1, 97],
+            expected: &[0, 0, 0, 1, 97],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 22",
+        Derived {
+            root: "D",
+            old: "record D { f: u8 }",
+            new: "record D { f: option option u16 }",
+            lines: "wrap D.f u8 option option u16\n",
+            bytes: &[42],
+            expected: &[1, 1, 0, 42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 23",
+        Derived {
+            root: "D",
+            old: "record D { f: list 2 u8 }",
+            new: "record D { f: list 3 option u8 }",
+            lines: "wrap D.f list 2 u8 list 3 option u8\n",
+            bytes: &[0, 0, 0, 2, 4, 5],
+            expected: &[0, 0, 0, 2, 1, 4, 1, 5],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 24",
+        Derived {
+            root: "D",
+            old: "enum D { a b }",
+            new: "enum D { x a b }",
+            lines: "add D.x\n",
+            bytes: &[1],
+            expected: &[2],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 25",
+        Derived { root: "D", old: "enum D { a b }", new: "enum D { a b x }", lines: "", bytes: &[1], expected: &[1] },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 26",
+        Derived {
+            root: "D",
+            old: "enum D { a b }",
+            new: "enum D { b a }",
+            lines: "order D b a\n",
+            bytes: &[0],
+            expected: &[1],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 27",
+        Derived {
+            root: "D",
+            old: "record D { f: u8 }",
+            new: "versioned record D { f: u8 }",
+            lines: "versioned D\n",
+            bytes: &[42],
+            expected: &[0, 2, 42],
+        },
+    ),
+    (
+        "derived_operations_emit_the_expected_canonical_bytes: case 28",
+        Derived {
+            root: "D",
+            old: "versioned record D { f: u8 }",
+            new: "record D { f: u8 }",
+            lines: "unversioned D\n",
+            bytes: &[0, 1, 42],
+            expected: &[42],
+        },
+    ),
 ];
 #[test]
-fn derived_operations_emit_the_expected_canonical_bytes() {
-    for row in DERIVED {
-        let (mut patcher, _) = started(row.old, row.new, row.lines, "D", row.bytes);
-        finished(&mut patcher, "D", row.expected);
-    }
-}
-
-#[test]
-fn versions_inside_lists_and_variants_are_all_rewritten() {
-    const TEXT: &str = "versioned record R { f: u8 } enum E { r: R } versioned record D { rs: list 2 R e: E }";
-    let (mut patcher, _) = started(TEXT, TEXT, "", "D", &[0, 1, 0, 0, 0, 2, 0, 1, 3, 0, 1, 4, 0, 0, 1, 5]);
-    finished(&mut patcher, "D", &[0, 2, 0, 0, 0, 2, 0, 2, 3, 0, 2, 4, 0, 0, 2, 5]);
+fn derived_conversions_emit_canonical_bytes_for_the_new_schema() {
+    let rows = DERIVED.iter().copied();
+    let extra = [
+        (
+            "versions_inside_lists_and_variants_are_all_rewritten",
+            Derived {
+                root: "D",
+                old: "versioned record R { f: u8 } enum E { r: R } versioned record D { rs: list 2 R e: E }",
+                new: "versioned record R { f: u8 } enum E { r: R } versioned record D { rs: list 2 R e: E }",
+                lines: "",
+                bytes: &[0, 1, 0, 0, 0, 2, 0, 1, 3, 0, 1, 4, 0, 0, 1, 5],
+                expected: &[0, 2, 0, 0, 0, 2, 0, 2, 3, 0, 2, 4, 0, 0, 2, 5],
+            },
+        ),
+        (
+            "holds_of_this_family_do_not_stop_a_versioned_record",
+            Derived {
+                root: "D",
+                old: "versioned record D { f: bytes 2 holds f R }",
+                new: "versioned record D { f: bytes 2 holds f R }",
+                lines: "",
+                bytes: &[0, 1, 0, 0, 0, 1, 97],
+                expected: &[0, 2, 0, 0, 0, 1, 97],
+            },
+        ),
+    ];
+    skein_rows::check(rows.chain(extra), |row| {
+        let (mut patcher, _) = started(row.old, row.new, row.lines, row.root, row.bytes);
+        finished(&mut patcher, row.root, row.expected);
+    });
 }
 
 #[test]
@@ -364,33 +519,40 @@ fn identity_carries_held(text: &[u8]) {
 }
 
 #[test]
-fn identity_stops_only_at_held_fields_and_returns_the_same_bytes() {
-    identity_carries_held(b"family f 1\nversioned record D { a: u8 f: bytes 3 holds other R }");
+fn identity_conversion_stops_at_held_values_and_preserves_bytes() {
+    skein_rows::check(
+        [
+            (
+                "identity_stops_only_at_held_fields_and_returns_the_same_bytes",
+                &b"family f 1\nversioned record D { a: u8 f: bytes 3 holds other R }"[..],
+            ),
+            (
+                "identity_stops_at_held_secrets_and_carries_the_bytes",
+                &b"family f 1\nversioned record D { a: u8 f: secret 3 holds other R }"[..],
+            ),
+        ],
+        |text| {
+            identity_carries_held(text);
+        },
+    );
 }
 
 #[test]
-fn identity_stops_at_held_secrets_and_carries_the_bytes() {
-    identity_carries_held(b"family f 1\nversioned record D { a: u8 f: secret 3 holds other R }");
-}
-
-#[test]
-fn copying_content_of_a_held_field_is_misbuilt() {
-    const TEXT: &str = "record D { f: bytes 3 holds other R }";
-    let (mut patcher, plan) = started(TEXT, TEXT, "", "D", &[0, 0, 0, 1, 97]);
-    let at = stopped(&mut patcher);
-    let (old, new) = patcher.parts();
-    assert_eq!(new.put_content_of(old, at), Err(Halt::Misbuilt(FIELD)));
-    restart(&mut patcher, plan, &[0, 0, 0, 1, 97]);
-}
-
-#[test]
-fn copying_content_of_a_held_secret_is_misbuilt() {
-    const TEXT: &str = "record D { f: secret 3 holds other R }";
-    let (mut patcher, plan) = started(TEXT, TEXT, "", "D", &[0, 0, 0, 1, 97]);
-    let at = stopped(&mut patcher);
-    let (old, new) = patcher.parts();
-    assert_eq!(new.put_content_of(old, at), Err(Halt::Misbuilt(FIELD)));
-    restart(&mut patcher, plan, &[0, 0, 0, 1, 97]);
+fn copying_held_content_is_misbuilt_and_permits_restarting() {
+    skein_rows::check(
+        [
+            ("copying_content_of_a_held_field_is_misbuilt", "record D { f: bytes 3 holds other R }"),
+            ("copying_content_of_a_held_secret_is_misbuilt", "record D { f: secret 3 holds other R }"),
+        ],
+        |text| {
+            let bytes = &[0, 0, 0, 1, 97];
+            let (mut patcher, plan) = started(text, text, "", "D", bytes);
+            let at = stopped(&mut patcher);
+            let (old, new) = patcher.parts();
+            assert_eq!(new.put_content_of(old, at), Err(Halt::Misbuilt(FIELD)));
+            restart(&mut patcher, plan, bytes);
+        },
+    );
 }
 
 // The held secret admits three content bytes after its length prefix.
@@ -451,13 +613,35 @@ fn old_misreads_map_the_node_without_changing_the_build() {
     finished(&mut patcher, "D", &[1]);
 }
 
+struct PutRefusal {
+    text: &'static str,
+    bytes: &'static [u8],
+    value: u64,
+    path: Path,
+}
+
 #[test]
-fn wrong_put_kind_halts_and_allows_a_fresh_start() {
-    const TEXT: &str = "record D { f: bool }";
-    let (mut patcher, plan) = started(TEXT, TEXT, "written D.f\n", "D", &[1]);
-    stopped(&mut patcher);
-    assert_eq!(patcher.parts().1.put_uint(1), Err(Halt::Misbuilt(FIELD)));
-    restart(&mut patcher, plan, &[1]);
+fn wrong_scalar_puts_halt_naming_the_expected_schema_part() {
+    skein_rows::check(
+        [
+            (
+                "wrong_put_kind_halts_and_allows_a_fresh_start",
+                PutRefusal { text: "record D { f: bool }", bytes: &[1], value: 1, path: FIELD },
+            ),
+            (
+                "a_wrong_put_at_an_enum_field_names_its_tag",
+                PutRefusal { text: "enum E { a } record D { f: E }", bytes: &[0], value: 0, path: TAG },
+            ),
+        ],
+        |row| {
+            let (mut patcher, plan) = started(row.text, row.text, "written D.f\n", "D", row.bytes);
+            let root = patcher.schema(1).expect("old").find(b"D").expect("root");
+            stopped(&mut patcher);
+            assert_eq!(patcher.parts().1.put_uint(row.value), Err(Halt::Misbuilt(row.path)));
+            assert_eq!(patcher.next(), Err(Halt::Order));
+            patcher.start(plan, root, row.bytes.into()).expect("fresh start after halt");
+        },
+    );
 }
 
 #[test]
@@ -603,23 +787,57 @@ fn carrying_an_incompatible_type_is_misbuilt() {
     restart(&mut patcher, plan, &[1]);
 }
 
-#[test]
-fn own_declaration_carry_reports_a_nonderived_field() {
-    let (mut patcher, plan) =
-        started("record D { f: u8 }", "record D { f: bool }", "retype D.f u8 bool\nwritten D\n", "D", &[1]);
-    let at = stopped(&mut patcher);
-    let (old, new) = patcher.parts();
-    assert_eq!(new.carry(old, at), Err(Halt::Misbuilt(FIELD)));
-    restart(&mut patcher, plan, &[1]);
+struct CarryRefusal {
+    old: &'static str,
+    new: &'static str,
+    lines: &'static str,
+    bytes: &'static [u8],
+    path: Path,
 }
 
 #[test]
-fn own_enum_carry_refuses_a_dropped_variant() {
-    let (mut patcher, plan) = started("enum D { a b }", "enum D { a }", "drop D.b\nwritten D\n", "D", &[1]);
-    let at = stopped(&mut patcher);
-    let (old, new) = patcher.parts();
-    assert_eq!(new.carry(old, at), Err(Halt::Misbuilt(TAG)));
-    restart(&mut patcher, plan, &[1]);
+fn whole_declaration_carry_refuses_values_requiring_explicit_rebuilding() {
+    skein_rows::check(
+        [
+            (
+                "own_declaration_carry_reports_a_nonderived_field",
+                CarryRefusal {
+                    old: "record D { f: u8 }",
+                    new: "record D { f: bool }",
+                    lines: "retype D.f u8 bool\nwritten D\n",
+                    bytes: &[1],
+                    path: FIELD,
+                },
+            ),
+            (
+                "own_enum_carry_refuses_a_dropped_variant",
+                CarryRefusal {
+                    old: "enum D { a b }",
+                    new: "enum D { a }",
+                    lines: "drop D.b\nwritten D\n",
+                    bytes: &[1],
+                    path: TAG,
+                },
+            ),
+            (
+                "carry_of_a_reshaped_declaration_is_misbuilt",
+                CarryRefusal {
+                    old: "record D {}",
+                    new: "enum D { a }",
+                    lines: "reshape D\nwritten D\n",
+                    bytes: b"",
+                    path: TAG,
+                },
+            ),
+        ],
+        |row| {
+            let (mut patcher, plan) = started(row.old, row.new, row.lines, "D", row.bytes);
+            let at = stopped(&mut patcher);
+            let (old, new) = patcher.parts();
+            assert_eq!(new.carry(old, at), Err(Halt::Misbuilt(row.path)));
+            restart(&mut patcher, plan, row.bytes);
+        },
+    );
 }
 
 #[test]
@@ -779,15 +997,6 @@ fn heap_arithmetic_refuses_overflow() {
 }
 
 #[test]
-fn carry_of_a_reshaped_declaration_is_misbuilt() {
-    let (mut patcher, plan) = started("record D {}", "enum D { a }", "reshape D\nwritten D\n", "D", b"");
-    let at = stopped(&mut patcher);
-    let (old, new) = patcher.parts();
-    assert_eq!(new.carry(old, at), Err(Halt::Misbuilt(TAG)));
-    restart(&mut patcher, plan, b"");
-}
-
-#[test]
 fn old_content_misread_from_a_put_ends_the_run() {
     const TEXT: &str = "record D { f: text 2 }";
     const BYTES: &[u8] = &[0, 0, 0, 1, 97];
@@ -830,13 +1039,6 @@ fn a_dropped_root_has_no_new_value_to_build() {
     let (mut patcher, plan) = planned("record D {}", "", "drop D\n");
     assert_eq!(patcher.start(plan, D, Box::default()), Err(Halt::Misbuilt(Path { decl: D, part: Part::Tail })));
     assert_eq!(patcher.next(), Err(Halt::Order));
-}
-
-#[test]
-fn holds_of_this_family_do_not_stop_a_versioned_record() {
-    const TEXT: &str = "versioned record D { f: bytes 2 holds f R }";
-    let (mut patcher, _) = started(TEXT, TEXT, "", "D", &[0, 1, 0, 0, 0, 1, 97]);
-    finished(&mut patcher, "D", &[0, 2, 0, 0, 0, 1, 97]);
 }
 
 #[test]
@@ -907,15 +1109,6 @@ fn a_driver_can_start_fresh_after_an_old_reader_halt() {
     stopped(&mut patcher);
     patcher.parts().1.put_bool(true).expect("answer to new stop");
     finished(&mut patcher, "D", &[1]);
-}
-
-#[test]
-fn a_wrong_put_at_an_enum_field_names_its_tag() {
-    const TEXT: &str = "enum E { a } record D { f: E }";
-    let (mut patcher, _) = started(TEXT, TEXT, "written D.f\n", "D", &[0]);
-    stopped(&mut patcher);
-    assert_eq!(patcher.parts().1.put_uint(0), Err(Halt::Misbuilt(TAG)));
-    assert_eq!(patcher.next(), Err(Halt::Order));
 }
 
 #[test]

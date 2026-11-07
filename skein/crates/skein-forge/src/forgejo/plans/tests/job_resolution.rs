@@ -44,14 +44,15 @@ fn resolved_check(state: &str, check: api::Check) {
     ]);
 }
 #[test]
-fn a_passed_check_resolves_to_its_jobs_id_not_its_links_index() {
-    resolved_check("success", api::Check::Passed);
-}
-#[test]
-fn pending_and_failed_checks_resolve_too() {
-    for (state, check) in [("pending", api::Check::Pending), ("failure", api::Check::Failed)] {
-        resolved_check(state, check);
-    }
+fn checks_resolve_linked_jobs_independently_of_check_state() {
+    skein_rows::check(
+        [
+            ("a_passed_check_resolves_to_its_jobs_id_not_its_links_index", ("success", api::Check::Passed)),
+            ("pending_and_failed_checks_resolve_too: pending", ("pending", api::Check::Pending)),
+            ("pending_and_failed_checks_resolve_too: failed", ("failure", api::Check::Failed)),
+        ],
+        |(state, check)| resolved_check(state, check),
+    );
 }
 #[test]
 fn statuses_resolve_their_page_and_keep_more() {

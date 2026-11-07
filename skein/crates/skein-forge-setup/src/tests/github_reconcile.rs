@@ -244,48 +244,23 @@ fn released_at(phase: usize) {
     silent(&mut halted);
 }
 #[test]
-fn reconcile_drops_secrets_at_phase_0() {
-    released_at(0);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_1() {
-    released_at(1);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_2() {
-    released_at(2);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_3() {
-    released_at(3);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_4() {
-    released_at(4);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_5() {
-    released_at(5);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_6() {
-    released_at(6);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_7() {
-    released_at(7);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_8() {
-    released_at(8);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_9() {
-    released_at(9);
-}
-#[test]
-fn reconcile_drops_secrets_at_phase_10() {
-    released_at(10);
+fn live_reconcile_phases_release_secrets_on_every_stop() {
+    skein_rows::check(
+        [
+            ("reconcile_drops_secrets_at_phase_0", 0),
+            ("reconcile_drops_secrets_at_phase_1", 1),
+            ("reconcile_drops_secrets_at_phase_2", 2),
+            ("reconcile_drops_secrets_at_phase_3", 3),
+            ("reconcile_drops_secrets_at_phase_4", 4),
+            ("reconcile_drops_secrets_at_phase_5", 5),
+            ("reconcile_drops_secrets_at_phase_6", 6),
+            ("reconcile_drops_secrets_at_phase_7", 7),
+            ("reconcile_drops_secrets_at_phase_8", 8),
+            ("reconcile_drops_secrets_at_phase_9", 9),
+            ("reconcile_drops_secrets_at_phase_10", 10),
+        ],
+        released_at,
+    );
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "check completed diagnostics for secret bytes")]

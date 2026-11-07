@@ -8,32 +8,55 @@ use crate::{
 use skein_lib::{CryptoRng, Duration, Env, List, Queue, Time, Token, Wall};
 
 #[test]
-fn a_github_call_on_a_forgejo_forge_is_refused_unexpected() {
-    for auth in [
-        Auth::Token(fixtures::secret(b"forgejo-token")),
-        Auth::App { id: 7, key: fixtures::secret(b"app-key") },
-        Auth::Bearer(fixtures::secret(b"installation-token")),
-        Auth::None,
-    ] {
-        assert_eq!(
-            crate::host::run::forgejo_pair(Call::GitHub(skein_forge::github::request::Request::App), auth),
-            Err(Why::Unexpected)
-        );
-    }
-}
-
-#[test]
-fn a_forgejo_call_on_an_app_or_bearer_or_no_auth_is_refused_unexpected() {
-    for auth in [
-        Auth::App { id: 7, key: fixtures::secret(b"app-key") },
-        Auth::Bearer(fixtures::secret(b"installation-token")),
-        Auth::None,
-    ] {
-        assert_eq!(
-            crate::host::run::forgejo_pair(Call::Forgejo(skein_forge::forgejo::request::Request::User), auth),
-            Err(Why::Unexpected)
-        );
-    }
+fn incompatible_calls_and_authentication_are_refused_unexpected() {
+    skein_rows::check(
+        [
+            (
+                "a_github_call_on_a_forgejo_forge_is_refused_unexpected: token",
+                (
+                    Call::GitHub(skein_forge::github::request::Request::App),
+                    Auth::Token(fixtures::secret(b"forgejo-token")),
+                ),
+            ),
+            (
+                "a_github_call_on_a_forgejo_forge_is_refused_unexpected: app",
+                (
+                    Call::GitHub(skein_forge::github::request::Request::App),
+                    Auth::App { id: 7, key: fixtures::secret(b"app-key") },
+                ),
+            ),
+            (
+                "a_github_call_on_a_forgejo_forge_is_refused_unexpected: bearer",
+                (
+                    Call::GitHub(skein_forge::github::request::Request::App),
+                    Auth::Bearer(fixtures::secret(b"installation-token")),
+                ),
+            ),
+            (
+                "a_github_call_on_a_forgejo_forge_is_refused_unexpected: none",
+                (Call::GitHub(skein_forge::github::request::Request::App), Auth::None),
+            ),
+            (
+                "a_forgejo_call_on_an_app_or_bearer_or_no_auth_is_refused_unexpected: app",
+                (
+                    Call::Forgejo(skein_forge::forgejo::request::Request::User),
+                    Auth::App { id: 7, key: fixtures::secret(b"app-key") },
+                ),
+            ),
+            (
+                "a_forgejo_call_on_an_app_or_bearer_or_no_auth_is_refused_unexpected: bearer",
+                (
+                    Call::Forgejo(skein_forge::forgejo::request::Request::User),
+                    Auth::Bearer(fixtures::secret(b"installation-token")),
+                ),
+            ),
+            (
+                "a_forgejo_call_on_an_app_or_bearer_or_no_auth_is_refused_unexpected: none",
+                (Call::Forgejo(skein_forge::forgejo::request::Request::User), Auth::None),
+            ),
+        ],
+        |(call, auth)| assert_eq!(crate::host::run::forgejo_pair(call, auth), Err(Why::Unexpected)),
+    );
 }
 
 #[test]
@@ -177,33 +200,231 @@ fn a_runs_given_takes_the_plans_adopted_and_the_rest_from_the_forge() {
     assert!(crate::host::run::given_for(&forge, &[]).adopted.is_empty());
 }
 #[test]
-fn settings_with_too_many_adopted_repositories_are_refused() {
+#[expect(clippy::too_many_lines, reason = "the labelled cases keep every input and expectation of one rule together")]
+fn unusable_host_settings_name_their_refusal() {
     use crate::given::{Place, Refused};
+    use skein_forge::forgejo::limits::Problem;
+    let mut cases = List::with_capacity(24);
+    let mut l = limits();
+    l.io.sockets = 1 << 29_u32;
+    cases
+        .push(("the_host_refuses_unusable_settings_naming_each: io sockets", (l, settings(&[1]), Unusable::Io)))
+        .unwrap();
+    let mut l = limits();
+    l.tls.read = 0;
+    cases
+        .push(("the_host_refuses_unusable_settings_naming_each: tls intake", (l, settings(&[1]), Unusable::Tls)))
+        .unwrap();
+    let mut l = limits();
+    l.io.intake = 0;
+    cases
+        .push(("the_host_refuses_unusable_settings_naming_each: io intake", (l, settings(&[1]), Unusable::Io)))
+        .unwrap();
+    let mut l = limits();
+    l.runs = 0;
+    cases
+        .push(("the_host_refuses_unusable_settings_naming_each: zero runs", (l, settings(&[1]), Unusable::Zero)))
+        .unwrap();
+    let mut l = limits();
+    l.token_bytes = 63;
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: token bytes",
+            (l, settings(&[1]), Unusable::TokenBytes { token_bytes: 63 }),
+        ))
+        .unwrap();
+    let mut l = limits();
+    l.depth = 7;
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: document depth",
+            (l, settings(&[1]), Unusable::Documents(Problem::Depth)),
+        ))
+        .unwrap();
+    let mut l = limits();
+    l.io.intake = 16;
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: stack intake",
+            (l, settings(&[1]), Unusable::Stack { stacked: Stacked::HttpOverIo, demand: 4096, cap: 16 }),
+        ))
+        .unwrap();
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: forge count",
+            (limits(), settings(&[1, 2, 3]), Unusable::Forges { forges: 2 }),
+        ))
+        .unwrap();
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: duplicate forge",
+            (limits(), settings(&[1, 1]), Unusable::Duplicate { forge: 1 }),
+        ))
+        .unwrap();
     let mut s = settings(&[1]);
-    let given = forgejo_mut(&mut s);
-    given.limits.repositories = 1;
-    given.adopted = Box::new([1, 2]);
-    assert_eq!(
-        Host::new(&limits(), s, crypto()).err(),
-        Some(Unusable::Given { forge: 1, refused: Refused { place: Place::Repositories, other: None } })
+    s.forges.get_mut(0).unwrap().address = skein_io::Addr::Ip(([192, 0, 2, 1], 3000).into());
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: off loopback",
+            (limits(), s, Unusable::Address { forge: 1 }),
+        ))
+        .unwrap();
+    let mut s = settings(&[1]);
+    s.forges.get_mut(0).unwrap().transport = Transport::Plaintext { name: Some(b"".as_slice().into()) };
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: empty plaintext name",
+            (limits(), s, Unusable::PlaintextName { forge: 1 }),
+        ))
+        .unwrap();
+    let mut s = settings(&[1]);
+    s.user_agent = b"kit\r\n".as_slice().into();
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: user agent",
+            (limits(), s, Unusable::Request { forge: 1 }),
+        ))
+        .unwrap();
+    let mut s = settings(&[1]);
+    forgejo_mut(&mut s).bot_login = b"".as_slice().into();
+    cases
+        .push((
+            "the_host_refuses_unusable_settings_naming_each: bot login",
+            (limits(), s, Unusable::Given { forge: 1, refused: Refused { place: Place::BotLogin, other: None } }),
+        ))
+        .unwrap();
+    cases
+        .push(("settings_with_too_many_adopted_repositories_are_refused", {
+            let mut s = settings(&[1]);
+            let given = forgejo_mut(&mut s);
+            given.limits.repositories = 1;
+            given.adopted = Box::new([1, 2]);
+            (limits(), s, Unusable::Given { forge: 1, refused: Refused { place: Place::Repositories, other: None } })
+        }))
+        .unwrap();
+    cases
+        .push(("a_forge_whose_page_could_pass_the_listing_bound_is_unusable", {
+            let l = limits();
+            let mut s = settings(&[1]);
+            forgejo_mut(&mut s).limits.reachable = l.inner + 1;
+            (l, s, Unusable::Reachable { forge: 1, reachable: 33, inner: 32 })
+        }))
+        .unwrap();
+    cases
+        .push(("a_zero_page_bound_is_refused_by_the_given_first", {
+            let mut s = settings(&[1]);
+            forgejo_mut(&mut s).limits.reachable = 0;
+            (limits(), s, Unusable::Given { forge: 1, refused: Refused { place: Place::ReachableLimit, other: None } })
+        }))
+        .unwrap();
+    cases
+        .push(("a_github_given_that_is_refused_is_named", {
+            let mut s = github_settings();
+            github_mut(&mut s).limits.reachable = 0;
+            (
+                limits(),
+                s,
+                Unusable::GitHubGiven {
+                    forge: 4,
+                    refused: crate::github::given::Refused {
+                        place: crate::github::given::Place::Reachable,
+                        other: None,
+                    },
+                },
+            )
+        }))
+        .unwrap();
+    cases
+        .push(("a_github_forge_off_loopback_is_refused_as_a_forgejo_is", {
+            let mut s = github_settings();
+            s.forges.get_mut(1).expect("second forge").address = skein_io::Addr::Ip(([192, 0, 2, 1], 3001).into());
+            (limits(), s, Unusable::Address { forge: 4 })
+        }))
+        .unwrap();
+    cases
+        .push(("forges_counts_both_kinds", {
+            let mut l = limits();
+            l.forges = 1;
+            (l, github_settings(), Unusable::Forges { forges: 1 })
+        }))
+        .unwrap();
+    cases
+        .push(("a_forge_number_used_by_both_kinds_is_a_duplicate: github second", {
+            let mut s = github_settings();
+            github_mut(&mut s).forge = 1;
+            (limits(), s, Unusable::Duplicate { forge: 1 })
+        }))
+        .unwrap();
+    cases
+        .push(("a_forge_number_used_by_both_kinds_is_a_duplicate: github first", {
+            let mut s = github_settings();
+            let mut forges = List::with_capacity(2);
+            let mut github = github_forge();
+            github.kind = Kind::GitHub(crate::github::given::Given { forge: 1, ..super::github_fixtures::given() });
+            forges.push(github).expect("first forge");
+            forges.push(forge(1)).expect("second forge");
+            s.forges = forges;
+            (limits(), s, Unusable::Duplicate { forge: 1 })
+        }))
+        .unwrap();
+    cases
+        .push(("the_host_refuses_invalid_settings: duplicate", {
+            (limits(), settings(&[1, 1]), Unusable::Duplicate { forge: 1 })
+        }))
+        .unwrap();
+    cases
+        .push(("the_host_refuses_invalid_settings: empty user agent", {
+            let mut s = settings(&[1]);
+            s.user_agent = Box::new([]);
+            (limits(), s, Unusable::Request { forge: 1 })
+        }))
+        .unwrap();
+    cases
+        .push(("the_host_refuses_invalid_settings: github given", {
+            let mut s = github_settings();
+            github_mut(&mut s).limits.reachable = 0;
+            (
+                limits(),
+                s,
+                Unusable::GitHubGiven {
+                    forge: 4,
+                    refused: crate::github::given::Refused {
+                        place: crate::github::given::Place::Reachable,
+                        other: None,
+                    },
+                },
+            )
+        }))
+        .unwrap();
+    skein_rows::check(cases.into_boxed(), |(l, s, expected)| {
+        assert_eq!(Host::new(&l, s, crypto()).err(), Some(expected));
+    });
+}
+#[test]
+fn missing_or_invalid_admin_items_stop_before_connecting() {
+    skein_rows::check(
+        [
+            (
+                "a_run_without_an_admin_token_stops_before_any_connection",
+                (Plan::Reconcile { forge: 1, adopted: Box::new([]) }, None),
+            ),
+            (
+                "an_admin_token_that_breaks_its_item_is_absent",
+                (Plan::Reconcile { forge: 1, adopted: Box::new([]) }, Some(fixtures::secret(b"invalid token"))),
+            ),
+            ("an_adopt_run_asks_for_the_admin_token_and_a_missing_one_stops_naming_the_admin", (adopt(), None)),
+        ],
+        |(plan, token)| {
+            let mut w = World::new();
+            w.plan(1, plan);
+            read(&mut w, Item::AdminToken);
+            assert_eq!(w.io.len(), 0);
+            w.answer(1, Answer::Read(token));
+            assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Missing)));
+            assert_eq!(w.io.len(), 0);
+            assert_eq!(w.host.next_deadline(), None);
+        },
     );
-}
-#[test]
-fn a_run_without_an_admin_token_stops_before_any_connection() {
-    let mut w = World::new();
-    w.read_admin();
-    assert_eq!(w.io.len(), 0);
-    w.answer(1, Answer::Read(None));
-    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Missing)));
-    assert_eq!(w.io.len(), 0);
-}
-#[test]
-fn an_admin_token_that_breaks_its_item_is_absent() {
-    let mut w = World::new();
-    w.read_admin();
-    w.answer(1, Answer::Read(Some(fixtures::secret(b"invalid token"))));
-    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Missing)));
-    assert_eq!(w.io.len(), 0);
 }
 #[test]
 fn a_second_run_for_a_forge_with_one_live_stops_busy() {
@@ -216,14 +437,80 @@ fn a_second_run_for_a_forge_with_one_live_stops_busy() {
     w.run(3, 1);
     assert_eq!(w.up.pop(), Some(Event::Need { run: Token::new(3), need: Need::Read(Item::AdminToken) }));
 }
+struct CapacityCase {
+    limits: Limits,
+    settings: Settings,
+    incumbents: Box<[Plan]>,
+    candidate: Plan,
+    expected: Event,
+}
 #[test]
-fn a_run_past_runs_stops_busy() {
-    let mut l = limits();
-    l.runs = 1;
-    let mut w = World::with(l, settings(&[1, 2]));
-    w.read_admin();
-    w.run(2, 2);
-    assert_eq!(w.up.pop(), Some(stop(2, 2, Why::Busy)));
+fn host_run_capacity_counts_writing_and_reachable_runs() {
+    skein_rows::check(
+        [
+            (
+                "a_run_past_runs_stops_busy",
+                CapacityCase {
+                    limits: Limits { runs: 1, ..limits() },
+                    settings: settings(&[1, 2]),
+                    incumbents: Box::new([Plan::Reconcile { forge: 1, adopted: Box::new([]) }]),
+                    candidate: Plan::Reconcile { forge: 2, adopted: Box::new([]) },
+                    expected: stop(2, 2, Why::Busy),
+                },
+            ),
+            (
+                "runs_counts_reachable_and_writing_runs_together: third picker",
+                CapacityCase {
+                    limits: Limits { forges: 3, ..limits() },
+                    settings: settings(&[1, 2, 3]),
+                    incumbents: Box::new([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(2)]),
+                    candidate: reachable(3),
+                    expected: stop(3, 3, Why::Busy),
+                },
+            ),
+            (
+                "runs_counts_reachable_and_writing_runs_together: third writer",
+                CapacityCase {
+                    limits: Limits { forges: 3, ..limits() },
+                    settings: settings(&[1, 2, 3]),
+                    incumbents: Box::new([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(2)]),
+                    candidate: Plan::Reconcile { forge: 3, adopted: Box::new([]) },
+                    expected: stop(3, 3, Why::Busy),
+                },
+            ),
+            (
+                "runs_counts_reachable_and_writing_runs_together: writer first",
+                CapacityCase {
+                    limits: Limits { runs: 1, ..limits() },
+                    settings: settings(&[1]),
+                    incumbents: Box::new([Plan::Reconcile { forge: 1, adopted: Box::new([]) }]),
+                    candidate: reachable(1),
+                    expected: stop(2, 1, Why::Busy),
+                },
+            ),
+            (
+                "runs_counts_reachable_and_writing_runs_together: picker first",
+                CapacityCase {
+                    limits: Limits { runs: 1, ..limits() },
+                    settings: settings(&[1]),
+                    incumbents: Box::new([reachable(1)]),
+                    candidate: Plan::Reconcile { forge: 1, adopted: Box::new([]) },
+                    expected: stop(2, 1, Why::Busy),
+                },
+            ),
+        ],
+        |case| {
+            let mut w = World::with(case.limits, case.settings);
+            let mut run = 1;
+            for plan in case.incumbents {
+                w.plan(run, plan);
+                assert_eq!(w.up.pop(), Some(owner_read(run)));
+                run += 1;
+            }
+            w.plan(run, case.candidate);
+            assert_eq!(w.up.pop(), Some(case.expected));
+        },
+    );
 }
 #[test]
 fn an_answer_with_no_need_waiting_is_ignored() {
@@ -238,15 +525,34 @@ fn an_answer_with_no_need_waiting_is_ignored() {
     assert_eq!(w.io.len(), 0);
 }
 #[test]
-fn a_run_waiting_on_the_owner_at_its_deadline_stops_down_at_its_step() {
-    let mut w = World::new();
-    w.read_admin();
-    assert_eq!(w.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
-    w.fire(120_000);
-    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
-    w.answer(1, Answer::Read(None));
-    assert_eq!(w.up.len(), 0);
-    assert_eq!(w.host.next_deadline(), None);
+fn owner_waits_stop_down_at_their_deadline() {
+    skein_rows::check(
+        [
+            (
+                "a_run_waiting_on_the_owner_at_its_deadline_stops_down_at_its_step",
+                (Plan::Reconcile { forge: 1, adopted: Box::new([]) }, Item::AdminToken, stop(1, 1, Why::Down)),
+            ),
+            (
+                "a_check_run_waiting_on_the_owner_at_its_deadline_stops_down_naming_its_token",
+                (check(), Item::ApiToken, token_stop(Why::Down)),
+            ),
+            (
+                "an_adopt_run_waiting_on_the_owner_at_its_deadline_stops_down_at_its_step",
+                (adopt(), Item::AdminToken, stop(1, 1, Why::Down)),
+            ),
+        ],
+        |(plan, item, expected)| {
+            let mut w = World::new();
+            w.plan(1, plan);
+            read(&mut w, item);
+            assert_eq!(w.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
+            w.fire(120_000);
+            assert_eq!(w.up.pop(), Some(expected));
+            w.answer(1, Answer::Read(None));
+            assert_eq!(w.up.len(), 0);
+            assert_eq!(w.host.next_deadline(), None);
+        },
+    );
 }
 #[test]
 fn the_first_try_waits_double_from_backoff_to_backoff_max() {
@@ -309,52 +615,6 @@ fn the_hosts_debug_shows_no_token_in_flight() {
         assert_ne!(bytes, fixtures::ADMIN, "credentials stay out of Debug");
     }
 }
-#[test]
-fn the_host_refuses_unusable_settings_naming_each() {
-    use crate::given::{Place, Refused};
-    use skein_forge::forgejo::limits::Problem;
-    let mut cases = List::with_capacity(13);
-    let mut l = limits();
-    l.io.sockets = 1 << 29_u32;
-    cases.push((l, settings(&[1]), Unusable::Io)).unwrap();
-    let mut l = limits();
-    l.tls.read = 0;
-    cases.push((l, settings(&[1]), Unusable::Tls)).unwrap();
-    let mut l = limits();
-    l.io.intake = 0;
-    cases.push((l, settings(&[1]), Unusable::Io)).unwrap();
-    let mut l = limits();
-    l.runs = 0;
-    cases.push((l, settings(&[1]), Unusable::Zero)).unwrap();
-    let mut l = limits();
-    l.token_bytes = 63;
-    cases.push((l, settings(&[1]), Unusable::TokenBytes { token_bytes: 63 })).unwrap();
-    let mut l = limits();
-    l.depth = 7;
-    cases.push((l, settings(&[1]), Unusable::Documents(Problem::Depth))).unwrap();
-    let mut l = limits();
-    l.io.intake = 16;
-    cases.push((l, settings(&[1]), Unusable::Stack { stacked: Stacked::HttpOverIo, demand: 4096, cap: 16 })).unwrap();
-    cases.push((limits(), settings(&[1, 2, 3]), Unusable::Forges { forges: 2 })).unwrap();
-    cases.push((limits(), settings(&[1, 1]), Unusable::Duplicate { forge: 1 })).unwrap();
-    let mut s = settings(&[1]);
-    s.forges.get_mut(0).unwrap().address = skein_io::Addr::Ip(([192, 0, 2, 1], 3000).into());
-    cases.push((limits(), s, Unusable::Address { forge: 1 })).unwrap();
-    let mut s = settings(&[1]);
-    s.forges.get_mut(0).unwrap().transport = Transport::Plaintext { name: Some(b"".as_slice().into()) };
-    cases.push((limits(), s, Unusable::PlaintextName { forge: 1 })).unwrap();
-    let mut s = settings(&[1]);
-    s.user_agent = b"kit\r\n".as_slice().into();
-    cases.push((limits(), s, Unusable::Request { forge: 1 })).unwrap();
-    let mut s = settings(&[1]);
-    forgejo_mut(&mut s).bot_login = b"".as_slice().into();
-    cases
-        .push((limits(), s, Unusable::Given { forge: 1, refused: Refused { place: Place::BotLogin, other: None } }))
-        .unwrap();
-    for (l, s, expected) in cases.into_boxed() {
-        assert_eq!(Host::new(&l, s, crypto()).err(), Some(expected));
-    }
-}
 
 #[test]
 fn a_connect_without_a_socket_retries_from_its_closed_time() {
@@ -383,17 +643,26 @@ fn a_wrong_answer_kind_stops_the_waiting_plan_unexpected() {
     assert_eq!(w.io.len(), 0);
 }
 #[test]
-fn an_empty_host_closes_once_and_ignores_later_requests() {
-    let mut w = World::new();
-    w.down(Request::Close);
-    assert_eq!(w.up.pop(), Some(Event::Closed));
-    w.down(Request::Close);
-    w.run(1, 1);
-    w.answer(1, Answer::Written);
-    w.fire(120_000);
-    assert_eq!(w.up.len(), 0);
-    assert_eq!(w.io.len(), 0);
-    assert_eq!(w.host.next_deadline(), None);
+fn idle_shutdown_closes_once_and_ignores_later_requests() {
+    skein_rows::check(
+        [
+            ("an_empty_host_closes_once_and_ignores_later_requests", Request::Close),
+            ("abort_when_idle_is_closed_at_once", Request::Abort),
+        ],
+        |shutdown| {
+            let mut w = World::new();
+            w.down(shutdown);
+            assert_eq!(w.up.pop(), Some(Event::Closed));
+            w.down(Request::Close);
+            w.down(Request::Abort);
+            w.run(1, 1);
+            w.answer(1, Answer::Written);
+            w.fire(120_000);
+            assert_eq!(w.up.len(), 0);
+            assert_eq!(w.io.len(), 0);
+            assert_eq!(w.host.next_deadline(), None);
+        },
+    );
 }
 #[test]
 fn one_timer_turn_stops_every_run_whose_deadline_passed() {
@@ -447,16 +716,6 @@ fn a_check_run_asks_for_the_api_token_and_a_missing_one_stops_naming_api() {
     w.plan(2, check());
     assert_eq!(w.up.pop(), Some(Event::Need { run: Token::new(2), need: Need::Read(Item::ApiToken) }));
 }
-#[test]
-fn a_check_run_waiting_on_the_owner_at_its_deadline_stops_down_naming_its_token() {
-    let mut w = World::new();
-    w.plan(1, check());
-    read(&mut w, Item::ApiToken);
-    assert_eq!(w.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
-    w.fire(120_000);
-    assert_eq!(w.up.pop(), Some(token_stop(Why::Down)));
-    assert_eq!(w.host.next_deadline(), None);
-}
 fn silent_deadline(w: &mut World, expected: Event) {
     let owner = w.connect();
     let socket = Token::new(100);
@@ -471,19 +730,43 @@ fn silent_deadline(w: &mut World, expected: Event) {
     assert_eq!(w.host.next_deadline(), None);
 }
 #[test]
-fn a_check_whose_forge_never_answers_stops_down_naming_the_token_in_flight() {
-    let mut w = World::new();
-    w.plan(1, check());
-    read(&mut w, Item::ApiToken);
-    w.answer(1, Answer::Read(Some(fixtures::secret(b"api-token"))));
-    silent_deadline(&mut w, token_stop(Why::Down));
+fn unanswered_connections_stop_down_naming_the_active_step() {
+    skein_rows::check(
+        [
+            (
+                "a_check_whose_forge_never_answers_stops_down_naming_the_token_in_flight",
+                (check(), Box::from([(Item::ApiToken, fixtures::secret(b"api-token"))]), token_stop(Why::Down)),
+            ),
+            (
+                "a_take_over_run_whose_forge_never_answers_stops_down_at_its_step",
+                (take_over(fixtures::TAKEN), Box::<[_]>::from([]), stop(1, 1, Why::Down)),
+            ),
+        ],
+        |(plan, answers, expected)| {
+            let mut w = World::new();
+            w.plan(1, plan);
+            for (item, token) in answers {
+                read(&mut w, item);
+                w.answer(1, Answer::Read(Some(token)));
+            }
+            silent_deadline(&mut w, expected);
+        },
+    );
 }
 #[test]
-fn a_take_over_run_sends_the_handed_token_and_asks_the_owner_for_nothing() {
-    let mut w = World::new();
-    w.plan(1, take_over(&[b't'; 40]));
-    assert!(w.up.is_empty());
-    w.connect();
+fn valid_handed_tokens_connect_without_asking_the_owner() {
+    skein_rows::check(
+        [
+            ("a_take_over_run_sends_the_handed_token_and_asks_the_owner_for_nothing", &[b't'; 40][..]),
+            ("a_take_over_token_of_seven_bytes_connects", b"1234567".as_slice()),
+        ],
+        |token| {
+            let mut w = World::new();
+            w.plan(1, take_over(token));
+            assert!(w.up.is_empty());
+            w.connect();
+        },
+    );
 }
 #[test]
 fn a_take_over_token_that_is_empty_or_breaks_its_item_stops_missing_at_once() {
@@ -500,19 +783,6 @@ fn a_take_over_token_that_is_empty_or_breaks_its_item_stops_missing_at_once() {
     }
 }
 #[test]
-fn a_take_over_token_of_seven_bytes_connects() {
-    let mut w = World::new();
-    w.plan(1, take_over(b"1234567"));
-    assert!(w.up.is_empty());
-    w.connect();
-}
-#[test]
-fn a_take_over_run_whose_forge_never_answers_stops_down_at_its_step() {
-    let mut w = World::new();
-    w.plan(1, take_over(fixtures::TAKEN));
-    silent_deadline(&mut w, stop(1, 1, Why::Down));
-}
-#[test]
 #[expect(clippy::disallowed_macros, reason = "the redaction test inspects request and host Debug rendering")]
 fn no_taken_token_is_in_a_requests_or_a_hosts_debug() {
     let mut w = World::new();
@@ -526,24 +796,6 @@ fn no_taken_token_is_in_a_requests_or_a_hosts_debug() {
             }
         }
     }
-}
-#[test]
-fn an_adopt_run_asks_for_the_admin_token_and_a_missing_one_stops_naming_the_admin() {
-    let mut w = World::new();
-    w.plan(1, adopt());
-    read(&mut w, Item::AdminToken);
-    w.answer(1, Answer::Read(None));
-    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Missing)));
-    assert_eq!(w.host.next_deadline(), None);
-}
-#[test]
-fn an_adopt_run_waiting_on_the_owner_at_its_deadline_stops_down_at_its_step() {
-    let mut w = World::new();
-    w.plan(1, adopt());
-    read(&mut w, Item::AdminToken);
-    assert_eq!(w.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(120))));
-    w.fire(120_000);
-    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
 }
 fn plans() -> [Plan; 5] {
     [
@@ -650,28 +902,11 @@ fn paired() -> World {
     w
 }
 #[test]
-fn a_forge_whose_page_could_pass_the_listing_bound_is_unusable() {
-    let l = limits();
-    let mut s = settings(&[1]);
-    forgejo_mut(&mut s).limits.reachable = l.inner + 1;
-    assert_eq!(Host::new(&l, s, crypto()).err(), Some(Unusable::Reachable { forge: 1, reachable: 33, inner: 32 }));
-}
-#[test]
 fn a_page_bound_equal_to_the_listing_bound_is_usable() {
     let l = limits();
     let mut s = settings(&[1]);
     forgejo_mut(&mut s).limits.reachable = l.inner;
     Host::new(&l, s, crypto()).expect("a picker page at the listing bound is usable");
-}
-#[test]
-fn a_zero_page_bound_is_refused_by_the_given_first() {
-    use crate::given::{Place, Refused};
-    let mut s = settings(&[1]);
-    forgejo_mut(&mut s).limits.reachable = 0;
-    assert_eq!(
-        Host::new(&limits(), s, crypto()).err(),
-        Some(Unusable::Given { forge: 1, refused: Refused { place: Place::ReachableLimit, other: None } })
-    );
 }
 #[test]
 fn a_reachable_run_beside_a_writing_run_of_its_forge_is_live_with_it() {
@@ -703,12 +938,61 @@ fn a_second_reachable_run_for_a_forge_stops_busy_naming_the_admin() {
     assert!(w.up.is_empty());
 }
 #[test]
-fn a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy() {
-    for plan in plans() {
-        let mut w = paired();
-        w.plan(3, plan);
-        assert_eq!(w.up.pop(), Some(stop(3, 1, Why::Busy)));
-    }
+fn existing_writers_make_another_writing_plan_stop_busy() {
+    skein_rows::check(
+        [
+            (
+                "a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy: reconcile",
+                (
+                    Box::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)]),
+                    Plan::Reconcile { forge: 1, adopted: Box::new([]) },
+                ),
+            ),
+            (
+                "a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy: check",
+                (Box::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)]), check()),
+            ),
+            (
+                "a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy: take over",
+                (
+                    Box::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)]),
+                    take_over(fixtures::TAKEN),
+                ),
+            ),
+            (
+                "a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy: adopt",
+                (Box::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)]), adopt()),
+            ),
+            (
+                "a_second_writing_run_beside_a_reachable_and_a_writing_one_stops_busy: create",
+                (
+                    Box::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)]),
+                    Plan::Create {
+                        forge: 1,
+                        org: b"first".as_slice().into(),
+                        repository: b"starter".as_slice().into(),
+                        files: Box::new([]),
+                    },
+                ),
+            ),
+            (
+                "copy_takes_the_forgejo_writing_slot",
+                (Box::<[_]>::from([Plan::Reconcile { forge: 1, adopted: Box::new([]) }]), copy()),
+            ),
+        ],
+        |(incumbents, candidate)| {
+            let mut w = World::new();
+            let mut run = 1;
+            for plan in incumbents {
+                w.plan(run, plan);
+                w.up.clear();
+                run += 1;
+            }
+            w.plan(run, candidate);
+            assert_eq!(w.up.pop(), Some(stop(run, 1, Why::Busy)));
+            assert!(w.up.is_empty());
+        },
+    );
 }
 #[test]
 fn a_reachable_run_for_another_forge_is_live_beside_a_reachable_run() {
@@ -722,31 +1006,6 @@ fn a_reachable_run_for_another_forge_is_live_beside_a_reachable_run() {
         w.connect();
     }
     assert!(w.up.is_empty());
-}
-#[test]
-fn runs_counts_reachable_and_writing_runs_together() {
-    let mut l = limits();
-    l.forges = 3;
-    let mut w = World::with(l, settings(&[1, 2, 3]));
-    w.read_admin();
-    w.plan(2, reachable(2));
-    w.up.pop();
-    for plan in [reachable(3), Plan::Reconcile { forge: 3, adopted: Box::new([]) }] {
-        w.plan(3, plan);
-        assert_eq!(w.up.pop(), Some(stop(3, 3, Why::Busy)));
-    }
-    for (first, second) in [
-        (Plan::Reconcile { forge: 1, adopted: Box::new([]) }, reachable(1)),
-        (reachable(1), Plan::Reconcile { forge: 1, adopted: Box::new([]) }),
-    ] {
-        let mut l = limits();
-        l.runs = 1;
-        let mut w = World::with(l, settings(&[1]));
-        w.plan(1, first);
-        w.up.pop();
-        w.plan(2, second);
-        assert_eq!(w.up.pop(), Some(stop(2, 1, Why::Busy)));
-    }
 }
 #[test]
 fn a_reachable_run_asks_the_owner_for_the_admin_token_and_nothing_else() {
@@ -989,44 +1248,6 @@ fn the_host_admits_a_github_forge_beside_a_forgejo_forge() {
     assert!(github.forgejo().is_none());
     assert_eq!(github.github(), Some(&super::github_fixtures::given()));
     Host::new(&limits(), settings, crypto()).expect("both kinds admitted");
-}
-#[test]
-fn a_github_given_that_is_refused_is_named() {
-    use crate::github::given::{Place, Refused};
-    let mut settings = github_settings();
-    github_mut(&mut settings).limits.reachable = 0;
-    assert_eq!(
-        Host::new(&limits(), settings, crypto()).err(),
-        Some(Unusable::GitHubGiven { forge: 4, refused: Refused { place: Place::Reachable, other: None } })
-    );
-}
-#[test]
-fn a_github_forge_off_loopback_is_refused_as_a_forgejo_is() {
-    let mut settings = github_settings();
-    settings.forges.get_mut(1).expect("second forge").address = skein_io::Addr::Ip(([192, 0, 2, 1], 3001).into());
-    assert_eq!(Host::new(&limits(), settings, crypto()).err(), Some(Unusable::Address { forge: 4 }));
-}
-#[test]
-fn a_forge_number_used_by_both_kinds_is_a_duplicate() {
-    for github_first in [false, true] {
-        let mut settings = github_settings();
-        github_mut(&mut settings).forge = 1;
-        if github_first {
-            let mut forges = List::with_capacity(2);
-            let mut github = github_forge();
-            github.kind = Kind::GitHub(crate::github::given::Given { forge: 1, ..super::github_fixtures::given() });
-            forges.push(github).expect("first forge");
-            forges.push(forge(1)).expect("second forge");
-            settings.forges = forges;
-        }
-        assert_eq!(Host::new(&limits(), settings, crypto()).err(), Some(Unusable::Duplicate { forge: 1 }));
-    }
-}
-#[test]
-fn forges_counts_both_kinds() {
-    let mut limits = limits();
-    limits.forges = 1;
-    assert_eq!(Host::new(&limits, github_settings(), crypto()).err(), Some(Unusable::Forges { forges: 1 }));
 }
 fn github_stop(run: u64, name: &[u8], why: Why) -> Event {
     Event::Stop { run: Token::new(run), failure: Failure { forge: 4, step: Stage::App, subject: name.into(), why } }
@@ -1332,23 +1553,6 @@ fn tls_handshake_failure_answers_down_and_closes_for_both_dialects() {
 }
 
 #[test]
-fn the_host_refuses_invalid_settings() {
-    let l = limits();
-    assert_eq!(Host::new(&l, settings(&[1, 1]), crypto()).err(), Some(Unusable::Duplicate { forge: 1 }));
-    let mut invalid = settings(&[1]);
-    invalid.user_agent = Box::new([]);
-    assert_eq!(Host::new(&l, invalid, crypto()).err(), Some(Unusable::Request { forge: 1 }));
-    let mut invalid = github_settings();
-    github_mut(&mut invalid).limits.reachable = 0;
-    assert_eq!(
-        Host::new(&l, invalid, crypto()).err(),
-        Some(Unusable::GitHubGiven {
-            forge: 4,
-            refused: crate::github::given::Refused { place: crate::github::given::Place::Reachable, other: None },
-        })
-    );
-}
-#[test]
 fn an_ended_runs_settling_connection_keeps_its_slot_until_closed() {
     use skein_lib::stream::{Down, Up};
     let mut l = limits();
@@ -1435,17 +1639,6 @@ fn close_after_abort_changes_nothing() {
     assert_eq!(w.up.pop(), Some(Event::Closed));
     assert!(w.up.is_empty());
 }
-#[test]
-fn abort_when_idle_is_closed_at_once() {
-    let mut w = World::new();
-    w.down(Request::Abort);
-    assert_eq!(w.up.pop(), Some(Event::Closed));
-    w.down(Request::Close);
-    w.down(Request::Abort);
-    assert!(w.up.is_empty());
-    assert!(w.io.is_empty());
-    assert_eq!(w.host.next_deadline(), None);
-}
 
 #[path = "../host/runtime_tests.rs"]
 mod runtime_tests;
@@ -1499,15 +1692,6 @@ fn copy_on_forgejo_reads_its_admin_token() {
     assert_eq!(forgejo.up.pop(), Some(owner_read(1)));
     assert!(forgejo.up.is_empty());
     assert!(forgejo.io.is_empty());
-}
-#[test]
-fn copy_takes_the_forgejo_writing_slot() {
-    let mut busy = World::new();
-    busy.run(1, 1);
-    busy.up.clear();
-    busy.plan(2, copy());
-    assert_eq!(busy.up.pop(), Some(stop(2, 1, Why::Busy)));
-    assert!(busy.up.is_empty());
 }
 
 #[test]

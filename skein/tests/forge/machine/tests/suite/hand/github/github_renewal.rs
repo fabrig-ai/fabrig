@@ -115,12 +115,47 @@ fn renewal_keeps_old_full_while_minting() {
     usable(&h, FULL);
     public_ready(&h);
 }
+type MintReplies = std::vec::Vec<(u64, Box<[u8]>)>;
+
+struct BackoffRow {
+    responses: MintReplies,
+    due: u64,
+    credential: &'static [u8],
+    deadline: Time,
+}
 #[test]
-fn renewal_keeps_old_full_during_backoff() {
-    let mut h = renewing();
-    h.answer(FORGE, &fixtures::status(503));
-    usable(&h, FULL);
-    public_ready(&h);
+fn renewal_backoff_keeps_the_current_full_credential_usable() {
+    skein_rows::check(
+        [
+            (
+                "renewal_keeps_old_full_during_backoff",
+                BackoffRow {
+                    responses: vec![],
+                    due: FULL_DUE,
+                    credential: FULL,
+                    deadline: Time::from_nanos(3_541_000_000_000),
+                },
+            ),
+            (
+                "contents_backoff_leaves_full_usable",
+                BackoffRow {
+                    responses: vec![(FULL_DUE, mint(NEW_FULL, LATER))],
+                    due: CONTENTS_DUE,
+                    credential: NEW_FULL,
+                    deadline: Time::from_nanos(4_141_000_000_000),
+                },
+            ),
+        ],
+        |row| {
+            let responses: std::vec::Vec<_> =
+                row.responses.iter().map(|(at, response)| (*at, response.as_ref())).collect();
+            let mut h = renewal_after(&responses, row.due);
+            h.answer(FORGE, &fixtures::status(503));
+            usable(&h, row.credential);
+            assert_eq!(h.component.test_github().deadline(), Some(row.deadline));
+            public_ready(&h);
+        },
+    );
 }
 #[test]
 fn expired_full_stays_eligible_without_a_credential() {
@@ -380,13 +415,16 @@ fn refusal_refresh(status: u16, body: &[u8]) {
     public_ready(&h);
 }
 #[test]
-fn renewal_403_waits_then_rereads_suspension() {
-    refusal_refresh(403, SUSPENDED);
+fn renewal_refusals_wait_before_refreshing_lost_installation_eligibility() {
+    skein_rows::check(
+        [
+            ("renewal_403_waits_then_rereads_suspension", (403, SUSPENDED)),
+            ("renewal_404_waits_then_rereads_deletion", (404, b"[]")),
+        ],
+        |(v0, v1)| refusal_refresh(v0, v1),
+    );
 }
-#[test]
-fn renewal_404_waits_then_rereads_deletion() {
-    refusal_refresh(404, b"[]");
-}
+
 #[test]
 fn another_current_row_survives_transient_renewal_failure() {
     let mut h = ready();
@@ -406,15 +444,28 @@ fn another_current_row_survives_transient_renewal_failure() {
     public_ready(&h);
 }
 #[test]
-fn loss_discards_a_written_renewal_result() {
-    let mut h = renewing();
-    accepted(&mut h, &[]);
-    h.answer(FORGE, &mint(NEW_FULL, LATER));
-    h.run(Duration::ZERO);
-    let row = h.component.test_github().rows.get(&1).expect("Gone");
-    assert_eq!(row.state, Tokens::Gone);
-    assert!(row.api.is_none());
-    assert_eq!(tokens(&h).len(), 1);
+fn installation_loss_discards_results_of_already_written_renewals() {
+    skein_rows::check(
+        [
+            ("loss_discards_a_written_renewal_result", (vec![], FULL_DUE, NEW_FULL)),
+            (
+                "loss_discards_a_written_contents_renewal",
+                (vec![(FULL_DUE, mint(NEW_FULL, LATER))], CONTENTS_DUE, NEW_CONTENTS),
+            ),
+        ],
+        |(responses, due, token): (MintReplies, u64, &[u8])| {
+            let responses: std::vec::Vec<_> = responses.iter().map(|(at, response)| (*at, response.as_ref())).collect();
+            let mut h = renewal_after(&responses, due);
+            accepted(&mut h, &[]);
+            h.answer(FORGE, &mint(token, LATER));
+            h.run(Duration::ZERO);
+            let row = h.component.test_github().rows.get(&1).expect("Gone");
+            assert_eq!(row.state, Tokens::Gone);
+            assert!(row.api.is_none());
+            assert_eq!(tokens(&h).len(), 1);
+            assert!(h.component.test_github().held.is_none());
+        },
+    );
 }
 #[derive(Clone, Copy)]
 enum Stage {
@@ -467,29 +518,29 @@ fn replace(value: Stage) {
     assert!(h.component.test_github().held.is_none());
 }
 #[test]
-fn close_while_renewing_discards_work() {
-    close(Stage::Minting);
+fn closing_renewal_phases_discards_tokens_and_pending_work() {
+    skein_rows::check(
+        [
+            ("close_while_renewing_discards_work", Stage::Minting),
+            ("close_during_renewal_backoff_discards_work", Stage::Waiting),
+            ("close_drops_held_renewed_contents", Stage::Held),
+        ],
+        close,
+    );
 }
+
 #[test]
-fn close_during_renewal_backoff_discards_work() {
-    close(Stage::Waiting);
+fn replacing_renewal_phases_discards_tokens_and_pending_work() {
+    skein_rows::check(
+        [
+            ("replacement_while_renewing_discards_work", Stage::Minting),
+            ("replacement_during_renewal_backoff_discards_work", Stage::Waiting),
+            ("replacement_drops_held_renewed_contents", Stage::Held),
+        ],
+        replace,
+    );
 }
-#[test]
-fn close_drops_held_renewed_contents() {
-    close(Stage::Held);
-}
-#[test]
-fn replacement_while_renewing_discards_work() {
-    replace(Stage::Minting);
-}
-#[test]
-fn replacement_during_renewal_backoff_discards_work() {
-    replace(Stage::Waiting);
-}
-#[test]
-fn replacement_drops_held_renewed_contents() {
-    replace(Stage::Held);
-}
+
 #[test]
 fn renewed_contents_follows_changes_once() {
     let mut h = stage(Stage::Held);
@@ -545,23 +596,6 @@ fn renewal_debug_redacts_old_new_and_held_tokens() {
 }
 
 #[test]
-fn contents_backoff_leaves_full_usable() {
-    let mut h = contents_renewing();
-    h.answer(FORGE, &fixtures::status(503));
-    usable(&h, NEW_FULL);
-    assert_eq!(h.component.test_github().deadline(), Some(Time::from_nanos(4_141_000_000_000)));
-    public_ready(&h);
-}
-#[test]
-fn loss_discards_a_written_contents_renewal() {
-    let mut h = contents_renewing();
-    accepted(&mut h, &[]);
-    renewed_contents(&mut h);
-    assert_eq!(tokens(&h).len(), 1);
-    assert!(h.component.test_github().held.is_none());
-    assert!(h.component.test_github().rows.get(&1).expect("Gone row").api.is_none());
-}
-#[test]
 fn renewal_send_arms_a_fresh_request_deadline() {
     let mut h = renewing();
     h.run(Duration::from_secs(9));
@@ -580,4 +614,18 @@ fn waiting_for_a_socket_consumes_the_due_alarm() {
     assert_eq!(h.component.next_deadline(), Some(Time::from_nanos(3_550_000_000_000)));
     assert_eq!(h.connections_opened(), 2);
     assert_eq!(requests(&h), INITIAL_REQUESTS);
+}
+
+fn renewal_after(responses: &[(u64, &[u8])], due: u64) -> Harness {
+    let mut h = ready();
+    for &(at, response) in responses {
+        advance(&mut h, at);
+        h.connected(FORGE);
+        h.answer(FORGE, response);
+        h.run(Duration::ZERO);
+        h.run(h.env.limits.idle);
+    }
+    advance(&mut h, due);
+    h.connected(FORGE);
+    h
 }
