@@ -131,3 +131,17 @@ fill a run of cells, say) may be added as `pub(crate)`, never public.
 
 As the implementer's text says, and: one pass or two, what a too-narrow
 framed region draws, and the goldens' time.
+
+## Answers
+
+2026-11-07. *screen-surface has not pushed `skein-ui-screen`: wait for it, or
+build against the contracts alone?* Wait. This task `needs` screen-surface,
+whose own spec was amended today (`Frame::new` never refuses) and which
+reruns; the crate, its `Cargo.toml`, its lint profile and the surface types
+are its files, not this task's. Start by merging
+`origin/tui-connected/screen-surface` and checking that
+`skein/crates/skein-ui-screen/src/lib.rs` is there with `Frame`, `Size` and
+`width`; build the renderer on them as they stand, against `Frame::new(most)
+-> Frame` (contracts.md, section 2). If the crate is still missing, stop and
+report it again, writing nothing: never create the crate or a stand-in for
+the surface types here.
