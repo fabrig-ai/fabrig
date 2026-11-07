@@ -87,14 +87,20 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
         },
     )
     .map_err(|_| problem())?;
+    let (model, effort) = match &value.llm {
+        Some(llm) => {
+            (bytes::copy_of(llm.model.bytes()), llm.effort.as_ref().map(|effort| bytes::copy_of(effort.bytes())))
+        }
+        None => (bytes::copy_of(&[]), None),
+    };
     let turn = t::Turn::new(
         limits,
         t::TurnParts {
             kind: t::TurnKind::Ordinary,
             opening: None,
             endpoint: Box::new([]),
-            model: Box::new([]),
-            effort: None,
+            model,
+            effort,
             dialect: 3,
             place: 0,
             usage,

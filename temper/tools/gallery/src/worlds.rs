@@ -1481,6 +1481,7 @@ fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: b
             used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
             spent: 0,
             read_through: read,
+            llm: None,
             cut,
         }),
     )
