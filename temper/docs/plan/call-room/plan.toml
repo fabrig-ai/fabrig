@@ -1,0 +1,5 @@
+draft = "call-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/call-room/inputs/request.md", "temper/docs/design/draft/goal-as-designer.md", "temper/docs/design/draft/goal-as-designer.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
