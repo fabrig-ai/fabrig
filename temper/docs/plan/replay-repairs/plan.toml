@@ -1,0 +1,5 @@
+draft = "replay-repairs"
+repo = "fabrig"
+sources = ["temper/docs/plan/replay-repairs/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
