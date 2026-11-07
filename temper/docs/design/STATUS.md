@@ -12,7 +12,15 @@ range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
 landing stories remain the after-landing check (`domain/forge.md`, 5.3
-and 20; `domain/agent.md`, sections 8 and 10). The first
+and 20; `domain/agent.md`, sections 8 and 10). Goal's declaration directs
+a plain repository change to `change`; refused branch reads name their
+next reads. The owned-forge referee rejects a non-procedure delegate and
+names the chat's successful and failed committed calls. Focused tables
+hold those words; the real model's choice remains unobserved until after
+landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
+and 11). The standard brief follows the declarations at 354,988 bytes;
+the larger requested brief remains undecided (`protocol/configuration.md`,
+11 and 13.4). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the

@@ -2823,6 +2823,15 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **The plain-change live outcome** (2.7): run the existing owned-forge
+  landing story after landing to observe the real chat's choice with
+  `goal`'s declaration (`agent.md`, 4.3.2). Keep the requirement for the
+  chat's own successful `change`; a goal making a change does not satisfy
+  this story. The referee's executor and committed-call tables establish
+  its diagnostics, not a model's choice. If the live story still fails,
+  diagnose the named delegate and committed calls at that red, rather
+  than accepting the goal path.
+
 - **The box's approval story on GitHub** (6.4): extend the configuring
   and change-wait stories to a manifest-made personal App on the fake
   GitHub. An owned-Forgejo story does not prove that composition.

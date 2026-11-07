@@ -50,10 +50,12 @@ checkout workspaces and git operations. All three supplied box documents
 agree. Agent-process resident memory is deferred in section 11; the
 start's fit checks do not establish laptop memory use.
 
-Sections 11 and 13.4's standard brief is 354,988 bytes, derived from
-charter 3's 356,461-byte room less 1,472 bytes of framing and a one-byte
-margin. The stock's fit assertions and `temper-service/src/limits.rs` agree; the
-larger brief requested in section 11 remains undecided.
+Section 13.4 has no known implementation gap in deriving the standard
+brief from charter 3's room with the tool declarations of `../domain/agent.md`,
+4.3 and 4.3.2. The brief is 354,988 bytes: 356,461 bytes of room less
+1,472 bytes of framing and a one-byte margin. The stock's fit assertions
+and `temper-service/src/limits.rs` agree. This derivation does not settle
+the larger brief requested in section 11, which remains undecided.
 
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
