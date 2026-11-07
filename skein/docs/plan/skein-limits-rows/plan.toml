@@ -1,0 +1,3 @@
+draft = "skein-limits-rows"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-limits-rows/inputs/request.md", "skein/tests/forge/machine/src/hand.rs", "skein/crates/skein-tls/src/rs256.rs", "AGENTS.md", "DESIGN.md"]
