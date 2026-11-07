@@ -196,3 +196,41 @@ fn firing_an_unlinked_client_with_the_linked_pair_is_a_fault() {
     let mut c = crate::Client::unlinked(&fixtures::limits(), 7).unwrap();
     c.fire(Time::ZERO, Wall::EPOCH, &mut Queue::uncapped());
 }
+
+#[test]
+fn an_unlinked_approval_is_carried_by_the_host() {
+    let code = super::approval::code();
+    for (event, act, answer) in [
+        (Event::AskApproval, ApprovalAct::Ask, Approval::NotAsked(NotAsked::Refused)),
+        (
+            Event::ReadApproval { code },
+            ApprovalAct::Read { code },
+            Approval::Read { code, state: ApprovalState::Unknown },
+        ),
+        (
+            Event::DecideApproval { code, approve: true },
+            ApprovalAct::Decide { code, approve: true },
+            Approval::Decided { code, decided: Decided::Approved },
+        ),
+    ] {
+        let mut c = new();
+        c.step(event);
+        assert_eq!(c.requests(), &[UnlinkedRequest::ApprovalAct(act)]);
+        let expected = match &answer {
+            Approval::NotAsked(why) => Approval::NotAsked(*why),
+            Approval::Read { code, state } => Approval::Read { code: *code, state: *state },
+            Approval::Decided { code, decided } => Approval::Decided { code: *code, decided: *decided },
+            Approval::Asked { secret, code, expires } => {
+                Approval::Asked { secret: secret.clone(), code: *code, expires: *expires }
+            }
+        };
+        c.step(Event::ApprovalAnswer { answer });
+        assert_eq!(c.requests(), &[UnlinkedRequest::Approval(expected)]);
+    }
+}
+#[test]
+#[should_panic(expected = "require an unlinked client")]
+fn an_approval_answer_to_a_linked_client_is_a_fault() {
+    let mut c = fixtures::Client::new();
+    c.step(Event::ApprovalAnswer { answer: Approval::NotAsked(NotAsked::Lost) });
+}

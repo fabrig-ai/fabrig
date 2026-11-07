@@ -584,6 +584,7 @@ impl Person {
                 }
                 other @ (Signing::LinkUsed
                 | Signing::LinkExpired
+                | Signing::Approval(_)
                 | Signing::LinkUnknown
                 | Signing::Refused
                 | Signing::Lost

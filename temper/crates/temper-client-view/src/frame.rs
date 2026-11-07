@@ -200,7 +200,7 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
             Some(NotSignedIn::LinkExpired) => words.text(builder, Word::SignInLinkExpired, &[]),
             Some(NotSignedIn::LinkUnknown) => words.text(builder, Word::SignInLinkUnknown, &[]),
             Some(NotSignedIn::NotReady) => words.text(builder, Word::SignInNotReady, &[]),
-            None => words.text(builder, Word::SignedOutMain, &[]),
+            Some(NotSignedIn::Approval(_)) | None => words.text(builder, Word::SignedOutMain, &[]),
         }
     } else {
         words.text(builder, Word::OutOfDateMain, &[]);

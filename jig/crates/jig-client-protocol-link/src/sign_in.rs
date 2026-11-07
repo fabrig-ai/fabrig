@@ -11,6 +11,7 @@ impl Link {
         self.credential.as_ref()
     }
     pub(super) fn sign_in(&mut self, with: With, out: &mut Queue<Request>) {
+        self.cancel_approval_take();
         match with {
             With::Held(credential) => {
                 self.end_sign_in(out);
@@ -27,6 +28,21 @@ impl Link {
                     return;
                 }
                 self.signing_exchange(ExchangeKind::SignIn, Message::SignInService, Some(credential), None, out);
+            }
+            With::Approval { secret } => {
+                let Ok(record) = w::ApprovalSignIn::new(self.limits.wire(), w::ApprovalSignInParts { secret }) else {
+                    out.push(Request::Signing { signing: Signing::Approval(crate::Taking::Unknown) });
+                    return;
+                };
+                let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
+                record.encode(&mut writer).expect("measured approval take");
+                self.signing_exchange(
+                    ExchangeKind::SignInApproval,
+                    Message::SignInApproval(writer.finish()),
+                    None,
+                    None,
+                    out,
+                );
             }
             With::Link { secret, held } => {
                 let Ok(record) = w::LinkSignIn::new(self.limits.wire(), w::LinkSignInParts { secret }) else {
@@ -46,6 +62,7 @@ impl Link {
         }
     }
     pub(super) fn sign_out(&mut self, out: &mut Queue<Request>) {
+        self.cancel_approval_take();
         self.signing_exchange(
             ExchangeKind::SignOut { generation: self.generation },
             Message::SignOut,
@@ -97,6 +114,8 @@ impl Link {
             ExchangeKind::SignOut { generation } if generation != self.generation => return,
             ExchangeKind::SignOut { .. }
             | ExchangeKind::SignIn
+            | ExchangeKind::SignInApproval
+            | ExchangeKind::Approval(_)
             | ExchangeKind::Authorize
             | ExchangeKind::Attempt { .. }
             | ExchangeKind::Read { .. }
@@ -141,7 +160,9 @@ impl Link {
                     Ok(w::SignOutAnswer::NotReady) if reader.remaining() == 0 => Signing::Again,
                     Ok(_) | Err(_) => Signing::Lost,
                 },
-                ExchangeKind::Authorize
+                ExchangeKind::SignInApproval => self.approval_signing_answer(&mut reader, out),
+                ExchangeKind::Approval(_)
+                | ExchangeKind::Authorize
                 | ExchangeKind::Attempt { .. }
                 | ExchangeKind::Read { .. }
                 | ExchangeKind::WatchOpen { .. }
@@ -149,5 +170,58 @@ impl Link {
             }
         };
         out.push(Request::Signing { signing });
+    }
+    fn cancel_approval_take(&mut self) {
+        let mut tokens = skein_lib::List::with_capacity(self.attempts.len());
+        for (token, attempt) in &self.attempts {
+            match attempt.kind {
+                ExchangeKind::SignInApproval => {
+                    tokens.push(*token).expect("bounded attempts");
+                }
+                ExchangeKind::Approval(_)
+                | ExchangeKind::Authorize
+                | ExchangeKind::SignIn
+                | ExchangeKind::SignOut { .. }
+                | ExchangeKind::Attempt { .. }
+                | ExchangeKind::Read { .. }
+                | ExchangeKind::WatchOpen { .. }
+                | ExchangeKind::WatchClose { .. } => {}
+            }
+        }
+        for token in &tokens {
+            self.attempts.remove(token);
+        }
+    }
+    fn approval_signing_answer(&mut self, reader: &mut Reader<'_>, out: &mut Queue<Request>) -> Signing {
+        let Ok(answer) = w::ApprovalSignInAnswer::decode(self.limits.wire(), reader) else { return Signing::Lost };
+        if !reader.is_empty() {
+            return Signing::Lost;
+        }
+        match answer {
+            w::ApprovalSignInAnswer::SignedIn(value) => {
+                if let Some(token) = value.token()
+                    && token.len() != 40
+                {
+                    return Signing::Lost;
+                }
+                let fields = value.into_parts();
+                self.end_sign_in(out);
+                self.credential = fields.token;
+                self.generation = self.generation.saturating_add(1);
+                Signing::SignedIn { party: fields.party }
+            }
+            w::ApprovalSignInAnswer::Waiting => Signing::Approval(crate::Taking::Waiting),
+            w::ApprovalSignInAnswer::Refused => Signing::Approval(crate::Taking::Refused),
+            w::ApprovalSignInAnswer::Expired => Signing::Approval(crate::Taking::Expired),
+            w::ApprovalSignInAnswer::Used => Signing::Approval(crate::Taking::Used),
+            w::ApprovalSignInAnswer::Unknown => Signing::Approval(crate::Taking::Unknown),
+            w::ApprovalSignInAnswer::NotReady => Signing::Again,
+            w::ApprovalSignInAnswer::Busy => Signing::Busy,
+            w::ApprovalSignInAnswer::Full(value) => Signing::Full {
+                sign_ins: value.sign_ins(),
+                earliest: skein_lib::Wall::from_nanos(value.earliest()),
+                link_until: skein_lib::Wall::from_nanos(value.until()),
+            },
+        }
     }
 }
