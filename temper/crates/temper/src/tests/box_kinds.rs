@@ -162,11 +162,12 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
     let scratch = skein_scratch::Scratch::new("forge-kind-entry");
     let directories = super::configuration::directories(scratch.path());
     let bytes = forge_machine();
+    let machine = crate::box_command::machine(&bytes, &directories).expect("machine");
     let groups = scratch.path().join("box/groups");
     fs::create_dir_all(&groups).expect("groups");
     for (kind, directory) in [("owned", "forge-17"), ("fake", "playground-17")] {
         fs::write(groups.join("17"), format!("{kind}\n")).expect("group kind");
-        let entry = crate::forge::entry(&directories, &bytes, 17).expect("composed entry");
+        let entry = crate::forge::entry(&directories, &machine, 17).expect("composed entry");
         assert_eq!(entry.forge, 17);
         assert_eq!(entry.directory.as_ref(), scratch.path().join(directory).as_os_str().as_encoded_bytes());
         match entry.mode {
@@ -183,7 +184,7 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
         }
     }
     fs::write(groups.join("17"), b"unknown\n").expect("invalid group");
-    assert!(crate::forge::entry(&directories, &bytes, 17).is_err());
+    assert!(crate::forge::entry(&directories, &machine, 17).is_err());
 }
 
 fn forge_machine() -> Vec<u8> {
@@ -195,11 +196,53 @@ fn forge_machine() -> Vec<u8> {
 }
 
 #[test]
+fn a_checked_machine_keeps_resolved_programs_for_both_group_kinds() {
+    use temper_forge_setup::setup::Mode;
+    let scratch = skein_scratch::Scratch::new("checked-machine-entry");
+    let directories = super::configuration::directories(scratch.path());
+    let mut document: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned JSON");
+    document["application"]["machine"]["owned"]["forgejo"] = "tools/forgejo".into();
+    document["application"]["machine"]["owned"]["runner"]["binary"] = "tools/runner".into();
+    document["application"]["machine"]["fake"] = serde_json::json!({
+        "listen":{"socket":"127.0.0.1:8369"}, "remote":"http://127.0.0.1:8369", "git":"demo/bin/git"
+    });
+    let bytes = serde_json::to_vec(&document).expect("document JSON");
+    let checked = crate::setup::check(&bytes, &directories.jig()).expect("checked deployment");
+    assert_eq!(
+        checked.named.machine,
+        crate::box_command::machine(&bytes, &directories).expect("separate machine read")
+    );
+    let groups = scratch.path().join("box/groups");
+    fs::create_dir_all(&groups).expect("groups");
+    for kind in ["owned", "fake"] {
+        fs::write(groups.join("17"), format!("{kind}\n")).expect("group kind");
+        let entry = crate::forge::entry(&directories, &checked.named.machine, 17).expect("checked entry");
+        match entry.mode {
+            Mode::Owned(owned) => {
+                assert_eq!(kind, "owned");
+                assert_eq!(owned.forgejo.as_ref(), scratch.path().join("tools/forgejo").as_os_str().as_encoded_bytes());
+                assert_eq!(
+                    owned.runner.expect("runner").binary.as_ref(),
+                    scratch.path().join("tools/runner").as_os_str().as_encoded_bytes()
+                );
+            }
+            Mode::Fake(fake) => {
+                assert_eq!(kind, "fake");
+                assert_eq!(fake.git.as_ref(), scratch.path().join("demo/bin/git").as_os_str().as_encoded_bytes());
+            }
+            Mode::Managed { .. } => panic!("a kind slot is owned or fake"),
+        }
+    }
+}
+
+#[test]
 fn a_forge_with_no_group_file_is_the_machines_owned() {
     use temper_forge_setup::setup::Mode;
     let scratch = skein_scratch::Scratch::new("forge-no-group-entry");
     let directories = super::configuration::directories(scratch.path());
-    let entry = crate::forge::entry(&directories, &forge_machine(), 17).expect("machine's owned entry");
+    let machine = crate::box_command::machine(&forge_machine(), &directories).expect("machine");
+    let entry = crate::forge::entry(&directories, &machine, 17).expect("machine's owned entry");
     assert_eq!(entry.forge, 17);
     assert_eq!(entry.directory.as_ref(), scratch.path().join("forge-17").as_os_str().as_encoded_bytes());
     let Mode::Owned(owned) = entry.mode else { panic!("the machine's owned part") };
@@ -257,9 +300,10 @@ fn unreadable_group_files_keep_their_refusals() {
     fs::create_dir_all(groups.join("17")).expect("group is a directory");
     std::os::unix::fs::symlink(groups.join("absent"), groups.join("18")).expect("dangling group link");
     let bytes = forge_machine();
+    let machine = crate::box_command::machine(&bytes, &directories).expect("machine");
     for (number, reason) in [(17, "not a file"), (18, "absent")] {
         assert_eq!(
-            crate::forge::entry(&directories, &bytes, number),
+            crate::forge::entry(&directories, &machine, number),
             Err(format!("{}: {reason}", groups.join(number.to_string()).display()))
         );
     }
