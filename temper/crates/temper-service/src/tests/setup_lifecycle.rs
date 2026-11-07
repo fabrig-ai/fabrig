@@ -131,7 +131,10 @@ fn keep_next(service: &mut crate::Service, item: Item) {
     advance(service.engine.as_mut().expect("engine"));
 }
 fn converted() -> crate::Service {
-    let (mut service, mut face) = writing();
+    converted_account(USER_APP)
+}
+fn converted_account(app: &[u8]) -> crate::Service {
+    let (mut service, mut face) = writing_account(app);
     for item in [Item::AppMade, Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
         keep_next(&mut service, item);
         assert_eq!(
@@ -190,33 +193,44 @@ fn run_events(service: &mut crate::Service) {
 }
 #[test]
 fn conversion_keeps_origin_then_installs_answers_the_browser_and_connects_from_records() {
-    let mut service = converted();
-    assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "no Connect before Origin Kept");
-    for event in &service.engine.as_ref().expect("engine").events {
-        if let root::Event::Setup { .. } = event {
-            panic!("browser still waiting");
+    for (app, expected) in [
+        (USER_APP, domain::PersonAnswer::Is(122)),
+        (br#"{"id":7,"slug":"app-fixture"}"#.as_slice(), domain::PersonAnswer::NotTheirs),
+        (
+            br#"{"id":7,"slug":"app-fixture","owner":{"id":122,"login":"owner-fixture","type":"Organization"}}"#
+                .as_slice(),
+            domain::PersonAnswer::NotTheirs,
+        ),
+    ] {
+        let mut service = converted_account(app);
+        assert_person(service.engine.as_ref().unwrap(), Some(expected));
+        assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "no Connect before Origin Kept");
+        for event in &service.engine.as_ref().expect("engine").events {
+            if let root::Event::Setup { .. } = event {
+                panic!("browser still waiting");
+            }
         }
+        let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
+        let write = service.engine.as_mut().expect("engine").setup.writes.get(&owner).unwrap();
+        assert_eq!(write.number, records::number(1, Item::Origin));
+        assert!(service.engine.as_ref().expect("engine").setup.answers.is_empty(), "Origin is the routing's write");
+        // The records, rather than the conversion outcome, determine access.
+        row(&mut service, Item::User, &19_u64.to_le_bytes());
+        keep_next(&mut service, Item::Origin);
+        assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "Install runs before Connect");
+        let root::SetupEnd::Done { outcome: root::SetupOutcome::Install { state, url }, .. } = terminal(&mut service)
+        else {
+            panic!("browser install link")
+        };
+        assert!(!state.is_empty());
+        assert!(url.starts_with(b"http://127.0.0.1:3000/apps/app-fixture/"));
+        let (forge, access) = service.engine.as_mut().expect("engine").forge.starts.get(0).unwrap();
+        assert_eq!((*forge, access.user), (1, 19));
+        let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App access") };
+        assert_eq!(*id, 7);
+        assert_eq!(key.expose().len(), skein_fake_forge_github::keys::KEYS[0].len());
+        assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
     }
-    let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
-    let write = service.engine.as_mut().expect("engine").setup.writes.get(&owner).unwrap();
-    assert_eq!(write.number, records::number(1, Item::Origin));
-    assert!(service.engine.as_ref().expect("engine").setup.answers.is_empty(), "Origin is the routing's write");
-    // The records, rather than the conversion outcome, determine access.
-    row(&mut service, Item::User, &19_u64.to_le_bytes());
-    keep_next(&mut service, Item::Origin);
-    assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "Install runs before Connect");
-    let root::SetupEnd::Done { outcome: root::SetupOutcome::Install { state, url }, .. } = terminal(&mut service)
-    else {
-        panic!("browser install link")
-    };
-    assert!(!state.is_empty());
-    assert!(url.starts_with(b"http://127.0.0.1:3000/apps/app-fixture/"));
-    let (forge, access) = service.engine.as_mut().expect("engine").forge.starts.get(0).unwrap();
-    assert_eq!((*forge, access.user), (1, 19));
-    let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App access") };
-    assert_eq!(*id, 7);
-    assert_eq!(key.expose().len(), skein_fake_forge_github::keys::KEYS[0].len());
-    assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
 }
 #[test]
 fn an_install_failure_answers_the_conversion_but_the_kept_app_still_connects() {
@@ -600,31 +614,43 @@ fn calls_are_not_connected_before_connect_then_wait_until_connected() {
 
 #[test]
 fn a_real_reconcile_prunes_accepted_after_kept_and_never_connects_or_writes_origin() {
-    let mut service = service(8, Duration::from_secs(3600));
-    app(&mut service);
-    accepted(&mut service, &[11]);
-    start(&mut service, 1, host::Plan::Reconcile { forge: 1, adopted: Box::new([]) });
-    let mut face = Face::new();
-    face.sent(&mut service);
-    face.reply(&mut service, br#"{"id":7,"slug":"app-fixture","permissions":{},"events":[]}"#);
-    face.sent(&mut service);
-    face.reply(&mut service, br#"{"url":"https://app-fixture.invalid/"}"#);
-    face.sent(&mut service);
-    face.reply(&mut service, b"[]");
-    assert_eq!(values(&service).as_ref(), [11]);
-    assert_eq!(service.engine.as_ref().expect("engine").setup.writes.len(), 1);
-    keep_next(&mut service, Item::Accepted);
-    assert!(let_done(terminal(&mut service)), "Lacking is a successful reconcile");
-    let Some(crate::Note::ForgeLacking { number, names }) = service.engine.as_mut().expect("engine").notes.pop() else {
-        panic!("Lacking names logged")
-    };
-    assert_eq!(number, 1);
-    assert!(contains(&names, b"permission contents=write;"));
-    assert!(contains(&names, b"event push;"));
-    assert!(values(&service).is_empty());
-    assert!(service.engine.as_ref().expect("engine").setup.writes.is_empty(), "reconcile writes no Origin");
-    assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "reconcile connects nothing");
-    assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
+    for (made, expected) in [
+        (Some(7_u64.to_le_bytes().as_slice()), domain::PersonAnswer::Is(122)),
+        (None, domain::PersonAnswer::NotTheirs),
+        (Some(8_u64.to_le_bytes().as_slice()), domain::PersonAnswer::NotTheirs),
+        (Some([0_u8; 8].as_slice()), domain::PersonAnswer::NotTheirs),
+    ] {
+        let mut service = service(8, Duration::from_secs(3600));
+        app(&mut service);
+        if let Some(made) = made {
+            row(&mut service, Item::AppMade, made);
+        }
+        accepted(&mut service, &[11]);
+        start(&mut service, 1, host::Plan::Reconcile { forge: 1, adopted: Box::new([]) });
+        let mut face = Face::new();
+        face.sent(&mut service);
+        face.reply(&mut service, br#"{"id":7,"slug":"app-fixture","owner":{"id":122,"login":"owner-fixture","type":"User"},"permissions":{},"events":[]}"#);
+        face.sent(&mut service);
+        face.reply(&mut service, br#"{"url":"https://app-fixture.invalid/"}"#);
+        face.sent(&mut service);
+        face.reply(&mut service, b"[]");
+        assert_eq!(values(&service).as_ref(), [11]);
+        assert_eq!(service.engine.as_ref().expect("engine").setup.writes.len(), 1);
+        keep_next(&mut service, Item::Accepted);
+        assert_person(service.engine.as_ref().unwrap(), Some(expected));
+        assert!(let_done(terminal(&mut service)), "Lacking is a successful reconcile");
+        let Some(crate::Note::ForgeLacking { number, names }) = service.engine.as_mut().expect("engine").notes.pop()
+        else {
+            panic!("Lacking names logged")
+        };
+        assert_eq!(number, 1);
+        assert!(contains(&names, b"permission contents=write;"));
+        assert!(contains(&names, b"event push;"));
+        assert!(values(&service).is_empty());
+        assert!(service.engine.as_ref().expect("engine").setup.writes.is_empty(), "reconcile writes no Origin");
+        assert!(service.engine.as_ref().expect("engine").forge.starts.is_empty(), "reconcile connects nothing");
+        assert!(service.engine.as_ref().expect("engine").forge.accepted.get(0).unwrap().1.is_empty());
+    }
 }
 fn connection_reply(service: &mut crate::Service, face: &mut Face, body: &[u8]) {
     let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
@@ -880,6 +906,7 @@ fn paste_ended(service: &mut crate::Service, connected: bool, pem: &[u8]) -> Opt
                     ended = ended.checked_add(1).unwrap();
                 }
                 domain::Event::ConnectAnswered { answer: domain::ConnectAnswer::Connecting, .. } => {}
+                domain::Event::PersonOf { forge: 1, answer: domain::PersonAnswer::NotTheirs } if connected => {}
                 _ => panic!("unexpected paste event"),
             }
         }
@@ -962,7 +989,7 @@ fn paste_connects(pem: Secret, bundle: Secret) {
     };
     assert_eq!(read.expose(), pem.expose());
     assert!(!contains(&face.wire.received, pem.expose()));
-    face.reply(&mut service, br#"{"id":7,"slug":"app-fixture","permissions":{},"events":[]}"#);
+    face.reply(&mut service, br#"{"id":7,"slug":"app-fixture","owner":{"id":122,"login":"owner-fixture","type":"User"},"permissions":{},"events":[]}"#);
     face.sent(&mut service);
     face.reply(&mut service, br#"{"id":9,"login":"app-fixture[bot]"}"#);
     face.sent(&mut service);
@@ -973,6 +1000,7 @@ fn paste_connects(pem: Secret, bundle: Secret) {
         face.turn(&mut service);
     }
     assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+    assert_person(service.engine.as_ref().unwrap(), Some(domain::PersonAnswer::NotTheirs));
     keep_next(&mut service, Item::Origin);
     assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "Connect waits for root-directed durable erase");
     assert_eq!(paste_ended(&mut service, true, pem.expose()), None);
