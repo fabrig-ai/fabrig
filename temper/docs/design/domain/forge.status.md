@@ -8,14 +8,9 @@ and user pair; reviews use the pull request's forge, and eligibility uses
 that same lookup. The step tables cover equal
 user numbers on different forges, unknown accounts and each forge's writer.
 
-- **Not yet:** 4: `forge_person` answers adoption's seeds alone, never a
-  forge's link.
 - **Not yet:** 4, 4.6: adoption seeds the link's user, and nothing keeps,
   replaces or clears a link from the root's sole owner, a `Reconcile`'s person
   or an App's account.
-- **Not yet:** 8.9: eligibility counts an account on any forge of the project,
-  not on the forge of each repository the rule covers; the refusal names no
-  forge, and the playground's fake forge has no words of its own.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
