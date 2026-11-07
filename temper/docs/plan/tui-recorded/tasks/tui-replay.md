@@ -53,3 +53,16 @@ Acceptance:
 ## Report
 
 The implementer's report, with: the tests and their times; each broken rule's failure; anything of the seam the replay found unfaithful.
+
+## Answers
+
+### 2026-11-07: Resume after approval-host pushes the required Opened report and approval duties (recommended), or provide another dependency ref containing them? (tui-recorded/tui-replay-1, foreman tui-recorded/tui-replay/foreman-1)
+
+Resume after approval-host pushes its contracted Opened report and approval duties.
+The spec declares `needs = ["tui-lines", "approval-host"]` and describes `host.rs` and `run.rs` as “`approval-host`, merged”.
+Ownership is explicit: “Not yours: `host.rs`, `run.rs`, `lib.rs`.”
+`temper/docs/plan/tui-recorded/notes/contracts.md`, section 2, assigns `Opened { opened: bool }`, the approval ask and the `open` duty to `approval-host`.
+`temper/docs/design/client/tui/journeys.md`, 4.1, requires replay to give the shipped host `Opened`.
+The checkout’s `host::Report` lacks `Opened`, confirming the prerequisite is incomplete.
+The next run integrates the completed approval-host dependency, finishes approval/browse validation and mutation checks, and runs the required final tests and clippy checks.
+Acceptance remains incomplete until those checks pass.
