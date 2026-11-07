@@ -482,6 +482,19 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 
 ## 9. Open questions
 
+- **The counting allocator's remaining cost** (5). One thread-local
+  access, its cells, layout construction and preconditions, allocation
+  numbers, size conversions and System allocation remain necessary.
+  Whether to add a `[profile.dev.package.skein-heap]` override for the
+  remaining unoptimized work is the user's decision under
+  testing-strategy.md, 8. The instruction counts and each cause's share
+  are in `skein/docs/development/world-costs.md`.
+- **Costs beyond the shared world helpers** (5, 6). Product work, a
+  world's own fixtures and process startup need separate cost work;
+  `skein/docs/development/world-costs.md` gives their measured shares.
+  Further JSON string work belongs with json.md, 8. Required scheduling,
+  trace observations and Unicode matching remain; the account identifies
+  no further removable helper gain of about 1% of a measured test.
 - **Heap handed between services in one thread.** A world checks each
   service under its scenario's ceiling by metering its own calls and
   harness operations on its containers (simulator.md, 5), which holds
