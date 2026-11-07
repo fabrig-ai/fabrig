@@ -2,7 +2,7 @@
 id = "stock-room"
 part = "stock-room"
 kind = "feature"
-needs = []
+needs = ["focused-cuts"]
 files = [
   "jig/tests/core/tests/suite/settings.rs",
   "jig/tests/core/tests/suite/fuzzy/settings.rs",

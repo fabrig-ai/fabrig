@@ -2,7 +2,7 @@
 id = "focused-cuts"
 part = "focused-cuts"
 kind = "feature"
-needs = []
+needs = ["observer-view"]
 files = [
   "jig/tests/core/tests/suite/deletion.rs",
   "jig/tests/core/tests/suite/faults.rs",

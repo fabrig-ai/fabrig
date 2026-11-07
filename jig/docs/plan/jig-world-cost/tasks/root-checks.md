@@ -2,7 +2,7 @@
 id = "root-checks"
 part = "root-checks"
 kind = "feature"
-needs = []
+needs = ["oracle-reads"]
 files = [
   "jig/testing/jig-channel-kit/src/referee.rs",
   "jig/testing/jig-channel-kit/src/world.rs",
