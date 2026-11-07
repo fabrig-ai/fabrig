@@ -1442,6 +1442,37 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
         }
         absent(&print, "Answer");
     }
+    for beginning in [false, true] {
+        let mut root = everyday(beginning, &[], false, true);
+        let row = super::needs::approval_row();
+        super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
+        let mut view = f::browser_page_view(&root);
+        let card = styled(view.tree(), crate::look::ASK);
+        let parts = children(subtree(view.tree(), card.id));
+        assert_eq!(
+            parts.iter().map(|node| node.styles.as_slice()[0]).collect::<Box<[_]>>().as_ref(),
+            [crate::look::ASK_META, crate::look::ASK_QUESTION, crate::look::ASK_CONTEXT, crate::look::ASK_CHOICES]
+        );
+        assert_eq!(parts[0].name.as_deref(), Some("A change · an approval · under 1 min".as_bytes()));
+        contains(&f::main_text(view.tree()), "Needs you · 1");
+        let id = f::find(view.tree(), Role::Link, "Review on Forgejo ↗".as_bytes()).unwrap();
+        assert_eq!(view.tree().external(id), Some(row.address.as_ref()));
+        assert_action(
+            &mut view,
+            Role::Button,
+            b"Open",
+            d::pages::Act::Go { address: Address::Task { task: row.task } },
+        );
+        assert_action(
+            &mut view,
+            Role::Button,
+            b"Later",
+            d::pages::Act::Needs(d::pages::needs::Act::Later { object: c::ObjectKey::Task(row.task) }),
+        );
+        let terminal = f::page_view(&root);
+        absent(&f::main_text(terminal.tree()), "an approval");
+        absent(&f::main_text(terminal.tree()), "Needs you · 1");
+    }
 }
 #[test]
 #[expect(
@@ -1507,6 +1538,19 @@ fn additional_needs_have_five_rows_and_browser_answer_link() {
             }
         }
     }
+    let mut root = everyday(false, &QUESTIONS[..1], false, true);
+    let row = super::needs::approval_row();
+    super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
+    let mut view = f::browser_page_view(&root);
+    contains(&f::main_text(view.tree()), "Needs you · 2");
+    contains(&f::main_text(view.tree()), "an approval");
+    assert_action(&mut view, Role::Link, b"Answer in a row", inbox_act());
+    assert_action(
+        &mut view,
+        Role::Link,
+        "Approve A change on Forgejo · an approval · under 1 min".as_bytes(),
+        d::pages::Act::Needs(d::pages::needs::Act::Open { object: c::ObjectKey::Task(row.task) }),
+    );
 }
 #[test]
 #[expect(

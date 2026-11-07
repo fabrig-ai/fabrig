@@ -460,7 +460,12 @@ fn assert_corner(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
 #[test]
 fn navigation_shows_the_inbox_count_only_when_nonzero() {
     const NEEDS: u32 = 3;
-    for (count, expected) in [(0, b"Inbox".as_slice()), (NEEDS, b"Inbox 3")] {
+    for (count, approval, expected) in [
+        (0, false, b"Inbox".as_slice()),
+        (NEEDS, false, b"Inbox 3"),
+        (0, true, b"Inbox 1"),
+        (u32::MAX, true, b"Inbox 4294967295"),
+    ] {
         let (mut root, watch) = fixtures::root_with_watch(None);
         let mut me = root.pages().me(root.client()).unwrap().clone();
         me.needs_total = count;
@@ -478,6 +483,9 @@ fn navigation_shows_the_inbox_count_only_when_nonzero() {
                 },
             },
         );
+        if approval {
+            super::needs::approvals(&mut root, &[super::needs::approval_row()], 0);
+        }
         let view = fixtures::page_view(&root);
         let id = fixtures::find(view.tree(), Role::Link, expected).expect("inbox link");
         let nodes = view.tree().nodes();
@@ -497,12 +505,15 @@ fn navigation_shows_the_inbox_count_only_when_nonzero() {
                 counts.push(node).expect("only one count node");
             }
         }
-        if count == 0 {
+        if count == 0 && !approval {
             assert!(counts.is_empty());
         } else {
             let [node] = counts.as_slice() else { panic!("one count node") };
             assert_eq!(node.role, Role::Text);
-            assert_eq!(node.text.get(0).unwrap().text.as_ref(), b"3");
+            assert_eq!(
+                node.text.get(0).unwrap().text.as_ref(),
+                skein_lib::Decimal::of(u64::from(count.saturating_add(u32::from(approval)))).as_bytes()
+            );
         }
     }
 }

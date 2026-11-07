@@ -716,6 +716,18 @@ fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
     kinds_read(values, None)
 }
 fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c::ReadResult>) -> d::Domain {
+    kinds_owned(values, whole, None)
+}
+pub(super) fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Domain {
+    let c::ReadValue::Proposal(proposal) = &page else { panic!("settings proposal") };
+    let key = proposal.key;
+    kinds_owned(&[(c::ObjectKey::Proposal(key), c::Read::Proposal { proposal: key }, page)], None, owned)
+}
+fn kinds_owned(
+    values: &[(c::ObjectKey, c::Read, c::ReadValue)],
+    whole: Option<c::ReadResult>,
+    owned: Option<bool>,
+) -> d::Domain {
     let (mut root, _, watch) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &limits());
     let mut entries = List::with_capacity(u32::try_from(values.len()).unwrap());
     for (i, (object, _, _)) in values.iter().enumerate() {
@@ -772,6 +784,38 @@ fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c:
                     &mut out,
                 );
             }
+        } else if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && let Some(owned_approval) = owned
+            && let Some(reading) =
+                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+            && let temper_client_protocol_wire::v1::Read::ProposalItems(_) = reading.read()
+        {
+            use temper_client_protocol_wire::{self as wire, v1 as w};
+            let answer = w::ProposalItemsAnswer::new(
+                &w::CEILINGS,
+                w::ProposalItemsAnswerParts { items: List::with_capacity(0), owned_approval },
+            )
+            .unwrap();
+            event(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Family {
+                                family: wire::FORGE,
+                                record: Some(wire::proposal_items_answer(&answer)),
+                            },
+                        },
+                    },
+                },
+                &mut out,
+            );
         }
     }
     root
@@ -1177,5 +1221,277 @@ fn a_known_empty_stays_through_a_refresh() {
     assert!(!page.root.pages().inbox().unwrap().delivered(page.root.client()));
     assert!(
         f::find(f::browser_page_view(&page.root).tree(), Role::Heading { level: 1 }, b"Nothing needs you.").is_some()
+    );
+}
+
+pub(super) fn approval_row() -> d::forge::approvals::Row {
+    d::forge::approvals::Row {
+        task: 81,
+        project: f::PROJECT,
+        goal: None,
+        forge: 3,
+        kind: d::forge::forges::Kind::Forgejo,
+        owner: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        pull: 24,
+        address: b"https://forge.example/work/hello/pulls/24/files".as_slice().into(),
+        title: b"A change".as_slice().into(),
+        since: Wall::EPOCH,
+        scope: f::PROJECT,
+        rule: 1,
+        role: 1,
+        required: 1,
+        counted: 0,
+        behind: 0,
+        whole: true,
+        yours: d::forge::approvals::Yours::Counts,
+    }
+}
+pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row], more: u32) {
+    f::root_event(
+        root,
+        Event::Forge(d::forge::Event::Approvals {
+            event: d::forge::approvals::Event::Rows { rows: rows.into(), more },
+        }),
+    );
+}
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the approval table holds the rule, eligibility, address and ordered card parts together"
+)]
+fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
+    use d::forge::{approvals::Yours, forges::Kind};
+    let rule = "This project's landing rule 1 asks for one approval by a maintainer.";
+    for (kind, scope, rule_number, role, required, counted, behind, whole, yours, address, expected) in [
+        (Kind::Forgejo, 1, 1, 1, 1, 0, 0, true, Yours::Counts, "https://forge.example/files", [rule].as_slice()),
+        (
+            Kind::GitHub,
+            0,
+            2,
+            0,
+            2,
+            1,
+            3,
+            true,
+            Yours::Counts,
+            "https://github.com/work/hello/pull/24/files",
+            &[
+                "The deployment's landing rule 2 asks for 2 approvals by owners; 1 so far.",
+                "3 more changes wait behind this one.",
+            ],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            false,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[
+                rule,
+                "1 more change waits behind this one.",
+                "There are too many reviews to read them all, so one may already count.",
+            ],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            true,
+            Yours::NoAccount,
+            "https://forge.example/files",
+            &[rule, "temper knows no Forgejo account of yours, so your review wouldn't count."],
+        ),
+        (
+            Kind::GitHub,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            true,
+            Yours::NoAccount,
+            "https://github.com/files",
+            &[rule, "temper knows no GitHub account of yours, so your review wouldn't count."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            true,
+            Yours::TooFew,
+            "https://forge.example/files",
+            &[
+                rule,
+                "Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change.",
+            ],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            true,
+            Yours::OtherRole,
+            "https://forge.example/files",
+            &[rule, "It waits for a review by a maintainer; yours wouldn't count."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            2,
+            1,
+            0,
+            0,
+            true,
+            Yours::Counts,
+            "",
+            &["This project's landing rule 1 asks for one approval by a member."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            3,
+            2,
+            0,
+            0,
+            true,
+            Yours::Counts,
+            "javascript:alert(1)",
+            &["This project's landing rule 1 asks for 2 approvals by observers; 0 so far."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            8,
+            1,
+            0,
+            0,
+            true,
+            Yours::OtherRole,
+            "https://forge.example/files",
+            &[
+                "This project's landing rule 1 asks for one approval by someone with role 8.",
+                "It waits for a review by someone with role 8; yours wouldn't count.",
+            ],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            8,
+            2,
+            1,
+            0,
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &["This project's landing rule 1 asks for 2 approvals by people with role 8; 1 so far."],
+        ),
+    ] {
+        let row = d::forge::approvals::Row {
+            kind,
+            scope,
+            rule: rule_number,
+            role,
+            required,
+            counted,
+            behind,
+            whole,
+            yours,
+            address: address.as_bytes().into(),
+            ..approval_row()
+        };
+        let mut root = kinds(&[]);
+        approvals(&mut root, core::slice::from_ref(&row), 0);
+        let mut view = f::browser_page_view(&root);
+        let (question, review) = match kind {
+            Kind::Forgejo => ("Approve A change on Forgejo", "Review on Forgejo ↗"),
+            Kind::GitHub => ("Approve A change on GitHub", "Review on GitHub ↗"),
+        };
+        let heading = f::find(view.tree(), Role::Heading { level: 1 }, question.as_bytes()).unwrap();
+        assert!(view.tree().find(heading).unwrap().styles.as_slice().contains(&look::FLOW_Q));
+        let context: Vec<_> = main(&view)
+            .iter()
+            .filter(|node| node.role == Role::Paragraph && node.styles.as_slice().contains(&look::ASK_CONTEXT))
+            .map(|node| node.name.as_deref().unwrap())
+            .collect();
+        assert_eq!(context, expected.iter().map(|line| line.as_bytes()).collect::<Vec<_>>());
+        let primary = f::find(view.tree(), Role::Link, review.as_bytes());
+        if yours == Yours::Counts && skein_ui::markdown::safe_url(address.as_bytes()) {
+            let node = view.tree().find(primary.expect("eligible safe review link")).unwrap();
+            assert!(node.styles.as_slice().contains(&look::RECOMMENDED));
+            assert_eq!(node.external.as_deref(), Some(address.as_bytes()));
+        } else {
+            assert!(primary.is_none(), "{yours:?}: no review that cannot count");
+        }
+        assert_eq!(
+            press(&mut view, b"Open"),
+            d::Action::Pages(pages::Act::Go { address: Address::Task { task: row.task } })
+        );
+        assert_eq!(
+            press(&mut view, b"Later"),
+            d::Action::Pages(pages::Act::Needs(needs::Act::Later { object: c::ObjectKey::Task(row.task) }))
+        );
+        assert_eq!(styled(&view, look::FLOW_HEAD).role, Role::Slot);
+        assert!(has(&view, b"1 of 1"));
+        assert!(has(&view, b"The last one"));
+    }
+    let mut root = fixture(QUESTION, false, 1, false, d::address::Filter::ALL);
+    let row = approval_row();
+    approvals(&mut root, core::slice::from_ref(&row), 1);
+    let mut view = f::browser_page_view(&root);
+    assert!(has(&view, b"1 of 2+"));
+    assert_eq!(
+        styled(&view, look::NEXT_UP).name.as_deref(),
+        Some("Next: A change · Approve A change on Forgejo".as_bytes())
+    );
+    act(&mut root, needs::Act::Later { object: object(1) });
+    f::build(&mut view, &root);
+    assert!(has(&view, b"Approve A change on Forgejo"));
+    act(&mut root, needs::Act::Later { object: c::ObjectKey::Task(row.task) });
+    assert_eq!(root.pages().needs().needs(root.pages().inbox().unwrap(), root.forge().approvals()).len(), 2);
+    let open = root.pages().needs().needs(root.pages().inbox().unwrap(), root.forge().approvals());
+    assert_eq!(open.first().unwrap().object(), object(1));
+    assert_eq!(open.last().unwrap().object(), c::ObjectKey::Task(row.task));
+    // A fresh question comes before the approval marked later, without changing its count.
+    choose(&mut root, 1);
+    f::build(&mut view, &root);
+    assert!(has(&view, b"an approval"));
+    assert!(has(&view, b"later"));
+    let terminal = f::page_view(&root);
+    assert!(!has(&terminal, b"an approval"));
+    let mut sign_in = crate::forge_sign_in::Forges::new();
+    sign_in.read("3 forgejo https://sign-in.example/root owned");
+    let mut view = f::view_of(f::browser_words());
+    view.forge_sign_in(sign_in);
+    f::build(&mut view, &root);
+    let id = f::find(view.tree(), Role::Link, "Review on Forgejo ↗".as_bytes()).unwrap();
+    assert_eq!(
+        view.tree().external(id),
+        Some(
+            b"https://sign-in.example/root/user/oauth2/temper?redirect_to=%2Fwork%2Fhello%2Fpulls%2F24%2Ffiles"
+                .as_slice()
+        )
     );
 }

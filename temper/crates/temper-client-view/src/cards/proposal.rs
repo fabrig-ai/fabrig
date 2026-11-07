@@ -751,6 +751,16 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
         }
     }
     b.close();
+    owned_approval(b, root, facts.key.number, words);
+}
+/// The boundary of an owned forge's approval (client/README.md, 5.13).
+pub(crate) fn owned_approval(b: &mut Builder, root: &temper_client_domain::Domain, number: u64, words: &Words) {
+    if root.forge().owned_approval(number) {
+        b.open(Role::Paragraph);
+        b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
+        words.text(b, Word::ProposalOwnedApproval, &[]);
+        b.close();
+    }
 }
 #[expect(clippy::manual_find, reason = "step code searches without closures")]
 fn model_review(items: &[c::ReviewItem], setting: c::Setting) -> Option<&c::ReviewItem> {

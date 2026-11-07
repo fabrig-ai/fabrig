@@ -204,6 +204,8 @@ models-added
 models-member
 models-off
 models-one-account
+needs-approval
+needs-approval-no-account
 needs-done
 needs-funds
 needs-held

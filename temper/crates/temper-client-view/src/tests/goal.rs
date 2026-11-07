@@ -320,7 +320,7 @@ fn draw(root: &Domain, words: &Words) -> (Tree, Bindings, Times) {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = Bindings::new(fixtures::tree_limits().bindings);
     let mut times = Times::new(NOW);
-    goal::main(&mut b, root, words, &mut bindings, 8, &mut times);
+    goal::main(&mut b, root, words, &mut bindings, 8, &mut times, &crate::forge_sign_in::Forges::new());
     (b.finish(), bindings, times)
 }
 fn styled(tree: &Tree, style: Style) -> usize {
@@ -1287,6 +1287,44 @@ fn one_band_per_open_need_in_the_inboxs_order() {
         );
         let tree = draw(&root, &fixtures::browser_words()).0;
         assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands(&tree)[0]), b"Second question?").is_some());
+    }
+    for yours in [
+        temper_client_domain::forge::approvals::Yours::Counts,
+        temper_client_domain::forge::approvals::Yours::NoAccount,
+    ] {
+        let mut root = bands_root(&[question_row(FIRST_MESSAGE, first)]);
+        let row =
+            temper_client_domain::forge::approvals::Row { goal: Some(TASK), yours, ..super::needs::approval_row() };
+        super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
+        let (tree, bindings, _) = draw(&root, &fixtures::browser_words());
+        let open = bands(&tree);
+        assert_eq!(open.len(), 2);
+        let approval = open[1];
+        assert_eq!(
+            styled_text_in_band(&tree, approval, look::GOAL_BAND_TAG).as_ref(),
+            "Needs you · an approval".as_bytes()
+        );
+        assert!(
+            skein_lib::bytes::find(&fixtures::node_text(&tree, approval), b"Approve A change on Forgejo").is_some()
+        );
+        if yours == temper_client_domain::forge::approvals::Yours::Counts {
+            assert_eq!(control_names(&tree, approval), row_words(&["Review on Forgejo ↗".as_bytes()]));
+            let mut address = None;
+            for node in band_nodes(&tree, approval) {
+                if node.role == Role::Link {
+                    address = node.external.as_deref();
+                    assert!(node.styles.as_slice().contains(&look::GOAL_PRIMARY));
+                }
+            }
+            assert_eq!(address, Some(row.address.as_ref()));
+        } else {
+            assert_eq!(control_names(&tree, approval), row_words(&[b"Open"]));
+            assert_eq!(
+                band_press(&tree, &bindings, b"Open"),
+                temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task: row.task } })
+            );
+        }
+        assert_eq!(bands(&draw(&root, &fixtures::words()).0).len(), 1);
     }
 }
 fn styled_text_in_band(tree: &Tree, at: usize, style: Style) -> Box<[u8]> {
