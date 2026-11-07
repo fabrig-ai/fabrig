@@ -829,6 +829,9 @@ impl Referee<Proc> for Judge {
             self.controls.signal(engine_index, ServiceSignal::Terminate);
         }
         if shutdown.peers {
+            // Check before waiting on all hosted children: an orphaned held
+            // program must fail for its missing interrupt, not a world timeout.
+            caller.check_program_stop();
             self.finish_peers(peer, children);
         }
     }
@@ -956,7 +959,22 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
         let Kind::Service(worker) = &worker.kind else { panic!("worker root") };
         obligations.read(worker, declared);
     }
+    let active_program = service.service.as_ref().and_then(temper_service::Service::worker_domain).is_some_and(|worker| {
+        worker.hosting().iter().any(|hosting| {
+            hosting.phase == jig_domain_link::Phase::Active
+                && declared.iter().any(|left| {
+                    left.task == hosting.run.raw() && left.may_be.contains(&crate::ending::Left::HostedActive)
+                })
+        })
+    });
     for (index, child) in children.iter().enumerate() {
+        // A declared active program is left to serve's stop, including its agent
+        // and MCP relay. Other children still owe their ordinary completion.
+        if active_program
+            && matches!(&child.kind, Kind::Agent(_) | Kind::Claude(_) | Kind::Relay(_))
+        {
+            continue;
+        }
         obligations.read_child(3 + workers.len() + index, child);
     }
     obligations.check(declared).unwrap_or_else(|error| panic!("{error}"));
