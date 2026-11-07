@@ -141,6 +141,7 @@ fn key_event(primary: Primary, case: KeyCase, in_field: bool) -> Event {
         alt: false,
         shift: false,
         in_field,
+        composing: false,
     };
     if let Event::Key { key, code, control, meta, alt, shift, .. } = &mut event {
         match case {
@@ -271,6 +272,7 @@ fn plain_key(key: &[u8]) -> Event {
         alt: false,
         shift: false,
         in_field: false,
+        composing: false,
     }
 }
 
@@ -637,7 +639,16 @@ fn an_away_log_holds_its_view_across_an_apply() {
 
 fn page_key(down: bool, in_field: bool) -> Event {
     let key = if down { b"PageDown".as_slice() } else { b"PageUp".as_slice() };
-    Event::Key { key: key.into(), code: key.into(), control: false, meta: false, alt: false, shift: false, in_field }
+    Event::Key {
+        key: key.into(),
+        code: key.into(),
+        control: false,
+        meta: false,
+        alt: false,
+        shift: false,
+        in_field,
+        composing: false,
+    }
 }
 
 #[test]
@@ -732,10 +743,14 @@ fn pgup_and_pgdn_scroll_the_first_log_from_a_field() {
     page.act(page_key(false, true), &mut ops);
     assert!(ops.is_empty(), "nothing to scroll");
     scroll(&mut page, 400, 1000, 200);
-    for in_field in [false, true] {
+    for (in_field, composing) in [(false, false), (true, false), (true, true)] {
         for down in [false, true] {
             ops.clear();
-            assert_eq!(page.act(page_key(down, in_field), &mut ops), None);
+            let mut event = page_key(down, in_field);
+            if let Event::Key { composing: held, .. } = &mut event {
+                *held = composing;
+            }
+            assert_eq!(page.act(event, &mut ops), None);
             assert_eq!(ops, vec![Op::ScrollScreen { node: LOG, down }, Op::Measure { node: LOG }]);
         }
     }
@@ -861,6 +876,7 @@ fn log_attribute(ops: &[Op], node: NodeId) -> &crate::dom::Element {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -885,6 +901,7 @@ fn scroll_ends(ops: &[Op]) -> Vec<NodeId> {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1030,6 +1047,7 @@ fn a_log_follows_its_end() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1404,8 +1422,271 @@ fn shortcut_key_takes_backslash() {
                 alt: false,
                 shift: false,
                 in_field: true,
+                composing: false,
             };
             assert_eq!(page.act(event, &mut Vec::new()), Some((button, Act::Press)), "{primary:?} {code:?}");
+        }
+    }
+}
+
+// Preorder: page, main, form, area, options, three items, Escape button.
+const OPTIONS_FIELD: NodeId = NodeId(4);
+const OPTIONS_MENU: NodeId = NodeId(5);
+const OPTION_FIRST: NodeId = NodeId(6);
+const OPTION_MIDDLE: NodeId = NodeId(7);
+const OPTION_LAST: NodeId = NodeId(8);
+const OPTIONS_ESCAPE: NodeId = NodeId(9);
+
+fn field_options(b: &mut Builder, disabled: &[NodeId], selected: Option<NodeId>) {
+    main(b);
+    b.open(Role::Form);
+    b.open(Role::TextArea);
+    b.name(b"Command");
+    b.bind(fixtures::binding(1));
+    b.state(State::SubmitsOnEnter);
+    b.close();
+    b.open(Role::Menu);
+    b.name(b"Commands");
+    b.state(State::Options);
+    for (node, name) in [(OPTION_FIRST, b"/model".as_slice()), (OPTION_MIDDLE, b"/mode"), (OPTION_LAST, b"/more")] {
+        b.open(Role::MenuItem);
+        b.name(name);
+        b.description(b"Help");
+        b.bind(fixtures::binding(2));
+        if disabled.contains(&node) {
+            b.state(State::Disabled);
+        }
+        if selected == Some(node) {
+            b.state(State::Selected);
+        }
+        b.close();
+    }
+    b.close();
+    b.open(Role::Button);
+    b.bind(fixtures::binding(3));
+    b.shortcut(Shortcut::ESCAPE);
+    b.close();
+    b.close();
+    end(b);
+}
+
+#[derive(Clone, Copy, Debug)]
+enum OptionsStep {
+    Key(&'static [u8]),
+    ShiftEnter,
+    ComposingKey(&'static [u8]),
+    Click(NodeId),
+    Keep,
+    Remove(NodeId),
+    Blur,
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table holds the field's options and their keys (ui-web.md, 7)")]
+fn a_fields_options_take_its_keys() {
+    use OptionsStep::{Blur, Click, ComposingKey, Keep, Key, Remove, ShiftEnter};
+    let down = Key(b"ArrowDown");
+    let up = Key(b"ArrowUp");
+    let tab = Key(b"Tab");
+    let press = Some((OPTION_FIRST, Act::Press));
+    let complete = Some((OPTIONS_FIELD, Act::Input { value: b"/model".as_slice().into() }));
+    // label, disabled items, selected item, keys, field words, composing, act, active after.
+    let cases = [
+        ("starts first", &[][..], None, &[][..], b"".as_slice(), false, None, Some(OPTION_FIRST)),
+        ("starts selected", &[][..], Some(OPTION_LAST), &[][..], b"", false, None, Some(OPTION_LAST)),
+        ("selected disabled", &[OPTION_MIDDLE][..], Some(OPTION_MIDDLE), &[][..], b"", false, None, Some(OPTION_FIRST)),
+        ("first disabled", &[OPTION_FIRST][..], None, &[][..], b"", false, None, Some(OPTION_MIDDLE)),
+        ("down", &[][..], None, &[down][..], b"", false, None, Some(OPTION_MIDDLE)),
+        ("down wraps", &[OPTION_MIDDLE][..], None, &[down, down][..], b"", false, None, Some(OPTION_FIRST)),
+        ("up skips", &[OPTION_MIDDLE][..], Some(OPTION_LAST), &[up][..], b"", false, None, Some(OPTION_FIRST)),
+        ("up wraps", &[OPTION_MIDDLE][..], None, &[up][..], b"", false, None, Some(OPTION_LAST)),
+        ("Enter holds Submit", &[][..], None, &[Key(b"Enter")][..], b"", false, press, Some(OPTION_FIRST)),
+        ("shift Enter", &[][..], None, &[ShiftEnter][..], b"", false, None, Some(OPTION_FIRST)),
+        ("composition Enter", &[][..], None, &[Key(b"Enter")][..], b"/mo", true, None, Some(OPTION_FIRST)),
+        ("composition starts", &[][..], None, &[ComposingKey(b"Enter")][..], b"", false, None, Some(OPTION_FIRST)),
+        ("composition arrows", &[][..], None, &[down][..], b"/mo", true, None, Some(OPTION_FIRST)),
+        ("Tab completes", &[][..], None, &[tab][..], b"/mo", false, complete, Some(OPTION_FIRST)),
+        ("Tab empty", &[][..], None, &[tab][..], b"", false, None, Some(OPTION_FIRST)),
+        ("Tab equal", &[][..], None, &[tab][..], b"/model", false, None, Some(OPTION_FIRST)),
+        ("Tab unrelated", &[][..], None, &[tab][..], b"/exit", false, None, Some(OPTION_FIRST)),
+        ("composition Tab", &[][..], None, &[tab][..], b"/mo", true, None, Some(OPTION_FIRST)),
+        (
+            "Escape",
+            &[][..],
+            None,
+            &[Key(b"Escape")][..],
+            b"",
+            false,
+            Some((OPTIONS_ESCAPE, Act::Press)),
+            Some(OPTION_FIRST),
+        ),
+        (
+            "click",
+            &[][..],
+            None,
+            &[Click(OPTION_LAST)][..],
+            b"",
+            false,
+            Some((OPTION_LAST, Act::Press)),
+            Some(OPTION_FIRST),
+        ),
+        (
+            "disabled click",
+            &[OPTION_MIDDLE][..],
+            None,
+            &[Click(OPTION_MIDDLE)][..],
+            b"",
+            false,
+            None,
+            Some(OPTION_FIRST),
+        ),
+        ("keep across apply", &[][..], None, &[down, Keep][..], b"", false, None, Some(OPTION_MIDDLE)),
+        ("reset removed active", &[][..], None, &[up, Remove(OPTION_LAST)][..], b"", false, None, Some(OPTION_FIRST)),
+        (
+            "no enabled option",
+            &[OPTION_FIRST, OPTION_MIDDLE, OPTION_LAST][..],
+            None,
+            &[down, tab][..],
+            b"/mo",
+            false,
+            None,
+            None,
+        ),
+        (
+            "no option submits",
+            &[OPTION_FIRST, OPTION_MIDDLE, OPTION_LAST][..],
+            None,
+            &[Key(b"Enter")][..],
+            b"",
+            false,
+            Some((OPTIONS_FIELD, Act::Submit)),
+            None,
+        ),
+        (
+            "later Enter submits",
+            &[][..],
+            None,
+            &[Remove(OPTIONS_MENU), Key(b"Enter")][..],
+            b"",
+            false,
+            Some((OPTIONS_FIELD, Act::Submit)),
+            None,
+        ),
+        ("remove list", &[][..], None, &[Remove(OPTIONS_MENU)][..], b"", false, None, None),
+        ("focus elsewhere", &[][..], None, &[Blur, down][..], b"", false, None, Some(OPTION_FIRST)),
+    ];
+    for (label, disabled, selected, steps, words, composing, expected, active) in cases {
+        let (mut page, mut view) = (page(), View::new(&LIMITS));
+        let mut ops = Vec::new();
+        page.apply(&fixtures::patches(&mut view, 0, |b| field_options(b, disabled, selected)), &mut ops);
+        assert!(
+            ops.iter().any(|op| matches!(op, Op::Options { field: OPTIONS_FIELD, menu: Some(OPTIONS_MENU), .. })),
+            "{label}: platform links the field"
+        );
+        page.focused(OPTIONS_FIELD);
+        page.act(Event::Input { node: OPTIONS_FIELD, value: words.into(), composing }, &mut Vec::new());
+        assert!(page.press_keeps_focus(OPTION_FIRST), "{label}: option pointer keeps focus");
+        let mut acts = Vec::new();
+        ops.clear();
+        for step in steps {
+            let act = match step {
+                Key(key) | ComposingKey(key) => {
+                    let composing = composing || matches!(step, ComposingKey(_));
+                    let mut event = plain_key(key);
+                    if let Event::Key { in_field, composing: held, .. } = &mut event {
+                        *in_field = true;
+                        *held = composing;
+                    }
+                    let act = page.act(event, &mut ops);
+                    if *key == b"Enter" {
+                        if let Some(act) = act {
+                            acts.push(act);
+                        }
+                        page.act(Event::Enter { node: OPTIONS_FIELD, shift: false, composing }, &mut ops)
+                    } else {
+                        act
+                    }
+                }
+                ShiftEnter => {
+                    let mut event = plain_key(b"Enter");
+                    if let Event::Key { in_field, shift, .. } = &mut event {
+                        *in_field = true;
+                        *shift = true;
+                    }
+                    assert_eq!(page.act(event, &mut ops), None, "{label}");
+                    page.act(Event::Enter { node: OPTIONS_FIELD, shift: true, composing: false }, &mut ops)
+                }
+                Click(node) => page.act(Event::Click { node: *node, modifier: false }, &mut ops),
+                Keep => {
+                    let mut a = skein_ui::Made::of(view.tree().get(4).expect("fixture menu")).attribute;
+                    a.description = Some(b"Updated help".as_slice().into());
+                    page.apply(&[Patch::Attribute { node: OPTIONS_MENU, attribute: Box::new(a) }], &mut ops);
+                    None
+                }
+                Remove(node) => {
+                    page.apply(&[Patch::Remove { node: *node }], &mut ops);
+                    None
+                }
+                Blur => {
+                    page.focused(OPTIONS_ESCAPE);
+                    None
+                }
+            };
+            if let Some(act) = act {
+                acts.push(act);
+            }
+        }
+        assert_eq!(acts.as_slice(), expected.as_slice(), "{label}: act");
+        let html = page.html();
+        if let Some(active) = active {
+            assert!(
+                html.contains(&format!("aria-activedescendant=\"skein-ui-option-{}\"", active.0)),
+                "{label}: active option: {html}"
+            );
+            assert!(
+                html.contains("aria-autocomplete=\"list\" aria-controls=\"skein-ui-options-5\""),
+                "{label}: field controls list"
+            );
+            assert_eq!(html.matches("aria-selected=\"true\"").count(), 1, "{label}: one active option");
+            let item = html
+                .split('<')
+                .find(|tag| tag.split('>').next().unwrap().contains(&format!("id=\"skein-ui-option-{}\"", active.0)))
+                .expect("active item id");
+            assert!(
+                item.split('>').next().unwrap().contains("aria-selected=\"true\""),
+                "{label}: selected follows active"
+            );
+        } else {
+            assert!(
+                !html.contains("aria-activedescendant") && !html.contains("aria-selected"),
+                "{label}: no active option"
+            );
+            if disabled.len() != 3 {
+                assert!(
+                    !html.contains("aria-autocomplete") && !html.contains("aria-controls"),
+                    "{label}: field unlinked"
+                );
+            }
+        }
+        assert!(!ops.iter().any(|op| matches!(op, Op::Focus { .. })), "{label}: focus stays");
+        if expected.is_none() && steps.iter().any(|step| matches!(step, Key(b"Tab"))) {
+            assert!(ops.is_empty(), "{label}: browser can move focus");
+        }
+        if active.is_some()
+            && !composing
+            && !steps.iter().any(|step| matches!(step, Blur))
+            && steps.iter().any(|step| matches!(step, Key(b"ArrowDown" | b"ArrowUp")))
+        {
+            assert!(
+                ops.contains(&Op::Options { field: OPTIONS_FIELD, menu: Some(OPTIONS_MENU), active }),
+                "{label}: platform follows active option"
+            );
+        }
+        if matches!(expected, Some((_, Act::Input { .. }))) {
+            assert!(
+                ops.contains(&Op::Value { node: OPTIONS_FIELD, value: b"/model".as_slice().into() }),
+                "{label}: completion written"
+            );
         }
     }
 }

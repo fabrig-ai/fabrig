@@ -1,9 +1,31 @@
 use crate::outline::{Fault, Rule, check};
 use crate::tests::fixtures::{LIMITS, finish, page};
-use crate::{Binding, Builder, Modifier, Owner, Role, Shortcut};
+use crate::{Binding, Builder, Modifier, Owner, Role, Shortcut, State};
 use skein_lib::Token;
 
 const FAULTS: &[(&str, Role, &[Role], Option<Fault>)] = &[
+    ("options no form", Role::Page, &[Role::Main], Some(Fault { rule: Rule::OptionsAfterField, node: 3 })),
+    ("options no field", Role::Page, &[Role::Main, Role::Form], Some(Fault { rule: Rule::OptionsAfterField, node: 4 })),
+    (
+        "options field after",
+        Role::Page,
+        &[Role::Main, Role::Form],
+        Some(Fault { rule: Rule::OptionsAfterField, node: 4 }),
+    ),
+    (
+        "options outer field",
+        Role::Page,
+        &[Role::Main, Role::Form],
+        Some(Fault { rule: Rule::OptionsAfterField, node: 6 }),
+    ),
+    (
+        "options closed form",
+        Role::Page,
+        &[Role::Main, Role::Form],
+        Some(Fault { rule: Rule::OptionsAfterField, node: 6 }),
+    ),
+    ("options text field", Role::Page, &[Role::Main, Role::Form], None),
+    ("options text area", Role::Page, &[Role::Main, Role::Form], None),
     ("root", Role::Region, &[Role::Main], Some(Fault { rule: Rule::PageRoot, node: 0 })),
     ("outside", Role::Page, &[Role::Main, Role::Text], Some(Fault { rule: Rule::InsideLandmark, node: 3 })),
     ("unnamed region", Role::Page, &[Role::Main, Role::Region], Some(Fault { rule: Rule::InsideLandmark, node: 3 })),
@@ -48,6 +70,35 @@ fn each_rule_names_its_first_fault() {
                 b.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
                 b.shortcut(Shortcut::ESCAPE);
                 b.close();
+            }
+            if label.starts_with("options") && (*role == Role::Form || label == &"options no form") {
+                if label == &"options outer field" || label == &"options closed form" {
+                    if label == &"options closed form" {
+                        b.open(Role::Form);
+                    }
+                    b.open(Role::TextField);
+                    b.close();
+                    if label == &"options closed form" {
+                        b.close();
+                    }
+                    if label == &"options outer field" {
+                        b.open(Role::Form);
+                    }
+                }
+                if label == &"options text field" || label == &"options text area" {
+                    b.open(if label == &"options text field" { Role::TextField } else { Role::TextArea });
+                    b.close();
+                }
+                b.open(Role::Menu);
+                b.state(State::Options);
+                b.close();
+                if label == &"options field after" {
+                    b.open(Role::TextArea);
+                    b.close();
+                }
+                if label == &"options outer field" {
+                    b.close();
+                }
             }
             if label == &"shortcut" {
                 for _ in 0_u8..2 {
