@@ -1,6 +1,6 @@
 # ui-web: status
 
-2026-11-06. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Unlisted sections, including 7's requested focus bringing its node into
 view even when already focused, have no known gap.
@@ -47,3 +47,12 @@ view even when already focused, have no known gap.
 - **Not yet:** 7: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
+- **Not yet:** 14.1: `browser_real`'s page-part stories (`folds_away`, `log_end`,
+  `log_reading`) start a Chromium for each story.
+- **Not yet:** 14.1: `browser_example` and `browser_stories` start a Chromium for each
+  story that could share one.
+- **Not yet:** 14.2: `Harness::run_stories` is not built.
+- **Not yet:** 14.2: the harness's child and peer tests run against Chromium, in
+  `browser_harness`.
+- **Not yet:** 14.3: `tests/ui-web/tests/support/tab.rs` presses nodes it found before
+  its tab took the front, and the live tree is a test for each case.

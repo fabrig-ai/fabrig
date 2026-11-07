@@ -342,6 +342,9 @@ to the next command, never a closure waiting on a reply:
     `visibilitychange` listener (ui-web.md, section 10). A story about a
     hidden page leaves it without these looks for the hidden interval;
     listing tabs and reading attributes do not bring it to the front.
+  - A press holds no look, so a press of a node found before another tab
+    took the front goes to a hidden page. A story presses what it has
+    looked at since, as a person comes back to a page before pressing.
 
 - **A find by words reads each name whole,** as the reply carries it,
   before a kept name is cut to `Limits::text`. Its reply holds every node
@@ -523,6 +526,13 @@ named scenario ceiling with headroom.
   browser-skein`, within four minutes, which the browser parts' tier
   shares: ui-web.md, 14.1). A missing Chromium fails that suite, naming what is missing; it is
   never a skip.
+- **One Chromium holds many facts:** a test of that suite plays its facts as
+  cases, each a person and a page of its own, closed before the next, all
+  within the bound of one conversation with the browser, and a failure names
+  its case. A merged test reruns whole on a flake, and a failure hides the
+  cases after it. A fact about the browser's start, its version, its first
+  page or its exit keeps a test of its own; a test whose last case holds a
+  tab ends with the browser's exit holding it.
 
 The kit's tests are a crate of their own, `tests/browser`
 (`skein-browser-world`) (testing.md, 6).

@@ -1129,6 +1129,17 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   binary, and one Chromium, and plays its stories with a person each: a
   browser context, its own cookies and storage (browser.md, section 5).
   The module is built with the dev profile, the bundler optimized (4.1).
+- **A start is what the tier spends,** so tests that use one server and
+  one setup are one test: its stories a person each, up to the kit's
+  four (`Limits::persons`), or several in turn by one person (14.2),
+  as their server's state allows. A merged test reruns whole on a flake,
+  and a failure may hide the stories after it. A test keeps its own start
+  where what it checks needs one: a run that ends failed, a story that
+  stops its server, two people playing one story, or skein's stories,
+  which take their setup and start their own run (14.2).
+- **What no browser shows is below the tier** (testing-strategy.md, 8.1,
+  its first question). What the harness does with a child or a peer is
+  the focused suite's (14.2).
 - **A missing Chromium or bundle fails the suite,** naming the command
   that provides it; it is never skipped. The bundle's directory reaches
   the tests in `SKEIN_UI_EXAMPLE_BUNDLE`.
@@ -1323,6 +1334,36 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     story that looks for no warning has its person act on the page
     first, since the browser warns only on a page acted on since it
     loaded.
+- **Stories in turn,** for a test whose stories share a server and can
+  share its state: `Harness::run_stories` takes each story's name and
+  steps, and plays them one after another as one person in one page. A
+  failed step's report opens with its story's name and its step within
+  that story; the outcome's own step counts from the run's start. The
+  run's forty seconds hold them all: stories that would need more stay
+  two tests.
+- **What the harness does with a child or a peer is tested below the
+  tier,** in `skein-ui-web-tests`'s focused `suite` (`harness`), since no
+  browser's behaviour is what it checks: a command's arguments, environment
+  values, standard input, exit code and teardown, a link's deadline, a
+  peer's tokens and shutdown, and how a run hands back what was kept. It
+  runs the harness as it ships, its real loop and real children, with
+  `harness_fixture` named as its Chromium. Started with Chromium's first
+  argument, that program is a fake browser, which answers the kit's CDP on
+  descriptors 3 and 4:
+  - one person's context, target and session per request, numbered;
+  - one fixed page, an element for any selector but `#missing`, with
+    the attributes `value`, `data-note` and `data-empty`;
+  - a navigation to an `http` address fetched once, whole, before the
+    page reports it loaded, and one to any other address fetched not at
+    all, so that a printed link reaches the server as it does from a
+    browser and a blank page reaches nothing;
+  - a failed run's snapshot answered empty and its screenshot refused, so
+    that it leaves no file;
+  - `Browser.close` answered, then its exit.
+
+  What a real browser answers to the same steps stays in the tier: an
+  element's attribute (`browser_harness`, and browser.md, section 9), a
+  frame's refusal, a role and a page's words.
 - **skein's stories for a browser shell,** functions of the harness an
   application's tier calls with its binary, its bundle and its codec,
   and what each story names of its pages, to check its wiring, since
@@ -1379,8 +1420,10 @@ parts carry, so that its tier tests each once.
   a press opens the tab in that press's turn, its words its title; a
   second points it, on the page's own origin, its opener cut; one outside
   the targets closes it, as a third does; and an opening no press started,
-  the page's own at its start, is refused. So the press's path, the inbox's
-  turn within the act's event, is held to Chromium's pop-up rule. Firefox
+  the page's own at its start, is refused. The person looks at the page
+  before each press, as one comes back to it (browser.md, section 6). So
+  the press's path, the inbox's turn within the act's event, is held to
+  Chromium's pop-up rule. Firefox
   and Safari are read and not run: nothing between the click's listener and
   `window.open` yields to the event loop, which is what each asks of a
   gesture.
@@ -1401,8 +1444,9 @@ parts carry, so that its tier tests each once.
   keyed siblings; a keyed child moves; a rename keeps the same DOM node;
   removing the last child removes its empty group; a paragraph splits
   runs that grow and merge in order; and a visible label focuses its
-  named input. These seven cases check DOM structure and identity that
-  the host's pure half cannot observe.
+  named input. These cases, one test whose person plays the tree's in
+  turn beside another with the label, check DOM structure and identity
+  that the host's pure half cannot observe.
 - **Its shell takes 3.3's steps,** each once: it is the reference shell
   (step 1); its stylesheet, after `skein-ui.css` (step 2); its codec,
   its notes under `/notes/`, and `/bundle/` its bundle's prefix (step
