@@ -363,3 +363,33 @@ fn only_the_open_reply_uses_long_text() {
     assert_eq!(cards.get(FIRST_CARD).unwrap().words.as_ref().unwrap().bytes(), &*words);
     assert_eq!(cards.get(1).unwrap().words, None);
 }
+
+#[test]
+fn person_answers_in_words_use_the_shown_revision_and_verdicts_send_nothing() {
+    for verdict in [false, true] {
+        let mut page = f::person(ActKind::Answer);
+        if let c::ReadValue::PersonTask(task) = &mut page
+            && verdict
+        {
+            task.contract = c::TaskContractDocument::Verdict { choices: skein_lib::List::uncapped(), cut: false };
+        }
+        let mut pages = f::pages(PERSON, page);
+        f::act(&mut pages, Act::CardWords { object: PERSON, words: Box::from(*b"Because") });
+        let sent = f::sent(&mut f::act(&mut pages, f::decide(PERSON, ActKind::Answer)));
+        if verdict {
+            assert!(sent.is_empty());
+        } else {
+            assert_eq!(
+                sent.as_ref(),
+                [c::Ask::Answer {
+                    project: fixtures::PROJECT,
+                    on: c::AnswerOn::Person {
+                        task: f::TASK,
+                        revision: f::REVISION,
+                        answer: c::PersonAnswer::Words(f::text(b"Because")),
+                    }
+                }]
+            );
+        }
+    }
+}
