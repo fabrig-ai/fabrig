@@ -1,13 +1,23 @@
 # worker: status
 
-2026-11-06. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-07. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
-`serve.log`; that operator-output path has no gap.
+`serve.log`; that operator-output path has no gap. A failed-run hold's
+`way out:` points to that log, and `temper help hold` names its location
+under both `box` and `serve` (`../client/tools.md`, 6.1).
+
+Section 5's later goal start has no known implementation gap. The checkout
+world's three goal stories cover r already contained in g, a clean merge
+committed before the run and a conflict retained for the run to settle;
+each delivery fast-forwards r and leaves g unchanged. They use fake git
+and disk, and do not settle the deployment replay gaps below. A goal's
+saved start overtaken by a repair remains deferred (`forge.md`, section 20).
 
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
-  change, so it is section 12's question, and `temper help server` says
-  where the reason is read.
+  change, so it is section 12's question. The `ctl-words` request requires
+  the user's decision on the bound and readers before that text is kept;
+  no such decision is supplied. The log directions leave this question open.
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
   (`temper/crates/temper-service/src/worker.rs`), and with prepare the

@@ -251,7 +251,8 @@ pub(crate) struct AmendPlan {
     pub(crate) person_changed: bool,
     pub(crate) attempt: Option<u64>,
     pub(crate) before: Settings,
-    pub(crate) prepared: crate::inbox::Prepared,
+    pub(crate) prepared: Option<crate::inbox::Prepared>,
+    pub(crate) llm_changed: bool,
     pub(crate) release: Option<ReleasePlan>,
     pub(crate) waiting_on: Box<[u64]>,
     pub(crate) added: Box<[crate::Added]>,
@@ -587,6 +588,22 @@ fn check_amend_fields(
         return Err(Refusal::State);
     }
     let attempt = if stop_run { crate::run::run_attempt(&old.phase) } else { None };
+    let llm_changed = old.flags.ended_by == crate::EndedBy::Requester
+        && crate::run::run_attempt(&old.phase).is_some()
+        && match &amendment.llm {
+            Some(llm) => old.llm.as_ref() != Some(llm),
+            None => false,
+        };
+    let wordless = old.flags.ended_by == crate::EndedBy::Requester
+        && amendment.llm.is_some()
+        && amendment.tracked.is_none()
+        && amendment.addressed.is_none()
+        && amendment.instructions.is_none()
+        && amendment.release.is_none()
+        && amendment.spec.is_none()
+        && amendment.wake.is_none()
+        && amendment.dependencies.is_none()
+        && amendment.authority.is_none();
     let next_revision = old.revision.checked_add(1).expect("revision preflighted");
     let word = Word {
         number: message,
@@ -606,9 +623,14 @@ fn check_amend_fields(
     } else {
         None
     };
-    let prepared =
-        crate::inbox::prepare_staged(domain, staged, &env.limits, number, word, crate::inbox::Admission::Merged)
-            .expect("authenticated amendment has a merged inbox slot");
+    let prepared = if wordless {
+        None
+    } else {
+        Some(
+            crate::inbox::prepare_staged(domain, staged, &env.limits, number, word, crate::inbox::Admission::Merged)
+                .expect("authenticated amendment has a merged inbox slot"),
+        )
+    };
     Ok(AmendPlan {
         funding,
         number,
@@ -619,6 +641,7 @@ fn check_amend_fields(
         attempt,
         before,
         prepared,
+        llm_changed,
         release,
         waiting_on: Box::new([]),
         added: Box::new([]),
@@ -672,6 +695,7 @@ pub(crate) fn apply_amend(
         attempt,
         before,
         prepared,
+        llm_changed,
         release,
         waiting_on,
         added,
@@ -732,8 +756,14 @@ pub(crate) fn apply_amend(
             task.record.revisions.person.checked_add(1).expect("person revision preflighted");
     }
     task.record.last_message = message;
-    task.record.inbox = prepared.inbox;
-    crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
+    task.record.llm_changed |= llm_changed;
+    let wake = if let Some(prepared) = prepared {
+        task.record.inbox = prepared.inbox;
+        crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
+        Some((prepared.previous, prepared.word))
+    } else {
+        None
+    };
     if attempt.is_some() {
         task.record.narrowing = true;
         task.record.due_reason = crate::Why::Narrowed;
@@ -767,8 +797,8 @@ pub(crate) fn apply_amend(
     }
     if let Some(attempt) = attempt {
         out.push(Request::Stop { task: number, attempt });
-    } else {
-        crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    } else if let Some((previous, word)) = wake {
+        crate::wake::after_message(domain, env, number, previous, word, out);
     }
     if was_kept && let Some(dependency) = met {
         out.push(Request::MetDue { task: number, dependency, removed: true, by });

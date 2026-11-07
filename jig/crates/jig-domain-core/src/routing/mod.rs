@@ -732,6 +732,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             step::fire_brief(core, env, &mut out);
             tag_brief(core, env, out)
         }
+        Timer::Account if !core.accounts.is_due(env.now) => stopping::empty(),
         Timer::Account => {
             let mut out = Queue::uncapped();
             step::fire_accounts(core, env, &mut out);
