@@ -145,40 +145,19 @@ pub(crate) fn main(
     b.close();
 }
 fn elsewhere_path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: Option<u32>) {
-    if w.shell == Shell::Terminal {
-        return;
-    }
-    let Some(project) = project else { return };
-    let project_name = match crate::pages::project_name(root.pages().me(root.client()), project) {
-        Some(name) => name,
-        None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
-    };
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_PATH);
-    b.open(Role::Navigation);
-    b.name(&w.say(Word::ConfigureWhere, &[]));
-    b.style(look::CRUMBS);
-    let name = w.say(Word::PathAddForge, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Place::Connect.address(None) }));
-    b.style(look::BACK);
-    b.text(Run::Plain, &name);
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::TRAIL);
-    for (name, address) in [
-        (project_name, Address::Home { project }),
-        (w.say(Word::RailSettings, &[]), Address::Settings { project }),
-        (w.say(Word::ForgesTitle, &[]), Address::Forges),
-        (w.say(Word::PathAddForge, &[]), Place::Connect.address(None)),
-    ] {
-        crate::link(b, &name, bindings.insert(Act::Go { address }));
-        b.text(Run::Plain, &name);
-        b.close();
-    }
-    styled_text(b, Role::Text, &w.say(Word::ConnectManaged, &[]), look::SETTINGS_DETAIL);
-    b.close();
-    b.close();
-    b.close();
+    crate::pages::settings::way_path(
+        b,
+        root,
+        w,
+        bindings,
+        project,
+        crate::pages::settings::FlowTab::Forges,
+        &crate::pages::settings::FlowWay {
+            choices: Word::PathAddForge,
+            address: Place::Connect.address(None),
+            name: &w.say(Word::ConnectManaged, &[]),
+        },
+    );
 }
 #[expect(clippy::too_many_arguments, reason = "the shared forge body draws both places with page-owned sign-in facts")]
 pub(crate) fn body(

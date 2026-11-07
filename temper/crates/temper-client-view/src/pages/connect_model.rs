@@ -379,8 +379,32 @@ pub(crate) fn main(
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
     b.style(look::CONNECT);
-    super::settings::path(b, root, w, pages, project, super::settings::FlowTab::Accounts, Word::PathConnectAccount);
     let way = model::way(root.pages(), root.client());
+    if let Some(way) = way
+        && let Some(me) = accounts::current_me(root.client())
+    {
+        let (brand, plan) = names(me, way);
+        let name = match way {
+            Way::SignIn { plan: true, .. } | Way::Program { .. } => crate::choice::shown(plan, w),
+            Way::SignIn { plan: false, .. } => crate::choice::shown(brand, w),
+            Way::Key { .. } => named(w, W::ApiKeyBrand, brand),
+        };
+        super::settings::way_path(
+            b,
+            root,
+            w,
+            pages,
+            project,
+            super::settings::FlowTab::Accounts,
+            &super::settings::FlowWay {
+                choices: Word::PathConnectAccount,
+                address: Address::ConnectModel { way: None },
+                name: &name,
+            },
+        );
+    } else {
+        super::settings::path(b, root, w, pages, project, super::settings::FlowTab::Accounts, Word::PathConnectAccount);
+    }
     let heading = match way {
         Some(way) => way_heading(root, w, way),
         None => w.say(Word::ConnectModel, &[]),

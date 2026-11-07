@@ -328,7 +328,8 @@ pub fn count(sheet: &Sheet, rows: &State) -> Count {
     } else if sheet.more {
         Count::Searching(sheet.rows.len())
     } else {
-        Count::Found { found: shown(sheet, sheet.project, rows).len(), of: sheet.rows.len() }
+        let found = shown(sheet, sheet.project, rows).len();
+        if found == 0 { Count::Hidden } else { Count::Found { found, of: sheet.rows.len() } }
     }
 }
 #[must_use]

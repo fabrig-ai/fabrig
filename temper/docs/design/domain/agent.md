@@ -1393,6 +1393,12 @@ host:
 
 ## 10. Open questions
 
+- **A configuring model changing the catalogue** (8.1): observe a real
+  model reading and proposing a model setting, including estimated prices,
+  and keeping its suggestions within the offer. Default: scripted settings
+  tool stories and stock instruction checks; the real-provider observation
+  follows landing.
+
 - **The approval warning in a real configuring chat** (8.1): whether a
   model keeps forge-identity advice to an approval being asked about or
   proposed. Default: the conditional stock instruction and its phrase

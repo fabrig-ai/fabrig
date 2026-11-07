@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8.1 has no known implementation gap in reading and proposing
+whole model settings in the configuring tools and instructions. Scripted
+stories do not establish a real model following those instructions; that
+observation remains in section 10.
+
 Section 8's chat and configuring instructions name the flow subset and
 ask for one where a sequence says more drawn. The stock's phrase tests
 hold both instructions; neither says Mermaid is not drawn. No known

@@ -2,6 +2,10 @@
 
 2026-11-07. Where temper's code lags or departs from [setup.md](setup.md).
 
+Sections 8.2 and 8.3 have no known gap in generated documents holding
+providers, endpoints, sources and endpoint limits, with models supplied
+as binary defaults. Provider discovery remains section 15's later work.
+
 Sections 8.1 and 8.3 have no known gap in four worker slots and the
 workspace and git-operation limits that rise with them. The bare document
 and owned example agree with the default. The process fixture explicitly
