@@ -1,3 +1,22 @@
 draft = "ui-model-line"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-model-line/inputs/request.md", "temper/crates/temper-client-view/src/choice.rs", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+
+# A chat says the model and effort it really uses. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "model-line"
+title = "A chat says the model and effort it really uses"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A closed chat's bar reads what its latest turn used, from smith's bytes through the client's decode"
+parts = ["model-line"]
+walk = false
