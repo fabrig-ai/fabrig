@@ -46,12 +46,16 @@ are deferred in section 11, with all bounds, orders and checks retained.
 
 - **Departs:** 6.1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
-  is 31.769481 CPU s against its standing 15 s ceiling. The measured fuzzy
-  request-world sum is 130.202313 CPU s against 120.
+  is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
+  fuzzy median is 125.579032 CPU s against 120, in three warm serial runs
+  including the driver (119.288299–127.664356 CPU s).
+  [`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
+  their accounting limits, retained causes and next decisions.
   The measurements, their load and accounting limits, retained causes and
   the next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
-  suite totals remain unknown; package sums include warm nextest overhead.
+  focused suite total remains unknown; package sums include warm nextest
+  overhead.
   No budget or ceiling has been raised.
 
 - **Departs:** 5.3 and 6.1: eighteen named real-loop stories remain in the fuzzy
