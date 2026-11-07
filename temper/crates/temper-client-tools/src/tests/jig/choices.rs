@@ -94,6 +94,7 @@ fn chat_can_name_a_model_without_a_template_choice() {
     assert_eq!(
         f::chat_task(&root, call).llm,
         Some(c::LlmChoice {
+            later: None,
             account: None,
             main: f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME)),
             subagents: List::with_capacity(0),

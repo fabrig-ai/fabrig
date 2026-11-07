@@ -85,6 +85,7 @@ fn text(value: &[u8]) -> c::Text {
 
 fn choice(account: Option<u32>) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account,
         main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")) },
         subagents: List::with_capacity(0),

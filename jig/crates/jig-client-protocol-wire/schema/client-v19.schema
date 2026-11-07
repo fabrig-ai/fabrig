@@ -237,7 +237,8 @@ record ParameterResource { name: u32 connector: u16 resource: u64 }
 enum Parameter { number: ParameterNumber, bytes: ParameterBytes, resource: ParameterResource }
 record Specification { words: text 131072 parameters: list 32 Parameter inputs: list 32 u64 asks: bool }
 record ModelEffort { model: text 4096 effort: option text 32 }
-record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record PatternEndExact { value: bytes 65536 }
 record PatternEndOpen { value: bytes 65536 }
 enum PatternEnd { exact: PatternEndExact, open: PatternEndOpen }

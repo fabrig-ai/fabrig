@@ -254,6 +254,7 @@ fn a_refused_start_keeps_the_words() {
 
 fn llm(model: &[u8]) -> LlmChoice {
     LlmChoice {
+        later: None,
         account: Some(7),
         main: ModelEffort { model: fixtures::acts::text(model), effort: None },
         subagents: List::with_capacity(0),

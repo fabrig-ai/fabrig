@@ -237,7 +237,7 @@ fn settings_template(main: c::ModelEffort, subagents: skein_lib::List<c::ModelEf
     let mut item = jig_client_test_records::settings::settings_change().items.get(1).unwrap().clone();
     let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set template") };
     let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
-    template.llm = Some(c::LlmChoice { account: None, main, subagents });
+    template.llm = Some(c::LlmChoice { later: None, account: None, main, subagents });
     item
 }
 fn settings_charter(model: &[u8], effort: &[u8], alternative: bool) -> c::SettingItem {

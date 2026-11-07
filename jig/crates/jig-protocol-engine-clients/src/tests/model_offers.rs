@@ -122,6 +122,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             &c::MeDefault {
                 template: 9,
                 choice: c::LlmChoice {
+                    later: None,
                     account: None,
                     main: c::ModelEffort {
                         model: text(b"chosen"),

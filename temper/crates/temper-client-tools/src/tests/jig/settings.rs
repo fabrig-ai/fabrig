@@ -323,11 +323,13 @@ fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the shared fixture lists every field of the four setting kinds")]
 fn values() -> Vec<(c::Setting, c::SettingValue)> {
     vec![
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                parts: List::with_capacity(0),
                 rest: false,
                 documents: documents(),
                 number: 3,
@@ -380,6 +382,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 label: 1,
                 grace: Some(Duration::from_secs(1)),
                 llm: Some(c::LlmChoice {
+                    later: None,
                     account: Some(9),
                     main: c::ModelEffort { model: words("model"), effort: Some(words("high")) },
                     subagents: list([c::ModelEffort { model: words("model"), effort: None }]),
@@ -3141,8 +3144,10 @@ fn effort_file(place: EffortPlace, name: &str, effort: Option<&str>) -> Vec<u8> 
                 panic!("template fixture")
             };
             template.llm = Some(match place {
-                EffortPlace::Main => c::LlmChoice { account: None, main: choice, subagents: list([]) },
-                EffortPlace::Subagent => c::LlmChoice { account: None, main: valid, subagents: list([choice]) },
+                EffortPlace::Main => c::LlmChoice { later: None, account: None, main: choice, subagents: list([]) },
+                EffortPlace::Subagent => {
+                    c::LlmChoice { later: None, account: None, main: valid, subagents: list([choice]) }
+                }
                 EffortPlace::Charter | EffortPlace::Alternative => unreachable!("template position"),
             });
             (setting, c::SettingValue::Template(template))

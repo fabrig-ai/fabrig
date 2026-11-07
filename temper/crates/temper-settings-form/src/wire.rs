@@ -1376,7 +1376,12 @@ pub(crate) fn llm_wire_choice(
     }
     Ok(Some(w::LlmChoice::new(
         limits,
-        w::LlmChoiceParts { account: value.account, main: llm_wire_model_effort(&value.main, limits)?, subagents },
+        w::LlmChoiceParts {
+            later: None,
+            account: value.account,
+            main: llm_wire_model_effort(&value.main, limits)?,
+            subagents,
+        },
     )?))
 }
 
@@ -1513,6 +1518,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
     w::Charter::new(
         limits,
         w::CharterParts {
+            parts: List::with_capacity(0),
             documents,
             skein_bools: [value.rest, value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
             number: value.number,

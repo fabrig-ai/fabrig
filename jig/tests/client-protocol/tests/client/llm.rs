@@ -59,7 +59,7 @@ fn me_names_the_models_a_create_chooses_from_and_the_task_shows_the_choice() {
     );
     let mut subagents = List::with_capacity(1);
     subagents.push(named(b"scripted", b"low")).expect("one sub-agent");
-    let choice = contract::LlmChoice { account: None, main: named(b"scripted", b"high"), subagents };
+    let choice = contract::LlmChoice { later: None, account: None, main: named(b"scripted", b"high"), subagents };
     let mut tasks = fixtures::create_tasks();
     tasks.get_mut(0).expect("first root").llm = Some(choice.clone());
     story.send(CREATE, Ask::Jig(Box::new(contract::Ask::Create { project: PROJECT_NUMBER, tasks })));

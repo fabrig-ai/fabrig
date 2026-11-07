@@ -160,6 +160,7 @@ fn an_unconfigured_model_is_answered_immediately() {
     let mut ask = jig_client::shapes::chat(me, 1, text(b"chosen chat")).expect("chat template");
     let c::Ask::Create { tasks, .. } = &mut ask else { panic!("chat creation") };
     tasks.get_mut(0).expect("one chat").llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort { model: text(b"missing"), effort: None },
         subagents: skein_lib::List::with_capacity(0),
