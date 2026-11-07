@@ -24,6 +24,7 @@ temper-client-view.workspace = true
 temper-client-tui.workspace = true
 temper-client-shell-terminal.workspace = true
 [dev-dependencies]
+jig-client-protocol-wire.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
 
