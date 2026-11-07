@@ -2451,3 +2451,33 @@ fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
         temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
     }
 }
+
+pub fn sheet_root() -> temper_client_domain::Domain {
+    let mut rows = List::with_capacity(1);
+    let mut row = super::connect_forge::row(
+        1,
+        w::Kind::Forgejo,
+        w::Mode::Owned,
+        super::connect_forge::connected(),
+        w::Offer::NotOffered,
+    )
+    .into_parts();
+    row.repositories = List::from_boxed(Box::new([w::Adoption::new(
+        &w::CEILINGS,
+        w::AdoptionParts { owner: b"acme".as_slice().into(), name: b"kept".as_slice().into(), project: PROJECT },
+    )
+    .unwrap()]));
+    row.makings = List::from_boxed(Box::new([w::RepositoryMaking::new(
+        &w::CEILINGS,
+        w::RepositoryMakingParts {
+            org: b"acme".as_slice().into(),
+            name: b"copy".as_slice().into(),
+            from: w::MakeFrom::Empty,
+            into: None,
+            state: w::MakingState::Making,
+        },
+    )
+    .unwrap()]));
+    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    forge_root(temper_client_domain::Address::Adopt { project: PROJECT }, rows)
+}

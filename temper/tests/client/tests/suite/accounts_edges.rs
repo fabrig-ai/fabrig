@@ -69,9 +69,9 @@ fn accounts_connect_link_opens_choose() {
         &mut world,
         client,
         vec![
-            press(Role::Link, b"+ Connect a model"),
+            press(Role::Link, b"Connect a model"),
             see(Role::Heading { level: 1 }, b"Connect a model"),
-            see(Role::Link, b"Use an API key"),
+            see(Role::Link, b"Add key"),
         ],
     );
 }
@@ -113,7 +113,7 @@ fn connected_own_account_precedes_the_deployment_section() {
         &mut world,
         client,
         vec![
-            press(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Add key"),
             see(Role::Button, b"Add key"),
             type_key(),
             press(Role::Button, b"Add key"),

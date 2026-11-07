@@ -89,6 +89,7 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
         temper_client_protocol_wire::v1::Request::SetUp(_)
         | temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::DismissMaking(_)
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)
         | temper_client_protocol_wire::v1::Request::StartPlayground
         | temper_client_protocol_wire::v1::Request::SetAway(_)
@@ -209,6 +210,7 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
         temper_client_protocol_wire::v1::Request::SetUp(_)
         | temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::DismissMaking(_)
         | temper_client_protocol_wire::v1::Request::MakeRepository(_)
         | temper_client_protocol_wire::v1::Request::StartPlayground
         | temper_client_protocol_wire::v1::Request::SetAway(_)

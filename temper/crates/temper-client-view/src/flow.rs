@@ -22,40 +22,6 @@ pub(crate) enum Mark {
     Stopped,
     ToCome,
 }
-/// The list along the top, named Steps, with earlier items styled done.
-pub(crate) fn steps(b: &mut Builder, w: &Words, names: &[&[u8]], current: usize) {
-    b.open(Role::List);
-    b.name(&w.say(Word::WelcomeSteps, &[]));
-    b.style(look::FLOW_STEPS);
-    for (index, name) in names.iter().enumerate() {
-        b.open(Role::Item);
-        b.style(look::FLOW_STEP);
-        if index == current {
-            b.state(State::Current);
-        }
-        if index < current {
-            b.style(look::FLOW_DONE);
-        }
-        b.text(Run::Plain, name);
-        b.close();
-    }
-    b.close();
-}
-/// One choice's region, named by its level-2 heading.
-pub(crate) fn choice(b: &mut Builder, heading: &[u8], words: &[u8], note: &[u8], action: Control<'_>) {
-    choice_card(b, heading);
-    crate::cards::text(b, Role::Paragraph, words);
-    b.open(Role::Paragraph);
-    b.style(look::FLOW_MUTED);
-    b.name(note);
-    b.text(Run::Plain, note);
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::FLOW_ACTIONS);
-    control(b, action);
-    b.close();
-    b.close();
-}
 /// A list whose lines say their state in words.
 pub(crate) fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]) {
     b.open(Role::List);
@@ -122,6 +88,20 @@ pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
         Control::SecondaryLink { .. } | Control::Button { .. } | Control::Disabled { .. } => look::FLOW_SECONDARY,
         Control::External { .. } | Control::Link { .. } => look::FLOW_QUIET,
     };
+    control_in(b, action, style);
+}
+/// Settings' connect controls use the same roles and bindings in their own look.
+pub(crate) fn connect_control(b: &mut Builder, action: Control<'_>) {
+    let style = match action {
+        Control::PrimaryLink { .. } | Control::PrimaryButton { .. } | Control::PrimaryDisabled { .. } => {
+            look::CONNECT_PRIMARY
+        }
+        Control::SecondaryLink { .. } | Control::Button { .. } | Control::Disabled { .. } => look::CONNECT_SECONDARY,
+        Control::External { .. } | Control::Link { .. } => look::CONNECT_QUIET,
+    };
+    control_in(b, action, style);
+}
+fn control_in(b: &mut Builder, action: Control<'_>, style: skein_ui::Style) {
     match action {
         Control::External { name, address } => {
             b.open(Role::Link);
@@ -145,5 +125,64 @@ pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
         }
     }
     b.style(style);
+    b.close();
+}
+
+/// A command and its Copy share the model panel's clipboard action and feedback
+/// (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn command(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    w: &Words,
+    bindings: &mut crate::accounts::Bindings,
+    words: &[u8],
+    connect: bool,
+) {
+    let browser = w.shell == crate::words::Shell::Browser;
+    if browser {
+        b.open(Role::Slot);
+        b.style(if connect { look::CONNECT_CMD } else { look::WELCOME_CMD_BOX });
+    }
+    b.open(Role::Code);
+    if !connect {
+        b.style(look::WELCOME_CMD);
+    }
+    b.text(Run::Plain, words);
+    b.close();
+    if browser {
+        let word = match root.copy_label() {
+            temper_client_domain::copy::Label::Copy => Word::WelcomeCopy,
+            temper_client_domain::copy::Label::Copied => Word::WelcomeCopied,
+            temper_client_domain::copy::Label::NotCopied => Word::WelcomeNotCopied,
+        };
+        if let Some(to) = bindings.insert(crate::accounts::Meaning::Copy { words: skein_lib::bytes::copy_of(words) }) {
+            b.open(Role::Button);
+            if !connect {
+                b.style(look::FLOW_QUIET);
+                b.style(look::WELCOME_COPY);
+            }
+            b.name(&w.say(word, &[]));
+            b.bind(to);
+            b.close();
+        }
+        b.close();
+    }
+}
+
+/// Settings' row carries progress without repeating the state after each line.
+pub(crate) fn live(b: &mut Builder, lines: &[(&[u8], Mark)]) {
+    b.open(Role::List);
+    b.style(look::CONNECT_LIVE);
+    for (line, mark) in lines {
+        b.open(Role::Item);
+        match mark {
+            Mark::Done => {}
+            Mark::UnderWay => b.state(State::Current),
+            Mark::ToCome => b.style(look::CONNECT_LATER),
+            Mark::Failed | Mark::Stopped => b.style(look::CONNECT_FAILED),
+        }
+        b.text(Run::Plain, line);
+        b.close();
+    }
     b.close();
 }

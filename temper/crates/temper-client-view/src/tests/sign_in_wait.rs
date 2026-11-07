@@ -101,7 +101,7 @@ fn refused_press_draws_its_note_then_the_primary_address_link() {
         let link = address_link(tree).expect("refused tab’s primary link");
         assert_eq!(link.name.as_deref(), Some("Open ChatGPT’s sign-in ›".as_bytes()));
         assert_eq!(link.external.as_deref(), Some(ADDRESS));
-        assert!(link.styles.as_slice().contains(&look::FLOW_PRIMARY));
+        assert!(link.styles.as_slice().contains(&if welcome { look::FLOW_PRIMARY } else { look::CONNECT_PRIMARY }));
         let text = fixtures::text(tree);
         assert!(!contains(&text, b"in the new tab"));
         assert!(!contains(&text, b"Open it again"));
@@ -143,15 +143,9 @@ fn waiting_tree(root: &Domain, w: &Words, refused: bool, text_per_node: u32) -> 
 fn refused_tab_keeps_the_plain_title_and_a_primary_external_link() {
     let tree = drawn(&fixtures::browser_words(), true, fixtures::tree_limits().text_per_node);
     assert!(fixtures::find(&tree, Role::Status, "ChatGPT’s sign-in".as_bytes()).is_some());
-    let mut found = None;
-    for node in tree.nodes() {
-        if node.role == Role::Link {
-            found = Some(node);
-        }
-    }
-    let link = found.expect("refused tab’s primary link");
+    let link = address_link(&tree).expect("refused tab’s primary link");
     assert_eq!(link.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
-    assert!(link.styles.as_slice().contains(&look::FLOW_PRIMARY));
+    assert!(link.styles.as_slice().contains(&look::CONNECT_PRIMARY));
     let text = fixtures::text(&tree);
     assert!(contains(&text, "Open ChatGPT’s sign-in ›".as_bytes()));
     assert!(!contains(&text, b"Open it again"));

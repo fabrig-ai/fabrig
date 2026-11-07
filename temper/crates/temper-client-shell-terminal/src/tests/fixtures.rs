@@ -123,17 +123,16 @@ pub fn adoption_page(form: &client::forge::Form, words: &temper_client_view::wor
     let forge = words;
     let mut builder = skein_ui::Builder::new(&limits);
     synthetic_header(&mut builder, None, false);
-    let mut bindings = temper_client_view::forge::bindings::Bindings::new(limits.bindings, 8, 1);
     builder.open(skein_ui::Role::Main);
-    temper_client_view::forge::page::page(
-        &mut builder,
-        form,
-        Some(b"shop"),
-        forge,
-        &mut bindings,
-        limits.text_per_node,
-        None,
-    );
+    if let Some(answer) = &form.outcome {
+        temper_client_view::forge::page::outcome(
+            &mut builder,
+            (b"acme", b"shop", b"temper/", b"1"),
+            answer,
+            forge,
+            limits.text_per_node,
+        );
+    }
     builder.close();
     builder.close();
     visible(builder.finish())

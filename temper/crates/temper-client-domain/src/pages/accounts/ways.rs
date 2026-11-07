@@ -17,6 +17,8 @@ impl Way {
     }
 }
 /// A cut catalogue still offers the facts it holds. At most three ways per provider.
+/// The scripted provider `demo` is never connectable, including before the
+/// playground read identifies its number (temper/docs/design/client/README.md, 3.5).
 #[must_use]
 pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder: c::AskAccountHolder) -> List<Way> {
     let mut ways = List::with_capacity(providers.len().checked_mul(3).expect("received providers fit"));
@@ -29,7 +31,7 @@ pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder:
                 Some(number) => offer.provider <= number,
                 None => false,
             };
-            if passed || Some(offer.provider) == playground {
+            if passed || Some(offer.provider) == playground || offer.name.bytes() == b"demo" {
                 continue;
             }
             let earlier = match next {

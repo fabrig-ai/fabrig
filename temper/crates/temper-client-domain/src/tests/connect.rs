@@ -39,6 +39,27 @@ fn rows(connection: C) -> State {
     State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered)]))
 }
 #[test]
+fn settings_defaults_to_the_first_available_unconnected_card() {
+    use connect::Choice as Card;
+    let connected = C::Connected { id: 1, login: Box::default() };
+    let owned = row(HERE, Kind::Forgejo, Mode::Owned, connected.clone(), Offer::NotOffered);
+    let github = row(2, Kind::GitHub, Mode::Connected, connected.clone(), Offer::NotOffered);
+    let fake = row(4, Kind::Forgejo, Mode::Fake, connected.clone(), Offer::NotOffered);
+    let managed = row(5, Kind::Forgejo, Mode::Managed, connected, Offer::NotOffered);
+    for (rows, playground, offered, expected) in [
+        (&[][..], None, true, Some(Card::Owned)),
+        (&[][..], None, false, Some(Card::GitHub)),
+        (core::slice::from_ref(&owned), None, true, Some(Card::GitHub)),
+        (core::slice::from_ref(&github), None, true, Some(Card::Owned)),
+        (core::slice::from_ref(&github), None, false, None),
+        (&[owned.clone(), github.clone()][..], None, true, None),
+        (&[fake, managed][..], None, true, Some(Card::Owned)),
+        (&[][..], Some(HERE), true, None),
+    ] {
+        assert_eq!(connect::default_choice(rows, playground, offered), expected);
+    }
+}
+#[test]
 fn the_flow_shows_the_step_its_row_is_at() {
     for (connection, expected) in [
         (C::NotSetUp, Shown::Details(Choice::Forge(HERE))),
@@ -655,7 +676,9 @@ fn the_client_that_set_up_leaves_the_made_repository_unadopted() {
 #[test]
 fn a_client_that_did_not_set_up_adopts_nothing() {
     let (mut root, _, watch) = opened(true);
-    assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
+    let (_, _, request) = sent(deliver_first(&mut root, watch, connected(), made()));
+    let w::Request::Reachable(read) = request else { panic!("only the sheet reads; nothing adopts") };
+    assert_eq!((read.forge(), read.page()), (HERE, 1));
     assert!(root.forge().set_up().is_none());
 }
 #[test]
@@ -807,10 +830,13 @@ fn a_connected_github_advances_only_the_named_welcome_forge() {
         };
         event(&mut root, Event::Went { place: Place::Address(address) });
         let out = deliver_picker(&mut root, watch, false);
-        let mut moves = 0;
+        let mut moves = 0_u32;
         for request in &out {
             if let Request::Show { address, replace } = request {
-                assert_eq!(address, &Address::Welcome { step: Step::Model { way: None } });
+                assert_eq!(
+                    address,
+                    &if welcome { Address::Welcome { step: Step::Model { way: None } } } else { Address::Forges }
+                );
                 assert!(*replace);
                 moves += 1;
             }
@@ -818,7 +844,7 @@ fn a_connected_github_advances_only_the_named_welcome_forge() {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
-        assert_eq!(moves, u32::from(welcome));
+        assert_eq!(moves, 1);
     }
 }
 #[test]
@@ -1095,7 +1121,7 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
         let (mut root, _, watch) = opened(true);
         let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)));
         if row_first {
-            assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
+            only_picker_reads(&deliver_first(&mut root, watch, connected(), made()));
         } else {
             reply(&mut root, attempt, w::Outcome::SettingUp);
         }
@@ -1106,10 +1132,23 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
         };
         assert_eq!(root.forge().set_up().unwrap().forge, Some(HERE));
         assert!(root.forge().setup_form().making.is_none());
-        for request in &out {
-            if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { .. } } } = request {
-                panic!("connecting a forge sends no adoption or project request");
-            }
+        only_picker_reads(&out);
+    }
+}
+fn only_picker_reads(out: &Queue<Request>) {
+    for request in out {
+        if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
+            request
+        {
+            let client::Ask::Family { scope: c::Scope::Deployment, record } = request else {
+                panic!("connecting a forge sends no adoption or project request")
+            };
+            let w::Request::Reachable(read) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            else {
+                panic!("only the sheet reads; nothing adopts")
+            };
+            assert_eq!((read.forge(), read.page()), (HERE, 1));
         }
     }
 }

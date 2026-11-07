@@ -76,7 +76,9 @@ fn the_largest_admitted_store_stays_within_its_memory_ceiling() {
     let mut outcome = world(23, Config::calm(), Story::Replace, None, 65_536).run();
     assert!(matches!(outcome.procs[0].events[0], Event::Stored { .. }));
     assert_eq!(outcome.machine.bytes(b"record"), vec![b'n'; 65_536]);
-    assert!(outcome.peaks().expect("checked memory").iter().all(|peak| *peak <= CEILING));
+    let peaks = outcome.peaks().expect("checked memory");
+    eprintln!("largest admitted replacement: peaks {peaks:?}, ceiling {CEILING}");
+    assert!(peaks.iter().all(|peak| *peak <= CEILING));
     outcome.machine.finish();
 }
 

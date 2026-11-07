@@ -164,6 +164,12 @@ pub struct Adoption {
 /// A FORGE request admitted by the core (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
+    DismissMaking {
+        forge: u16,
+        org: Box<[u8]>,
+        name: Box<[u8]>,
+        into: Option<u32>,
+    },
     MakeRepository {
         forge: u16,
         org: Box<[u8]>,

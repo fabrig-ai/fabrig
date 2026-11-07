@@ -368,6 +368,8 @@ fn fixture_root(
         let runtime = index == 1;
         if two_sign_ins && runtime {
             playground_providers(&mut config);
+            // Two synthetic brands keep both sign-ins offered without the named plan cards.
+            config.core.settings.llm_providers.providers[0].name = b"Welcome fake".as_slice().into();
         }
         if let WelcomeForge::Playground { .. } = forge
             && runtime

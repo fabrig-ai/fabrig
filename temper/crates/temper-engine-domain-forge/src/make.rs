@@ -54,6 +54,7 @@ pub(crate) fn setup(
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground
+        | Ask::DismissMaking { .. }
         | Ask::MakeRepository { .. }
         | Ask::Adopt(_)
         | Ask::Install { .. }

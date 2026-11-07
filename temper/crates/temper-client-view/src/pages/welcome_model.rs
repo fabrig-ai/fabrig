@@ -32,17 +32,6 @@ fn acts(b: &mut Builder) {
     b.open(Role::Slot);
     b.style(look::WELCOME_ACTS);
 }
-fn all_ways(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
-    if let Some(to) = bindings.insert(Meaning::Go(Address::Welcome { step: Step::Model { way: None } })) {
-        b.open(Role::Link);
-        b.style(look::FLOW_QUIET);
-        let name = w.say(Word::WelcomeAllWays, &[]);
-        b.name(&name);
-        b.text(Run::Plain, &name);
-        b.link(to);
-        b.close();
-    }
-}
 fn panel(b: &mut Builder) {
     b.open(Role::Slot);
     b.style(look::WELCOME_PANEL);
@@ -131,7 +120,6 @@ fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_
         busy || !page.request.has_key(),
         true,
     );
-    all_ways(b, w, bindings);
     b.close();
     b.open(Role::Paragraph);
     b.style(look::FLOW_FACTS);
@@ -155,7 +143,6 @@ fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
         }
     }
     acts(b);
-    all_ways(b, w, bindings);
     b.close();
     b.close();
 }
@@ -202,7 +189,6 @@ fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
         page.request.busy(root.client()),
         true,
     );
-    all_ways(b, w, bindings);
     b.close();
     b.close();
 }

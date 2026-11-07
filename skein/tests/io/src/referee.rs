@@ -242,6 +242,11 @@ impl fmt::Debug for Expect {
 }
 
 fn common(a: &[u8], b: &[u8]) -> usize {
+    // Matching deliveries use the slice comparison; only a mismatch needs
+    // the byte offset that the referee's failure reports.
+    if b.starts_with(a) {
+        return a.len();
+    }
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }
 
@@ -271,5 +276,22 @@ impl skein_world::Referee<crate::world::Hosted> for Judge {
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::After(crate::scenarios::END)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn common_keeps_matching_prefixes_and_the_first_mismatch_offset() {
+        for (received, expected, same) in [
+            (b"".as_slice(), b"abc".as_slice(), 0),
+            (b"abc", b"abcd", 3),
+            (b"abc", b"abc", 3),
+            (b"abc", b"abX", 2),
+            (b"abcd", b"abc", 3),
+            (b"abc", b"Xbc", 0),
+        ] {
+            assert_eq!(super::common(received, expected), same, "{received:?} against {expected:?}");
+        }
     }
 }

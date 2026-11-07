@@ -9,6 +9,18 @@ are marked in the drawing, each with its need, and not repeated here.
 Section 2 lists the pages not under the rules yet, with the notes the
 README held for them.
 
+The `connect-flows` request supersedes Settings’ model and forge connection
+drawings: shared welcome cards and panels, no steps bar or Ready page,
+completion on Accounts or Forges, and no repeated summary facts in an open
+account. Settings’ adoption drawing is now “Add repositories”, with Adopt,
+Make empty and Copy public, search and a list that reads on, checkboxes,
+Not listed and More. Copies and failed copies remain in Repositories.
+The hand-made request’s 01–23 are not committed mockups or journeys;
+`../journeys.md`, 9, names their gallery coverage. These are code and print
+checks, with no new visual audit: temper/ui’s comparison follows landing
+(`../../draft/look-requests.md`, 4). Home’s own sheet and the two unmocked
+entry paths remain in `../../draft/repository-copies.status.md`, 9.
+
 ## 1. Under the rules
 
 ### 1.1 The welcome journey

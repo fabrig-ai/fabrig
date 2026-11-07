@@ -62,6 +62,15 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
 
 ## Acting on it
 
+- **In Settings:** Repositories opens Add repositories. Adopt picks
+  reachable repositories with checkboxes; search and scrolling read more
+  without a Next button. Picks survive a search. Not listed gives the
+  forge’s remedy; More shows role, home, branch and CI options. Make
+  empty and Copy public appear with an eligible Forgejo; copies take one
+  public address per line and explain each invalid line before sending.
+  The sheet closes to Repositories once its requests are kept. That list
+  shows copies under way and failed copies with the forge’s reason;
+  Copy again opens the filled sheet, and Dismiss removes the failed row.
 - **ctl:** `forge repositories` lists what a forge reaches; `repository
   adopt` adopts one; `change show` reads a change to it (temper help
   change). Each verb's arguments are its help: `temper ctl help

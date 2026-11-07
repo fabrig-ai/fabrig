@@ -519,6 +519,7 @@ fn refusal(why: &w::MakeRefusal) -> (&'static [u8], &'static [u8]) {
             (b"home_held", b"The project has a home already. Add --no-home and make the call under a new key.")
         }
         w::MakeRefusal::Full => (b"full", b"full"),
+        w::MakeRefusal::NotFailed => (b"not_failed", b"It is not failed."),
     }
 }
 fn answer_text(pending: &Pending, kept: bool, operation: &[u8], words: &[u8], refused: bool, out: &mut Text) {

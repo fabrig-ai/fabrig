@@ -1,34 +1,19 @@
 use super::fixtures;
 
 #[test]
-fn each_adoption_form_state_prints_as_its_golden_file() {
+fn each_adoption_outcome_prints_as_its_golden_file() {
     use temper_client_domain::forge;
     let words = fixtures::page_words();
-    let empty = fixtures::adoption_form(false);
-    let mut invalid = empty.clone();
-    for field in [forge::Text::Owner, forge::Text::Name, forge::Text::Landing] {
-        invalid.texts[field.index()].broken = Some(forge::Broken::Required);
-    }
     let filled = fixtures::adoption_form(true);
-    let mut pending = filled.clone();
-    pending.pending = Some((skein_lib::Token::new(1), skein_lib::RequestProgress::Parked));
     let mut adopted = filled.clone();
     adopted.outcome = Some(forge::Answer::Adopted(fixtures::adopted(forge::Protection::Unknown)));
     let mut not_found = filled.clone();
     not_found.outcome = Some(forge::Answer::ForgeRefused(forge::Reason::NotFound));
     let mut core = filled.clone();
     core.outcome = Some(forge::Answer::CoreRefused(fixtures::role_refusal()));
-    let mut out_of_date = filled;
-    out_of_date.served = forge::Served::OutOfDate;
-    for (name, form) in [
-        ("adopt_empty", empty),
-        ("adopt_invalid", invalid),
-        ("adopt_pending", pending),
-        ("adopt_adopted", adopted),
-        ("adopt_refused_not_found", not_found),
-        ("adopt_refused_core", core),
-        ("adopt_out_of_date", out_of_date),
-    ] {
+    for (name, form) in
+        [("adopt_adopted", adopted), ("adopt_refused_not_found", not_found), ("adopt_refused_core", core)]
+    {
         let tree = fixtures::adoption_page(&form, &words);
         let print = fixtures::print(&tree);
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
@@ -44,6 +29,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
         ("models", fixtures::page(&temper_client_domain::Address::Models { project: 1 }, false)),
+        ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
         ("changes", fixtures::changes_page()),
         ("inbox", fixtures::inbox_page()),
@@ -61,6 +47,28 @@ fn each_fixture_page_prints_as_its_golden_file() {
         ("control_text", fixtures::control_text()),
     ] {
         let print = fixtures::print(&tree);
+        if name == "sheet_adopt" {
+            let list = tree
+                .nodes()
+                .iter()
+                .find(|node| node.role == skein_ui::Role::List && node.name.as_deref() == Some(b"Repositories"))
+                .unwrap();
+            assert_eq!(
+                skein_ui_text::command(b"down", Some(print.numbers.as_slice()), &tree, u32::MAX),
+                skein_ui_text::Command::Act {
+                    node: list.id,
+                    first: skein_ui::Act::Near { edge: skein_ui::LogEdge::Foot },
+                    submit: false
+                }
+            );
+            let owner = tree
+                .nodes()
+                .iter()
+                .find(|node| node.role == skein_ui::Role::TextField && node.name.as_deref() == Some(b"Owner"))
+                .unwrap();
+            assert!(print.numbers.as_slice().contains(&owner.id));
+        }
+
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
             std::fs::write(fixtures::golden(name), print.text.as_slice()).expect("write golden file");
         }

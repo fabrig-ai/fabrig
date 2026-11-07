@@ -8,6 +8,9 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
     crate::pages::home::look(root, env, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    if let Event::Act { .. } = &event {
+        crate::pages::acted(&mut root.pages);
+    }
     match event {
         Event::Copied { token, written } => root.copy.copied(env.now, token, written),
         Event::Start { address, kept, with } => {
@@ -167,12 +170,15 @@ pub(crate) fn route_forge(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted forge output") {
+            forge::Request::Repositories { project } => {
+                out.push(Request::Show { address: Address::Repositories { project }, replace: false });
+            }
             forge::Request::ConnectForge { forge } => {
                 let choice = Some(crate::Choice::Forge(forge));
                 let address = match root.pages.address() {
-                    Address::ConnectForge { forge: Some(crate::Choice::Managed) } => {
-                        Address::ConnectForge { forge: choice }
-                    }
+                    Address::ConnectForge {
+                        forge: Some(crate::Choice::Managed | crate::Choice::Owned | crate::Choice::GitHub),
+                    } => Address::ConnectForge { forge: choice },
                     Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Managed) } } => {
                         Address::Welcome { step: crate::Step::Forge { forge: choice } }
                     }
@@ -403,7 +409,8 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::away::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::sheet::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+        || forge::away::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
@@ -419,6 +426,7 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
             replace: false,
         });
     }
+    forge::sheet::progress(&mut root.forge, env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
     if consumed
         && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told
@@ -462,8 +470,9 @@ pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mu
     playground_facts(root);
 }
 
-/// Advance a named connected forge to Model (temper/docs/design/client/README.md, 3.5).
-pub(crate) fn welcome_progress(root: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
+/// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::pages::forge_progress(root, env, out);
     if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
         root.pages.address()
         && let forge::forges::State::Rows(rows) = root.forges()
@@ -524,6 +533,9 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
 /// Settle the host check and advance a held sign-in or added key once usable (client/README.md, 3.5).
 pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
     use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
+    if let Address::ConnectModel { .. } = root.pages.address() {
+        return;
+    }
     let usable = crate::pages::welcome::model_usable(root) == Some(true);
     let address = root.pages.address().clone();
     let Some(page) = &mut root.pages.connect_model else { return };

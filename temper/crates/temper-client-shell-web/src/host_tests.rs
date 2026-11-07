@@ -157,7 +157,7 @@ fn the_key_patch_declares_a_secret_entry() {
     let mut host = fixture();
     host.went(b"/accounts/connect");
     build(&mut host);
-    let way = node(&host, Role::Link, b"Use an API key");
+    let way = node(&host, Role::Link, b"Add key");
     host.act(way, Act::Press);
     host.requests();
     let patches = build(&mut host);
@@ -179,7 +179,7 @@ fn sending_a_key_emits_the_empty_value_patch() {
     let mut host = fixture();
     host.went(b"/accounts/connect");
     build(&mut host);
-    let way = node(&host, Role::Link, b"Use an API key");
+    let way = node(&host, Role::Link, b"Add key");
     host.act(way, Act::Press);
     host.requests();
     build(&mut host);
@@ -198,7 +198,7 @@ fn a_key_never_reaches_the_small_store_output() {
     let mut host = fixture();
     host.went(b"/accounts/connect");
     build(&mut host);
-    let way = node(&host, Role::Link, b"Use an API key");
+    let way = node(&host, Role::Link, b"Add key");
     host.act(way, Act::Press);
     host.requests();
     build(&mut host);

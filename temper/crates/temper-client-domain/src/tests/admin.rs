@@ -286,10 +286,17 @@ fn an_admin_connection_advances_only_the_named_welcome_forge() {
         token(&mut root, TOKEN);
         send(&mut root);
         let out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
-        let mut moves = 0;
+        let mut moves = 0_u32;
         for request in &out {
             if let Request::Show { address, replace } = request {
-                assert_eq!(address, &crate::Address::Welcome { step: crate::Step::Model { way: None } });
+                assert_eq!(
+                    address,
+                    &if welcome {
+                        crate::Address::Welcome { step: crate::Step::Model { way: None } }
+                    } else {
+                        crate::Address::Forges
+                    }
+                );
                 assert!(*replace);
                 moves += 1;
             }
@@ -299,7 +306,7 @@ fn an_admin_connection_advances_only_the_named_welcome_forge() {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
-        assert_eq!(moves, u32::from(welcome));
+        assert_eq!(moves, 1);
     }
 }
 #[test]
@@ -382,4 +389,45 @@ fn the_managed_address_draft_validates_ports_at_both_bounds() {
         }),
     );
     assert_eq!(root.forge().admin_form().place.place().unwrap().host.as_ref(), b"forge.example");
+}
+
+#[test]
+fn switching_connect_ways_keeps_each_draft_and_the_shared_address() {
+    use forge::admin::{PlaceField, Way};
+    let (mut root, _) = opened();
+    token(&mut root, TOKEN);
+    write(&mut root, Field::Organization, b"our-work");
+    write(&mut root, Field::Repository, b"our-repo");
+    write(&mut root, Field::Label, b"our-runner");
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite {
+            field: PlaceField::Host,
+            text: b"https://forge.example".as_slice().into(),
+        }),
+    );
+    act(&mut root, forge::Act::AdminWay(Way::Tokens));
+    for field in [forge::tokens::Field::Api, forge::tokens::Field::Git, forge::tokens::Field::Webhook] {
+        event(
+            &mut root,
+            Event::Forge(forge::Event::ForgejoToken {
+                field,
+                value: Secret::new(b"bot-token-placeholder".as_slice().into()),
+            }),
+        );
+    }
+    act(&mut root, forge::Act::AdminWay(Way::Admin));
+    let draft = root.forge().admin_form();
+    assert_eq!(draft.way, Way::Admin);
+    assert!(draft.has_token());
+    assert_eq!(
+        draft.fields,
+        [Box::from(b"our-work".as_slice()), Box::from(b"our-repo".as_slice()), Box::from(b"our-runner".as_slice())]
+    );
+    act(&mut root, forge::Act::AdminWay(Way::Tokens));
+    assert_eq!(root.forge().admin_form().way, Way::Tokens);
+    assert_eq!(root.forge().admin_form().place.fields[PlaceField::Host.index()].as_ref(), b"https://forge.example");
+    for field in [forge::tokens::Field::Api, forge::tokens::Field::Git, forge::tokens::Field::Webhook] {
+        assert!(root.forge().tokens_form().has(field));
+    }
 }

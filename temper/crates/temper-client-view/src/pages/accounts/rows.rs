@@ -139,26 +139,6 @@ fn draw(
         &use_line,
     ]);
     b.description(&summary);
-    b.open(Role::Slot);
-    b.open(Role::Heading { level: 3 });
-    b.name(&title);
-    let visible = if name.is_some() { caption(w, name, display, plan, sources) } else { title.clone() };
-    b.text(Run::Plain, &visible);
-    b.close();
-    let held = holder_words(root, w, name, holder, sources);
-    crate::cards::text(b, Role::Paragraph, &held);
-    if let Some(source) = deciding {
-        tag(b, w, source);
-    }
-    let line = words::join(&[
-        &models,
-        if models.is_empty() { b"" } else { &separator },
-        &pays,
-        if use_line.is_empty() { b"" } else { &separator },
-        &use_line,
-    ]);
-    crate::cards::text(b, Role::Paragraph, &line);
-    b.close();
     let Some(page) = root.pages().accounts() else {
         b.close();
         return;
@@ -234,10 +214,6 @@ fn draw(
     b.close();
     omitted(b, w, W::SourcesOmitted, sources.len(), bindings.counts().sources);
     b.open(Role::Slot);
-    if !models.is_empty() {
-        pair(b, w, W::Models, &models);
-    }
-    pair(b, w, W::PaysFor, &pays);
     if row.holder == c::AskAccountHolder::Deployment {
         pair(b, w, W::UsedBy, &chips(w, runs, waiting));
         pair(b, w, W::WaitingFor, &chips(w, waiting, None));
@@ -334,63 +310,6 @@ fn draw(
         text(b, w, Role::Status, W::Cut);
     }
     b.close();
-}
-fn caption(
-    w: &Words,
-    name: Option<&[u8]>,
-    display: &c::DocumentText,
-    plan: bool,
-    sources: &List<c::AccountSource>,
-) -> Box<[u8]> {
-    let (brand, plan_name) = words::provider_words(name.unwrap_or(b""));
-    for source in sources {
-        if source.kind == c::AccountKind::Program {
-            return words::join(&[
-                &named(w, W::Subscription, plan_name),
-                &words::say(w, W::Separator, &[]),
-                source.name.as_deref().unwrap_or(b""),
-            ]);
-        }
-    }
-    let mut signed = plan;
-    for source in sources {
-        signed |= source.kind == c::AccountKind::SignIn;
-    }
-    if signed {
-        let separator = words::say(w, W::Separator, &[]);
-        let label = if plan { plan_name } else { brand };
-        return words::join(&[
-            label,
-            if display.bytes().is_empty() || display.bytes() == label { b"" } else { &separator },
-            if display.bytes() == label { b"" } else { display.bytes() },
-        ]);
-    }
-    named(w, W::ApiKeyBrand, brand)
-}
-fn holder_words(
-    root: &Domain,
-    w: &Words,
-    name: Option<&[u8]>,
-    holder: c::AccountHolder,
-    sources: &List<c::AccountSource>,
-) -> Box<[u8]> {
-    let owner = match holder {
-        c::AccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
-        c::AccountHolder::Party(_) => match accounts::current_me(root.client()) {
-            Some(me) => named(w, W::HeldBy, me.party.name.bytes()),
-            None => named(w, W::HeldBy, &words::say(w, W::OwnHolder, &[])),
-        },
-    };
-    for source in sources {
-        if source.kind == c::AccountKind::SignIn || source.kind == c::AccountKind::Program {
-            return words::join(&[
-                words::provider_words(name.unwrap_or(b"")).0,
-                &words::say(w, W::Separator, &[]),
-                &owner,
-            ]);
-        }
-    }
-    owner
 }
 fn tag(b: &mut Builder, w: &Words, source: &c::AccountSource) {
     b.open(Role::Status);
@@ -657,11 +576,13 @@ fn notice(
             }
         }
     } else if source.kind == c::AccountKind::Program {
-        b.open(Role::Paragraph);
-        b.open(Role::Text);
-        state(b, w, source);
-        b.close();
-        b.close();
+        if !source.usable {
+            b.open(Role::Paragraph);
+            b.open(Role::Text);
+            state(b, w, source);
+            b.close();
+            b.close();
+        }
         let needs_check = program_hosts(b, root, w, source, true, bindings.counts());
         if needs_check || source.state == c::AccountState::SignInAgain {
             button(b, root, w, bindings, W::CheckAgain, row, Operation::CheckProgram { source: source.number }, busy);
@@ -673,9 +594,10 @@ fn notice(
                 signin(b, root, w, bindings, row, provider, busy);
             }
             c::AccountState::Misconfigured => text(b, w, Role::Paragraph, W::MisconfiguredPlan),
+            c::AccountState::Granted if source.usable => {}
+            c::AccountState::Granted => text(b, w, Role::Paragraph, W::Granted),
             c::AccountState::Moving
             | c::AccountState::Asking
-            | c::AccountState::Granted
             | c::AccountState::Later { .. }
             | c::AccountState::Unloaded { .. }
             | c::AccountState::Cancelled

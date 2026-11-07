@@ -1,6 +1,6 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
 `forge.md`). The greenfield mock (`greenfield/README.md`) is the look's
@@ -486,39 +486,43 @@ replay says the same clocks (`README.md`, 5.12).
   Progress and refusal stay above the acts. A chat's end line, whichever
   its words (`README.md`, 3.5), is 12.5 px between two hairlines, and the
   bar has no clock.
-- **Connection flows:** standalone connection cards use 5 px corners;
-  the welcome's steps have a look of their own (The welcome's look,
-  below). The
-  current step is ink, its bar and its bold label, never the accent,
-  which beside the done steps' green reads as a step gone wrong; the
-  accent is for what to press. The view assigns `FLOW_PRIMARY` to
-  filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
-  `FLOW_QUIET` to quiet terracotta links. Connect a forge's choices use
-  three equal columns and model choices two, stacking below 760 px. Choice cards keep
-  small headings, ink body text, muted metadata and bottom-aligned acts;
-  details share their padding. `FLOW_PAIR` groups organization/repository
-  and the half-width project field, stacking below 760 px. Setup field
-  labels are small and muted, and setup notes are a muted bulleted list.
-  Setup and Ready repository subtitles are muted and tight beneath their
-  headings. Model key and program Details descriptions are muted. Model
-  Ready uses its own definition list: 11 px labels, right-aligned 600-weight
-  muted values, 6 px row padding and hairline separators. Its action row
-  wraps with an 8 px gap, retaining Continue with ChatGPT (README, 5.5).
-  Those list and action styles do not select Accounts or Forges rows.
-  Progress draws ✓, ●, ✕ and ○ for done,
-  current, failed and pending; status words remain accessible in the DOM,
-  visually hidden.
-  A managed Forgejo's admin Details' first-repository fields sit in an
-  outlined fieldset with "Your first repository" as its legend. The view's
-  named Region and heading map to fieldset and legend through `look::ELEMENTS`,
-  shared by the browser and gallery. Claude's program Details uses the same
-  small neutral act and its existing program-name input, labeled "Name".
-  The welcome's Model ways sit directly under its lead, without the
-  standalone page's holder choice or outer Choose card. Inside a way,
-  the foot's Back and a quiet "All ways" return to Model Choose. On the
-  welcome a way is one panel, its field the panel's width; standalone, the
-  API key details keep the
-  full-width card with contents limited to 420 px; failure reasons in flow details are red.
+- **Connection flows** (`README.md`, 3.5 and 5.2): Settings and the
+  welcome share cards, panels and controls. Settings has no steps bar,
+  outer Choose card or Ready card; the welcome retains its frame’s Steps.
+  `CONNECT` adds the `temper-connect` class to Settings’ column, with zero
+  gap and 28 px below its path (18 px on a phone). `CONNECT_CARDS` is a
+  two-column grid with 16 px gaps; `CONNECT_CARD` has 22 px padding, 12 px
+  corners and the surface shadow. `CONNECT_DEFAULT` outlines the first
+  unconnected way in ink; `CONNECT_YES` marks connected ways in green.
+  `CONNECT_ACTS` wraps with 8 px by 16 px gaps; `CONNECT_PRIMARY` is ink
+  with white words, `CONNECT_SECONDARY` neutral, `CONNECT_QUIET` a muted
+  underlined link. `CONNECT_MUTED` is supporting text. `CONNECT_MORE`,
+  `CONNECT_ROWS` and `CONNECT_ROW` hold the API key and other-server rows.
+  `CONNECT_PANEL` keeps the same padding and corners with an 18 px gap;
+  `CONNECT_PAIR` groups half-width fields, and `CONNECT_ONE` makes one
+  column. Below 760 px pairs and cards stack. `CONNECT_TITLE` marks a
+  panel’s small heading; `CONNECT_CMD` holds a wrapping command with Copy;
+  `CONNECT_WAITING` is its two-column waiting note. `CONNECT_HOW` holds
+  labelled radio choices and `CONNECT_STEPS` numbered configuration steps.
+  `CONNECT_REPOS` holds the welcome’s repository choices. `CONNECT_LIVE`
+  draws the compact Forges progress list, with `CONNECT_LATER` for pending
+  lines; state words remain in the terminal and accessible DOM. Failed
+  lines retain their refusal. `CONNECT_EMPTY` draws an empty account group,
+  and `CONNECT_CONFIRM` the success line above Accounts or Forges rows.
+- **The repository sheet:** `CONNECT_SHEET` is at most 640 px wide, with
+  14 px corners, a native backdrop and a fixed top at 6 vh. Its
+  `CONNECT_SHEET_HEAD`, `CONNECT_SHEET_BODY` and `CONNECT_SHEET_FOOT` keep
+  the source switch at the top while the foot follows the content; the
+  body scrolls within its height. `CONNECT_SOURCES` holds the source radios,
+  `CONNECT_SOURCE` the chosen source. `CONNECT_LIST` is the bordered list;
+  `CONNECT_BOUNDED` gives long lists their own height, clamped from 150 to
+  288 px against the viewport. `CONNECT_NONE` collapses an empty list;
+  `CONNECT_COUNT` reports read and picked counts. `CONNECT_SAYS` mutes the
+  More summary’s current choices. `CONNECT_ADDRESSES` holds one copy address
+  per line; `CONNECT_ALERTS` its per-line refusals; `CONNECT_FAILED` the
+  failed-copy row and its acts. Disabled primary acts fade and cannot send.
+  At 760 px and below the sheet meets the bottom, full width, at most
+  92 vh high, with 16 px side padding and a shorter bounded list.
 - **The welcome's title,** "Welcome · first run · temper" on every step,
   whatever its level-1 heading, as Home's is "Home · temper"; the shell's
   turn, the journeys' print and the gallery's take it from the same rule,
@@ -943,9 +947,12 @@ without it.
    `/welcome`, or, where the first run is over, the chats, the
    address reading `/chats` once they do (2.4); a reload on a chat's
    address shows that chat, signed in by the cookie; a link spent shows
-   the browser's signed-out paragraph (2.4). That the secret leaves the
-   address before the first request is held by the shell's start order
-   (2.1), and is not tested.
+   the reason-specific signed-out paragraph (`README.md`, 5.1). After a
+   server restart, reopening the first printed link shows "This link
+   isn't from this temper. Use the one its terminal printed." because a
+   restart forgets retired link digests (jig's `protocol/client.md`, section 8).
+   That the secret leaves the address before the first request is held by
+   the shell's start order (2.1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui-web.md`,
    14.2), from the chats to a chat by its link and back; an address
    that is no page opens the inbox, and the address reads `/` once it
@@ -994,19 +1001,19 @@ its own sent to the provider's address while the page stays
 a press opening a tab within its gesture, the answer pointing it, the
 provider's redirect followed to the engine's listener in that tab, and
 the page, which stayed, drawing the end.
-- **Against:** `temper serve` with its OpenAI provider's issuer, its
-  authorization, token and key addresses, skein's fake issuer
+- **Against:** `temper serve` with two synthetic providers sharing an issuer,
+  its authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
   harness's loop, each grant a success for one synthetic subject, and
   the provider's redirect port the kernel's (the listener's port
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
-- **The story:** a person on `ConnectModel`'s Choose presses "Continue
-  with ChatGPT"; one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
+- **The story:** a person on `ConnectModel` presses "Sign in to Test provider";
+  one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
   which can't reach its opener by the time it's at the listener, its
   address the listener's; the page's own address reads
-  `/accounts/connect?provider=1&way=sign-in&source=S`, in place of the
-  entry it had; the page shows Ready ("Signed in to ChatGPT"); the fake
+  `/accounts/connect?provider=17&way=sign-in&source=S`, in place of the
+  entry it had; the page shows Ready ("Signed in to Test provider"); the fake
   has taken one authorization and one code exchange. A reload then shows
   Ready again and the issuer has taken no second authorization: the tab
   is pointed once.
@@ -1014,8 +1021,9 @@ the page, which stayed, drawing the end.
   press holds the welcome at `/welcome?at=model`, and it moves on to Ready
   by itself, `/welcome?at=ready`, with one authorization and one code
   exchange of its own. It runs first in this story's test (4.6, 9), on a
-  second provider of the same issuer: the issuer's one subject signing in
-  twice on one provider renews its account, in other words than Ready's
+  second provider of the same issuer, Welcome provider (18), with a model of
+  its own: the issuer's one subject signing in twice on one provider renews
+  its account, in other words than Ready's
   (`README.md`, 5.5), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
@@ -1180,7 +1188,23 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
 over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
-5 another:
+5 another. The twelve test functions in `tests/client-browser/tests/browser_all`
+are:
+
+| Stories below | Module | Test |
+|---|---|---|
+| 1 | `browser_sign_in` | `signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` |
+| 2 and 11 | `browser_pages` | `history_keeps_the_chat_focus_and_filter_across_reload_and_back` |
+| 4 and 5 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
+| 6 | `browser_attacks` | `cross_origin_requests_and_framing_cannot_act_as_the_person` |
+| 7 | `browser_authorize` | `a_cross_site_authorization_returns_a_code_and_the_links_state` |
+| 8 | `browser_accounts` | `the_accounts_page_returns_after_a_key_send` |
+| 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready` |
+| 10 | `browser_github` | `the_manifest_posts_once_and_history_waits_for_continue` |
+| 12 | `browser_playground` | `story_a_walks_on_the_built_playground` |
+| 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
+| 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
+| 15 | `browser_pages` | `closing_project_rename_returns_focus_to_the_summary` |
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1370,6 +1394,13 @@ Not in the tier, each in the lowest world that shows it:
   before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **Merged stories after landing** (4.2, 4.3, 4.6): check the call line's
+  open node across a reply, the composer's model picker, both sign-in tabs
+  with the welcome first, and reading's four page loads with anchoring off
+  only for the position story. Default: compile during the plan; run in
+  Chromium after landing, preserving every assertion, the forty-second
+  run deadline and the whole tier's 85 CPU-second budget. A whole-tier
+  run supplies the cost proof; separate story measurements do not.
 - **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
   with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
@@ -1718,10 +1749,22 @@ from the engine's own answers, is where the look is tuned.
 | `forge-setup-failed` | the failed setup's reason and neutral retry act |
 | `forges-github-install` | GitHub's Forges row before installation, with its primary Install act |
 | `forge-admin-details` | a managed Forgejo's admin Details, with its first-repository fieldset and legend |
-| `connect-forge-choose` | `ConnectForge`'s Choose: GitHub, Forgejo on this machine and Your Forgejo |
+| `connect-forge-choose` | the shared Forgejo and GitHub cards, with Your Forgejo below |
+| `connect-forge-connected` | shared cards with the connected Forgejo marked and GitHub primary |
+| `connect-forge-yours-admin` | Your Forgejo’s admin form, with the other form absent |
+| `connect-forge-yours-tokens` | Your Forgejo’s bot tokens, with the admin form absent |
 | `adoption` | the adoption form, empty |
 | `adoption-filled` | the adoption form, filled in |
 | `adoption-refused` | the adoption form after a refusal, its alert |
+| `sheet-adopt` | Add repositories with a long list, search, count and disabled project rows |
+| `sheet-searching` | the sheet searching with a pick retained |
+| `sheet-none` | the completed search with no match and Not listed opened |
+| `sheet-few` | a small completed list, no search or count, More open |
+| `sheet-empty` | the sheet with no reachable repository |
+| `sheet-copy` | Copy public, one address per line |
+| `sheet-copy-lines` | invalid copy lines and their repairs |
+| `sheet-empty-source` | Make empty, with organization, name and the destination forge |
+| `repositories-making` | copies under way and failed, the forge’s reason, Copy again and Dismiss |
 | `chats-reference` | the reference world's chats |
 | `chat-reference-T1` | the reference world's chat T1 |
 | `chat-solo-T1` | the solo world's chat T1, closed: no composer and no chooser |
@@ -1755,14 +1798,12 @@ from the engine's own answers, is where the look is tuned.
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
 | `task-held` | an agent's task's plan with a held task, Release offered |
 | `task-releasing` | `task-held` with Release pressed: its confirmation |
-| `connect-model-choose` | the offered ways and the owner's holder choice |
+| `connect-model-choose` | shared plan cards and key rows, with the owner’s quiet holder switch |
+| `connect-model-connected` | a connected plan marked on its card, with the first unconnected plan primary |
 | `connect-model-key-details` | a key's secret field and Add key |
-| `connect-model-program-details` | a program's name, command and Declare |
+| `connect-model-program-details` | a program’s panel, command, Copy, login name and I’ve signed in |
 | `connect-model-signing-in` | the waiting note, "Open it again" and folded paste |
-| `connect-model-key-ready` | a key kept, Ready with Start a chat |
-| `connect-model-signin-ready` | a sign-in made an account, Ready |
 | `connect-model-declined` | plan usage declined, with another sign-in and a key way |
-| `connect-model-renewed` | the same account again, with another sign-in |
 | `connect-model-refused` | another holder's account refused, with another sign-in |
 | `connect-model-key-lost` | a key request's answer lost, its alert asking for the value again |
 | `task-reference-T28` | the reference world's change T28, queued 2nd after T26 |
