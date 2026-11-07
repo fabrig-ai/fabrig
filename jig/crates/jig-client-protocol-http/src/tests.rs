@@ -6,7 +6,7 @@ mod fixtures;
 mod stream;
 use fixtures::{credential, mapping};
 const EXCHANGE: u64 = 11;
-const ROUTES: [&[u8]; 9] = [
+const ROUTES: [&[u8]; 13] = [
     b"/jig/v1/request",
     b"/jig/v1/read",
     b"/jig/v1/watch",
@@ -16,6 +16,10 @@ const ROUTES: [&[u8]; 9] = [
     b"/jig/v1/sign-in/deployment",
     b"/jig/v1/sign-out",
     b"/jig/v1/authorize",
+    b"/jig/v1/approval/ask",
+    b"/jig/v1/approval/read",
+    b"/jig/v1/approval/decide",
+    b"/jig/v1/sign-in/approval",
 ];
 const STATUSES: [u16; 4] = [201, 401, 500, 503];
 #[test]
@@ -40,6 +44,7 @@ fn each_message_maps_to_its_route_under_the_prefix() {
         let call = exchange(&mapping(), None, message);
         assert_eq!(call.method, Method::Post, "{route:?}");
         assert_eq!(call.path.as_ref(), route, "{route:?}");
+        assert!(call.headers.as_slice().contains(&Header { name: bytes::copy_of(b"Content-Type"), value: bytes::copy_of(b"application/octet-stream") }));
     }
 }
 #[test]
