@@ -20,7 +20,11 @@ reference keeps its numbered words without figures (`client/README.md`,
 3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
 A browser's other chat look is built: its terminal frame, commands, kept
 mode/theme/font, full screen, document, question list and compact cards,
-with nine gallery states. Its quiet line retains the bar's budget words,
+with nine gallery states. Terminal acts and closing lists advance the
+shown count in their step; the terminal ground wins in phone Split, the
+draft scrolls thin without a reserved gutter, the quiet model button is
+plain and the running line sits inside the foot. Their rendered comparison
+remains temper/ui's after-landing work. Its quiet line retains the bar's budget words,
 settings proposals retain Accept and Change something, commands match
 case exactly, background presses do not focus the box, options do not
 select on hover, adjacent help notes share paragraph spacing, and Plex
