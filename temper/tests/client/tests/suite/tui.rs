@@ -75,6 +75,8 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     assert_eq!(world.root(browser).person().approval().expect("the approval page").state(), approve::State::Approved);
     assert!(tui.credential().is_some(), "the host keeps the approval's credential");
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
+    // The take's retry precedes the signed-in stream and its first watches.
+    tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
     let name = std::str::from_utf8(party.name.bytes()).expect("party name");
     assert!(text.contains(&format!("Connected to 127.0.0.1:8367 as {name}")), "{text}");
