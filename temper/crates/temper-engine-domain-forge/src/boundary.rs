@@ -448,6 +448,36 @@ pub enum StartsWith {
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
+/// A forge's link to a box's one person: on this forge, that party is that user
+/// (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Link {
+    /// The forge's user, never 0.
+    pub user: u64,
+    /// Jig's party, never 0.
+    pub person: u64,
+}
+
+/// What setup read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PersonAnswer {
+    /// The person's user: a Forgejo `Reconcile`'s `Person` id or a manifest-made App's `User` account.
+    Is(u64),
+    /// The person's Forgejo account is gone: a `Reconcile`'s `Person` with no id.
+    Gone,
+    /// The App has no matching `AppMade` or its account is not a `User`.
+    NotTheirs,
+}
+
+/// What happened to the forge's link (temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LinkNote {
+    Gone,
+    Writer,
+    Replaced,
+    Cleared,
+}
+
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ForgeRecord {
@@ -462,6 +492,8 @@ pub struct ForgeRecord {
     /// The setup entry's `start: asked` (protocol/setup.md, 8).
     pub asked: bool,
     pub first: Option<FirstIntent>,
+    /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge.md, 2.1).
+    pub person: Option<Link>,
 }
 /// Kept, or ended with removal's answers (temper/docs/design/domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1840,6 +1872,15 @@ pub enum Event {
         forge: u16,
         login: Box<[u8]>,
     },
+    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 9.1).
+    Owner {
+        party: Option<u64>,
+    },
+    /// What a setup run read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+    PersonOf {
+        forge: u16,
+        answer: PersonAnswer,
+    },
 }
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
@@ -2188,6 +2229,11 @@ pub enum Request {
         forge: u16,
         request: Token,
         carried: jig_domain_core::Carried,
+    },
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    LinkNoted {
+        forge: u16,
+        note: LinkNote,
     },
 }
 

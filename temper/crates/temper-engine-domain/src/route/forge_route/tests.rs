@@ -812,6 +812,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
             &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Forge(forge::ForgeRecord {
+                    person: None,
                     git_program: None,
                     number,
                     kind: forge::Kind::Forgejo,
@@ -3877,6 +3878,7 @@ fn result_pull_address(domain: &mut super::Domain, env: &skein_lib::Env<super::L
     web.put(&[b'x'; 180]).unwrap();
     let web = web.finish();
     let row = forge::ForgeRecord {
+        person: None,
         number: change_row(Some(7)).repository.forge,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Connected,

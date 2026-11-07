@@ -211,6 +211,11 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         })),
     };
     let row = forge::Stored::Forge(forge::ForgeRecord {
+        person: if rng.below(2) == 0 {
+            None
+        } else {
+            Some(forge::Link { user: rng.next_u64().max(1), person: rng.next_u64().max(1) })
+        },
         git_program: if rng.below(2) == 0 { None } else { Some(drawn_field(rng)) },
         number,
         kind,
