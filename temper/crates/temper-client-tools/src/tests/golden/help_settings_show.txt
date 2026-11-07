@@ -6,8 +6,8 @@ Key: none.
 settings show KIND NUMBER --json prints one value to edit.
 settings apply and settings propose take the newest revision this
 prints as `--against`.
-settings show charter|template|policy NUMBER [--revision REVISION]
-  charter|template|policy (kind): one of charter, template or policy; required. The setting's kind
+settings show charter|template|policy|model NUMBER [--revision REVISION]
+  charter|template|policy|model (kind): one of charter, template, policy or model; required. The setting's kind
   NUMBER (number): a number from 0 to 4294967295; required. The setting's number
   --revision REVISION: a number from 0 to 4294967295; optional. Its value at this revision; the newest when absent
 settings show rules

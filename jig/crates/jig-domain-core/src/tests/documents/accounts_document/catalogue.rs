@@ -13,8 +13,9 @@ fn serving_records(records: Vec<accounts::Stored>) -> (Core, Env<Limits>) {
 }
 fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<Limits>) {
     let (mut core, env) = fixture(records);
+    core.settings.models[0].provider = PROVIDER;
     core.settings.models[0].name = b"scripted".as_slice().into();
-    core.settings.llm_providers.providers[0].models = Box::new([b"scripted".as_slice().into()]);
+
     if granted {
         grant(&mut core, &env, FIRST_SOURCE);
     }
@@ -299,10 +300,10 @@ fn readiness_requires_one_models_source_and_host_together() {
     let (mut core, env) = serving();
     let mut direct = core.settings.models[0].clone();
     direct.name = b"direct".as_slice().into();
+    direct.endpoint = 2;
     core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     core.settings.models = Box::new([core.settings.models[0].clone(), direct]);
-    core.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), b"direct".as_slice().into()]);
+
     core.settings.llm_providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
     core.fleet = runs::run_choice::placement_fleet(&core, &env.limits);
     runs::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);

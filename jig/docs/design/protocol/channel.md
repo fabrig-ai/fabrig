@@ -201,10 +201,10 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **The fleet may refuse the hello:** no room for another host; a worker
   position that is not configured or is held by a live channel; a stop
   bound not strictly shorter than the engine's grace; or an agent whose
-  bounds cannot run the engine's charters, a model it declares among
-  them held with a smaller window or output than configuration's
+  bounds cannot run the engine's charters, an endpoint it serves among
+  them held with a smaller window or output than a charter's model's
   (`../domain/engine.md`, section 8); or job kinds not ascending and
-  distinct (5.4). A model or a job kind it does not declare is no
+  distinct (5.4). An endpoint or a job kind it does not declare is no
   reason: runs and jobs that need it are not placed there. The engine's side
   then refuses the channel with *not admitted*, the fleet's reason as
   its text, and the worker redials after its backoff, as for any
@@ -228,7 +228,7 @@ answer, and a **notice** is not answered.
 
 | Record | Fields | Shape |
 |---|---|---|
-| hello | slots; stop bound, a duration; the agent's bounds: for each model it declares, its name, window and output; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (4.3); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (5.4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement | first, once |
+| hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (4.3); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (5.4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement | first, once |
 | turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (6.1) | notice, kept by the hub until acknowledged |
 | call | task, attempt; the run's name for the call, as bytes (section 7); the host tool's name; whether it writes; its input; the time left on its deadline | call |
 | answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (6.1), parked, or failed with its typed failure and bounded detail; what it left on resources and what it saved, each the application's bytes (6.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
@@ -796,7 +796,7 @@ and resends what it must after the next hello.
   detail and grant; the application's largest items, left work, saved work and
   evidence, which the application's limits give; slots, calls per run,
   turns kept per run, the messages a run's inbox takes (a start's, and a
-  record's refusals), the models a hello may declare, LLM accounts'
+  record's refusals), the endpoints a hello may declare, LLM accounts'
   sources, the program sources a worker may be given (which bound
   `sources` and `logins`) and the application's credentials, from the
   accounts' bounds (`configuration.md`, section 6). The crate turns

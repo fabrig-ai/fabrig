@@ -12,29 +12,12 @@ fn model(value: &jig_domain_core::Model) -> Value {
 /// Use the binary's defaults, with this deployment's models.
 #[must_use]
 pub fn stock(deployment: &Value) -> Value {
-    let mut value = deployment["engine"].clone();
-    for member in ["charters", "templates", "policies", "rules"] {
-        value.as_object_mut().expect("engine").remove(member);
-    }
-    value["projects"] = json!([]);
-    let bytes = serde_json::to_vec(&value).expect("engine JSON");
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-    )
-    .expect("engine document");
-    let engine = jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-    )
-    .expect("configured models");
-    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = configuration(deployment);
+    let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
     assert!(c.documents.is_empty(), "stock charter has no documents");
     let p = &c.policy;
-    let charter = json!({"number":c.number,"documents":[],"instructions":text(&p.instructions),"model":model(&p.model),"alternatives":p.alternatives.iter().map(model).collect::<Vec<_>>(),
+    let charter = json!({"number":c.number,"rest":c.rest,"documents":[],"instructions":text(&p.instructions),"model":model(&p.model),"alternatives":p.alternatives.iter().map(model).collect::<Vec<_>>(),
         "waiting":p.waiting.as_nanos(),"resume":p.resume,"turns":p.turns,"time":p.time.as_nanos(),"reserve_turns":p.reserve_turns,"reserve_time":p.reserve_time.as_nanos(),
         "inspect":p.inspect,"modify":p.modify,"shell":p.shell,"agents":p.agents,"call_timeout":p.call_timeout.as_nanos(),"hosts":match c.hosts { jig_domain_fleet::Kinds::Workers=>"workers",jig_domain_fleet::Kinds::Engine=>"engine",jig_domain_fleet::Kinds::Both=>"both" },"spend":c.spend});
     let t = &defaults.templates[0];
@@ -59,27 +42,7 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
 /// Parse only startup configuration; the caller supplies typed defaults afterwards.
 #[must_use]
 pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
-    let mut value = deployment["engine"].clone();
-    for member in ["charters", "templates", "policies", "rules"] {
-        value.as_object_mut().expect("engine").remove(member);
-    }
-    if deployment["world_settings"]["policies"].is_array() {
-        // Jig's inline form decodes the world's own values into typed defaults.
-        value["projects"] = deployment["world_settings"]["policies"].clone();
-    }
-    let bytes = serde_json::to_vec(&value).expect("engine JSON");
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-    )
-    .expect("engine document");
-    jig_protocol_config::engine(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-    )
-    .expect("startup configuration")
+    temper_playground::documents::settings::configuration(deployment)
 }
 
 /// Separate the imported world's policy values from seeds that name their settings.

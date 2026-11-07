@@ -160,7 +160,7 @@ record AskChangeSettings { against: u32 digest: fixed 32 projects: list 128 u32 
 record SettingNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: SettingNumber }
 record OutcomeRestored { proposal: u64 to: u32 left_out: list 256 Setting }
 enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged }
 enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector }

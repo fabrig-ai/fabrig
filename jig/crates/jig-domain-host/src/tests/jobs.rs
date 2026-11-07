@@ -39,7 +39,7 @@ fn opened() -> Event {
         workstreams: Box::new([]),
         bounds: crate::Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([]),
+            endpoints: Box::new([]),
             turns: 1,
             spend: 1,
             time: Duration::from_secs(1),

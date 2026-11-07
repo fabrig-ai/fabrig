@@ -11,6 +11,11 @@ fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");
+        std::fs::write(path, rendered).expect("write settings fields reference");
+        return;
+    }
     if checked_in != rendered {
         let mut line = 1;
         for (left, right) in checked_in.lines().zip(rendered.lines()) {
@@ -25,10 +30,9 @@ fn the_page_is_what_fields_renders() {
 
 fn llm() -> jig_protocol_config::Llm {
     jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: Box::new([jig_domain_core::Model {
+        models: (Box::new([jig_domain_core::Model {
+            provider: 1,
             dialect: 1,
             endpoint: 1,
             program: None,
@@ -42,15 +46,32 @@ fn llm() -> jig_protocol_config::Llm {
             price_unit: 1000,
             efforts: Box::new([]),
             effort: None,
-        }]),
-        descriptions: Box::new([None]),
+        }]))
+        .into_iter()
+        .enumerate()
+        .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+            number: u32::try_from(at).expect("bounded fixture models") + 1,
+            model,
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect(),
+
         providers: Box::new([]),
     }
 }
 fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     let mut models = Vec::new();
-    for model in &llm.models {
+    for entry in &llm.models {
+        let model = &entry.model;
         models.push(jig_protocol_engine_clients::Model {
+            number: 1,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             effort: model.default_effort().map(skein_lib::bytes::copy_of),
             shown: None,
             picker: true,
@@ -74,6 +95,7 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
 fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
+        SettingValue::Model(value) => values::encode_catalogue(value, out),
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
         SettingValue::Policy(value) => values::encode_setting_policy(value, out),
@@ -192,15 +214,19 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has seven charters, three templates, one policy and the rules.
-    const STOCK_VALUES: usize = 12;
+    // The fixture has one model, seven charters, three templates, one policy and the rules.
+    const STOCK_VALUES: usize = 13;
     let llm = llm();
     let models = models(&llm);
-    let stock = temper_service::stock::defaults(
-        &llm,
+    let stock = temper_service::stock::with_models(
+        llm.models.clone(),
         jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Standard).core.tasks.result_bytes,
     );
     let mut checked = 0;
+    for value in stock.models {
+        walk(Shape::Catalogue, printed(&StockValue::Model(Box::new(value)), &models));
+        checked += 1;
+    }
     for value in stock.charters {
         walk(Shape::Charter, printed(&StockValue::Charter(Box::new(value)), &models));
         checked += 1;

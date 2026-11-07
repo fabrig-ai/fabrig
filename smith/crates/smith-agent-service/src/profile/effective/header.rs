@@ -1,4 +1,4 @@
-//! The event vocabulary's effective names, with configured endpoint and model names.
+//! The event vocabulary's effective names, with configured endpoint names.
 //! No addresses or credentials are read. Contract: smith/docs/design/protocol/limits.md, section 9.
 
 use super::super::Configuration;
@@ -12,7 +12,7 @@ use smith_events::{EffectiveLimit, LimitValue};
 pub fn header(
     limits: &[Limit],
     names: &smith_protocol_translate::Endpoints,
-    configuration: &Configuration,
+    _configuration: &Configuration,
 ) -> Option<List<EffectiveLimit>> {
     let mut result = List::with_capacity(u32::try_from(limits.len()).ok()?);
     for limit in limits {
@@ -31,16 +31,12 @@ pub fn header(
                 }
             }
         };
-        result.push(EffectiveLimit { name: name(&limit.name, names, configuration)?, value }).ok()?;
+        result.push(EffectiveLimit { name: name(&limit.name, names)?, value }).ok()?;
     }
     Some(result)
 }
 
-fn name(
-    limit: &LimitName,
-    names: &smith_protocol_translate::Endpoints,
-    configuration: &Configuration,
-) -> Option<Box<[u8]>> {
+fn name(limit: &LimitName, names: &smith_protocol_translate::Endpoints) -> Option<Box<[u8]>> {
     let mut parts: [&[u8]; 8] = [limit.layer.name().as_bytes(), b".", limit.field.as_bytes(), b"", b"", b"", b"", b""];
     match limit.per {
         Per::Deployment => {}
@@ -48,13 +44,6 @@ fn name(
             parts[3] = b"[endpoint=";
             parts[4] = names.name_for(number)?;
             parts[5] = b"]";
-        }
-        Per::Model { endpoint, model } => {
-            parts[3] = b"[endpoint=";
-            parts[4] = names.name_for(endpoint)?;
-            parts[5] = b",model=";
-            parts[6] = model_name(configuration, endpoint, model)?;
-            parts[7] = b"]";
         }
     }
     let mut length = 0_usize;
@@ -66,13 +55,4 @@ fn name(
         writer.put(part).ok()?;
     }
     Some(writer.finish())
-}
-
-fn model_name(configuration: &Configuration, endpoint: u32, model: u32) -> Option<&[u8]> {
-    for declared in &configuration.endpoints {
-        if declared.number == endpoint {
-            return Some(&declared.models.get(usize::try_from(model).ok()?)?.name);
-        }
-    }
-    None
 }

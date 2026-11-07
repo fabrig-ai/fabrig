@@ -65,7 +65,7 @@ pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
                 domain.main_model = index;
                 let efforts = domain.config.efforts.get(index).expect("selected startup efforts");
                 if let Some(effort) = &domain.effort
-                    && !smith_domain::ConfiguredModel::accepts_effort(efforts, Some(effort))
+                    && !crate::Config::accepts_effort(efforts, Some(effort))
                 {
                     let notice =
                         ChoiceNotice::Effort { effort: effort.clone(), choices: efforts.clone(), dropped: true };
@@ -79,7 +79,7 @@ pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
         },
         Slash::Effort { level } => {
             let efforts = domain.config.efforts.get(domain.main_model).expect("selected startup efforts");
-            if smith_domain::ConfiguredModel::accepts_effort(efforts, Some(&level)) {
+            if crate::Config::accepts_effort(efforts, Some(&level)) {
                 domain.effort = Some(level);
             } else {
                 out.push(Request::Notice {

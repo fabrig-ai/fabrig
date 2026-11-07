@@ -1,6 +1,6 @@
 //! One bounded chat deployment and independent provider script (channel.md, 12).
 use crate::world::{Script, Settings};
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_test_service::{Files, Seeds};
 use skein_lib::{Duration, List, Secret};
 
@@ -218,7 +218,7 @@ pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> j
         host_limits,
         bounds: jig_domain_link::Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),
@@ -254,7 +254,7 @@ fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Con
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::default(),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )
@@ -383,18 +383,15 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
     let mut models = List::with_capacity(1);
     models
         .push(
-            wire::ModelBound::new(
-                codec,
-                wire::ModelBoundParts { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 },
-            )
-            .expect("peer model"),
+            wire::EndpointBound::new(codec, wire::EndpointBoundParts { endpoint: 1, window: 1_048_576, output: 512 })
+                .expect("peer model"),
         )
         .expect("one model");
     let bounds = wire::Bounds::new(
         codec,
         wire::BoundsParts {
             program_endpoints: List::with_capacity(0),
-            models,
+            endpoints: models,
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),
@@ -573,7 +570,7 @@ pub fn store_limits() -> jig_test_service::limits::Limits {
 #[must_use]
 pub fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine_configuration().llm.models))
+    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine_configuration().llm.models()))
 }
 
 #[must_use]
@@ -657,5 +654,5 @@ fn providers_engine() -> Vec<u8> {
 
 pub(crate) fn providers_store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models))
+    NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models()))
 }

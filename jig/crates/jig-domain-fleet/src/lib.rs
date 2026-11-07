@@ -58,7 +58,7 @@ mod channel;
 mod programs;
 mod sources;
 use jig_domain_link::{
-    Bounds, CountKind, Form, Grant, Login, LoginState, Membership, ModelBound, Operation, SignOutResult, SourceName,
+    Bounds, CountKind, EndpointBound, Form, Grant, Login, LoginState, Membership, Operation, SignOutResult, SourceName,
     Worker, valid_program_endpoints,
 };
 pub use programs::{ProgramResult, WORKER_NAME};

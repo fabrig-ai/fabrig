@@ -401,6 +401,9 @@ impl Store {
         protocol::component_v3::Wires::decode(&protocol::component_v3::CEILINGS, &mut skein_lib::Reader::new(&bytes))
             .expect("durable wires decode")
     }
+    pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+        self.component.as_mut().expect("live component").catalogue(names);
+    }
     pub fn switch(&mut self) -> engine::StoreInput {
         self.request(engine::StoreRequest::Switch);
         let answer = self.replies.pop().expect("switch terminal");

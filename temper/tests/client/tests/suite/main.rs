@@ -60,6 +60,7 @@ mod github_connect;
 mod live_text;
 mod model;
 mod model_check;
+mod models;
 mod question;
 mod second_sign_in;
 mod sign_in;

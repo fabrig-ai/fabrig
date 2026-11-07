@@ -424,7 +424,7 @@ impl Component {
             Self::local_failure(owner, llm::Failure::Invalid, bounds.max_failure_bytes, to_domain);
             return;
         };
-        let drop_reasoning = options.drop_reasoning(&prompt.model);
+        let drop_reasoning = options.drop_reasoning();
         let credential = match self.grants.credential(grant, env.now) {
             Ok(credential) => credential,
             Err(GrantError::Missing | GrantError::Lapsed) => {
@@ -757,7 +757,7 @@ mod tests {
                         transport: connection::Transport::Plaintext,
                         llm: endpoint,
                     },
-                    models: Box::new([]),
+                    oversized_reasoning: crate::OversizedReasoning::Fail,
                 }]),
                 1,
             )

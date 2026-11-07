@@ -119,7 +119,7 @@ Tasks made before keep it, on their revision.
   task takes, when it is made, the first of the charter's models with an
   account that can pay for it, else `model`; its runs keep the model it
   took.
-- A charter's models are the deployment's: each must equal a configured
+- A charter's models are the deployment's: each must equal a catalogue
   model in every member but its effort, and its effort must be one the
   model takes.
 - A run has more turns and time than its reserve, and keeps the reserve

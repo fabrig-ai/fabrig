@@ -177,8 +177,8 @@ fn the_hello_carries_the_hubs_agent_bounds_and_hosting() {
     let run = record.hosting().get(0).expect("hosting");
     assert_eq!((run.task(), run.attempt(), run.phase()), (7, 2, &wire::Phase::Active));
     let bounds = record.bounds();
-    let model = bounds.models().get(0).expect("model");
-    assert_eq!((model.name(), model.window(), model.output()), (b"model".as_slice(), 16, 8));
+    let model = bounds.endpoints().get(0).expect("model");
+    assert_eq!((model.endpoint(), model.window(), model.output()), (1, 16, 8));
     assert_eq!(
         (bounds.turns(), bounds.spend(), bounds.inbox(), bounds.message_bytes(), bounds.unacknowledged()),
         (1, 10, 1, 16, 1)

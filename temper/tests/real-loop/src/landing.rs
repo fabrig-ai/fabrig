@@ -141,24 +141,13 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     agent["profile"]["policy"]["max_turns"] = 800.into();
     agent["profile"]["policy"]["check_timeout"] = 1000.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["models"][0]["output"] = 8192.into();
+        endpoint["limits"]["output"] = 8192.into();
     }
     admit(value);
 }
 
 fn limits(value: &Value) -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
-    let mut configured = value.clone();
-    configured.as_object_mut().expect("deployment").remove("world_settings");
-    let bytes = serde_json::to_vec(&configured["engine"]).expect("engine JSON");
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-    )
-    .expect("engine document");
-    // Parsing a fixture without a deployment; only its limits are used.
-    let given = crate::fixtures::own_defaults(value, &value["world_settings"]);
-    let jig = temper_service::startup::engine_with(&document, 0, &jig_protocol_config::Directories::working(), &given)
-        .expect("engine configuration");
+    let jig = crate::settings::configuration(value);
     let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
     for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
         temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))

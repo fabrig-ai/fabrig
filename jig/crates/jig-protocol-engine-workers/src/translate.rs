@@ -3,8 +3,8 @@
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::{
-    Bounds, CountKind, Form, Hello, Hosting, JobBound, JobKind, Login, LoginMethod, LoginState, ModelBound, Operation,
-    Phase, Scheme, SignOutResult, SourceFailure, SourceName, valid_program_endpoints,
+    Bounds, CountKind, EndpointBound, Form, Hello, Hosting, JobBound, JobKind, Login, LoginMethod, LoginState,
+    Operation, Phase, Scheme, SignOutResult, SourceFailure, SourceName, valid_program_endpoints,
 };
 use jig_protocol_worker_wire as wire;
 use skein_lib::{List, Reader, Token};
@@ -14,11 +14,11 @@ pub(crate) fn hello(record: wire::Hello) -> Option<Hello> {
     if !valid_program_endpoints(bounds.program_endpoints.as_slice()) {
         return None;
     }
-    let mut models = List::with_capacity(bounds.models.len());
-    for model in bounds.models.into_boxed() {
+    let mut endpoints = List::with_capacity(bounds.endpoints.len());
+    for model in bounds.endpoints.into_boxed() {
         let model = model.into_parts();
-        models
-            .push(ModelBound { name: model.name, window: model.window, output: model.output })
+        endpoints
+            .push(EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
             .expect("one slot per decoded model");
     }
     let mut hosting = List::with_capacity(fields.hosting.len());
@@ -42,7 +42,7 @@ pub(crate) fn hello(record: wire::Hello) -> Option<Hello> {
         hosting: hosting.into_boxed(),
         bounds: Bounds {
             program_endpoints: bounds.program_endpoints.into_boxed(),
-            models: models.into_boxed(),
+            endpoints: endpoints.into_boxed(),
             turns: bounds.turns,
             spend: bounds.spend,
             time: bounds.time,

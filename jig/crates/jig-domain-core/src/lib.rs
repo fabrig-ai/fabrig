@@ -164,13 +164,14 @@ pub struct Config {
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
 }
 
-/// Immutable deployment and run settings used by core decisions.
+/// Deployment and current catalogue settings used by core decisions.
 #[derive(Debug)]
 pub struct Settings {
+    pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.
     pub deployment_provider: u16,
-    /// Configured models in configuration's order: model `i` is bit `i` of an authority's
-    /// models and the `i` a task's LLM choice names (authority.md, 3; tasks.md, 3).
+    /// The current catalogue by number: row `i` is setting `i + 1`, including holes
+    /// (domain/engine.md, 17.11; authority.md, 3; tasks.md, 3).
     pub models: Box<[Model]>,
     /// Maximum committed conversation bytes resumed whole.
     pub resume_bytes: u32,
@@ -279,7 +280,7 @@ pub struct Core {
     pub(crate) kinds: Box<[settings::Kind]>,
     pub(crate) restoring: settings::Restoring,
     pub(crate) settings_judging: settings::application::Judging,
-    pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
+    pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32, bool)>,
     pub(crate) key_input: Option<Carried>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
     pub(crate) task_capacity_mark: u64,
@@ -450,6 +451,10 @@ impl Core {
             config.settings.tail_bytes <= limits.brief_core_budgets.tail,
             "core prices its transcript text retention"
         );
+        if config.defaults.models.is_empty() {
+            config.defaults.models = settings::catalogue::defaults(&config.settings);
+        }
+        config.settings.models = settings::catalogue::rows(&config.defaults.models);
         charters::assert_catalogue(&config.settings);
         assert!(
             config.seed_projects.len() <= skein_lib::length::usize_of(limits.authority.projects),
@@ -479,7 +484,9 @@ impl Core {
             );
         }
         let fleet_needs = fleet_needs::configured(&config, limits);
-        let current = settings::Current::new(config.defaults, limits, &config.kinds);
+        let mut current = settings::Current::new(config.defaults, limits, &config.kinds);
+        config.settings.models = settings::catalogue::table(&current);
+        charters::rebuild(&mut current, limits);
         for project in &config.seed_projects {
             assert!(
                 project.policy.templates.is_empty()
@@ -597,13 +604,7 @@ impl Core {
                 config.grants,
             ),
             fleet: {
-                let mut fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fleet_needs, {
-                    let mut names = List::with_capacity(tasks::MODELS);
-                    for model in &config.settings.models {
-                        names.push(model.name.clone()).expect("catalogue bound");
-                    }
-                    names.into_boxed()
-                });
+                let mut fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fleet_needs);
                 fleet.configure_workers(worker_names);
                 fleet
             },
@@ -617,3 +618,13 @@ impl Core {
 }
 
 pub use effects::connector::PersonSeed;
+
+/// Endpoint identity used to check model settings (domain/engine.md, 17.11).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct EndpointFacts {
+    /// Providers that name this endpoint for added models (engine.md, 17.11).
+    pub providers: Box<[u32]>,
+    pub number: u32,
+    pub dialect: u32,
+    pub program: Option<Box<[u8]>>,
+}

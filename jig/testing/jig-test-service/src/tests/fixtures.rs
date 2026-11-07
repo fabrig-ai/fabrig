@@ -1,7 +1,7 @@
 pub(crate) mod family;
 use crate::{End, Files, PartyOutput, Seeds, Service, iterate};
 use jig_domain_core as core;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_domain_people as people;
 use skein_lib::{List, ReplyTo, Secret, Time, Token, Wall};
 use skein_lib::{Queue, Writer};
@@ -523,7 +523,7 @@ pub fn agent() -> crate::Agent {
         host_limits,
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 8192, output: 1024 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),

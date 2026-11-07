@@ -218,6 +218,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
+| `ChangeModel` | the deployment, its scope (7.5); the act: a model's number and whether a picker shows it, or a provider and a name to add | one change of the `model` setting at the newest revision, running work staying, decided and answered as `ChangeSettings`, and never stale (`../../domain/engine.md`, 17.11) |
 | `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, an application's kind, scope and number, or a project's own policy by its project) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default, a project's policy set alone and at most one, decided by that project's owners and, beside the deployment's items, by a party who owns both; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
 | `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its items jig's kinds, an application's and each project's policy a later revision set, its number answered, with what it leaves out: the settings and the policy of each project deleted since, by kind, project and number (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
@@ -627,7 +628,7 @@ served is held, kept and unsent, for its owner's version (client.md,
     any; the **offer** in each project, what they can pick there now, one
     list that every client draws from and works nothing out, so that a page
     can't show what it leaves out: the models of the brief's catalogue
-    (`../../domain/engine.md`, section 9), in configuration's order, that
+    (`../../domain/engine.md`, section 9), in the catalogue's order, that
     their authority there allows and an account can run, an account of the
     model's provider being usable now and serving them
     (`../../domain/accounts.md`, 4.3). A provider with no such account gives
@@ -636,10 +637,14 @@ served is held, kept and unsent, for its owner's version (client.md,
     default among them that a task given none takes (`effort`), its prices
     (amounts per `unit` tokens in the deployment's spend unit; cache writes
     are priced at input when no separate price is given), its optional
-    description and shown name as configured, the accounts that can run it
-    for them, the one a run would take first first, and whether a picker
-    shows it (`picker`), so that a task's LLM choice (3.2) is drafted from
-    it; the most bytes a key may have,
+    description and shown name, its setting's `number`
+    (`../../domain/engine.md`, 17.11), where it came from (`source`: the
+    binary's, a provider's list or a person's), whether its prices are
+    `estimated`, the accounts that can run it for them, the one a run would
+    take first first, and whether a picker shows it (`picker`), so that a
+    task's LLM choice (3.2) is drafted from it; how many models the
+    catalogue holds past the bounds of the charter a project's chats run
+    under (`left_out`, `../../domain/engine.md`, 17.11); the most bytes a key may have,
     which bounds a request carrying one (3.1), and the most a pasted
     sign-in address may have, the driver's redirect bound; the most bytes
     a party's words may have (a task's spec, a message, an answer) and an

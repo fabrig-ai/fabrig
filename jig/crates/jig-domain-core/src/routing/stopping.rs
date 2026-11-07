@@ -48,7 +48,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         return Ok(event);
     }
     match event {
-        Event::ChangeSettings { reply_to, .. }
+        Event::ChangeModel { reply_to, .. }
+        | Event::ChangeSettings { reply_to, .. }
         | Event::ProposeSettings { reply_to, .. }
         | Event::SignIn { reply_to, .. } => Err(party(reply_to)),
         Event::Act { reply_to, carried, .. } => Err(routing::application_routes::first(

@@ -1,3 +1,4 @@
+mod models;
 mod needs;
 use crate::ChatsFilter;
 mod accounts;

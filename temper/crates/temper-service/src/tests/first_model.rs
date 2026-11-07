@@ -10,7 +10,7 @@ use jig_client_protocol_wire::v19 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Login, LoginState, ModelBound, PROGRAM_ENDPOINTS, SourceName};
+use jig_domain_link::{Bounds, EndpointBound, Login, LoginState, PROGRAM_ENDPOINTS, SourceName};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Reader, ReplyTo, Token, Writer};
@@ -45,12 +45,8 @@ struct StockBox {
 
 fn stock_box(account: OneAccount) -> StockBox {
     let document = stock::generated();
-    assert_eq!(
-        fixtures::value(&document, b"engine.llm.models[0].name").as_ref(),
-        br#""claude-opus-5-5""#,
-        "init must put claude-opus-5-5 first: a reordered fixture hides first-usable selection"
-    );
     let parsed = stock::engine(&document);
+    assert_eq!(parsed.llm.models[0].model.name.as_ref(), CLAUDE, "stock must put Claude first");
     let client_models = jig_protocol_config::clients::models(&parsed.llm);
     let client_limits = parsed.limits.clients;
     let application_bytes = fixtures::value(&document, b"application");
@@ -191,12 +187,8 @@ impl StockBox {
     }
 
     fn provider(&self, name: &[u8]) -> u32 {
-        self.providers
-            .providers
-            .iter()
-            .find(|provider| provider.models.iter().any(|model| model.as_ref() == name))
-            .expect("init model belongs to a provider")
-            .number
+        let model = self.models.iter().find(|model| model.name.as_ref() == name).expect("configured init model");
+        self.providers.get(model.provider).expect("configured init provider").number
     }
 
     fn ask(&mut self, key: u8, ask: people::Ask) {
@@ -498,10 +490,10 @@ impl StockBox {
         }
         hello.bounds = Bounds {
             program_endpoints: endpoints.into_boxed(),
-            models: self
+            endpoints: self
                 .models
                 .iter()
-                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+                .map(|model| EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
                 .collect(),
             turns: 800,
             spend: u64::MAX,

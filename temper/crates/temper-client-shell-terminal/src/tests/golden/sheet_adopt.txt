@@ -26,31 +26,32 @@ Settings:
   [15] Repositories (current)
   [16] Forges
   [17] Accounts
-  [18] Builders
+  [18] Models
+  [19] Builders
 ## Repositories
-[19] Add repositories
+[20] Add repositories
 Add repositories to First:
   Find by name:
-    [20] Find by name: (empty)
+    [21] Find by name: (empty)
   Repositories:
     - Reading repositories…
   0 so far · more as you scroll
   Not listed:
-    [21] Owner: (empty)
-    [22] Name: (empty)
+    [22] Owner: (empty)
+    [23] Name: (empty)
   More: Owned, it runs CI
     What temper does with it
     Role:
-      [23] (*) Owned
+      [24] (*) Owned
       temper pushes, opens pull requests and lands
-      [24] ( ) Fork
+      [25] ( ) Fork
       temper contributes through a fork
-      [25] ( ) Context
+      [26] ( ) Context
       temper only reads
-    [26] Branch prefix: temper/
-    [27] Landing branch: (empty)
-    [28] Checks: gate numbers, separated by spaces or commas: (empty)
-    [29] [x] It runs CI
-    [30] [x] Make it the project's home
-  [31] Cancel
+    [27] Branch prefix: temper/
+    [28] Landing branch: (empty)
+    [29] Checks: gate numbers, separated by spaces or commas: (empty)
+    [30] [x] It runs CI
+    [31] [x] Make it the project's home
+  [32] Cancel
   [-] Adopt (disabled)

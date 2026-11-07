@@ -307,7 +307,7 @@ fn worker_needs() -> fleet::Needs {
         charters: Box::new([CharterNeeds {
             version: jig_domain_fleet::Version { charter: 1, revision: 1 },
             kinds: Kinds::Workers,
-            models: Box::new([ModelNeed { name: b"model".as_slice().into(), window: 8192, output: 1024 }]),
+            models: Box::new([ModelNeed { endpoint: 1, name: b"model".as_slice().into(), window: 8192, output: 1024 }]),
             turns: 8,
             time: Duration::from_secs(60),
             waiting: Duration::from_secs(10),

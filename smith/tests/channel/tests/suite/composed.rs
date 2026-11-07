@@ -292,12 +292,9 @@ fn configuration() -> agent::Config {
     agent::Config {
         programs: Box::new([]),
         endpoints: Box::new([agent::run::charter::Endpoint(0)]),
-        models: Box::new([smith_domain::ConfiguredModel {
-            efforts: Box::new([]),
-            prices: smith_domain::run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+        limits: Box::new([smith_domain::EndpointLimits {
             protocol_allowance: 0,
             endpoint: smith_domain::run::charter::Endpoint(0),
-            model: Box::from(&b"fake"[..]),
             window: 8192,
             output: 4096,
             head: Duration::from_secs(60),

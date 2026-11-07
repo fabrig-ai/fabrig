@@ -4,7 +4,7 @@
 //! The fake store and person remain outside both domains.
 
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_domain_people as people;
 use skein_fake_checkout::{Checkout, Exit, Program};
 use skein_fake_llm_domain::api::Script;
@@ -34,6 +34,7 @@ pub struct World {
 pub fn charter() -> engine::Charter {
     let mut charter = walking::charter();
     charter.policy.model = engine::Model {
+        provider: 1,
         program: None,
         dialect: temper_worker_domain_world::DIALECT,
         endpoint: 0,
@@ -64,10 +65,15 @@ pub const CHECKS: Duration = Duration::from_secs(60);
 pub fn config(seed: u64) -> engine::Config {
     let mut config = walking::config(seed);
     let charter = charter();
-    // The charter's model is a configured one, as jig's core world sets it (tests/core charters.rs).
+    // The charter's model is in the catalogue, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
-    config.core.settings.llm_providers.providers.first_mut().expect("walking fixture's provider").models =
-        Box::new([charter.policy.model.name.clone()]);
+    config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        providers: Box::new([]),
+        number: charter.policy.model.endpoint,
+        dialect: charter.policy.model.dialect,
+        program: charter.policy.model.program.clone(),
+    }]);
+
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 8192;
     config
@@ -89,7 +95,7 @@ pub fn bounds() -> Bounds {
     let model = charter().policy.model;
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]),
+        endpoints: Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]),
         turns: 64,
         spend: 1000,
         time: Duration::from_secs(3600),

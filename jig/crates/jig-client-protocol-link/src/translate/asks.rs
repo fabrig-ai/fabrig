@@ -564,6 +564,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
         c::Ask::MoveToNewest(value) => {
             w::Ask::MoveToNewest(w::MoveToNewest::new(limits, w::MoveToNewestParts { revision: value.revision })?)
         }
+        c::Ask::ChangeModel(value) => w::Ask::ChangeModel(super::settings::wire_change_model(value, limits)?),
         c::Ask::ChangeSettings(value) => w::Ask::ChangeSettings(super::settings::wire_change_settings(value, limits)?),
         c::Ask::Propose { project, action, reason } => super::operations::propose(*project, action, reason, limits)?,
         c::Ask::Withdraw { project, proposal } => {

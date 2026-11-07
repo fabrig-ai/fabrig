@@ -9,10 +9,22 @@ use toml::Value;
 #[derive(Clone)]
 /// One active model's resolved declaration and rates, translated for the native owners.
 pub(in crate::settings) struct Model {
-    pub full: String,
     pub endpoint: String,
-    pub declared: profile::Model,
+    pub declared: Declaration,
     pub prices: run::Prices,
+}
+
+/// The local product's model catalogue entry, before endpoint limits are aggregated.
+#[derive(Clone)]
+pub(in crate::settings) struct Declaration {
+    pub name: Box<[u8]>,
+    pub efforts: Box<[Box<[u8]>]>,
+    pub window: u32,
+    pub output: u32,
+    pub reasoning_item: u32,
+    pub oversized_reasoning: profile::OversizedReasoning,
+    pub head: Duration,
+    pub idle: Duration,
 }
 
 pub(in crate::settings) fn resolve(settings: &mut Settings, active: &[String]) -> Result<Vec<Model>, Refusal> {
@@ -87,10 +99,9 @@ pub(in crate::settings) fn resolve(settings: &mut Settings, active: &[String]) -
             _ => return Err(input::refuse(settings, &policy, "expected fail or drop")),
         };
         models.push(Model {
-            full: full.clone(),
             endpoint: endpoint.into(),
             prices,
-            declared: profile::Model {
+            declared: Declaration {
                 name: name.as_bytes().into(),
                 efforts: settings
                     .values
@@ -119,11 +130,9 @@ impl Model {
             profile::OversizedReasoning::Fail => "fail",
             profile::OversizedReasoning::Drop => "drop",
         };
-        serde_json::json!({"name":String::from_utf8_lossy(&model.name),"window":model.window,"output":model.output,
-            "prices":{"input":self.prices.input,"cached":self.prices.cached,"cache_write":self.prices.cache_write,"output":self.prices.output,"unit":self.prices.unit},
+        serde_json::json!({"window":model.window,"output":model.output,
             "reasoning_item":model.reasoning_item,"head":model.head.as_millis(),
-            "idle":model.idle.as_millis(),"oversized_reasoning":policy,
-            "efforts":self.declared.efforts.iter().map(|name|std::str::from_utf8(name).expect("settings UTF-8")).collect::<Vec<_>>()})
+            "idle":model.idle.as_millis(),"oversized_reasoning":policy})
     }
 
     pub fn local(&self, endpoint: u32, dialect: u32, account: Option<u32>) -> charter::Llm {

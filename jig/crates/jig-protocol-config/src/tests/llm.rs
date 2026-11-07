@@ -2,7 +2,7 @@ use super::fixtures;
 use crate::{What, files};
 
 fn model(bytes: &[u8]) -> jig_domain_core::Model {
-    fixtures::engine(bytes).unwrap().llm.models.first().unwrap().clone()
+    fixtures::engine(bytes).unwrap().llm.models.first().unwrap().model.clone()
 }
 fn model_path(name: &[u8]) -> crate::Path {
     fixtures::path(&[b"llm", b"models"]).child(crate::Segment::Index(0)).member(name)
@@ -46,7 +46,7 @@ fn endpoints_accept_the_dialects_smith_serves() {
         let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""dialect": 3,"#, member);
         let engine = fixtures::engine(&bytes).expect("supported endpoint dialect");
         assert_eq!(engine.llm.endpoints[0].dialect, dialect);
-        assert_eq!(engine.llm.models[0].dialect, dialect);
+        assert_eq!(engine.llm.models[0].model.dialect, dialect);
     }
 }
 fn two_endpoints_with_one_name_are_refused() {
@@ -128,12 +128,12 @@ fn a_model_description_holds_512_bytes_of_text() {
     let description = "é".repeat(DESCRIPTION_CHARACTERS);
     let bytes = with_description(&quoted_description(description.as_bytes()));
     let engine = fixtures::engine(&bytes).unwrap();
-    assert_eq!(engine.llm.descriptions.as_ref(), [Some(description.into_bytes().into_boxed_slice())]);
+    assert_eq!(engine.llm.models[0].description.as_deref(), Some(description.as_bytes()));
 }
 #[test]
 fn a_model_without_a_description_keeps_none() {
     let engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
-    assert_eq!(engine.llm.descriptions.as_ref(), [None]);
+    assert_eq!(engine.llm.models[0].description, None);
 }
 #[test]
 fn the_clients_models_carry_configured_prices_and_descriptions() {
@@ -180,9 +180,10 @@ fn a_later_model_keeps_its_description_in_order() {
     );
     let bytes = fixtures::with(&bytes, br#""models":["small"]"#, br#""models":["small","later"]"#);
     let engine = fixtures::engine(&bytes).unwrap();
-    assert_eq!(engine.llm.models.first().unwrap().name.as_ref(), b"small");
-    assert_eq!(engine.llm.models.get(1).unwrap().name.as_ref(), b"later");
-    assert_eq!(engine.llm.descriptions.as_ref(), [None, Some(Box::from(b"For later work".as_slice()))]);
+    assert_eq!(engine.llm.models.first().unwrap().model.name.as_ref(), b"small");
+    assert_eq!(engine.llm.models.get(1).unwrap().model.name.as_ref(), b"later");
+    assert_eq!(engine.llm.models[0].description, None);
+    assert_eq!(engine.llm.models[1].description.as_deref(), Some(b"For later work".as_slice()));
     let shown = crate::clients::models(&engine.llm);
     assert_eq!(shown.first().unwrap().description, None);
     assert_eq!(shown.get(1).unwrap().description.as_deref(), Some(b"For later work".as_slice()));
@@ -207,7 +208,7 @@ fn a_model_names_its_default_apart_from_effort_order() {
     ] {
         let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""output": 1024,"#, members);
         let engine = fixtures::engine(&bytes).unwrap();
-        assert_eq!(engine.llm.models.first().unwrap().effort.as_deref(), Some(expected));
+        assert_eq!(engine.llm.models.first().unwrap().model.effort.as_deref(), Some(expected));
         assert_eq!(engine.charters.first().unwrap().policy.model.effort.as_deref(), Some(expected));
     }
 }
@@ -372,8 +373,8 @@ fn an_unknown_program_is_refused_at_its_path() {
 fn a_models_program_comes_from_its_endpoint() {
     let engine = fixtures::engine(&program_endpoint(true, "claude_code")).expect("program offered");
     assert_eq!(engine.llm.endpoints[0].program.as_deref(), Some(b"claude_code".as_slice()));
-    assert_eq!(engine.llm.models[0].program, engine.llm.endpoints[0].program);
-    assert!(engine.llm.models[0].window <= 272_000);
+    assert_eq!(engine.llm.models[0].model.program, engine.llm.endpoints[0].program);
+    assert!(engine.llm.models[0].model.window <= 272_000);
 }
 
 #[test]
@@ -403,8 +404,8 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         ),
     ] {
         let engine = fixtures::engine(&bytes).unwrap();
-        assert_eq!(engine.llm.shown.first().unwrap().as_deref(), expected);
-        assert_eq!(engine.llm.pickers.as_ref(), [picker]);
+        assert_eq!(engine.llm.models.first().unwrap().shown.as_deref(), expected);
+        assert_eq!(engine.llm.models[0].picker, picker);
         let models = crate::clients::models(&engine.llm);
         let model = models.first().unwrap();
         assert_eq!(model.shown.as_deref(), expected);
@@ -436,4 +437,18 @@ fn invalid_model_shown_and_picker_are_refused_at_their_paths() {
     ] {
         fixtures::refuses(br#""output": 1024,"#, members, model_path(name), what);
     }
+}
+
+#[test]
+fn a_providers_endpoint_must_name_one_of_its_endpoints() {
+    let path = fixtures::path(&[b"llm", b"providers"]).child(crate::Segment::Index(0)).member(b"endpoint");
+    let valid = fixtures::with(fixtures::ENGINE_SMALL, br#""sources":{}"#, br#""endpoint":"fake","sources":{}"#);
+    let engine = fixtures::engine(&valid).expect("provider names a configured endpoint");
+    let provider: &crate::Provider = &engine.llm.providers[0];
+    assert_eq!(provider.endpoint.as_deref(), Some(b"fake".as_slice()));
+    let invalid = fixtures::with(&valid, br#""endpoint":"fake""#, br#""endpoint":"missing""#);
+    let problems = fixtures::engine(&invalid).expect_err("unknown provider endpoint");
+    assert_eq!(problems.problems.as_slice(), &[crate::Problem { path, what: What::Refers }]);
+    assert_eq!(problems.past, 0);
+    assert_eq!(fixtures::engine(fixtures::ENGINE_SMALL).unwrap().llm.providers[0].endpoint, None);
 }

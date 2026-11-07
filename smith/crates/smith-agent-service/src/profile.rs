@@ -53,7 +53,7 @@ pub use words::words;
 
 pub use smith_protocol_llm::OversizedReasoning;
 
-pub use quantities::{Configuration, Declared, Endpoint, Fraction, Model, Name, Policy, Profile, standard};
+pub use quantities::{Configuration, Declared, Endpoint, Fraction, Limits, Name, Policy, Profile, standard};
 
 /// The number of configured destinations the standard profile admits.
 pub const ENDPOINTS: u32 = 3;
@@ -121,6 +121,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     let io = io_limits(output_bytes, &policy, declared.conversations, &machine, file_slots)?;
     let mut charter = smith_charter::CEILINGS;
     charter.charter_brief = policy.sections;
+    charter.charter_models = domain.run.models;
     charter.tools_host = policy.host_tools;
     charter.contract_verdicts = policy.verdicts;
     charter.run_result_items = policy.items;
@@ -466,16 +467,15 @@ fn line_bytes(configuration: &Configuration, material: u64) -> Result<u64, Refus
     let refusal = derived(Layer::Session, "line");
     let mut largest = 0;
     for endpoint in &configuration.endpoints {
-        for model in &endpoint.models {
-            let bytes = u64::from(model.window)
-                .checked_sub(u64::from(model.output))
-                .ok_or(refusal)?
-                .checked_sub(material)
-                .ok_or(refusal)?
-                .checked_mul(u64::from(shared::TOKEN_BYTES))
-                .ok_or(refusal)?;
-            largest = largest.max(bytes);
-        }
+        let limits = &endpoint.limits;
+        let bytes = u64::from(limits.window)
+            .checked_sub(u64::from(limits.output))
+            .ok_or(refusal)?
+            .checked_sub(material)
+            .ok_or(refusal)?
+            .checked_mul(u64::from(shared::TOKEN_BYTES))
+            .ok_or(refusal)?;
+        largest = largest.max(bytes);
     }
     Ok(largest)
 }
@@ -582,23 +582,14 @@ fn derive_domain(
         Ok(limits) => limits,
         Err(field) => return Err(derived(Layer::Session, field.name())),
     };
-    let mut configured_model_bytes = 0_u64;
-    let mut model_count = 0_u32;
-    for endpoint in &configuration.endpoints {
-        let count = u32::try_from(endpoint.models.len()).or(Err(derived(Layer::Run, "models")))?;
-        model_count = model_count.checked_add(count).ok_or(derived(Layer::Run, "models"))?;
-        for model in &endpoint.models {
-            let owned = domain::ConfiguredModel::owned_bound(model.name.len(), &model.efforts)
-                .ok_or(derived(Layer::Service, "configured_model_bytes"))?;
-            configured_model_bytes =
-                configured_model_bytes.checked_add(owned).ok_or(derived(Layer::Service, "configured_model_bytes"))?;
-        }
-    }
-    run.models = model_count.checked_sub(1).ok_or(derived(Layer::Run, "models"))?;
+    let configured_endpoint_bytes = skein_lib::len_u64(configuration.endpoints.len())
+        .checked_mul(u64::try_from(size_of::<domain::EndpointLimits>()).expect("endpoint cell"))
+        .ok_or(derived(Layer::Service, "configured_endpoint_bytes"))?;
+    run.models = declared.charter_models.checked_sub(1).ok_or(derived(Layer::Declared, "charter_models"))?;
     Ok(domain::Limits {
         accounts: ACCOUNTS,
         endpoints: ENDPOINTS,
-        configured_model_bytes,
+        configured_endpoint_bytes,
         decoded_call_bytes,
         content_edge_records: CONTENT_EDGE_RECORDS,
         skew: Duration::ZERO,

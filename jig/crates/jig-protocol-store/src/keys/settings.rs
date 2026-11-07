@@ -61,6 +61,7 @@ fn setting_write(writer: &mut KeyWriter, setting: Setting) {
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),
         Setting::Rules => (3, 0),
+        Setting::Model(n) => (6, n),
         Setting::Application { kind, scope, number } => {
             writer.tag(4);
             writer.u64(u64::from(kind));
@@ -114,7 +115,26 @@ fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
         0 => Setting::Charter(number),
         1 => Setting::Template(number),
         2 => Setting::Policy(number),
+        6 => Setting::Model(number),
         3 if number == 0 => Setting::Rules,
         _ => return None,
     })
+}
+
+/// Only model changes enter the open's catalogue overlay (protocol/store.md, 5).
+pub(crate) fn model_changes() -> skein_kv::Range {
+    skein_kv::Range::prefix(&[super::JIG, 0, 8, 1, 6])
+}
+
+pub(crate) fn changed_model(bytes: &[u8]) -> Option<u32> {
+    let suffix = bytes.strip_prefix(model_changes().start.as_ref())?;
+    let mut reader = KeyReader::new(suffix);
+    if reader.u64()? != 0 {
+        return None;
+    }
+    let number = u32::try_from(reader.u64()?).ok()?;
+    if !reader.is_empty() || number == 0 || number > jig_domain_tasks::MODELS {
+        return None;
+    }
+    Some(number)
 }

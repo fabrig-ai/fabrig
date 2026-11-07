@@ -37,6 +37,7 @@ pub fn setting(value: &w::Setting) -> s::Setting {
         w::Setting::Charter(v) => s::Setting::Charter(v.number()),
         w::Setting::Template(v) => s::Setting::Template(v.number()),
         w::Setting::Policy(v) => s::Setting::Policy(v.number()),
+        w::Setting::Model(v) => s::Setting::Model(v.number()),
         w::Setting::Rules => s::Setting::Rules,
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
@@ -56,6 +57,7 @@ pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Prob
         s::Setting::Policy(number) => {
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
+        s::Setting::Model(n) => w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: n })?),
         s::Setting::Rules => w::Setting::Rules,
         s::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,
@@ -140,6 +142,7 @@ fn model(value: &core::Model, limits: &w::Limits) -> Result<w::SettingModel, w::
     w::SettingModel::new(
         limits,
         w::SettingModelParts {
+            provider: value.provider,
             dialect: value.dialect,
             endpoint: value.endpoint,
             program: value.program.clone(),
@@ -184,7 +187,7 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
         limits,
         w::CharterParts {
             documents,
-            skein_bools: [policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
+            skein_bools: [value.rest, policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
             number: value.number,
             instructions: policy.instructions.clone(),
             waiting: policy.waiting,
@@ -334,6 +337,7 @@ fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Resul
 }
 pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        s::Value::Model(v) => w::SettingValue::Model(Box::new(catalogue(v, limits)?)),
         s::Value::Charter(v) => w::SettingValue::Charter(Box::new(charter(v, limits)?)),
         s::Value::Template(v) => w::SettingValue::Template(Box::new(me::template(v, models, limits)?)),
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
@@ -626,4 +630,35 @@ fn application_replaced(v: &s::application::Replaced, limits: &w::Limits) -> Res
         s::application::Replaced::Removed => w::RevisionReplaced::Removed,
         s::application::Replaced::NotOffered => w::RevisionReplaced::NotOffered,
     })
+}
+
+fn catalogue(value: &s::CatalogueModel, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
+    w::CatalogueEntry::new(
+        limits,
+        w::CatalogueEntryParts {
+            number: value.number,
+            model: model(&value.model, limits)?,
+            shown: value.shown.clone(),
+            description: value.description.clone(),
+            picker: value.picker,
+            withdrawn: value.withdrawn,
+            estimated: value.estimated,
+            source: match value.source {
+                s::ModelSource::Stock => w::ModelSource::Stock,
+                s::ModelSource::List => w::ModelSource::List,
+                s::ModelSource::Person => w::ModelSource::Person,
+            },
+        },
+    )
+}
+
+#[must_use]
+pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
+    match value.into_parts().act {
+        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number(), on: value.on() },
+        w::ModelAct::Add(value) => {
+            let value = value.into_parts();
+            s::catalogue::ModelAct::Add { provider: value.provider, name: value.name }
+        }
+    }
 }

@@ -49,6 +49,7 @@ fn assignment() -> engine::Assignment {
                 reserve_turns: 1,
                 reserve_time: Duration::from_secs(10),
                 model: engine::Model {
+                    provider: 1,
                     program: None,
                     dialect: 1,
                     endpoint: 1,
@@ -1923,6 +1924,7 @@ fn configured_change(json: &[u8]) -> Result<engine::Call, Problem> {
         b"change",
         &input,
         &models,
+        &[],
     )? {
         crate::Decoded::Call(call) => Ok(call),
         crate::Decoded::Answered(_) => panic!("change answered at decode"),

@@ -30,6 +30,7 @@ pub fn client_authority_models(v: &n::AuthorityModels) -> c::AuthorityModels {
 
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
+        rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
             for item in &v.documents {
@@ -68,6 +69,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
             for item in &v.documents {
@@ -614,6 +616,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
         c::Setting::ProjectPolicy { project } => n::Setting::ProjectPolicy { project },
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
+        c::Setting::Model(x) => n::Setting::Model(form_setting_number(x)),
         c::Setting::Rules => n::Setting::Rules,
     }
 }
@@ -623,6 +626,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Template(x) => c::Setting::Template(client_setting_number(x)),
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
         n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
+        n::Setting::Model(x) => c::Setting::Model(client_setting_number(x)),
         n::Setting::Rules => c::Setting::Rules,
         n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
@@ -706,6 +710,7 @@ pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
 
 pub fn form_setting_model(v: &c::SettingModel) -> n::SettingModel {
     n::SettingModel {
+        provider: v.provider,
         dialect: v.dialect,
         endpoint: v.endpoint,
         program: form_optional_text(v.program.as_ref()),
@@ -729,6 +734,7 @@ pub fn form_setting_model(v: &c::SettingModel) -> n::SettingModel {
 }
 pub fn client_setting_model(v: &n::SettingModel) -> c::SettingModel {
     c::SettingModel {
+        provider: v.provider,
         dialect: v.dialect,
         endpoint: v.endpoint,
         program: client_optional_text(v.program.as_ref()),
@@ -848,6 +854,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Model(x) => n::SettingValue::Model(Box::new(form_catalogue(x))),
         c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
         c::SettingValue::Template(x) => n::SettingValue::Template(Box::new(form_template(x))),
@@ -857,6 +864,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Model(x) => c::SettingValue::Model(Box::new(client_catalogue(x))),
         n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),
         n::SettingValue::Template(x) => c::SettingValue::Template(Box::new(client_template(x))),
@@ -1316,5 +1324,51 @@ pub fn form_setting_detail(value: c::SettingDetail) -> n::SettingDetail {
         segment: value.segment,
         supplied: value.supplied,
         bound: value.bound,
+    }
+}
+
+fn form_catalogue(v: &c::CatalogueEntry) -> n::CatalogueEntry {
+    n::CatalogueEntry {
+        number: v.number,
+        model: form_setting_model(&v.model),
+        shown: match &v.shown {
+            Some(value) => Some(form_text(value)),
+            None => None,
+        },
+        description: match &v.description {
+            Some(value) => Some(form_text(value)),
+            None => None,
+        },
+        picker: v.picker,
+        withdrawn: v.withdrawn,
+        estimated: v.estimated,
+        source: match v.source {
+            c::ModelSource::Stock => n::ModelSource::Stock,
+            c::ModelSource::List => n::ModelSource::List,
+            c::ModelSource::Person => n::ModelSource::Person,
+        },
+    }
+}
+
+fn client_catalogue(v: &n::CatalogueEntry) -> c::CatalogueEntry {
+    c::CatalogueEntry {
+        number: v.number,
+        model: client_setting_model(&v.model),
+        shown: match &v.shown {
+            Some(value) => Some(client_text(value)),
+            None => None,
+        },
+        description: match &v.description {
+            Some(value) => Some(client_text(value)),
+            None => None,
+        },
+        picker: v.picker,
+        withdrawn: v.withdrawn,
+        estimated: v.estimated,
+        source: match v.source {
+            n::ModelSource::Stock => c::ModelSource::Stock,
+            n::ModelSource::List => c::ModelSource::List,
+            n::ModelSource::Person => c::ModelSource::Person,
+        },
     }
 }

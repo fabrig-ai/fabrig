@@ -71,7 +71,12 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
             );
         }
     }
-    let profile_document = document::profile(&settings)?;
+    let mut profile_document = document::profile(&settings)?;
+    profile_document
+        .get_mut("declared")
+        .and_then(serde_json::Value::as_object_mut)
+        .expect("profile declarations")
+        .insert("charter_models".into(), serde_json::json!(models.len()));
     let profile = smith_agent_shell::config::profile_from_value(profile_document.clone())
         .map_err(|why| relationships::native(&settings, &models, why))?;
     relationships::budget(&settings, &profile)?;

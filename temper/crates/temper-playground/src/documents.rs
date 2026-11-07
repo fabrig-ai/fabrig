@@ -4,7 +4,7 @@ pub mod hosted_git;
 pub mod settings;
 mod smith;
 pub mod turn_bounds;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{Duration, List, Secret};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 /// Forge for the composition.
@@ -123,6 +123,7 @@ pub const WORKER_DOCUMENT: &[u8] = channel::WORKER_DOCUMENT;
 pub fn document() -> Vec<u8> {
     let mut value = world_document();
     value.as_object_mut().expect("deployment").remove("world_settings");
+    settings::strip_models(&mut value);
     serde_json::to_vec(&value).expect("deployment JSON")
 }
 /// The deployment value before harness edits: the chat stories' policy.
@@ -266,7 +267,7 @@ pub fn agent_limits() -> smith_agent_service::Limits {
 #[must_use]
 pub fn agent_declarations() -> smith_agent_service::profile::Configuration {
     let mut declarations = smith::declarations(0);
-    declarations.endpoints[0].models[0].output = 2048;
+    declarations.endpoints[0].limits.output = 2048;
     declarations
 }
 /// The hosted agent's complete configuration.
@@ -284,7 +285,7 @@ pub fn agent_configuration() -> smith_agent_service::Config {
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::default(),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )
@@ -323,7 +324,7 @@ pub fn agent() -> temper_service::settings::Agent {
     protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).expect("host frames");
     let bounds = Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }]),
         turns: agent_profile().policy.max_turns,
         // Story A's stock run allowance at its model's template prices.
         spend: 4200,
@@ -409,7 +410,8 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         document["world_settings"] = world_document()["world_settings"].clone();
     }
     let engine = settings::configuration(&document);
-    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults =
+        temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     // The playground's scripted model plays the stock chat; the configuring agent needs a real one (configuration.md, 13.4).
     defaults.charters = defaults.charters.into_vec().into_iter().filter(|charter| charter.number != 3).collect();
     defaults.templates = defaults.templates.into_vec().into_iter().filter(|template| template.number != 3).collect();

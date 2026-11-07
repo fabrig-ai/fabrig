@@ -68,6 +68,8 @@ pub struct Domain {
     pub(crate) durable_commit: u64,
     pub(crate) stop_pending: bool,
     pub(crate) door_pass: bool,
+    pub(crate) catalogue_pending: bool,
+    pending_now: u32,
     pub(crate) door_count: u32,
     pub(crate) startup_range: Option<Range>,
     pub(crate) start_wall: Option<Wall>,
@@ -189,6 +191,20 @@ impl Domain {
     #[must_use]
     pub fn models(&self) -> &[jig_domain_core::Model] {
         &self.core.settings.models
+    }
+
+    /// Whole current model settings (jig/docs/design/domain/engine.md, 17.11).
+    #[must_use]
+    pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
+        let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
+        for number in 1..=jig_domain_tasks::MODELS {
+            if let Some(value) = self.core.current.value(jig_domain_core::settings::Setting::Model(number))
+                && let jig_domain_core::settings::Value::Model(model) = value
+            {
+                rows.push(*model.clone()).expect("catalogue bound");
+            }
+        }
+        rows.into_boxed()
     }
 
     /// The live task arena, for a world to inspect between iterations.
@@ -455,6 +471,8 @@ impl Domain {
             durable_commit: 0,
             stop_pending: false,
             door_pass: false,
+            catalogue_pending: false,
+            pending_now: 0,
             door_count: 0,
             startup_range: None,
             start_wall: None,
@@ -815,7 +833,11 @@ pub(crate) fn journal_outputs(journal_out: &mut Queue<Output>, out: &mut Queue<R
 
 /// The only admission call for outputs that have no durability dependency.
 pub(crate) fn now(domain: &mut Domain, request: Request) -> bool {
-    domain.journal.now(request).is_ok()
+    if domain.journal.now(request).is_err() {
+        return false;
+    }
+    domain.pending_now = domain.pending_now.checked_add(1).expect("bounded immediate outputs");
+    true
 }
 
 /// Admit immediate requests through the journal's door. The caller takes
@@ -848,7 +870,10 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Bound { .. }
             | Request::Forge { .. }
             | Request::Store(
-                crate::StoreRequest::Switch | crate::StoreRequest::Load { .. } | crate::StoreRequest::Read { .. },
+                crate::StoreRequest::Catalogue { .. }
+                | crate::StoreRequest::Switch
+                | crate::StoreRequest::Load { .. }
+                | crate::StoreRequest::Read { .. },
             )
             | Request::ToChild(_)
             | Request::Busy(_)
@@ -879,6 +904,13 @@ pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>
     if domain.start_stop().is_some() {
         return;
     }
+    if domain.catalogue_pending {
+        domain.catalogue_pending = false;
+        for _ in 0..domain.pending_now {
+            assert_eq!(release_one(domain, out), skein_lib::Released::Some, "catalogue leaves before its commit");
+        }
+        domain.door_count = 0;
+    }
     if domain.door_pass {
         domain.door_pass = false;
         send_commit(domain, out);
@@ -898,6 +930,9 @@ pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>
 fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Released {
     let before = usize::try_from(out.len()).expect("output count fits usize");
     let status = domain.journal.release(out);
+    if status == skein_lib::Released::Some && domain.pending_now > 0 {
+        domain.pending_now = domain.pending_now.checked_sub(1).expect("one immediate output released");
+    }
     let mut bytes = 0_u64;
     for request in out.iter().skip(before) {
         if let Request::Party(crate::PartyRequest::Deliver(Delivery::Public { admitted: true, .. })) = request {

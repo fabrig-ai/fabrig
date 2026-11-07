@@ -557,6 +557,61 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "models",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your Claude subscription. These come with temper." },
+            Part::Text { text: "Your ChatGPT plan. These come with temper." },
+            Part::Text { text: "claude-opus-5-5 · high · the default" },
+            Part::Text { text: "claude-sonnet-5-5 · high" },
+            Part::Text { text: "claude-fable-5-1 · high" },
+            Part::Text { text: "gpt-6.1-sol · high" },
+            Part::Text { text: "gpt-6-astra · high" },
+            Part::Text { text: "gpt-6.1-terra · medium" },
+            Part::Text { text: "gpt-6-luna · medium" },
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Link, name: "Configure temper." },
+        ],
+    },
+    Holds {
+        name: "models-add",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Add a model by name" },
+            Part::Named { role: Role::Select, name: "Provider" },
+            Part::Value { role: Role::TextField, name: "The model’s name", value: "claude-haiku-5-5" },
+            Part::Named { role: Role::Button, name: "Add" },
+        ],
+    },
+    Holds {
+        name: "models-off",
+        heading: "What the picker offers.",
+        parts: &[Part::Named { role: Role::Check, name: "Sonnet 5.5 in the picker" }, Part::Text { text: "Off" }],
+    },
+    Holds {
+        name: "models-added",
+        heading: "What the picker offers.",
+        parts: &[Part::Text { text: "claude-sonnet-5-5 · high · added by you · estimated prices" }],
+    },
+    Holds {
+        name: "models-member",
+        heading: "What the picker offers.",
+        parts: &[Part::NoRole { role: Role::Check }, Part::Text { text: "On" }, Part::Text { text: "Off" }],
+    },
+    Holds {
+        name: "models-one-account",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your Claude subscription. These come with temper." },
+            Part::Text { text: "claude-opus-5-5 · high · the default" },
+            Part::Named { role: Role::Link, name: "Connect a plan or key ›" },
+            Part::Absent { role: Role::Text, name: "GPT-6.1 Sol" },
+            Part::Absent { role: Role::Text, name: "GPT-6 Astra" },
+            Part::Absent { role: Role::Text, name: "GPT-6.1 Terra" },
+            Part::Absent { role: Role::Text, name: "GPT-6 Luna" },
+        ],
+    },
+    Holds {
         name: "builders",
         heading: "Where agents work.",
         parts: &[

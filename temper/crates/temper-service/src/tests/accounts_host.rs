@@ -719,6 +719,7 @@ fn registered() -> (config::Engine, AccountsRuntime) {
     let mut config = fixtures::engine().jig;
     config.llm.providers = Box::new([config::llm::Provider {
         number: 3,
+        endpoint: None,
         name: b"issuer".as_slice().into(),
         signed_in_plan: false,
         manage_usage: None,

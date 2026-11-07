@@ -23,6 +23,7 @@ use skein_lib::{List, Time};
 
 pub(in crate::tests) fn project(number: u32, chats: bool) -> MeProject {
     MeProject {
+        left_out: 0,
         defaults: List::with_capacity(0),
         public: None,
         models: List::with_capacity(0),

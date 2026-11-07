@@ -751,7 +751,7 @@ fn settings_offer(domain: &Domain, flight: &Flight, answer: &jig_domain_core::Se
     let mut offer = List::with_capacity(offered.len());
     for row in &offered {
         let model = domain.core.settings.models.get(usize::from(row.model)).expect("offered configured model");
-        let provider = domain.core.settings.llm_providers.serving(&model.name).expect("offered model provider");
+        let provider = domain.core.settings.llm_providers.get(model.provider).expect("offered model provider");
         let effort = match model.default_effort() {
             Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
             None => None,

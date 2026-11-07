@@ -68,6 +68,17 @@ fn charter(
     problems: &mut Problems,
 ) -> Option<Charter> {
     let mut object = check::object(document, at, path, problems, "charter")?;
+    let models_at = object.member(document, b"models");
+    let rest = match object.member(document, b"rest") {
+        Some(at) => match read::boolean(document, at) {
+            Ok(value) => value,
+            Err(what) => {
+                problems.push(path.member(b"rest"), what);
+                false
+            }
+        },
+        None => models_at.is_none(),
+    };
     let number = check::count(&mut object, document, b"number", path, problems);
     let instructions =
         check::path(&mut object, document, b"instructions", path, Directory::Config, directories, problems);
@@ -78,12 +89,32 @@ fn charter(
     let reserve_turns = check::count(&mut object, document, b"reserve_turns", path, problems);
     let reserve_time = check::duration(&mut object, document, b"reserve_time_ms", path, problems);
     let spend = check::integer(&mut object, document, b"spend", path, problems);
-    let main = check::text(&mut object, document, b"model", path, problems);
-    let model = match main {
-        Some(name) => model(&name, llm, &path.member(b"model"), problems),
-        None => None,
+    let (model, alternatives) = match models_at {
+        Some(at) => {
+            let _model_at = object.member(document, b"model");
+            let _alternatives_at = object.member(document, b"alternatives");
+            named_models(document, at, path, llm, problems)
+        }
+        None => {
+            let model = match object.member(document, b"model") {
+                Some(at) => match read::text(document, at, jig_domain_core::MODEL_NAME_BYTES) {
+                    Ok(name) => model(&name, llm, &path.member(b"model"), problems),
+                    Err(what) => {
+                        problems.push(path.member(b"model"), what);
+                        None
+                    }
+                },
+                None => match llm.models.first() {
+                    Some(model) => Some(model.model.clone()),
+                    None => {
+                        problems.push(path.member(b"models"), What::Refers);
+                        None
+                    }
+                },
+            };
+            (model, alternatives(&mut object, document, path, llm, problems))
+        }
     };
-    let alternatives = alternatives(&mut object, document, path, llm, problems);
     let hosts = hosts(&mut object, document, path, problems);
     let inspect = check::boolean(&mut object, document, b"inspect", path, problems);
     let modify = check::boolean(&mut object, document, b"modify", path, problems);
@@ -97,6 +128,7 @@ fn charter(
     let documents = documents(&mut object, document, path, problems);
     object.finish(document, path, problems);
     let charter = Charter {
+        rest,
         documents: documents?,
         number: number?,
         hosts: hosts?,
@@ -185,7 +217,16 @@ fn alternatives(
     llm: &Llm,
     problems: &mut Problems,
 ) -> Option<Box<[Model]>> {
-    let items = check::list(object, document, b"alternatives", document.len(), path, problems)?;
+    let Some(at) = object.member(document, b"alternatives") else {
+        return Some(Box::default());
+    };
+    let items = match read::list(document, at, document.len()) {
+        Ok(items) => items,
+        Err(what) => {
+            problems.push(path.member(b"alternatives"), what);
+            return None;
+        }
+    };
     let mut models = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = path.member(b"alternatives").child(Segment::Index(u32::try_from(index).expect("bounded models")));
@@ -208,8 +249,8 @@ fn alternatives(
 }
 fn model(name: &[u8], llm: &Llm, path: &Path, problems: &mut Problems) -> Option<Model> {
     for model in &llm.models {
-        if model.name.as_ref() == name {
-            return Some(model.clone());
+        if model.model.name.as_ref() == name {
+            return Some(model.model.clone());
         }
     }
     problems.push(path.clone(), What::Refers);
@@ -327,4 +368,43 @@ fn wake_rule(document: &Document, at: u32, path: &Path, problems: &mut Problems)
     };
     object.finish(document, path, problems);
     rule
+}
+
+fn named_models(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    llm: &Llm,
+    problems: &mut Problems,
+) -> (Option<Model>, Option<Box<[Model]>>) {
+    let items = match read::list(document, at, jig_domain_tasks::MODELS) {
+        Ok(items) => items,
+        Err(what) => {
+            problems.push(path.member(b"models"), what);
+            return (None, None);
+        }
+    };
+    let mut main = None;
+    let mut alternatives = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"models"), index);
+        let name = match read::text(document, *at, jig_domain_core::MODEL_NAME_BYTES) {
+            Ok(name) => name,
+            Err(what) => {
+                problems.push(path, what);
+                continue;
+            }
+        };
+        if let Some(value) = model(&name, llm, &path, problems) {
+            if main.is_none() {
+                main = Some(value);
+            } else {
+                alternatives.push(value).expect("bounded model count");
+            }
+        }
+    }
+    if main.is_none() {
+        problems.push(path.member(b"models"), What::Refers);
+    }
+    (main, Some(alternatives.into_boxed()))
 }

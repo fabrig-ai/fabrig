@@ -568,7 +568,7 @@ fn invalid_or_unowned_model_declarations_refuse_local_startup() {
         assert_eq!(invalid.validate(&limits), Err(Invalid::Models));
     }
     let config = config();
-    let limits = Limits { smith: smith_domain::Limits { configured_model_bytes: 0, ..limits.smith }, ..limits };
+    let limits = Limits { smith: smith_domain::Limits { configured_endpoint_bytes: 0, ..limits.smith }, ..limits };
     assert_eq!(config.validate(&limits), Err(Invalid::Limits));
 }
 

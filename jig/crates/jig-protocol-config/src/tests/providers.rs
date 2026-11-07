@@ -64,7 +64,6 @@ fn providers_reach_the_accounts_settings() {
                 signed_in_plan: true,
                 manage_usage: Some(b"https://usage.example/".as_slice().into()),
                 number: 1,
-                models: Box::new([Box::from(&b"small"[..])]),
                 offers: accounts::Offers {
                     sign_in: true,
                     key: true,
@@ -101,7 +100,14 @@ fn no_models_need_no_providers() {
     for value in [br#"{"endpoints":[],"models":[]}"#.as_slice(), br#"{"providers":[],"endpoints":[],"models":[]}"#] {
         let doc = fixtures::document(value);
         let mut problems = crate::Problems::empty();
-        let llm = crate::llm::parse(&doc, 0, &Path::root(), &crate::Directories::working(), &mut problems);
+        let llm = crate::llm::parse(
+            &doc,
+            0,
+            &Path::root(),
+            &crate::Directories::working(),
+            crate::Defaults::Document,
+            &mut problems,
+        );
         assert!(llm.unwrap().providers.is_empty());
         assert!(problems.problems.is_empty());
     }

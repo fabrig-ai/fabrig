@@ -307,7 +307,7 @@ fn composition_derives_only_the_main_model_with_sub_agents_off() {
     assert_eq!(resolved.local.models[0].model.as_ref(), b"gpt-6-luna");
     assert_eq!(resolved.accounts.len(), 1);
     assert_eq!(resolved.agent.declarations.endpoints.len(), 1);
-    assert_eq!(resolved.agent.declarations.endpoints[0].models.len(), 3);
+    assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.outside_models["anthropic/claude-opus-5-5"], "sub_agents is off");
 }
 
@@ -499,9 +499,11 @@ fn the_configuration_holds_each_model_of_mains_endpoint_and_none_of_another() {
     let resolved = crate::fixture::ready(composed("effort='high'\n"));
     let declared = &resolved.agent.declarations.endpoints;
     assert_eq!(declared.len(), 1);
-    assert_eq!(declared[0].models.len(), 3);
-    assert!(declared[0].models.iter().any(|model| model.name.as_ref() == b"gpt-6-astra"));
-    assert!(declared[0].models.iter().any(|model| model.name.as_ref() == b"gpt-6-luna"));
+    assert_eq!(resolved.local.models.len(), 3);
+    assert!(resolved.local.models.iter().any(|model| model.model.as_ref() == b"gpt-6-astra"));
+    assert!(resolved.local.models.iter().any(|model| model.model.as_ref() == b"gpt-6-luna"));
+    assert_eq!(resolved.agent.profile.declared.charter_models, 3);
+    assert_eq!(declared[0].limits.window, resolved.local.models.iter().map(|model| model.window).max().unwrap());
     let charter = smith_local_domain::charter(&resolved.local);
     assert_eq!(charter.llm.model.as_ref(), b"gpt-6-luna");
     assert_eq!(charter.llm.effort.as_deref(), Some(b"high".as_slice()));
@@ -540,24 +542,15 @@ fn the_settings_effort_is_refused_with_its_models_declared_names() {
 fn a_model_with_no_effort_list_passes_any_bounded_name_to_the_provider() {
     let resolved = effort_settings("effort='future'\n").unwrap();
     assert_eq!(resolved.local.models[0].effort.as_deref(), Some(b"future".as_slice()));
-    assert!(resolved.agent.service.domain.models.iter().all(|model| model.efforts.is_empty()));
+    assert!(resolved.local.efforts.iter().all(|efforts| efforts.is_empty()));
 }
 
 #[test]
-fn declared_efforts_reach_the_local_and_agent_startup_owners() {
+fn declared_efforts_reach_the_local_startup_owner() {
     let resolved = effort_settings("effort='high'\n[models.\"openai/gpt-6-luna\"]\nefforts=['low','high']\n").unwrap();
     assert_eq!(
         resolved.local.efforts[0].as_ref(),
         &[Box::<[u8]>::from(b"low".as_slice()), Box::<[u8]>::from(b"high".as_slice())]
-    );
-    assert!(
-        resolved
-            .agent
-            .service
-            .domain
-            .models
-            .iter()
-            .any(|model| model.model.as_ref() == b"model" && model.efforts.len() == 2)
     );
 }
 
@@ -603,7 +596,7 @@ fn jobs_job_poll_and_job_wait_reach_the_agents_tool_limits() {
 
 fn refresh_profile(text: &str) -> Result<(smith_agent_service::profile::Profile, smith_agent_service::Limits), String> {
     use skein_lib::Duration;
-    use smith_agent_service::profile::{Configuration, Endpoint, Model, OversizedReasoning};
+    use smith_agent_service::profile::{Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
     let decoded = settings(&[source(Layer::User, text)]).map_err(|why| why.line())?;
     let document = super::resolve::document::profile(&decoded).map_err(|why| why.line())?;
     let profile = smith_agent_shell::config::profile_from_value(document)
@@ -617,16 +610,14 @@ fn refresh_profile(text: &str) -> Result<(smith_agent_service::profile::Profile,
             option_bytes: 0,
             connect: Duration::from_secs(2),
             handshake: Duration::from_secs(3),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: b"test".as_slice().into(),
+            limits: DeclaredLimits {
                 window: 1_048_576,
                 output: 32_768,
                 reasoning_item: 65_536,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: Duration::from_secs(5),
                 idle: Duration::from_secs(11),
-            }]),
+            },
         }]),
     };
     let limits =
@@ -692,7 +683,7 @@ fn an_openai_endpoint_is_written_with_its_number() {
         WrittenEndpoint {
             provider: endpoint["provider"].as_str(),
             dialect: endpoint["dialect"].as_u64(),
-            idle: endpoint["models"][0]["idle"].as_u64()
+            idle: endpoint["limits"]["idle"].as_u64()
         },
         WrittenEndpoint { provider: Some("openai"), dialect: Some(3), idle: Some(IDLE_MILLIS) }
     );
@@ -860,4 +851,28 @@ fn a_dir_the_workspace_cannot_hold_is_refused_at_the_flag() {
     let expected = format!("{count} directories with the working directory exceed the profile's workspace of {bound}");
     assert!(line.contains(&expected), "{line}");
     assert!(line.starts_with("smith: --dir: workspace.directories: "), "{line}");
+}
+
+#[test]
+fn local_choices_write_the_largest_limits_for_each_endpoint() {
+    let input = effort_settings_input("", &Shared::default()).expect("local catalogue");
+    let super::resolve::Selection { models, accounts: _, mut settings } =
+        super::resolve::select(&input).expect("selected endpoint");
+    let mut models = super::resolve::models::resolve(&mut settings, &models).expect("local model quantities");
+    let mut other = models[0].clone();
+    other.declared.window = 524_288;
+    other.declared.output = 65_536;
+    other.declared.reasoning_item = 131_072;
+    other.declared.head = skein_lib::Duration::from_secs(120);
+    other.declared.idle = skein_lib::Duration::from_secs(600);
+    other.declared.oversized_reasoning = smith_agent_service::profile::OversizedReasoning::Drop;
+    models.push(other);
+    let endpoints = super::resolve::document::endpoints(&settings, &models).expect("endpoint limits");
+    assert_eq!(endpoints.len(), 1);
+    assert_eq!(
+        endpoints[0]["limits"],
+        serde_json::json!({"window":524_288,"output":65_536,
+        "reasoning_item":131_072,"head":120_000,"idle":600_000,"oversized_reasoning":"fail"})
+    );
+    assert!(endpoints[0].get("models").is_none());
 }

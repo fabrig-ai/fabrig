@@ -30,29 +30,15 @@ impl Providers {
         }
         None
     }
-    /// The provider serving a configured model, by its name.
-    #[must_use]
-    pub fn serving(&self, model: &[u8]) -> Option<&Provider> {
-        for provider in &self.providers {
-            for name in &provider.models {
-                if **name == *model {
-                    return Some(provider);
-                }
-            }
-        }
-        None
-    }
 }
 
-/// One LLM provider: its number, the configured models it serves and the sources it offers.
+/// One LLM provider: its number and the sources it offers.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Provider {
     pub number: u32,
     pub name: Box<[u8]>,
     pub signed_in_plan: bool,
     pub manage_usage: Option<Box<[u8]>>,
-    /// Configured model names; each configured model is in at most one provider.
-    pub models: Box<[Box<[u8]>]>,
     pub offers: Offers,
 }
 

@@ -101,6 +101,9 @@ pub(crate) fn source_summary(
     for model in &core.settings.models {
         models
             .push(jig_protocol_engine_clients::Model {
+                number: 1,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
                 effort: match model.default_effort() {
                     Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
                     None => None,

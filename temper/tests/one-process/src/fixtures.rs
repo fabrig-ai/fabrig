@@ -65,6 +65,7 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
 }
 pub(crate) fn document() -> Vec<u8> {
     let mut value = world_document();
+    documents::settings::strip_models(&mut value);
     value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }
@@ -148,7 +149,7 @@ pub(crate) fn codec() -> jig_protocol_store::codec::View {
 /// The configured models' names the people records name models by (jig's protocol/store.md, 5.1).
 pub(crate) fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models))
+    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models()))
 }
 fn engine() -> jig_protocol_config::Engine {
     let bytes = document();

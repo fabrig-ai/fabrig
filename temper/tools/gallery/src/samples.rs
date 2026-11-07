@@ -36,6 +36,7 @@ pub enum Then {
     Shown,
     DraftEmpty,
     Mode(temper_client_domain::pages::chat::document::Mode),
+    Models { one_account: bool, state: ModelState },
     Hosts { role: bool, connected: bool },
     Working,
     DelegatedGoal,
@@ -58,6 +59,14 @@ pub enum Then {
     Declined,
     Renewed,
     SignInRefused,
+}
+/// The Models tab's switch, provenance and membership states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelState {
+    On,
+    Off,
+    Added,
+    Member,
 }
 /// The paste's visible frames, reached through the same public events as a browser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,7 +120,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 299;
+pub const N: usize = 305;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -135,6 +144,42 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-work-separated", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-empty", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-reading", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample {
+            name: "models",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::On },
+        },
+        Sample {
+            name: "models-add",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::On },
+        },
+        Sample {
+            name: "models-off",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Off },
+        },
+        Sample {
+            name: "models-added",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Added },
+        },
+        Sample {
+            name: "models-member",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Member },
+        },
+        Sample {
+            name: "models-one-account",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: true, state: ModelState::On },
+        },
         Sample {
             name: "builders",
             world: Solo,
@@ -1135,7 +1180,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Declined => "#other-states-declined",
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
-            Then::Hosts { .. }
+            Then::Models { .. }
+            | Then::Hosts { .. }
             | Then::Shown
             | Then::DraftEmpty
             | Then::Mode(_)
@@ -1182,6 +1228,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
@@ -1219,6 +1266,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
@@ -1525,6 +1573,17 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chat-draft-empty" {
         step(&mut root, Event::Act { action: Action::Pages(Act::AddDraft) }, &mut out);
     }
+    if sample.name == "models-add" {
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::Models(temper_client_domain::pages::models::Act::Name(
+                    b"claude-haiku-5-5".as_slice().into(),
+                ))),
+            },
+            &mut out,
+        );
+    }
     match sample.then {
         Then::Mode(mode) => {
             step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
@@ -1532,7 +1591,8 @@ pub fn domain(sample: &Sample) -> Domain {
                 step(&mut root, Event::Act { action: Action::Pages(Act::ShowSection { line: 17 }) }, &mut out);
             }
         }
-        Then::Hosts { .. }
+        Then::Models { .. }
+        | Then::Hosts { .. }
         | Then::DraftEmpty
         | Then::Shown
         | Then::Working

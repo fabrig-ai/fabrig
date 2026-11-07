@@ -113,7 +113,7 @@ fn a_revision_records_what_each_item_replaced() {
 fn a_release_revision_records_its_items_as_default() {
     let configured = config(41);
     let limits = limits();
-    let stored = s::Current::new(configured.defaults, &limits, &[]);
+    let stored = Core::new(configured, &limits).unwrap().current;
     let mut configured = config(41);
     configured.defaults.charters[0].spend = configured.defaults.charters[0].spend.checked_add(1).unwrap();
     let mut core = Core::new(configured, &limits).unwrap();

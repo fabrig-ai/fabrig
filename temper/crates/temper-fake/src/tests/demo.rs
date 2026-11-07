@@ -15,12 +15,8 @@ pub(super) fn fixture() -> Value {
         "address":{"socket":"127.0.0.1:8370"}, "transport":"plaintext", "headers":[],
         "connect_ms":10000, "handshake_ms":10000
     }));
-    d["engine"]["llm"]["models"].as_array_mut().unwrap().push(json!({
-        "name":"demo", "endpoint":"demo", "window":4096, "output":1024,
-        "prices":{"input":1,"cached":1,"output":1,"unit":1}
-    }));
     d["engine"]["llm"]["providers"].as_array_mut().unwrap().push(json!({
-        "name":"demo", "number":3, "models":["demo"], "sources":{"keys":true}
+        "name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}
     }));
     d["application"]["demo"] = json!({"llm":{
         "listen":{"socket":"127.0.0.1:8370"}, "provider":3, "key":"demo/llm.key",
@@ -60,7 +56,6 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one refusal table covers the member and its document relationships")]
 fn demo_refusals() {
-    let owned: Value = serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).unwrap();
     let sign_in = json!({"issuer":"https://issuer.example", "client":"client", "scopes":[],
         "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
         "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",
@@ -115,10 +110,7 @@ fn demo_refusals() {
             "application.demo.llm.provider: must offer a key alone\n",
         ),
         (
-            vec![
-                ("/engine/llm/providers/1/models", Some(json!([]))),
-                ("/engine/llm/models", Some(json!([owned["engine"]["llm"]["models"][0].clone()]))),
-            ],
+            vec![("/engine/llm/providers/1/number", Some(json!(9))), ("/application/demo/llm/provider", Some(json!(9)))],
             "application.demo.llm.provider: names a provider with no models\n",
         ),
         (
@@ -135,12 +127,6 @@ fn demo_refusals() {
         (
             vec![("/engine/llm/endpoints/1/dialect", Some(json!(2)))],
             "application.demo.llm.provider: names an endpoint not in OpenAI's dialect\n",
-        ),
-        (vec![("/engine/llm/models/1/window", Some(json!(0)))], "application.demo.llm.provider: must be at least 1\n"),
-        (vec![("/engine/llm/models/1/output", Some(json!(0)))], "application.demo.llm.provider: must be at least 1\n"),
-        (
-            vec![("/engine/llm/models/1/output", Some(json!(4097)))],
-            "application.demo.llm.provider: must not exceed window\n",
         ),
         (
             vec![("/application/demo/llm/key", Some(json!("")))],
@@ -190,18 +176,6 @@ fn demo_refusals() {
         vec![("/application/demo/llm/key", Some(json!("demo/\u{0}")))],
         "application.demo.llm.key: must be an absolute path without NUL\n",
     ));
-    let mut models = vec![owned["engine"]["llm"]["models"][0].clone()];
-    models.extend((0..17).map(|i| {
-        json!({"name":format!("demo-{i}"), "endpoint":"demo", "window":4096,"output":1024,
-        "prices":{"input":1,"cached":1,"output":1,"unit":1}})
-    }));
-    rows.push((
-        vec![
-            ("/engine/llm/models", Some(json!(models))),
-            ("/engine/llm/providers/1/models", Some(json!((0..17).map(|i| format!("demo-{i}")).collect::<Vec<_>>()))),
-        ],
-        "application.demo.llm.provider: past its bound\n",
-    ));
     for (changes, expected) in rows {
         let mut d = fixture();
         for (path, value) in &changes {
@@ -225,12 +199,8 @@ fn demo_refusals() {
 }
 #[test]
 fn demo_acceptance() {
-    for (enabled, cued, window, output) in
-        [(false, false, 4096, 1024), (true, false, 4096, 1024), (true, true, 4096, 1024), (true, true, 65536, 32768)]
-    {
+    for (enabled, cued) in [(false, false), (true, false), (true, true)] {
         let mut value = fixture();
-        value["engine"]["llm"]["models"][1]["window"] = json!(window);
-        value["engine"]["llm"]["models"][1]["output"] = json!(output);
         if cued {
             value["application"]["demo"]["llm"]["cued"] = json!([
                 {"cue":"coding brief","turns":["coding answer"]}
@@ -247,10 +217,23 @@ fn demo_acceptance() {
         let demo = demo.unwrap();
         let m = &value["application"]["demo"]["llm"];
         let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
-            "models":[{"name":"demo","window":window,"output":output}], "cued":m.get("cued").cloned().unwrap_or(json!([])),
+            "models":[{"name":"demo","window":1_048_576,"output":8192}], "cued":m.get("cued").cloned().unwrap_or(json!([])),
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let document =
+            config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
+        let engine = temper_service::startup::engine(
+            &document,
+            member(&document, 0, b"engine"),
+            &config::Directories::working(),
+        )
+        .unwrap();
+        let model = engine.llm.models.iter().find(|entry| entry.number == 8).unwrap();
+        assert_eq!(model.model.window, demo::SCRIPTED_WINDOW);
+        assert_eq!(model.model.output, demo::SCRIPTED_OUTPUT);
+        assert_eq!(model.model.name.as_ref(), b"demo");
     }
 }
 
@@ -263,7 +246,7 @@ fn cued_scripts_keep_their_system_placement() {
     let demo = read(&value).unwrap().unwrap();
     let m = &value["application"]["demo"]["llm"];
     let standalone = json!({"listen":m["listen"], "key":"/data/demo/llm.key", "tls":null,
-        "models":[{"name":"demo","window":4096,"output":1024}],
+        "models":[{"name":"demo","window":1_048_576,"output":8192}],
         "cued":m["cued"],"asked":m["asked"],"otherwise":m["otherwise"]});
     assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
     let answer = super::answer(demo.llm(), 23, super::query(b"coding brief", b"Begin"));
@@ -385,13 +368,6 @@ fn demo_answers_the_latest_request() {
 fn template() -> Value {
     let template: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).unwrap();
     let mut value = fixture();
-    value["engine"]["llm"]["models"][1] = template["engine"]["llm"]["models"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|model| model["name"] == "demo")
-        .unwrap()
-        .clone();
     value["application"]["demo"] = template["application"]["demo"].clone();
     value["application"]["demo"]["llm"]["listen"]["socket"] = json!("127.0.0.1:8370");
     value

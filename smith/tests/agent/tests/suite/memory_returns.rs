@@ -1,7 +1,7 @@
 //! Heap returns after a window's use ends (smith/docs/design/protocol/limits.md, sections 5 and 11).
 
 use skein_lib::Duration;
-use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
+use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as EndpointLimits, OversizedReasoning};
 use smith_agent_world::memory::Memory;
 use smith_domain::llm::{Asker, Completion, Decoded, Said, Stop, Usage};
 use smith_domain::tools::{Call, Done, Name, Part, Path, Version};
@@ -17,16 +17,14 @@ fn limits() -> Limits {
             option_bytes: 0,
             connect: Duration::from_secs(30),
             handshake: Duration::from_secs(30),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: b"m".as_slice().into(),
+            limits: EndpointLimits {
                 window: 272_000,
                 output: 32_000,
                 reasoning_item: 65_536,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: Duration::from_secs(60),
                 idle: Duration::from_secs(300),
-            }]),
+            },
         }]),
     };
     profile::derive(&profile::standard(), &declarations).expect("standard deployment derives").domain

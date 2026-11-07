@@ -174,6 +174,10 @@ impl Component {
     pub fn down(&mut self, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
         assert!(!self.closed(), "the owner sends nothing after Closed");
         match event {
+            Event::Catalogue { models } => {
+                assert!(crate::translate::llm::fits(&models, &env.limits.wire), "core catalogue fits the client wire");
+                self.settings.models = models;
+            }
             Event::Transport(message) => self.transport(env, message, out),
             Event::Reply { to, reply } => self.reply(env, to.into_token(), reply, out),
             Event::SignInRefused { to } => {

@@ -76,53 +76,24 @@ temper ctl settings apply`.
 
 **Offering another model** (for example, `claude-haiku-5-5`):
 
-1. In `CONFIG/temper.json`, append a declaration to `engine.llm.models`:
-
-   ```json
-   {
-     "name": "claude-haiku-5-5", "endpoint": "anthropic",
-     "window": 1048576, "output": 8192,
-     "efforts": ["low", "medium", "high"], "effort": "high",
-     "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}
-   }
-   ```
-
-   Add `"claude-haiku-5-5"` to `engine.llm.providers[].models` for the
-   provider serving it (`anthropic` in this example). Its `models` array
-   holds names, not declarations. The declaration's `endpoint` names
-   an existing entry in `engine.llm.endpoints`.
-2. In `CONFIG/agent.json`, append a matching declaration to
-   `endpoints[].models` under the endpoint named `anthropic`:
-
-   ```json
-   {
-     "name": "claude-haiku-5-5",
-     "window": 1048576, "output": 8192,
-     "efforts": ["low", "medium", "high"],
-     "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000},
-     "reasoning_item": 65536, "head": 60000, "idle": 300000
-   }
-   ```
-
-   Use the same model and endpoint names and supported `efforts` in both
-   files; the engine's `effort` names the default; left out, it is the first.
-3. These are illustrative values, not provider specifications. Set
-   `window` (context tokens), `output` (maximum output tokens), and
-   `prices` (input, cached input and output costs per `unit` tokens)
-   to the model's supported values and your deployment's accounting
-   units in both files. Set the agent model's `reasoning_item`, the
-   byte allowance per reasoning item, and its `head` and `idle`
-   deadlines in milliseconds. A model can go quiet for minutes in a
-   response, so `temper init` gives OpenAI's an `idle` of 300000 and
-   Anthropic's 120000. Larger declarations may require larger agent
-   and channel bounds; a refused start names the shortfall.
-4. Preserve existing models, providers and endpoint settings, including
-   addresses, transports and sign-in settings. Finish both edits
-   before the first start. For a running deployment, stop it with
-   Ctrl-C or SIGTERM and wait for it to exit before editing, then
-   restart with the same `CONFIG`, `DATA` and `CACHE`. `model list`
-   reads the models offered to a project; a charter or policy may
-   restrict which it can use (temper help charter; temper help settings).
+1. On **Settings**, **Models**, use **Add a model by name**: choose a
+   provider and enter the model's name. Prices are estimated until set;
+   the first run shows whether the provider serves it.
+2. To set its prices, window or efforts, tell **Configure temper**.
+   A task keeps the model it has. Adding or changing a model needs no restart.
+   `model list` reads the models offered to a project; a charter or policy
+   may restrict which it can use (temper help charter; temper help settings).
+3. For a local model, its provider's `endpoint` in `engine.llm.providers`
+   names the configured endpoint serving it. Providers and endpoints stay
+   in `CONFIG/temper.json`.
+4. For a larger output than an agent's endpoint's limits allow, raise those
+   limits in `CONFIG/agent.json` and restart, then change the model.
+   Preserve endpoint addresses, transports and sign-in settings. The endpoint's
+   `reasoning_item` is the byte allowance per reasoning item; `head` and `idle`
+   are deadlines in milliseconds. A model can go quiet for minutes in a response;
+   init gives OpenAI's an `idle` of 300000 and Anthropic's 120000.
+   Larger outputs may require larger agent and channel bounds; a refused start
+   names the shortfall. Restart with the same `CONFIG`, `DATA` and `CACHE`.
 
 **Writing larger pieces:** `CONFIG/agent.json`'s
 `profile.declared.tool_payload` bounds bytes per piece: a write's
@@ -153,10 +124,11 @@ set it to the same required figure.
 A payload of `16386` can instead fail at the model:
 `input-answer: llm.input[endpoint=1]=99876; llm.answer[endpoint=1]=65536`.
 The encoded input must fit the model's answer capacity. Reduce the payload,
-or declare a supported larger model `output` in both files; this example
-needs at least 12,485 output tokens (eight answer bytes per token).
+or raise the agent endpoint's output limit in `CONFIG/agent.json` and restart,
+then change the model's `output` through Configure temper; this example needs
+at least 12,485 output tokens (eight answer bytes per token).
 Do not lower a receiving check. Recheck all derived carriers after that
-change. Drain the stop, edit both files, and restart with the same
+change. Drain the stop, edit configuration, and restart with the same
 `CONFIG`, `DATA` and `CACHE`; running agents retain their startup profile.
 
 ## Limits

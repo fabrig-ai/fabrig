@@ -45,6 +45,9 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
             limits,
             w::ApplicationSettingParts { kind: *kind, scope: *scope, number: *number },
         )?),
+        c::Setting::Model(item) => {
+            w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number: item.number })?)
+        }
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
             limits,
@@ -143,6 +146,7 @@ pub(in crate::codec) fn wire_setting_value(
     limits: &w::Limits,
 ) -> Result<w::SettingValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::SettingValue::Model(value) => w::SettingValue::Model(Box::new(wire_catalogue(value, limits)?)),
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
         c::SettingValue::Template(value) => w::SettingValue::Template(Box::new(wire_template(value, limits)?)),
         c::SettingValue::Policy(value) => w::SettingValue::Policy(Box::new(wire_setting_policy(value, limits)?)),
@@ -169,7 +173,7 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
                     },
                 )
             }))?,
-            skein_bools: [value.resume, value.inspect, value.modify, value.shell, value.agents],
+            skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -195,6 +199,7 @@ pub(in crate::codec) fn wire_setting_model(
     w::SettingModel::new(
         limits,
         w::SettingModelParts {
+            provider: value.provider,
             dialect: value.dialect,
             endpoint: value.endpoint,
             program: value
@@ -599,4 +604,24 @@ pub fn wire_revision_replaced(
             w::RevisionReplaced::Application(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
         }
     })
+}
+
+fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
+    w::CatalogueEntry::new(
+        limits,
+        w::CatalogueEntryParts {
+            number: value.number,
+            model: wire_setting_model(&value.model, limits)?,
+            shown: value.shown.as_ref().map(|value| bytes::copy_of(value.bytes())),
+            description: value.description.as_ref().map(|value| bytes::copy_of(value.bytes())),
+            picker: value.picker,
+            withdrawn: value.withdrawn,
+            estimated: value.estimated,
+            source: match value.source {
+                c::ModelSource::Stock => w::ModelSource::Stock,
+                c::ModelSource::List => w::ModelSource::List,
+                c::ModelSource::Person => w::ModelSource::Person,
+            },
+        },
+    )
 }

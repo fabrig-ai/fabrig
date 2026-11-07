@@ -160,10 +160,10 @@ Changing the current reserve alone leaves incompatible held versions.
 For members needing a restart, read `temper help configuration`.
 
 - temper does not patch a member: an item sets a whole value.
-- The person's client has no page to change settings.
+- On Settings, Models, the person's client changes models; tell Configure temper about other settings.
 - ctl sends values within `temper help settings-fields` bounds; the
   deployment may refuse them past its own limits.
-- Providers, models, listeners, workers and limits are configured at start;
+- Providers, listeners, workers and limits are configured at start;
   changes need a restart. Limits must hold the stock's settings or start
   refuses. Another model or new stock can change the limits needed.
 - Stock floors are seven charters, three templates and nine executor kinds

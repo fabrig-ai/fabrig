@@ -8,6 +8,9 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     let model = w::MeModel::new(
         limits.wire(),
         w::MeModelParts {
+            number: 1,
+            source: w::ModelSource::Stock,
+            estimated: false,
             effort: None,
             shown: None,
             accounts: skein_lib::List::with_capacity(0),
@@ -29,6 +32,7 @@ fn me_with_offer(model: w::MeModel, defaults: skein_lib::List<w::MeDefault>) -> 
     let project = w::MeProject::new(
         limits.wire(),
         w::MeProjectParts {
+            left_out: 0,
             defaults,
             public: None,
             project: 3,
@@ -170,6 +174,9 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
         let model = w::MeModel::new(
             limits.wire(),
             w::MeModelParts {
+                number: 1,
+                source: w::ModelSource::Stock,
+                estimated: false,
                 name: b"chosen".as_slice().into(),
                 provider: None,
                 window: 1,

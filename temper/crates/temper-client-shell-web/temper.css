@@ -109,7 +109,7 @@ a { color: inherit; text-decoration: none; }
 .temper-project-new:has(input:placeholder-shown) button { display: none; }
 .temper-project-new button:hover { border-color: #ba9c89; color: var(--temper-accent-dark); }
 /* The switcher's fields keep their labels for assistive technology alone. */
-.temper-project-new > label, .temper-project-rename-form > label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.temper-project-new > label, .temper-project-rename-form > label, .temper-connect-sheet search label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* The banner's open project offers Rename beside its name; its form replaces that row. */
 .temper-projects[open]::details-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .temper-projects > :not(.temper-project-rename):not([aria-pressed=true]) { grid-column: 1 / -1; }
@@ -1938,6 +1938,14 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 
 
 /* ==== ui: settings ==== */
+#app > .temper-settings .temper-models-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+#app > .temper-settings .temper-models-add > input { flex: 1 1 200px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
+#app > .temper-settings .temper-models-add > select { padding: 6px 8px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
+/* Settings' list of models. */
+#app > .temper-settings .temper-models-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+#app > .temper-settings .temper-models-source small, #app > .temper-settings .temper-settings-section > small, #app > .temper-settings .temper-models-ask { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-models-ask a { text-decoration: underline; text-underline-offset: 2px; }
+
 
 /* connect-flows: Settings' connect pages take the welcome's cards, panels and
    words, in Settings' column, under its path, with no steps bar. */
@@ -2051,7 +2059,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-connect-sheet-head > h2 { margin: 0; font: 500 19px/1.3 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
 .temper-connect-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 26px 20px; }
 .temper-connect-sheet-head > h2:focus { outline: none; }
-.temper-connect-sheet .temper-connect-how > label[hidden], .temper-connect-sheet search label { display: none !important; }
+.temper-connect-sheet .temper-connect-how > label[hidden] { display: none !important; }
 .temper-connect-source { display: flex; flex-direction: column; gap: 14px; }
 .temper-connect-source[hidden] { display: none; }
 .temper-connect-sheet-foot { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 14px 26px; border-top: 1px solid var(--gf-line); }

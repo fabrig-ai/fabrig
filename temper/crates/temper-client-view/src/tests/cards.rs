@@ -420,7 +420,11 @@ fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept: bool) -> c
     for (setting, edit) in items {
         match setting {
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => {}
-            c::Setting::Charter(_) | c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules => {
+            c::Setting::Charter(_)
+            | c::Setting::Template(_)
+            | c::Setting::Policy(_)
+            | c::Setting::Model(_)
+            | c::Setting::Rules => {
                 heads.push(c::RevisionItemHead { setting: *setting, edit: edit.clone() }).unwrap();
             }
         }
@@ -1090,5 +1094,83 @@ fn a_refused_accept_ends_the_withdrawn_card() {
             assert_ne!(node.role, Role::Button);
         }
         assert!(found, "{expected}");
+    }
+}
+
+fn catalogue_model() -> c::CatalogueEntry {
+    c::CatalogueEntry {
+        number: 4,
+        model: c::SettingModel {
+            provider: 2,
+            dialect: 1,
+            endpoint: 2,
+            program: None,
+            name: c::Text::new(b"gpt-6.1-terra".as_slice().into(), 128).unwrap(),
+            window: 131_072,
+            output: 8192,
+            input_price: 3,
+            cached_price: 1,
+            cache_write_price: None,
+            output_price: 12,
+            price_unit: 1_000_000,
+            efforts: List::with_capacity(0),
+            effort: None,
+        },
+        shown: Some(c::Text::new(b"GPT-6.1 Terra".as_slice().into(), 128).unwrap()),
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }
+}
+fn model_review(value: c::CatalogueEntry) -> c::ReviewValue {
+    c::ReviewValue::Value(c::SettingSet { value: c::SettingValue::Model(Box::new(value)) })
+}
+#[test]
+fn a_model_item_reads_as_what_it_changes() {
+    for (change, expected) in [
+        ("on the picker", "GPT-6.1 Terra: on the picker"),
+        ("off the picker", "GPT-6.1 Terra: off the picker"),
+        ("new prices", "GPT-6.1 Terra: new prices"),
+        ("added", "GPT-6.1 Terra: added"),
+        ("withdrawn", "GPT-6.1 Terra: withdrawn"),
+        ("new settings", "GPT-6.1 Terra: new settings"),
+    ] {
+        let mut before = catalogue_model();
+        let mut after = before.clone();
+        let edit = if change == "withdrawn" { c::RevisionItemEdit::Removed } else { c::RevisionItemEdit::Set };
+        match change {
+            "on the picker" => before.picker = false,
+            "off the picker" => after.picker = false,
+            "new prices" => after.model.output_price = 24,
+            "new settings" => {
+                after.picker = false;
+                after.model.output_price = 24;
+            }
+            "added" | "withdrawn" => {}
+            _ => unreachable!("named model change"),
+        }
+        let setting = c::Setting::Model(c::SettingNumber { number: 4 });
+        let mut page = settings_page(&[(setting, edit.clone())], true);
+        let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
+        let c::ProposalAction::Settings(settings) = &mut proposal.action else { panic!("settings") };
+        let item = settings.review.as_mut().unwrap().items.get_mut(0).unwrap();
+        item.now = if change == "added" { c::ReviewValue::None } else { model_review(before.clone()) };
+        item.would_be = if change == "withdrawn" { c::ReviewValue::None } else { model_review(after) };
+        let (root, _) = settings_root(page);
+        let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
+        assert!(skein_lib::bytes::find(&said, expected.as_bytes()).is_some(), "missing model change: {change}");
+        if change != "added" {
+            let previous = if before.picker {
+                "Previously: GPT-6.1 Terra: on the picker"
+            } else {
+                "Previously: GPT-6.1 Terra: off the picker"
+            };
+            assert!(skein_lib::bytes::find(&said, previous.as_bytes()).is_some());
+            assert!(
+                skein_lib::bytes::find(&said, b"prices: input 3, cached 1, output 12 per 1000000 tokens").is_some()
+            );
+        }
     }
 }

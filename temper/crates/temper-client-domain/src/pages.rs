@@ -41,6 +41,7 @@ pub mod goal;
 pub mod goals;
 pub mod home;
 pub mod inbox;
+pub mod models;
 pub mod needs;
 pub mod report;
 pub mod start_goal;
@@ -76,6 +77,7 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     builders: builders::Builders,
+    models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
@@ -156,6 +158,7 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Away(away::Act),
+    Models(models::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -301,6 +304,7 @@ impl Pages {
             task: None,
             accounts: accounts::Accounts::default(),
             builders: builders::Builders::default(),
+            models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
             playground_provider: None,
@@ -592,6 +596,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::Models(act) } => {
+            if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
+                pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+            }
+        }
         Event::Act { act: Act::Accounts(act) } => {
             if pages.accounts_open {
                 pages.accounts.act(client, act, &mut pages.serial, out);
@@ -837,6 +846,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Models { .. } => out.push(Request::Show { address: Address::Models { project } }),
                 Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
@@ -930,6 +940,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
@@ -1024,7 +1035,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
-    if pages.needs.told(&told) || pages.choice.told(&told) || crate::acts::told(pages, &told) {
+    if pages.models.told(client, &told)
+        || pages.needs.told(&told)
+        || pages.choice.told(&told)
+        || crate::acts::told(pages, &told)
+    {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -1195,6 +1210,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Repositories { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => false,
@@ -1306,6 +1322,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Configure { .. }
@@ -1634,6 +1651,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AmendAgain
         | Act::Switcher(_)
         | Act::Away(_)
+        | Act::Models(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault
@@ -1700,6 +1718,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Goals { project, .. }
         | Address::Changes { project }
         | Address::Settings { project }
+        | Address::Models { project }
         | Address::Builders { project }
         | Address::Repositories { project }
         | Address::Configure { project } => Some(*project),
@@ -1789,6 +1808,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.seeing = None;
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
+            pages.models = models::Models::new();
         }
         pages.party = Some(me.party.number);
         if connect_model::open(&pages.address) {
@@ -1855,6 +1875,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
+            pages.models = models::Models::new();
             pages.party = None;
             pages.project = None;
             pages.seen = 0;
@@ -1914,6 +1935,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }

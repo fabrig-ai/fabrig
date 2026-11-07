@@ -14,7 +14,7 @@ pub(super) struct Path {
     pub framing: u64,
 }
 
-/// Derive an endpoint from its largest model declarations, before transport pieces.
+/// Derive an endpoint from its declared limits, before transport pieces.
 pub fn client(profile: &Profile, endpoint: &Endpoint, history_items: u32) -> Result<client::Limits, Refusal> {
     let mut declared = declarations(profile, endpoint)?;
     declared.history_items = history_items;
@@ -26,7 +26,7 @@ pub fn client(profile: &Profile, endpoint: &Endpoint, history_items: u32) -> Res
 }
 
 pub(super) fn path(profile: &Profile, configuration: &Configuration) -> Result<Path, Refusal> {
-    super::validate::configured_models(configuration)?;
+    super::validate::configured_endpoints(configuration)?;
     let mut largest = shared::Declared {
         window: 0,
         output: 0,
@@ -63,21 +63,16 @@ pub(super) fn path(profile: &Profile, configuration: &Configuration) -> Result<P
 }
 
 fn declarations(profile: &Profile, endpoint: &Endpoint) -> Result<shared::Declared, Refusal> {
-    let mut declared = shared::Declared {
-        window: 0,
-        output: 0,
-        reasoning_item: 0,
+    let declared = shared::Declared {
+        window: endpoint.limits.window,
+        output: endpoint.limits.output,
+        reasoning_item: endpoint.limits.reasoning_item,
         tool_payload: call_payload(profile)?,
         calls_per_response: profile.declared.calls_per_response,
         conversations: profile.declared.conversations,
         tools: profile.policy.host_tools.checked_add(10).expect("validated tool count"),
         history_items: 2,
     };
-    for model in &endpoint.models {
-        declared.window = declared.window.max(model.window);
-        declared.output = declared.output.max(model.output);
-        declared.reasoning_item = declared.reasoning_item.max(model.reasoning_item);
-    }
     Ok(declared)
 }
 

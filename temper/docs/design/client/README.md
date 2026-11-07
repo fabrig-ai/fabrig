@@ -364,7 +364,8 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
 | `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
-| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the fifth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
+| `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
@@ -2162,6 +2163,7 @@ keeps (`../protocol/configuration.md`, section 2).
     | Repositories | What PROJECT works on. | The repositories chats and goals in PROJECT read and change. |
     | Forges | Where your code lives. | Each forge temper is connected to, or setting up. Add one to bring its repositories to temper. |
     | Accounts | What agents run on. | The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it. |
+    | Models | What the picker offers. | The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has. |
     | Builders | Where agents work. | The machines temper’s agents run on, each with its slots and how many are in use. |
 
   - *Its tabs:* a navigation named "Settings", links, the current one
@@ -2169,8 +2171,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `/projects/<project>/settings`; "Repositories", to `Repositories {
     project }`, at `/projects/<project>/settings/repositories`; "Forges", to
     `Forges`; "Accounts", to `Accounts`, these two with the marks 5.3 gives
-    them; and "Builders", to `Builders { project }`, at
-    `/projects/<project>/settings/builders`.
+    them; "Models", to `Models { project }`, at
+    `/projects/<project>/settings/models`; and "Builders", to `Builders {
+    project }`, at `/projects/<project>/settings/builders`.
   - *`Forges` and `Accounts`* keep their addresses and paths, so that a
     connect's `back`, To begin's links and their tests hold. Whenever the
     page has a project, as the rail does (5.3), they draw inside this frame,
@@ -2227,6 +2230,48 @@ keeps (`../protocol/configuration.md`, section 2).
     primary "Connect a model". Then a row per account, its summary its line (5.5, An account's
     line). "Deployment accounts", for an owner, is a section of the same rows;
     the playground's account, a section of its own; then *Sign out*.
+  - *The `Models` tab* (the look request `model-picker`, its 07;
+    `../draft/model-catalogue.md`, sections 3, 4 and 6) draws the project's
+    offer in `me` and works nothing out, so that it holds no model the offer
+    leaves out:
+    - *A section per provider* `me` offers, in `me`'s order, its title the
+      provider's word, "Claude" for `anthropic`, as the picker's headings say it.
+      Under it, in `small`, what pays and where its models came from: "Your Claude
+      subscription.", "Your ChatGPT plan." or "Your API key.", from the person's
+      usable accounts of that provider in the accounts document, one clause each,
+      then "These come with temper."
+    - *A provider with no model offered* has its section's title and its line alone,
+      as the picker's: "Connect a plan or key ›", to `ConnectModel`, with no account,
+      or the account's own fix, such as "Sign in again ›", to `Accounts`. It has no
+      row and no switch, the stock's models included. So with one account the page
+      holds that provider's models alone.
+    - *A row per offered model,* `.setting`, in the offer's order: its shown name;
+      in `small`, "NAME · EFFORT", its name and default effort, with no effort for
+      a model that declares none, then " · the default" on the model the chat
+      template's `resolved_default` names, " · added by you" on one a person
+      added, and " · estimated prices" on one whose prices are estimated; at its
+      right, "On" or "Off", whether the picker shows it. An owner in the deployment
+      has a switch beside the word, named "SHOWN in the picker": a press asks jig's
+      `ChangeModel` (jig's `client/domain/contract.md`, 3.2), the switch holding
+      its old state until the answer, and a refusal shows under the row in the
+      words of a change's refusal. Anyone else has the word alone.
+    - *How many were left out,* in `.facts` under the sections, where `me` says
+      the catalogue left any out: "N more models don't fit the catalogue." (jig's
+      `client/domain/contract.md`, 5.1).
+    - *"Add a model by name",* a section, for an owner in the deployment: a
+      provider's select, of the providers `me` offers but the playground's; a
+      field named "The model’s name", its placeholder "model-name"; "Add"; and, in
+      `small`, "For a model the list doesn’t show. It runs through the account you
+      have with that provider." The name's shape is checked here as the engine
+      checks it, 1 to 128 bytes of letters, digits, `-`, `.`, `_` and `:`, and "Add"
+      is off until it holds; a name of that provider's in the offer says
+      "PROVIDER already has that model." A press asks `ChangeModel`. The engine
+      makes the model (jig's `domain/engine.md`, 17.11), and the field empties;
+      its row then reads "added by you". A refusal shows under the form.
+    - *The last line,* in `.facts`: "To change a default or a role’s models, tell
+      Configure temper.", its last words a link to `Configure { project }`.
+    - *In the terminal,* the same sections as lines, a row's word and name on one line,
+      and the switch and the form as the terminal has them on How work runs (5.13).
   - *Builders* reads jig's `deployment` document, watched while the tab is open
     by a person with a role in the deployment, as `Accounts` watches it for an
     owner. It draws `Deployment.hosts`, as far as the document's configured rows
@@ -2648,9 +2693,9 @@ keeps (`../protocol/configuration.md`, section 2).
     - "All models" and how many the offer holds, where the picker shows fewer.
   - *All models* takes the menu's place: "‹ Models", back to it; a field "Find a
     model", matching any part of a shown name or a name, in any case; every model
-    of the offer, by account as above; and "Accounts, in Settings", a link to
-    `Accounts`. Settings has no list of models yet, and nothing reads a
-    provider's list (`../draft/model-catalogue.status.md`).
+    of the offer, by account as above; and "Choose what the list shows, in Settings",
+    a link to `Models { project }` for the picker's project. Provider-list reads
+    remain the catalogue's lists step (`../draft/model-catalogue.status.md`).
   - *A started chat:* the menu opens with "A change applies from the next turn."
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
@@ -6759,12 +6804,11 @@ own tests:
   account, even beside a usable account of that provider, remains the catalogue's
   requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
   line until those account rows are designed.
-- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
-  switches, adding by name and direction to Configure temper for a default
-  change belong to the catalogue's store step. Provider-list reads, "Read again",
-  failed-read words, estimated prices and "new" on All models belong to its
-  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
-  no "new", and All models links to Accounts with "Accounts, in Settings".
+- **Provider-list reads on Models** (3.5): "Read again", failed-read words,
+  "Read from OpenAI 2 hours ago" and "new" belong to the catalogue's lists step
+  (`../draft/model-catalogue.md`, section 7). Default: the stock and models added
+  by name, with "estimated prices" where prices are unknown; no provider read
+  or "new" tag.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

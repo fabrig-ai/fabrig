@@ -50,7 +50,8 @@ fn process_producers_can_write_and_deliver_while_open_chats_cannot() {
     let (_, bytes) = crate::support::configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
     let deployment: serde_json::Value = serde_json::from_slice(&bytes).expect("process configuration");
     let configured = temper_real_loop_world::settings::configuration(&deployment);
-    let defaults = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
+    let defaults =
+        temper_service::stock::with_models(configured.llm.models.clone(), configured.limits.core.tasks.result_bytes);
     let producer = defaults.charters.iter().find(|charter| u64::from(charter.number) == NUMBER).expect("producer");
     let finite = temper_engine_smith::charter(&assignment(producer, tasks::EndedBy::Result));
     assert_eq!(finite.mode, smith_domain_run::Mode::Finite);

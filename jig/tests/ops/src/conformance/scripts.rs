@@ -29,7 +29,7 @@
 //! read: smith's inline agent heard the stop in the same step. If its task
 //! stays live, the unread messages wake it again according to their policy.
 use jig_conformance::{Clock, Input};
-use jig_domain_link::{Bounds, CountKind, ModelBound, Operation};
+use jig_domain_link::{Bounds, CountKind, EndpointBound, Operation};
 
 use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
@@ -704,7 +704,7 @@ fn completion_activity(owner: Token, turns: u32) -> Vec<root::Event> {
 pub fn agent_bounds() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: u32::MAX, output: u32::MAX }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: u32::MAX, output: u32::MAX }]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_nanos(u64::MAX),

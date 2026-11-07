@@ -33,18 +33,18 @@ fn fixture() -> (Core, Limits) {
     let mut same = scripted_model();
     same.name = b"same".as_slice().into();
     let mut other = scripted_model();
+    other.provider = OTHER_PROVIDER;
     other.name = b"other".as_slice().into();
     other.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
     other.effort = Some(b"high".as_slice().into());
     configuration.settings.models = Box::new([scripted_model(), same.clone(), other.clone()]);
     configuration.defaults.charters[0].policy.model = other;
     configuration.defaults.charters[0].policy.alternatives = Box::new([same, scripted_model()]);
-    configuration.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), b"same".as_slice().into()]);
+
     configuration.settings.llm_providers.providers[0].offers.key = true;
     let mut provider = configuration.settings.llm_providers.providers[0].clone();
     provider.number = OTHER_PROVIDER;
-    provider.models = Box::new([b"other".as_slice().into()]);
+
     configuration.settings.llm_providers.providers =
         Box::new([configuration.settings.llm_providers.providers[0].clone(), provider]);
     let mut core = seeded_core(configuration, &limits).unwrap();

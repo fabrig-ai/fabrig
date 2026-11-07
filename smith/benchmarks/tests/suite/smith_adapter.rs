@@ -309,7 +309,6 @@ fn tool_output_profiles_render_and_pass_the_observed_public_startup_derivation()
             assert_eq!(resolved.agent.service.limits.machine.group_stop, Duration::from_secs(1));
         }
         assert_eq!(resolved.local.models.len(), 3);
-        assert_eq!(resolved.agent.service.domain.models.len(), 3);
         resolved.local.validate(&resolved.limits).expect("mounted product policy");
     }
 }
@@ -324,7 +323,6 @@ fn process_tree_profile_renders_and_passes_the_observed_public_startup_derivatio
     assert_eq!(resolved.agent.service.limits.domain.session.tools.shell_timeout, Duration::from_secs(1));
     assert_eq!(resolved.agent.service.limits.machine.group_stop, Duration::from_secs(1));
     assert_eq!(resolved.local.models.len(), 3);
-    assert_eq!(resolved.agent.service.domain.models.len(), 3);
     resolved.local.validate(&resolved.limits).expect("product policy");
 }
 
@@ -336,13 +334,12 @@ fn slow_completion_profile_renders_and_passes_the_observed_public_startup_deriva
     let resolved = resolved_product(&context);
     assert_eq!(resolved.local.progress[0].head, Duration::from_millis(60000));
     assert_eq!(resolved.local.progress[0].idle, Duration::from_millis(300_000));
-    assert_eq!(resolved.agent.declarations.endpoints[0].models[0].reasoning_item, 65536);
+    assert_eq!(resolved.agent.declarations.endpoints[0].limits.reasoning_item, 65536);
     assert_eq!(
-        resolved.agent.declarations.endpoints[0].models[0].oversized_reasoning,
+        resolved.agent.declarations.endpoints[0].limits.oversized_reasoning,
         smith_agent_service::profile::OversizedReasoning::Fail
     );
     assert_eq!(resolved.local.models.len(), 3);
-    assert_eq!(resolved.agent.service.domain.models.len(), 3);
     resolved.local.validate(&resolved.limits).expect("product policy");
 }
 
@@ -520,7 +517,7 @@ fn a_task_override_reaches_smith_as_a_product_setting() {
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
     let arguments = product_arguments(&context).expect("overrides");
     assert!(arguments.contains(&"models.\"openai/gpt-6-luna\".output=8192".into()));
-    assert_eq!(resolved_product(&context).agent.declarations.endpoints[0].models[0].output, 8192);
+    assert_eq!(resolved_product(&context).local.models[0].output, 8192);
 }
 
 #[test]

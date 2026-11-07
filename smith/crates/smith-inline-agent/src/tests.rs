@@ -14,12 +14,9 @@ fn configuration() -> smith::Config {
     smith::Config {
         programs: Box::new([]),
         endpoints: Box::from([run::charter::Endpoint(0)]),
-        models: Box::from([smith::ConfiguredModel {
-            efforts: Box::new([]),
-            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+        limits: Box::from([smith::EndpointLimits {
             protocol_allowance: 0,
             endpoint: run::charter::Endpoint(0),
-            model: b"fake-1".as_slice().into(),
             window: 65_536,
             output: 4096,
             head: Duration::from_secs(60),
@@ -712,7 +709,7 @@ fn invalid_limits_are_refused() {
     assert!(!crate::valid(&invalid));
     // A heap total can overflow while all constructor and edge bounds fit.
     let mut large = limits;
-    large.smith.configured_model_bytes = u64::MAX;
+    large.smith.configured_endpoint_bytes = u64::MAX;
     assert!(crate::valid(&large));
     // The root/child guards also reject these tighter capacity failures.
     invalid = limits;

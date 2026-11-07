@@ -6,7 +6,7 @@ use smith_session_world::said;
 use smith_session_world::bytes;
 
 use skein_lib::{Duration, Queue};
-use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
+use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
 use smith_domain_session::{self as session, llm};
 use smith_session_world::recorded::{Scripted, opening};
 
@@ -28,16 +28,14 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
                 option_bytes: 0,
                 connect: Duration::from_secs(1),
                 handshake: Duration::from_secs(1),
-                models: Box::new([Model {
-                    efforts: Box::new([]),
-                    name: bytes(b"model"),
+                limits: DeclaredLimits {
                     window,
                     output: 512,
                     reasoning_item: 64,
                     oversized_reasoning: OversizedReasoning::Fail,
                     head: Duration::from_secs(1),
                     idle: Duration::from_secs(1),
-                }]),
+                },
             }]),
         };
         let limits = profile::derive(&profile, &declarations).expect("small real model derives");

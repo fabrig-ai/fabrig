@@ -1,6 +1,6 @@
 //! Rung B2 under the box's stock funding and the init template's model.
 use super::*;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 use jig_domain_core::{documents, reads};
 use temper_engine_domain_world::forge_routes::box_limits;
@@ -37,14 +37,24 @@ fn model() -> engine::Model {
 fn defaults() -> jig_domain_core::settings::Defaults {
     // This world scripts the worker; it never connects to an endpoint or real account.
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model()]),
+        models: (Box::new([model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    temper_service::stock::defaults(&llm, box_limits().tasks.result_bytes)
+    temper_service::stock::with_models(llm.models.clone(), box_limits().tasks.result_bytes)
 }
 
 fn world_with(defaults: &jig_domain_core::settings::Defaults) -> (World, engine::Assignment) {
@@ -65,7 +75,8 @@ fn started_world_with_words(
     world.adopt();
     let mut bounds = protocol::bounds();
     bounds.turns = 800;
-    bounds.models = Box::new([ModelBound { name: model().name, window: model().window, output: model().output }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model().endpoint, window: model().window, output: model().output }]);
     bounds.spend = defaults.rules.maximum_run_spend;
     bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = world.env.limits.tasks.message_bytes.max(world.env.limits.tasks.result_bytes);

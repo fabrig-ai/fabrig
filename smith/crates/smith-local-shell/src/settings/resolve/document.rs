@@ -90,12 +90,23 @@ pub(in crate::settings) fn endpoints(settings: &Settings, models: &[Model]) -> R
         let headers: Vec<_> = settings.values.iter().filter_map(|(key,value)| {
             key.strip_prefix(&format!("{prefix}headers.")).map(|name| json!({"name":serde_json::from_str::<String>(name).unwrap_or_else(|_|name.into()),"value":value.value.as_str().expect("schema header")}))
         }).collect();
-        let declared: Vec<_> = models.iter().filter(|model| model.endpoint == name).map(Model::document).collect();
+        let mut declared = models.iter().find(|model| model.endpoint == name).expect("endpoint has choices").document();
+        for model in models.iter().filter(|model| model.endpoint == name) {
+            let next = model.document();
+            for field in ["window", "output", "reasoning_item", "head", "idle"] {
+                let current = declared.get_mut(field).expect("declared quantity");
+                let next = next.get(field).and_then(Value::as_u64).expect("next quantity");
+                *current = json!(current.as_u64().expect("current quantity").max(next));
+            }
+            if next.get("oversized_reasoning").and_then(Value::as_str) == Some("fail") {
+                *declared.get_mut("oversized_reasoning").expect("declared reasoning policy") = json!("fail");
+            }
+        }
         let mut endpoint = json!({"name":name,"number":u32::try_from(index).expect("bounded endpoints"),
             "dialect":dialect,"provider":provider,"transport":"tls",
             "address":input::text(settings,&format!("{prefix}address"))?,"server_name":input::text(settings,&format!("{prefix}server_name"))?,
             "connect":input::millis(settings,&format!("{prefix}connect"))?,"handshake":input::millis(settings,&format!("{prefix}handshake"))?,
-            "models":declared,"headers":headers});
+            "limits":declared,"headers":headers});
         if let Some(value) = settings.values.get(&format!("{prefix}program")) {
             endpoint
                 .as_object_mut()

@@ -508,12 +508,6 @@ pub fn local_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     roots
 }
 fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
-    let mut main = lower.domain.models[0].clone();
-    main.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
-    let mut other = main.clone();
-    other.model = b"alternate".as_slice().into();
-    other.efforts = Box::new([b"low".as_slice().into()]);
-    lower.domain.models = Box::new([main, other]);
     let mut names = skein_lib::List::with_capacity(1);
     names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 3 }).unwrap();
     lower.channel_endpoints = smith_protocol_translate::Endpoints::new(names);
@@ -522,7 +516,10 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     let mut other = main.clone();
     other.model = b"alternate".as_slice().into();
     config.local.models = Box::new([main, other]);
-    config.local.efforts = lower.domain.models.iter().map(|model| model.efforts.clone()).collect();
+    config.local.efforts = Box::new([
+        Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
+        Box::new([b"low".as_slice().into()]),
+    ]);
     config.local.progress = Box::new([config.local.progress[0], config.local.progress[0]]);
     config.local.protocol_allowances =
         Box::new([config.local.protocol_allowances[0], config.local.protocol_allowances[0]]);

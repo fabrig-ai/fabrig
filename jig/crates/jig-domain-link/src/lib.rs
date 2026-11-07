@@ -198,8 +198,8 @@ pub enum SignOutResult {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ModelBound {
-    pub name: Box<[u8]>,
+pub struct EndpointBound {
+    pub endpoint: u32,
     pub window: u32,
     pub output: u32,
 }
@@ -207,7 +207,7 @@ pub struct ModelBound {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Bounds {
     pub program_endpoints: Box<[u32]>,
-    pub models: Box<[ModelBound]>,
+    pub endpoints: Box<[EndpointBound]>,
     pub turns: u32,
     pub spend: u64,
     pub time: Duration,

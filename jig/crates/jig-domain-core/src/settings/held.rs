@@ -190,7 +190,7 @@ impl Held {
                 continue;
             }
             let charter = if self.newest_key(current, key.charter) == Some(key) {
-                match current.charter(key.charter) {
+                match current.resolved_charter(key.charter) {
                     Some(charter) => Some(Box::new(charter.clone())),
                     None => None,
                 }

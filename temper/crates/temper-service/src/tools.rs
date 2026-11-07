@@ -10,7 +10,7 @@ use temper_engine_smith::{Decoded, Problem};
 
 #[cfg(test)]
 pub(crate) fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
-    decode_configured(to, task, attempt, call, &[])
+    decode_configured(to, task, attempt, call, &[], &[])
 }
 pub(crate) fn decode_configured(
     to: ReplyTo,
@@ -18,6 +18,7 @@ pub(crate) fn decode_configured(
     attempt: u64,
     call: &fleet::Call,
     models: &[engine::Model],
+    catalogue: &[core::settings::CatalogueModel],
 ) -> engine::Event {
     let Some(name) = jig_protocol_charter::call_key(&call.name, attempt) else {
         return invalid(to, Problem::Malformed);
@@ -29,7 +30,7 @@ pub(crate) fn decode_configured(
         return invalid(to, Problem::Malformed);
     };
     let name = run::CallName { activation: name.activation, completion: name.completion, position: name.position };
-    match temper_engine_smith::call_configured(name, &call.tool, &input, models) {
+    match temper_engine_smith::call_configured(name, &call.tool, &input, models, catalogue) {
         Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
         Ok(Decoded::Answered(answer)) => {
             let (body, error) = answer.into_parts();
@@ -43,7 +44,12 @@ pub(crate) fn decode_configured(
 }
 /// Translate an internally authorized whole settings note into a proposal call.
 #[must_use]
-pub fn settings_note(to: ReplyTo, call: engine::Call, body: &[u8], models: &[engine::Model]) -> engine::Event {
+pub fn settings_note(
+    to: ReplyTo,
+    call: engine::Call,
+    body: &[u8],
+    models: &[core::settings::CatalogueModel],
+) -> engine::Event {
     match temper_engine_smith::settings_note(call, body, models) {
         Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
         Ok(Decoded::Answered(answer)) => rendered(to, answer),

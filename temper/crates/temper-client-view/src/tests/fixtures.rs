@@ -72,7 +72,8 @@ pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
         // The largest goal plan and its frame, including Changes' link and text,
         // and five nodes for the rail menu wrapper, menu and three items.
-        nodes: 199,
+        // The default draft entry adds a goal link and its text.
+        nodes: 201,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -443,6 +444,7 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
@@ -1479,6 +1481,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
@@ -1571,6 +1574,9 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                number: 1,
+                source: jig_client::contract::ModelSource::Stock,
+                estimated: false,
                 effort: None,
                 shown: None,
                 accounts: List::from_boxed(Box::new([2])),
