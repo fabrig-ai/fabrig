@@ -107,14 +107,9 @@ fn project_people_world(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
     (world, member)
 }
 
-fn box_approval_world() -> World {
+fn box_approval_world(second_owner: bool) -> World {
     use skein_fake_forge_domain::api::Permission;
-    let (mut config, mut bounds) = project_people_setup(temper_engine_domain_forge::Mode::Owned, b"ada");
-    for owner in &mut config.core.owners {
-        owner.identity = people::IdentityKey { provider: 3, subject: b"box-owner".as_slice().into() };
-    }
-    bounds.people.requests = 16; // Account, adoption, chat, turns and decisions.
-    let mut world = World::with_limits(config, &bounds);
+    let mut world = box_approval_fixture(second_owner);
     let mut forge = temper_engine_domain_world::forge_stand::ForgeStand::with(&[(b"org", b"repo", 2)]);
     for user in [2, 7] {
         forge.grant(b"org/repo", user, Permission::None);
@@ -124,7 +119,13 @@ fn box_approval_world() -> World {
     world
 }
 
-fn approval_items(world: &mut World, run: &engine::Assignment, completion: u32, role: u32) -> serde_json::Value {
+fn approval_items(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    role: u32,
+    people: u32,
+) -> serde_json::Value {
     use serde_json::json;
     let setting = json!({"kind":"landing-rule","number":1});
     let (text, _) = read_whole(&mut world.driver, run, completion, json!({"setting":setting}));
@@ -134,11 +135,12 @@ fn approval_items(world: &mut World, run: &engine::Assignment, completion: u32, 
         .next()
         .expect("rule before application status")
         .expect("landing rule JSON");
-    landing["approvals"] = json!([{"role":role,"people":1,"freshness":"exact"}]);
+    landing["approvals"] = json!([{"role":role,"people":people,"freshness":"exact"}]);
     json!([{"setting":setting,"set":landing}])
 }
 
-fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: u64, key: u8) {
+fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: u64, key: u8, counts: (u32, u32)) {
+    let before = world.head().number;
     world.ask(
         world.owner,
         key,
@@ -154,22 +156,17 @@ fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: 
         panic!("unsatisfiable approval refused: {:?}", world.reply(key))
     };
     let why = std::str::from_utf8(why).expect("refusal UTF-8");
-    assert!(
-        why.contains(
-            "project 1 role 0 on forge forge.example:3847 requires 1 distinct known forge people; currently 0 eligible"
-        ),
-        "{why}"
-    );
-    assert_eq!(world.head().number, 1, "refused acceptance changes nothing");
+    let (required, eligible) = counts;
+    assert!(why.contains(&format!(
+        "project 1 role 0 on forge forge.example:3847 requires {required} distinct known forge people; currently {eligible} eligible"
+    )), "{why}");
+    assert_eq!(world.head().number, before, "refused acceptance changes nothing");
 }
 
-fn approval_context(world: &mut World, run: &engine::Assignment) {
+fn approval_context(world: &mut World, run: &engine::Assignment, requester: &str) {
     use serde_json::json;
     let (inventory, _) = read_whole(&mut world.driver, run, 1, json!({}));
-    assert!(
-        inventory.contains("person 1 person: role 0, requester, forge identity unknown: cannot count for approvals"),
-        "{inventory}"
-    );
+    assert_eq!(inventory.lines().find(|line| line.starts_with("  person 1 person:")), Some(requester), "{inventory}");
     assert!(
         inventory.contains(
             "forge forge.example:3847 configured owned-forge account ada; project membership unverified by this row"
@@ -190,6 +187,8 @@ fn approval_context(world: &mut World, run: &engine::Assignment) {
     for rule in [
         "requester is the project party",
         "configured owned-forge account is separate",
+        "Inventory account on repository's forge (as on a box)? Nothing to add",
+        "propose own role, owner (0)",
         "existing verified project role",
         "read the current project-policy permission mapping",
         "admin seeds maintainer (1), never owner (0)",
@@ -225,34 +224,66 @@ fn approval_documentation(world: &mut World, run: &engine::Assignment) {
 }
 
 #[test]
-fn a_box_inventory_distinguishes_the_requester_from_the_forge_approver() {
-    let mut world = box_approval_world();
-    let run = world.chat_words(CONFIGURING, world.owner, 20, b"Keep CI and agent review. Ask who else should approve.");
-    world.ask(
-        world.owner,
-        21,
-        people::Ask::Say {
-            project: PROJECT,
-            task: run.task,
-            words: b"A person too, please: me for now.".as_slice().into(),
-        },
-    );
-    let run = world.next(&run);
-    heard_approval_turn(&mut world, &run, b"A person too, please: me for now.");
-    approval_context(&mut world, &run);
-    let items = approval_items(&mut world, &run, 40, 0);
-    let proposal = propose(&mut world.driver, &run, 41, 1, &items);
-    refuse_owner_approval(&mut world, &run, proposal, 22);
-    world.ask(
-        world.owner,
-        23,
-        people::Ask::Say {
-            project: PROJECT,
-            task: run.task,
-            words: b"Acceptance was refused: role 0 has 0 eligible people.".as_slice().into(),
-        },
-    );
-    adopted_approval(&mut world, &run, proposal);
+fn a_box_person_known_by_the_forges_link_approves_with_nothing_added() {
+    use temper_engine_domain_forge as forge;
+    const LINKED_REQUESTER: &str = "  person 1 person: role 0, requester, forge forge.example:3847 user 7";
+    const UNKNOWN_REQUESTER: &str =
+        "  person 1 person: role 0, requester, forge identity unknown: cannot count for approvals";
+    for (name, link, second_owner, requester, eligible) in [
+        ("owned Forgejo linked", Some(7), false, LINKED_REQUESTER, 1),
+        ("two deployment owners after restart", Some(7), true, UNKNOWN_REQUESTER, 0),
+        ("no link, then admin adoption", None, false, UNKNOWN_REQUESTER, 0),
+    ] {
+        eprintln!("box approval world: {name}");
+        let mut world = box_approval_world(second_owner);
+        if let Some(user) = link {
+            world.driver.send(Event::Forge(Box::new(forge::Event::PersonOf {
+                forge: 1,
+                answer: forge::PersonAnswer::Is(user),
+            })));
+            world.driver.settle();
+        }
+        if second_owner {
+            restart_box_with_second_owner(&mut world);
+        }
+        let run =
+            world.chat_words(CONFIGURING, world.owner, 20, b"Keep CI and agent review. Ask who else should approve.");
+        world.ask(
+            world.owner,
+            21,
+            people::Ask::Say {
+                project: PROJECT,
+                task: run.task,
+                words: b"A person too, please: me for now.".as_slice().into(),
+            },
+        );
+        let run = world.next(&run);
+        heard_approval_turn(&mut world, &run, b"A person too, please: me for now.");
+        approval_context(&mut world, &run, requester);
+        let items = approval_items(&mut world, &run, 40, 0, 1);
+        let proposal = propose(&mut world.driver, &run, 41, 1, &items);
+        if eligible == 1 {
+            world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
+            assert_eq!(world.head().number, 2, "a linked owner needs nothing added on the forge");
+            let items = approval_items(&mut world, &run, 50, 0, 2);
+            let proposal = propose(&mut world.driver, &run, 51, 2, &items);
+            refuse_owner_approval(&mut world, &run, proposal, 23, (2, 1));
+        } else {
+            refuse_owner_approval(&mut world, &run, proposal, 22, (1, 0));
+            world.ask(
+                world.owner,
+                23,
+                people::Ask::Say {
+                    project: PROJECT,
+                    task: run.task,
+                    words: b"Acceptance was refused: role 0 has 0 eligible people.".as_slice().into(),
+                },
+            );
+            if !second_owner {
+                adopted_approval(&mut world, &run, proposal);
+            }
+        }
+    }
 }
 
 fn heard_approval_turn(world: &mut World, run: &engine::Assignment, expected: &[u8]) {
@@ -297,7 +328,7 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
     let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
     assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
     assert!(inventory.contains("person 3: role 1, forge forge.example:3847 user 2"), "{inventory}");
-    refuse_owner_approval(world, &run, proposal, 25);
+    refuse_owner_approval(world, &run, proposal, 25, (1, 0));
     world.decide(
         &run,
         proposal,
@@ -305,7 +336,7 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
         people::ProposalDecision::Reject { reason: b"Use the verified maintainer role.".as_slice().into() },
         people::Running::Stays,
     );
-    let items = approval_items(world, &run, 60, 1);
+    let items = approval_items(world, &run, 60, 1, 1);
     let proposal = propose(&mut world.driver, &run, 61, 1, &items);
     world.decide(&run, proposal, 27, people::ProposalDecision::Accept, people::Running::Stays);
     assert_eq!(world.head().number, 2, "fresh maintainer proposal accepted");
@@ -547,7 +578,7 @@ fn an_inventory_names_the_payers_usable_claude_offer() {
 #[test]
 fn an_inventory_says_when_no_account_can_run_a_model() {
     use serde_json::json;
-    let mut world = box_approval_world();
+    let mut world = box_approval_world(false);
     let run = world.chat(CONFIGURING, world.owner, 20);
     remove_scripted_account(&mut world);
     let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
@@ -578,7 +609,7 @@ fn settings_and_revision_reads_carry_no_model_offer() {
 
 #[test]
 fn the_configuring_agent_speaks_from_the_inventory_offer() {
-    let mut world = box_approval_world();
+    let mut world = box_approval_world(false);
     let run = world.chat(CONFIGURING, world.owner, 20);
     let instructions = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
     assert!(instructions.contains("Inventory: models you can offer: all that accounts can run now. Propose and mention only those, even where a charter names others; none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."), "{instructions}");
