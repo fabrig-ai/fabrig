@@ -1,6 +1,6 @@
 # Tasks
 
-Provisional, 2026-10-07, revised 2026-11-04. The core's tasks: what a
+Provisional, 2026-10-07, revised 2026-11-07. The core's tasks: what a
 task is, how tasks are made, how each moves from asked to ended, the
 resources it holds, what it hears and when it wakes, and how proposals
 and escalations travel the tree. It is the first primitive of core.md
@@ -1131,10 +1131,13 @@ circle, each for another of the set, so that none of them could end.
     when such a message comes stops with its run: what it committed stays,
     and the words it had not read are the next run's.
   - **Resumes as any change does.** The words are answered on the new
-    choice. A changed model compacts first, with the window's own model
-    (smith's `domain/session.md`, 8.2), so that one request of the next turn
-    names the old model: the summary, never the answer. A changed effort
-    alone keeps the window.
+    choice. A changed model in a resumable window compacts first with the
+    window's own model, when configured
+    (smith's `domain/session.md`, 8.2): the summary names the old model,
+    and the answer the new one. A window carried across an endpoint,
+    dialect, account or backend boundary, or without its saved program
+    session, compacts on the new model, dropping opaque replay. A changed
+    effort alone keeps the window.
 
   Only such an amendment marks a run behind: nothing else that moves what a
   next run would take, a revision of settings or an account's state, stops a
