@@ -2,8 +2,6 @@
 
 The request: `inputs/request.md`. `skein/docs/foundation/testing-strategy.md`, 8.1, in its order, for the tier's 102 tests: what doesn't belong goes down, and what belongs shares a start. No budget, timeout or deadline changes. `walk = false`, and the tier isn't run: a merged test is compiled, and after-landing runs it.
 
-This file is brought up to date with each batch the cut pushes.
-
 ## The result
 
 **102 tests and 105 Chromium starts become 23 tests and 23 starts.** That passes the aim of about 70, because the request's own rule goes further: tests of one binary that use one server and setup become one test. Nothing was dropped to get there, and every assertion has a row below.
@@ -29,12 +27,12 @@ This file is brought up to date with each batch the cut pushes.
 |---|---|---|---|---:|
 | `in-turn` | `tasks/in-turn.md` | | the form 27-33 and 56-67 take | 25 |
 | `harness-world` | `tasks/harness-world.md` | | 68-102 | 75 |
-| `kit-facts` | `tasks/rig-cases.md`, in the next batch | `in-turn` | 1-38 | 90 |
-| `example-tier` | `tasks/example-merges.md`, in the next batch | `in-turn` | 39-67 | 75 |
+| `kit-facts` | `tasks/rig-cases.md` | `in-turn` | 1-38 | 90 |
+| `example-tier` | `tasks/example-merges.md` | `in-turn` | 39-67 | 75 |
 
 **Critical path:** `in-turn`, then `rig-cases`: about 115 minutes. `harness-world` needs nothing. All four are effort medium, as the request asks.
 
-**Overlaps:** the listed files of the drafts beside this one don't touch these. Plans that add stories to `skein/tests/ui-web` can meet `harness-world` and `example-merges` there, in `browser_stories.rs` and `lib.rs`: expect catch-ups, as the request does. `example-merges` keeps a story the table doesn't name working, and names it.
+**Overlaps:** the listed files of the drafts beside this one don't touch these. Plans that add stories to `skein/tests/ui-web` can meet `harness-world` and `example-merges` there, in `browser_stories.rs` and `lib.rs`: expect catch-ups, as the request does. `example-merges` keeps a story the table doesn't name working, and names it. Inside the plan, four tasks remove lines that sit side by side in `skein/docs/design/ui-web.status.md`, so a merge may meet there: a one-line catch-up.
 
 ## What this plan decided
 
@@ -42,18 +40,19 @@ This file is brought up to date with each batch the cut pushes.
 - **A failed run needs its own run,** since the first failure ends one. That's why six command failures stay six lower tests, and why `the_harness_fails_a_page_whose_module_throws` keeps a start.
 - **Lower tests merge too,** since focused is over its budget: where runs were the same but for their assertions, they are one run. Failed runs and the tests with their own setup stay whole.
 - **The kit holds four people in a run** (`Limits::persons`), and the example's server keeps its notes for a run. Those two decide each merge's form: a person each where stories can run side by side, in turn where there are more than four or they must follow on a known store.
-- **`Harness::run_stories` plays stories in turn** and names the story in a failure. One page is also cheapest, since a person's context costs a renderer.
+- **`Harness::run_stories` plays stories in turn** and names the story in a failure. By reading, one page also spares each story a context and a renderer.
 - **`Rig::cases` gives each case a person and a page,** closed before the next, so that each fact still has what a fresh browser gave it: its own storage and its own tab. The rig's one minute stays one minute for the whole run. Its loop's guard against a run that doesn't settle counts per case, as each test had one; it's a count of turns, not time.
 - **The rig's groups are kept small enough to fit its minute by a wide margin,** and to hide little: acts, reports, reloads and dialogs, downloads, tabs.
 - **`reading_without_browser_anchoring_follows_requests_and_page_keys` stays alone.** It is the longest story in the tier, and merged it would press on the forty seconds with no measure to say by how much.
 - **`chromium_applies_each_requested_viewport_to_layout` plays last in its group:** `browser.status.md` says it has only ever compiled, so a red there hides nothing.
+- **Row 61 keeps its own acts inside the merged reload story.** Without them, `Warned(false)` would follow a reload with nothing done since, and would pass having shown nothing (`skein/docs/design/ui-web.md`, 14.2).
 - **The placeholder joins `browser_example`'s opening story,** across binaries, since that story already opens the example at its first page, on the same server.
 
 ## Belonging
 
 What each test checks decides, never its cost (`skein/docs/foundation/testing-strategy.md`, 8.1). This is a reading of the code and the design, not a run.
 
-- **`browser_harness`:** a child's arguments, environment, standard input, exit code and teardown, a link's deadline, and a peer's tokens and shutdown are the harness's and the kernel's. `See Ready` in those tests waited for a page and asserted nothing about it. A printed link reaching the server and a blank page reaching nothing are held by a fake that fetches what it's sent to. **A real browser stays in:** a module's exception through the real loader, a computed role, typing over words, a frame's refusal, an attribute read from a real document.
+- **`browser_harness`:** a child's arguments, environment, standard input, exit code and teardown, a link's deadline, and a peer's tokens and shutdown are the harness's and the kernel's. `See Ready` in the peer tests waited for a page and asserted nothing about the peer, so it goes from them: a real browser reading a real page's heading stays as rows 69 and 71. A printed link reaching the server and a blank page reaching nothing are held by a fake that fetches what it's sent to. **A real browser stays in:** a module's exception through the real loader, a computed role, typing over words, a frame's refusal, an attribute read from a real document.
 - **`browser_real` and `browser_facts`:** the kit's facts about Chromium (`skein/docs/design/browser.md`, 9), and the page part's folding and reading (`skein/docs/design/ui-web.md`, 14.3), are what only a browser shows. All stay in the tier.
 - **`browser_stories` and `browser_example`:** the shell in Chromium. All stay in the tier.
 
@@ -68,11 +67,11 @@ The one thing they share, and that the tier's other tab test (`chromium_finds_an
 | `chromium_lists_a_pressed_tab_...` | 1 (`Cut opener`) | about 4.7 s of 5.6 | about 4.7 s |
 | `tab::a_tab_opens_only_from_a_press` | 5 (`Point`, `Open`, a closer, `Open`, a closer) | about 25 s of 26.8 | about 5 s |
 
-The wall is the CPU's shape too: the waits are idle. The kit sets no 5 s anywhere (its `answer` is 10 s, its `poll` 50 ms), so **the wait is in Chromium's answer to something in the press, and which one can't be read here.** Nothing may be run to find out.
+The first column's usual is `browser_real`'s mean, about 0.9 s, and the tab story's about 1.8 s for its two people: both rough. The CPU says the same as the wall: 1.8 and 3.7 CPU s against 5.6 and 26.8 s, so the time goes to waiting. The kit sets no 5 s anywhere (its `answer` is 10 s, its `poll` 50 ms), so **the wait is in Chromium's answer to something in the press, and which one can't be read here.** Nothing may be run to find out.
 
 **The change doesn't need the cause to be right.** A person comes back to a page before pressing it, which is what a look is (`browser.md`, 6), and the `beside` test already holds that a fresh find and press land. Pressing a kept node on a hidden page is no part of what either test asserts, and `support/tab.rs`'s `TabStory`, a `Play` of its own for that purpose, goes away. If after-landing shows the wall unmoved, the fact to report is that this reading was wrong, and the next step needs a run.
 
-**A product question it leaves:** whether a real person's press can land on a hidden page. It can't, so no product code changes.
+**No product code changes:** a real person can't press a page they can't see.
 
 ## The table
 
@@ -157,7 +156,7 @@ Every test of the tier, by binary, in its source's order. *Lower* means a focuse
 | 58 | `a_note_added_in_one_page_shows_in_another` | Two people on one server | **Stays,** two people, one story | As it is |
 | 59 | `a_person_opens_a_note_and_comes_back_by_its_link` | A note's address and title, and back | Merges into `a_person_goes_through_the_example_in_turn` | A story; its address `/notes/3`, after two notes. Compiled |
 | 60 | `a_reload_with_an_add_pending_meets_the_closing_warning` | The warning, while an add is pending | Merges into `a_reload_meets_...`: row 57's steps to its first reload are this test's | `Warned(true)` after that reload. Compiled |
-| 61 | `a_reload_once_the_add_is_made_meets_no_closing_warning` | No warning once it's made | Merges into `a_reload_meets_...` | `Warned(false)` after the second reload, the add seen before it. Compiled |
+| 61 | `a_reload_once_the_add_is_made_meets_no_closing_warning` | No warning once it's made | Merges into `a_reload_meets_...` | Its acts on a second note, on the live page, then `Warned(false)` after their reload: the browser warns only on a page acted on since it loaded, so these acts stay. Compiled |
 | 62 | `a_person_fills_each_entry_kind_and_chooses_a_label` | Each entry kind and a label | Merges into `a_person_goes_through_the_example_in_turn` | A story. Compiled |
 | 63 | `a_person_chooses_a_label_by_its_option` | A label by its option | Merges into the same | A story. Compiled |
 | 64 | `escape_in_the_dialog_keeps_the_draft` | Escape, focus back, the draft kept | Merges into the same | A story; its note retitled, so that the find can't pass on row 59's. Compiled |
