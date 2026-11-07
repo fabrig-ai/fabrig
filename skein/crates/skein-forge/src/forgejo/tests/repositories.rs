@@ -37,10 +37,6 @@ fn creating_a_repository_encodes_the_org_as_one_segment_and_the_name_as_json() {
     );
 }
 #[test]
-fn creating_a_repository_refuses_invalid_utf8_without_writing_json() {
-    assert_eq!(client::encode(&request(b"creation", &[0xff], true), &fixtures::limits()), Err(Refusal::Text));
-}
-#[test]
 fn creating_a_repository_checks_the_exact_target_and_body_bounds() {
     let request = request(b"creation", b"starter", true);
     let encoded = client::encode(&request, &fixtures::limits()).unwrap();

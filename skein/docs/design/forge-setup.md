@@ -1295,6 +1295,11 @@ pin (forge.md, section 4.3), and named by the fact's name.
 
 ## 9. Open questions
 
+- **Interpreting the identity answers** (4.3, 5.2, 5.6, 5.8 and 6.4).
+  Default: the caller decides what a person's id or an App's account
+  means, and compares `AppMade` with `AppId` if it needs that evidence.
+  The kit keeps no person link and makes no authority decision from
+  these answers.
 - **Owned Forgejo's preparation:** the settings file, migrations, the
   runner's registration and upgrades' dumps. Default: it stays the
   service's, since one service runs a forge. It moves into the Forgejo

@@ -55,26 +55,53 @@ fn keep_refuses_family_duplicate_and_bad_schema() {
     }
 }
 
-#[test]
-fn keep_admits_at_text_and_version_capacities() {
-    let text = b"family f 1";
-    let mut patcher = Patcher::new(Capacity { versions: ONE_VERSION, text: SCHEMA_TEXT, ..CAPACITY });
-    assert_eq!(patcher.keep(text), Ok(1));
+struct KeepRow {
+    capacity: Capacity,
+    prior: &'static [&'static [u8]],
+    text: &'static [u8],
+    expected: Result<u16, KeepError>,
 }
 
 #[test]
-fn keep_refuses_past_text_and_version_capacities() {
-    let rows = [
-        ("text", Capacity { text: SCHEMA_TEXT.checked_sub(1).expect("nonempty header"), ..CAPACITY }, false),
-        ("versions", Capacity { versions: ONE_VERSION, ..CAPACITY }, true),
-    ];
-    for (name, capacity, keep_first) in rows {
-        let mut patcher = Patcher::new(capacity);
-        if keep_first {
-            patcher.keep(b"family f 1").expect("at capacity");
-        }
-        assert_eq!(patcher.keep(b"family f 2"), Err(KeepError::Room), "{name}");
-    }
+fn schema_retention_enforces_its_text_and_version_capacities() {
+    skein_rows::check(
+        [
+            (
+                "keep_admits_at_text_and_version_capacities",
+                KeepRow {
+                    capacity: Capacity { versions: ONE_VERSION, text: SCHEMA_TEXT, ..CAPACITY },
+                    prior: &[],
+                    text: b"family f 1",
+                    expected: Ok(1),
+                },
+            ),
+            (
+                "keep_refuses_past_text_and_version_capacities: text",
+                KeepRow {
+                    capacity: Capacity { text: SCHEMA_TEXT.checked_sub(1).expect("nonempty header"), ..CAPACITY },
+                    prior: &[],
+                    text: b"family f 2",
+                    expected: Err(KeepError::Room),
+                },
+            ),
+            (
+                "keep_refuses_past_text_and_version_capacities: versions",
+                KeepRow {
+                    capacity: Capacity { versions: ONE_VERSION, ..CAPACITY },
+                    prior: &[b"family f 1"],
+                    text: b"family f 2",
+                    expected: Err(KeepError::Room),
+                },
+            ),
+        ],
+        |row| {
+            let mut patcher = Patcher::new(row.capacity);
+            for text in row.prior {
+                patcher.keep(text).expect("at capacity");
+            }
+            assert_eq!(patcher.keep(row.text), row.expected);
+        },
+    );
 }
 
 #[test]
@@ -127,17 +154,22 @@ fn marks_alone_and_other_families_return_no_plan() {
 }
 
 #[test]
-fn patch_text_is_admitted_at_its_capacity() {
-    let mut patcher = Patcher::new(Capacity { text: HEADER_TEXT, ..CAPACITY });
-    assert_eq!(patcher.plan(HEADER), Ok(None));
-}
-
-#[test]
-fn patch_text_is_refused_past_its_capacity() {
-    let mut patcher = Patcher::new(Capacity { text: HEADER_TEXT.checked_sub(1).expect("nonempty header"), ..CAPACITY });
-    assert_eq!(
-        patcher.plan(HEADER),
-        Err(PatchError { line: 1, at: Span { start: 0, end: 0 }, wrong: PatchWrong::Long })
+fn patch_text_admission_enforces_both_sides_of_its_capacity() {
+    skein_rows::check(
+        [
+            ("patch_text_is_admitted_at_its_capacity", (HEADER_TEXT, Ok(None))),
+            (
+                "patch_text_is_refused_past_its_capacity",
+                (
+                    HEADER_TEXT.checked_sub(1).expect("nonempty header"),
+                    Err(PatchError { line: 1, at: Span { start: 0, end: 0 }, wrong: PatchWrong::Long }),
+                ),
+            ),
+        ],
+        |(text, expected)| {
+            let mut patcher = Patcher::new(Capacity { text, ..CAPACITY });
+            assert_eq!(patcher.plan(HEADER), expected);
+        },
     );
 }
 

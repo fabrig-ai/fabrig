@@ -21,6 +21,13 @@ pub const RS256_KEY_BYTES: usize = 1196;
 /// does not depend on it. The key is parsed at each call, never kept.
 #[must_use]
 pub fn sign_rs256(key: &[u8], message: &[u8]) -> Option<[u8; 256]> {
+    let key = app_key(key)?;
+    let signer = key.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA256])?;
+    let signature = signer.sign(message).ok()?;
+    <[u8; 256]>::try_from(signature.as_slice()).ok()
+}
+
+fn app_key(key: &[u8]) -> Option<ring::sign::RsaSigningKey> {
     if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
         // TLS is not available on the portable target: a world runs in plaintext
         // (testing.md, 10).
@@ -31,9 +38,21 @@ pub fn sign_rs256(key: &[u8], message: &[u8]) -> Option<[u8; 256]> {
     }
     let key = PrivateKeyDer::Pkcs1(key.into());
     let key = ring::sign::RsaSigningKey::new(&key).ok()?;
-    let signer = key.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA256])?;
-    let signature = signer.sign(message).ok()?;
-    <[u8; 256]>::try_from(signature.as_slice()).ok()
+    Some(key)
+}
+
+/// The public half of a key [`sign_rs256`] takes: PKCS#1 DER of a 2048-bit
+/// key, within [`RS256_KEY_BYTES`], that ring accepts (tls.md, 4). It parses
+/// as a signing does and never signs, so a key ring refuses only when it
+/// signs has a public half.
+#[must_use]
+pub fn rs256_public_pkcs1(key: &[u8]) -> Option<Rs256Public> {
+    let _parsed = app_key(key)?;
+    let (modulus, exponent) = pkcs1_components(key)?;
+    if modulus.len() != 256 {
+        return None;
+    }
+    Some(Rs256Public { modulus: Box::from(modulus), exponent: Box::from(exponent) })
 }
 
 /// The largest 4096-bit two-prime RSA PKCS#8 key ring accepts: the
@@ -92,7 +111,11 @@ fn issuer_components(key: &[u8]) -> Option<(&[u8], &[u8])> {
     let (_version, rest) = der_element(sequence, 0x02)?;
     let (_algorithm, rest) = der_element(rest, 0x30)?;
     let (private, _) = der_element(rest, 0x04)?;
-    let (sequence, _) = der_element(private, 0x30)?;
+    pkcs1_components(private)
+}
+
+fn pkcs1_components(key: &[u8]) -> Option<(&[u8], &[u8])> {
+    let (sequence, _) = der_element(key, 0x30)?;
     let (version, rest) = der_element(sequence, 0x02)?;
     if version != [0] {
         return None;

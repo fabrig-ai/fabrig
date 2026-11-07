@@ -98,7 +98,8 @@ The code departs in a few single items (`README.md`, `client/domain/client.md`, 
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
-own. Its drafts: `draft/account-facts.md` keeps section 6's third step alone:
+own. Its drafts: `draft/account-facts.md`'s remaining design work is
+section 6's third step:
 plan, workspace, renewal, end and usage-window reports, whose sources the user
 is still deciding; `draft/notes-memory.md` keeps the idea of
 notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,

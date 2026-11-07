@@ -6817,6 +6817,15 @@ own tests:
 
 ## 11. Open questions
 
+- **Account email after landing** (3.5, 5.5; the request
+  `ready-account-email`): temper/ui checks a real ChatGPT sign-in and a
+  real Claude Code login on Ready, the Model step, the model-check pane,
+  the picker and Accounts, including the terminal's words. The check
+  establishes whether the real provider's claims yield an email and
+  compares the rendered look. Default: focused view and integration
+  checks with fake verified claims and program statuses; browser and
+  process stories and the real-login render check follow landing.
+
 - **Settings, Models after landing** (3.5): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
   including the named states and screenshots (`../draft/look-requests.md`,

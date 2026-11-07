@@ -110,17 +110,13 @@ fn a_repeated_repository_id_is_refused() {
     );
 }
 #[test]
-fn a_null_delivery_number_is_refused() {
-    assert_eq!(
-        deliver(b"pull_request", br#"{"repository":{"id":7},"number":null}"#, &limits()),
-        Err(Malformed::Shape { field: b"number" })
-    );
-}
-#[test]
-fn a_text_delivery_number_is_refused() {
-    assert_eq!(
-        deliver(b"pull_request", br#"{"repository":{"id":7},"number":"3"}"#, &limits()),
-        Err(Malformed::Shape { field: b"number" })
+fn nonnumeric_delivery_numbers_are_refused_naming_the_field() {
+    skein_rows::check(
+        [
+            ("a_null_delivery_number_is_refused", br#"{"repository":{"id":7},"number":null}"#.as_slice()),
+            ("a_text_delivery_number_is_refused", br#"{"repository":{"id":7},"number":"3"}"#.as_slice()),
+        ],
+        |body| assert_eq!(deliver(b"pull_request", body, &limits()), Err(Malformed::Shape { field: b"number" })),
     );
 }
 #[test]

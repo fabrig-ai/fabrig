@@ -231,26 +231,53 @@ fn halted(mut machine: crate::host::run::Machine, stage: Stage, subject: &[u8], 
     assert!(out.is_empty());
 }
 #[test]
-fn a_halted_check_stops_at_each_phase_with_the_why_given() {
-    for (name, run, _, stage, subject) in super::check::phase_cases().into_iter().skip(1) {
-        halted(crate::host::run::Machine::Check(run.machine), stage, subject, name);
+fn halted_live_plans_report_their_outstanding_stage_once() {
+    use crate::host::run::Machine;
+    let mut rows = skein_lib::List::with_capacity(23);
+    for ((_, run, _, stage, subject), label) in super::check::phase_cases().into_iter().skip(1).zip([
+        "a_halted_check_stops_at_each_phase_with_the_why_given: api read",
+        "a_halted_check_stops_at_each_phase_with_the_why_given: api user",
+        "a_halted_check_stops_at_each_phase_with_the_why_given: git read",
+        "a_halted_check_stops_at_each_phase_with_the_why_given: git user",
+        "a_halted_check_stops_at_each_phase_with_the_why_given: user read",
+        "a_halted_check_stops_at_each_phase_with_the_why_given: user written",
+    ]) {
+        rows.push((label, (Machine::Check(run.machine), stage, subject))).expect("phase row");
     }
-}
-#[test]
-fn a_halted_take_over_stops_at_each_phase_with_the_why_given() {
-    for (name, run, _, stage, subject) in super::take_over::phase_cases().into_iter().skip(1) {
-        halted(crate::host::run::Machine::TakeOver(run.machine), stage, subject, name);
+    for ((_, run, _, stage, subject), label) in super::take_over::phase_cases().into_iter().skip(1).zip([
+        "a_halted_take_over_stops_at_each_phase_with_the_why_given: checking",
+        "a_halted_take_over_stops_at_each_phase_with_the_why_given: written",
+        "a_halted_take_over_stops_at_each_phase_with_the_why_given: settings",
+        "a_halted_take_over_stops_at_each_phase_with_the_why_given: listing",
+        "a_halted_take_over_stops_at_each_phase_with_the_why_given: deleting",
+    ]) {
+        rows.push((label, (Machine::TakeOver(run.machine), stage, subject))).expect("phase row");
     }
-}
-#[test]
-fn a_halted_adopt_stops_at_each_phase_with_the_why_given() {
-    for (name, run, stage, subject) in super::adopt::phase_cases().into_iter().skip(1) {
-        halted(crate::host::run::Machine::Adopt(run.machine), stage, subject, name);
+    for ((_, run, stage, subject), label) in super::adopt::phase_cases().into_iter().skip(1).zip([
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: admin read",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: admin check",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: repository",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: permission",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: collaborator",
+    ]) {
+        rows.push((label, (Machine::Adopt(run.machine), stage, subject))).expect("phase row");
     }
-    for phase in 0..7 {
-        let run = super::hooks::phase(phase);
-        halted(crate::host::run::Machine::Adopt(run.machine), Stage::Repository, b"acme/specimen", "hook");
+    for (phase, label) in (0..7).zip([
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 0",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 1",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 2",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 3",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 4",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 5",
+        "a_halted_adopt_stops_at_each_phase_with_the_why_given: hook 6",
+    ]) {
+        rows.push((
+            label,
+            (Machine::Adopt(super::hooks::phase(phase).machine), Stage::Repository, b"acme/specimen".as_slice()),
+        ))
+        .expect("phase row");
     }
+    skein_rows::check(rows.into_boxed(), |(machine, stage, subject)| halted(machine, stage, subject, "halted row"));
 }
 #[test]
 fn a_halt_of_an_ended_plan_pushes_nothing() {
@@ -329,20 +356,22 @@ fn a_run_that_kept_both_tokens_reads_the_cap_at_the_first_hook_listing() {
     assert_eq!(run.step(Event::Read(Some(secret(b"hook-secret")))), fixtures::send(Request::ApiSettings));
 }
 #[test]
-fn a_reconcile_with_an_off_loopback_listener_asks_no_secret_or_draw() {
-    let given = crate::given::Given {
-        adopted: Box::new([9]),
-        listener: Some(core::net::SocketAddr::from(([192, 0, 2, 1], 8080))),
-        ..fixtures::given()
-    };
-    let mut run = Run::with_given(given);
-    fixtures::to_org(&mut run);
-    assert_eq!(writable(&mut run, 9), Need::Done(fixtures::done()));
-}
-#[test]
-fn a_run_with_both_tokens_valid_and_no_listener_reads_no_cap_and_no_secret() {
-    let mut run = fixtures::access_run(&[9]);
-    assert_eq!(writable(&mut run, 9), Need::Done(fixtures::done()));
+fn unavailable_loopback_listeners_skip_repository_webhook_secret_setup() {
+    skein_rows::check(
+        [
+            (
+                "a_reconcile_with_an_off_loopback_listener_asks_no_secret_or_draw",
+                Some(core::net::SocketAddr::from(([192, 0, 2, 1], 8080))),
+            ),
+            ("a_run_with_both_tokens_valid_and_no_listener_reads_no_cap_and_no_secret", None),
+        ],
+        |listener| {
+            let given = crate::given::Given { adopted: Box::new([9]), listener, ..fixtures::given() };
+            let mut run = Run::with_given(given);
+            fixtures::to_org(&mut run);
+            assert_eq!(writable(&mut run, 9), Need::Done(fixtures::done()));
+        },
+    );
 }
 #[test]
 fn a_run_with_both_tokens_valid_and_no_adopted_repository_reads_no_cap_and_no_secret() {

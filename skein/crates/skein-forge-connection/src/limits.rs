@@ -498,7 +498,7 @@ pub(crate) fn access(l: &Limits, kind: Kind, listener: bool, access: &Access) ->
             }
         }
         (Credential::App { key, .. }, Kind::GitHub) => {
-            if key.len() > usize_of(l.key_bytes) || skein_tls::sign_rs256(key.expose(), b"skein").is_none() {
+            if key.len() > usize_of(l.key_bytes) || skein_tls::rs256_public_pkcs1(key.expose()).is_none() {
                 return Err(Value::Key);
             }
         }

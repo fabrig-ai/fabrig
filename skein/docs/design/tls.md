@@ -411,6 +411,17 @@ independence.
   exponent 1 to 5. None for a key `sign_rs256_pkcs8` would refuse: ring
   parses it first, then the DER's `n` and `e` are read. The OAuth issuer publishes it as
   its key set's JWK (oauth-issuer.md, section 3).
+- **An App key's public half:** `rs256_public_pkcs1(key) ->
+  Option<Rs256Public>`, read from the PKCS#1 DER `sign_rs256` takes: its
+  `n` and `e` as above, the modulus 256 bytes. None for a key past
+  `RS256_KEY_BYTES`, one ring refuses, one of any other size, and on the
+  portable target. So a connection judges an App key without signing
+  (forge-connection.md, section 3.5), and a fake forge has what
+  `verify_rs256` needs (fake-forge.md, section 10.1). It parses the key
+  as a signing does, keeps nothing and draws no randomness. ring checks
+  a key's private values and its `e` against the rest only when it
+  signs: a key wrong only there has a public half, and `sign_rs256`
+  refuses it.
 - **What rustls's API makes the crate use:** an `Arc` of the shared
   configuration, a trait object for the time, a hand-written `Debug`
   for its connection, `Vec`s in the configuration, and arms for the
