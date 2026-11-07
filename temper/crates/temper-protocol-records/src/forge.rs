@@ -55,7 +55,7 @@ pub struct Rows {
 }
 #[derive(Debug)]
 pub struct ForgeRows {
-    values: [Option<Secret>; 10],
+    values: [Option<Secret>; 12],
     unreadable: bool,
     unreadable_items: u16,
 }
@@ -77,7 +77,7 @@ impl Rows {
         let Ok(forge) = u16::try_from((number >> 16_u32) & 0xffff_ffff) else { return };
         if self.forges.get(&forge).is_none() {
             let row = ForgeRows {
-                values: [None, None, None, None, None, None, None, None, None, None],
+                values: [None, None, None, None, None, None, None, None, None, None, None, None],
                 unreadable: false,
                 unreadable_items: 0,
             };
@@ -97,7 +97,7 @@ impl Rows {
         };
         match decoded {
             Ok(value) => {
-                *row.values.get_mut(index).expect("ten item codes") = Some(value);
+                *row.values.get_mut(index).expect("twelve item slots") = Some(value);
                 row.unreadable_items &= !bit;
             }
             Err(Unreadable) => row.unreadable_items |= bit,
@@ -115,7 +115,7 @@ impl ForgeRows {
         if self.unreadable || self.unreadable_items & (1_u16 << index) != 0 {
             return Err(NotConnected::Unreadable);
         }
-        Ok(self.values.get(index).expect("ten codes").as_ref().ok_or(NotConnected::Incomplete)?.expose())
+        Ok(self.values.get(index).expect("twelve item slots").as_ref().ok_or(NotConnected::Incomplete)?.expose())
     }
     #[must_use]
     pub fn has(&self, item: Item) -> bool {
@@ -195,7 +195,9 @@ pub fn access(
             item::Item::AppKey,
             item::Item::Accepted,
         ];
-        if !item::fits(*kit.get(index).expect("nine setup items"), bytes, bounds) {
+        // AppMade shares AppId's bytes (protocol/credentials.md, 2.1).
+        let kit = if index == 11 { item::Item::AppId } else { *kit.get(index).expect("nine setup items") };
+        if !item::fits(kit, bytes, bounds) {
             return Err(NotConnected::Unreadable);
         }
     }
