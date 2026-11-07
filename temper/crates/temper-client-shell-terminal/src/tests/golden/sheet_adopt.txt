@@ -14,41 +14,43 @@ First:
   More ways to start work:
     [10] Chat
       Ask a question or ask for a change.
-    [11] All ways to start work
-  [12] Settings (current)
+    [11] Goal
+      Agents plan a larger change and land it.
+    [12] All ways to start work
+  [13] Settings (current)
   * Pat
 First · settings
 The repositories chats and goals in First read and change.
 Settings:
-  [13] How work runs
-  [14] Repositories (current)
-  [15] Forges
-  [16] Accounts
-  [17] Builders
+  [14] How work runs
+  [15] Repositories (current)
+  [16] Forges
+  [17] Accounts
+  [18] Builders
 ## Repositories
-[18] Add repositories
+[19] Add repositories
 Add repositories to First:
   Find by name:
-    [19] Find by name: (empty)
+    [20] Find by name: (empty)
   Repositories:
     - Reading repositories…
   0 so far · more as you scroll
   Not listed:
-    [20] Owner: (empty)
-    [21] Name: (empty)
+    [21] Owner: (empty)
+    [22] Name: (empty)
   More: Owned, it runs CI
     What temper does with it
     Role:
-      [22] (*) Owned
+      [23] (*) Owned
       temper pushes, opens pull requests and lands
-      [23] ( ) Fork
+      [24] ( ) Fork
       temper contributes through a fork
-      [24] ( ) Context
+      [25] ( ) Context
       temper only reads
-    [25] Branch prefix: temper/
-    [26] Landing branch: (empty)
-    [27] Checks: gate numbers, separated by spaces or commas: (empty)
-    [28] [x] It runs CI
-    [29] [x] Make it the project's home
-  [30] Cancel
+    [26] Branch prefix: temper/
+    [27] Landing branch: (empty)
+    [28] Checks: gate numbers, separated by spaces or commas: (empty)
+    [29] [x] It runs CI
+    [30] [x] Make it the project's home
+  [31] Cancel
   [-] Adopt (disabled)

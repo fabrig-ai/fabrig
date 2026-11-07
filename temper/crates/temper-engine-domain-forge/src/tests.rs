@@ -14,6 +14,7 @@ mod dismissed;
 mod early;
 mod fixtures;
 mod flight;
+mod forge_user;
 mod goal_branch;
 mod goal_start;
 mod held_branch;

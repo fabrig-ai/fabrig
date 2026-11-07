@@ -20,6 +20,7 @@ mod roots;
 mod signals;
 mod steps;
 mod stop_continue;
+mod wire_trace;
 mod world;
 mod writer_pipe;
 

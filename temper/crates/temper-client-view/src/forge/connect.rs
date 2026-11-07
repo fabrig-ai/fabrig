@@ -312,7 +312,7 @@ pub(crate) fn welcome(
         body(b, root, w, bindings, forge, choice, Place::Welcome, sign_in);
     }
 }
-fn owned(root: &Domain) -> bool {
+pub(crate) fn owned(root: &Domain) -> bool {
     match root.forge().deployment() {
         Some(answer) => answer.owned,
         None => false,

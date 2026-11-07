@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
 ><title
->How work runs in Hello. · temper</title
+>New chat · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -29,7 +29,7 @@
 ><button type="button" aria-pressed="true"
 >Hello</button
 ><span class="temper-projects-repo"
-><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:42423/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
+><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:37339/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
 ><span
 >work/hello ↗</span
 ></a
@@ -61,7 +61,7 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Chats" aria-current="page" href="/chats"
 ><span
 >Chats</span
 ></a
@@ -97,7 +97,7 @@
 >Live</span
 ></div
 ></section
-><a aria-label="Settings" aria-current="page" href="/projects/1/settings"
+><a aria-label="Settings" href="/projects/1/settings"
 ><span
 >Settings</span
 ></a
@@ -113,287 +113,121 @@
 ></div
 ></div
 ></nav
-><main class="temper-main temper-settings"
-><div class="temper-settings-col"
-><div class="temper-settings-intro"
-><p aria-label="Hello · settings" class="temper-settings-kicker"
+><main class="temper-main temper-session"
+><div class="temper-session-top"
+><nav aria-label="Where" class="temper-crumbs"
+><a aria-label="Chats" class="temper-back" href="/chats"
 ><span
->Hello · settings</span
-></p
-><h1 aria-label="How work runs in Hello." class="temper-settings-headline"
+>Chats</span
+></a
+><div class="temper-trail"
+><a aria-label="Hello" href="/projects/1"
 ><span
->How work runs in Hello.</span
+>Hello</span
+></a
+><a aria-label="Chats" href="/chats"
+><span
+>Chats</span
+></a
+></div
+><h1 aria-label="New chat"
+><span
+>New chat</span
 ></h1
-><p aria-label="Everything the other pages do for this project comes from here, so each project, and each person, can work its own way." class="temper-settings-lede"
-><span
->Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.</span
-></p
-></div
-><nav aria-label="Settings" class="temper-settings-tabs"
-><a aria-label="How work runs" aria-current="page" href="/projects/1/settings"
-><span
->How work runs</span
-></a
-><a aria-label="Repositories" href="/projects/1/settings/repositories"
-><span
->Repositories</span
-></a
-><a aria-label="Forges" href="/forges"
-><span
->Forges</span
-></a
-><a aria-label="Accounts" href="/accounts"
-><span
->Accounts</span
-></a
-><a aria-label="Builders" href="/projects/1/settings/builders"
-><span
->Builders</span
-></a
 ></nav
-><div class="temper-settings-body"
-><div class="temper-settings-section"
-><div class="temper-settings-setting"
-><div
-><span aria-label="Configure temper"
-><span
->Configure temper</span
-></span
-><small role="generic" aria-label="Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept." class="temper-settings-detail"
-><span
->Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.</span
-></small
+><div class="temper-session-right"
+><button type="button" class="temper-add-draft"
+>+ Draft</button
 ></div
-><div class="temper-settings-end"
-><a aria-label="Start" class="temper-settings-primary temper-settings-small" href="/projects/1/settings/configure"
+></div
+><section aria-label="Conversation" class="temper-convo"
+><div class="temper-thread"
+><p aria-label="Say what you want; the agent works in work/hello." class="temper-meta-line"
 ><span
->Start</span
+>Say what you want; the agent works in work/hello.</span
+></p
+></div
+><div class="temper-choice"
+></div
+><form aria-label="What do you want done?" class="temper-session-foot"
+><div class="temper-session-composer"
+><textarea aria-label="What do you want done?" placeholder="What do you want done?" enterkeyhint="send"
+>Let us design Away mode.</textarea
+><button data-journey-next="04.html" type="button"
+>Send</button
+></div
+><div class="temper-foot-row"
+><p aria-label="Enter sends · Shift+Enter for a new line" class="temper-session-hint"
+><span
+>Enter sends · Shift+Enter for a new line</span
+></p
+><details data-folds-away="" class="temper-model"
+><summary
+>Model<span id="skein-ui-description-228"
+> GPT-6.1 Sol · high</span
+></summary
+><div class="temper-model-menu"
+><div class="temper-model-from"
+><span
+><strong
+>OpenAI</strong
+></span
+><span
+>your ChatGPT plan</span
+></div
+><ul
+><li
+><button type="button" aria-pressed="true"
+>GPT-6.1 Sol<div class="temper-model-tag"
+><span
+>default</span
+></div
+></button
+></li
+><li
+><button type="button"
+>GPT-6 Astra</button
+></li
+><li
+><button type="button"
+>GPT-6.1 Terra</button
+></li
+><li
+><button type="button"
+>GPT-6 Luna</button
+></li
+></ul
+><div class="temper-model-from"
+><span
+><strong
+>Claude</strong
+></span
+><a aria-label="Connect a plan or key ›" href="/accounts/connect"
+><span
+>Connect a plan or key ›</span
 ></a
 ></div
-></div
-></div
-><div class="temper-settings-section"
-><h2 aria-label="What the project shows" class="temper-settings-section-title"
+><div role="group" aria-label="Effort" class="temper-model-effort"
 ><span
->What the project shows</span
-></h2
-><div class="temper-settings-setting"
+>Effort</span
 ><div
-><span aria-label="Chats can write drafts"
-><span
->Chats can write drafts</span
-></span
-><small role="generic" aria-label="A chat keeps a document beside it, in docs/design/draft/, that a goal can start from." class="temper-settings-detail"
-><span
->A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="On"
-><span
->On</span
-></span
-><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-62"
-><label for="skein-ui-label-62"
->Chats can write drafts</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Goals"
-><span
->Goals</span
-></span
-><small role="generic" aria-label="Bigger work from a draft: a plan, tasks, landing." class="temper-settings-detail"
-><span
->Bigger work from a draft: a plan, tasks, landing.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-72"
-><label for="skein-ui-label-72"
->Goals</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Changes"
-><span
->Changes</span
-></span
-><small role="generic" aria-label="The landing queue, as a page." class="temper-settings-detail"
-><span
->The landing queue, as a page.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-82"
-><label for="skein-ui-label-82"
->Changes</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Away switch"
-><span
->Away switch</span
-></span
-><small role="generic" aria-label="Lets agents decide within limits while you’re away." class="temper-settings-detail"
-><span
->Lets agents decide within limits while you’re away.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-92"
-><label for="skein-ui-label-92"
->Away switch</label
+><button type="button"
+>low</button
+><button type="button"
+>medium</button
+><button type="button" aria-pressed="true"
+>high</button
+><button type="button"
+>xhigh</button
+><button type="button"
+>max</button
 ></div
 ></div
 ></div
-><div class="temper-settings-section"
-><h2 aria-label="Status" class="temper-settings-section-title"
-><span
->Status</span
-></h2
-><div class="temper-settings-setting"
-><div
-><span aria-label="Status lines and reports"
-><span
->Status lines and reports</span
-></span
-><small role="generic" aria-label="Written words, beside the counts temper keeps itself." class="temper-settings-detail"
-><span
->Written words, beside the counts temper keeps itself.</span
-></small
+></details
 ></div
-><select aria-label="Status lines and reports" disabled=""
-><option selected=""
->Written by each goal’s agent</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Rewritten"
-><span
->Rewritten</span
-></span
-></div
-><select aria-label="Rewritten" disabled=""
-><option selected=""
->When someone opens it</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="The brief on Home"
-><span
->The brief on Home</span
-></span
-><small role="generic" aria-label="What changed since you last looked." class="temper-settings-detail"
-><span
->What changed since you last looked.</span
-></small
-></div
-><select aria-label="The brief on Home" disabled=""
-><option selected=""
->On</option
-></select
-></div
-><p aria-label="Not built yet: this is what temper does today." class="temper-settings-facts"
-><span
->Not built yet: this is what temper does today.</span
-></p
-></div
-><div class="temper-settings-section"
-><h2 aria-label="What needs you" class="temper-settings-section-title"
-><span
->What needs you</span
-></h2
-><div class="temper-settings-setting"
-><div
-><span aria-label="Questions a goal can answer from its plan"
-><span
->Questions a goal can answer from its plan</span
-></span
-></div
-><select aria-label="Questions a goal can answer from its plan"
-><option
->Answered by the goal, kept in its decisions</option
-><option
->Asked of me too</option
-><option selected=""
->Not asked: each agent decides alone</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Funds"
-><span
->Funds</span
-></span
-><small role="generic" aria-label="Not built yet: this is what temper does today." class="temper-settings-detail"
-><span
->Not built yet: this is what temper does today.</span
-></small
-></div
-><select aria-label="Funds" disabled=""
-><option selected=""
->Ask when a budget is used up</option
-></select
-></div
-></div
-><div class="temper-settings-section"
-><h2 aria-label="Telling you" class="temper-settings-section-title"
-><span
->Telling you</span
-></h2
-><div class="temper-settings-setting"
-><div
-><span aria-label="Notifications"
-><span
->Notifications</span
-></span
-><small role="generic" aria-label="Only when something needs you; never for status." class="temper-settings-detail"
-><span
->Only when something needs you; never for status.</span
-></small
-></div
-><select aria-label="Notifications" disabled=""
-><option selected=""
->Off</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Quiet hours"
-><span
->Quiet hours</span
-></span
-></div
-><select aria-label="Quiet hours" disabled=""
-><option selected=""
->None</option
-></select
-></div
-><p aria-label="Not built yet: this is what temper does today." class="temper-settings-facts"
-><span
->Not built yet: this is what temper does today.</span
-></p
-></div
-></div
-></div
+></form
+></section
 ></main
 ><nav aria-label="Sections" class="temper-tabbar"
 ><a aria-label="Home" href="/projects/1"
@@ -404,11 +238,11 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Chats" aria-current="page" href="/chats"
 ><span
 >Chats</span
 ></a
-><a aria-label="Settings" aria-current="page" href="/projects/1/settings"
+><a aria-label="Settings" href="/projects/1/settings"
 ><span
 >Settings</span
 ></a

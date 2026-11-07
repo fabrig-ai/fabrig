@@ -190,20 +190,63 @@ fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Perm
     None
 }
 
-/// Whether a forge identity is human, excluding the project's retained forge writers.
-/// Provider 0's subject is the forge user number (domain/forge.md, 4 and 8.7).
-pub(super) fn human_forge_identity(domain: &Domain, project: u32, identity: &people::IdentityKey) -> bool {
-    if identity.provider != 0 {
-        return false;
+/// Who a forge's user is in a project: the one lookup, by forge and user
+/// (domain/forge.md, 4). The party whose key is that pair's subject, with their
+/// role there, else unknown.
+pub(super) fn forge_person(domain: &Domain, project: u32, forge: u16, user: u64) -> Option<(u64, people::Role)> {
+    domain.core.people.role_for_identity(forge::user_key(forge, user), project)
+}
+
+/// The user a party is on a forge: the one `forge_person` answers them for, else unknown.
+pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, person: u64) -> Option<u64> {
+    let identity = domain.core.people.identity(person)?;
+    let (identity_forge, user) = forge::key_user(&identity.key)?;
+    if identity_forge != forge {
+        return None;
     }
-    let Ok(subject) = <[u8; 8]>::try_from(identity.subject.as_ref()) else { return false };
-    let account = u64::from_be_bytes(subject);
+    let (known, _) = forge_person(domain, project, forge, user)?;
+    if known != person {
+        return None;
+    }
+    Some(user)
+}
+
+/// A person's account on each forge of the project's repositories (domain/agent.md, 8.1).
+pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[super::PersonForge]> {
+    let repositories = domain.forge.readable_repositories(project);
+    let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
+    let mut seen = skein_lib::Set::with_capacity(capacity);
+    let mut forges = List::with_capacity(capacity);
+    for repository in repositories {
+        let forge = repository.provider.forge;
+        if !seen.insert(forge).expect("at most one forge per repository") {
+            continue;
+        }
+        let user = person_forge_user(domain, project, forge, person);
+        let writer = match user {
+            Some(user) => domain.forge.is_writer(forge, user),
+            None => false,
+        };
+        forges
+            .push(super::PersonForge { host: repository.host.clone(), user, writer })
+            .expect("at most one forge per repository");
+    }
+    forges.into_boxed()
+}
+
+/// Whether a party counts as a person for approvals in a project: known on a forge
+/// of its repositories, as a user who isn't that forge's retained writer
+/// (domain/forge.md, 4 and 8.9).
+pub(super) fn human_forge_identity(domain: &Domain, project: u32, person: u64) -> bool {
     for repository in domain.forge.readable_repositories(project) {
-        if domain.forge.is_writer(repository.provider.forge, account) {
-            return false;
+        let forge = repository.provider.forge;
+        if let Some(user) = person_forge_user(domain, project, forge, person)
+            && !domain.forge.is_writer(forge, user)
+        {
+            return true;
         }
     }
-    true
+    false
 }
 
 fn append(out: &mut List<u8>, bytes: &[u8]) {
@@ -1982,10 +2025,9 @@ fn landing_reviewers(
         if superseded {
             continue;
         }
-        let Some((person, role)) = domain.core.people.role_for_identity(
-            people::IdentityKey { provider: 0, subject: review.author.to_be_bytes().into() },
-            domain.forge.repository(row.repository)?.project,
-        ) else {
+        let Some((person, role)) =
+            forge_person(domain, domain.forge.repository(row.repository)?.project, row.repository.forge, review.author)
+        else {
             unmapped
                 .push(forge::UnmappedReview { account: review.author, head: review.commit, verdict: review.verdict })
                 .ok()?;
@@ -4648,7 +4690,8 @@ pub(crate) fn outputs(
                             {
                                 parties
                                     .push(jig_domain_core::effects::connector::AdoptedParty {
-                                        subject: collaborator.user.to_be_bytes().into(),
+                                        subject: forge::user_key(adopted.repository.provider.forge, collaborator.user)
+                                            .subject,
                                         role,
                                     })
                                     .expect("bounded collaborators");
@@ -4657,7 +4700,7 @@ pub(crate) fn outputs(
                         match domain.core.connector_adopt_parties(
                             &env.limits.people,
                             adopted.repository.project,
-                            0,
+                            forge::FORGE_PROVIDER,
                             parties.into_boxed(),
                         ) {
                             Ok(seeds) => {

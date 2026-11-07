@@ -1,11 +1,109 @@
 //! A seeded in-memory stream for protocol worlds
 //! (testing-strategy.md, sections 2.5 and 6). It keeps demands, granted room, buffered
 //! peer bytes and the bytes the client sent; it knows no connection state.
+//! Its trace keeps steps and their bytes, formatting lines only when read.
 
 use alloc::collections::VecDeque;
+use core::fmt::{self, Debug, Formatter};
 
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Intake, Rng};
+
+/// What a wire did, a step to a line. A step keeps what its line needs, and
+/// the line is formatted when something reads it: a test that passes prints
+/// nothing, and a replay compares the steps.
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct Trace {
+    steps: Vec<Step>,
+    /// The bytes of the steps that carry some, one after another.
+    bytes: Vec<u8>,
+}
+
+impl Trace {
+    #[must_use]
+    pub fn new() -> Trace {
+        Trace::default()
+    }
+
+    /// The steps: each take, fragment, delayed room, answer and pushed line.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
+    }
+
+    /// A line of the world's own, among the wire's steps.
+    pub fn push(&mut self, line: String) {
+        self.steps.push(Step::Line(line));
+    }
+
+    /// Moves `other`'s steps after these, leaving it empty.
+    pub fn append(&mut self, other: &mut Trace) {
+        self.steps.append(&mut other.steps);
+        self.bytes.append(&mut other.bytes);
+    }
+
+    /// Forgets every step, and frees what they held.
+    pub fn clear(&mut self) {
+        *self = Trace::new();
+    }
+
+    /// Each step's line, formatted now.
+    #[must_use]
+    pub fn lines(&self) -> Vec<String> {
+        let mut bytes = self.bytes.as_slice();
+        let mut take = |count| {
+            let (part, rest) = bytes.split_at(count);
+            bytes = rest;
+            part
+        };
+        self.steps
+            .iter()
+            .map(|step| match step {
+                Step::Demand { read, room } => format!("down Demand {{ read: {read:?}, room: {room} }}"),
+                Step::Send(count) => format!("down Send({:?})", take(*count)),
+                Step::Fragment(count) => format!("fragment {:?}", take(*count)),
+                Step::Bytes(count) => format!("up Bytes({:?})", take(*count)),
+                Step::Finish => "down Finish".to_owned(),
+                Step::RoomDelayed => "room delayed".to_owned(),
+                Step::Room => "up Room".to_owned(),
+                Step::End => "up End".to_owned(),
+                Step::Line(line) => line.clone(),
+            })
+            .collect()
+    }
+
+    fn record(&mut self, step: Step, bytes: &[u8]) {
+        self.steps.push(step);
+        self.bytes.extend_from_slice(bytes);
+    }
+}
+
+/// Prints as the list of its lines.
+impl Debug for Trace {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.lines()).finish()
+    }
+}
+
+/// A step, private to the module. Those with bytes hold how many, in
+/// `Trace::bytes`, so that `append` is two `Vec::append`s.
+#[derive(Clone, PartialEq, Eq)]
+enum Step {
+    Demand { read: Read, room: u32 },
+    Send(usize),
+    Finish,
+    Fragment(usize),
+    RoomDelayed,
+    Bytes(usize),
+    Room,
+    End,
+    Line(String),
+}
 
 /// One stream endpoint, driven by a protocol world and its peer.
 #[derive(Debug)]
@@ -22,7 +120,7 @@ pub struct Wire {
     pub eof: bool,
     pub ended: bool,
     pub finished: bool,
-    pub trace: Vec<String>,
+    pub trace: Trace,
     input: Intake,
     pending: VecDeque<u8>,
     demand: Option<(Read, u32)>,
@@ -40,7 +138,7 @@ impl Wire {
             eof: false,
             ended: false,
             finished: false,
-            trace: Vec::new(),
+            trace: Trace::new(),
             input: Intake::with_capacity(32768),
             pending: VecDeque::new(),
             demand: None,
@@ -52,8 +150,8 @@ impl Wire {
 
     /// Put the peer's bytes on the wire for delivery in seeded fragments.
     pub fn write(&mut self, bytes: &[u8]) {
-        self.pending.extend(bytes);
         if !bytes.is_empty() {
+            self.pending.extend(bytes);
             self.idle = false;
         }
     }
@@ -76,7 +174,11 @@ impl Wire {
     /// # Panics
     /// On a broken stream contract.
     pub fn take(&mut self, down: Down) {
-        self.trace.push(format!("down {down:?}"));
+        match &down {
+            Down::Demand { read, room } => self.trace.steps.push(Step::Demand { read: *read, room: *room }),
+            Down::Send(bytes) => self.trace.record(Step::Send(bytes.len()), bytes),
+            Down::Finish => self.trace.steps.push(Step::Finish),
+        }
         match down {
             Down::Demand { read: Read::Nothing, room: 0 } => {
                 assert!(self.demand.take().is_some(), "only an outstanding demand is withdrawn");
@@ -110,9 +212,18 @@ impl Wire {
     pub fn answer(&mut self) -> Option<Up> {
         if !self.pending.is_empty() && self.rng.chance(700) {
             let count = usize::try_from(self.rng.between(1, 31)).expect("small fragment").min(self.pending.len());
-            let bytes: Vec<u8> = self.pending.drain(..count).collect();
-            self.trace.push(format!("fragment {bytes:?}"));
-            self.input.append(&bytes).expect("bounded scripted response intake");
+            let start = self.trace.bytes.len();
+            let (front, back) = self.pending.as_slices();
+            let first = count.min(front.len());
+            self.trace.bytes.extend_from_slice(front.get(..first).expect("fragment's first slice"));
+            self.trace
+                .bytes
+                .extend_from_slice(back.get(..count.saturating_sub(first)).expect("fragment's second slice"));
+            self.trace.steps.push(Step::Fragment(count));
+            drop(self.pending.drain(..count));
+            self.input
+                .append(self.trace.bytes.get(start..).expect("recorded fragment"))
+                .expect("bounded scripted response intake");
         }
         let Some((read, room)) = self.demand else {
             self.idle = true;
@@ -121,27 +232,27 @@ impl Wire {
         let answer = match self.input.meet(read) {
             Some(bytes) => {
                 self.demand = None;
+                self.trace.record(Step::Bytes(bytes.len()), &bytes);
                 Some(Up::Bytes(bytes))
             }
             None if room > 0 && self.rng.chance(700) => {
                 self.demand = None;
                 self.granted = Some(room);
+                self.trace.steps.push(Step::Room);
                 Some(Up::Room)
             }
             None if read != Read::Nothing && self.eof && self.pending.is_empty() && !self.ended => {
                 self.ended = true;
+                self.trace.steps.push(Step::End);
                 Some(Up::End)
             }
             None => {
                 if room > 0 {
-                    self.trace.push("room delayed".to_owned());
+                    self.trace.steps.push(Step::RoomDelayed);
                 }
                 None
             }
         };
-        if let Some(answer) = &answer {
-            self.trace.push(format!("up {answer:?}"));
-        }
         self.idle = answer.is_none() && room == 0;
         answer
     }

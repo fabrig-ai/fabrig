@@ -440,7 +440,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   At `temper init`'s figures (`../protocol/setup.md`, 8.1) one read holds at most
   10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
   credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
-  and about 4 MB at `fleet.calls`' 256, where a box hosts one run at a time.
+  and about 4 MB at `fleet.calls`' 256, which a box's runs share.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked
