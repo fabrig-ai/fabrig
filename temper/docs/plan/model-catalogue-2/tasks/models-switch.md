@@ -63,3 +63,17 @@ What the picker's filter did when the switch went off; whether `look-round-11` h
 ## Answers
 
 2026-11-07 (temper/ui). models-switch repairs it: temper/ui widens this task's files to the catalogue-to-me notification path in jig, as model-act has landed and a live me watch must see a changed catalogue. Mark Frames only when a catalogue change commits and moved something, never on a read, a refused act or a repeat, so that it doesn't bring back what ui-fuzzy-joint just took out: a whole Frame delivered unchanged. A failing focused test first: a committed picker change reaches a live me watch, and a settings-equivalent repeat delivers nothing. Then your joined story's later assertions. A generic mechanism in jig; no temper names there.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/models-switch/foreman-2)
+
+resolve the words.rs conflict, preserve both vocabularies, and remove the phrase ID collision.
+Merge the current integration tip into the task branch.
+The conflicting path is `temper/crates/temper-client-view/src/words.rs`.
+Main’s `ead6125140` adds `WaitCapacityBox` with ID `3964`; this branch assigns the same ID to `ModelsAdded`.
+Keep main’s IDs and assign unused IDs to the branch’s model phrases.
+Preserve `ModelsAdded`, `ModelsEstimated`, `ModelsPicker`, and `ModelsLeftOut`, including their English text.
+Preserve main’s `BylineTask`, its `hole_bytes` bound, and `WaitCapacityBox`.
+Resolve the vocabulary declarations using the combined content; neither side’s counts alone are correct.
+Regenerate `ALL`, `PHRASES`, `SEGMENTS`, and `ENGLISH_BYTES` through `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`, through heavy.
+Run that test again without write mode, then the focused Models view tests.
+Review the automatically merged files for preservation of both sides’ behavior.
