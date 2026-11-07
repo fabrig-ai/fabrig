@@ -1321,6 +1321,12 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **Settings, Models comparison** (2.5; `README.md`, 3.5): temper/ui owns
+  page 07 of `model-picker` beside the shipped page, its named states and
+  screenshots at 1440, 1280, 1000 and 420 px after landing
+  (`../draft/look-requests.md`, section 4). Default: host view and client
+  world checks; compilation alone establishes no rendered equality.
+
 - **A flow in a chat and its document** (2.5; `README.md`, 3.5): temper/ui
   compares both against `skein/docs/design/draft/diagrams/preview.html`
   after landing, at a width where the flow is horizontal, one where it
