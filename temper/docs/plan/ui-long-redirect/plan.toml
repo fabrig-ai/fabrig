@@ -21,3 +21,29 @@ id = 1
 story = "A ChatGPT redirect with a 1,900- or 3,900-byte code is taken from the loopback listener and pasted, and signs in"
 parts = ["bound"]
 walk = false
+
+[[part]]
+id = "profile"
+title = "jig's profiles size the driver's listener head from skein's parts and refuse a driver whose redirect bound or head holds less"
+mode = "direct"
+needs = ["bound"]
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[slice]]
+id = 2
+story = "The small profile's listener holds a browser's request, cookies and all, for a redirect at its 16,384-byte bound, and a profile that holds less is refused at the driver's member"
+parts = ["profile"]
+walk = false
+
+[[part]]
+id = "long"
+title = "An over-long redirect of the sign-in's own state gets its own page and ends the sign-in at once, naming its length and bound"
+mode = "direct"
+needs = ["bound"]
+design = "skein/docs/design/oauth.md, 6.5"
+
+[[slice]]
+id = 3
+story = "A sign-in's answer past the bound shows 'This sign-in's answer is longer than temper accepts' and the sign-in fails at once; a redirect that doesn't match keeps 'This is not the registered redirect.'"
+parts = ["long"]
+walk = false
