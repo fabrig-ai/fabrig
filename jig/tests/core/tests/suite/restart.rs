@@ -328,16 +328,72 @@ fn restored_task(world: &World, task: u64) -> &tasks::TaskRecord {
 
 #[test]
 fn a_restart_with_workers_in_process_settles_their_claims_at_once() {
-    let mut world = World::new(Setup { seed: 121, ..Setup::default() });
-    world.turn(1, 2, None, b"worker turn");
-    let task = world.task();
-    let before = world.wall_time().as_nanos();
-    let mut config = jig_core_world::world::fixture(121, false).0;
-    config.core.workers_in_process = true;
-    world.restart_with(config);
-    assert!(world.domain.ready());
-    assert_eq!(restored_task(&world, task).tries.lost, 1);
-    assert!(world.wall_time().as_nanos() - before < Duration::from_secs(5).as_nanos());
+    struct Row {
+        name: &'static str,
+        seed: u64,
+        stop: bool,
+        in_process: bool,
+        interrupted: usize,
+        lost: u32,
+        due: bool,
+    }
+    for row in [
+        Row { name: "crashed", seed: 121, stop: false, in_process: true, interrupted: 0, lost: 1, due: false },
+        Row { name: "stopped", seed: 126, stop: true, in_process: true, interrupted: 1, lost: 0, due: true },
+        Row { name: "stopped, worker elsewhere", seed: 127, stop: true, in_process: false, interrupted: 0, lost: 0, due: false },
+    ] {
+        let started = std::time::Instant::now();
+        let config = || {
+            let mut config = jig_core_world::world::fixture(row.seed, false).0;
+            config.core.workers_in_process = row.in_process;
+            config
+        };
+        let mut world = World::new(Setup { seed: row.seed, configuration: Some(config()), ..Setup::default() });
+        world.turn(1, 2, None, b"worker turn");
+        let (task, attempt) = (world.task(), world.attempt());
+        let saved = restored_task(&world, task).saved.clone();
+        let refusals = restored_task(&world, task).refusals;
+        if row.stop {
+            world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+            world.stop();
+            let drained_before_commit = world.stop_deliveries.iter().any(|held| matches!(held, core::Held::Drained));
+            world.release_commits();
+            assert_eq!(interrupted(&world, task, attempt), row.interrupted, "{}: terminal at stop", row.name);
+            assert_eq!(drained_before_commit, row.interrupted == 0, "{}: drain waits for terminal", row.name);
+            assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1, "{}", row.name);
+            let commits = world.store.applied;
+            world.turn(2, 3, None, b"late turn");
+            world.end(tasks::End::Parked, 3);
+            world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
+            assert_eq!(world.store.applied, commits, "{}: late host words commit nothing", row.name);
+        }
+        let before = world.wall_time().as_nanos();
+        world.assigned = None;
+        world.restart_with(config());
+        assert!(world.domain.ready(), "{}", row.name);
+        let restored = restored_task(&world, task);
+        assert_eq!(restored.tries, tasks::Tries { lost: row.lost, ..tasks::Tries::NONE }, "{}", row.name);
+        assert_eq!(restored.refusals, refusals, "{}", row.name);
+        assert_eq!(restored.saved, saved, "{}", row.name);
+        assert_eq!(restored.phase == tasks::Phase::Active(tasks::Active::Due), row.due, "{}", row.name);
+        if row.interrupted > 0 {
+            assert!(!world.store.rows.values().any(|record| matches!(record,
+                root::Record::Core(core::Record::Tasks(tasks::Stored::Writer(slot)))
+                if slot.writer == tasks::Writer::Run { task, attempt })), "{}: writer released", row.name);
+        }
+        if !row.in_process {
+            hello(&mut world, Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]));
+            assert_eq!(restored_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt }));
+        }
+        assert!(world.wall_time().as_nanos() - before < Duration::from_secs(5).as_nanos(), "{}", row.name);
+        eprintln!("restart row {} elapsed {:?}", row.name, started.elapsed());
+    }
+}
+
+fn interrupted(world: &World, task: u64, attempt: u64) -> usize {
+    world.store.rows.values().filter(|record| matches!(record,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.task == task && terminal.attempt == attempt && terminal.end == tasks::End::Recheck)).count()
 }
 
 #[test]

@@ -30,6 +30,8 @@ pub struct Outcome {
     pub drained: bool,
     pub restarts: u32,
     pub claims_settled_at_restart: u32,
+    pub claims_interrupted_at_stop: u32,
+    pub lost_tries: u32,
     pub mark_gate_checked: bool,
 }
 pub(super) struct ServiceHost {
@@ -231,6 +233,7 @@ pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
     if restart {
         let (restarted, _, _, _) = run_phase(settings, Box::new([]), machine, store, reference, Scenario::Restart);
         outcome.claims_settled_at_restart = restarted.claims_settled_at_restart;
+        outcome.lost_tries = restarted.lost_tries;
         outcome.drained &= restarted.drained;
     }
     outcome
@@ -340,7 +343,13 @@ fn run_phase(
             Proc::Service(_) | Proc::Agent { .. } | Proc::Peer(_) => None,
         })
         .sum();
+    let store_evidence = outcome.procs.iter().find_map(|proc| match proc {
+        Proc::Service(service) => Some((crate::referee::interrupted(&service.store.borrow()), crate::referee::lost_tries(&service.store.borrow()))),
+        _ => None,
+    }).expect("one service");
     let result = Outcome {
+        claims_interrupted_at_stop: store_evidence.0,
+        lost_tries: store_evidence.1,
         verdict: skein_world::domain::Verdict::Passed,
         chat: chat_outcome.borrow().clone(),
         mark_gate_checked: outcome.procs.iter().any(|proc| match proc {

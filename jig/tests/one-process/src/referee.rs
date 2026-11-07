@@ -307,6 +307,17 @@ pub(super) fn settled(store: &Store) -> u32 {
         .try_into()
         .expect("settled worker claims")
 }
+pub(super) fn interrupted(store: &Store) -> u32 {
+    store.rows.values().filter(|row| matches!(row,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.end == jig_domain_tasks::End::Recheck)).count().try_into().expect("interrupted claims")
+}
+pub(super) fn lost_tries(store: &Store) -> u32 {
+    store.rows.values().filter_map(|row| match row {
+        root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) => Some(task.tries.lost),
+        _ => None,
+    }).sum()
+}
 fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
     let mut snapshot = rules::Snapshot::default();
     for row in rows.values() {
@@ -467,7 +478,7 @@ impl skein_world::Referee<Proc> for Referee {
                         .values()
                         .any(|row| matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_)))))
             }
-            Scenario::Restart => settled(&self.store.borrow()) > 0,
+            Scenario::Restart => self.cold.is_none() && (settled(&self.store.borrow()) > 0 || interrupted(&self.store.borrow()) > 0),
             Scenario::MarkGate => gate_ready,
             Scenario::Fault { .. } => *self.restarts.borrow() > 0 && clients_done && self.cold.is_none(),
         };
