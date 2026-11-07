@@ -136,11 +136,26 @@ impl Component {
     fn deliver(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Down { channel, down, parts, values } = event {
             if let Some(connection) = self.target(channel) {
+                let read = match &down {
+                    jig_domain_host::LinkDown::ReadList { read, .. } => Some(*read),
+                    jig_domain_host::LinkDown::Assign { .. }
+                    | jig_domain_host::LinkDown::AssignJob { .. }
+                    | jig_domain_host::LinkDown::Sources { .. }
+                    | jig_domain_host::LinkDown::Check { .. }
+                    | jig_domain_host::LinkDown::SignOut { .. }
+                    | jig_domain_host::LinkDown::Message { .. }
+                    | jig_domain_host::LinkDown::Relayed { .. }
+                    | jig_domain_host::LinkDown::TurnKept { .. }
+                    | jig_domain_host::LinkDown::Acknowledge { .. }
+                    | jig_domain_host::LinkDown::Cancel { .. }
+                    | jig_domain_host::LinkDown::Grant { .. } => None,
+                };
                 let identity = match &down {
                     jig_domain_host::LinkDown::Assign { assignment } => {
                         Some((assignment.assignment.run, assignment.assignment.attempt))
                     }
-                    jig_domain_host::LinkDown::AssignJob { .. }
+                    jig_domain_host::LinkDown::ReadList { .. }
+                    | jig_domain_host::LinkDown::AssignJob { .. }
                     | jig_domain_host::LinkDown::Sources { .. }
                     | jig_domain_host::LinkDown::Check { .. }
                     | jig_domain_host::LinkDown::SignOut { .. }
@@ -156,6 +171,18 @@ impl Component {
                     && let Some((run, attempt)) = identity
                 {
                     self.assignment_refused(channel, run, attempt, out);
+                }
+                if record.is_none()
+                    && let Some(read) = read
+                {
+                    out.push(Request::Up {
+                        channel,
+                        up: jig_domain_host::LinkUp::ListRead {
+                            read,
+                            outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+                        },
+                        parts: Box::new([]),
+                    });
                 }
                 self.send(now, connection, record, out);
             } else {

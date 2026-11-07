@@ -216,6 +216,7 @@ pub struct Settings {
 /// A configured model as the client protocol names and shows it (configuration.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Model {
+    pub new_until: Option<Wall>,
     pub number: u32,
     pub source: core::settings::ModelSource,
     pub estimated: bool,

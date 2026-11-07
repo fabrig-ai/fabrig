@@ -110,7 +110,10 @@ pub fn outcome(b: &mut Builder, words: &Words, value: &c::Outcome) {
         c::Outcome::Restored { .. } => unreachable!("a restore: restore-ctl"),
         c::Outcome::Document(value) => return owner_outcome(b, words, value),
 
-        c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) | c::Outcome::Made { .. } => P::Applied,
+        c::Outcome::Account(_)
+        | c::Outcome::SettingsChanged(_)
+        | c::Outcome::MovedToNewest(_)
+        | c::Outcome::Made { .. } => P::Applied,
     };
     status(b, words, phrase, &[]);
 }

@@ -11,6 +11,7 @@ pub enum Act {
     Name(Box<[u8]>),
     Provider(u32),
     Add,
+    Read(u32),
 }
 #[derive(Debug)]
 struct Pending {
@@ -19,7 +20,16 @@ struct Pending {
     provider: Option<u32>,
 }
 #[derive(Debug)]
+struct Reading {
+    key: Key,
+    provider: u32,
+    answered: bool,
+    changed: bool,
+}
+#[derive(Debug)]
 pub struct Models {
+    reading: Option<Reading>,
+    read_refused: Option<(u32, Outcome)>,
     pending: Option<Pending>,
     refused: Option<(Option<u32>, Outcome)>,
     name: Box<[u8]>,
@@ -28,7 +38,85 @@ pub struct Models {
 }
 impl Models {
     pub(super) fn new() -> Self {
-        Self { pending: None, refused: None, name: Box::default(), provider: None, added: None }
+        Self {
+            reading: None,
+            read_refused: None,
+            pending: None,
+            refused: None,
+            name: Box::default(),
+            provider: None,
+            added: None,
+        }
+    }
+    #[must_use]
+    pub fn reading(&self, provider: u32) -> bool {
+        match &self.reading {
+            Some(read) => read.provider == provider,
+            None => false,
+        }
+    }
+    #[must_use]
+    pub fn read_refused(&self, provider: u32) -> Option<&Outcome> {
+        let (at, outcome) = self.read_refused.as_ref()?;
+        if *at == provider { Some(outcome) } else { None }
+    }
+    fn read(&mut self, client: &Client, provider: u32, serial: &mut u64, out: &mut Queue<Request>) -> bool {
+        if self.reading.is_some() || !readable(client, provider) {
+            return false;
+        }
+        *serial = serial.checked_add(1).expect("page keys fit");
+        let key = Key { asker: Owner::Pages.asker(), number: *serial };
+        self.reading = Some(Reading { key, provider, answered: false, changed: false });
+        self.read_refused = None;
+        out.push(Request::Client(jig_client::Event::Send {
+            key,
+            name: None,
+            request: jig_client::Ask::Jig(Box::new(c::Ask::ReadLists { provider })),
+        }));
+        true
+    }
+    fn read_told(&mut self, client: &Client, told: &Told) -> bool {
+        let Some(read) = &mut self.reading else { return false };
+        if let Told::Changed { handle } = told {
+            if *handle == accounts::handle() {
+                read.changed = true;
+                if read.answered {
+                    self.reading = None;
+                }
+            }
+            return false;
+        }
+        let outcome = match told {
+            Told::Answered { key, outcome } if *key == read.key => outcome,
+            Told::Pending { key } if *key == read.key => {
+                if let Some(request) = client.pending(*key)
+                    && request.progress == jig_client::Progress::Unknown
+                {
+                    &Outcome::Unknown
+                } else {
+                    return false;
+                }
+            }
+            Told::Answered { .. }
+            | Told::Pending { .. }
+            | Told::Changed { .. }
+            | Told::Ended { .. }
+            | Told::Link { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Page { .. }
+            | Told::Text { .. } => return false,
+        };
+        if super::seen_answered(outcome) {
+            read.answered = true;
+            if read.changed {
+                self.reading = None;
+            }
+        } else {
+            self.read_refused = Some((read.provider, outcome.clone()));
+            self.reading = None;
+        }
+        true
     }
     #[must_use]
     pub fn name(&self) -> &[u8] {
@@ -106,16 +194,20 @@ impl Models {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) -> bool {
+        let Address::Models { project } = address else { return false };
+        if let Act::Read(provider) = act {
+            return self.read(client, provider, serial, out);
+        }
         if self.pending.is_some() {
             return false;
         }
-        let Address::Models { project } = address else { return false };
         let Some(me) = accounts::current_me(client) else { return false };
         if me.deployment_role != Some(c::HeldRole::Owner) {
             return false;
         }
         let Some(models) = choice::offer(me, *project) else { return false };
         let (act, number, provider) = match act {
+            Act::Read(..) => return false,
             Act::Name(name) => {
                 self.name = name;
                 return false;
@@ -160,6 +252,9 @@ impl Models {
         true
     }
     pub(super) fn told(&mut self, client: &Client, told: &Told) -> bool {
+        if self.read_told(client, told) {
+            return true;
+        }
         let Some(pending) = &self.pending else { return false };
         let outcome = match told {
             Told::Answered { key, outcome } if *key == pending.key => outcome,
@@ -211,4 +306,25 @@ pub fn name_shape(name: &[u8]) -> bool {
         }
     }
     true
+}
+
+/// Only the person's usable list-bearing accounts offer a read (client/README.md, 3.5).
+#[must_use]
+pub fn readable(client: &Client, provider: u32) -> bool {
+    let Some(me) = accounts::current_me(client) else { return false };
+    let Some(document) = accounts::document(client) else { return false };
+    for account in &document.accounts {
+        let mut usable = false;
+        for source in &account.sources {
+            usable |= source.usable;
+        }
+        if account.provider == Some(provider)
+            && account.holder == c::AccountHolder::Party(me.party.number)
+            && account.list.is_some()
+            && usable
+        {
+            return true;
+        }
+    }
+    false
 }

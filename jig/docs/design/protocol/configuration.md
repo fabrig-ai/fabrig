@@ -125,6 +125,16 @@ is false; account classification is recomputed from its remaining sources
 on removal and from current configuration on restore. No separate plan
 display name is configured.
 
+A provider's `keep` and `drop` say which names of its list are models for this
+work (`../domain/accounts.md`, 3.7; `../domain/engine.md`, 17.12). A name is kept
+when a `keep` pattern matches it and no `drop` pattern does. Each is a list of at
+most 16 patterns of 1 to 64 bytes of a model name's own bytes (`valid_name`,
+`../domain/engine.md`, 17.11), `*` standing for any run of them, `?` for exactly one,
+matched against the whole name. `drop` is optional and absent is none. A provider
+with no `keep` has no list, and none is read; with `keep`, `endpoint` is required,
+since a read goes there. A bad pattern, or one past its bound, refuses the start at
+its path: `llm.providers[i].keep[j]`.
+
 - **A delegation's kinds,** in an authority the rules, a policy or a
   role gives (`../domain/authority.md`, section 3): a list of
   `{"kind", "number"}`, at most `authority.executors`, `kind` one of
@@ -736,13 +746,6 @@ the same capacities even when every run slot is occupied.
   Nor is a template dropped: no task depends on one (3.1).
 
 ## 9. Open questions
-
-- **Provider discovery** (section 3): a worker request and a per-account
-  list narrow the catalogue's offer (`../domain/engine.md`, section 16).
-  Default: model settings supplied by the application or seeded from this
-  document, with no provider-list read. Under passed defaults the document
-  holds providers, endpoints and sources; `effort`, `shown` and `picker`
-  belong to the model setting.
 
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at

@@ -889,6 +889,7 @@ fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
     settings.endpoints =
         Box::new([crate::EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]);
     let value = CatalogueModel {
+        first_read: None,
         number: 9,
         model: settings.models[0].clone(),
         shown: Some(b"Shown".as_slice().into()),

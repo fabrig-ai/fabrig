@@ -233,6 +233,7 @@ mod tests {
         }
         let account = |uses: Box<[accounts::Use]>| {
             root::Record::Core(core::Record::Accounts(accounts::Stored::Account {
+                list: None,
                 number: 1,
                 provider: 1,
                 holder: accounts::Holder::Deployment,

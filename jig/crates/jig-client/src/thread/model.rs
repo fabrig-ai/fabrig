@@ -167,6 +167,7 @@ impl Thread {
             Answer::Done(Outcome::Document(value)) => number(value, self.task, place),
             Answer::Done(
                 Outcome::Made { .. }
+                | Outcome::Account(_)
                 | Outcome::SettingsChanged(_)
                 | Outcome::MovedToNewest(_)
                 | Outcome::Restored { .. },

@@ -68,6 +68,7 @@ fn phase(value: wire::Phase) -> Phase {
 #[derive(Debug)]
 pub(crate) enum Up {
     Source(host::LinkUp),
+    ListRead(wire::ListRead),
     Turn(wire::Turn),
     Call(wire::Call),
     Answer(wire::Answer),
@@ -88,6 +89,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v9::Limits) -> Optio
     let kind = found?;
     let reader = &mut Reader::new(body);
     match kind {
+        wire::Kind::ListRead => Some(Up::ListRead(wire::ListRead::decode(limits, reader).ok()?)),
         wire::Kind::Logins => {
             let record = wire::Logins::decode(limits, reader).ok()?.into_parts();
             let mut rows = List::<Login>::with_capacity(record.logins.len());
@@ -123,7 +125,8 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v9::Limits) -> Optio
         wire::Kind::Unauthorized => Some(Up::Unauthorized(wire::Unauthorized::decode(limits, reader).ok()?)),
         wire::Kind::Limited => Some(Up::Limited(wire::Limited::decode(limits, reader).ok()?)),
         wire::Kind::AccountRefused => Some(Up::AccountRefused(wire::AccountRefused::decode(limits, reader).ok()?)),
-        wire::Kind::Job
+        wire::Kind::ReadList
+        | wire::Kind::Job
         | wire::Kind::Sources
         | wire::Kind::Check
         | wire::Kind::SignOut
@@ -141,6 +144,10 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v9::Limits) -> Optio
 pub(crate) fn up(record: Up, parts: &mut Parts) -> host::LinkUp {
     match record {
         Up::Source(up) => up,
+        Up::ListRead(record) => {
+            let record = record.into_parts();
+            host::LinkUp::ListRead { read: record.read, outcome: list_outcome(record.outcome) }
+        }
         Up::Turn(record) => turn(record),
         Up::Call(record) => call(record),
         Up::Answer(record) => answer(record, parts),
@@ -490,6 +497,7 @@ pub(crate) fn call(record: wire::Call) -> host::LinkUp {
 /// These records are private to the translation; the wire crate exposes individual codecs.
 #[derive(Debug)]
 pub(crate) enum Down {
+    ReadList(wire::ReadList),
     Sources(wire::Sources),
     Check(wire::Check),
     SignOut(wire::SignOut),
@@ -506,6 +514,7 @@ pub(crate) enum Down {
 impl Down {
     pub fn frame(self) -> skein_channel::Frame {
         let (kind, length) = match &self {
+            Self::ReadList(record) => (wire::Kind::ReadList.number(), record.measure()),
             Self::Sources(record) => (0x0188, record.measure()),
             Self::Check(record) => (0x0189, record.measure()),
             Self::SignOut(record) => (0x018a, record.measure()),
@@ -522,6 +531,7 @@ impl Down {
         let mut writer = skein_channel::frame_writer(kind, length).expect("checked record fits a frame");
         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
         let encoded = match self {
+            Self::ReadList(record) => record.encode(&mut body),
             Self::Sources(record) => record.encode(&mut body),
             Self::Check(record) => record.encode(&mut body),
             Self::SignOut(record) => record.encode(&mut body),
@@ -547,6 +557,14 @@ pub(crate) fn down(
     limits: &wire::v9::Limits,
 ) -> Option<Down> {
     match down {
+        host::LinkDown::ReadList { read, endpoint, grant } => {
+            match grant.form {
+                Form::Credential(_) => {}
+                Form::Application | Form::Program(_) => return None,
+            }
+            let grant = grant_record(grant, values.into_iter().next()??, limits)?;
+            Some(Down::ReadList(wire::ReadList::new(limits, wire::ReadListParts { read, endpoint, grant }).ok()?))
+        }
         host::LinkDown::AssignJob { job } => Some(Down::AssignJob(job_record(job, parts, values, limits)?)),
 
         host::LinkDown::Sources { sources } => {
@@ -855,4 +873,34 @@ fn login_state(state: wire::LoginState) -> Option<LoginState> {
             LoginState::Failed { reason: source_failure(failure.reason), detail: failure.detail }
         }
     })
+}
+
+fn list_outcome(value: wire::ListOutcome) -> jig_domain_link::ListOutcome {
+    use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
+    match value {
+        wire::ListOutcome::Listed(record) => {
+            let rows = record.into_parts().rows;
+            let mut listed = List::with_capacity(rows.len());
+            for row in rows.into_boxed() {
+                let row = row.into_parts();
+                listed
+                    .push(ListedModel {
+                        name: row.name,
+                        shown: row.shown,
+                        window: row.window,
+                        output: row.output,
+                        efforts: row.efforts.into_boxed(),
+                    })
+                    .expect("one slot per decoded row");
+            }
+            ListOutcome::Listed(listed.into_boxed())
+        }
+        wire::ListOutcome::Failed(record) => ListOutcome::Failed(match record.into_parts().value {
+            wire::ListFailed::Refused(record) => ListFailure::Refused { status: record.status() },
+            wire::ListFailed::Unreachable => ListFailure::Unreachable,
+            wire::ListFailed::Unreadable => ListFailure::Unreadable,
+            wire::ListFailed::Deadline => ListFailure::Deadline,
+            wire::ListFailed::Agent => ListFailure::Agent,
+        }),
+    }
 }

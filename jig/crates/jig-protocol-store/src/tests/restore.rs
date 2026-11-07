@@ -203,6 +203,7 @@ fn accounts_rows() -> [Record; 3] {
     [
         Record::Accounts(Stored::Next { number: 3 }),
         Record::Accounts(Stored::Account {
+            list: None,
             place: 0,
             uses: None,
             number: 1,

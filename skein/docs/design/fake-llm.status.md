@@ -1,6 +1,6 @@
 # fake-llm: status
 
-2026-11-05. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
+2026-11-07. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
 
 - **Departs:** 4: `skein/docs/foundation/testing-strategy.md`, 4 asks
   for no shared types, but this section designs a shared codec:

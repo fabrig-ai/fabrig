@@ -840,6 +840,33 @@ bounds still hold.
   request it is given with the credential it is given, and never moves a
   call from a plan's token to a key, or back, whatever it fails with.
 
+### 4.9 A provider's list
+
+`skein_llm::list` says what a route's list of models looks like. It holds no
+connection (`llm-connection.md`, 4.3), and is pure.
+
+- **The request:** `GET /v1/models` on the route, its credential sent as a
+  call's is (2.6). Anthropic's takes `?limit=1000`, and carries its version
+  header as a call does. It is one request: a page past the first isn't read.
+- **What it gives:** rows of `Listed`, in the provider's order: a `name`, and,
+  where the provider says them, a `shown` name, a `window`, an `output` and the
+  `efforts`, low to high.
+
+  | Route | The rows | Each row |
+  |---|---|---|
+  | Responses, a plan's token | `models` | `slug`, `display_name`; a row whose `visibility` isn't `list` is left out (jig's `domain/providers.md`, 2.4) |
+  | Responses, a key | `data` | `id` |
+  | Anthropic | `data` | `id`, `display_name`, `max_input_tokens`, `max_tokens`; an effort, of `low`, `medium`, `high`, `xhigh` and `max` in that order, where `capabilities.effort.<effort>.supported` is true |
+
+  Responses tells the two forms apart by which member the document has, and a
+  document with neither is unreadable. A list's body is read for what it says
+  and nothing else: an unknown member is passed over, a row with no name or one
+  past 128 bytes is left out, and so is a field past its bound, with the row kept.
+- **Its bounds,** `list::Limits`: the body, 1 MiB by default, where a longer one
+  is unreadable; the rows kept, 256 by default, the provider's first; a shown
+  name of 64 bytes and 8 efforts of 16 bytes each.
+- **A number** past `u32`, or of 0, is left out, as a field past its bound is.
+
 ## 5. Verification
 
 Focused tests cover encoding, replay, concurrent output ordering, deltas,

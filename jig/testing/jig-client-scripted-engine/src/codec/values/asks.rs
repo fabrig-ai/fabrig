@@ -34,6 +34,15 @@ pub(in crate::codec) fn wire_seen_through(
 
 pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> Result<w::Outcome, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::Outcome::Account(c::AccountAnswer::Reading { count }) => w::Outcome::Account(w::OutcomeAccount::new(
+            limits,
+            w::OutcomeAccountParts {
+                answer: w::AccountAnswer::Reading(w::AccountReading::new(
+                    limits,
+                    w::AccountReadingParts { count: *count },
+                )?),
+            },
+        )?),
         c::Outcome::SettingsChanged(value) => {
             w::Outcome::SettingsChanged(wire_outcome_settings_changed(value, limits)?)
         }
