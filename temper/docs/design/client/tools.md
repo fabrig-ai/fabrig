@@ -236,7 +236,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `settings show project-ways PROJECT [--revision REVISION]`, `settings show project-questions PROJECT [--revision REVISION]` | a project's ways and its questions (`../protocol/configuration.md`, 13.2): the value stored, or the stock's, marked so, with none | `forge`, kinds 7 and 6 |
 | `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, their replaced explicit values read at the preceding set found in retained history, with size metadata when unavailable or too large, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
-| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `settings`, `setting{…}` |
+| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
 - **A settings proposal's review** derives its groups from the delivered
@@ -731,7 +731,8 @@ The table grows area by area, each with its stories (section 11).
 
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
-   newest revision; ended and withdrawn records retain their state. It
+   newest revision; retained ended and withdrawn records keep their state.
+   An automatically replaced task proposal is unknown (7). It
    uses the same read vocabulary independently of the first area's
    settings proposal act.
 
@@ -1649,8 +1650,13 @@ its `from` and `next` offsets count reason bytes alone.
 - **Names are the party's.** Agents sharing a party give their names a
   prefix of their own; the page `ctl` says so (11.5).
 - **Acts that decide name the revision the agent saw;** a moved one is
-  refused, and the agent reads again. A repeat of a decision is answered
-  as decided first, by the party itself.
+  refused, and the agent reads again. A decision asked again under its
+  key prints its first answer. A retained decision, by the party itself
+  or another, answers `decided first:` with exit 0 and changes nothing.
+  An unknown proposal answers exit 2: "this proposal isn't waiting; it
+  may have been decided or replaced." A task's automatically replaced
+  settings proposal keeps no decision to report (jig's
+  `client/domain/contract.md`, sections 3.2 and 4).
 - **The other acts** (`task stop`, `task cancel`, `proposal decide`,
   ...) take `--key` optionally; without it the table draws one, which
   the small store keeps until answered (8.2).
@@ -2324,6 +2330,12 @@ contract's reads, watches and requests, they take:
   `client/domain/client.md`, section 20).
 
 ## 14. Later
+
+- **A replaced proposal's decision** (7): returning `decided first:`
+  for an automatically replaced task proposal needs jig to retain that
+  decision and name its decider (jig's `client/domain/contract.md`,
+  section 11). Default: the unknown-proposal explanation and exit 2;
+  no archive or new decider.
 
 - **Model catalogue changes** (5.5, area 5): `model list` reads the
   offer; it fetches no provider list and adds no model. Catalogue settings,

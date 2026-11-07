@@ -261,6 +261,12 @@ how far a piece of work has gone toward its end.
 - **Routed by owner.** The application's root routes each binding, slot
   and drawing to its owner's view through the function back; a number
   it does not know decodes to nothing.
+- **skein-ui's own:** a flow's kind and its style tokens (3.5) are
+  skein-ui's, under one number it keeps, `flow::OWNER`, the largest a
+  `u32` holds. An application numbers no owner of its own there. It
+  routes that number to `flow::draw`, as it routes any owner's (11.1),
+  and gives `flow::NAMES` beside its own names (section 8); one that does
+  not shows a flow's fallback.
 
 ### 3.4 Text, values and keys
 
@@ -302,11 +308,13 @@ how far a piece of work has gone toward its end.
   timeline), carrying its kind (its owner and a number from the owner's
   closed set); its data, bytes its owner's view writes within a bound the
   owner declares, which only its owner's drawing code reads (section
-  11); a name; and a fallback: ordinary nodes, its children, saying what
-  it shows in words and numbers ("error rate 30 % since 10:02, 2 %
-  before"), which a shell that does not draw shows, a screen reader
-  reads and the fake person finds. Its data is compared whole by the
-  diff, and a change is one patch.
+  11); a name, an empty one leaving the node with none; and a fallback:
+  ordinary nodes, its children, saying what it shows in words and numbers
+  ("error rate 30 % since 10:02, 2 % before"), which a shell that does
+  not draw shows, a screen reader reads and the fake person finds. Its
+  data is compared whole by the diff, and a change is one patch.
+- **A flow** is the drawing skein-ui's own Markdown reader makes, of
+  skein-ui's own kind (3.3): 10.1 reads it, and 11.5 draws it.
 
 ## 4. Growing the vocabulary
 
@@ -635,7 +643,8 @@ What people and programs write (replies, results, notes) is read into
 nodes by a bounded reader of skein-ui's own:
 
 - **the subset:** paragraphs and line breaks; headings, below the levels
-  the caller gives; emphasis, strong and inline code; fenced code; lists,
+  the caller gives; emphasis, strong and inline code; fenced code, of
+  which a flow is a drawing (10.1); lists,
   nested to the limit; quotes; tables (below); links whose target is a
   checked `http` or `https` URL, shown as text otherwise;
 - **the rest is text:** HTML, images, a delimiter never closed, a list
@@ -741,6 +750,62 @@ nodes by a bounded reader of skein-ui's own:
   nodes;
 - **fed real text:** its tests read texts kept as files beside them.
 
+### 10.1 Flows
+
+A closed fence whose info string is `mermaid` and whose body is in the
+subset below is a flow. Every other fence, and one past the subset whole,
+stays fenced code, as any fence does while it is still open.
+
+- **The fence:** its opening line three backticks, then `mermaid`, with
+  spaces or tabs around it. Its body is read line by line, each line's
+  spaces and tabs at its ends dropped.
+- **Its first line:** after any blank lines and `%%` comments, `flowchart`
+  or `graph`, spaces, then `LR` or `TD`, `TB` reading as `TD`: the flow's
+  direction.
+- **A node:** an id, ASCII letters, digits, `_` and `-`, ending before a
+  `-->`, then optionally its label, `[label]` or `["label"]`, then
+  optionally `:::strong`, which marks it.
+  - *A label* is plain text, with no `]` unquoted and no `"` quoted, and
+    no `<` but in `<br>` or `<br/>`, which splits it into the node's name
+    and its caption, each with the spaces at its ends dropped and neither
+    empty. A second split is past the subset.
+  - *A node with no label* is named by its id.
+  - *One label:* a node may be written many times and labelled in one of
+    them; a second label is past the subset, the same words or not.
+- **An edge:** `-->` between two nodes, with spaces or none, chained or
+  not (`a --> b --> c`, or a line each). A line may hold one node alone.
+- **Read and ignored:** a `classDef` line, which a forge needs to style a
+  node, an `accDescr:` line, a `%%` comment line and a blank line.
+- **Its name:** an `accTitle: words` line, at most one.
+- **One path:** at least one edge, the edges making one path with every
+  node on it: each node has at most one edge in and one out, and there is
+  no cycle.
+- **Past the subset:** anything else keeps the whole block fenced code: a
+  branch, a merge, an edge's label, another arrow or shape, `subgraph`,
+  `style`, `click`, another class after `:::`, a second `accTitle`.
+- **What it makes,** where its data fits:
+  - *a drawing* (3.5), kind `flow::KIND`, its name the `accTitle`, or none;
+  - *its data:* the direction, then each node in the path's order, its
+    name, its caption or none, and whether it is strong;
+  - *its fallback:* one paragraph holding one text node: each node's name,
+    a comma, a space and its caption where it has one, joined by "; then ",
+    ended by a full stop: "Design draft, you write it; then Goal, you
+    start it; …". The words are the block's, not a phrasebook's: "then" is
+    the one word the reader adds, as a table's reading adds none.
+- **Bounded:** a block whose data passes `drawing_bytes`, or whose name or
+  fallback passes `text_per_node`, stays fenced code, so limits with no
+  `drawing_bytes` read every flow as code. A flow makes three nodes, and
+  its name and fallback keep section 10's bound of twice the input's bytes
+  of text, since each edge's four bytes at least, a node's and its arrow's,
+  add eight at most.
+- **No cost for no flow:** the reader takes no scratch for a fence until
+  its info string says `mermaid`, and none past `drawing_bytes`: each node
+  takes at least four bytes of data, so a block with more nodes than a
+  quarter of them stops being read and stays code.
+- **Text still being written:** `read_growing` reads a closed flow as
+  `read` does, and `end`'s nodes go inside its fallback's paragraph, which
+  holds its last word.
+
 ## 11. Scenes
 
 A drawing (3.5) is drawn once, by its owner's drawing code, for every
@@ -788,6 +853,11 @@ platform. Scenes are step code under the subset.
 - **Bounded** by the limits on a scene's marks and bytes (section 15). A
   mark past them is refused, and its scene with it: a refused scene
   shows its drawing's fallback, never cut silently.
+- **Its size** is its box's, unless it says its own height: then its box's
+  width and that height. A scene says it when no stylesheet could know it,
+  as a flow's in a document (11.5), and must draw the same scene whatever
+  height it was measured at, so that the box taking that height changes
+  nothing. Other scenes are unchanged.
 
 ### 11.3 Drawings acted on
 
@@ -816,10 +886,58 @@ box's size changes, which is the shell's alone, with no step.
 
 | Shell | A scene |
 |---|---|
-| a browser's, through the page part | inline SVG of the box's size, its tokens as classes, its hints as `<title>`; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (ui-web.md, section 8) |
+| a browser's, through the page part | inline SVG of the scene's size, its tokens as classes, its hints as `<title>`; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (ui-web.md, section 8) |
 | the text shell, the fake person's tree face | not drawn: the fallback is read (ui-text.md, section 5; 17.1) |
 | a phone's | its platform's drawing: Core Graphics or a SwiftUI `Canvas` on iOS, `android.graphics.Canvas` or a Compose `Canvas` on Android, the fallback kept for assistive technology (16.2, 16.3) |
 | any, for a kind the look maps to a component | the component draws the data its own way, the fallback kept (section 12) |
+
+### 11.5 The flow
+
+`flow::draw` is skein-ui's own drawing code, for `flow::KIND` (3.3, 10.1).
+It has the data and the box's width `W`, and reads no height. It measures
+no text: a character, a scalar value, counts as 7.5 pixels in a name and
+6.5 in a caption, a name's or a caption's width that count rounded up, `n`
+the nodes. Centred is at a box's left plus half its width, rounded down.
+The cases in `skein/docs/design/draft/diagrams/` are its acceptance, byte
+for byte (section 17).
+
+- **Left to right,** for a flow written `LR`:
+  - each box `w` wide: the largest of 120, the widest name plus 24, and
+    the widest caption plus 8; 44 high, corner radius 8, its top at 1, the
+    first box's left at 1, each next one `w + 28` further;
+  - fitting where `n × w + (n − 1) × 28 + 2` is at most `W`;
+  - a name centred in its box, its baseline at 28; a caption centred under
+    it, at 67;
+  - an arrow from 4 past a box's right to 4 before the next box's left, at
+    23, its head two strokes 6 back and 5 up and down;
+  - the scene 74 high with a caption, 46 without, `W` wide.
+- **Top to bottom,** for a flow written `TD`, or written `LR` where left
+  to right does not fit:
+  - each box `w` wide: the larger of 160 and the widest name plus 24; 40
+    high, radius 8, at left 1, the first at top 1, each next 62 lower;
+  - a caption at the box's right, 16 past it, its baseline at the box's top
+    plus 25, anchored at its start;
+  - fitting where `1 + w + 1`, plus 16 and the widest caption where there
+    is one, is at most `W`;
+  - a name centred in its box at the box's top plus 25;
+  - an arrow down the box's centre from 4 under a box to 4 above the next,
+    its head 6 back and 5 either side;
+  - the scene `n × 40 + (n − 1) × 22 + 2` high, `W` wide.
+- **Neither fits:** it returns false, as it does for another kind, for
+  malformed data, and for a figure past a `u16`, and the fallback shows.
+- **Its height is the scene's** (11.2): 74 or 46 left to right, the figure
+  above top to bottom.
+- **Its marks,** in this order for each node: the box, its name, its
+  caption, then the arrow to the next, a path of two moves and three lines;
+  no group. `flow::marks` and `flow::scene_bytes` give what a flow's scene
+  takes, for an owner deriving its limits (section 15).
+- **Its tokens,** `flow::NAMES`: `skein-ui-flow-box` on a box,
+  `skein-ui-flow-name` on a name, `skein-ui-flow-caption` on a caption,
+  `skein-ui-flow-arrow` on an arrow, and `skein-ui-flow-strong` beside the
+  box's and the name's on a strong node.
+- **Its look** is tokens (11.2): skein-ui.css gives a plain default, and an
+  owner's stylesheet its own (ui-web.md, section 12). What a person must
+  read is in the fallback, and the scene repeats it for sight.
 
 ## 12. Components
 
@@ -915,7 +1033,7 @@ builder asserts each before it allocates.
 | `depth` | its nesting, fragments included |
 | `text_per_node` | a node's name, description, placeholder, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
-| `drawing_bytes` | a drawing's data, and an act on a drawing |
+| `drawing_bytes` | a drawing's data, an act on a drawing, and a flow's data, past which its block stays code (10.1) |
 | `styles_per_node` | a node's style tokens, and a mark's |
 | `patches` | one diff's patches |
 | `bindings` | the bindings and addresses a tree carries |
@@ -930,7 +1048,7 @@ builder asserts each before it allocates.
   heap prices overflowing `u64`
   does not make otherwise representable limits invalid.
 - **`markdown_bound(bytes, depth)`** bounds the reader's scratch for the
-  admitted text and nesting.
+  admitted text and nesting, a flow's among it (10.1).
 - **`Limits::EMPTY`** holds no capacity: an empty tree without scenes. A
   caller sets over it the fields it means
   (`Limits { nodes, depth, ..Limits::EMPTY }`), so a tree without scenes
@@ -1159,6 +1277,15 @@ style tokens interpreted as hints, by the names it knows.
 - **Golden scenes** fix drawing code, on the host: scenes printed as
   lines, one per mark, a group's marks indented, kept as files beside the
   tests and changed only by hand, as golden text is.
+- **A flow's acceptance cases,** `skein/docs/design/draft/diagrams/` (its
+  `README.md` says what each file is), are read by tests: each case's
+  block, the scene the web mapping prints for it at given widths, byte for
+  byte (ui-web.md, section 8), its name and its fallback's words, and a
+  case that stays code. They are rows of one table test. A change of the
+  look is a change of a case, made with the user. Beside them: each rule of
+  10.1 read and refused to code, the data's bound; a width where neither
+  direction fits; the same inputs, the same scene; and the text shell's
+  golden of a flow read as its fallback.
 - **Table tests, within the suites' budgets** (testing-strategy.md,
   section 8): cases of one behaviour are rows of one test, which checks
   every row and names each that fails: a line per role and state in the
@@ -1239,6 +1366,10 @@ to 7 and 11 settle.
   `civil` still answering an `Option` that every wall time fills. They go
   when jig's views read lib's, in jig's own tree, and wait with no debt
   item to hold them.
+- **More of a flow** (10.1): branches and merges, a flow that forks and
+  joins, laid out in ranks, with an edge's label; other shapes, a
+  decision's diamond, a store's cylinder; and sequence diagrams, the other
+  diagram models write most.
 
 ## 19. Open questions
 

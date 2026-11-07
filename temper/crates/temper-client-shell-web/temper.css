@@ -1301,6 +1301,15 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > :is(.temper-session, .temper-agent-page) button.temper-model-all { width: 100%; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; font-size: 13px; line-height: 1.6; background: transparent; text-align: left; }
 #app > .temper-agent-page .temper-model-menu { position: static; }
 
+/* A flow (client/browser.md, 2.5): diagrams/preview.html's look, and no margin, so its first measure is its width. */
+:where(#app) figure:not([class]) { margin: 0; }
+[data-drawn] > svg .skein-ui-flow-box { fill: var(--gf-paper); stroke: var(--gf-line-2); }
+[data-drawn] > svg .skein-ui-flow-box.skein-ui-flow-strong { fill: var(--gf-ink); stroke: var(--gf-ink); }
+[data-drawn] > svg .skein-ui-flow-name { fill: var(--gf-ink); stroke: none; font: 500 13px var(--gf-sans); }
+[data-drawn] > svg .skein-ui-flow-name.skein-ui-flow-strong { fill: var(--gf-surface); }
+[data-drawn] > svg .skein-ui-flow-caption { fill: var(--gf-muted); stroke: none; font: 400 12px var(--gf-sans); }
+[data-drawn] > svg .skein-ui-flow-arrow { fill: none; stroke: var(--gf-faint); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
 /* A message's effect stays visible where keyboard instructions are hidden. */
 #app > .temper-session .temper-foot-row > .temper-session-hint.temper-hint { display: block; align-self: stretch; white-space: normal; }
 /* close-chat: a confirmation asks in a sentence, says only what will change, and names its acts. */

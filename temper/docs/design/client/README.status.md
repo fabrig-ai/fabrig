@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 3.5 has no known implementation gap in drawing a Markdown flow
+in a chat or its document. The page routes skein-ui's flow owner and
+names under temper's limits; its host test checks the case's SVG and
+the fallback at a narrow width. Temper/ui's look at both places remains
+section 11's after-landing work.
+
 Sections 3.5, 5.1 and 5.10 have no known implementation gap in Home's
 single "Nothing needs you.", the three failed-link paragraphs or the
 semantic-repair line "Repairing: CI failed at its updated head." The view
@@ -22,10 +28,28 @@ report task reading as a question under Needs you, on Home or in a goal's
 band. View tables cover its context, choices, recommendation, fallback and
 requester link. Domain tables cover choice, reply, Undo, refusal and the
 shown revision surviving a refresh; the terminal's Answer sends words too.
-The focused sheet-to-answer story checks the person task's report and its
-words reaching the resumed goal. The inbox filter remains person tasks;
+The focused sheet-to-answer stories check a question past the document's
+text bound, its whole `TaskText` read, a choice's press and those words
+reaching the resumed goal, from a chat's sheet and from Goals. Sections
+3.5 and 5.8 have no known implementation gap in the whole question's
+context, evidence and choices, or the cut notice and link when the read
+ends short. The inbox filter remains person tasks;
 role-addressed tasks and other contracts keep their ordinary cards. Browser,
 walk and render checks remain section 11's after-landing work.
+
+Sections 3.5, 5.8 and 5.14 have no known implementation gap in Goals'
+Start goal sheet, its typed Draft path and following Name, its zero-funding
+refusal and open-chat explanation, or counting only landed change results
+in the goal's task bar and fold. Fixed-amount ways still use the funding
+judgement. The funds card offers a waiting budget proposal conditionally,
+otherwise closing and starting again once the pool has room. Domain and
+view tables hold these rules; the gallery's `start-goal` draws the sheet.
+
+- **Design departs:** 3.5, 5.8, from `ui-goal-asks-2`'s whole-question
+  ruling, by its cut: only the first question on a goal's page draws whole;
+  later bands keep the bounded first line and Answer, to price at most one
+  `long_text` question per page (5.4). Needs you draws the selected question
+  whole. Section 11 keeps extending the bands open.
 
 Sections 3.5, 5.5 and 5.9 have no known implementation gap in the closed
 chat's header, closed agent's taskbar or the composer's named template
@@ -69,13 +93,15 @@ phone test asserts CSS rules, not measured geometry or a press. The
 after-landing checks and ended-card row retention are section 11's later
 work; no new real-model or phone press outcome is supplied.
 
-- **Not yet:** 4.4, 5.2: temper/ui’s after-landing render check of
-  `connect-flows` pages 01–23, open disclosures and menus at 1440, 1000
-  and 420 px, and screenshots also at 1280 px (`../draft/look-requests.md`,
-  4). The browser sheet story covers scrolling, search, adoption and phone
-  geometry on the fake forge (`browser.md`, 4.6).
-  Home’s own sheet and the two unmocked entry paths remain as described in
-  `../draft/repository-copies.status.md`, 9; they are not new drawings.
+Sections 3.5, 4.4, 4.6 and 5.2 have no known implementation gap in the
+`connect-flows` shared model and forge panels, completion on Accounts or
+Forges, or Settings' three-source repository sheet. Search and scroll,
+plural picks, make/copy and failed-row retry and dismissal are present.
+The source and print account is commit `9164d33492`; it establishes no
+rendered equality. Section 11 carries temper/ui's render comparison and
+Home sheet follow-up. The repaired browser stories retain account history,
+scroll/search/adoption and 420 px sheet geometry, with no passing runtime
+result supplied here (`browser.status.md`, 4.6).
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
@@ -422,18 +448,6 @@ work; no new real-model or phone press outcome is supplied.
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
-- **Departs:** 3.5, *Goals*, 5.14: Goals' "Start one from
-  a draft" is a link to `Chats { filter: All }`, `/chats`
-  (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
-  the sheet with its Draft field. A chat's "Start goal…" opens the shared
-  sheet with its document's snapshot.
-  `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
-  both a draft and a chat, so "Start a goal" and the Draft field are drawn by
-  nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
-  `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
-  link goes to Chats' Drafts filter and the sheet opens from a chat. The entry
-  still goes to All, where the rulings name Drafts, the filter being there only
-  while `drafts_offered`.
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and

@@ -1,0 +1,4 @@
+== ops == 
+How work reaches main:
+  Design draft, you write it; then Goal, you start it; then Checked changes, CI and a review; then main, the merge queue.
+A change pushed; then A review by an agent; then Landed.

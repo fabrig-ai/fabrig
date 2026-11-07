@@ -2,7 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-Unlisted sections have no known gap.
+Unlisted sections have no known gap. Section 9's `connect-flows` pages
+remain hand-made request pages, with the shipped states in the gallery;
+no request CSS or script is part of a journey. The `project-landing`
+recording is refreshed at `37e4a1aa55`. Render comparison remains
+temper/ui's after-landing work (section 10).
+
+Section 9 has no known gap in the flow's drawing route. The gallery
+measures no box and prints the fallback; existing recordings contain no
+flow. A rendered flow in a chat and its document remains section 10's
+after-landing comparison.
 
 Sections 8.2 and 9 have no known gap in `chat-draft`'s drafts-on start:
 its setup leaves the fresh project's value alone, its recording has no
@@ -15,8 +24,6 @@ a real-box recording remains the person's later work (section 10).
   - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
-  - 8.2: no run on record has `again project-landing` refresh that journey since its setup's press opened a tab: its recording holds no family request, so the plan `sign-in-new-tab` left it unmoved. `chat-draft` names its own `again` walk through that shared setup; it does not refresh `project-landing`'s recording.
-  - 9: `project-landing`'s `README.md` says its sign-in "returns to Ready", where the page stays and moves on by itself: the request `sign-in-new-tab` of 2026-11-06 leaves a journey's words to the look's owner.
 - **Departs:**
   - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is the usage line, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.

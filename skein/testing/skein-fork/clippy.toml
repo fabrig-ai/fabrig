@@ -1,0 +1,42 @@
+# clippy variant: ring (tools/lints/design.md, 4).
+# What a crate on the ring, or one that plays the kernel, may not use: ordinary
+# Rust (skein/docs/foundation/programming-model.md, 10.2) with no std handle that
+# closes on drop (2.1) and no shared ownership. A descriptor is a plain Fd, closed
+# by a Close record; a simulator or a fake machine plays the kernel and holds none.
+
+doc-valid-idents = ["io_uring", ".."]
+
+# Its own tests may assert by panicking.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
+    { path = "std::hash::RandomState", reason = "iteration order would depend on a random seed: BTreeMap" },
+    { path = "std::time::Instant", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "a run's time comes from its world; on the ring, skein_shell::Clock" },
+    { path = "std::sync::Arc", reason = "one thread, one owner" },
+    { path = "std::sync::Mutex", reason = "one thread" },
+    { path = "std::sync::RwLock", reason = "one thread" },
+    { path = "std::os::fd::OwnedFd", reason = "a descriptor is closed by a Close record, not on drop", allow-invalid = true },
+    { path = "std::fs::File", reason = "a descriptor is closed by a Close record, not on drop" },
+    { path = "std::net::TcpStream", reason = "a descriptor is closed by a Close record, not on drop" },
+    { path = "std::net::TcpListener", reason = "a descriptor is closed by a Close record, not on drop" },
+    { path = "std::net::UdpSocket", reason = "a descriptor is closed by a Close record, not on drop" },
+    { path = "std::process::Child", reason = "std::process is not used (io.md, 6)" },
+    { path = "std::process::Command", reason = "std::process is not used (io.md, 6)" },
+]
+
+disallowed-methods = [
+    { path = "std::thread::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::Builder::spawn", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::thread::scope", reason = "one thread, one loop, so that a run replays" },
+    { path = "std::env::var", reason = "a run's settings come from its code, not the environment" },
+    { path = "std::collections::HashMap::new", reason = "a random seed: BTreeMap, or a fixed hasher" },
+    { path = "std::collections::HashMap::with_capacity", reason = "a random seed: BTreeMap, or a fixed hasher" },
+    { path = "std::collections::HashSet::new", reason = "a random seed: BTreeSet, or a fixed hasher" },
+    { path = "std::collections::HashSet::with_capacity", reason = "a random seed: BTreeSet, or a fixed hasher" },
+]

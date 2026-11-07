@@ -211,6 +211,13 @@ What every application runs, and what makes jig's promises its own.
 
 An adapter's view of its store is made for a reader, from the rows as they are, and never kept: `Got` changes rows outside commits, so a commit's number doesn't name their state. `Observer::inbound` asks for one only for an event whose check reads a row (a party's request, a proposal of settings, a run's accepted proposal), and `Observer::submitted` only for a commit that erases a task's activity or an ended task. A new commit always has one.
 
+The core's observer keeps keyed row evidence: submitted keys replace or
+erase their contributions after durability. Receipts retain each contributing
+row, and person spend sums current ledgers. Observations remain complete,
+ordered snapshots once per commit, checked against whole-store projection
+in focused tests. Cold observation reads current rows even without a new
+commit; a missing feed or a bulk mutation rebuilds the projection whole.
+
 - **What the application gives,** through the harness's trait:
   - its engine domain, built from configuration;
   - its systems' fakes, as step machines, each reporting what it saw in
@@ -228,7 +235,14 @@ An adapter's view of its store is made for a reader, from the rows as they are, 
 - **Crashing at every commit.** For a scenario, the focused suite crashes
   after a few chosen commits and checks the story still ends as it
   should; the fuzzy suite sweeps every commit of the scenario, and draws
-  cuts at random across random worlds.
+  cuts at random across random worlds. A sweep using `Cut::EachCommitFrom`
+  holds its prefix once: the run forks at each commit from the one
+  named, and the child takes that commit's crash as `Cut::AfterCommit`
+  does, through the same cold restart, and ends the story; the parent
+  waits for it and goes on uncut, so no cut repeats the commits before
+  it. A child that fails fails the run, naming its cut, and the run's
+  `Outcome` lists the cuts whose children passed, so that a sweep checks
+  it missed none.
 - **What it catches,** where its scenarios reach: a root that sends a
   held output early, splits a decision across commits, admits after a
   child changed, restarts out of the core's order, lets an effect reach
@@ -426,14 +440,14 @@ than cutting the cover.
   decoding outside the kit, since it links smith, and each adopter's first
   period and `Drained` as the referee sees them. Default: as they stand, until
   `jig/docs/development/debt/D030-conformance-not-drop-in.md` is planned.
-- **A commit's rows for the core's observer** (5): the observer projects the
-  whole store at each new commit, combining naming and row projection in one
-  pass and collecting accepted proposal decisions with the other evidence.
-  A feed of each commit's rows needs keyed replacement and erasure accounting,
-  commit-level observations and a check against the whole projection. `Got`
-  changes rows outside commits too, so cold observation needs the current rows.
-  Default: the whole projection, until a keyed feed is designed
-  (`jig/docs/development/debt/D034-world-replay-cost.md`).
+- **Owned conformance observations** (5, 6): reducing snapshot copies needs
+  an ownership design that keeps every referee check and complete ordered
+  observations. Required cold restarts and independent public readback stay;
+  cheaper construction is lower-layer work. Naming and word checks below
+  the roughly 2% per-story stopping rule stay too. The instruction pairs,
+  overlapping shares and retained causes are in
+  `temper/docs/development/limits-worlds.md`; changed-row-only verdicts
+  cannot replace the whole observation contract.
 - **Further world-cost repairs** (9): which remaining representations and
   algorithms need to change for the focused suite to fit its 30 CPU s budget.
   Read whole-suite cost from the queue after landing, including fuzzy's moved
