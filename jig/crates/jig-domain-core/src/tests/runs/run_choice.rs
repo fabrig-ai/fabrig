@@ -57,17 +57,20 @@ pub(in crate::tests) fn host_with_endpoints(
 ) {
     let mut bounds = fixtures::bounds();
     bounds.program_endpoints = endpoints;
-    bounds.endpoints = names
+    let mut declared: Vec<_> = names
         .iter()
         .filter_map(|name| core.settings.models.iter().find(|model| model.name.as_ref() == *name))
         .map(|model| EndpointBound { endpoint: model.endpoint, window: 8192, output: 1024 })
         .collect();
+    declared.sort_by_key(|endpoint| endpoint.endpoint);
+    declared.dedup_by_key(|endpoint| endpoint.endpoint);
+    bounds.endpoints = declared.into_boxed_slice();
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
         fleet::Event::Hello {
-            worker: u32::from(channel == SECOND),
+            worker: u32::from(channel == SECOND).min(limits.fleet.workers.saturating_sub(1)),
             channel,
             hello: Hello {
                 jobs: Box::default(),
@@ -499,6 +502,7 @@ pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Tok
 }
 pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::Domain {
     let mut config = config(41);
+    config.settings.models = core.settings.models.clone();
     config.defaults.charters[0].hosts = core.charter(1).unwrap().hosts;
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();

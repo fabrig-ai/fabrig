@@ -362,11 +362,12 @@ fn a_narrowed_run_rule_refuses_the_next_oversized_creation_and_keeps_the_old_pro
 }
 
 #[test]
-fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
+fn changed_charter_instructions_and_catalogue_effort_prepare_the_next_new_task() {
     let (mut config, limits) = configuration();
     config.core.settings.models[0].efforts = Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
     config.core.settings.models[0].effort = Some(Box::from(b"low".as_slice()));
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
+    config.core.defaults.models[0].model = config.core.settings.models[0].clone();
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
@@ -377,18 +378,27 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     let signed = sign_in(&mut world);
     let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
     charter.policy.instructions = Box::from(b"Changed instructions.".as_slice());
-    charter.policy.model.effort = Some(Box::from(b"high".as_slice()));
-    // A selected effort is a charter default; the model's declared efforts stay configured.
+    let Some(settings::Value::Model(model)) = world.domain.settings().value(settings::Setting::Model(1)) else {
+        panic!("catalogue model")
+    };
+    let mut model = model.clone();
+    model.model.effort = Some(Box::from(b"high".as_slice()));
     changed(
         &change(
             &mut world,
             signed,
             41,
             1,
-            Box::new([settings::Item {
-                setting: settings::Setting::Charter(1),
-                edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
-            }]),
+            Box::new([
+                settings::Item {
+                    setting: settings::Setting::Charter(1),
+                    edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
+                },
+                settings::Item {
+                    setting: settings::Setting::Model(1),
+                    edit: settings::Edit::Set(settings::Value::Model(model)),
+                },
+            ]),
         ),
         2,
     );
@@ -580,6 +590,10 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
     let mut other = config.core.settings.models[0].clone();
     other.name = Box::from(b"other".as_slice());
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), other.clone()]);
+    let mut other_entry = config.core.defaults.models[0].clone();
+    other_entry.number = 2;
+    other_entry.model = other.clone();
+    config.core.defaults.models = Box::new([config.core.defaults.models[0].clone(), other_entry]);
     config.core.defaults.charters[0].policy.alternatives = Box::new([other.clone()]);
     limits.core.tasks.circle = 1;
     peers::journal(&mut limits);
@@ -609,6 +623,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         made.push(first);
     }
     let mut charter = world.domain.settings().charter(1).expect("charter").clone();
+    charter.rest = false;
     charter.policy.model = other;
     charter.policy.alternatives = Box::new([]);
     let item = settings::Item {

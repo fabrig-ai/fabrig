@@ -177,8 +177,10 @@ fn an_empty_start_store_seeds_before_opening() {
     let mut project_roles = false;
     let mut settings = false;
     for _ in 0..h.out.len() {
-        let core::Request::Write(core::Write::Save(record)) = h.out.pop().expect("seed write") else {
-            panic!("seed emits only saved rows")
+        let record = match h.out.pop().expect("seed output") {
+            core::Request::Write(core::Write::Save(record)) => record,
+            core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => continue,
+            other => panic!("unexpected seed output: {other:?}"),
         };
         match record {
             core::Record::People(people::Stored::Deletion { .. } | people::Stored::Policy { .. }) => policy = true,

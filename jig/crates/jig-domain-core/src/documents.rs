@@ -402,13 +402,15 @@ pub struct Chip {
 /// Each project has its kept name (core.md, 6.1); unopened pools have no ledger.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FrameProjectRole {
+    /// Catalogue models beyond the chat charter's bounds (engine.md, 17.11).
+    pub left_out: u32,
     pub project: u32,
     pub role: people::Role,
     pub name: Text,
     pub pool: Option<Ledger>,
     /// Direct creating bounds for this party and project (contract.md, 5.3).
     pub creating: Option<crate::acts::Creating>,
-    /// The configured models the party's tasks here may use (domain/authority.md, section 3).
+    /// The catalogue models the party's tasks here may use (domain/authority.md, section 3).
     pub models: jig_domain_authority::Models,
     /// Configured templates with this project's policy overrides applied.
     pub templates: List<crate::Template>,

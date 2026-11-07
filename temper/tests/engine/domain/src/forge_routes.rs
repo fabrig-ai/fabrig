@@ -675,6 +675,11 @@ impl World {
                     .expect("one stock policy");
                 config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
                 config.core.settings.models = Box::new([model.clone()]);
+                config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+                    number: model.endpoint,
+                    dialect: model.dialect,
+                    program: model.program.clone(),
+                }]);
 
                 config.core.connectors = Box::new([1]);
                 for rule in &mut landing_rules.deployment {

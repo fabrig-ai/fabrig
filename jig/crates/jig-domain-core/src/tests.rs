@@ -450,7 +450,7 @@ pub(crate) fn config(seed: u64) -> Config {
         }]),
         connectors: Box::new([1, 2]),
         settings: Settings {
-            endpoints: Box::default(),
+            endpoints: Box::new([EndpointFacts { number: 1, dialect: 3, program: None }]),
             deployment_provider: 3,
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
@@ -681,6 +681,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
     assert_eq!(
         frame.projects.as_slice(),
         &[FrameProjectRole {
+            left_out: 0,
             public: false,
             project: 1,
             role: people::Role::Owner,
