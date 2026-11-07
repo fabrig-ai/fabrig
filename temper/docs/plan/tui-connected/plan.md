@@ -31,7 +31,7 @@ changes.
   reads the root's `me` and link and says the view's words through their
   public items.
 
-## Tasks so far
+## Tasks
 
 | Task | Part | Needs | What |
 |---|---|---|---|
@@ -47,12 +47,31 @@ changes.
 | `tui-goldens` | tui | tui-view, screen-render | the TUI's screens as golden frames: the first at 80 by 24 and 40 by 12, dark and light, and signing in |
 | `tui-host` | tui | tui-view, screen-render, screen-keys | `temper-client-shell-tui`'s host, the seam, and its limits |
 | `tui-world` | tui | tui-host | the joint world carries a linked client; the TUI signed in by its pasted link, across a restart, signed out elsewhere |
+| `tui-run` | tui | tui-host, screen-terminal | the loop: the host, the native shell, the screen terminal and the signals on skein-shell's `drive`; each way out on the simulated machine |
+| `tui-command` | tui | tui-run, fail-stop-restore | the binary: bare `temper` and `temper ADDRESS`, the directory and its `address`, scheme and depth, raw input and the panic's restoration; `commands.md` regenerated |
+| `tui-status` | tui | every tui task | temper's statuses and M1's state closed from the trunk's code |
 
-## Critical path, as it stands
+## Critical path
 
-`screen-surface` → `screen-render` and `screen-keys`, side by side → the
-TUI's host → its joint-world stories, and `screen-terminal` → the TUI's
-loop → the command. The temper batch names its tasks.
+`screen-surface` (70) → `screen-keys` (130; `screen-render`, 150, beside
+it) → `tui-host` (160) → `tui-run` (170, once `screen-terminal`, 150, has
+merged) → `tui-command` (150) → `tui-status` (25): about 13 hours of
+implementer time end to end. `tui-view` (180) runs beside the screen's
+renderer and keys; `tui-goldens`, `tui-world`, `screen-roles` and
+`screen-status` run off the path.
+
+## Decided here
+
+- **A stored format and a public interface change, before v0.1.0:** the
+  TUI's directory gains a file, `address`; `temper`'s command line gains
+  bare `temper` in a terminal and `temper ADDRESS`. No migration.
+- **Words:** the status line says the view's "Live" where `tui.md`, 4.3,
+  illustrates "online": the same words where the same thing is said.
+- **`q` and Ctrl+C:** `q` closes the first screen; on the sign-in screen
+  it types into the link's field, so Ctrl+C closes there
+  (`tui.status.md`, *Design departs*, 4.1).
+- **A link for another address** is refused with the command that signs
+  in there; the TUI never switches its engine.
 
 ## Overlaps
 
