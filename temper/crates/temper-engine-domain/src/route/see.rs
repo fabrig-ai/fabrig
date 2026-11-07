@@ -85,9 +85,7 @@ pub(crate) struct SeeFlight {
 #[derive(Hash, Debug)]
 pub(crate) enum SeeReading {
     Settings,
-    #[expect(dead_code, reason = "constructed by the task see-forge of ui-ask-m1")]
     Head,
-    #[expect(dead_code, reason = "constructed by the task see-forge of ui-ask-m1")]
     File,
     #[expect(dead_code, reason = "constructed by the task see-proposal of ui-ask-m1")]
     Proposal,

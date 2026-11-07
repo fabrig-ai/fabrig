@@ -75,9 +75,6 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
-- **Not yet:** 8.4.1: `settings landing`, `settings gates OWNER/NAME` and `file
-  OWNER/NAME PATH [BRANCH]` read nothing of the forge
-  (`temper-engine-domain/src/route/see/forge.rs`).
 - **Not yet:** 8.4.1: `proposal tN/K` and `pN/K` read nothing: no proposal read
   reaches the root, and `temper-settings-form` has no proposal text
   (`temper-engine-domain/src/route/see/proposal.rs`).

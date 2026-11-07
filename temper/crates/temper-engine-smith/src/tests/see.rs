@@ -152,29 +152,10 @@ fn errors_and_pages_use_the_address_form() {
         20_000,
     );
     assert_eq!((text, error), ("Done\nsee: file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME\n".into(), false));
-    let repository = temper_engine_domain::SeeRepository {
-        name: b"a/b".as_slice().into(),
-        checks: temper_engine_domain_forge::RepositoryGates {
-            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
-            gates: Box::new([]),
-            tiers: Box::new([]),
-        },
-    };
-    for (line, answer) in [
-        (
-            "settings landing",
-            SeeAnswer::Landing(Box::new(temper_engine_domain::SeeLanding {
-                by: temper_engine_domain_forge_change::Way::Queue,
-                merge_job: None,
-                after: None,
-                repositories: Box::new([]),
-            })),
-        ),
-        ("settings gates a/b", SeeAnswer::Gates(Box::new(repository))),
-        ("proposal t1/1", SeeAnswer::Proposal(Box::new(temper_engine_domain::SeeProposal::Unknown))),
-    ] {
-        assert_eq!(rendered(line, 0, answer, 20_000), (format!("see {line}: not there yet."), true));
-    }
+    assert_eq!(
+        rendered("proposal t1/1", 0, SeeAnswer::Proposal(Box::new(temper_engine_domain::SeeProposal::Unknown)), 20_000),
+        ("see proposal t1/1: not there yet.".into(), true)
+    );
     for (answer, next) in [
         (
             jig_domain_core::SettingsAnswer::Inventory(jig_domain_core::documents::Settings {
@@ -280,6 +261,67 @@ fn errors_and_pages_use_the_address_form() {
         assert_eq!(
             rendered("help search", 0, SeeAnswer::Search { words: words.into_bytes().into() }, 20_000),
             (format!("see help search: {expected}"), true)
+        );
+    }
+}
+
+#[test]
+fn landing_and_gates_read_the_configured_values() {
+    use temper_engine_domain::{SeeLanding, SeeRepository};
+    use temper_engine_domain_forge::{AfterLanding, Follows, RepositoryGates, Tier};
+    use temper_engine_domain_forge_change::Way;
+    use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};
+    let none = SeeRepository {
+        name: b"org/empty".as_slice().into(),
+        checks: RepositoryGates {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            gates: Box::new([]),
+            tiers: Box::new([]),
+        },
+    };
+    let not_setting = "not a setting yet: whoever runs temper here sets it in temper's configuration (its landing member); no proposal changes it.";
+    for (by, merge_job, after, repositories, text) in [
+        (Way::Turn, None, None, Box::<[SeeRepository]>::default(),
+         "landing: by turn\nmerge job: none\nrepositories:\n  none\n".to_string()),
+        (Way::Queue, Some(b"merge".as_slice().into()),
+         Some(AfterLanding { verdict: Settings { retries: 1, suspects: Suspects::TellAll }, bound: skein_lib::Duration::from_millis(5_400_000) }),
+         Box::new([SeeRepository { name: none.name.clone(), checks: none.checks.clone() }]),
+         "landing: by queue\nmerge job: merge\nafter landing: 1 tier retry, a verification's bound of 1h30m, suspects tell all\nrepositories:\n  org/empty: no gates or tiers\n".to_string()),
+    ] {
+        assert_eq!(rendered("settings landing", 0, SeeAnswer::Landing(Box::new(SeeLanding {
+            by, merge_job, after, repositories,
+        })), 20_000), (format!("{text}{not_setting}\nsee: settings gates OWNER/NAME · settings landing-rule N [project] · help landing\n"), false));
+    }
+    let checks = RepositoryGates {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        gates: Box::new([temper_engine_domain_forge_landing::Gate {
+            name: b"tests".as_slice().into(),
+            workflow: b"tests.yml".as_slice().into(),
+            ignored: Box::new([b"docs".as_slice().into(), b"notes".as_slice().into()]),
+            blocking: false,
+        }]),
+        tiers: [Follows::Landing, Follows::Branch(b"stable".as_slice().into()), Follows::Goals]
+            .map(|follows| Tier {
+                name: b"smoke".as_slice().into(),
+                workflow: b"smoke.yml".as_slice().into(),
+                artifact: b"result".as_slice().into(),
+                format: Format::Junit,
+                ignored: Box::new([b"docs".as_slice().into()]),
+                follows,
+                span: None,
+            })
+            .into(),
+    };
+    for (repository, text) in [
+        (none, "gates of org/empty:\n  none\ntiers of org/empty:\n  none\n"),
+        (
+            SeeRepository { name: b"org/repo".as_slice().into(), checks },
+            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, ignoring docs\n",
+        ),
+    ] {
+        assert_eq!(
+            rendered("settings gates org/repo", 0, SeeAnswer::Gates(Box::new(repository)), 20_000),
+            (format!("{text}{not_setting}\nsee: settings landing · file OWNER/NAME PATH\n"), false)
         );
     }
 }

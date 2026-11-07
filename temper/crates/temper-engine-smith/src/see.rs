@@ -132,12 +132,155 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
     }
 }
 
-fn landing_text(_landing: &engine::SeeLanding) -> Result<Box<[u8]>, &'static [u8]> {
-    Err(b"not there yet.")
+const NOT_SETTING: &[u8] = b"not a setting yet: whoever runs temper here sets it in temper's configuration (its landing member); no proposal changes it.\n";
+
+#[expect(clippy::unnecessary_wraps, reason = "each address text shares the renderer's refusal result")]
+fn landing_text(landing: &engine::SeeLanding) -> Result<Box<[u8]>, &'static [u8]> {
+    let mut parts = List::uncapped();
+    let by = match landing.by {
+        temper_engine_domain_forge_change::Way::Queue => b"queue".as_slice(),
+        temper_engine_domain_forge_change::Way::Turn => b"turn".as_slice(),
+    };
+    parts
+        .push(join(&[b"landing: by ", by, b"\nmerge job: ", landing.merge_job.as_deref().unwrap_or(b"none"), b"\n"]))
+        .expect("admitted landing text");
+    if let Some(after) = landing.after {
+        let suspects = match after.verdict.suspects {
+            temper_engine_domain_forge_tiers::Suspects::Bisect => b"bisect".as_slice(),
+            temper_engine_domain_forge_tiers::Suspects::TellAll => b"tell all".as_slice(),
+        };
+        let retry = if after.verdict.retries == 1 { b" tier retry".as_slice() } else { b" tier retries".as_slice() };
+        parts
+            .push(join(&[
+                b"after landing: ",
+                Decimal::of(u64::from(after.verdict.retries)).as_bytes(),
+                retry,
+                b", a verification's bound of ",
+                &duration_text(after.bound),
+                b", suspects ",
+                suspects,
+                b"\n",
+            ]))
+            .expect("admitted landing text");
+    }
+    parts.push(b"repositories:\n".as_slice().into()).expect("admitted landing text");
+    if landing.repositories.is_empty() {
+        parts.push(b"  none\n".as_slice().into()).expect("admitted landing text");
+    }
+    for repository in &landing.repositories {
+        parts
+            .push(join(&[b"  ", &repository.name, b": ", &check_counts(&repository.checks), b"\n"]))
+            .expect("admitted repository text");
+    }
+    parts.push(NOT_SETTING.into()).expect("admitted landing text");
+    Ok(join_parts(&parts))
 }
-fn gates_text(_repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static [u8]> {
-    Err(b"not there yet.")
+
+fn duration_text(bound: skein_lib::Duration) -> Box<[u8]> {
+    let minutes = bound.as_millis().div_euclid(60_000);
+    let hours = minutes.div_euclid(60);
+    let minutes = minutes.rem_euclid(60);
+    let hours_text = if hours == 0 { b"".as_slice().into() } else { join(&[Decimal::of(hours).as_bytes(), b"h"]) };
+    let minutes_text =
+        if minutes == 0 && hours != 0 { b"".as_slice().into() } else { join(&[Decimal::of(minutes).as_bytes(), b"m"]) };
+    join(&[&hours_text, &minutes_text])
 }
+
+fn check_counts(checks: &temper_engine_domain_forge::RepositoryGates) -> Box<[u8]> {
+    if checks.gates.is_empty() && checks.tiers.is_empty() {
+        return b"no gates or tiers".as_slice().into();
+    }
+    let mut parts = List::uncapped();
+    if !checks.gates.is_empty() {
+        let suffix = if checks.gates.len() == 1 { b" gate".as_slice() } else { b" gates".as_slice() };
+        parts
+            .push(join(&[Decimal::of(skein_lib::len_u64(checks.gates.len())).as_bytes(), suffix]))
+            .expect("gate count");
+    }
+    if !checks.tiers.is_empty() {
+        if !checks.gates.is_empty() {
+            parts.push(b", ".as_slice().into()).expect("count separator");
+        }
+        let suffix = if checks.tiers.len() == 1 { b" tier".as_slice() } else { b" tiers".as_slice() };
+        parts
+            .push(join(&[Decimal::of(skein_lib::len_u64(checks.tiers.len())).as_bytes(), suffix]))
+            .expect("tier count");
+    }
+    join_parts(&parts)
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "each address text shares the renderer's refusal result")]
+fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static [u8]> {
+    let mut parts = List::uncapped();
+    parts.push(join(&[b"gates of ", &repository.name, b":\n"])).expect("admitted gates text");
+    if repository.checks.gates.is_empty() {
+        parts.push(b"  none\n".as_slice().into()).expect("admitted gates text");
+    }
+    for gate in &repository.checks.gates {
+        let blocking = if gate.blocking { b"blocking".as_slice() } else { b"not blocking".as_slice() };
+        parts
+            .push(join(&[
+                b"  ",
+                &gate.name,
+                b": workflow ",
+                &gate.workflow,
+                b", ",
+                blocking,
+                &ignored_text(&gate.ignored),
+                b"\n",
+            ]))
+            .expect("admitted gate text");
+    }
+    parts.push(join(&[b"tiers of ", &repository.name, b":\n"])).expect("admitted tiers text");
+    if repository.checks.tiers.is_empty() {
+        parts.push(b"  none\n".as_slice().into()).expect("admitted tiers text");
+    }
+    for tier in &repository.checks.tiers {
+        let follows = match &tier.follows {
+            temper_engine_domain_forge::Follows::Landing => b"the landing branch".as_slice(),
+            temper_engine_domain_forge::Follows::Branch(branch) => branch,
+            temper_engine_domain_forge::Follows::Goals => b"goals' branches".as_slice(),
+        };
+        parts
+            .push(join(&[
+                b"  ",
+                &tier.name,
+                b": workflow ",
+                &tier.workflow,
+                b", artifact ",
+                &tier.artifact,
+                b", follows ",
+                follows,
+                &ignored_text(&tier.ignored),
+                b"\n",
+            ]))
+            .expect("admitted tier text");
+    }
+    parts.push(NOT_SETTING.into()).expect("admitted gates text");
+    Ok(join_parts(&parts))
+}
+
+fn ignored_text(paths: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    for (at, path) in paths.iter().enumerate() {
+        let separator = if at == 0 { b", ignoring ".as_slice() } else { b", ".as_slice() };
+        parts.push(join(&[separator, path])).expect("admitted ignored paths");
+    }
+    join_parts(&parts)
+}
+
+fn join_parts(parts: &List<Box<[u8]>>) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("admitted answer text");
+    }
+    let mut text = Writer::new(length);
+    for part in parts {
+        text.put(part).expect("answer text length");
+    }
+    text.finish()
+}
+
 fn proposal_text(_proposal: &engine::SeeProposal) -> Result<Box<[u8]>, &'static [u8]> {
     Err(b"not there yet.")
 }
