@@ -8,6 +8,9 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
     crate::pages::home::look(root, env, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    if let Event::Act { .. } = &event {
+        crate::pages::acted(&mut root.pages);
+    }
     match event {
         Event::Copied { token, written } => root.copy.copied(env.now, token, written),
         Event::Start { address, kept, with } => {
@@ -528,6 +531,9 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
 /// Settle the host check and advance a held sign-in or added key once usable (client/README.md, 3.5).
 pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
     use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
+    if let Address::ConnectModel { .. } = root.pages.address() {
+        return;
+    }
     let usable = crate::pages::welcome::model_usable(root) == Some(true);
     let address = root.pages.address().clone();
     let Some(page) = &mut root.pages.connect_model else { return };

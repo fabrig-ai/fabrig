@@ -40,22 +40,16 @@ fn a_lost_key_answer_replays_under_the_same_name_without_a_second_account() {
     );
     accounts::event(&mut front, &mut root, act(Act::Submit { name: NAME }));
     let root = root.person();
+    assert_eq!(root.pages().address(), &d::Address::Accounts);
     assert_eq!(
-        root.pages()
-            .connect_model()
-            .expect("account fixture state")
-            .request
-            .pending
-            .as_ref()
-            .expect("account fixture state")
-            .outcome,
-        Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
-            jig_client::contract::Outcome::Document(jig_client::contract::DocumentOutcome::AccountKeyKept { source })
-        ))))
+        root.pages().accounts().unwrap().added,
+        Some(d::pages::accounts::Added { provider: accounts::PROVIDER, kind: d::WayKind::Key })
     );
     let doc = d::pages::accounts::document(root.client()).expect("account fixture state");
     assert_eq!(doc.accounts.len(), 1);
-    assert_eq!(doc.accounts.get(0).expect("account fixture state").sources.len(), 1);
+    let sources = &doc.accounts.get(0).expect("account fixture state").sources;
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources.get(0).expect("the one kept source").number, source);
     accounts::assert_no_carried(&front);
 }
 #[test]
@@ -119,20 +113,32 @@ fn a_sign_in_started_answer_is_followed_by_its_actual_end_on_the_accounts_watch(
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);
     let root = root.person();
+    assert_eq!(root.pages().address(), &d::Address::Accounts);
     assert_eq!(
-        root.pages().connect_model().expect("account fixture state").request.sign_in_state(root.client()),
-        SignInState::Ended { source }
+        root.pages().accounts().unwrap().added,
+        Some(d::pages::accounts::Added { provider: accounts::PROVIDER, kind: d::WayKind::SignIn })
     );
-    assert!(d::pages::accounts::document(root.client()).expect("account fixture state").last_end.is_some());
     assert_eq!(
-        root.pages().connect_model().expect("account fixture state").request.sign_in_address(root.client()),
-        None
+        d::pages::accounts::document(root.client())
+            .expect("account fixture state")
+            .last_end
+            .as_ref()
+            .expect("sign-in end")
+            .source,
+        source
     );
+    assert!(root.pages().connect_model().is_none());
     patches = skein_lib::Queue::with_capacity(bounds.tree.patches);
     temper_client_view::build(&mut view, root, fixtures::NOW, &mut patches);
     let text: Vec<u8> =
         view.tree().nodes().iter().flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied())).collect();
-    assert!(String::from_utf8(text).expect("view words").contains("Signed in to ChatGPT as alice@example.com"));
+    assert!(
+        String::from_utf8(text)
+            .expect("view words")
+            .contains("Added your ChatGPT plan. temper’s agents now run on it.")
+    );
+    assert!(view.tree().nodes().iter().any(|node| node.role == skein_ui::Role::Disclosure
+        && node.name.as_ref().is_some_and(|name| skein_lib::bytes::find(name, b"alice@example.com").is_some())));
 }
 
 #[test]
@@ -140,8 +146,8 @@ fn a_client_shows_a_third_account_at_two_rows() {
     // Three independently keyed adds exercise one row beyond the client's two-row bound.
     const NAMES: [[u8; 16]; 3] = [[113; 16], [114; 16], [115; 16]];
     let (mut front, mut root) = accounts::small_rows_fixture(fixtures::SEED);
-    accounts::event(&mut front, &mut root, select());
     for name in NAMES {
+        accounts::event(&mut front, &mut root, select());
         accounts::event(
             &mut front,
             &mut root,

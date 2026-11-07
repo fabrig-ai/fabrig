@@ -275,7 +275,7 @@ pub(super) fn ending(end: c::AccountEnd, display: &[u8]) -> d::Domain {
     root
 }
 #[test]
-fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
+fn a_key_lands_on_accounts_with_its_line_and_chat_link() {
     let (mut root, _) = flow_fixture(d::WayKind::Key);
     let mut view = fixtures::view();
     assert!(fixtures::find(fixtures::build(&mut view, &root), Role::TextField, b"Key (pasted once)").is_some());
@@ -289,9 +289,7 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });
     answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
     let text = words(&root);
-    for expected in
-        ["Ready", "Added your OpenAI API key", "temper’s agents now run on it.", "Account", "Pays for", "Your own work"]
-    {
+    for expected in ["Accounts", "Added your OpenAI API key. temper’s agents now run on it."] {
         assert!(text.contains(expected), "missing {expected}");
     }
     assert!(!format!("{:?}", fixtures::page_view(&root)).contains("private-once"));
@@ -331,7 +329,7 @@ fn a_key_added_on_the_welcome_continues_to_its_ready() {
     );
 }
 #[test]
-fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
+fn a_program_keeps_its_command_while_its_check_is_out() {
     let (mut root, _) = flow_fixture(d::WayKind::Program);
     for expected in [
         "Your Claude subscription",
@@ -365,15 +363,12 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
         attempt,
         c::DocumentOutcome::AccountProgramDeclared { source: 43, name: Box::from(b"claude-alice".as_slice()) },
     );
-    let text = words(&root);
-    for expected in [
-        "Declared your Claude subscription · claude-alice",
-        "temper program-login --config CONFIG --data DATA --cache CACHE claude-alice",
-        "Run this on each host temper’s agents run on, in a terminal there:",
-        "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
-    ] {
-        assert!(text.contains(expected), "missing {expected}");
-    }
+    assert!(!words(&root).contains("Declared your Claude subscription"));
+    assert!(words(&root).contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-alice"));
+    assert!(
+        root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_none(),
+        "declaration chains its host check"
+    );
 }
 #[test]
 fn a_sign_in_address_without_a_request_offers_its_button() {
@@ -384,51 +379,40 @@ fn a_sign_in_address_without_a_request_offers_its_button() {
     assert!(words(&root).contains("Your ChatGPT plan"));
 }
 #[test]
-fn a_completed_sign_in_is_ready_and_can_be_started_again() {
+fn a_completed_sign_in_lands_with_a_quiet_chat_and_usage_in_its_row() {
     let root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
-    let text = words(&root);
-    for expected in [
-        "Signed in to ChatGPT as alice@example.com",
-        "temper’s agents now run on your ChatGPT plan.",
-        "Account",
-        "Pays for",
-    ] {
-        assert!(text.contains(expected), "missing {expected}");
-    }
+    assert_eq!(root.pages().address(), &d::Address::Accounts);
     let mut view = fixtures::page_view(&root);
-    let primary: Vec<_> = view
-        .tree()
-        .nodes()
-        .iter()
-        .filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY))
-        .map(|n| n.name.as_deref().unwrap())
-        .collect();
-    assert_eq!(primary, [b"Start a chat".as_slice()]);
-    assert!(fixtures::find(view.tree(), Role::Link, b"Manage usage").is_some());
-    let node = fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").unwrap();
-    let Some(d::Action::Pages(d::pages::Act::ConnectModel(M::SignIn { .. }))) = crate::act(&mut view, node, Act::Press)
-    else {
-        panic!("sign-in binding")
-    };
+    let line = super::inbox::styled(view.tree(), crate::look::CONNECT_CONFIRM);
+    let nodes = super::inbox::subtree(view.tree(), line);
+    assert!(nodes.iter().any(|n| {
+        n.text.iter().any(|r| r.text.as_ref() == "Added your ChatGPT plan. temper’s agents now run on it.".as_bytes())
+    }));
+    let chat = nodes.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Start a chat")).unwrap();
+    assert!(chat.styles.as_slice().contains(&crate::look::CONNECT_QUIET));
+    let chat_id = chat.id;
+    assert_eq!(
+        crate::act(&mut view, chat_id, Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat { draft: false } }))
+    );
+    let row = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), crate::look::SETTINGS_ROW));
+    assert!(row.iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Manage usage")));
 }
 #[test]
 fn a_completed_sign_in_without_a_display_names_the_plan() {
-    assert!(words(&ending(c::AccountEnd::Made { account: 1, declined: false }, b"")).contains("Signed in to ChatGPT"));
+    assert!(
+        words(&ending(c::AccountEnd::Made { account: 1, declined: false }, b"")).contains("Added your ChatGPT plan.")
+    );
 }
 #[test]
-fn renewed_sign_ins_explain_how_to_add_another_account() {
+fn renewed_sign_ins_land_with_the_same_added_line() {
     for display in [b"alice@example.com".as_slice(), b""] {
         let root = ending(c::AccountEnd::Renewed { account: 1, declined: false }, display);
-        let text = words(&root);
-        assert!(text.contains(if display.is_empty() {
-            "That’s your ChatGPT account again."
-        } else {
-            "That’s alice@example.com again."
-        }));
-        assert!(text.contains("sign out of ChatGPT in your browser first, then Continue with ChatGPT."));
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Button, b"Continue with ChatGPT").is_some());
+        assert_eq!(root.pages().address(), &d::Address::Accounts);
+        assert!(words(&root).contains("Added your ChatGPT plan."));
     }
 }
+
 #[test]
 fn declined_plan_usage_offers_sign_in_again_and_a_key_link() {
     for end in

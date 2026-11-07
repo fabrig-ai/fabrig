@@ -1171,33 +1171,25 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
         }
     }
 }
+fn model_ending_in_welcome(end: jig_client::contract::AccountEnd) -> d::Domain {
+    let mut root = super::connect_model::ending(end, b"alice@example.com");
+    in_welcome(&mut root, d::WayKind::SignIn);
+    root
+}
 #[test]
-fn model_endings_have_their_heading_and_one_back() {
-    use jig_client::contract::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
-    for (end, heading) in [
-        (E::Made { account: 1, declined: false }, "Signed in to ChatGPT as alice@example.com"),
-        (E::Renewed { account: 1, declined: false }, "Signing in to ChatGPT"),
-        (E::Made { account: 1, declined: true }, "Signing in to ChatGPT"),
-        (E::Renewed { account: 1, declined: true }, "Signing in to ChatGPT"),
-        (E::Refused { refusal: R::Held { provider: 17 } }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::Misconfigured }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::SignInAgain }, "Signing in to ChatGPT"),
-        (E::Failed { failure: F::MissingScope { scope: 19 } }, "Signing in to ChatGPT"),
-    ] {
-        let mut root = super::connect_model::ending(end, b"alice@example.com");
-        let standalone = f::page_view(&root);
-        node(standalone.tree(), Role::Heading { level: 2 }, heading);
-        in_welcome(&mut root, d::WayKind::SignIn);
-        let view = f::page_view(&root);
-        if pages::welcome::model_usable(&root) == Some(true) {
-            node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
-            node(view.tree(), Role::Status, "ChatGPT plan · alice@example.com");
-            node(view.tree(), Role::Link, "Continue");
-        } else {
-            model_back(&root);
-            node(view.tree(), Role::Heading { level: 1 }, "Signing in to ChatGPT");
-        }
-    }
+fn a_made_model_keeps_the_welcomes_connected_frame() {
+    let root = model_ending_in_welcome(jig_client::contract::AccountEnd::Made { account: 1, declined: false });
+    let view = f::page_view(&root);
+    node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
+    node(view.tree(), Role::Status, "ChatGPT plan · alice@example.com");
+    node(view.tree(), Role::Link, "Continue");
+}
+#[test]
+fn a_failed_model_keeps_the_welcomes_sign_in_back() {
+    use jig_client::contract::{AccountEnd, AccountFailure};
+    let root = model_ending_in_welcome(AccountEnd::Failed { failure: AccountFailure::Misconfigured });
+    model_back(&root);
+    node(f::page_view(&root).tree(), Role::Heading { level: 1 }, "Signing in to ChatGPT");
 }
 
 fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {

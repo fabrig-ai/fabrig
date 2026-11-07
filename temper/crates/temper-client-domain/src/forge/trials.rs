@@ -100,13 +100,18 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
     match root.pages.address() {
         crate::Address::Welcome { step: crate::Step::Model { .. } | crate::Step::Ready }
         | crate::Address::ConnectModel { .. } => {}
+        crate::Address::Accounts => {
+            let Some(page) = root.pages.accounts() else { return };
+            if page.added.is_none() || !page.added_from_connect {
+                return;
+            }
+        }
         crate::Address::Welcome {
             step: crate::Step::Welcome | crate::Step::WelcomeAsked | crate::Step::Forge { .. },
         }
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::NewChat { .. }
-        | crate::Address::Accounts
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }
         | crate::Address::Chat { .. }

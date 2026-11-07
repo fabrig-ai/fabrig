@@ -491,8 +491,19 @@ impl Pages {
 pub fn me_handle() -> Handle {
     Handle { asker: Owner::Pages.asker(), number: 0 }
 }
+/// Any act on the accounts page dismisses its transient confirmation (client/README.md, 3.5).
+pub(crate) fn acted(pages: &mut Pages) {
+    if pages.accounts.added.take().is_some() {
+        pages.accounts.added_from_connect = false;
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+    }
+}
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
+    if let Event::AccountKey { .. } | Event::SignInAddress { .. } = &event {
+        pages.accounts.added = None;
+        pages.accounts.added_from_connect = false;
+    }
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
         Event::Act { act: Act::StartDraft { .. } | Act::Away(_) } => {}
@@ -859,6 +870,23 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     default_chosen(pages, client);
     switcher_chosen(pages, client, out);
     returned(pages, client, out);
+    if let Address::ConnectModel { .. } = pages.address
+        && let Some(added) = connect_model::added(pages, client)
+    {
+        went(pages, env, Address::Accounts, out);
+        pages.accounts.added = Some(added);
+        pages.accounts.added_from_connect = true;
+        out.push(Request::Replace { address: Address::Accounts });
+    } else if pages.accounts_open
+        && pages.accounts.request_row.is_some()
+        && let Some(pending) = &pages.accounts.request.pending
+        && pages.accounts.announced != Some(pending.key)
+        && let Some(added) = accounts::signed_in(&pages.accounts.request, client, None)
+    {
+        pages.accounts.announced = Some(pending.key);
+        pages.accounts.added = Some(added);
+        pages.accounts.added_from_connect = false;
+    }
     let owner = pages.accounts_open
         && match accounts::current_me(client) {
             Some(me) => me.deployment_role == Some(jig_client::contract::HeldRole::Owner),
