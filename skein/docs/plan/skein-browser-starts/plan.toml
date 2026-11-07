@@ -1,0 +1,29 @@
+draft = "skein-browser-starts"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-browser-starts/inputs/request.md", "skein/tests/ui-web/tests/browser_harness.rs", "skein/tests/ui-web/tests/support/tab.rs", "skein/tests/browser/tests/browser_real.rs", "skein/tests/browser/tests/browser_facts.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "in-turn"
+title = "One person plays a run's stories in turn, and a failure names its story"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 14.2"
+
+[[part]]
+id = "harness-world"
+title = "What the harness does with a child or a peer is tested at a fake browser in focused"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 14.2"
+
+[[slice]]
+id = 1
+story = "skein's browser tier starts one Chromium where many stories can share it, and holds only what a browser shows"
+parts = ["in-turn", "harness-world"]
+walk = false
