@@ -6,9 +6,6 @@
   - 3.4, 7: `string::decode` takes a plain run a byte at a time, through
     `next`, `Buffer::room` and `Buffer::put`, and the text buffer is a
     `List<u8>`.
-  - 4, 7: the writing pass measures each string and checks its text.
-    `escaped_len` and `write_escaped_content` make calls per plain byte.
-  - 6: the step rows and the sweep of plain runs written.
   - 6: the step rows and the sweep of plain runs read.
   - 6: the fuzz target.
 - **Departs:**

@@ -11,6 +11,20 @@ use skein_lib::{List, bytes};
 use crate::tokenizer::Error;
 use crate::utf8::Utf8;
 
+/// What follows the plain bytes at the head of `bytes` (json.md, 3.4): ASCII
+/// a string holds as it is, which needs no escape and no state of UTF-8. A
+/// slice pattern and a match make no call per byte (json.md, 7).
+pub(crate) fn after_plain(bytes: &[u8]) -> &[u8] {
+    let mut rest = bytes;
+    while let [byte, ref after @ ..] = *rest {
+        match byte {
+            0x20..=0x21 | 0x23..=0x5B | 0x5D..=0x7F => rest = after,
+            0x00..=0x1F | b'"' | b'\\' | 0x80..=0xFF => break,
+        }
+    }
+    rest
+}
+
 /// Retention chosen by the pending demand (json.md, 3.1).
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Retention {
