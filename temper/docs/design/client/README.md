@@ -6555,14 +6555,21 @@ own tests:
   a new chat selects, personal accounts alone, and no retained line or
   additional Settings act.
 
-- **Account groups and "All models"** (3.5): the `model-picker` look takes
-  the offer's account ids and `picker` flags to group by what pays and expose
-  every offered model, including those outside the short picker. A stopped
-  account keeps its own fix beside another usable account of that provider.
-  Until that look, the chooser groups by provider and shows `picker` models.
-  Settings, Models, its switches and adding by name belong to the catalogue's
-  store step; reading providers' lists and "Read again" to its lists step
-  (`../draft/model-catalogue.md`, section 7).
+- **A stopped account beside a usable one** (3.5): the provider's fix line
+  is drawn only when it has no offered model. A separate fix for each stopped
+  account, even beside a usable account of that provider, remains the catalogue's
+  requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
+  line until those account rows are designed.
+- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
+  switches, adding by name and direction to Configure temper for a default
+  change belong to the catalogue's store step. Provider-list reads, "Read again",
+  failed-read words, estimated prices and "new" on All models belong to its
+  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
+  no "new", and All models links to Accounts with "Accounts, in Settings".
+- **The next run after a picker amendment** (3.5, 5.5): `ui-model-next-turn`
+  owns carrying the stored model and effort through to the next provider
+  request. Default: the choice is applied by one press; the runtime repair
+  and its proof remain that plan's, with the mismatch in `README.status.md`.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

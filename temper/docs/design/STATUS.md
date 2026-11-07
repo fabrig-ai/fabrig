@@ -45,9 +45,12 @@ and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
-listing and the configuring chat's chooser are built. Account groups and
-"All models" await the separate picker look; an unusable account's fix is
-hidden beside a usable one of the same provider (`client/README.md`). The
+listing and the configuring chat's chooser are built. Model and effort sit
+at every chat's composer, grouped by account with "All models"; their render
+and fake-box press proof is recorded. A stored amendment can leave the next
+provider request on the previous model, assigned to `ui-model-next-turn`;
+an unusable account's fix remains hidden beside a usable one of the same
+provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
@@ -156,7 +159,8 @@ quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 17 tests, five past its cap. The four reading stories
+The browser tier holds 18 tests, six past its cap; the picker story is
+compiled and awaits its after-landing run. The four reading stories
 pass with ctl history and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
