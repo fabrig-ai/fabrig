@@ -1,20 +1,23 @@
-# ui-agent-keys: PgUp and PgDn read back on an agent's page
+# ui-forge-setup: skein's forge setup says who a forge account is
 
-temper/qa's post-landing check at `0868043f4d`, on fake backends, high: **PgUp and PgDn do nothing on an agent's page.** From the focused message box, 0 px on both keys, while text streams and just after a turn ends, and focus stays in Message. A goal's untracked page behaves the same. The page shows no error. A chat's page is fine: PgUp moved a screen of 520 px, the place held while words arrived, and PgDn came back. Report on fab's host: `~/src/fabrig/coord/codex-kit/reports/long-chat-1.md`; evidence on hetzner8 under `~/src/fabrig/fab/walks/long-chat-1/keys/`.
-
-**Likely cause, read and not traced further:** `temper-client-shell-web/task-pages.css`, lines 49 and 50, makes `.temper-thread` the scroller on that page and gives `[role=log]` `overflow: visible`, while skein's `ScrollScreen` (`skein-ui-web/src/page.rs`, near 882 to 896) acts on the log, which has nothing to scroll.
+The second piece of `temper/docs/design/draft/forge-identity.md`, on the user's word: section 4's generic part, in skein, as a plan of its own before temper's story. Section 3's hole is closed (`ui-forge-reviewer`). temper's link, its record and its card are the next plan: don't build them here, and no system or product is named in skein.
 
 ## What this plan makes true
 
-An agent's page and a goal's untracked page read back by PgUp and PgDn from the message box as a chat's does, a screen at a time, with Latest and the kept place working as on a chat. Take the smallest fix that makes one scrolling element hold: the log as the scroller on these pages, as on a chat, is the first to try, since a chat's page already proves it. Check that nothing else on those pages relies on `.temper-thread` scrolling, wide or at 420. A generic change in skein isn't wanted unless the page truly can't be the same; if so, say why.
+1. **`Reconcile` is given a login and answers an id** (4.1; skein's `docs/design/forge-setup.md`, 4.1 and 4.3): `Reconcile { forge, adopted }` is also given the person's login, reads `GET /users/<login>` on the set-up's admin token, and answers its `id` in `Done`. With no login given, it reads nothing, as a fake forge's. An account gone isn't a failure: it answers none.
+2. **`owner` is decoded from `GET /app`** (4.2; `forge-setup.md`, 5.2 and 5.6; `forge-github.md`), with `id`, `login` and `type`, in `Convert` and `Reconcile`, each of which already reads it and checks the App's id. It's answered to the caller. A read that fails changes nothing and reports it, as any. The live conformance adds it: written and compiled, not run, as it hasn't been measured on `GET /app` itself.
+3. **A new secret item, `AppMade`** (4.2; `forge-setup.md`, 6.4): `Convert` writes it first, its bytes the App's id, as `Copying` is written first, and it's kept in the secrets' store with `AppId`.
 
-A focused test in the lowest world that shows it, if one can hold which element scrolls: a row of an existing table. temper/qa rewalks after it lands. No browser here, no render check, by the user's rule that a plan is complete when it lands. No new browser test.
+Read section 4.1, 4.2 and 8 before cutting, for why these and not `GET /apps/<slug>` or a person task. `forge-setup.md` and `forge-github.md` change with the code, and `draft/forge-identity.status.md`'s 4.1 and 4.2 lines go. temper's callers keep compiling and ignore the new answers, or pass no login, until the next plan.
 
-Beside it, and only if it's a line: while a long chat's head waits for earlier rows, repeated PgUp moves nothing for a while (88 s and 293 presses to the start of a chat after a sign-in, with 238 sample pairs of no movement). Read why. If a press is simply dropped while a read is pending, keep it. If that's more than small, leave it, and say so in the report.
+## Limits
+
+One or two tasks. An interface change in skein's forge setup: none of the crates that need a word to hearth/core, by my reading, but say if one is. Focused and fuzzy alone, as below: no browser, walk or render check, and no live run. New cases are rows of an existing table test, and skein's budgets apply.
 
 ## Sources
 
-- `temper/crates/temper-client-shell-web/task-pages.css`
+- `temper/docs/design/draft/forge-identity.md`
+- `skein/docs/design/forge-setup.md`
 
 ## For every task of this plan
 

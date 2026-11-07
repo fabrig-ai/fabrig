@@ -78,7 +78,8 @@ fn composed_notices_reach_the_accounts_child_before_the_attempt_ends() {
                             accounts::Stored::Source { .. }
                             | accounts::Stored::Issued { .. }
                             | accounts::Stored::Account { .. }
-                            | accounts::Stored::Next { .. } => None,
+                            | accounts::Stored::Next { .. }
+                            | accounts::Stored::Facts { .. } => None,
                         })
                         .expect("the accounts child saves the source's hold");
                     assert_eq!(held.is_some(), reset.is_some(), "unknown stays unknown");

@@ -182,12 +182,17 @@ fn an_idle_workers_login_is_checked_at_its_interval() {
     step(
         &mut domain,
         &env,
-        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(LoginState::Usable) },
+        Event::SourceAnswered {
+            owner,
+            answer: host::sources::Answer::Checked { state: LoginState::Usable, email: None },
+        },
         &mut out,
     );
     assert_eq!(
         out.pop(),
-        Some(Request::Link(host::LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable }]) }))
+        Some(Request::Link(host::LinkUp::Logins {
+            logins: Box::new([Login { name, state: LoginState::Usable, email: None }])
+        }))
     );
     let due = env.now.saturating_add(env.limits.host.source_interval);
     assert_eq!(domain.agent().agents(), 0, "no agent can wake the idle worker");
@@ -213,13 +218,16 @@ fn an_idle_workers_login_is_checked_at_its_interval() {
     step(
         &mut domain,
         &env,
-        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(LoginState::NotSignedIn) },
+        Event::SourceAnswered {
+            owner,
+            answer: host::sources::Answer::Checked { state: LoginState::NotSignedIn, email: None },
+        },
         &mut out,
     );
     assert_eq!(
         out.pop(),
         Some(Request::Link(host::LinkUp::Logins {
-            logins: Box::new([Login { name, state: LoginState::NotSignedIn }])
+            logins: Box::new([Login { name, state: LoginState::NotSignedIn, email: None }])
         }))
     );
     assert!(out.is_empty(), "the lapse is published at the interval");

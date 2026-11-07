@@ -436,7 +436,7 @@ fn conversion_replies(service: &mut crate::Service) -> Face {
 #[test]
 fn written_is_answered_only_after_kept_and_the_routing_rows_follow_each_keep() {
     let (mut service, mut face) = writing();
-    for expected in [Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
+    for expected in [Item::AppMade, Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
         assert!(service.engine.as_ref().expect("engine").setup.answers.is_empty(), "Written must wait for Kept");
         assert!(
             (match service.engine.as_ref().expect("engine").forge_records.rows.forge(1) {

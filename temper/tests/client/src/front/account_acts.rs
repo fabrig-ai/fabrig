@@ -130,6 +130,7 @@ pub fn restart_trial(front: &mut Joint, root: &mut Root) {
         .map(|source| jig_domain_link::Login {
             name: jig_domain_link::SourceName::new(source.name.as_deref().expect("program name")).expect("source name"),
             state: jig_domain_link::LoginState::Usable,
+            email: None,
         })
         .collect();
     let config = front.trial_config.take().expect("trial fixture configuration");
@@ -216,6 +217,7 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
             logins: Box::new([Login {
                 name,
                 state: if usable { LoginState::Usable } else { LoginState::NotSignedIn },
+                email: None,
             }]),
         },
         engine::Parts::none(),

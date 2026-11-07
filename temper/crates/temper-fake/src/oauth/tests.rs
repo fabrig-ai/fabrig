@@ -7,7 +7,8 @@
 )]
 #![expect(clippy::default_numeric_fallback, reason = "serde JSON fixture integers")]
 use super::{
-    CODE_SLOTS, DOCUMENT_BYTES, Document, PLAN_SLOTS, SCOPES, URI_BYTES, credential, issuer, limits, plan, read, refill,
+    CODE_SLOTS, DOCUMENT_BYTES, Document, PLAN_SLOTS, SCOPES, URI_BYTES, account, credential, issuer, limits, plan,
+    read, refill,
 };
 use crate::Refusal;
 use alloc::vec::Vec;
@@ -207,6 +208,7 @@ fn three_code_exchanges_and_a_refresh_keep_the_fixed_bearer() {
     let endpoint = config.token_endpoint.clone();
     let authorization = config.authorization_url.clone();
     let mut issuer = issuer::Issuer::new(config, limits()).unwrap();
+    issuer.sign_in_as(account()).unwrap();
     let keys = step(
         &mut issuer,
         issuer::Event::Get {
@@ -242,6 +244,9 @@ fn three_code_exchanges_and_a_refresh_keep_the_fixed_bearer() {
         assert_eq!(claims["iss"], "http://127.0.0.1:8123");
         assert_eq!(claims["aud"], "issued-client");
         assert_eq!(claims["sub"], "fake-person");
+        assert_eq!(claims["email"], "sam@example.com");
+        assert_eq!(claims["email_verified"], true);
+        assert_eq!(claims["name"], "Sam");
         assert_eq!(claims["nonce"], "fake-nonce");
         assert_eq!(claims["exp"], 86_400_u64);
     }

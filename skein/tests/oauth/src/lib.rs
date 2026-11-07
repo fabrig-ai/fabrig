@@ -243,6 +243,7 @@ pub fn openid_registration() -> oauth::Registration {
     registration.scope = boxed(b"openid read");
     let mut additions = terms();
     additions.openid = Some(oauth::OpenId {
+        profile: skein_oauth::Profile::default(),
         issuer: boxed(b"https://issuer.example"),
         key_set: Some(boxed(b"https://issuer.example/keys")),
     });

@@ -46,10 +46,12 @@ pub enum Held {
     Moving,
 }
 
-/// A record of the accounts' family: the counter's one row, an account, or one of its sources.
+/// A record of the accounts' family: its counter, reservations, accounts, sources and facts.
 /// An account's uses name exactly its payers, or leave the default (accounts.md, 4.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// What the provider says, kept apart from the account (accounts.md, 3.7).
+    Facts { account: u32, facts: Box<[crate::AccountFact]> },
     /// The number the counter gives next; no number below it is given again.
     Next { number: u32 },
     /// A lifetime reservation, retained after removal; also names unresolved host cleanup.
@@ -69,13 +71,14 @@ pub enum Stored {
     Source { account: u32, number: u32, place: u32, kind: Kind, name: Box<[u8]>, held: Option<Held> },
 }
 
-/// A record's key in the store: the counter's one row, an account, and an account's source.
+/// A record's key in the store (jig/docs/design/protocol/store.md, 4.4).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Next,
     Account { number: u32 },
     Source { account: u32, number: u32 },
     Issued { number: u32 },
+    Facts { account: u32 },
 }
 
 impl Stored {
@@ -83,6 +86,7 @@ impl Stored {
     pub const fn key(&self) -> Key {
         match self {
             Stored::Next { .. } => Key::Next,
+            Stored::Facts { account, .. } => Key::Facts { account: *account },
             Stored::Issued { number, .. } => Key::Issued { number: *number },
             Stored::Account { number, .. } => Key::Account { number: *number },
             Stored::Source { account, number, .. } => Key::Source { account: *account, number: *number },

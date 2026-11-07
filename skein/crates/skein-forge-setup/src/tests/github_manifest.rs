@@ -71,7 +71,9 @@ fn form(given: &Given, target: &Target) -> (Box<[u8]>, Box<[u8]>) {
         | Need::Draw(_)
         | Need::Stop(_)
         | Need::Done(
-            Outcome::Nothing
+            Outcome::Made { .. }
+            | Outcome::Person { .. }
+            | Outcome::Nothing
             | Outcome::Created { .. }
             | Outcome::Copied { .. }
             | Outcome::Identity { .. }

@@ -125,7 +125,10 @@ fn parent_step(parent: &mut Parent, event: Event, out: &mut Queue<Need>) {
         Some(Progress::Pending(need)) => out.push(need),
         Some(Progress::Complete) => {
             parent.continued = true;
-            out.push(Need::Done(Outcome::Lacking { lacking: parent.lacking.take().expect("parent continues once") }));
+            out.push(Need::Done(Outcome::Lacking {
+                owner: None,
+                lacking: parent.lacking.take().expect("parent continues once"),
+            }));
         }
         None => (),
     }
@@ -151,7 +154,7 @@ fn a_hook_patch_must_answer_before_the_parent_continues() {
     parent_step(&mut parent, config(URL), &mut out);
     assert!(parent.continued);
     assert_eq!(out.len(), 1);
-    assert_eq!(out.pop(), Some(Need::Done(Outcome::Lacking { lacking: expected })));
+    assert_eq!(out.pop(), Some(Need::Done(Outcome::Lacking { owner: None, lacking: expected })));
     parent_step(&mut parent, config(URL), &mut out);
     assert!(out.is_empty());
 }
@@ -220,11 +223,11 @@ fn hook_steps_reject_unasked_events_and_end_once() {
 #[expect(clippy::disallowed_macros, reason = "check secret bytes in diagnostic text and numeric Debug forms")]
 fn a_lacking_outcome_and_hook_failure_contain_no_secret() {
     let app = fixtures::app();
-    let outcome = Outcome::Lacking { lacking: checks::lacks(&app) };
+    let outcome = Outcome::Lacking { owner: None, lacking: checks::lacks(&app) };
     let mut app = app;
     app.permissions = Box::new([]);
     app.events = Box::new([]);
-    let lacking = Outcome::Lacking { lacking: checks::lacks(&app) };
+    let lacking = Outcome::Lacking { owner: None, lacking: checks::lacks(&app) };
     for phase in [0, 1, 2] {
         let mut machine = at(phase);
         let live = format!("{machine:?}");

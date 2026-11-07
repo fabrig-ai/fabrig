@@ -9,7 +9,10 @@ use smith_host_domain::{FailureReason, ProgramFailure, ProgramMethod};
 #[test]
 fn a_program_answer_becomes_its_state() {
     let rows = [
-        (Ok(SourceAnswer::Check(ProgramCheck::Usable)), serde_json::json!({"state":"usable","until":null})),
+        (
+            Ok(SourceAnswer::Check(ProgramCheck::Usable { email: None })),
+            serde_json::json!({"state":"usable","until":null}),
+        ),
         (
             Ok(SourceAnswer::Check(ProgramCheck::NotSignedIn)),
             serde_json::json!({"state":"program_not_signed_in","program":"claude_code"}),

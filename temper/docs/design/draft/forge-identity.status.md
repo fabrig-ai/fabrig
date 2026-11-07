@@ -5,8 +5,6 @@
 - **Design lags:**
   - 3: `../domain/forge.md`, section 4: no link in the one lookup. `../protocol/forge.md`, 2.1: no link on the forge's record.
   - 3 and 9: `../domain/agent.md`, 8.1 and section 10: the inventory names each forge, but the configured owned-forge login supplies no verified identity for the box's owner; the instructions and the open question for a person known by login alone still rely on adoption.
-  - 4.1: `../protocol/setup.md`, 5.2, and skein's `forge-setup.md`, 4.1 and 4.3: `Reconcile` is given no login and answers no id.
-  - 4.2: `../protocol/setup.md`, 17.2, and skein's `forge-setup.md`, 5.2, 5.6 and 6.4 and `forge-github.md`, and `../protocol/credentials.md`: no `owner` from `GET /app`, no `AppMade`.
   - 4.4: `../domain/forge.md`, section 4: adoption seeds every human collaborator.
   - 6: `../client/README.md`, 5.13: the proposal doesn't say what a rule holds against on a box. `../protocol/setup.md`, section 15: CI's isolation doesn't name approvals.
   - 7: `../domain/forge.md`, 8.9 and `../protocol/configuration.md`, section 13: eligibility counts an account on any forge of the project, not on the forge of each repository the rule covers, and the refusal's words.

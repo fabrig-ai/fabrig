@@ -508,6 +508,7 @@ fn claude_offer_world() -> World {
                 *logins = Box::new([jig_domain_link::Login {
                     name: jig_domain_link::SourceName::new(b"claude-login").expect("fake login name"),
                     state: jig_domain_link::LoginState::Usable,
+                    email: None,
                 }]);
                 answered = true;
             }

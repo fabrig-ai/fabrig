@@ -36,7 +36,7 @@ fn the_binary_signs_in_and_reports_its_status() {
     assert!(status.stderr.is_empty());
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&status.stdout).expect("status JSON"),
-        serde_json::json!({"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty"})
+        serde_json::json!({"loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "email": "you@example.com"})
     );
     let records = observations(&fs::read(config.join(OBSERVATIONS_FILE)).expect("observations"));
     assert_eq!(records.len(), 2);

@@ -1,6 +1,6 @@
 # accounts: status
 
-2026-11-06. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-07. Where jig's code lags or departs from [accounts.md](accounts.md).
 
 - **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request

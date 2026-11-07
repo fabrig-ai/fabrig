@@ -313,7 +313,7 @@ fn program_inventory(core: &mut Core, env: &Env<Limits>, state: LoginState) {
         env,
         Event::Fleet(fleet::Event::Logins {
             channel: Token::new(17),
-            logins: Box::new([Login { name: SourceName::new(b"personal").expect("source"), state }]),
+            logins: Box::new([Login { name: SourceName::new(b"personal").expect("source"), state, email: None }]),
         }),
     ));
 }

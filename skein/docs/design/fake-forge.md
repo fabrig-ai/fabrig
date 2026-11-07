@@ -905,7 +905,9 @@ faults; the service and the hosted peer each have an allocator binary.
   change the store. The bot read needs no credential and answers its
   `login`, `id` and `type: "Bot"`; another slug is `404`. The scenario
   owns the domain bot's stable id, distinct from the App's id; conversion
-  skips it when allocating an App id.
+  skips it when allocating an App id. `GET /app` names the App's account
+  from the scenario's accounts, `id`, `login` and a `type` from the
+  account's kind; an owner no account holds answers none.
 - **Installations and their tokens.** An installation is an account and
   either all its repositories or a list of them, and may be suspended.
   A repository's `owner.type` is its account's kind, so one an

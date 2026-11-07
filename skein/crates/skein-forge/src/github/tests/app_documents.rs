@@ -200,7 +200,7 @@ struct DocumentCase {
     expected: Document,
     rows: Box<[Row]>,
 }
-fn documents() -> [DocumentCase; 13] {
+fn documents() -> [DocumentCase; 25] {
     [
         DocumentCase { kind: Kind::Installation, body: INSTALLATION, expected: Document::Installation(installation()), rows: Box::from([]) },
         DocumentCase { kind: Kind::InstallationRows, body: br#"[{"id":18446744073709551615,"account":{"login":"o","id":9007199254740993,"type":"Organization"},"created_at":"2026-10-20T08:00:00Z"},{"id":2,"account":{"login":"u","id":3,"type":"User"},"created_at":"2026-10-20T08:00:00Z","suspended_at":"2026-10-20T09:00:00Z"},{"id":4,"account":{"login":"v","id":5,"type":"User"},"created_at":"2026-10-20T08:00:00Z","suspended_at":null}]"#, expected: Document::Rows, rows: Box::from([Row::Installation(installation()), Row::Installation(document::Installation { id: 2, login: Box::from(*b"u"), account: 3, kind: Account::User, created: wall(), suspended: true }), Row::Installation(document::Installation { id: 4, login: Box::from(*b"v"), account: 5, kind: Account::User, created: wall(), suspended: false })]) },
@@ -208,7 +208,19 @@ fn documents() -> [DocumentCase; 13] {
         DocumentCase { kind: Kind::ReachableRows, body: br#"{"total_count":10,"repository_selection":"selected","repositories":[{"id":18446744073709551615,"owner":{"id":9007199254740993,"login":"o","type":"Organization"},"name":"n","private":true,"ignored":[{"a":[false]}]},{"id":2,"owner":{"id":3,"login":"u"},"name":"public","private":false}]}"#, expected: Document::Rows, rows: Box::from([Row::Reachable(reachable()), Row::Reachable(document::Reachable { id: 2, owner: 3, login: Box::from(*b"u"), name: Box::from(*b"public"), private: false })]) },
         DocumentCase { kind: Kind::Viewer, body: br#"{"data":{"viewer":{"login":"probe[bot]","databaseId":9007199254740993,"id":"ignored"}},"ignored":[null]}"#, expected: Document::Viewer(viewer()), rows: Box::from([]) },
         DocumentCase { kind: Kind::Viewer, body: br#"{"data":null,"errors":[{"type":"FORBIDDEN","message":"refused","path":["viewer"]},{"ignored":[{"nested":false}]}]}"#, expected: Document::Graphql(graphql()), rows: Box::from([]) },
-        DocumentCase { kind: Kind::App, body: br#"{"id":18446744073709551615,"slug":"probe","permissions":{"contents":"write"},"events":["push"]}"#, expected: Document::App(document::App { id: u64::MAX, slug: Box::from(*b"probe"), permissions: Box::from([document::Permission { name: Box::from(*b"contents"), access: document::Access::Write }]), events: Box::from([Box::<[u8]>::from(*b"push")]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":18446744073709551615,"slug":"probe","permissions":{"contents":"write"},"events":["push"]}"#, expected: Document::App(document::App { id: u64::MAX, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([document::Permission { name: Box::from(*b"contents"), access: document::Access::Write }]), events: Box::from([Box::<[u8]>::from(*b"push")]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":null}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"ada","type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: Some(document::AppOwner { id: 7, login: Box::from(*b"ada"), kind: Account::User }), permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"acme","type":"Organization"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: Some(document::AppOwner { id: 7, login: Box::from(*b"acme"), kind: Account::Organization }), permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"login":"ada","type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":9,"slug":"acme"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"ada"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":0,"login":"ada","type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"","type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"ada","type":"Bot"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":7,"login":"ada","type":null}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
+        DocumentCase { kind: Kind::App, body: br#"{"id":1,"slug":"probe","owner":{"id":null,"login":"ada","type":"User"}}"#, expected: Document::App(document::App { id: 1, slug: Box::from(*b"probe"), owner: None, permissions: Box::from([]), events: Box::from([]) }), rows: Box::from([]) },
         DocumentCase { kind: Kind::HookConfig, body: br#"{"url":"https://example.invalid/hook","content_type":"json","insecure_ssl":"0"}"#, expected: Document::HookConfig(document::Hook { url: Box::from(*b"https://example.invalid/hook") }), rows: Box::from([]) },
         DocumentCase { kind: Kind::Conversion, body: CONVERSION, expected: Document::Conversion(conversion()), rows: Box::from([]) },
         DocumentCase { kind: Kind::BotUser, body: br#"{"id":18446744073709551615,"login":"probe[bot]"}"#, expected: Document::BotUser(u64::MAX), rows: Box::from([]) },
@@ -229,6 +241,14 @@ fn github_app_documents_decode() {
         }
     }
     for (kind, body, expected) in [
+        (Kind::App, br#"{"id":1,"slug":"probe","owner":{"id":"7"}}"#.as_slice(), Malformed::Shape { field: b"id" }),
+        (Kind::App, br#"{"id":1,"slug":"probe","owner":{"login":7}}"#.as_slice(), Malformed::Shape { field: b"login" }),
+        (
+            Kind::App,
+            br#"{"id":1,"slug":"probe","owner":{"type":false}}"#.as_slice(),
+            Malformed::Shape { field: b"type" },
+        ),
+        (Kind::App, br#"{"id":1,"slug":"probe","owner":[]}"#.as_slice(), Malformed::Shape { field: b"" }),
         (Kind::App, br#"{"slug":"probe"}"#.as_slice(), Malformed::Missing { field: b"id" }),
         (Kind::App, br#"{"id":null,"slug":"probe"}"#, Malformed::Missing { field: b"id" }),
         (Kind::BotUser, br#"{"id":18446744073709551616}"#, Malformed::Range { field: b"id" }),

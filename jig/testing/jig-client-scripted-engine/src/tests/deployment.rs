@@ -158,6 +158,31 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
             value
                 .accounts
                 .push(Account {
+                    facts: list(
+                        vec![
+                            AccountFactValue::Text(Box::from(b"you@example.com".as_slice())),
+                            AccountFactValue::Count(123),
+                            AccountFactValue::Instant(Wall::from_nanos(127)),
+                            AccountFactValue::Span(Duration::from_nanos(131)),
+                            AccountFactValue::Share(10_000),
+                            AccountFactValue::Window(AccountWindow {
+                                length: Some(Duration::from_nanos(137)),
+                                used: Some(10_000),
+                                resets: Some(Wall::from_nanos(139)),
+                                state: 2,
+                            }),
+                        ]
+                        .into_iter()
+                        .map(|value| AccountFact {
+                            kind: 1,
+                            label: Box::from(b"label".as_slice()),
+                            value,
+                            seen: Wall::from_nanos(149),
+                            source: Some(11),
+                            origin: 6,
+                        })
+                        .collect(),
+                    ),
                     provider_name: None,
                     manage_usage: None,
                     place: 0,

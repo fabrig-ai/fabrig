@@ -26,6 +26,7 @@ fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
         RestoreRange::Accounts => {
             let interval = match key {
                 Key::Accounts(jig_domain_accounts::Key::Issued { .. }) => 0,
+                Key::Accounts(jig_domain_accounts::Key::Facts { .. }) => 2,
                 Key::Accounts(
                     jig_domain_accounts::Key::Next
                     | jig_domain_accounts::Key::Account { .. }
@@ -36,7 +37,7 @@ fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
                 | Key::Tasks(_)
                 | Key::Notes(_) => 1,
             };
-            (2, interval)
+            (3, interval)
         }
         RestoreRange::People => {
             let interval = match key {

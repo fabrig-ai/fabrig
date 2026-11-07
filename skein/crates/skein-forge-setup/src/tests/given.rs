@@ -84,6 +84,7 @@ fn valid_given_values_are_accepted() {
         given.bot_email = email.into();
         given.orgs = Box::new([login.into()]);
         given.org_owner = Some(b"ada".as_slice().into());
+        given.person = Some(login.into());
         accepted(&given, "grammar boundary");
     }
     for forge in [0, 65535] {
@@ -110,6 +111,7 @@ fn invalid(place: Place, value: &[u8]) -> Given {
             given.org_owner = Some(b"ada".as_slice().into());
         }
         Place::OrgOwner => given.org_owner = Some(value.into()),
+        Place::Person => given.person = Some(value.into()),
         Place::AdminName => given.admin_name = value.into(),
         Place::ApiName => given.api_name = value.into(),
         Place::GitName => given.git_name = value.into(),
@@ -153,6 +155,7 @@ fn invalid_given_values_name_their_place() {
         (Place::BotEmail, b"a@@b"),
         (Place::Org(0), b".bad"),
         (Place::OrgOwner, b".bad"),
+        (Place::Person, b".bad"),
         (Place::AdminName, b""),
         (Place::ApiName, b""),
         (Place::GitName, b""),
@@ -240,6 +243,7 @@ fn a_zero_limit_names_its_place() {
             | Place::Orgs
             | Place::Org(_)
             | Place::OrgOwner
+            | Place::Person
             | Place::Repositories
             | Place::FilesLimit
             | Place::FileBytesLimit
