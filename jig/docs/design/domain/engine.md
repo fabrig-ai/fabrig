@@ -2920,8 +2920,8 @@ the release nor a first start. It moves no running work.
   picker, and the highest free number, in the provider's order, each seeing the
   last. Its `first_read` is this read's time and never changes, so it's "new" once.
   Its figures are those of `new_model`, and where the list says them, its shown
-  name, its window and output, no larger than `new_model`'s, since the stock's
-  bound what a run is given (`../protocol/configuration.md`, 13.4), and its
+  name, its window and output, no larger than `new_model`'s, since the binary's
+  defaults bound what a run is given, whatever a provider allows, and its
   efforts, its default effort being `high` where it lists that, else its first.
   Its prices stay estimated.
 - **The catalogue's room.** Past `MODELS`, a name takes no number, and the

@@ -10,17 +10,17 @@ This file grows with each push. Tasks marked *to come* are not yet released.
 |---|---|---|---|---|
 | `provider-list` | `list-parse` | | 60 | a route's list body, read |
 | `provider-list` | `list-fake` | | 60 | the fake's `GET /v1/models` |
-| `provider-list` | `list-exchange` *to come* | `list-parse`, `list-fake` | 110 | one bounded GET on an endpoint |
-| `agent-read` | `agent-list` *to come* | `list-exchange` | 170 | `--list`: the agent's one request |
-| `agent-read` | `host-list` *to come* | `agent-list` | 110 | the host half runs it, the grant on stdin |
+| `provider-list` | `list-exchange` | `list-parse`, `list-fake` | 110 | one bounded GET on an endpoint |
+| `agent-read` | `agent-list` | `list-exchange` | 170 | `--list`: the agent's one request |
+| `agent-read` | `host-list` | `agent-list` | 110 | the host half runs it, the grant on stdin |
 | `worker-read` | `read-wire` | | 110 | `read list` and `list read`, inert |
 | `worker-read` | `host-read` *to come* | `read-wire`, `host-list` | 130 | the hub's queue and the worker's component |
 | `worker-read` | `temper-worker` *to come* | `host-read` | 80 | temper's worker and binary |
 | `store` | `list-surface` | | 140 | `ListRecord`, `first_read`, `Decider::List`, inert |
 | `reads` | `list-patterns` | | 80 | `keep`, `drop` and the matcher |
-| `reads` | `list-change` *to come* | `list-surface`, `list-patterns`, `read-wire` | 90 | `from_list`: what a read's rows change |
-| `reads` | `fleet-reads` *to come* | `read-wire` | 110 | the fleet holds and places a read |
-| `reads` | `account-reads` *to come* | `list-surface`, `list-patterns`, `read-wire` | 120 | when a read is due, and read again |
+| `reads` | `list-change` | `list-surface`, `list-patterns`, `read-wire` | 90 | `from_list`: what a read's rows change |
+| `reads` | `fleet-reads` | `read-wire` | 110 | the fleet holds and places a read |
+| `reads` | `account-reads` | `list-surface`, `list-patterns` | 120 | when a read is due, and read again |
 | `reads` | `core-reads` *to come* | `list-change`, `fleet-reads`, `account-reads` | 170 | an answer becomes one decision and one commit |
 | `reads` | `offer-narrows` *to come* | `list-surface`, `account-reads` | 90 | the offer and a task's first choice read `names` |
 | `page` | `client-facts` *to come* | `list-surface`, `account-reads` | 140 | `new_until`, `AccountLine.list`, `ReadLists` on the wire |
