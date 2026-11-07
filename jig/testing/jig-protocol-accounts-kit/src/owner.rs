@@ -163,6 +163,7 @@ impl Owner {
                 &child_limits,
                 child::Providers {
                     providers: Box::new([child::Provider {
+                        list: None,
                         number: 1,
                         name: b"Fake".as_slice().into(),
                         signed_in_plan: true,

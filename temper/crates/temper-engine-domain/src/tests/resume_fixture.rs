@@ -332,6 +332,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                 models: models(),
                 llm_providers: accounts::Providers {
                     providers: Box::new([accounts::Provider {
+                        list: None,
                         number: 1,
                         name: Box::from(b"Scripted".as_slice()),
                         signed_in_plan: false,

@@ -718,6 +718,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
 fn registered() -> (config::Engine, AccountsRuntime) {
     let mut config = fixtures::engine().jig;
     config.llm.providers = Box::new([config::llm::Provider {
+        list: None,
         number: 3,
         endpoint: None,
         name: b"issuer".as_slice().into(),

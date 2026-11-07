@@ -17,6 +17,7 @@ fn signing_core() -> (Core, Env<Limits>) {
     let offers = accounts::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
+            list: None,
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),

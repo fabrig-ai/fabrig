@@ -403,6 +403,7 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
         (3, "openai", vec!["gpt-6.1-sol"]),
     ] {
         providers.push(accounts::Provider {
+            list: None,
             number,
             name: name.as_bytes().into(),
             signed_in_plan: true,

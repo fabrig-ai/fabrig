@@ -40,6 +40,7 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
     }]);
     config.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
+            list: None,
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),

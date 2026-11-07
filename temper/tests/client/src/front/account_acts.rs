@@ -351,6 +351,7 @@ fn fixture_root(
         }
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
+                list: None,
                 number: PROVIDER,
                 name: Box::from(if trial_story {
                     b"anthropic".as_slice()

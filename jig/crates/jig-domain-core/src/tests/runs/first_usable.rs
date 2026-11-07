@@ -56,6 +56,7 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
         [(OPENAI, &NAMES[..2]), (CLAUDE, &NAMES[2..3]), (THIRD, &NAMES[3..])]
             .into_iter()
             .map(|(number, names)| accounts::Provider {
+                list: None,
                 number,
                 name: names[0].into(),
                 signed_in_plan: false,

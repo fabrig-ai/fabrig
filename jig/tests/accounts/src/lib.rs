@@ -119,6 +119,7 @@ pub fn source_rows(sources: &[u32]) -> Vec<Stored> {
 #[must_use]
 pub fn provider(number: u32, sign_in: bool, key: bool) -> Provider {
     Provider {
+        list: None,
         name: b"Fake".as_slice().into(),
         signed_in_plan: true,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),

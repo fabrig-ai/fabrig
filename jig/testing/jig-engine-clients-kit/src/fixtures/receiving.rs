@@ -96,6 +96,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
             redirect_bytes: 4096,
             llm_providers: jig_domain_accounts::Providers {
                 providers: Box::new([jig_domain_accounts::Provider {
+                    list: None,
                     number: 1,
                     name: b"Fake".as_slice().into(),
                     signed_in_plan: false,
