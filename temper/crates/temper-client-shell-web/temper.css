@@ -1892,6 +1892,31 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
   #app > .temper-terminal [role="listbox"].temper-terminal-choices [role="option"] { grid-template-columns: 18ch minmax(0, 1fr); }
 }
 
+/* Cards keep the terminal's type and ground. */
+#app > .temper-terminal .temper-terminal-card { display: block; background: transparent; color: var(--ink); border: 0; border-radius: 0; box-shadow: none; padding: 0; margin: 0 0 1.1em; font: inherit; }
+#app > .temper-terminal .temper-terminal-card-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 1ch; }
+#app > .temper-terminal .temper-terminal-card-line > * { margin: 0; font: inherit; }
+#app > .temper-terminal .temper-terminal-card-line .temper-proposal-kicker { color: var(--accent); text-transform: none; letter-spacing: normal; }
+#app > .temper-terminal .temper-terminal-card-line h3,
+#app > .temper-terminal .temper-terminal-card-line .temper-settings-proposal-title { color: var(--ink); font: inherit; letter-spacing: normal; text-transform: none; }
+#app > .temper-terminal .temper-terminal-card-line > div { display: flex; align-items: baseline; gap: 1ch; }
+#app > .temper-terminal .temper-terminal-card-line button,
+#app > .temper-terminal .temper-terminal-card-line a,
+#app > .temper-terminal .temper-terminal-card-line summary { border: 0; border-radius: 0; background: transparent; color: var(--dim); padding: 0; min-height: 0; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+#app > .temper-terminal .temper-terminal-card-line button:hover,
+#app > .temper-terminal .temper-terminal-card-line a:hover { color: var(--ink); }
+#app > .temper-terminal .temper-terminal-card-line .temper-recommended,
+#app > .temper-terminal .temper-terminal-card-line .temper-settings-primary { color: var(--accent); }
+#app > .temper-terminal .temper-terminal-card textarea { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: .5em 1ch; font: inherit; }
+#app > .temper-terminal .temper-terminal-card-line [role=status] { color: var(--dim); text-transform: lowercase; }
+#app > .temper-terminal .temper-terminal-card-line .temper-status-held { color: var(--accent); }
+#app > .temper-terminal .temper-terminal-details { color: var(--dim); font: inherit; margin-top: 0; }
+#app > .temper-terminal .temper-terminal-details > summary { color: var(--faint); cursor: pointer; }
+#app > .temper-terminal .temper-terminal-details > :not(summary) { margin-left: 2ch; }
+#app > .temper-terminal .temper-terminal-details * { font-family: inherit; font-size: inherit; line-height: inherit; }
+#app > .temper-terminal .temper-terminal-details .temper-settings-proposal-reason { color: var(--dim); }
+#app > .temper-terminal .temper-terminal-details .temper-settings-proposal-items { color: var(--dim); }
+
 /* ==== ui: needs ==== */
 
 /* A question that needs the person, answered in place. */

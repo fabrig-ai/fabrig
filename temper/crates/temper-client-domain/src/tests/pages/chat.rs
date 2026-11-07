@@ -2830,3 +2830,105 @@ fn a_request_past_long_text_stops_before_keeping_a_piece() {
     assert_eq!(f.chat.next_deadline(), None);
     assert!(f.out.is_empty());
 }
+
+#[test]
+fn a_terminal_chat_reads_the_question_it_waits_on() {
+    use crate::pages::{self, terminal};
+    for terminal in [false, true] {
+        for wait in [0_u8, 1, 2] {
+            let mut fixture = f::with_delegate();
+            let mut task = f::task();
+            f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+            task.run_wait = None;
+            task.waits_on = match wait {
+                0 => c::WaitsOn::Party {
+                    whom: c::Whom::Person(fixtures::chats::me().party.number),
+                    entries: 1,
+                    task: f::TASK,
+                    kind: c::WaitedFor::Question,
+                },
+                1 => c::WaitsOn::Delegates,
+                2 => c::WaitsOn::Nothing,
+                _ => unreachable!(),
+            };
+            f::deliver(&mut fixture.client, fixture.watch, task.clone());
+            let mut pages = pages::Pages::new();
+            let env = fixtures::env(&fixtures::limits());
+            let mut out = Queue::uncapped();
+            pages::step(
+                &mut pages,
+                &env,
+                &fixture.client,
+                pages::Event::Went { address: crate::Address::Chat { task: f::TASK } },
+                &mut out,
+            );
+            if terminal {
+                pages::step(
+                    &mut pages,
+                    &env,
+                    &fixture.client,
+                    pages::Event::Act { act: Act::Terminal(terminal::Act::Enter) },
+                    &mut out,
+                );
+            }
+            assert_eq!(pages.inbox().is_some(), terminal && wait == 0, "terminal {terminal}, wait {wait}");
+            let Some(inbox) = pages.inbox() else { continue };
+            let entries = inbox.entries;
+            let query = inbox.queries[0];
+            assert!(pages.chat().unwrap().next >= inbox.next);
+            while out.pop().is_some() {}
+            for _ in 0_u8..2 {
+                pages::step(
+                    &mut pages,
+                    &env,
+                    &fixture.client,
+                    pages::Event::Told { told: Told::Changed { handle: entries } },
+                    &mut out,
+                );
+                assert_eq!(
+                    out.pop(),
+                    Some(Request::Client(Event::Read {
+                        handle: query,
+                        read: Readable::Jig(c::Read::Inbox {
+                            group: c::InboxReadGroup::Needs,
+                            project: Some(task.project),
+                            kind: Some(c::InboxGroup::Questions),
+                            goal: Some(f::TASK),
+                            after: None,
+                        }),
+                    }))
+                );
+                assert!(out.is_empty());
+            }
+            pages::step(
+                &mut pages,
+                &env,
+                &fixture.client,
+                pages::Event::Act { act: Act::Terminal(terminal::Act::Leave) },
+                &mut out,
+            );
+            assert!(pages.inbox().is_none());
+            assert!(f::handles(&mut out).contains(&entries));
+            pages::step(
+                &mut pages,
+                &env,
+                &fixture.client,
+                pages::Event::Act { act: Act::Terminal(terminal::Act::Enter) },
+                &mut out,
+            );
+            let entries = pages.inbox().unwrap().entries;
+            task.waits_on = c::WaitsOn::Nothing;
+            f::deliver(&mut fixture.client, fixture.watch, task);
+            let document = pages.chat().unwrap().document;
+            pages::step(
+                &mut pages,
+                &env,
+                &fixture.client,
+                pages::Event::Told { told: Told::Changed { handle: document } },
+                &mut out,
+            );
+            assert!(pages.inbox().is_none());
+            assert!(f::handles(&mut out).contains(&entries));
+        }
+    }
+}

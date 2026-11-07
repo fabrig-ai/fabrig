@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 316;
+pub const N: usize = 318;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,8 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "chat-terminal-question", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "chat-terminal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-commands", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-model", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -1424,7 +1426,11 @@ fn start_domain(sample: &Sample) -> Domain {
 pub fn domain(sample: &Sample) -> Domain {
     use temper_client_domain::pages::terminal::{Act as T, Command};
     if sample.name.starts_with("chat-terminal") {
-        let mut root = if sample.name == "chat-terminal-closed" {
+        let mut root = if sample.name == "chat-terminal-question" {
+            crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name)
+        } else if sample.name == "chat-terminal-proposal" {
+            crate::worlds::settings_chat_world("configure-chat-proposal")
+        } else if sample.name == "chat-terminal-closed" {
             domain(&Sample {
                 name: "chat-closed",
                 world: sample.world,

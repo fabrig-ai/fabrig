@@ -55,7 +55,14 @@ impl<'a> Run<'a> {
         self.calls.is_empty()
     }
     /// Draws its turn and empties; nothing when empty and with nothing under way.
-    pub(crate) fn flush(&mut self, b: &mut Builder, current: Option<&c::CurrentCall>, running: bool, words: &Words) {
+    pub(crate) fn flush(
+        &mut self,
+        b: &mut Builder,
+        current: Option<&c::CurrentCall>,
+        running: bool,
+        words: &Words,
+        terminal: bool,
+    ) {
         if self.is_empty() && current.is_none() {
             return;
         }
@@ -66,12 +73,34 @@ impl<'a> Run<'a> {
             under_way(current, words, true)
         };
         let mut failed = 0_u64;
+        let mut failure = None;
         for call in &self.calls {
             if call.source.failed {
                 failed = failed.checked_add(1).expect("window call count");
+                if failure.is_none() {
+                    failure = Some(call);
+                }
             }
         }
-        let description = if running {
+        let duration = match (self.first, self.last) {
+            (Some(first), Some(last)) => time(first, last, words),
+            (Some(_) | None, None) | (None, Some(_)) => None,
+        };
+        let description = if terminal && let Some(call) = failure {
+            let error = match call.source.outcome.as_ref().or(call.summary) {
+                Some(text) => text.bytes(),
+                None => b"",
+            };
+            let end = skein_lib::bytes::find(error, b"\n").unwrap_or(error.len());
+            let description = joined(&[
+                &super::terminal::words::say(words, super::terminal::words::TerminalWord::Failed),
+                error.get(..end).expect("failure first line").trim_ascii_end(),
+            ]);
+            Some(match duration {
+                Some(duration) => joined(&[&description, " · ".as_bytes(), &duration]),
+                None => description,
+            })
+        } else if running {
             match current {
                 Some(call) => {
                     let description = under_way(call, words, false);
@@ -83,20 +112,14 @@ impl<'a> Run<'a> {
                 }
                 None => None,
             }
+        } else if failed == 0 {
+            duration
         } else {
-            let duration = match (self.first, self.last) {
-                (Some(first), Some(last)) => time(first, last, words),
-                (Some(_) | None, None) | (None, Some(_)) => None,
-            };
-            if failed == 0 {
-                duration
-            } else {
-                let description = words.say(Word::WorkFailedCount, &[Hole::Number(failed)]);
-                Some(match duration {
-                    Some(duration) => joined(&[&description, " · ".as_bytes(), &duration]),
-                    None => description,
-                })
-            }
+            let description = words.say(Word::WorkFailedCount, &[Hole::Number(failed)]);
+            Some(match duration {
+                Some(duration) => joined(&[&description, " · ".as_bytes(), &duration]),
+                None => description,
+            })
         };
         b.open(Role::Slot);
         b.key(self.key.unwrap_or(Key { owner: crate::frame::owner(), kind: 52, a: 0, b: 0 }));
