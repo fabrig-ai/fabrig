@@ -2752,6 +2752,49 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
     assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
 }
 
+/// agent.md, 4.3: a refused branch read says what to read instead; every
+/// other refusal keeps its one line.
+#[test]
+fn a_refused_branch_read_says_what_to_read_instead() {
+    use skein_forge::api::Error;
+    const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
+    const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    for (tool, error, expected) in [
+        (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
+        (b"read_branch", Error::Missing, BRANCH_MISSING),
+        (b"read_branch", Error::Empty, "Forge read failed: empty"),
+        (b"read_branches", Error::Missing, "Forge read failed: missing"),
+        (b"read_file", Error::Missing, "Forge read failed: missing"),
+        (b"read_pull", Error::Empty, "Forge read failed: empty"),
+    ] {
+        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(error)));
+        let rendered = crate::answer_for_tool(&refused, tool, 2048);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+        for cap in [0, 32, 64] {
+            let bounded = crate::answer_for_tool(&refused, tool, cap);
+            assert!(bounded.error());
+            assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+            assert_eq!(bounded.text(), &expected.as_bytes()[..bounded.text().len()]);
+        }
+    }
+}
+
+/// agent.md, 4.3 and 4.3.2: a declaration says what a run calls instead.
+#[test]
+fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
+    let declared = tools(Duration::from_secs(1));
+    let goal = declared.iter().find(|tool| tool.name.as_ref() == b"goal").expect("goal declared");
+    assert_eq!(goal.description.as_ref(), b"Have one goal in your words tracked and reported; it may plan, ask you and call change. Call it only for work your person wants agreed first (set agree) or a survey that changes nothing; with advisor set, it reads and reports and changes nothing. For a change to a repository, call change.");
+    let delegate = declared.iter().find(|tool| tool.name.as_ref() == b"delegate").expect("delegate declared");
+    assert!(delegate.description.ends_with(b"For a change to a repository, call change."));
+    let branches = declared.iter().find(|tool| tool.name.as_ref() == b"read_branches").expect("read_branches declared");
+    let schema = crate::json::parse(&branches.schema).expect("JSON schema");
+    let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
+    let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
+    assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+}
+
 #[test]
 fn successful_compare_over_host_bound_keeps_measured_feedback() {
     use skein_forge::api;
