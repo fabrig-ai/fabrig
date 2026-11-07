@@ -11,3 +11,4 @@ smith/benchmarks/tests/fixtures/**
 smith/benchmarks/tests/recorded/**
 skein/crates/skein-ui/src/tests/markdown/**
 skein/docs/design/forge-github.md
+skein/docs/design/draft/diagrams/**

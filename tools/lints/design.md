@@ -59,7 +59,7 @@ denied, so that the ring adapter can expect it in place; a crate here with no `u
 - **`binary`:** the crates that ship, are ordinary Rust, and hold no ring of their own: an
   application's binary and its client shells, its bundler, the browser parts, a playground it ships.
 - **`ring`:** `skein-shell`, the binaries built directly on it that hold to its rules, and hearth's
-  binary.
+  binary; `skein-fork`, a kit under `testing/` whose process boundary needs documented `unsafe`.
 
 `binary` and `ring` differ by what a crate can meet: a client shell of thousands of lines and tests
 indexes and counts as ordinary Rust does, and the ring's shell does neither next to a syscall.

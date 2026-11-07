@@ -2,6 +2,7 @@ mod binding;
 mod date;
 mod diff;
 pub(crate) mod fixtures;
+mod flow;
 mod log;
 mod look;
 mod markdown;

@@ -1,0 +1,96 @@
+draft = "limits-worlds"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-worlds/inputs/request.md", "temper/tests/real-loop/Cargo.toml", "temper/tests/real-loop/tests/suite/fuzzy/repair.rs", "temper/tests/real-loop/tests/suite/fuzzy/case_6_4.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "figures"
+title = "Where the worlds' stories spend their instructions, before any repair"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "cuts"
+title = "A crash at every live commit holds its prefix once"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[slice]]
+id = 1
+story = "the stories' costs are known by instruction, and the crash sweeps stop repeating their prefix"
+parts = ["figures", "cuts"]
+walk = false
+
+[[part]]
+id = "engine"
+title = "The causes the worlds share, fixed where they are"
+mode = "direct"
+needs = ["figures"]
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[part]]
+id = "public"
+title = "Why one public walk costs seconds"
+mode = "direct"
+needs = ["figures"]
+design = "temper/docs/design/protocol/sign-in.md, 2.5"
+
+[[part]]
+id = "conformance"
+title = "What a crash sweep's replays still cost"
+mode = "direct"
+needs = ["cuts"]
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[slice]]
+id = 2
+story = "what the profiles put in the shared engine, in the public walk and in the sweep's replays is fixed at the cause"
+parts = ["engine", "public", "conformance"]
+walk = false
+
+[[part]]
+id = "lower"
+title = "Two behaviours get their lower story first"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.4"
+
+[[part]]
+id = "belonging"
+title = "The stories whose behaviours are all held elsewhere go"
+mode = "direct"
+needs = ["lower"]
+design = "temper/docs/design/domain/testing.md, 5.3"
+
+[[slice]]
+id = 3
+story = "four stories go, each behaviour named in what holds it now, and the case's table says what is so"
+parts = ["lower", "belonging"]
+walk = false
+
+[[part]]
+id = "real-loop"
+title = "What a real-loop story costs in its own harness"
+mode = "direct"
+needs = ["figures", "belonging"]
+design = "temper/docs/design/domain/testing.md, 2.4"
+
+[[part]]
+id = "close"
+title = "What's left, for the user"
+mode = "direct"
+needs = ["figures", "cuts", "conformance", "lower", "belonging", "engine", "public", "real-loop"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 4
+story = "the real loop's harness costs what the profile lets it, and the account says what's left, with its numbers, for the user"
+parts = ["real-loop", "close"]
+walk = false

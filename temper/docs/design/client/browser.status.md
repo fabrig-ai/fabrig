@@ -19,6 +19,13 @@ separately from the drafts-on stock. The view tables hold Goals in the
 rail and phone tab bar with kind 7's Goals hidden and a goal present.
 The fresh-project flow's browser check is deferred in section 5.
 
+Sections 2.5 and 7.2 have no known implementation gap in Goals opening
+the Start goal sheet with its Draft field: `start-goal` draws that sheet
+over Goals. The shared view draws whole person-task questions and their
+choices, the cut notice and link, zero-funding words and change-only
+landings. Browser, walk and render checks of these rules remain section
+5's after-landing work; this plan adds no browser story.
+
 Section 8.3's Landings link uses the underlined row-sized sheet rule, and
 landings omit a zero stale-proof count while retaining a positive count.
 The view and sheet tests hold these rules. Titles retain the user's
@@ -192,12 +199,6 @@ keeps it; publication is not a cutoff on a handed change's commit.
   or a needless rebuild alone, because `skein_http::gzip::encode` in the dev profile
   took 4.85 CPU s of the story; so the printed figure's bytes changed (`../playground.md`,
   9).
-- **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
-  `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
-  opens nothing without both a draft and a chat; `start-goal-draft` and
-  `start-goal-refused` draw the same sheet a chat's "Start goal…" opens.
-  The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
-  Drafts filter (`README.status.md`, 3.5, *Goals*, 5.14).
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not

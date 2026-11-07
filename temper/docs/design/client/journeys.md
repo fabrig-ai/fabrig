@@ -756,8 +756,9 @@ The `configure-chat-draft` request's hand-made `configure-chat/02.html`
 through `04.html` and its README are not journeys to reprint or land
 (section 7). Its document pane and modes are shared with `chat-draft`;
 the configuring proposal states, Start over and the rail strip are also
-drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
-`skein/docs/design/draft/diagrams.md`.
+drawn by the gallery (`browser.md`, 7.2). Its drawing and figure are a flow
+(`skein/docs/design/ui.md`, 10.1), drawn in the client; the gallery measures
+no box, so a print shows its fallback.
 The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; the gallery draws those
 states, including the card and the stock reference beside the page.

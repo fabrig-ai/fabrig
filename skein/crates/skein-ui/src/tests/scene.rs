@@ -11,6 +11,30 @@ fn a_mark_past_scene_marks_refuses_the_scene() {
     assert_eq!(scene.marks().len(), 0);
 }
 #[test]
+fn a_scene_says_its_height_until_cleared_or_refused() {
+    let limits = Limits { scene_marks: 1, ..LIMITS };
+    for height in [0, 74, u16::MAX] {
+        for refuse in [false, true] {
+            let mut scene = Scene::new(&limits);
+            assert_eq!(scene.height(), None);
+            assert!(scene.rect(ZERO, Point { x: 4, y: 4 }, 0, &[]));
+            scene.set_height(1);
+            scene.set_height(height);
+            assert_eq!(scene.height(), Some(height));
+            let expected = alloc::fmt::format(format_args!("height {height}\nrect 0,0 4x4 r0\n"));
+            assert_eq!(alloc::fmt::format(format_args!("{scene}")), expected);
+            if refuse {
+                assert!(!scene.circle(ZERO, 1, &[]));
+                scene.set_height(height);
+            } else {
+                scene.clear();
+            }
+            assert_eq!(scene.height(), None, "height {height}, refuse {refuse}");
+            assert_eq!(alloc::fmt::format(format_args!("{scene}")), "");
+        }
+    }
+}
+#[test]
 fn bytes_past_scene_bytes_refuse_the_scene() {
     let limits = Limits { scene_bytes: 4, ..LIMITS };
     for kind in 0_u8..6 {

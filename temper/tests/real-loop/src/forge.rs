@@ -62,6 +62,7 @@ pub struct Snapshot {
 pub struct Seen {
     snapshots: Vec<Snapshot>,
     deliveries: Vec<Delivery>,
+    peer_records: usize,
     pub(crate) responses: Vec<u16>,
     observations: Vec<domain::Observation>,
     merged_green: bool,
@@ -118,37 +119,7 @@ impl Seen {
             .collect();
     }
     pub(crate) fn collect(&mut self, now: Time, peer: &Peer, handle: &Rc<RefCell<Forge>>, repository: &[u8]) {
-        {
-            let forge = handle.borrow();
-            let branches: Box<[_]> =
-                forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
-            let api::Answer::Pulls(pulls) = forge
-                .domain
-                .inspect(&forge.config, repository, &api::Read::OpenPulls { page: 1, limit: 32 })
-                .expect("outside open-pulls read")
-            else {
-                panic!("open pulls")
-            };
-            let pulls: Box<[_]> = pulls.iter().map(|pull| pull.number).collect();
-            if self.snapshots.last().is_none_or(|last| last.branches != branches || last.pulls != pulls) {
-                assert!(self.snapshots.len() < STORY_OBSERVATIONS as usize, "bounded forge snapshots");
-                self.snapshots.push(Snapshot { at: now, branches, pulls });
-            }
-        }
-        self.deliveries = peer
-            .observations()
-            .iter()
-            .filter_map(|record| {
-                let Observation::Delivery { outcome, .. } = record else { return None };
-                Some(match outcome {
-                    Delivery::Written => Delivery::Written,
-                    Delivery::NoAddress => Delivery::NoAddress,
-                    Delivery::NoRoom => Delivery::NoRoom,
-                    Delivery::Refused => Delivery::Refused,
-                    Delivery::Reset => Delivery::Reset,
-                })
-            })
-            .collect();
+        let previous = self.observations.len();
         loop {
             let Some(observed) = handle.borrow_mut().domain.pop_observation() else { break };
             if let domain::Observation::Merged { repository, head, .. } = &observed {
@@ -181,6 +152,39 @@ impl Seen {
             assert!(self.observations.len() < STORY_OBSERVATIONS as usize, "bounded domain observations");
             self.observations.push(observed);
         }
+        // Every forge change is observed; unchanged passes need no outside API read.
+        if self.snapshots.is_empty() || self.observations.len() != previous {
+            let forge = handle.borrow();
+            let branches: Box<[_]> =
+                forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
+            let api::Answer::Pulls(pulls) = forge
+                .domain
+                .inspect(&forge.config, repository, &api::Read::OpenPulls { page: 1, limit: 32 })
+                .expect("outside open-pulls read")
+            else {
+                panic!("open pulls")
+            };
+            let pulls: Box<[_]> = pulls.iter().map(|pull| pull.number).collect();
+            if self.snapshots.last().is_none_or(|last| last.branches != branches || last.pulls != pulls) {
+                assert!(self.snapshots.len() < STORY_OBSERVATIONS as usize, "bounded forge snapshots");
+                self.snapshots.push(Snapshot { at: now, branches, pulls });
+            }
+        }
+        self.collect_deliveries(peer.observations());
+    }
+    fn collect_deliveries(&mut self, records: &[Observation]) {
+        let suffix = records.get(self.peer_records..).expect("forge peer history never shrinks");
+        self.deliveries.extend(suffix.iter().filter_map(|record| {
+            let Observation::Delivery { outcome, .. } = record else { return None };
+            Some(match outcome {
+                Delivery::Written => Delivery::Written,
+                Delivery::NoAddress => Delivery::NoAddress,
+                Delivery::NoRoom => Delivery::NoRoom,
+                Delivery::Refused => Delivery::Refused,
+                Delivery::Reset => Delivery::Reset,
+            })
+        }));
+        self.peer_records = records.len();
     }
 }
 pub(crate) struct State {
@@ -354,3 +358,6 @@ pub fn protocol_limits() -> skein_fake_forge_forgejo::Limits {
         },
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -21,10 +21,28 @@ report task reading as a question under Needs you, on Home or in a goal's
 band. View tables cover its context, choices, recommendation, fallback and
 requester link. Domain tables cover choice, reply, Undo, refusal and the
 shown revision surviving a refresh; the terminal's Answer sends words too.
-The focused sheet-to-answer story checks the person task's report and its
-words reaching the resumed goal. The inbox filter remains person tasks;
+The focused sheet-to-answer stories check a question past the document's
+text bound, its whole `TaskText` read, a choice's press and those words
+reaching the resumed goal, from a chat's sheet and from Goals. Sections
+3.5 and 5.8 have no known implementation gap in the whole question's
+context, evidence and choices, or the cut notice and link when the read
+ends short. The inbox filter remains person tasks;
 role-addressed tasks and other contracts keep their ordinary cards. Browser,
 walk and render checks remain section 11's after-landing work.
+
+Sections 3.5, 5.8 and 5.14 have no known implementation gap in Goals'
+Start goal sheet, its typed Draft path and following Name, its zero-funding
+refusal and open-chat explanation, or counting only landed change results
+in the goal's task bar and fold. Fixed-amount ways still use the funding
+judgement. The funds card offers a waiting budget proposal conditionally,
+otherwise closing and starting again once the pool has room. Domain and
+view tables hold these rules; the gallery's `start-goal` draws the sheet.
+
+- **Design departs:** 3.5, 5.8, from `ui-goal-asks-2`'s whole-question
+  ruling, by its cut: only the first question on a goal's page draws whole;
+  later bands keep the bounded first line and Answer, to price at most one
+  `long_text` question per page (5.4). Needs you draws the selected question
+  whole. Section 11 keeps extending the bands open.
 
 Sections 3.5, 5.5 and 5.9 have no known implementation gap in the closed
 chat's header, closed agent's taskbar or the composer's named template
@@ -423,18 +441,6 @@ result supplied here (`browser.status.md`, 4.6).
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
-- **Departs:** 3.5, *Goals*, 5.14: Goals' "Start one from
-  a draft" is a link to `Chats { filter: All }`, `/chats`
-  (`temper-client-view`'s `pages/goals.rs`), where those sections have it open
-  the sheet with its Draft field. A chat's "Start goal…" opens the shared
-  sheet with its document's snapshot.
-  `temper-client-domain`'s `pages/start_goal.rs`, `open`, ignores one without
-  both a draft and a chat, so "Start a goal" and the Draft field are drawn by
-  nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
-  `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
-  link goes to Chats' Drafts filter and the sheet opens from a chat. The entry
-  still goes to All, where the rulings name Drafts, the filter being there only
-  while `drafts_offered`.
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
@@ -723,6 +729,9 @@ result supplied here (`browser.status.md`, 4.6).
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
+
+- **Not yet:** 3.5, a chat's document: temper/ui's after-landing look at a flow, in a chat and in its document.
+
 - **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task

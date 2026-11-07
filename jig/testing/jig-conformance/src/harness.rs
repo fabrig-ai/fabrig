@@ -1,7 +1,7 @@
 //! One engine, one ordered store and independently scripted neighbours.
 //! Applications translate boundaries; this loop owns commit application and
 //! checks observations after every iteration (`domain/testing.md`, 5–6).
-use crate::referee::{Observed, Policy, Referee, Violation};
+use crate::referee::{Observed, Policy, PolicySnapshot, Referee, Violation};
 use crate::trace::Trace;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -109,6 +109,12 @@ pub trait Application {
     fn peers(config: &Self::Config, seed: u64) -> Self::Peers;
     /// Borrow the complete scenario policy, including independently requested edits.
     fn policy(peers: &Self::Peers) -> &Policy;
+    /// The same complete policy as `policy`, shared immutably until an edit.
+    /// Adapters without a snapshot retain the value comparison at each inspection.
+    #[must_use]
+    fn policy_snapshot(_: &Self::Peers) -> Option<&PolicySnapshot> {
+        None
+    }
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
     /// Reconnect retained peers and observe the last durable store on a crash.
@@ -167,6 +173,8 @@ pub struct Outcome {
     pub iterations: u64,
     pub stopped: bool,
     pub crashes: Vec<u64>,
+    /// Cuts whose forked children passed, in order. A child's list starts empty.
+    pub forked: Vec<u64>,
 }
 
 /// A chosen crash just after durable application and before its acknowledgement.
@@ -178,6 +186,14 @@ pub enum Cut {
     AfterCommit(u64),
     /// Draw one cut from commit arrivals, replayable from its seed.
     Random { seed: u64 },
+    /// Fork each commit from this number, taking the same cold restart in its child
+    /// (`jig/docs/design/domain/testing.md`, 5).
+    EachCommitFrom(u64),
+}
+
+/// A forked cut's story has ended well: end its child. In the parent, return.
+pub fn cut_passed() {
+    skein_fork::passed();
 }
 
 type CommitHook<A> = Box<dyn FnMut(&Harness<A>)>;
@@ -203,6 +219,7 @@ pub struct Harness<A: Application> {
     stopped: bool,
     cut: Cut,
     crashes: Vec<u64>,
+    forked: Vec<u64>,
     commit_hook: Option<CommitHook<A>>,
 }
 
@@ -224,7 +241,10 @@ impl<A: Application> Harness<A> {
         let systems = A::systems(&config, seed);
         let mut store = A::store(&config);
         let events = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
-        let policy = A::policy(&peers).clone();
+        let policy = match A::policy_snapshot(&peers) {
+            Some(policy) => policy.clone(),
+            None => A::policy(&peers).clone().into(),
+        };
         let maximum = A::maximum(&config);
         let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&config);
@@ -246,6 +266,7 @@ impl<A: Application> Harness<A> {
             stopped: false,
             cut: Cut::None,
             crashes: Vec::new(),
+            forked: Vec::new(),
             commit_hook: None,
         }
     }
@@ -365,6 +386,10 @@ impl<A: Application> Harness<A> {
                         let mut random = skein_lib::Rng::new(seed ^ self.store.applied());
                         random.below(4) == 0
                     }
+                    Cut::EachCommitFrom(first) => {
+                        let commit = self.store.applied();
+                        commit >= first && self.fork_cut(commit)?
+                    }
                 };
                 if should_cut {
                     self.cut = Cut::None;
@@ -390,6 +415,23 @@ impl<A: Application> Harness<A> {
                 && (A::quiescent(&self.domain) || self.store.holding())))
     }
 
+    fn fork_cut(&mut self, commit: u64) -> Result<bool, Violation> {
+        match skein_fork::split() {
+            skein_fork::Split::Child => {
+                self.forked.clear();
+                Ok(true)
+            }
+            skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
+                self.forked.push(commit);
+                Ok(false)
+            }
+            skein_fork::Split::Parent(exit) => Err(Violation {
+                promise: crate::referee::Promise::Lost,
+                why: format!("forked cut at commit {commit} failed: {exit:?}"),
+            }),
+        }
+    }
+
     fn inspect(&mut self) -> Result<(), Violation> {
         Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock)
     }
@@ -402,10 +444,14 @@ impl<A: Application> Harness<A> {
         clock: Clock,
     ) -> Result<(), Violation> {
         let observations = A::observed(peers, systems, store, clock);
-        let policy = A::policy(peers);
         // Refresh the independent snapshot before this inspection's observations.
-        if referee.policy != *policy {
+        if let Some(policy) = A::policy_snapshot(peers) {
             referee.policy.clone_from(policy);
+        } else {
+            let policy = A::policy(peers);
+            if *referee.policy != *policy {
+                referee.policy = policy.clone().into();
+            }
         }
         for observed in observations {
             referee.observe(clock.now, observed)?;
@@ -467,6 +513,7 @@ impl<A: Application> Harness<A> {
             iterations: self.iterations,
             stopped: self.stopped,
             crashes: self.crashes.clone(),
+            forked: self.forked.clone(),
         }
     }
 }
@@ -517,7 +564,6 @@ where
     /// # Errors
     /// Returns the same missing receipt or broken promise as `crash`.
     pub fn from_snapshot(mut snapshot: ColdSnapshot<A>) -> Result<Self, Violation> {
-        let meter = skein_world::domain::heap::Meter::new();
         // Exactly crash's outside sequence, before constructing its one new root.
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
@@ -530,6 +576,9 @@ where
             &mut snapshot.referee,
             snapshot.clock,
         )?;
+        // Cold observation discards copied derived caches. As at initial start,
+        // measure after outside setup and before constructing the engine.
+        let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&snapshot.config);
         let events = A::start(&snapshot.config, &mut snapshot.store).into_iter().map(Input::Event).collect();
         Ok(Self {
@@ -550,6 +599,7 @@ where
             stopped: false,
             cut: Cut::None,
             crashes: snapshot.crashes,
+            forked: Vec::new(),
             commit_hook: None,
         })
     }
