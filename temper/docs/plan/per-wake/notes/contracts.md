@@ -12,7 +12,7 @@ root (`pub use reasons::{Reasons, REASON_NAMES, ALWAYS_OFFERED_NAMES, offered};`
 ```rust
 /// Why a run runs, and the reasons a charter's part is for: `first` and the kinds that
 /// choose parts, one bit each (domain/tasks.md, 8.6; protocol/store.md, 5).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reasons(pub u32);
 
 impl Reasons {
