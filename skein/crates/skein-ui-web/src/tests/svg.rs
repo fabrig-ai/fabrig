@@ -57,3 +57,59 @@ fn a_marks_text_is_escaped_never_markup() {
         "<svg aria-hidden=\"true\" width=\"10\" height=\"20\" viewBox=\"0 0 10 20\"><text x=\"0\" y=\"0\" text-anchor=\"start\">&lt;b&gt;</text></svg>"
     );
 }
+
+#[test]
+fn a_flows_scene_prints_its_case_byte_for_byte() {
+    use skein_ui::{
+        Limits,
+        flow::{self, Direction, Node},
+    };
+
+    // Four nodes, at most four marks each, with 256 data bytes and 25 arrow bytes each.
+    const CASE_NODES: u32 = 4;
+    const CASE_DATA: u32 = 256;
+    let limits = Limits {
+        scene_marks: flow::marks(CASE_NODES).expect("case marks fit"),
+        scene_bytes: flow::scene_bytes(CASE_NODES, CASE_DATA).expect("case bytes fit"),
+        ..LIMITS
+    };
+    let hello = [
+        Node { name: b"Design draft", caption: Some(b"you write it"), strong: false },
+        Node { name: b"Goal", caption: Some(b"you start it"), strong: false },
+        Node { name: b"Checked changes", caption: Some(b"CI and a review"), strong: false },
+        Node { name: b"main", caption: Some(b"the merge queue"), strong: true },
+    ];
+    let review = [
+        Node { name: b"A change pushed", caption: None, strong: false },
+        Node { name: b"A review by an agent", caption: None, strong: false },
+        Node { name: b"Landed", caption: None, strong: true },
+    ];
+    let cases = [
+        (
+            Direction::LeftToRight,
+            hello.as_slice(),
+            640,
+            include_str!("../../../../docs/design/draft/diagrams/how-hello-works.640.svg"),
+        ),
+        (
+            Direction::LeftToRight,
+            hello.as_slice(),
+            600,
+            include_str!("../../../../docs/design/draft/diagrams/how-hello-works.600.svg"),
+        ),
+        (
+            Direction::TopToBottom,
+            review.as_slice(),
+            400,
+            include_str!("../../../../docs/design/draft/diagrams/review.400.svg"),
+        ),
+    ];
+    for (direction, nodes, width, expected) in cases {
+        let data = flow::encode(direction, nodes, CASE_DATA).expect("case data fits");
+        for height in [0, 74, 999] {
+            let mut scene = Scene::new(&limits);
+            assert!(flow::draw(flow::KIND, data.as_slice(), width, height, &mut scene));
+            assert_eq!(dom::print(&svg::draw(&scene, &[flow::NAMES], width, height)), expected.trim_end());
+        }
+    }
+}

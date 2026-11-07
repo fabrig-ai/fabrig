@@ -5,6 +5,7 @@ use crate::{DrawingKind, Owner, Style};
 use skein_lib::{List, Reader, Writer, usize_of};
 
 mod layout;
+pub use layout::draw;
 pub(crate) mod read;
 
 pub const OWNER: Owner = Owner { number: u32::MAX };
