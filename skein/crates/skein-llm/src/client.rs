@@ -1645,7 +1645,6 @@ fn headers(
     content_length: u64,
 ) -> Result<Box<[Header]>, Error> {
     measure_headers(endpoint, credential, limits, coding, content_length)?;
-    let fields = provider_headers(endpoint);
     let mut headers = List::with_capacity(limits.http.headers);
     for (name, value) in [
         (b"Host".as_slice(), endpoint.authority.as_ref()),
@@ -1662,23 +1661,36 @@ fn headers(
             .push(Header { name: bytes::copy_of(b"Content-Encoding"), value: bytes::copy_of(b"gzip") })
             .expect("the coding field fits the checked cap");
     }
+    for header in credential_headers(endpoint, credential)? {
+        headers.push(header).expect("route and credential fields fit the checked cap");
+    }
+    for header in &endpoint.headers {
+        headers.push(header.clone()).expect("extra headers fit the checked cap");
+    }
+    Ok(headers.into_boxed())
+}
+
+/// The route's version and credential fields, shared by calls and model-list reads
+/// (skein/docs/design/llm.md, 2.6 and 4.9). No endpoint extra fields are copied.
+pub fn credential_headers(endpoint: &Endpoint, credential: Option<&Credential>) -> Result<Box<[Header]>, Error> {
+    let fields = provider_headers(endpoint);
+    let mut headers = List::with_capacity(2);
     for (name, value) in fields.iter().flatten() {
         headers
             .push(Header { name: bytes::copy_of(name), value: bytes::copy_of(value) })
             .expect("provider headers fit the checked cap");
     }
     if let Some(credential) = credential {
+        if credential.value.is_empty() || !header_value(&credential.value) {
+            return Err(Error::Invalid);
+        }
         let field = match (endpoint.provider, credential.scheme) {
             (Provider::Anthropic, Scheme::Key) => {
                 Header { name: bytes::copy_of(b"x-api-key"), value: credential.value.clone() }
             }
             (Provider::Anthropic, Scheme::Bearer) => return Err(Error::Invalid),
             (Provider::OpenAi, Scheme::Key | Scheme::Bearer) => {
-                let len = credential
-                    .value
-                    .len()
-                    .checked_add(7)
-                    .ok_or(Error::limit(crate::Cap::RequestHead, limits.http.request))?;
+                let len = credential.value.len().checked_add(7).ok_or(Error::Invalid)?;
                 let mut bearer = Writer::new(len);
                 bearer.put(b"Bearer ").expect("the bearer prefix was measured");
                 bearer.put(&credential.value).expect("the credential was measured");
@@ -1686,9 +1698,6 @@ fn headers(
             }
         };
         headers.push(field).expect("credential field fits the checked cap");
-    }
-    for header in &endpoint.headers {
-        headers.push(header.clone()).expect("extra headers fit the checked cap");
     }
     Ok(headers.into_boxed())
 }
