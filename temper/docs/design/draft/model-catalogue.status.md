@@ -6,8 +6,10 @@ Sections 4 and 6's store step is carried by jig's model settings and
 catalogue, smith's endpoint limits and charter model names, temper's binary
 stock, the configuring tools, Settings, Models and the help. The Models
 page account is `415e659c54`; its render comparison remains temper/ui's
-after-landing work (`../client/README.md`, section 11). Section 5's lists
-remain the next step, so this draft stays.
+after-landing work (`../client/README.md`, section 11). Section 5's worker
+reads, retained per-account lists, catalogue updates, offer narrowing and
+Settings read states are carried by the design and code. The design lags,
+departures and open decisions below keep this draft.
 
 - **Design lags:**
   - 3: `../client/README.md`, 3.5: an unusable account has a fix only

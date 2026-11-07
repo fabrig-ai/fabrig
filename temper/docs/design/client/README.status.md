@@ -127,13 +127,24 @@ The client world holds switches and adding across reloads. Page 07's
 render comparison at 1440, 1280, 1000 and 420 px belongs to temper/ui after
 landing; it and browser and real-provider
 checks remain section 11's deferred work, with no outcome supplied here.
+Section 3.5's provider-list source clauses, Read again, Reading and read
+refusals, and the expiring new labels on Settings and All models have no
+known implementation gap. View tables and gallery states cover these
+words and expiry; the client world carries reads, failures, retries and
+retained names through the engine. They establish no rendered equality.
 - **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
   now and on purpose: an address under the project, `/projects/<project>/settings/models`, as
   `me`'s offer is a project's, where 07 draws `/models`; and "the default" on one row, as `me`
   names one model for a template, where 07 also draws "the default without Claude".
-  The lede describes the stock and picker rather than promising provider reads,
-  which belong to `model-catalogue-3`; the placeholder is `model-name` rather
+  The lede describes the offer and picker rather than 07's automatic-read
+  explanation; the provider's source clause and Read again carry the read's
+  state. The subscription's clause is "These come with temper.", rather than
+  "Claude Code has no list to read: these come with temper.", as the design
+  specifies. The placeholder is `model-name` rather
   than 07's hand-made `claude-haiku-5-5`, since the selected provider can differ.
+  The final line keeps `.temper-settings-facts` with `.temper-models-ask`,
+  rather than 07's `.temper-settings-detail`, as the design specifies; its
+  Configure temper link includes the final period, where 07 leaves it outside.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the

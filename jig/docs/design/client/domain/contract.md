@@ -1633,11 +1633,6 @@ designs (`../../protocol/client.md`):
   names the proposal and its making independently of any call; filling call
   objects is separate work.
 
-- **An account's model list** (5.1): narrowing the offer by each account's
-  last provider-list read needs the worker's reads and their per-account
-  records (`../../domain/engine.md`, section 16). Default: the model
-  settings and usable accounts define the offer; no list is fetched by a client.
-
 - **Historical public boards** (section 12): ended goals across a restart
   or from before publication need the source index in
   `../../domain/people.md`, section 12. Default: the current public records,

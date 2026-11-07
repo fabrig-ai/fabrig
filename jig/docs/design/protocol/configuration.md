@@ -747,13 +747,6 @@ the same capacities even when every run slot is occupied.
 
 ## 9. Open questions
 
-- **Provider discovery** (section 3): a worker request and a per-account
-  list narrow the catalogue's offer (`../domain/engine.md`, section 16).
-  Default: model settings supplied by the application or seeded from this
-  document, with no provider-list read. Under passed defaults the document
-  holds providers, endpoints and sources; `effort`, `shown` and `picker`
-  belong to the model setting.
-
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at
   runtime as settings (`../domain/engine.md`, section 17).
