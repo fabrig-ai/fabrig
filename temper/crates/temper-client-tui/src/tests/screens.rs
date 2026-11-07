@@ -202,3 +202,196 @@ fn the_first_screen_says_the_links_state_and_me() {
     tui.step(Told::Kept { written: false });
     assert!(!f::build(&mut view, &tui, &root).is_empty());
 }
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the design's approval outcome table and ordered screen lines")]
+fn the_approval_screen_says_each_line() {
+    use super::approval::{asked, code, exchange, outcome};
+    use crate::Browser;
+    use jig_client::{NotAsked, NotSignedIn, Taking};
+    use skein_lib::{Secret, Wall};
+    use temper_client_domain::asked::State;
+    type Row<'a> = (State, Option<NotSignedIn>, Option<Browser>, bool, bool, &'a [&'a str]);
+    let waiting = State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) };
+    let opened = [
+        "A tab opened in your browser. Check it shows",
+        "WDJB-MJHT, then press Approve.",
+        "No tab? Open http://127.0.0.1:8367/terminal?code=WDJB-MJHT",
+        "The code expires in 10 min.",
+    ];
+    let no_browser = [
+        "Open this address in a browser that reaches temper:",
+        "http://127.0.0.1:8367/terminal?code=WDJB-MJHT",
+        "and check it shows WDJB-MJHT, then press Approve.",
+        "From another machine, tunnel port 8367 to this one first.",
+        "The code expires in 10 min.",
+    ];
+    let rows: &[Row<'_>] = &[
+        (
+            waiting,
+            Some(NotSignedIn::Approval(Taking::Refused)),
+            None,
+            false,
+            false,
+            &["The browser refused this sign-in. Press Enter to ask again."],
+        ),
+        (
+            waiting,
+            Some(NotSignedIn::Approval(Taking::Expired)),
+            None,
+            false,
+            false,
+            &["The code expired before it was approved. Press Enter to ask again."],
+        ),
+        (
+            waiting,
+            Some(NotSignedIn::Approval(Taking::Used)),
+            None,
+            false,
+            false,
+            &["That code was already used. Press Enter to ask again."],
+        ),
+        (
+            waiting,
+            Some(NotSignedIn::Approval(Taking::Unknown)),
+            None,
+            false,
+            false,
+            &["temper doesn't know that code any more: it restarted, or the code is old. Press Enter to ask again."],
+        ),
+        (
+            waiting,
+            Some(NotSignedIn::Full { sign_ins: u32::MAX, earliest: Wall::EPOCH, link_until: Wall::EPOCH }),
+            None,
+            false,
+            false,
+            &["All 4294967295 sign-ins are in use; the earliest ends Jan 1, 00:00 UTC. Press Enter to ask again then."],
+        ),
+        (waiting, Some(NotSignedIn::Busy), None, false, false, &["temper is busy; still trying…"]),
+        (waiting, Some(NotSignedIn::NotReady), None, false, false, &["temper is busy; still trying…"]),
+        (waiting, None, None, false, true, &["temper is busy; still trying…"]),
+        (
+            State::NotAsked(NotAsked::Refused),
+            None,
+            None,
+            false,
+            false,
+            &["This temper doesn't sign terminals in from the browser. Paste the link it printed instead."],
+        ),
+        (
+            State::NotAsked(NotAsked::Busy),
+            None,
+            None,
+            false,
+            false,
+            &["Too many terminals are waiting to sign in. Press Enter to ask again in a moment."],
+        ),
+        (
+            State::NotAsked(NotAsked::NotReady),
+            None,
+            None,
+            false,
+            false,
+            &["temper is starting or stopping, or out of reach. Press Enter to ask again."],
+        ),
+        (
+            State::NotAsked(NotAsked::Lost),
+            None,
+            None,
+            false,
+            false,
+            &["temper is starting or stopping, or out of reach. Press Enter to ask again."],
+        ),
+        (State::Asking, None, None, false, false, &["Asking temper for a code…"]),
+        (waiting, Some(NotSignedIn::Approval(Taking::Waiting)), Some(Browser::Opening), false, false, &opened),
+        (waiting, Some(NotSignedIn::Approval(Taking::Waiting)), Some(Browser::Opened), false, false, &opened),
+        (waiting, None, None, false, false, &opened),
+        (waiting, Some(NotSignedIn::Approval(Taking::Waiting)), Some(Browser::None), false, false, &no_browser),
+        (waiting, None, Some(Browser::Opened), true, false, &["Signing in…"]),
+    ];
+    for (index, (state, why, browser, pasted, lost, expected)) in rows.iter().enumerate() {
+        let mut root = asked(Some(*state));
+        outcome(&mut root, *why);
+        if *lost {
+            let id = exchange(f::client(
+                &mut root,
+                jig_client::Event::SignIn {
+                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) },
+                },
+            ));
+            f::client(&mut root, jig_client::Event::Lost { exchange: id });
+        }
+        let mut tui = Tui::new(f::ADDRESS);
+        if let Some(browser) = browser {
+            tui.step(Told::Browse);
+            match browser {
+                Browser::Opening => {}
+                Browser::Opened => tui.step(Told::Opened { opened: true }),
+                Browser::None => tui.step(Told::Opened { opened: false }),
+            }
+        }
+        if *pasted {
+            tui.step(Told::Asked);
+        }
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        let mut lines = skein_lib::List::with_capacity(8);
+        for node in view.tree().nodes() {
+            if node.role == Role::Paragraph {
+                lines.push(f::text(view.tree(), node)).unwrap();
+            }
+        }
+        let mut wanted = skein_lib::List::with_capacity(8);
+        wanted.push(b"Sign in this terminal to 127.0.0.1:8367".as_slice()).unwrap();
+        if !*pasted {
+            for line in *expected {
+                wanted.push(line.as_bytes()).unwrap();
+            }
+        }
+        wanted.push(b"Paste the link temper printed, then Enter.").unwrap();
+        if *pasted {
+            for line in *expected {
+                wanted.push(line.as_bytes()).unwrap();
+            }
+        }
+        wanted.push(b"Ctrl+C to quit").unwrap();
+        assert_eq!(lines.len(), wanted.len(), "row {index}");
+        for (line, wanted) in lines.as_slice().iter().zip(wanted.as_slice()) {
+            assert_eq!(line.as_ref(), *wanted, "row {index}");
+        }
+        if expected.len() == 1 && !*pasted {
+            let node = f::find(view.tree(), Role::Paragraph, expected[0].as_bytes());
+            let style = if *state == State::Asking
+                || *lost
+                || *why == Some(NotSignedIn::Busy)
+                || *why == Some(NotSignedIn::NotReady)
+            {
+                look::WAITING
+            } else {
+                look::REFUSED
+            };
+            assert_eq!(node.styles.as_slice(), &[style], "row {index}");
+        }
+        if expected.len() > 1 {
+            assert_eq!(
+                f::find(view.tree(), Role::Paragraph, b"The code expires in 10 min.").styles.as_slice(),
+                &[look::HINT]
+            );
+        } else {
+            assert_eq!(view.tick(), None, "row {index}");
+        }
+    }
+    let root = asked(Some(waiting));
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Asked);
+    tui.step(Told::Browse);
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    assert_eq!(f::count(view.tree(), Role::Paragraph), 7, "a new approval replaces the paste's progress");
+    f::find(view.tree(), Role::Paragraph, opened[0].as_bytes());
+    tui.step(Told::Refused { refusal: Refusal::NotALink });
+    f::build(&mut view, &tui, &root);
+    assert_eq!(f::count(view.tree(), Role::Paragraph), 8, "a local paste refusal leaves the approval drawn");
+    f::find(view.tree(), Role::Paragraph, opened[0].as_bytes());
+    f::find(view.tree(), Role::Paragraph, b"That is not a sign-in link: paste the whole link temper printed.");
+}
