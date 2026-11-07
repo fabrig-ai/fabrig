@@ -1,0 +1,3 @@
+Source: Debian fonts-dejavu-mono 2.37-9, DejaVuSansMono.ttf and DejaVuSansMono-Bold.ttf (https://dejavu-fonts.github.io/), under LICENSE.txt.
+SHA-256: DejaVuSansMono.ttf c00e833464994e92d5134a9a81bc692f4bc8d878189e25deb460b08fed0e9873; DejaVuSansMono-Bold.ttf 544a8eefe688d3ac65de9dbbf63125087d3603ba9edcf374117008d741effe03
+DejaVu Sans Mono 2.37, weights 400 and 700: Latin, Greek and the symbols a terminal draws (arrows, box drawing, blocks, shapes, dingbats), subset by fontTools 4.68.0: pyftsubset FONT.ttf --unicodes='U+0000-024F,U+0300-036F,U+0370-03FF,U+2000-206F,U+20AC,U+2122,U+2190-21FF,U+2200-22FF,U+2300-23FF,U+2500-259F,U+25A0-25FF,U+2600-26FF,U+2700-27BF,U+FEFF,U+FFFD' --layout-features='*' --name-IDs='*' --notdef-outline --flavor=woff2

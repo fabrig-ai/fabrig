@@ -27,6 +27,7 @@
     ['/new', 'Start a new chat', () => newChat()],
     ['/chats', 'Open another chat', () => chooseChat()],
     ['/theme', 'Dark or light', () => theme()],
+    ['/font', 'DejaVu Sans Mono or IBM Plex Mono, to compare', () => font()],
     ['/help', 'Commands and keys', () => help()],
     ['/exit', 'Leave the terminal', () => leave()],
   ];
@@ -163,6 +164,10 @@
     draftButton.textContent = '+ Draft';
     box.placeholder = 'Say what you want; the agent works in work/hello.';
     state.spent = 0; state.closed = false; state.paused = false; status();
+  }
+  function font() {
+    tt.dataset.font = tt.dataset.font === 'plex' ? 'dejavu' : 'plex';
+    note(`Font: ${tt.dataset.font === 'plex' ? 'IBM Plex Mono' : 'DejaVu Sans Mono'}.`);
   }
   function theme() { tt.dataset.theme = tt.dataset.theme === 'light' ? 'dark' : 'light'; }
   function help() {

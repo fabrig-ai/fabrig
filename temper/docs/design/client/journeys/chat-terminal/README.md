@@ -14,4 +14,7 @@ reaches it. Page 01 is a recorded chat with a new button; the terminal over it h
 
 The pages are live: the buttons, `Ctrl+\`, the commands and PgUp work, and a message sent is answered by
 a line saying nobody answers. The look is `terminal.css`, the behaviour `terminal.js`. `/theme`, between dark and
-light, is there to compare them.
+light, and `/font`, between DejaVu Sans Mono and IBM Plex Mono, are there to compare them.
+
+`fonts/` holds the two weights of DejaVu Sans Mono, which a landing moves to the shell's `files/fonts/`. Its
+`README.txt` says where they come from and how they were cut.
