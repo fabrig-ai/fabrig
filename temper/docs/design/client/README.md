@@ -5363,8 +5363,10 @@ section 5.
   to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
   while its project is open, kind 6 while the tab is open; leaving that scope
   drops its retry. Until first read, or after a lasting refusal, the optional entries
-  and `drafts` read as hidden and absent, and the tab's live controls draw the
-  stock, disabled; a value of none reads as the stock (`../protocol/configuration.md`, 13.4).
+  read as hidden, with 5.3's exceptions for a current page and a project holding a
+  goal; `drafts_offered` is false, with the configuring chat's exception (3.5).
+  The tab's live controls draw the stock, disabled; a value of none reads as
+  the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
   item, running work staying, against the newest revision the person has, the
   one exception to the pages sending proposals alone. The control is disabled
@@ -6611,6 +6613,13 @@ own tests:
 
 ## 11. Open questions
 
+- **The fresh project's draft flow after landing** (3.5, 5.3, 5.13):
+  checking the configuring chat with drafts off, and a fresh chat's draft,
+  goal and navigation on a real box. The view tables and `chat-draft`'s
+  fake-model journey cover the offers and flow. Default: browser, walk and
+  render checks follow landing, under the `ui-drafts-default` request;
+  they are not conditions for completing its plan.
+
 - **The trial's later choices** (3.5, *The try*, 5.5): whether Settings
   offers "Try it", whether deployment accounts are tried, how a second
   account is tested while selection stays a new chat's, and retaining a
@@ -6726,11 +6735,13 @@ own tests:
   below it are cancelled." takes off the delegates listed and still counts a moved
   delegate's own tasks, which closing doesn't cancel. A count per delegate is a new
   fact of a protocol, the user's. Default: they stay in N.
-- **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
-  decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
-  Goals or Chats. The fact reads the ended group once, so once the live watch
-  holds no row it says false of a project with a goal, and Home shows Chats
-  until the project is opened again. Default: one read, as 5.3 has it.
+- **A project's only goal ending while Home is open** (3.5, 5.3):
+  `Domain::has_goals` keeps Goals in the rail and tab bar whatever kind 7
+  says, and Home reads it to choose Goals or Chats once To begin is gone.
+  The fact reads the ended group once, so once the live watch holds no row
+  it says false of a project with a goal. Home shows Chats, and with Goals
+  hidden and no Goals or goal page current, Goals leaves the bar until the
+  project is opened again. Default: one read, as 5.3 has it.
 - **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
   start work, rules, running work and history on the tab; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
