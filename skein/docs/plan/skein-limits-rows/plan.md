@@ -77,6 +77,8 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-forge-setup-world::suite` | `create` | 8 | 7 | 1 | 2 | 2.5 |
 | `skein-forge-setup-world::suite` | `reconcile` | 15 | 14 | 1 | 2 | 2.5 |
 | `skein-forge-setup-world::suite` | `github` | 13 | 12 | 1 | 2 | 2.5 |
+| `skein-fake-forge-github` | `server::tests` | 2 | 1 | 1 | 2 | 1.9 |
+| `skein-fake-forge-github` | `tests` | 191 | 189 | 1 | 3 | 3.8 |
 
 Left apart:
 
@@ -90,6 +92,7 @@ Left apart:
 - `skein-fake-forge-domain::tests`: surveyed verdict, log and report groups fold. Three forced-failure tests and the compatible foreign label, edit, deletion and queue-name failures also fold as profile/observation/decision data. Marker parsing, successful permission streams, verdict precedence, checkpoints, exact rebase exemptions and other domain operations retain separate contracts or existing tables.
 - `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
 - `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
+- `skein-fake-forge-github::tests::service_app`, 4 JWT route tests: attempted combined table read 24 ms, then 46 ms after restoring mutations, above the 40 ms guide; all four tests and the RSA comment stay apart. One original row profiled first at 54,137,815 Ir, including 45,031,053 signing Ir. The six app-check tests and other distinct fake contracts stay apart. Both other surveyed groups fold; the write table consumes request data from all three source modules.
 
 ### rows-forge
 

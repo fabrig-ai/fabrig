@@ -193,24 +193,13 @@ fn github_fake_merge_check_rules_name_each_unmet_context_and_state() {
     ]);
     f::refusal(&h, &response, 405, &message);
 }
-#[test]
-fn github_fake_merge_outside_installation_is_missing_before_domain_calls() {
-    let mut h = w::harness();
-    let token = r::token(&mut h);
-    let response = w::ask(
-        &mut h,
-        &token,
-        &Request::Merge {
+pub(super) fn outside_installation_requests() -> Vec<Request> { vec![Request::Merge { 
             owner: f::boxed(b"acme"),
             name: f::boxed(b"absent"),
             number: 1,
             head: r::object(1),
             method: Method::Squash,
-        },
-    );
-    f::refusal(&h, &response, 404, b"Not Found");
-    assert_eq!(h.calls, 0);
-}
+         }] }
 
 #[test]
 fn github_fake_merge_waits_for_head_or_base_settle_and_stale_sha_keeps_precedence() {

@@ -93,11 +93,7 @@ fn github_fake_status_posts_refuse_installation_and_person_even_with_app_grant()
         }
     }
 }
-#[test]
-fn github_fake_branch_and_status_writes_refuse_outside_installation() {
-    let mut h = w::harness();
-    let token = r::token(&mut h);
-    for request in [
+pub(super) fn outside_installation_requests() -> Vec<Request> { [
         Request::CreateBranch {
             owner: f::boxed(b"acme"),
             name: f::boxed(b"absent"),
@@ -114,12 +110,7 @@ fn github_fake_branch_and_status_writes_refuse_outside_installation() {
             description: Box::new([]),
             link: Box::new([]),
         },
-    ] {
-        let response = w::ask(&mut h, &token, &request);
-        f::refusal(&h, &response, 404, b"Not Found");
-    }
-    assert_eq!(h.calls, 0);
-}
+    ].into_iter().collect::<Vec<_>>() }
 #[test]
 fn github_fake_contents_token_writes_branches_and_issues() {
     let mut h = w::harness();

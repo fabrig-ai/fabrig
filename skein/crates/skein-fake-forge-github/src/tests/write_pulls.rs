@@ -221,10 +221,10 @@ fn github_fake_review_refuses_approving_own_pull() {
     assert!(skein_lib::bytes::find(&response.body, br#""errors":[""#).is_some());
 }
 #[test]
-fn github_fake_pull_writes_outside_installation_are_missing() {
-    let mut h = w::harness();
-    let token = r::token(&mut h);
-    for request in [
+fn repository_writes_outside_installation_never_call_domain() {
+    skein_rows::check(
+        [
+            ("github_fake_pull_writes_outside_installation_are_missing", [
         Request::OpenPull {
             owner: f::boxed(b"acme"),
             name: f::boxed(b"absent"),
@@ -255,11 +255,20 @@ fn github_fake_pull_writes_outside_installation_are_missing() {
             add: false,
             logins: Box::from([]),
         },
-    ] {
-        let response = w::ask(&mut h, &token, &request);
-        f::refusal(&h, &response, 404, b"Not Found");
-    }
-    assert_eq!(h.calls, 0);
+    ].into_iter().collect::<Vec<_>>()),
+            ("github_fake_branch_and_status_writes_refuse_outside_installation", super::write_branches::outside_installation_requests()),
+            ("github_fake_merge_outside_installation_is_missing_before_domain_calls", super::write_merge::outside_installation_requests()),
+        ],
+        |requests| {
+            let mut h = w::harness();
+            let token = r::token(&mut h);
+            for request in requests {
+                let response = w::ask(&mut h, &token, &request);
+                f::refusal(&h, &response, 404, b"Not Found");
+            }
+            assert_eq!(h.calls, 0);
+        },
+    );
 }
 
 #[test]
