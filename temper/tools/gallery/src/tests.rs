@@ -934,7 +934,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
             Part::Named {
                 role: Role::Paragraph,
-                name: "Nothing needs you. Work carries on, and this page tells you what changed when you come back.",
+                name: "Work carries on, and this page tells you what changed when you come back.",
             },
             Part::Named { role: Role::Link, name: "All 1 chats" },
             Part::Named { role: Role::Link, name: "What is in this repository?, closed, 1 h" },

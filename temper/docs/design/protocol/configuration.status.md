@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.4, charter 1: `chat.txt` doesn't send a chat to the forge's reads for a repository not in its checkout.
 
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
