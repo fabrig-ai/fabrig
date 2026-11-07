@@ -214,7 +214,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Lift` | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
 | `Move` | a task the party may amend; a reason; or a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
 | `Succeed` | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
-| `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
+| `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or, with a retained decision visible to the party, decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
@@ -464,8 +464,13 @@ Every request has one answer, of one of these kinds:
   the original outcome's role; an account moved out, with its record, once: 3.1), or what
   was decided; for a compound request, its
   operations made, in order, and the first of the message numbers they
-  took, one each (3.4); and, when another party decided first,
-  who, how and when;
+  took, one each (3.4); and, with a retained decision visible to the party,
+  who decided first, how and when. A task's automatically replaced settings
+  proposal has no retained decision: deciding it answers `Unknown`, naming
+  nothing and changing nothing (`../../domain/tasks.md`, section 9).
+  Accepting an ended settings proposal with a retained decision takes the
+  running-work choice as a live acceptance does; that choice does not make
+  a missing proposal malformed;
 - **refused,** with its facts, and for a compound request the place of
   the first operation that failed:
   - *role:* the party's role here does not allow it;
@@ -1604,6 +1609,12 @@ designs (`../../protocol/client.md`):
   and bundle, which jig never serves (`../../protocol/service.md`).
 
 ## 11. Open questions
+
+- **Decisions on replaced task proposals** (3.2, 4): automatically
+  replacing a task's pending settings proposal keeps no decision record.
+  Default: `Unknown`, with no new decider or archive. Returning who decided
+  first and how for that proposal needs retention and a rule for naming
+  the automatic withdrawal's decider (`../../domain/tasks.md`, section 9).
 
 - **Proposal objects on committed calls** (5.1): naming the proposal in a
   call's `objects` needs its identity carried through the core's turn record

@@ -6,6 +6,43 @@ const HEAD: skein_forge::api::Commit = [7; 32];
 const RESTART: Clock = Clock { now: 1 };
 
 #[test]
+fn a_commit_feed_matches_whole_projection_through_stories_and_cold_restarts() {
+    // Unit-test builds compare every fed snapshot with the whole projection,
+    // before connector evidence and before the referee receives it.
+    for story in [stories::Story::RepairCi, stories::Story::GoalIssue] {
+        let outcome =
+            stories::run(story, jig_conformance::Cut::AfterCommit(20), 71).expect("whole and keyed evidence agree");
+        assert!(outcome.crashes.contains(&20), "the comparison includes a cold restart");
+    }
+}
+
+#[test]
+fn shared_policy_refreshes_adapter_edits_and_replaces_referee_edits() {
+    let mut world = jig_conformance::Harness::<Temper>::new(Config::new(71, None), 71);
+    world.drain().expect("faithful startup");
+    let before = world.referee.policy.clone();
+    world.peers.policy.delivery_bound = 1234;
+    world.iterate().expect("edited scenario policy");
+    assert_eq!(world.referee.policy.delivery_bound, 1234);
+    assert_eq!(before.delivery_bound, 60_000_000_000);
+    world.referee.policy.delivery_bound = 999;
+    world.iterate().expect("refresh the complete independent policy again");
+    assert_eq!(world.referee.policy.delivery_bound, 1234);
+    assert_eq!(world.peers.policy.delivery_bound, 1234);
+}
+
+#[test]
+fn indexed_effect_evidence_matches_whole_rows_for_each_origin_and_cold_retry() {
+    // Unit-test builds compare effect identities, outcomes and issue evidence
+    // with full walks. These stories exercise call, projection and procedure keys.
+    for story in [stories::Story::IssueCreation, stories::Story::GoalIssue, stories::Story::LostMerge] {
+        let outcome = stories::run(story, jig_conformance::Cut::AfterCommit(20), 71)
+            .expect("indexed and whole effect evidence agree");
+        assert!(outcome.crashes.contains(&20));
+    }
+}
+
+#[test]
 fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
     let mut peers = Temper::peers(&config, 71);
@@ -105,4 +142,30 @@ fn ci_evidence_follows_native_commit_and_pull_reads() {
     );
     forge.poll(clock);
     assert!(forge.take_observed().is_empty());
+}
+
+#[test]
+fn expense_observations_keep_lost_turns_before_sorted_task_totals() {
+    use jig_fake_workers::Expense;
+    let mut actual = vec![r::Observed::Restart];
+    observations::expenses(&std::collections::BTreeMap::new(), &mut actual);
+    assert_eq!(actual, vec![r::Observed::Restart]);
+    let expenses = std::collections::BTreeMap::from([
+        ((3, 8), Expense { spent: 7, lost: 4, lost_turns: 2, ..Expense::default() }),
+        ((1, 4), Expense { spent: 11, kept: 11, ..Expense::default() }),
+        ((3, 7), Expense { spent: 5, lost: 2, lost_turns: 1, ..Expense::default() }),
+        ((2, 1), Expense::default()),
+    ]);
+    observations::expenses(&expenses, &mut actual);
+    assert_eq!(
+        actual,
+        vec![
+            r::Observed::Restart,
+            r::Observed::LostTurns { task: 3, attempt: 7, turns: 1, spent: 2 },
+            r::Observed::LostTurns { task: 3, attempt: 8, turns: 2, spent: 4 },
+            r::Observed::Spend { task: 1, spent: 11, lost_bound: 0 },
+            r::Observed::Spend { task: 2, spent: 0, lost_bound: 0 },
+            r::Observed::Spend { task: 3, spent: 12, lost_bound: 6 },
+        ]
+    );
 }

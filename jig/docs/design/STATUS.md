@@ -21,6 +21,10 @@ proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
+An ended settings acceptance reaches its retained decision with the
+running-work choice. An automatically replaced task proposal has no
+retained decision and answers unknown; retaining one and naming its
+decider remain deferred (`client/domain/contract.md`, 3.2, 4 and 11).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
@@ -49,10 +53,11 @@ A transcript's load refused for want of a slot counts as a failure, where
 room should pause its task (`domain/engine.md`). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 `revision` (`domain/engine.md`). Four of the worlds' files name a fixture again,
-where the `debt-24` request of 2026-11-05 has each named once, and the core's
-observer rebuilds its snapshot at each commit, where the `debt-25` request of
-2026-11-06 has it read the commit's rows. Views are made only for readers,
-but a keyed feed and proof that the focused suite fits 30 CPU s remain
+where the `debt-24` request of 2026-11-05 has each named once. The core's
+observer updates keyed evidence from durable commit rows and keeps complete
+ordered snapshots, with whole rebuilding for cold reads and bulk changes.
+Views are made only for readers; further observation-cost work and proof
+that the focused suite fits 30 CPU s remain
 (`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
 step cover its fuzzy stories; the other stories can miss transient grant
 values between arrival and end checks (`protocol/channel.md`, sections 12

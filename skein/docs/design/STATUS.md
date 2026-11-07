@@ -31,13 +31,22 @@ styles in the worlds; a merge update already holding its base and a
 rebase overtaking a later push still lack real-Forgejo conformance
 (`forge-client.md`, `forge.md`). The viewport story awaits its runtime
 check after landing (`browser.md`).
+Markdown flows have their own owner, bounded reader and deterministic
+layout; scenes may state their height and the web puts that SVG in its
+figure's flow. The case scenes and text fallback are held by host tests
+(`ui.md`, `ui-web.md`, `ui-text.md`). Branches, merges, more shapes and
+sequence diagrams remain later work (`ui.md`, section 18); the practice
+and home of draft acceptance cases remain the user's open decision
+(`draft/diagrams.md`, section 10).
 The focused cost repairs and shared world helpers establish no
 whole-suite CPU total within 30 CPU s. Selected instruction ratios
 estimate 5.311441 CPU s saved by the focused repairs, without proving
 their at-least-6 aim; process-world instruction pairs remain unknown.
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
-sections 5, 7 and 9).
+sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'
+prefix once; checked allocation layout and native fork costs remain
+deferred there, with their measurements in temper's deployment-world account.
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
 llm-connection depart from

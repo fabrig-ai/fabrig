@@ -327,6 +327,12 @@ the row.
 
 ## 11. Later
 
+- **Home's repository sheet and entry drawings** (9): temper/ui's
+  repository-copies follow-up unifies Home's empty-or-copy sheet with
+  Add repositories and draws the entry from a project with no repository
+  and To begin's second step. Settings uses the three-source sheet;
+  `connect-flows` leaves those two entry paths unmocked.
+
 - **Keeping a copy up to date** from its source (Forgejo's pull
   mirror), which temper's landings on it would fight.
 - **Issues, pull requests, releases, the wiki and LFS objects,** which
