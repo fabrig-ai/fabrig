@@ -1789,9 +1789,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   The root also checks a set rule's enforcing approvals against the
   core's project memberships and known forge user ids, including at
   proposal acceptance (`../domain/forge.md`, 8.9). For each affected
-  project, too few eligible people refuses the whole change, naming
-  project, role, required and eligible counts with the remedy. A
-  deployment login or display name establishes no forge identity.
+  project and each forge of the repositories the rule covers, too few
+  people eligible on that forge refuses the whole change, naming project,
+  forge, role, required and eligible counts with the remedy; a rule
+  covering the playground's fake forge is refused in its own words. A
+  deployment login or display name establishes no forge identity; a box's
+  person linked on a forge is known there (`../domain/forge.md`, 4.6).
   Later membership changes can leave an accepted rule waiting for
   eligible approvers. Kind 3 declares
   that its value names one charter (jig's `domain/engine.md`, 17.5): the

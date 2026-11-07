@@ -13,8 +13,15 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/forge-identity.md, 9"
 
+[[part]]
+id = "link"
+title = "A forge's link to a box's person: its record, the lookup and eligibility per forge, the connector's decisions, the setup's answers, the root's sole owner, the words and the world's story"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 4.6"
+
 [[slice]]
 id = 1
 story = "A box's person says nothing lands without their approval, the rule is accepted, a change waits under Needs you with its link, they approve on the forge, and it lands, on an owned Forgejo and on GitHub"
-parts = ["scope"]
+parts = ["scope", "link"]
 walk = false

@@ -9,6 +9,7 @@ known in that room; the settings-answer bound gap remains below.
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
 
+- **Not yet:** 9.1: the root hands the forge no sole owner at a start.
 - **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
   counted its `read_task` calls since the room landed, where the request
   `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
