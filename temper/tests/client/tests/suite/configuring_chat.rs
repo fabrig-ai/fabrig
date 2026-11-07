@@ -26,7 +26,10 @@ fn the_page_starts_the_configuring_chat() {
             .map(|acts| (choose, acts))
     }) {
         let mut front = Joint::with_configuring(fixtures::SEED, fixtures::domain_limits(), false);
-        let mut root = Temper::new(fixtures::SEED).0;
+        let mut root = temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(
+            &fixtures::domain_limits(),
+            fixtures::SEED,
+        )));
         front.bind(ClientId(0), fixtures::PARTY);
         // The domain-only pump joins the real client and engine without drawing Configure.
         account_acts::event(

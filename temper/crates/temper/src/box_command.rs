@@ -275,6 +275,7 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
 }
 
 /// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration.md, 3).
+#[cfg(test)]
 pub(crate) fn machine(
     bytes: &[u8],
     directories: &super::Directories,
@@ -316,7 +317,7 @@ pub fn configuration_steps(
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);
     }
-    let machine = machine(bytes, directories)?;
+    let machine = named.machine;
     let steps = {
         let machine = &machine;
         let mut steps = temper_forge_setup::step::kinds(

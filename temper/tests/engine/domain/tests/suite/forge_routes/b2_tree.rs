@@ -2,7 +2,6 @@
 use super::*;
 use jig_domain_link::ModelBound;
 
-use super::stock::box_model as model;
 use jig_domain_core::{documents, reads};
 use temper_engine_domain_world::forge_routes::box_limits;
 
@@ -28,6 +27,12 @@ const ANSWER_KEY: u8 = 94; // The person's answer is a distinct durable request.
 const WORK_REPORT: &[u8] = b"Both changes landed";
 const CHAT_REPORT: &[u8] = b"Done: both landed";
 const LOOKUP_JOINS: u32 = 1;
+
+fn model() -> engine::Model {
+    // Defaults, the root and worker bounds read the same init model within one story.
+    static MODEL: std::sync::OnceLock<engine::Model> = std::sync::OnceLock::new();
+    MODEL.get_or_init(super::stock::box_model).clone()
+}
 
 fn defaults() -> jig_domain_core::settings::Defaults {
     // This world scripts the worker; it never connects to an endpoint or real account.

@@ -7,6 +7,8 @@ use std::path::PathBuf;
 pub fn request(task: PathBuf, identity: Identity) -> run::Request {
     run::Request {
         task,
+        // A test without its own directory gets an unavailable listing, never the machine's /tmp.
+        shared_temporary: "/nonexistent-shared-temporary".into(),
         identity,
         program: "/bin/sh".into(),
         arguments: Vec::new(),
