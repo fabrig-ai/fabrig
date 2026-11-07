@@ -1,0 +1,46 @@
+draft = "ui-goal-asks-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-goal-asks-2/inputs/request.md", "temper/docs/help/goal.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "question"
+title = "A person task's question reads whole under Needs you and on its goal's band, and a funds card says what a person can do"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "start"
+title = "Goals opens the Start goal sheet with a Draft field, the sheet says when nothing funds a goal, and a goal counts landings"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.14"
+
+[[part]]
+id = "decide"
+title = "Deciding a proposal that has ended answers decided first"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 3.2"
+
+[[slice]]
+id = 1
+story = "A goal asks a long question, its person reads it whole and answers on a press"
+parts = ["question"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A person starts a goal from Goals by a draft's path, or is told why nothing can fund it"
+parts = ["start"]
+walk = false
+
+[[slice]]
+id = 3
+story = "temper ctl's accept on a replaced proposal answers decided first"
+parts = ["decide"]
+walk = false
