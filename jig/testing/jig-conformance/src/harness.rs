@@ -167,6 +167,8 @@ pub struct Outcome {
     pub iterations: u64,
     pub stopped: bool,
     pub crashes: Vec<u64>,
+    /// Cuts whose forked children passed, in order. A child's list starts empty.
+    pub forked: Vec<u64>,
 }
 
 /// A chosen crash just after durable application and before its acknowledgement.
@@ -178,6 +180,14 @@ pub enum Cut {
     AfterCommit(u64),
     /// Draw one cut from commit arrivals, replayable from its seed.
     Random { seed: u64 },
+    /// Fork each commit from this number, taking the same cold restart in its child
+    /// (`jig/docs/design/domain/testing.md`, 5).
+    EachCommitFrom(u64),
+}
+
+/// A forked cut's story has ended well: end its child. In the parent, return.
+pub fn cut_passed() {
+    skein_fork::passed();
 }
 
 type CommitHook<A> = Box<dyn FnMut(&Harness<A>)>;
@@ -203,6 +213,7 @@ pub struct Harness<A: Application> {
     stopped: bool,
     cut: Cut,
     crashes: Vec<u64>,
+    forked: Vec<u64>,
     commit_hook: Option<CommitHook<A>>,
 }
 
@@ -246,6 +257,7 @@ impl<A: Application> Harness<A> {
             stopped: false,
             cut: Cut::None,
             crashes: Vec::new(),
+            forked: Vec::new(),
             commit_hook: None,
         }
     }
@@ -365,6 +377,10 @@ impl<A: Application> Harness<A> {
                         let mut random = skein_lib::Rng::new(seed ^ self.store.applied());
                         random.below(4) == 0
                     }
+                    Cut::EachCommitFrom(first) => {
+                        let commit = self.store.applied();
+                        commit >= first && self.fork_cut(commit)?
+                    }
                 };
                 if should_cut {
                     self.cut = Cut::None;
@@ -388,6 +404,23 @@ impl<A: Application> Harness<A> {
                 && self.events.is_empty()
                 && self.store.idle()
                 && (A::quiescent(&self.domain) || self.store.holding())))
+    }
+
+    fn fork_cut(&mut self, commit: u64) -> Result<bool, Violation> {
+        match skein_fork::split() {
+            skein_fork::Split::Child => {
+                self.forked.clear();
+                Ok(true)
+            }
+            skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
+                self.forked.push(commit);
+                Ok(false)
+            }
+            skein_fork::Split::Parent(exit) => Err(Violation {
+                promise: crate::referee::Promise::Lost,
+                why: format!("forked cut at commit {commit} failed: {exit:?}"),
+            }),
+        }
     }
 
     fn inspect(&mut self) -> Result<(), Violation> {
@@ -467,6 +500,7 @@ impl<A: Application> Harness<A> {
             iterations: self.iterations,
             stopped: self.stopped,
             crashes: self.crashes.clone(),
+            forked: self.forked.clone(),
         }
     }
 }
@@ -550,6 +584,7 @@ where
             stopped: false,
             cut: Cut::None,
             crashes: snapshot.crashes,
+            forked: Vec::new(),
             commit_hook: None,
         })
     }
