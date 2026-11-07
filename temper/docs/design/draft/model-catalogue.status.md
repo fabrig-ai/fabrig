@@ -8,9 +8,13 @@
     a usable account of the same provider. Section 11 defers those separate
     account rows. Settings, Models is
     `../client/README.md`, 3.5, *The `Models` tab*.
-  - 5, 7: Settings, Models draws no "Read again", "Couldn't read OpenAI's list · 2 hours ago", "new" tag, "Read from OpenAI 2 hours ago" or another clause on where a list came from beyond temper's own, and the store keeps no per-account record of names: step 3, `model-catalogue-3`, built on `ModelSource::List`, `withdrawn` and `new_model` (jig's `domain/engine.md`, 17.11).
-  - 5: jig's `domain/accounts.md`, 3.4: a host checks a program's source alone. jig's `domain/engine.md`, 17.7: the deciders. smith's `protocol/agent.md`: no request lists an endpoint's models.
 - **Design departs:**
+  - 5, *Who reads*: smith's `protocol/agent.md`, 6.1: the agent makes the one request in a process of its own, `--list`, where smith's host half runs it as it runs a program's status, and no channel carries it, since a run's channel, domain and lifecycle hold nothing a read needs: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 3, against 5's *A read that fails keeps what the store has*: jig's `domain/accounts.md`, 3.7: an account whose read fails after a good one keeps that good read's names, where 3 has its read failing take the stock, so that a provider's bad hour moves no picker. An account with no good read takes the stock, as 3 says: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 3: jig's `domain/accounts.md`, 3.7: a person's added name is offered whatever a list says, where 3's "its last read holds the name" would hide it, since 6 is the way to what a provider doesn't list: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 5, *The table*: jig's `domain/accounts.md`, 3.7: an account's first source says whether it has a list, so an Anthropic account with Claude Code first and a key after reads nothing, since the order decides who pays and a key's list doesn't say what that subscription serves: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 5: jig's `domain/engine.md`, 17.12: a list's window and output come no larger than the stock's, and a name's figures are its first read's, since 2 has them stay the stock's whatever a provider allows and a read must not undo what the configuring chat set: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 4: jig's `domain/engine.md`, 17.11: a person's removal of a list's model makes it a person's, so that a list naming it again doesn't bring it back: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 3: `../domain/agent.md`, 8.1 gives the inventory the offer alone, but
     serves a charter's full value when read, including unoffered models.
     Instructions restrict what the configuring agent may mention or propose;

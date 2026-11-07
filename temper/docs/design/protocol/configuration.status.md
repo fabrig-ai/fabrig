@@ -2,6 +2,8 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 13.1: `temper init`'s `keep` and `drop`.
+
 Section 13.4's charter 1 has the forge-first `read_branch` instruction for
 a repository outside its checkout, held by a stock phrase assertion.
 Real-model observation of that wording remains deferred in section 11.

@@ -5,6 +5,7 @@ Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.
 
+- **Not yet:** 3.2: `ReadLists`. 5.1: an account's `list`, a model's `new_until`, and a revision decided by a provider's list.
 - **Departs:** 5.1: an omitted template's preview and its new task's next-run
   model can differ while no supporting worker is ready. `Core::preview_llm`
   (`jig-domain-core/src/runs/llm.rs`) takes the first of `Core::offer`, which

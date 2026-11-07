@@ -3,3 +3,41 @@ repo = "fabrig"
 sources = ["temper/docs/plan/model-catalogue-3/inputs/request.md", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/draft/model-catalogue.status.md", "jig/docs/design/domain/providers.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "provider-list"
+title = "skein reads a route's list, and the fake answers one"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 4.9"
+
+[[part]]
+id = "worker-read"
+title = "A read of a list crosses the worker's channel"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 5.2"
+
+[[part]]
+id = "store"
+title = "The store keeps what a read gave, and a list can decide a revision"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/accounts.md, 3.7"
+
+[[part]]
+id = "reads"
+title = "A provider says which names it keeps, and the core turns a read into settings"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.12"
+
+[[slice]]
+id = 1
+story = "A fake provider answers its list, a route's reader reads it, a document's patterns judge its names, and the worker's channel and the store hold what a read carries and keeps"
+parts = ["provider-list", "worker-read", "store", "reads"]
+walk = false

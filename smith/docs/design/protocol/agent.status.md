@@ -3,6 +3,7 @@
 2026-11-07. Where smith's code lags or departs from [agent.md](agent.md).
 
 - **Not yet:**
+  - 6.1: `--list`, reading an endpoint's list, is not built.
   - 1, 3, 6, 8: the view. Commands, searches and checks run as plain
     children in process groups (`smith-protocol-machine/src/process.rs`),
     with no read-only git directory or machine and no writable scope;

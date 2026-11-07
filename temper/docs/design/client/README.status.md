@@ -9,6 +9,7 @@ table checks each link paragraph in both shells, with and without a
 configured sign-in way. Cookie fallback and command refusals remain
 section 11's later work.
 
+- **Not yet:** 3.5: *The `Models` tab*'s clause on a provider's list, "Read again" and " · new"; All models' "new" tag.
 - **Design departs:** 5.1, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: the engine remembers the
   last 8 used or expired links only until restart. A forgotten used link
