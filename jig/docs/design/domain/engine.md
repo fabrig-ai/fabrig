@@ -978,6 +978,7 @@ amended task's choice whole, leaving it none.
 | `effect` | one of a connector's kinds of effect offered to agents (connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (tasks.md, 5.7) |
 | `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
+| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
 
 **A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's

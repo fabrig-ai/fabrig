@@ -3,3 +3,46 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-ask-m1/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/ask-temper.execution.md", "temper/docs/design/draft/ask-temper.status.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-start"
+title = "smith starts a run with no workspace small: Claude Code's prompt replaced, no tools, no slash commands, an empty directory; no checkout in its mechanics"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.1"
+
+[[slice]]
+id = 1
+story = "On the fake program, a run with no workspace starts Claude Code with --system-prompt-file, --tools \"\" and --disable-slash-commands in an empty directory, and its system text names no checkout; a run with a workspace starts as before"
+parts = ["smith-start"]
+walk = false
+
+[[part]]
+id = "family"
+title = "jig's twelfth engine tool family, asking, bit 2,048, decides a ToolKind::Ask call"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/authority.md, 3"
+
+[[slice]]
+id = 2
+story = "A run whose authority holds the asking family has an asking call admitted; one without it is answered beyond authority"
+parts = ["family"]
+walk = false
+
+[[part]]
+id = "client"
+title = "Settings' How work runs offers Ask temper beside Configure temper, and its page starts a chat from template 5"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 3
+story = "A person on Settings presses Ask temper's Start, writes a question on its page, and a chat from template 5 opens; Go on returns to it"
+parts = ["client"]
+walk = false
