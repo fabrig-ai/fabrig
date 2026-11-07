@@ -23,6 +23,46 @@ fn the_printed_link_uses_the_first_owner_at_its_provider() {
     assert_eq!(crate::clients::link_owner(&engine, 3), None);
 }
 
+#[test]
+fn the_approval_is_off_unless_configured() {
+    let rows: &[(&[u8], Result<bool, What>)] = &[
+        (br#""link": true"#, Ok(false)),
+        (br#""link": true, "approval": true"#, Ok(true)),
+        (br#""link": true, "approval": false"#, Ok(false)),
+        (br#""link": true, "approval": 1"#, Err(What::Kind)),
+    ];
+    for (clients, expected) in rows {
+        let document = fixtures::with(fixtures::ENGINE_SMALL, br#""link": true"#, clients);
+        match expected {
+            Ok(expected) => {
+                let engine = fixtures::engine(&document).expect("boolean approval or absent");
+                assert_eq!(engine.clients.approval, *expected, "{clients:?}");
+                let application = crate::clients::Application {
+                    link: None,
+                    served: skein_lib::List::with_capacity(0),
+                    public: skein_lib::List::with_capacity(0),
+                    moved_bytes: 0,
+                };
+                let settings = crate::clients::settings(
+                    &engine,
+                    &application,
+                    skein_lib::Secret::new(Box::new([7; 32])),
+                    1,
+                );
+                assert_eq!(settings.approval, *expected, "{clients:?}");
+            }
+            Err(what) => {
+                let found = fixtures::engine(&document).expect_err("non-boolean approval");
+                assert_eq!(
+                    found.problems.as_slice(),
+                    &[Problem { path: fixtures::path(&[b"clients", b"approval"]), what: *what }]
+                );
+                assert_eq!(found.past, 0);
+            }
+        }
+    }
+}
+
 const PROVIDER: &[u8] = br#""provider":{"key":"secrets/provider.pem","clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}],"addresses":[3]},"link":true"#;
 fn bytes() -> Box<[u8]> {
     let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""link": true"#, PROVIDER);
