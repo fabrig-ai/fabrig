@@ -2,8 +2,6 @@
 
 2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
-- **Not yet:** 5.1: reading an account's list: the hub's source machine has no such command.
-
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
 

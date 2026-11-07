@@ -94,6 +94,12 @@ impl ListRead {
         self.command.next_deadline()
     }
 
+    /// Whether the child and its pipes have settled, including after cancellation.
+    #[must_use]
+    pub fn settled(&self) -> bool {
+        self.command.ended().is_some()
+    }
+
     /// Take one settled answer; a cancellation leaves no answer for the host.
     pub fn answer(&mut self) -> Option<ListOutcome> {
         if self.answered || self.cancelled {

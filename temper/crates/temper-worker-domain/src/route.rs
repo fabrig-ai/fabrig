@@ -236,9 +236,15 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
-        host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
-            unreachable!("the host answers list reads without a machine")
-        }
+        host::Request::ReadList { read, .. } => host_step(
+            domain,
+            env,
+            host::Event::ListRead {
+                read,
+                outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+            },
+        ),
+        host::Request::CancelRead { .. } => {}
         host::Request::Source { owner, name, operation, deadline } => {
             out.push(Request::Source { owner, name, operation, deadline });
         }

@@ -100,6 +100,11 @@ impl Domain {
     }
 
     #[must_use]
+    pub fn holds_grant(&self, account: u32, generation: u64) -> bool {
+        self.hub.holds_grant(account, generation)
+    }
+
+    #[must_use]
     pub fn hosted(&self) -> u32 {
         self.hub.hosted()
     }
@@ -284,9 +289,8 @@ fn route(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
-        host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
-            unreachable!("the host answers list reads without a machine")
-        }
+        host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
+        host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Job(job) => hub(domain, env, host::Event::Job(job.refused())),
         host::Request::DeliverJob { owner, .. } => hub(
             domain,

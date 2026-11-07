@@ -217,6 +217,7 @@ fn worker_configured(root: kernel::Fd, bad_charter: bool, message: bool, provide
 #[derive(Clone, Copy)]
 enum Backend {
     Direct,
+    List,
     Calls,
     Program,
 }
@@ -242,6 +243,10 @@ fn worker_document(
         if programs { fixtures::agent_with_limits(&crate::program_runs::limits()) } else { fixtures::agent() };
     if programs {
         agent.bounds.endpoints[0].window = 272_000;
+    }
+    if matches!(backend, Backend::List) {
+        let bound = agent.bounds.endpoints[0].clone();
+        agent.bounds.endpoints = Box::new([bound.clone(), jig_domain_link::EndpointBound { endpoint: 2, ..bound }]);
     }
     if providers {
         agent.host_limits.accounts = 3;
@@ -387,6 +392,14 @@ impl Wire {
             }
             self.channel = Some(fd);
             self.frames.push((now, header.kind, stream[8..end].into()));
+            if header.kind == jig_protocol_worker_wire::Kind::ReadList.number() {
+                let read = jig_protocol_worker_wire::ReadList::decode(
+                    &jig_protocol_worker_wire::CEILINGS,
+                    &mut skein_lib::Reader::new(&stream[8..end]),
+                )
+                .expect("whole read list");
+                secrets(&mut self.grants, read.grant());
+            }
             if header.kind == 0x0188 {
                 let sources = jig_protocol_worker_wire::Sources::decode(
                     &jig_protocol_worker_wire::CEILINGS,
@@ -548,12 +561,15 @@ pub(crate) fn auth(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     Proc::Auth(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 pub(crate) fn worker_programs(inherited: &skein_world::Inherited) -> Proc {
-    worker_programs_with(inherited, false)
+    worker_programs_with(inherited, false, false)
 }
 pub(crate) fn worker_program_runs(inherited: &skein_world::Inherited) -> Proc {
-    worker_programs_with(inherited, true)
+    worker_programs_with(inherited, true, false)
 }
-fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool) -> Proc {
+pub(crate) fn worker_lists(inherited: &skein_world::Inherited) -> Proc {
+    worker_programs_with(inherited, false, true)
+}
+fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool, lists: bool) -> Proc {
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
     let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec()).expect("fixture JSON");
@@ -567,7 +583,13 @@ fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool) -> Proc 
         false,
         false,
         false,
-        if runs { Backend::Program } else { Backend::Direct },
+        if runs {
+            Backend::Program
+        } else if lists {
+            Backend::List
+        } else {
+            Backend::Direct
+        },
         document.as_bytes(),
     );
     let Proc::Worker(host) = &mut worker else { unreachable!("worker factory") };
@@ -592,6 +614,7 @@ fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool) -> Proc 
                 jig_test_service::program_sources::PATH_BYTES,
                 1000,
                 Some(parent),
+                None,
             )
             .expect("private bounded source resources"),
         )
