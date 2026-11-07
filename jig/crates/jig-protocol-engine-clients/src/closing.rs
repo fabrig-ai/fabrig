@@ -50,7 +50,9 @@ impl Component {
                         found = Some(*exchange);
                         break;
                     }
-                    Waiting::Core { .. }
+                    Waiting::ApprovalWhose { .. }
+                    | Waiting::ApprovalCore { .. }
+                    | Waiting::Core { .. }
                     | Waiting::LinkGet { .. }
                     | Waiting::SignOut { .. }
                     | Waiting::Watch { .. }
@@ -71,6 +73,9 @@ impl Component {
             };
             match self.pending.exchanges.remove(&exchange).expect("ended exchange") {
                 Waiting::LinkGet { .. } => self.link_sign_in(exchange, None, out),
+                Waiting::Keep { answer: crate::sign_in::Answer::Approval(_), .. } => {
+                    self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
+                }
                 Waiting::Keep { .. } | Waiting::Made { .. } => {
                     if !self.mint_refused(exchange, crate::MintRefusal::Bound, out) {
                         self.respond(exchange, routes::refused());
@@ -105,7 +110,7 @@ impl Component {
                         .insert(exchange, Waiting::SignOut { sign_in, committed: true })
                         .expect("same sign-out slot");
                 }
-                Waiting::Core { .. } => {}
+                Waiting::ApprovalWhose { .. } | Waiting::ApprovalCore { .. } | Waiting::Core { .. } => {}
             }
         }
         self.end_streams(Some(sign_in));
@@ -118,6 +123,7 @@ impl Component {
         self.end_streams(None);
         self.link = None;
         self.spending = None;
+        self.approval = super::approval::State::new();
         self.pending.exchanges = Map::with_capacity(self.pending.exchanges.capacity());
         self.pending.carried = Map::with_capacity(self.pending.carried.capacity());
     }
@@ -159,7 +165,9 @@ impl Component {
                         found = Some(*exchange);
                         break;
                     }
-                    Waiting::Core { .. }
+                    Waiting::ApprovalWhose { .. }
+                    | Waiting::ApprovalCore { .. }
+                    | Waiting::Core { .. }
                     | Waiting::LinkGet { .. }
                     | Waiting::SignOut { .. }
                     | Waiting::Watch { .. }
@@ -190,6 +198,7 @@ impl Component {
             self.phase = Phase::Closing;
             self.link = None;
             self.spending = None;
+            self.approval = super::approval::State::new();
             self.stop();
         }
     }

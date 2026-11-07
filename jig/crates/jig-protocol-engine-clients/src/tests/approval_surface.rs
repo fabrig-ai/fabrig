@@ -46,17 +46,15 @@ fn cases(stopping: bool) -> [ApprovalCase; 4] {
 
 #[test]
 fn each_approval_route_is_answered_as_not_enabled() {
-    for approval in [false, true] {
-        let mut exchange = Exchange::configured(f::env(), Settings { approval, ..f::settings() });
-        for (name, message, body, expected) in cases(false) {
-            let owner = exchange.send(message(body));
-            assert_eq!(exchange.response(owner), (200, expected.as_ref()), "{name}, approval {approval}");
-            assert!(exchange.out.is_empty(), "{name}: no core event or secrets lookup");
-            assert!(exchange.component.pending.exchanges.is_empty(), "{name}: no pending exchange");
-            assert!(exchange.component.up(&exchange.env, &mut exchange.out), "{name}: deliver answer");
-            exchange.out.pop().expect("transport answer");
-            assert!(exchange.out.is_empty(), "{name}: only the answer");
-        }
+    let mut exchange = Exchange::new();
+    for (name, message, body, expected) in cases(false) {
+        let owner = exchange.send(message(body));
+        assert_eq!(exchange.response(owner), (200, expected.as_ref()), "{name}");
+        assert!(exchange.out.is_empty(), "{name}: no core event or secrets lookup");
+        assert!(exchange.component.pending.exchanges.is_empty(), "{name}: no pending exchange");
+        assert!(exchange.component.up(&exchange.env, &mut exchange.out), "{name}: deliver answer");
+        exchange.out.pop().expect("transport answer");
+        assert!(exchange.out.is_empty(), "{name}: only the answer");
     }
 }
 
@@ -66,7 +64,7 @@ fn each_approval_route_is_not_ready_while_stopping() {
         let mut exchange = Exchange::configured(f::env(), Settings { approval, ..f::settings() });
         exchange.component.down(&exchange.env, Event::Stop, &mut exchange.out);
         for (name, message, body, expected) in cases(true) {
-            let owner = exchange.send(message(body));
+            let owner = exchange.send_as(message(body), true, None);
             assert_eq!(exchange.response(owner), (200, expected.as_ref()), "{name}, approval {approval}");
             assert!(exchange.out.is_empty(), "{name}: no core event or secrets lookup");
             assert!(exchange.component.pending.exchanges.is_empty(), "{name}: no pending exchange");

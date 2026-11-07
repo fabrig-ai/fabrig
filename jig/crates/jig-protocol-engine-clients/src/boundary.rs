@@ -302,7 +302,7 @@ pub enum ToTransport {
     StreamEnded { stream: Token, why: Ended },
     Public { exchange: Token, reply: PublicReply },
 }
-#[derive(Debug)]
+/// Encoded replies may carry a secret (jig/docs/design/protocol/client.md, 8).
 pub enum Reply {
     Record(Box<[u8]>),
     NotARecord,
@@ -344,4 +344,15 @@ pub enum PublicReply {
     Unknown,
     Busy,
     NotServed { record: Box<[u8]> },
+}
+
+impl ::core::fmt::Debug for Reply {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        match self {
+            Self::Record(bytes) => f.debug_struct("Record").field("len", &bytes.len()).finish(),
+            Self::NotARecord => f.write_str("NotARecord"),
+            Self::Conflict => f.write_str("Conflict"),
+            Self::StreamsFull { size } => f.debug_struct("StreamsFull").field("size", size).finish(),
+        }
+    }
 }
