@@ -130,52 +130,68 @@ fn a_github_reply_to_a_forgejo_step_is_unexpected() {
     }
 }
 #[test]
-fn the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs() {
-    for old in [
-        None,
-        Some(secret(b"42")),
-        Some(secret(&43u64.to_le_bytes())),
-        Some(secret(&42u64.to_le_bytes()[..7])),
-        Some(secret(&[42, 0, 0, 0, 0, 0, 0, 0, 0])),
-    ] {
-        let mut run = Run::owned();
-        run.bot_lookup();
-        run.step(user(fixtures::person(b"kit", b"kit:bot")));
-        run.kept_tokens();
-        assert_eq!(
-            run.step(Event::Read(old.clone())),
-            Need::Write { item: Item::User, bytes: secret(&42u64.to_le_bytes()) },
-            "{old:?}"
-        );
-        assert_eq!(run.step(Event::Written), fixtures::send(Request::Org { name: b"work".as_slice().into() }));
-    }
-}
-#[test]
-fn a_missing_admin_token_stops_before_any_request() {
-    let mut run = Run::managed();
-    run.step(Event::Begin);
-    assert_eq!(
-        run.step(Event::Read(None)),
-        Need::Stop(Failure {
-            forge: 1,
-            step: Stage::Admin,
-            subject: b"kit-admin".as_slice().into(),
-            why: Why::Missing,
-        })
+fn nonmatching_bot_identities_are_rewritten_before_continuing() {
+    skein_rows::check(
+        [
+            (
+                "the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs: missing",
+                (Run::owned(), None, fixtures::send(Request::Org { name: b"work".as_slice().into() })),
+            ),
+            (
+                "the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs: text",
+                (Run::owned(), Some(secret(b"42")), fixtures::send(Request::Org { name: b"work".as_slice().into() })),
+            ),
+            (
+                "the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs: different",
+                (
+                    Run::owned(),
+                    Some(secret(&43u64.to_le_bytes())),
+                    fixtures::send(Request::Org { name: b"work".as_slice().into() }),
+                ),
+            ),
+            (
+                "the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs: short",
+                (
+                    Run::owned(),
+                    Some(secret(&42u64.to_le_bytes()[..7])),
+                    fixtures::send(Request::Org { name: b"work".as_slice().into() }),
+                ),
+            ),
+            (
+                "the_bots_id_is_written_as_eight_bytes_only_when_the_item_differs: long",
+                (
+                    Run::owned(),
+                    Some(secret(&[42, 0, 0, 0, 0, 0, 0, 0, 0])),
+                    fixtures::send(Request::Org { name: b"work".as_slice().into() }),
+                ),
+            ),
+            ("an_empty_bot_id_is_absent", (Run::managed(), Some(secret(b"")), Need::Done(fixtures::done()))),
+        ],
+        |(mut run, old, continuation)| {
+            run.bot_lookup();
+            run.step(user(fixtures::person(b"kit", b"kit:bot")));
+            run.kept_tokens();
+            assert_eq!(
+                run.step(Event::Read(old.clone())),
+                Need::Write { item: Item::User, bytes: secret(&42u64.to_le_bytes()) },
+                "{old:?}"
+            );
+            assert_eq!(run.step(Event::Written), continuation);
+        },
     );
 }
 #[test]
-fn an_empty_admin_token_stops_before_any_request() {
-    let mut run = Run::managed();
-    run.step(Event::Begin);
-    assert_eq!(
-        run.step(Event::Read(Some(secret(b"")))),
-        Need::Stop(Failure {
-            forge: 1,
-            step: Stage::Admin,
-            subject: b"kit-admin".as_slice().into(),
-            why: Why::Missing,
-        })
+fn missing_admin_tokens_stop_before_any_request() {
+    skein_rows::check(
+        [
+            ("a_missing_admin_token_stops_before_any_request", None),
+            ("an_empty_admin_token_stops_before_any_request", Some(secret(b""))),
+        ],
+        |token| {
+            let mut run = Run::managed();
+            run.step(Event::Begin);
+            assert_eq!(run.step(Event::Read(token)), fixtures::named_failure(Stage::Admin, b"kit-admin", Why::Missing));
+        },
     );
 }
 #[test]
@@ -217,16 +233,18 @@ fn short_word_bot(name: &[u8]) -> Need {
     run.step(user(fixtures::person(b"kit", name)))
 }
 #[test]
-fn a_marker_inside_another_word_is_refused() {
-    for name in [b"ab:bot".as_slice(), b"0b:bot", b"-b:bot"] {
-        assert_eq!(short_word_bot(name), fixtures::named_failure(Stage::Bot, b"kit", Why::Unmarked), "{name:?}");
-    }
-}
-#[test]
-fn a_marker_followed_by_word_bytes_is_refused() {
-    for name in [b"b:botx".as_slice(), b"b:bot0", b"b:bot-"] {
-        assert_eq!(short_word_bot(name), fixtures::named_failure(Stage::Bot, b"kit", Why::Unmarked), "{name:?}");
-    }
+fn bot_markers_embedded_within_words_are_refused() {
+    skein_rows::check(
+        [
+            ("a_marker_inside_another_word_is_refused: ab:bot", b"ab:bot".as_slice()),
+            ("a_marker_inside_another_word_is_refused: 0b:bot", b"0b:bot".as_slice()),
+            ("a_marker_inside_another_word_is_refused: -b:bot", b"-b:bot".as_slice()),
+            ("a_marker_followed_by_word_bytes_is_refused: b:botx", b"b:botx".as_slice()),
+            ("a_marker_followed_by_word_bytes_is_refused: b:bot0", b"b:bot0".as_slice()),
+            ("a_marker_followed_by_word_bytes_is_refused: b:bot-", b"b:bot-".as_slice()),
+        ],
+        |name| assert_eq!(short_word_bot(name), fixtures::named_failure(Stage::Bot, b"kit", Why::Unmarked), "{name:?}"),
+    );
 }
 #[test]
 fn an_unmarked_admin_is_refused_as_unmarked() {
@@ -237,23 +255,14 @@ fn an_unmarked_admin_is_refused_as_unmarked() {
     assert_eq!(run.step(user(bot)), fixtures::named_failure(Stage::Bot, b"kit", Why::Unmarked));
 }
 #[test]
-fn an_empty_api_token_is_absent() {
-    let mut run = fixtures::token_read(Item::ApiToken);
-    assert_eq!(run.step(Event::Read(Some(secret(b"")))), fixtures::send(Request::ApiSettings));
-}
-#[test]
-fn an_empty_git_token_is_absent() {
-    let mut run = fixtures::token_read(Item::GitToken);
-    assert_eq!(run.step(Event::Read(Some(secret(b"")))), fixtures::send(Request::ApiSettings));
-}
-#[test]
-fn an_empty_bot_id_is_absent() {
-    let mut run = fixtures::id_read();
-    assert_eq!(
-        run.step(Event::Read(Some(secret(b"")))),
-        Need::Write { item: Item::User, bytes: secret(&42u64.to_le_bytes()) }
+fn empty_saved_tokens_enter_the_token_creation_path() {
+    skein_rows::check(
+        [("an_empty_api_token_is_absent", Item::ApiToken), ("an_empty_git_token_is_absent", Item::GitToken)],
+        |item| {
+            let mut run = fixtures::token_read(item);
+            assert_eq!(run.step(Event::Read(Some(secret(b"")))), fixtures::send(Request::ApiSettings));
+        },
     );
-    assert_eq!(run.step(Event::Written), Need::Done(fixtures::done()));
 }
 fn remake_script(status: u16) {
     use skein_forge::forgejo::request::Page;
@@ -284,12 +293,11 @@ fn remake_script(status: u16) {
     }
 }
 #[test]
-fn a_revoked_token_is_deleted_made_and_written() {
-    remake_script(401);
-}
-#[test]
-fn a_forbidden_kept_token_is_remade() {
-    remake_script(403);
+fn authentication_failures_remake_tokens_completely() {
+    skein_rows::check(
+        [("a_revoked_token_is_deleted_made_and_written", 401), ("a_forbidden_kept_token_is_remade", 403)],
+        remake_script,
+    );
 }
 #[test]
 fn a_non_auth_status_checking_a_token_stops() {

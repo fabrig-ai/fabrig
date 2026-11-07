@@ -3314,6 +3314,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-link",
+ "skein-rows",
  "skein-tls",
 ]
 
