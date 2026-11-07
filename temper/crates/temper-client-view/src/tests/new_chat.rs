@@ -315,7 +315,7 @@ fn made_chat_replaces_only_the_new_chat_address() {
     for from in [
         Address::NewChat { draft: false },
         Address::NewChat { draft: true },
-        Address::Configure { project: f::PROJECT },
+        Address::Ask { project: f::PROJECT },
         Address::Chats { filter: d::ChatsFilter::All },
     ] {
         for document in [false, true] {

@@ -93,7 +93,7 @@ impl Switcher {
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Chat { .. }

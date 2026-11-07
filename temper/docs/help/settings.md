@@ -132,14 +132,16 @@ its default. A stored change still wins over a changed default.
 On Settings, Models, temper reads each provider's list where it can: as an
 account becomes usable, once a day and when you choose **Read again**.
 A new model starts off the picker, marked “new” for a week. Its prices are
-estimated until the configuring chat sets them. A failed read says so on
+estimated until Ask temper sets them. A failed read says so on
 Models and changes nothing.
 
 A Claude subscription has no list to read: use **Add a model by name** for
 a new model there, or any model a provider's list doesn't show. Choose its
 provider and enter its name; the first run shows whether it is served.
-An owner can turn models on or off in the picker. Tell **Configure temper**
-to change prices, a default or a role's models, or other settings.
+An owner can turn models on or off in the picker. **Ask temper** in the
+project rail opens its newest open chat, or a new chat where you can ask
+about temper or tell it how you work. Use it to change prices, a default
+or a role's models, or other settings.
 
 ### Recovering from a check reserve refusal
 

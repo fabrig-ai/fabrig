@@ -70,6 +70,10 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     b.close();
     if let Some(number) = at.number {
         text(b, &w.say(Word::Chat, &[Hole::Number(number)]), look::TERMINAL_TASK);
+        if super::chat::configuring(root) {
+            text(b, &w.say(Word::ToolSeparator, &[]), look::TERMINAL_SEP);
+            text(b, &w.say(Word::Configuring, &[]), look::TERMINAL_TASK);
+        }
     }
     b.close();
     b.open(Role::Slot);
@@ -91,7 +95,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
             let act = match root.pages().address() {
                 Address::NewChat { .. } => Act::Go { address: Address::NewChat { draft: true } },
                 Address::Chat { .. }
-                | Address::Configure { .. }
+                | Address::Ask { .. }
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::Accounts

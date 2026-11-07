@@ -14,7 +14,7 @@ First:
   [10] + New chat
   More ways to start work:
     [11] Chat
-      Ask a question or ask for a change.
+      Ask about the code or ask for a change.
     [12] Goal
       Agents plan a larger change and land it.
     [13] All ways to start work
