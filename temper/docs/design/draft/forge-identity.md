@@ -26,8 +26,8 @@ This draft decides who counts as an approver, so its reasons are kept here
   (section 4).
 - **What it holds against:** on an owned Forgejo, an agent's mistake, not an agent
   trying to get past it (section 6). Said at acceptance, and the user's to weigh.
-- **A hole it closes:** today's reviewers are looked up by a forge user's number
-  alone, whichever forge they reviewed on (section 3).
+- **A hole it closes:** a lookup by a forge user's number alone can take a
+  stranger's review for a known person's on another forge (section 3).
 - **A box's one person only** in this round (section 9).
 
 ## 2. What the person does
@@ -51,16 +51,17 @@ This draft decides who counts as an approver, so its reasons are kept here
 
 ## 3. Who a forge account is
 
-- **Today, three readers decode provider 0's subject as a forge user's number:**
+- **Three readers need the same lookup:**
   `human_forge_identity` (`temper-engine-domain/src/route/forge_route.rs`),
-  `forge_user` (`route/host_route.rs`) and `landing_reviewers` (`forge_route.rs`).
-- **The hole:** that subject doesn't name a forge, and `landing_reviewers` looks up
-  `{ provider: 0, subject: review.author }` whichever forge the review is on. In a
-  project on both an owned Forgejo and GitHub, GitHub's user 3 is taken for the party
-  adoption seeded from Forgejo's user 3, role and all. Anyone may post a review on a
-  public repository's pull request, so a stranger's approval can count. Read in the
-  code at `d893a93cc1` and confirmed by this draft's review, not run. Both forges in
-  this round make it one to close first.
+  `settings_people` (`route/host_route.rs`) and `landing_reviewers` (`forge_route.rs`).
+- **The hole identified at `d893a93cc1`:** provider 0's subject did not name a forge,
+  and `landing_reviewers` looked up `{ provider: 0, subject: review.author }`
+  whichever forge the review was on. In a project on both an owned Forgejo and
+  GitHub, GitHub's user 3 could be taken for the party adoption seeded from
+  Forgejo's user 3, role and all. Anyone may post a review on a public repository's
+  pull request, so a stranger's approval could count. This was read in the code
+  and confirmed by this draft's review without running it. Both forges in this
+  round require the lookup to name the forge as well as the user.
 - **Provider 0's subject names the forge:** the forge's number then the user's, 10
   bytes, opaque to everything but one function of the forge's. A stored format
   changing in place: no migration before v0.1.0.

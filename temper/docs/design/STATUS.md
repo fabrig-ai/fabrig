@@ -66,7 +66,12 @@ and fake-box press proof is recorded. A chat's model or effort amendment
 answers its person's next words on the new choice; a model change within a
 resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
-hidden beside a usable one of the same provider (`client/README.md`). The
+hidden beside a usable one of the same provider (`client/README.md`).
+Forge account subjects and review lookups name both forge and user, and the
+configuring inventory names each forge's known or unknown account. The box
+owner's link, per-repository forge eligibility and the approval card remain
+separate work (`draft/forge-identity.md`, `domain/forge.md`,
+`domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
