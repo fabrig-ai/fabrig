@@ -1579,3 +1579,62 @@ fn an_answer_whose_followups_pass_the_batch_bytes_is_invalid() {
         assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal, terminal);
     }
 }
+
+fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
+    let (mut core, env) = crossed_claim();
+    send_task(
+        &mut core,
+        &env.limits,
+        tasks::Event::Amend {
+            reply_to: ReplyTo::new(FIRST),
+            by: tasks::Party::Person(1),
+            funder: None,
+            places: Box::new([]),
+            operation: tasks::Amend {
+                task: OPEN_TASK,
+                message: 1,
+                stop_run: false,
+                amendment: Box::new(tasks::Amendment {
+                    llm: Some(tasks::LlmChoice {
+                        account: None,
+                        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                        subagents: Box::new([]),
+                    }),
+                    ..fixtures::unchanged(b"change next run")
+                }),
+            },
+        },
+    );
+    send_task(
+        &mut core,
+        &env.limits,
+        tasks::Event::Message {
+            reply_to: ReplyTo::new(FIRST),
+            project: 1,
+            operation: tasks::Message {
+                task: OPEN_TASK,
+                word: tasks::Word {
+                    number: 2,
+                    from: tasks::Party::Person(1),
+                    kind: tasks::MessageKind::Words,
+                    words: b"answer on the new choice".as_slice().into(),
+                    at: Wall::EPOCH,
+                    hits: 1,
+                    eligible: true,
+                },
+            },
+        },
+    );
+    (core, env)
+}
+
+#[test]
+fn a_chat_stopped_for_its_next_choice_keeps_a_parked_terminal() {
+    let (mut core, env) = chat_stopped_for_its_next_choice();
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::Failed(tasks::Class::Agent);
+    drop(step(&mut core, &env, answer));
+    assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end, tasks::End::Parked);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+}

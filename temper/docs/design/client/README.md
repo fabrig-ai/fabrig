@@ -523,7 +523,9 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings"; `read` and `Read` are "read N files", `list` and `Glob`
+      settings"; `propose_settings` is "proposed a change N×", once
+      "proposed a change", and under way "proposing a change", none of them
+      naming its input; `read` and `Read` are "read N files", `list` and `Glob`
       "listed N folders", `write` and `Write` "wrote N files", `edit` and
       `Edit` "edited N files" and `remove` "removed N files", each its
       distinct arguments, a call whose input can't be read one; `search`
@@ -640,6 +642,8 @@ keeps (`../protocol/configuration.md`, section 2).
     pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
     a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
     the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    At a phone's width it stands in a row of its own below the log instead,
+    so nothing lies beneath it and it covers none of a card's controls.
     Pressed, the view returns to the end and it goes. Where the window has
     let the newest lines go the log continues and the pill stays visible,
     even at the window's foot. A press on a chat reads the end again;
@@ -5377,14 +5381,20 @@ section 5.
   when it was made, as every proposal is (3.5; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
-  then each item, in small mono type, faint, in the words of `temper ctl` but
+  then each item, small and faint in the card's type, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
   "Questions: answered by the goal", "Questions: asked of me too" or "Questions:
-  not asked"; any other as "charter 2", "template 4", "landing rule 1". Those
-  values come from the forge's read of a proposal's items, which takes a role
-  in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
-  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
+  not asked"; a template by its name, as "Way: NAME" names one, or "template 4"
+  where the person's `me` names none; any other as "charter 2", "landing rule 1".
+  A proposal's heads name jig's own settings alone, so a live card takes its
+  application's items and project's policies from the proposal's review, and
+  those values from the forge's read of a proposal's items under the review's
+  `key`, which takes a role in the deployment
+  (`../protocol/configuration.md`, 13.2): without one, or until
+  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. A decided
+  card has no review: it keeps the values it read, and with none draws its heads
+  alone. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
   something", quiet: it focuses the composer, brings it into view and sets its
   placeholder to "What should change?", until something is sent or the proposal
@@ -5392,8 +5402,11 @@ section 5.
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
-  what to change here revises nothing while it waits: the agent answers that an
-  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Decided, it ends in a muted state line in place of its
+  what to change here has the agent propose again, whose fresh proposal replaces
+  the one that waits (`../domain/agent.md`, 8.1): the new card stands below. An
+  "Accept" pressed on a replaced card, in a tab that hadn't heard, is refused and changes
+  nothing, and the refusal ends the card as withdrawn: "Replaced by the proposal below",
+  or "Withdrawn · nothing changes" until it has read the later one. Decided, it ends in a muted state line in place of its
   acts, however the decision was made (*Needs you*, another tab, `temper ctl`), the
   chat's task document telling it with no reload: accepted, "✓ Accepted · new work
   follows it"; rejected, "Rejected · nothing changes"; withdrawn, "Withdrawn · nothing
@@ -6600,14 +6613,21 @@ own tests:
   a new chat selects, personal accounts alone, and no retained line or
   additional Settings act.
 
-- **Account groups and "All models"** (3.5): the `model-picker` look takes
-  the offer's account ids and `picker` flags to group by what pays and expose
-  every offered model, including those outside the short picker. A stopped
-  account keeps its own fix beside another usable account of that provider.
-  Until that look, the chooser groups by provider and shows `picker` models.
-  Settings, Models, its switches and adding by name belong to the catalogue's
-  store step; reading providers' lists and "Read again" to its lists step
-  (`../draft/model-catalogue.md`, section 7).
+- **A stopped account beside a usable one** (3.5): the provider's fix line
+  is drawn only when it has no offered model. A separate fix for each stopped
+  account, even beside a usable account of that provider, remains the catalogue's
+  requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
+  line until those account rows are designed.
+- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
+  switches, adding by name and direction to Configure temper for a default
+  change belong to the catalogue's store step. Provider-list reads, "Read again",
+  failed-read words, estimated prices and "new" on All models belong to its
+  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
+  no "new", and All models links to Accounts with "Accounts, in Settings".
+- **The next run after a picker amendment** (3.5, 5.5): `ui-model-next-turn`
+  owns carrying the stored model and effort through to the next provider
+  request. Default: the choice is applied by one press; the runtime repair
+  and its proof remain that plan's, with the mismatch in `README.status.md`.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
@@ -6793,8 +6813,8 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none; a person rejects in *Needs you*
-  before the agent proposes afresh (5.13).
+  proposal's own `project`. Default: none; a person rejects in *Needs you*, and
+  asking for a change has the agent propose again (5.13).
 - **Calls naming their proposals** (3.5, 5.13): filling a committed call's
   `objects` needs the core's turn record, its archived form and a mapping from
   the call's position to the proposal's number; proposals from a verdict or a

@@ -909,6 +909,187 @@ fn accepted_and_rejected_settings_decisions_replay_and_fresh_keys_get_the_first_
     }
 }
 
+fn task_proposal_history(world: &World, task: u64) -> Vec<tasks::History> {
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::History(history))) if history.task == task => {
+                Some(history.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_runs_fresh_proposal_replaces_its_own_that_waits() {
+    let (mut world, signed, task) = proposing_run(true);
+    let first = run_charter(&world, b"First instructions");
+    let old = run_proposed(&run_propose(&mut world, 1, Box::new([first])));
+    let before = fixtures::live_row(&world, task).clone();
+    let item = run_charter(&world, b"Replacement instructions");
+    let fresh = run_proposed(&run_propose(&mut world, 1, Box::new([item.clone()])));
+    assert_ne!(fresh, old);
+    let row = fixtures::live_row(&world, task);
+    assert_eq!(row.revision, before.revision + 2);
+    assert_eq!(row.proposal.as_ref().expect("new pending proposal").number, fresh);
+    assert_eq!(row.inbox, before.inbox, "replacement sends no decision message");
+    let history = task_proposal_history(&world, task);
+    let withdrawn = history.iter().find(|row| row.revision == before.revision + 1).expect("withdrawn history");
+    assert_eq!(withdrawn.by, tasks::Party::Task(task));
+    assert_eq!(withdrawn.change, tasks::Change::ProposalWithdrawn);
+    let proposal = withdrawn.proposal.as_ref().expect("withdrawn proposal");
+    assert_eq!(proposal.number, old);
+    assert_eq!(proposal.state, tasks::ProposalState::Withdrawn);
+    let proposed = history.iter().find(|row| row.revision == before.revision + 2).expect("new proposal history");
+    assert_eq!(proposed.change, tasks::Change::Proposed);
+    assert_eq!(proposed.proposal.as_ref().expect("new proposal").number, fresh);
+    assert!(!world.store.rows.contains_key(&task_set(task, old)));
+    let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Proposal {
+        value, ..
+    }))) = &world.store.rows[&task_set(task, fresh)]
+    else {
+        panic!("new set")
+    };
+    assert_eq!(value.items.as_ref(), &[item]);
+    assert_eq!(inventory(&mut world, signed).pending.len(), 1);
+    let commit = world
+        .commits
+        .iter()
+        .find(|writes| writes.contains(&root::Write::Erase(task_set(task, old))))
+        .expect("withdrawal commit");
+    assert!(
+        commit.iter().any(|write| matches!(write, root::Write::Save(row) if row.key() == task_set(task, fresh))),
+        "withdrawal and new set commit together"
+    );
+    world.park_for_message(0);
+    world.close();
+}
+
+#[test]
+fn a_refused_fresh_proposal_leaves_its_own_waiting() {
+    let (mut world, signed, task) = proposing_run(true);
+    let item = run_charter(&world, b"First pending instructions");
+    let old = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    for refusal in 0..4 {
+        if refusal == 3 {
+            let item = run_charter(&world, b"Another party's instructions");
+            proposed(&propose(&mut world, signed, 104, 1, Box::new([item])));
+        }
+        let before = settings_rows(&world);
+        let history = task_proposal_history(&world, task);
+        let row = fixtures::live_row(&world, task).clone();
+        let mut item = run_charter(&world, b"Refused replacement");
+        let part = match refusal {
+            0 => run_propose(&mut world, 0, Box::new([item])),
+            1 => {
+                let settings::Edit::Set(settings::Value::Charter(charter)) = &mut item.edit else { panic!("charter") };
+                charter.number = 0;
+                run_propose(&mut world, 1, Box::new([item]))
+            }
+            2 => {
+                let reason =
+                    review_reason(usize::try_from(run_configuration().1.core.people.words).expect("words bound") + 1);
+                run_propose_reason(&mut world, 1, Box::new([item]), &reason)
+            }
+            3 => run_propose(&mut world, 1, Box::new([item])),
+            _ => unreachable!("four refusal cases"),
+        };
+        match refusal {
+            0 => assert_eq!(part, core::CallPart::SettingsRefused(people::Refusal::Stale { newest: 1 })),
+            1 => assert!(matches!(part, core::CallPart::SettingsRefused(people::Refusal::NotWellFormed { .. }))),
+            2 => assert_eq!(
+                part,
+                core::CallPart::SettingsRefused(people::Refusal::Limit { which: people::LimitKind::Words })
+            ),
+            3 => assert_eq!(
+                part,
+                core::CallPart::SettingsRefused(people::Refusal::Limit { which: people::LimitKind::SettingsProposals })
+            ),
+            _ => unreachable!("four refusal cases"),
+        }
+        assert_eq!(settings_rows(&world), before, "refusal {refusal} retains the set");
+        assert_eq!(task_proposal_history(&world, task), history, "refusal {refusal} writes no history");
+        assert_eq!(fixtures::live_row(&world, task).proposal, row.proposal);
+        assert_eq!(fixtures::live_row(&world, task).revision, row.revision);
+        assert_eq!(fixtures::live_row(&world, task).inbox, row.inbox);
+        assert_eq!(fixtures::live_row(&world, task).proposal.as_ref().expect("old pending").number, old);
+    }
+    world.park_for_message(0);
+    world.close();
+}
+
+#[test]
+fn an_owners_decision_of_a_replaced_proposal_changes_nothing() {
+    let (mut world, signed, task) = proposing_run(true);
+    let item = run_charter(&world, b"First instructions");
+    let old = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    let item = run_charter(&world, b"New instructions");
+    let fresh = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    let before = settings_rows(&world);
+    let history = task_proposal_history(&world, task);
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::ProposalDecision {
+        proposer: people::Proposer::Task(task),
+        proposal: old
+    }))));
+    assert_eq!(
+        run_decide(&mut world, signed, task, old, people::ProposalDecision::Accept, None),
+        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown))
+    );
+    assert_eq!(world.domain.settings().newest(), 1);
+    assert_eq!(settings_rows(&world), before);
+    assert_eq!(task_proposal_history(&world, task), history);
+    accepted(&ask(
+        &mut world,
+        signed,
+        103,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(task),
+            proposal: fresh,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    ));
+    assert_eq!(world.domain.settings().newest(), 2);
+    assert_eq!(
+        revision(&world, 2, false).head.proposal,
+        Some((people::Proposer::Task(task), u32::try_from(fresh).expect("proposal number")))
+    );
+    let message = run_outcome(&world, task, fresh).number;
+    world.turn(1, 0, Some(message), b"The new settings were accepted");
+    world.park_for_message(0);
+    world.close();
+}
+
+#[test]
+fn a_replaced_proposal_stays_gone_after_a_restart() {
+    let (mut world, signed, task) = proposing_run(true);
+    let item = run_charter(&world, b"First instructions");
+    let old = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    let item = run_charter(&world, b"Durable new instructions");
+    let fresh = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    let before = settings_rows(&world);
+    let history = task_proposal_history(&world, task);
+    restart(&mut world, run_configuration().0);
+    assert!(world.domain.ready(), "restart passed Link");
+    assert_eq!(settings_rows(&world), before);
+    assert_eq!(task_proposal_history(&world, task), history);
+    assert!(!world.store.rows.contains_key(&task_set(task, old)));
+    assert!(world.store.rows.contains_key(&task_set(task, fresh)));
+    assert_eq!(fixtures::live_row(&world, task).proposal.as_ref().expect("one pending").number, fresh);
+    assert_eq!(inventory(&mut world, signed).pending.len(), 1);
+    assert!(
+        !fixtures::live_row(&world, task)
+            .inbox
+            .iter()
+            .any(|word| matches!(word.kind, tasks::MessageKind::SettingsDecision { proposal, .. } if proposal == old))
+    );
+    world.close();
+}
+
 fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) -> core::CallPart {
     run_propose_reason(world, against, items, "Please review these settings")
 }

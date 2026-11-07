@@ -4,7 +4,9 @@
 //! never knows role membership or a worker call identity. Terminal proposals
 //! leave live memory as retained store rows.
 use crate::domain::{Domain, publish, record, refused, task_mut};
-use crate::{Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Release, Request, Stored, Was};
+use crate::{
+    Amendment, Authority, Change, Limits, New, Party, Phase, Refusal, Release, Request, Stored, TaskRecord, Was,
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo, Time, Wall};
 
@@ -621,8 +623,35 @@ pub(crate) fn propose(
     if let Some(problem) = admission_problem(domain, &env.limits, &proposal) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
+    replace_own(domain, env, &proposal, out);
     apply_proposal(domain, env, proposal, out);
     out.push(Request::Done { reply_to: to });
+}
+
+/// The pending proposal of settings a task's fresh one replaces (tasks.md, section 9).
+fn replaced(task: &TaskRecord, proposal: &Proposal) -> Option<u64> {
+    if kind(&proposal.action) != ProposalKind::Settings {
+        return None;
+    }
+    let prior = task.proposal.as_ref()?;
+    if kind(&prior.action) != ProposalKind::Settings {
+        return None;
+    }
+    match prior.state {
+        ProposalState::Pending { .. } => Some(prior.number),
+        ProposalState::Accepted { .. } | ProposalState::Rejected { .. } | ProposalState::Withdrawn => None,
+    }
+}
+
+fn replace_own(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out: &mut Queue<Request>) {
+    let task = &mut task_mut(domain, proposal.proposer).expect("admitted proposer live").record;
+    if replaced(task, proposal).is_none() {
+        return;
+    }
+    let mut prior = *task.proposal.take().expect("replacement has a pending proposal");
+    prior.state = ProposalState::Withdrawn;
+    crate::positions::history(domain, env, prior, Party::Task(proposal.proposer), Change::ProposalWithdrawn, out);
+    domain.proposal_alarms.cancel(proposal.proposer);
 }
 
 /// Shared admission for standalone proposals and compound procedure steps.
@@ -646,7 +675,12 @@ pub(crate) fn admission_problem_staged(
         return Some(proposal_problem(proposal.proposer, Refusal::Unknown));
     };
     let same_scope = proposal_scope(task.project, proposal);
-    if !same_scope || task.proposal.is_some() || task.revision == u64::MAX {
+    let replacement = replaced(&task, proposal);
+    let revisions = if replacement.is_some() { 2 } else { 1 };
+    if !same_scope
+        || (task.proposal.is_some() && replacement.is_none())
+        || task.revision.checked_add(revisions).is_none()
+    {
         if same_scope
             && task.revision != u64::MAX
             && let Some(prior) = &task.proposal
@@ -669,13 +703,14 @@ pub(crate) fn admission_problem_staged(
         }
         return Some(proposal_problem(proposal.proposer, Refusal::Busy));
     }
+    // A replacement keeps the pending proposal's existing decision reservation.
     if !crate::inbox::room_staged(
         domain,
         staged,
         limits,
         proposal.proposer,
-        1,
-        skein_lib::length::usize_of(limits.message_bytes),
+        u32::from(replacement.is_none()),
+        if replacement.is_some() { 0 } else { skein_lib::length::usize_of(limits.message_bytes) },
     ) {
         return Some(crate::Problem::capacity(
             Some(proposal.proposer),

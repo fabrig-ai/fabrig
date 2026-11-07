@@ -456,6 +456,7 @@ impl<B: Backend> World<B> {
                 Job::Coding | Job::Delegating | Job::Wandering | Job::MidReport | Job::MidChange | Job::MarkerReport
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
+        let config = configuration(settings.window);
         let main_prices = charter.llm.prices;
         let mut model_prices = BTreeMap::new();
         model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
@@ -485,7 +486,7 @@ impl<B: Backend> World<B> {
             settings: *settings,
             now: Time::ZERO,
             rng: Rng::new(settings.seed ^ 0x0b),
-            agent: agent::Domain::new(&settings.limits, configuration(settings.window), settings.seed ^ 0x17),
+            agent: agent::Domain::new(&settings.limits, config, settings.seed ^ 0x17),
             stage,
             backend,
             parent_deliveries: false,
