@@ -24,6 +24,9 @@ a due expiry marks and delivers the changed offer.
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
 
+- **Not yet:** 17.2: an out-of-shape refusal's `at` is 0 whichever item
+  fails, so a change's third item reads as its first.
+
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
