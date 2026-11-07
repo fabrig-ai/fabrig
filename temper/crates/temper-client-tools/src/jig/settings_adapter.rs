@@ -30,6 +30,14 @@ pub fn client_authority_models(v: &n::AuthorityModels) -> c::AuthorityModels {
 
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for item in &v.parts {
+                out.push(n::CharterPart { on: item.on, instructions: form_text(&item.instructions) })
+                    .expect("one value per input");
+            }
+            out
+        },
         rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
@@ -69,7 +77,14 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
-        parts: List::with_capacity(0),
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for item in &v.parts {
+                out.push(c::CharterPart { on: item.on, instructions: client_text(&item.instructions) })
+                    .expect("one value per input");
+            }
+            out
+        },
         rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
@@ -141,6 +156,16 @@ pub fn form_held_revision(v: &c::HeldRevision) -> n::HeldRevision {
 
 pub fn form_llm_choice(v: &c::LlmChoice) -> n::LlmChoice {
     n::LlmChoice {
+        later: match &v.later {
+            Some(later) => {
+                let mut subagents = List::with_capacity(later.subagents.len());
+                for item in &later.subagents {
+                    subagents.push(form_model_effort(item)).expect("one value per input");
+                }
+                Some(n::LlmLater { main: form_model_effort(&later.main), subagents })
+            }
+            None => None,
+        },
         account: form_optional_u32(v.account.as_ref()),
         main: form_model_effort(&v.main),
         subagents: {
@@ -154,7 +179,16 @@ pub fn form_llm_choice(v: &c::LlmChoice) -> n::LlmChoice {
 }
 pub fn client_llm_choice(v: &n::LlmChoice) -> c::LlmChoice {
     c::LlmChoice {
-        later: None,
+        later: match &v.later {
+            Some(later) => {
+                let mut subagents = List::with_capacity(later.subagents.len());
+                for item in &later.subagents {
+                    subagents.push(client_model_effort(item)).expect("one value per input");
+                }
+                Some(c::LlmLater { main: client_model_effort(&later.main), subagents })
+            }
+            None => None,
+        },
         account: client_optional_u32(v.account.as_ref()),
         main: client_model_effort(&v.main),
         subagents: {
