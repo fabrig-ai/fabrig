@@ -1,0 +1,3 @@
+draft = "account-email"
+repo = "fabrig"
+sources = ["temper/docs/plan/account-email/inputs/request.md", "jig/docs/design/draft/account-facts.md", "jig/docs/design/domain/providers.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
