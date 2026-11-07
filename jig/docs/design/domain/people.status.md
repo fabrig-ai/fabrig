@@ -25,7 +25,6 @@ client step remains deferred in temper's `client/tools.md`, section 14.
   the store for good: a deletion finds entries by their lines, no start
   scans for one with none, and no read reaches it. A store holds such
   entries where a deletion erased a project's lines alone.
-- **Not yet:** 3: a sign-in approved by a browser, whose take the clients' component makes with `Whose` and an ordinary sign-in (`../protocol/client.md`, section 8); people itself needs nothing new for it.
 - **Departs:** 6, 8: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
   each application opts in before the first step, as temper does. With
@@ -36,3 +35,8 @@ client step remains deferred in temper's `client/tools.md`, section 14.
   before it was set, naming a task answerer, route by the question's
   current inbox owner, and moving a recipient re-points its incoming
   person-answerer credits to its new person.
+
+Section 3's browser-approved sign-in uses the clients' component's
+`Whose` and an ordinary sign-in with no held credential. Nothing reaches
+people before the take; the joint-client stories cover the approving
+party and an approval never taken making no sign-in.

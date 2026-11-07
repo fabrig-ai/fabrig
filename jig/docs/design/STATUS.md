@@ -1,7 +1,14 @@
 # Status
 
 2026-11-07. Where jig's code lags or departs from its design, from the
-status files below. The deployment's sole-owner read is built, including
+status files below. Browser-approved sign-in is built through the wire,
+clients' component, HTTP mapping, configuration and linked and unlinked
+clients. Only the secret's take makes the approving browser's party's
+sign-in; bearers cannot read or decide approvals. An admitted take's
+reservation can outlive expiry (`protocol/client.status.md`, section 8).
+Approval between hosts and listing sign-ins remain deferred
+(`protocol/client.md`, section 15). The deployment's sole-owner read is
+built, including
 during restore, answering none with no owner, several or an unreadable
 roster (`domain/people.md`, section 4). Agents in a host's own process
 are the widest gap:
