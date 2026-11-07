@@ -490,6 +490,8 @@ checks remain section 11's deferred work, with no outcome supplied here.
   them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
+- **Not yet:** 3.5: the render check of `ready-account-email` on a real
+  sign-in and a real Claude Code login follows landing; temper/ui owns it.
 - **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
@@ -514,8 +516,7 @@ checks remain section 11's deferred work, with no outcome supplied here.
   stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
-  status name no email, since no account's row carries one yet.
+  or in `temper-service`'s routing.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
   test holds either: a sign-in `Made` or `Renewed`, not declined, with no
