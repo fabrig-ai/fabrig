@@ -9,6 +9,10 @@ Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
 
+- **Not yet:** 13.4: no charter 11 or template 5 in the stock
+  (`temper-service/src/stock.rs`, `checked_with`); the rules' and policy 1's
+  tools are 1,927, without the asking family, and their delegation names no
+  charter 11 (`ceiling`).
 - **Not yet:** 13.9: the combined cut-and-answer domain story,
   `the_reference_goal_reads_its_cut_then_its_questions_part` in
   `temper/tests/engine/domain/tests/suite/forge_routes/per_wake.rs`, is

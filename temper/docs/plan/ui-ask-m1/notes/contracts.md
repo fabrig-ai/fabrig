@@ -75,3 +75,110 @@ impl ToolFamilies {
   `--append-system-prompt-file INSTRUCTIONS`, `--tools ""` (one empty argument), and
   `--disable-slash-commands`, after `--strict-mcp-config`; every other argument as for a
   run with a workspace. Its summary session takes the same three.
+
+## 5. The asking charter's declarations
+
+`temper/docs/design/domain/agent.md`, 4.3 and 8.4.
+
+An **asking charter** is one whose `tools` hold the asking bit (2,048) and no bit but
+it and settings (1,024): `tools & 2048 != 0 && tools & !(2048 | 1024) == 0`. A mask of
+every family (`RunPolicy::EVERY_FAMILY`, `u64::MAX`, as a record with none decodes) is
+not one. The test is `temper_engine_domain::asking(tools: jig_domain_tasks::Tools) -> bool`
+(`declare` writes it in `boundary.rs`); the same test decides its runs' workspace
+(`workspace`). A run whose charter
+is an asking one is offered, in this order, and nothing else of `SPECS`
+(`temper/crates/temper-engine-smith/src/calls.rs`):
+
+1. `see`, where its task's authority holds the asking family;
+2. `document`, where its task's authority holds the asking family;
+3. `propose_settings` in its asking form, where its charter names the settings family
+   and its task's authority holds it.
+
+No other charter is offered `see`, `document` or the asking form; charter 3's offer, and
+every other charter's, is byte for byte today's. Each with the charter's call timeout.
+
+`see`, effect `Read`:
+
+- description: `Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.`
+- schema: `{"type":"object","additionalProperties":false,"required":["address"],"properties":{"address":{"type":"string","description":"One line, as your instructions list addresses: settings charter 3, help, more TOKEN."}}}`
+
+`document`, effect `Write`:
+
+- description: `Keep this chat's one document: write it whole first, its first line # TITLE; then append a section, or replace the one under the same ## heading.`
+- schema: `{"type":"object","additionalProperties":false,"required":["action","body"],"properties":{"action":{"enum":["write","append","replace"],"description":"write: the whole document; append: a section at its end; replace: the section under body's first ## heading."},"body":{"type":"string","description":"Markdown: the whole document, or one section beginning with its ## heading."}}}`
+
+`propose_settings`, its asking form, effect `Write` (a second `Spec` of the same name,
+`ASK_PROPOSE_SETTINGS`; the decoder is one, and takes either form's members):
+
+- description: `Propose whole settings against the newest revision you read; an owner decides, and nothing changes until then. A large set goes in parts.`
+- schema: today's `propose_settings` schema with `note` removed, `items` required beside
+  `against` and `reason`, `items`' description `The changes, at most one per setting, in this call's part.`,
+  `set`'s description `Its whole value as a settings file holds it; forge-charter takes a number; a document's repository is OWNER/NAME.`,
+  and one member more after `items`:
+  `"more":{"type":"boolean","description":"true: hold these items for the next call; the call without it proposes them all."}`.
+  Until the task `propose` lands, a call with `"more": true` is answered at decoding,
+  an error: `propose_settings: more is not taken yet; give the whole set in one call.`
+
+## 6. The root's vocabulary
+
+In `temper/crates/temper-engine-domain/src/boundary.rs`, `Tool` gains:
+
+```rust
+/// Read by one address line, from a byte offset of its answer (domain/agent.md, 8.4.1).
+See { line: Box<[u8]>, from: u32 },
+/// Write the chat's one document whole, or one section of it (domain/agent.md, 8.4.3).
+Document { action: DocumentAction, body: Box<[u8]> },
+```
+
+```rust
+/// What a `document` call does with its body.
+pub enum DocumentAction { Write, Append, Replace }
+```
+
+- `line` is the address as the call gave it, at most 512 bytes, trimmed, and `from` 0;
+  `declare` decodes every `see` call so. The task `see` then decodes `more TOKEN` into the
+  `See` its token names (section 8), in `see.rs`.
+- `translate.rs`'s `tool_kind` maps both to `jig_domain_core::ToolKind::Ask`; every
+  other exhaustive match on `Tool` gains the arms the compiler names (a See is a read:
+  it decides nothing and keeps no call record, as `Settings` does; a Document is a
+  write, decided and named once).
+- Until `see` and `document` land, `route/see.rs` and `route/document.rs` answer every
+  call, after its authority is decided, with the error line `see: not there yet.` and
+  `document: not there yet.`
+
+## 7. Who writes which file
+
+So that the tasks after `declare` work in parallel on files of their own:
+
+| File | Created by | Then written by |
+|---|---|---|
+| `temper/crates/temper-engine-smith/src/calls.rs` | (exists) | `declare` alone; later tasks add nothing to `SPECS` |
+| `temper/crates/temper-engine-smith/src/see.rs` | `declare` (decode of `see`) | `see`, then `see-forge`, `see-proposal` in their own functions |
+| `temper/crates/temper-engine-smith/src/document.rs` | `declare` (decode of `document`) | `document` |
+| `temper/crates/temper-engine-domain/src/route/see.rs` | `declare` (the stub) | `see`; `see-forge` and `see-proposal` add their arms' bodies in `route/see/forge.rs` and `route/see/proposal.rs` |
+| `temper/crates/temper-engine-domain/src/route/document.rs` | `declare` (the stub) | `document` |
+| `temper/crates/temper-engine-domain/src/route/forge_route.rs`, `run_workspace` | (exists) | `workspace` |
+| `temper/crates/temper-engine-smith/src/settings.rs` | (exists) | `propose` |
+| `temper/crates/temper-service/src/stock.rs`, `stock/ask.txt` | `stock` | |
+| `temper/crates/temper-service/src/tests/stock_brief.rs` | (exists) | `stock` (charter 11's row), then `bound` |
+
+## 8. `see`'s answers, their outer form
+
+`temper/docs/design/domain/agent.md`, 8.4.1 gives each address's answer; every answer
+keeps this form, rendered as text by `temper/crates/temper-engine-smith/src/see.rs`:
+
+- **Bounded:** the body at most 6,144 bytes, cut at a line's end, then a line
+  `more: TOKEN`. TOKEN is the address's words joined by `+`, then `@` and the decimal
+  byte offset where the next part starts, as `settings+charter+3@6144`; a word holding
+  `+`, `@` or `%` writes them `%2B`, `%40` and `%25`. `see {"address": "more TOKEN"}`
+  reads that address again from that offset; a token that names no address is
+  answered as an unknown address.
+- **Then what to read next:** a last line `see: ADDRESS · ADDRESS`, the addresses one
+  level down, but on a refusal, a not-yet and an unknown address.
+- **Not yet:** `see ADDRESS: not there yet.`, an error, for `me`, `project`, `goals`,
+  `goals ended`, `tasks`, `task N`, `task N tree`, `task N activity`, `task N turn A.T`,
+  `change N`, `changes` and `inbox`.
+- **Unknown:** `see: no address ADDRESS; addresses: ` and the list of section 8's
+  instructions, `me · project · goals [ended] · ...`, an error.
+- **A refusal** says in a line what the read did not reach, an error: the existing
+  reads' refusals in their words, prefixed `see ADDRESS: `.

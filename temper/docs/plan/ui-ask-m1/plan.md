@@ -15,16 +15,18 @@ standing rules `notes/common.md`. The design each batch cites is pushed with it.
 | smith-start | `mechanics` | | smith's system text with no workspace has no `## Tools` or `## Checkout` |
 | family | `family` | | jig's asking family, bit 2,048, `ToolKind::Ask` |
 | client | `client` | | Settings' Ask temper row and `Ask { project }`'s page, starting template 5 |
+| declare | `declare` | family | an asking charter (asking, and settings at most) is declared `see`, `document` and `propose_settings`'s asking form alone; the root's `Tool::See`, `Tool::Document`, decided by `ToolKind::Ask`, answered by stubs; host-part accounting |
+| declare | `workspace` | declare | an asking charter's runs get no repository |
+| stock | `stock` | declare | charter 11, template 5, `ask.txt`; the rules' and policy 1's tools 3,975 and delegation to charter 11 |
+| stock | `bound` | stock, mechanics | the step test holding what temper gives charter 11's first request to 16,384 bytes on both shapes |
 
-Further batches (being written): the stock (charter 11, template 5, `ask.txt`, the
-rules' and policy 1's tools and delegation), the declarations and no workspace for an
-asking charter, `see`, `document`, `propose_settings`'s mechanics, and the bound on
-what temper gives a first request.
+Further batches (being written by two designers): `see` (its M1 addresses, then the
+forge's and the proposal's), `document`, and `propose_settings`' asking mechanics.
 
 ## Critical path, as it stands
 
-`family` (45 min) leads to the stock and the declarations; the rest of the path is
-written with the next batch.
+`family` (45 min), `declare` (180), `stock` (150), `bound` (90): about 465
+implementer-minutes; `see`, `document` and `propose` follow `declare` beside `stock`.
 
 ## Shared pieces, for the heads-ups
 
@@ -36,6 +38,15 @@ written with the next batch.
   run with no workspace changes, temper's status agent (charter 9) and trials
   (charter 10) among them.
 - **jig's tool families:** a twelfth, asking, bit 2,048 (`jig-domain-core`, `family`).
+- **The new host tools, in `temper-engine-domain` and `forge_route.rs`:** `Tool::See`,
+  `Tool::Document` and `DocumentAction` in the root's vocabulary, `ToolKind::Ask`, the
+  stubs `route/see.rs` and `route/document.rs` (`declare`); `run_workspace` gives an
+  asking charter's runs no repository (`workspace`); `temper-engine-smith` declares
+  `see`, `document` and `propose_settings`' asking form to asking charters alone, and
+  every other charter's offer is unchanged (`declare`).
+- **The stock:** charter 11 and template 5, and the rules' and policy 1's tools gain
+  the asking bit (3,975) and charter 11's delegation (`stock`); a project made before
+  keeps its own policy until its owner accepts a proposal.
 - **`temper-client-domain`:** `Address::Ask { project }` and `ASKING_TEMPLATE` (`client`).
 
 ## Overlaps with drafts beside this one
@@ -52,6 +63,13 @@ written with the next batch.
 - No draft beside this one lists `smith/**`.
 
 ## Decisions
+
+- **An asking charter** is one whose `tools` hold the asking bit and nothing but it and
+  settings, so that a mask of every family (`RunPolicy::EVERY_FAMILY`, a record with no
+  mask) never turns a charter into one.
+- **`propose_settings` has two forms, one decoder:** charter 3 keeps its declaration byte
+  for byte (its stock figures do not move); asking charters are declared a form with
+  no `note` and a `more` member.
 
 - **Template 5 is known by number in the client,** as template 3 is; no fallback to a
   chat: with no template 5 in `me`, Settings draws no Ask temper row.
