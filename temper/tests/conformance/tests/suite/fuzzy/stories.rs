@@ -2,17 +2,18 @@ use jig_conformance::{Application, Cut};
 use temper_conformance_world::stories::{self, Story};
 use temper_conformance_world::{Config, Temper};
 
-/// Crash one native story at every live durable commit after the two fixture receipts.
+/// Crash one native story at every live durable commit after the fixture receipts.
 fn crashed_at_every_live_commit(story: Story) {
-    let baseline = stories::run(story, Cut::None, 101).expect("baseline");
-    eprintln!("{story:?}: {} durable commit cuts, {} baseline iterations", baseline.commits, baseline.iterations);
     // Setup's real first-start cut is exercised by the engine-domain world.
     let first_live = Temper::store(&Config::for_story(101, story)).applied + 1;
-    for cut in first_live..=baseline.commits {
-        let outcome = stories::run(story, Cut::AfterCommit(cut), 101)
-            .unwrap_or_else(|error| panic!("{story:?}, cut {cut}: {error:?}"));
-        assert!(outcome.crashes.contains(&cut), "{story:?} cut {cut} did not fire");
-    }
+    let outcome = stories::run(story, Cut::EachCommitFrom(first_live), 101)
+        .unwrap_or_else(|error| panic!("{story:?}: {error:?}"));
+    jig_conformance::cut_passed();
+    assert_eq!(
+        outcome.forked,
+        (first_live..=outcome.commits).collect::<Vec<_>>(),
+        "{story:?}: every live commit, once"
+    );
 }
 
 #[test]

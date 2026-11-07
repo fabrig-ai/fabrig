@@ -1200,17 +1200,19 @@ struct ClusterChatJudge {
 }
 impl ClusterChatJudge {
     fn queue(&self, host: &mut support::cluster::Root, calls: Vec<support::ctl::Call>) {
+        self.queue_steps(host, calls.into_iter().map(support::ctl::Step::Run).collect());
+    }
+    fn queue_steps(&self, host: &mut support::cluster::Root, steps: Vec<support::ctl::Step>) {
         let link = format!("http://{}", self.members.capture("engine", "link").expect("engine link"));
         let mut client = support::ctl::Calls::linked(&link, &self.client);
-        for call in calls {
-            client.push(support::ctl::Step::Run(call));
+        for step in steps {
+            client.push(step);
         }
         let support::cluster::Root::Client { calls, .. } = host else { panic!("client root") };
         *calls = Some(Box::new(client));
     }
-    fn begin(&mut self, client: &mut support::cluster::Root) {
-        use support::ctl::{Call, PROJECT};
-        // Read the same whole charter value the owner applies below, rather than the startup document.
+    fn slot_hold(&self) {
+        // Check the fixture's waiting and time overrides before applying them to current charters.
         let settings: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&self.settings).expect("cluster settings FILE"))
                 .expect("settings JSON");
@@ -1230,12 +1232,24 @@ impl ClusterChatJudge {
             time.checked_sub(reserve).is_some_and(|ordinary| Duration::from_nanos(ordinary) >= CHAT_HOLDS_ITS_SLOT),
             "crates/temper/tests/fixtures/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline"
         );
-        self.queue(
+    }
+    fn begin(&mut self, client: &mut support::cluster::Root) {
+        use support::ctl::{Call, PROJECT, Step};
+        self.slot_hold();
+        let settings = self.settings.clone();
+        self.queue_steps(
             client,
             vec![
-                Call::sign_in(),
-                support::cluster::settings_change(&self.settings),
-                Call::new(&[
+                Step::Run(Call::sign_in()),
+                Step::Run(Call::new(&["settings", "show", "--json"])),
+                Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
+                Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
+                Step::Run(Call::new(&["settings", "show", "template", "1", "--json"])),
+                Step::Then(Box::new(move |calls| {
+                    cluster_settings(&settings, &calls[2..]);
+                    support::ctl::settings_change(&calls[1], &settings, "cluster-settings")
+                })),
+                Step::Run(Call::new(&[
                     "account",
                     "add-key",
                     "1",
@@ -1243,9 +1257,18 @@ impl ClusterChatJudge {
                     "--deployment",
                     "--key",
                     "cluster-llm",
-                ]),
-                Call::new(&["account", "list", "--until", "usable"]),
-                Call::new(&["chat", "start", "--project", PROJECT, "--key", "first", "cluster-first-chat", "--json"]),
+                ])),
+                Step::Run(Call::new(&["account", "list", "--until", "usable"])),
+                Step::Run(Call::new(&[
+                    "chat",
+                    "start",
+                    "--project",
+                    PROJECT,
+                    "--key",
+                    "first",
+                    "cluster-first-chat",
+                    "--json",
+                ])),
             ],
         );
         self.stage = ClusterChatStage::Created;
@@ -1664,6 +1687,27 @@ impl ClusterChatJudge {
         self.queue(client, close);
         self.stage = ClusterChatStage::Closed;
     }
+}
+
+fn cluster_settings(file: &std::path::Path, reads: &[support::Ended]) {
+    let mut fixture: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(file).expect("cluster settings FILE")).expect("settings JSON");
+    for read in reads {
+        let current = support::ctl::json(read);
+        let item = fixture["items"]
+            .as_array_mut()
+            .expect("settings items")
+            .iter_mut()
+            .find(|item| item["setting"] == current["setting"])
+            .expect("cluster setting override");
+        let overrides = item["set"].take();
+        let mut value = current["value"].clone();
+        value.as_object_mut().expect("whole setting").extend(
+            overrides.as_object().expect("setting overrides").iter().map(|(key, value)| (key.clone(), value.clone())),
+        );
+        item["set"] = value;
+    }
+    support::write_private(file, &serde_json::to_vec(&fixture).expect("cluster settings JSON"));
 }
 struct ClusterRead {
     task: serde_json::Value,

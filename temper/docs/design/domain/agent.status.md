@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8's chat and configuring instructions name the flow subset and
+ask for one where a sequence says more drawn. The stock's phrase tests
+hold both instructions; neither says Mermaid is not drawn. No known
+implementation gap remains for that instruction.
+
 Section 8.1's stock limits forge-identity advice to approvals being asked
 about or proposed; the inventory's fact is unchanged. Phrase assertions
 hold that condition. A real model following it remains unobserved,

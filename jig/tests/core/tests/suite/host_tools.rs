@@ -134,9 +134,9 @@ fn agents_tools_scenario_family() {
     use jig_core_world::agents_tools::STORIES;
     use jig_core_world::world::Cut;
     for story in STORIES {
-        let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
+        let commits = (story.run)(&mut (story.setup)(190), None);
         for cut in [Cut::Submitted(commits), Cut::Durable(commits)] {
-            let mut world = World::new(Setup { seed: 190, ..Setup::default() });
+            let mut world = (story.setup)(190);
             (story.run)(&mut world, Some(cut));
             assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", story.name);
         }
@@ -149,7 +149,7 @@ fn a_release_naming_an_old_hold_revision_is_answered_moved() {
         .iter()
         .find(|story| story.name == "release moved")
         .expect("release story");
-    (story.run)(&mut World::new(Setup { seed: 178, ..Setup::default() }), None);
+    (story.run)(&mut (story.setup)(178), None);
 }
 #[test]
 fn a_release_naming_its_hold_revision_lifts_the_hold() {
@@ -220,7 +220,7 @@ fn a_held_delegates_notice_reaches_its_requester_with_its_hold_revision() {
         .iter()
         .find(|story| story.name == "held notice")
         .expect("held notice story");
-    (story.run)(&mut World::new(Setup { seed: 182, ..Setup::default() }), None);
+    (story.run)(&mut (story.setup)(182), None);
 }
 
 const PROPOSE_AMEND: &[u8] = br#"{"action":"amend","target":2,"revision":0,"amendment":{"spec":{"words":"proposed"},"reason":"evidence"},"reason":"please"}"#;

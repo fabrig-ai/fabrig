@@ -383,7 +383,9 @@ impl Builder {
         let bytes = length(data);
         assert!(bytes <= owner_bound && bytes <= self.limits.drawing_bytes, "drawing fits its owner's byte bound");
         self.open(Role::Drawing);
-        self.name(name);
+        if !name.is_empty() {
+            self.name(name);
+        }
         let data = copy_of(data);
         self.node_mut().drawing = Some(Drawing { kind, data });
     }

@@ -319,6 +319,7 @@ crates/skein-sim-world          the simulated world: processes hosted over the s
 testing/skein-conformance       the conformance suite: the backend interface, the scenarios, the driver, the checks
 testing/skein-heap              the counting allocator, the meter that checks a step under its scenario's ceiling, and the span a world meters its processes with
 testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
+testing/skein-fork              a run forked at a chosen moment of a test and waited for, so that a sweep of cuts holds its prefix once
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
 testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fake-forge.md, 6)
@@ -408,14 +409,29 @@ every iteration.
 
 What a crate under `testing/` holds is shared by the tests of more than
 one crate, and is ordinary Rust on a lint profile, each with a
-`clippy.toml` of its own, or the step crates' (`tools/lints/design.md`, 3). `skein-heap` holds the one `unsafe` in skein
-beside the ring adapter: a global allocator is an `unsafe impl`.
+`clippy.toml` of its own, or the step crates' (`tools/lints/design.md`, 3).
+`skein-heap` needs `unsafe` for its global allocator, an `unsafe impl`.
 programming-model.md (1, 2.1, 10.2) confines `unsafe` to the ring adapter
-in code a service runs, and in tests to this `unsafe impl GlobalAlloc`: a
-test-only crate, never linked into a service. It allows its `unsafe` in
+in code a service runs, and in tests to this allocator and the fork kit's
+process boundary below. Both are test-only crates, never linked into a
+service. The allocator allows its `unsafe` in
 place, with a scoped
 `#[expect(unsafe_code, reason = "…")]` and a `SAFETY` comment on each
-block. A fake that runs as a step machine, as `skein-echo-client` does,
+block.
+
+**A sweep's fork** is `skein-fork`, on the `ring` lint profile
+(`tools/lints/design.md`, 2.4). One documented module holds its scoped
+`unsafe` for `fork`, `waitpid` and `_exit`. A single-threaded test world
+calls `split` at a cut, after stdout and stderr are flushed. The child
+continues with its owned state; its first panic prints through the panic
+hook and exits 101 without unwinding into libtest. `passed` exits a child
+with code 0 and returns in the parent. The parent reaps its child and
+receives `Exit::Code` or `Exit::Signal`; a child cannot fork again. Each
+parent waits for each child, so the suite's CPU includes its descendants
+(testing-strategy.md, 8.1). The kit supplies the process boundary alone;
+the consuming harness takes the crash and checks every cut.
+
+A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (testing-strategy.md, 4): it has no
 `clippy.toml` of its own, so the step crates' applies.
 
@@ -524,6 +540,13 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
   remaining unoptimized work is the user's decision under
   testing-strategy.md, 8. The instruction counts and each cause's share
   are in `skein/docs/development/world-costs.md`.
+- **Deployment-world allocation and fork costs** (5, 6). Required checked
+  allocation-header layout and the kernel's fork, wait and copy-on-write
+  work remain. User-space instruction counts do not measure that kernel
+  floor. `temper/docs/development/limits-worlds.md` records the shares
+  and native system CPU; its different profiling arms do not establish
+  an isolated remaining saving or a whole-suite total. A build override
+  remains the user's decision under testing-strategy.md, 8.
 - **Costs beyond the shared world helpers** (5, 6). Product work, a
   world's own fixtures and process startup need separate cost work;
   `skein/docs/development/world-costs.md` gives their measured shares.
@@ -569,8 +592,8 @@ A playground runs a service's simulated world in a browser
   layers, the peers, GitHub's layer), the key-value store, HTTP, JSON,
   the channel, the codec, TLS, and the playground's kit (playground.md).
   The counting allocator, the harness's referee and real loop, the
-  browser kit, the conformance suite and the scratch directory do not:
-  they are tests', and native.
+  browser kit, the conformance suite, the fork kit and the scratch directory
+  do not: they are tests', and native.
 - **Fenced by target:** what reads the system is under `cfg(unix)` where
   it sits, never behind a feature (shell.md, 14).
 - **No TLS there.** A world draws every choice from its seed and runs

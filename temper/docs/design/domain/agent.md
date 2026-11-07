@@ -1310,7 +1310,9 @@ and not its name.
   lines (jig's `domain/engine.md`, section 10), naming the note and the revision
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
-  what changed and doesn't repeat it. Mermaid isn't drawn, so it doesn't draw.
+  what changed and doesn't repeat it. Where a sequence says more drawn, it writes a
+  flow, and its words name the subset (`skein/docs/design/ui.md`, 10.1): the same
+  block reads in a repository, where a forge renders Mermaid.
 - **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How this
   project works", written once the person's way is understood, kept current as
   the conversation changes it. Its words leave what a write's `first`, `remove` and

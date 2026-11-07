@@ -1230,7 +1230,7 @@ Each where `../domain/testing.md` puts it (2.4 to 2.6):
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 15.3 as printed |
 | the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and the steps of `../domain/testing.md`, 5.3's case on them (`../domain/testing.md`, 2.6) |
+| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../domain/testing.md`, 5.3 and 2.6) |
 
 The process tier's first stories, one slot on each worker: the
 cluster's fixtures give each worker one. Two tasks on two workers need
@@ -1280,18 +1280,21 @@ These are the case's multi-worker steps at their smallest
 (`../domain/testing.md`, 5.3): 4.1's placement by free slots, 4.3's
 worker added later, 4.6's hung worker.
 
-- **The case's steps,** each a story of its own on the same
+- **The case's restart,** a story on the same
   description, the case's workers named ws, s1 and s2, its fixture
   applied to the engine's and the workers' documents, its acts by real
   `temper ctl`, and its oracle over what the processes observed
-  (`../domain/testing.md`, 2.6): 4.1's opener then 4.3's two-hour
-  check on ws, s1 and s2, s2 started by its act, the check's turn held
-  on the fake LLM until every worker holds a run; and 4.6's restarted
+  (`../domain/testing.md`, 2.6): 4.6's restarted
   workstation, ws stopped under the director's waiting chat and started
   again on its own directories.
 
 ### 15.7 Later
 
+- **The case's restart story** (15.6): jig's fleet must take a draining
+  worker out of placement before its runs end, so a retry cannot be
+  journaled as an extra refused attempt on its still-linked channel.
+  Its runtime proof belongs to the process tier after that repair;
+  the real-loop story supplies no proof of this process boundary.
 - **The engine's refusal text on the worker** (15.3): the text is sent
   over the channel, but jig's worker link retains only the reason code
   for its note. Keeping the words for a worker's stderr needs a change

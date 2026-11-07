@@ -25,6 +25,8 @@ pub enum Write<'a> {
     Save(&'a core::Record),
     Erase(core::Key),
     Other,
+    /// A bulk mutation whose individual core keys are not listed.
+    Refresh,
 }
 
 /// One submitted commit's core part (an adapter's `submitted` reads no other).
