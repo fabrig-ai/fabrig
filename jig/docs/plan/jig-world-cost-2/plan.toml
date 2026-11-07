@@ -1,0 +1,3 @@
+draft = "jig-world-cost-2"
+repo = "fabrig"
+sources = ["jig/docs/plan/jig-world-cost-2/inputs/request.md", "jig/testing/jig-conformance/src/core/naming.rs", "jig/testing/jig-client-protocol-kit/src/net.rs", "jig/testing/jig-core-kit/src/world/constructors.rs", "AGENTS.md", "DESIGN.md"]
