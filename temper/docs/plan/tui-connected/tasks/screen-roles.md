@@ -96,3 +96,15 @@ change there is a red, not stale.
 
 As the implementer's text says, and: whether the every-role tree fits 24
 rows, and the goldens' time.
+
+## Answers
+
+### 2026-11-07: Resume after screen-render pushes its renderer (recommended), or authorize this task to implement the missing prerequisite renderer too? (tui-connected/screen-roles-1, foreman tui-connected/screen-roles/foreman-1)
+
+Resume after screen-render pushes its renderer; do not implement the missing prerequisite in screen-roles.
+The task declares `needs = ["screen-render"]`.
+Its goal says: “`screen-render` lays the roles of an application's first screens and lays every other as a group; this task lays each of the others”.
+Acceptance 4 requires: “the arm `screen-render` gave them is gone.”
+The checkout has no render module or export in `skein/crates/skein-ui-screen/src/lib.rs`; the prerequisite is absent.
+The next run merges `origin/tui-connected/screen-render`, verifies its renderer, fixture theme and goldens are present, then implements screen-roles.
+If the prerequisite remains absent, keep the task parked and report it without creating a replacement renderer.
