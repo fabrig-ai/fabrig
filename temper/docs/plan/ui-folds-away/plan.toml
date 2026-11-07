@@ -3,3 +3,20 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-folds-away/inputs/request.md", "skein/tests/browser/tests/suite/folds_away.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "stories"
+title = "skein's folds-away stories see the Wasm fixture's first apply, and whatever else they read once, before they act on it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 14.2"
+
+[[slice]]
+id = 1
+story = "Each folds_away story, run alone five times, waits for the fixture after its go, passes every time, and keeps every check it made"
+parts = ["stories"]
+walk = false
