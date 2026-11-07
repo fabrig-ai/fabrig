@@ -62,14 +62,15 @@ impl Engine {
         let mut out = Queue::with_capacity(256);
         let component = clients::Component::new(crate::fixtures::settings(limits.core.documents.rows), &env, &mut out)
             .expect("bounded clients component");
+        let server_limits = crate::fixtures::server_limits();
         Self {
             driver,
             account_sign_in_burst: None,
             component,
-            server: crate::fixtures::server(),
+            server: crate::fixtures::server_with(&server_limits),
             server_out: Queue::with_capacity(256),
             mount: crate::fixtures::mount(),
-            refused: skein_lib::Map::with_capacity(crate::fixtures::server_limits().connections),
+            refused: skein_lib::Map::with_capacity(server_limits.connections),
             mount_out: Queue::with_capacity(256),
             env,
             out,
