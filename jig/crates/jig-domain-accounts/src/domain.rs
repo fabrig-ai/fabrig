@@ -132,7 +132,7 @@ enum Choice {
     Held(u32),
     Empty,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
     pub(crate) sources: Map<u32, Source>,

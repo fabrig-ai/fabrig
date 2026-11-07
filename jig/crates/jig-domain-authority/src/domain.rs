@@ -9,7 +9,7 @@ use crate::{Limits, Models, Policy, Requirement, Role, Rules, stored_finding_lim
 
 /// Bounded live project-policy table and immutable deployment rules; contains no task ledger,
 /// connector state or authentication. (domain/authority.md, sections 2 and 6).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     rules: Rules,
     policies: Map<u32, Policy>,
@@ -18,7 +18,7 @@ pub struct Domain {
     failure: Option<(u32, PolicyRefusal)>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Hash, Debug, PartialEq, Eq)]
 enum Start {
     NotStarted,
     Loading,

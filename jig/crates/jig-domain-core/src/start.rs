@@ -20,7 +20,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 pub use restore::Restore;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     LoadCore,
     LoadInbox,
@@ -35,7 +35,7 @@ pub enum Phase {
     Open,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {
     Settings { failure: core_settings::Failure, changed: bool },
     Application { kind: u32, scope: u32, number: u32, why: ApplicationWhy },
@@ -48,7 +48,7 @@ pub enum Failure {
 }
 
 /// A setting cannot be held under its application's declared kind (engine.md, 17.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationWhy {
     Undeclared,
     Scope,
@@ -56,7 +56,7 @@ pub enum ApplicationWhy {
     Shape,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LiveSet {
     Projects,
     ReadResults,
@@ -72,13 +72,13 @@ pub enum LiveSet {
 }
 
 /// A journal release identity, holding no row or output payload.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Continuation {
     sequence: u64,
     phase: Phase,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Action {
     Step(Phase),
     Commit(Continuation),
@@ -94,13 +94,13 @@ pub enum SweepInput {
 }
 
 /// The held settings bound that prevents a cold start (engine.md, 17.7–17.8).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HeldLimit {
     Revisions,
     Versions,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Script {
     pub(crate) consumed: bool,
     pub(crate) phase: Option<Phase>,

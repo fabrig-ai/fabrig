@@ -3,7 +3,7 @@ use super::{Domain, Env, Limits, Op, Outbox, Queue, Request, Time};
 use crate::calls::Owner;
 use skein_lib::List;
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum State {
     Running,
     Settling(Time),

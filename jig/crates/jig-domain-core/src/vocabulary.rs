@@ -14,7 +14,7 @@ use jig_domain_views as views;
 use skein_lib::{List, ReplyTo, Token, Wall};
 
 /// The root's assembled, worker assignment.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Assignment {
     pub live: crate::LiveAsk,
     /// Ordered sections selected by the brief child, typed until protocol routing.
@@ -37,7 +37,7 @@ pub struct Assignment {
 
 /// A charter document's section in a core plan, for the root to give its connector
 /// (domain/engine.md, 17.9).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlannedDocument {
     pub token: Token,
     pub document: crate::Document,
@@ -46,7 +46,7 @@ pub struct PlannedDocument {
 /// A value a client's request carried, kept in the secrets' store before
 /// the core sees the request (`protocol/client.md`, section 5): the core
 /// gets its number and digest, never the value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct Carried {
     pub number: u64,
     pub digest: [u8; 32],
@@ -54,7 +54,7 @@ pub struct Carried {
 
 /// A request from the core to its application root. Its variant fixes the
 /// commit relationship before the root translates or wraps it.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Request {
     /// A new project; the root holds this notification until the decision commits.
     ProjectMade { project: u32 },
@@ -69,7 +69,7 @@ pub enum Request {
 }
 
 /// A question or retained-section command for a numbered connector.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Ask {
     Catalogue {
         models: Box<[crate::settings::CatalogueModel]>,
@@ -277,7 +277,7 @@ pub enum Ask {
 }
 
 /// Store mutation issued by a child of the core.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Write {
     /// Drop a task transcript whole with its places (jig/docs/design/protocol/store.md, 8.5, 11.1;
     /// jig/docs/design/domain/people.md, 5.2).
@@ -291,7 +291,7 @@ pub enum Write {
 }
 
 /// Core output that must follow the decision's commit.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Held {
     /// Terminal deployment act answer, released once its decision is durable.
     Acted { to: ReplyTo, outcome: people::Outcome },
@@ -375,7 +375,7 @@ pub enum Held {
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WatchRefusal {
     /// Its sign-in is absent or expired.
     SignedOut,
@@ -388,7 +388,7 @@ pub enum WatchRefusal {
 }
 
 /// The core's outputs that are the link's (domain/root.md, 5).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum LinkNow {
     /// The host receives a read answer without waiting for a commit (domain/engine.md, 4.4).
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
@@ -405,7 +405,7 @@ pub enum LinkNow {
 }
 
 /// Core output that follows no mutation.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Now {
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
@@ -510,7 +510,7 @@ pub enum Now {
 }
 
 /// Limits of the core's child routes.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
@@ -564,7 +564,7 @@ pub struct Limits {
 }
 
 /// Public index bounds (jig/docs/design/domain/people.md, 13.9).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PublicIndexLimits {
     pub goals: u16,
     pub ended: u16,
@@ -576,7 +576,7 @@ impl PublicIndexLimits {
 }
 
 /// Budgets for the core's own brief sections.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CoreBriefBudgets {
     /// Transcript tail text in a fresh run's brief.
     pub tail: u32,
@@ -589,7 +589,7 @@ pub struct CoreBriefBudgets {
 }
 
 /// One event routed to a child of the core.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Event {
     /// A connector's release of a deleted project's adoptions has committed
     /// (jig/docs/design/domain/people.md, 5.2).
@@ -874,7 +874,7 @@ pub enum HoldingsRefusal {
 }
 
 /// One member's concrete identity passed to a connector for its own holdings.
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct HoldingsNeed {
     pub project: u32,
     pub root: u64,
@@ -886,7 +886,7 @@ pub struct HoldingsNeed {
     pub symbols: Box<[u16]>,
 }
 /// Connector-free shape of a root-owned host payload after refusal.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum PayloadRefusal {
     /// One rejected host turn.
     Turn { task: u64, attempt: u64, turn: u32 },
@@ -895,7 +895,7 @@ pub enum PayloadRefusal {
 }
 
 /// Connector-free work a named host call asks the core to route.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum NamedAction {
     /// Read related task specifications or proven descendant reports without deciding a call.
     ReadTask {
@@ -1007,7 +1007,7 @@ pub enum ToolKind {
     Read,
 }
 /// A task holder's choice on one pending proposal.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum ProposalChoice {
     Accept,
     Reject { reason: Box<[u8]> },
@@ -1015,7 +1015,7 @@ pub enum ProposalChoice {
 }
 
 /// A task holder's choice on one waiting escalation.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum EscalationChoice {
     Release,
     Reject { reason: Box<[u8]> },
@@ -1038,7 +1038,7 @@ pub enum Timer {
 }
 
 /// Why an entire connector-owned procedure step was refused.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StepRefusal {
     Moved { task: u64, now: people::Moved },
     Refused(tasks::Problem),
@@ -1440,7 +1440,7 @@ pub(crate) enum Work {
 }
 
 /// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum TranscriptLoad {
     Page { rows: Box<[crate::TranscriptRow]>, done: bool },
     Unread,

@@ -23,7 +23,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Map};
 
 /// The public index (jig/docs/design/domain/people.md, 13.9).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Index {
     projects: Map<u32, Option<Project>>,
     depth: u32,
@@ -36,7 +36,7 @@ pub(crate) enum Entry<'a> {
     Ready(&'a Project),
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Project {
     pub(crate) name: Box<str>,
     live: Box<[u64]>,
@@ -46,7 +46,7 @@ pub(crate) struct Project {
     relations: Map<u64, Relations>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Tree {
     line: PublicLine,
     lines: Box<[PublicLine]>,
@@ -55,7 +55,7 @@ struct Tree {
     omitted: Map<u64, u32>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(
     clippy::partial_pub_fields,
     reason = "the frozen record exposes its public lines; the index owns the identifier cache"
@@ -67,7 +67,7 @@ pub(crate) struct Frozen {
     ids: Box<[u64]>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Relations {
     goal: u64,
     location: Location,
@@ -76,7 +76,7 @@ struct Relations {
     folded: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 enum Location {
     Live { line: u32 },
     Ended { goal: u32, line: u32 },

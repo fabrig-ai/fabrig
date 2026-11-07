@@ -14,7 +14,7 @@ pub struct Reading {
 }
 
 /// What an ended task's forget erases, from its record or cached result.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Owner {
     pub task: u64,
     pub party: u64,

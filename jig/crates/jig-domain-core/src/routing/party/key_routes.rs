@@ -50,7 +50,7 @@ pub(crate) fn start(
 }
 
 /// A carried account change's cleanup is fixed at admission (store.md, section 9).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub(crate) struct Flight {
     pub number: u64,
     pub always_unused: bool,

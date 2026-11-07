@@ -2,7 +2,7 @@
 use super::{Domain, Env, Error, Limits, Outcome, Phase, Queue, Request, State, Time, api};
 
 /// When the next look at a queued pull request is due (7.7).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(super) struct Look {
     /// The time the armed look is due: `wait` sets it on every wait.
     at: Time,

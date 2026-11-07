@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue};
 
 /// A reservation outlives its source: an old directory keeps its original holder.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Issued {
     pub(crate) holder: Holder,
     pub(crate) name: crate::SourceName,
@@ -107,13 +107,13 @@ pub fn declare(
 
 /// The schema ceiling; configured membership sets the admitted runtime bound.
 pub const PROGRAM_HOSTS: u32 = 128;
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     pub(crate) leaving: crate::changes::Leaving,
     hosts: List<Host>,
     targeted: bool,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Host {
     worker: crate::Worker,
     result: Option<crate::ProgramResult>,

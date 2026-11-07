@@ -11,7 +11,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 /// An uncommitted whole batch, awaiting connector reports.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Batch {
     pub reply_to: ReplyTo,
     pub kind: Kind,
@@ -19,7 +19,7 @@ pub(crate) struct Batch {
 }
 
 /// The task admission continuation retained with a pending batch.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Kind {
     /// A root, delegate or ordinary accepted proposal.
     Creation { creator: tasks::Party },
@@ -165,14 +165,14 @@ pub(crate) fn resume(core: &mut Core, work: &mut Queue<Work>) {
 }
 
 /// A role belongs to one project, even when projects name the same object.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct Key {
     pub project: u32,
     pub name: tasks::Name,
 }
 
 /// A connector's stored adoption, re-reported at restart (domain/connectors.md, 12 and 14).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Adoption {
     pub role: connector::AdoptionRole,
     pub home: bool,

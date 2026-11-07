@@ -71,7 +71,7 @@ pub enum Placed {
 }
 
 /// Inputs to the brief's gathering machine.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// Start one brief, with the core's words and connector section tokens.
     Plan { brief: Token, budget: u32, deadline: Time, sections: Box<[Planned]> },
@@ -102,7 +102,7 @@ pub enum Request {
     Refused { brief: Token, failure: Failure },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Status {
     Ready,
     Gathering,
@@ -111,7 +111,7 @@ enum Status {
     Dropped(Missing),
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Active {
     sections: List<Planned>,
     status: List<Status>,
@@ -121,7 +121,7 @@ struct Active {
 }
 
 /// Bounded active briefs and their single gathering deadline each.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     briefs: Map<Token, Active>,
     deadlines: Deadlines<Token>,

@@ -118,7 +118,7 @@ use crate::facts::Fact;
 use crate::limits::Limits;
 
 /// An attempt the fleet tracks.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Attempt {
     pub(crate) job: Option<jig_domain_link::JobBound>,
     /// Its run's name, and its own, as the parent and the workers give them.
@@ -150,7 +150,7 @@ pub(crate) struct Run {
     pub(crate) held: u32,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum State {
     /// Started, or refused as busy: waits for an eligible slot, and for no worker to
     /// host another attempt of its run. `serial` is its place in the queue.
@@ -281,7 +281,7 @@ pub(crate) struct Names {
 }
 
 /// The parent's claim and placement requirements.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Claiming {
     pub(crate) to: ReplyTo,
     pub(crate) workstream: u64,

@@ -123,7 +123,7 @@ pub struct ConfiguredPolicy {
 }
 
 /// One first-start project seed (configuration.md, 3; core.md, 6.1).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct SeedProject {
     pub number: u32,
     pub name: Box<str>,
@@ -165,7 +165,7 @@ pub struct Config {
 }
 
 /// Deployment and current catalogue settings used by core decisions.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Settings {
     pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.
@@ -188,7 +188,7 @@ pub struct Settings {
 }
 
 /// Jig's authority bits for the engine's tool families.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub struct ToolFamilies {
     pub delegate: authority::Tools,
     pub message: authority::Tools,
@@ -251,7 +251,7 @@ impl ToolFamilies {
 /// The engine's children, routing and durable live state (domain/engine.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,
 /// section 10.1); the hand-off bound also validates restored projection history.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the keyed escalation route remains private to the core")]
 #[expect(
     clippy::struct_excessive_bools,
@@ -620,7 +620,7 @@ impl Core {
 pub use effects::connector::PersonSeed;
 
 /// Endpoint identity used to check model settings (domain/engine.md, 17.11).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EndpointFacts {
     /// Providers that name this endpoint for added models (engine.md, 17.11).
     pub providers: Box<[u32]>,

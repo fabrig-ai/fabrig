@@ -194,7 +194,7 @@ pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
 }
 
 /// An owner's act, independent of any client revision (engine.md, 17.11).
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub enum ModelAct {
     Picker { number: u32, on: bool },
     Add { provider: u32, name: Box<[u8]> },

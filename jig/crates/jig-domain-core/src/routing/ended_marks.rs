@@ -3,7 +3,7 @@ use crate::{Core, Event, Limits, Request, routing::Work};
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Loaded {
     pub task: u64,
     pub party: u64,

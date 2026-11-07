@@ -7,7 +7,7 @@ use jig_domain_host as host;
 use jig_domain_link::Phase;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token};
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Payload {
     Busy,
     Turn {
@@ -32,7 +32,7 @@ pub enum Payload {
     InboxWord(tasks::Word),
 }
 /// A scripted terminal is already read; a channel terminal is opaque.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Ending {
     Scripted(tasks::End),
     Link(host::Ending),

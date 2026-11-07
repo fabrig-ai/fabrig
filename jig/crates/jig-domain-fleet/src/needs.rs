@@ -10,7 +10,7 @@ pub struct Version {
     pub revision: u32,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Needs {
     pub charters: Box<[CharterNeeds]>,
     pub spend: u64,
@@ -18,7 +18,7 @@ pub struct Needs {
     pub start_messages: u32,
     pub unacknowledged: u32,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CharterNeeds {
     pub version: Version,
     pub kinds: Kinds,
@@ -28,7 +28,7 @@ pub struct CharterNeeds {
     pub waiting: Duration,
     pub change_reserve: Option<Duration>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ModelNeed {
     pub endpoint: u32,
     pub name: Box<[u8]>,

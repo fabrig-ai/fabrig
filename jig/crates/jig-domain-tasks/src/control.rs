@@ -10,7 +10,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, ReplyTo};
 
 /// Close a whole subtree with a common bounded reason (domain/tasks.md, section 7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Cancel {
     pub task: u64,
     pub reason: Box<[u8]>,
@@ -19,7 +19,7 @@ pub struct Cancel {
 }
 
 /// Lift a task's hold and reset its failure counts (domain/tasks.md, 5.5).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Release {
     pub task: u64,
     pub again: Option<bool>,
@@ -223,7 +223,7 @@ fn save_history(domain: &mut Domain, mut row: History, out: &mut Queue<Request>)
 
 /// An ended task's stored place, used only while admitting an amendment
 /// (`domain/tasks.md`, section 7). A stub supplies none of this evidence.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct DependencyPlace {
     pub number: u64,
     pub project: u32,
@@ -234,7 +234,7 @@ pub struct DependencyPlace {
 }
 
 /// Amend a task with its root-issued message (domain/tasks.md, section 7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Amend {
     pub task: u64,
     pub message: u64,
