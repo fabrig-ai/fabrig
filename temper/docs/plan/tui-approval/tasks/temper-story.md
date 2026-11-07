@@ -55,3 +55,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the choices among the options; the helpers' names and where each step of a story happens (link, root or view); how A's root learns it is signed in; each rule broken and the failure seen; the stories' times.
+
+## Answers
+
+- 2026-11-07. *Should the wire restore `CODE_TYPED_BYTES`, or may this task repair temper-domain's uses to `CODE_INPUT_BYTES`?* The wire: it departed from the contract (`notes/contracts.md`, 6), and an earlier answer call already renamed `jig_client_protocol_wire::CODE_INPUT_BYTES` to `CODE_TYPED_BYTES` on the trunk (`463903dc2a`, merged into `tui-approval/integration`); `temper-client-domain` is unchanged. Change nothing outside your files: merge `origin/tui-approval/integration` into your branch (the fix is not on `tui-approval/temper-domain`), check `temper-client-world` compiles, and carry on from your red commit with step 2.
