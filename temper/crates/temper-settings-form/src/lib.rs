@@ -8,12 +8,14 @@ pub mod file;
 mod json;
 mod kinds;
 pub mod page;
+pub mod proposal;
 pub mod render;
 mod text;
 pub mod values;
 pub mod view;
 pub mod wire;
 use alloc::boxed::Box;
+pub use proposal::{ended_proposal_text, proposal_text};
 use skein_json::writer::Encoder;
 pub use text::{Text, text_end};
 

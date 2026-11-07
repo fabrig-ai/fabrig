@@ -86,7 +86,7 @@ pub fn see_answer(
         SeeAnswer::Search { words } => search_text(words),
         SeeAnswer::Landing(landing) => landing_text(landing),
         SeeAnswer::Gates(repository) => gates_text(repository),
-        SeeAnswer::Proposal(proposal) => proposal_text(proposal),
+        SeeAnswer::Proposal(proposal) => proposal_text(proposal, catalogue),
     };
     match text {
         Ok(text) => page(line, from, &text, following(line, answer), max_bytes),
@@ -281,8 +281,25 @@ fn join_parts(parts: &List<Box<[u8]>>) -> Box<[u8]> {
     text.finish()
 }
 
-fn proposal_text(_proposal: &engine::SeeProposal) -> Result<Box<[u8]>, &'static [u8]> {
-    Err(b"not there yet.")
+fn proposal_text(
+    proposal: &engine::SeeProposal,
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
+) -> Result<Box<[u8]>, &'static [u8]> {
+    use jig_protocol_engine_clients::translate::objects;
+    let limits = settings_form::Limits::standard();
+    let models = jig_protocol_engine_clients::translate::llm::catalogue(catalogue);
+    let unread = b"not read: proposal of settings could not be rendered.".as_slice();
+    match proposal {
+        engine::SeeProposal::Waiting(value) => {
+            let value = objects::proposal(&models, value, &limits.settings).or(Err(unread))?;
+            settings_form::proposal_text(&value, &limits).or(Err(unread))
+        }
+        engine::SeeProposal::Decided(value) => {
+            let value = objects::ended(value, &models, &limits.settings).or(Err(unread))?;
+            settings_form::ended_proposal_text(&value, &limits).or(Err(unread))
+        }
+        engine::SeeProposal::Unknown => Err(b"not read: no such proposal of settings. This says nothing about the settings: see settings lists those waiting."),
+    }
 }
 
 fn page_text(name: &[u8]) -> Result<Box<[u8]>, &'static [u8]> {
