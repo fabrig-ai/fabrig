@@ -3,7 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 8.1, 8.5, 11 and 11.1: a change on a run branch, its requester's own run in the slot, and a goal's run delivering to its run branch: `temper/docs/plan/goal-delivery/`. A goal's run starts on g and pushes nothing, and a taken slot stops every change.
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;

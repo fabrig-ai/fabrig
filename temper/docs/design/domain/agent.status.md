@@ -34,7 +34,6 @@ Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
-- **Not yet:** 4.3 and 4.3.1: a goal's run modifying and delivering, and `change`'s `"branch": "run"`: `temper/docs/plan/goal-delivery/`. A goal's run inspects alone, and `branch` takes `"mine"` alone.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
   corrected receipt's words, a refused compare's recovery, or the producer
   and foreman following the report instructions, including listing cuts
