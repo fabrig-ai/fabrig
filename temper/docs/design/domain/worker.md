@@ -809,7 +809,15 @@ for; and that nothing is live once it settles.
   (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
   or a path to clients alone. Default: the line alone, which `task show`'s
   way out points to and `temper help hold` and `temper help server` say how
-  to read, until that proves too little. The user's to decide.
+  to read, until that proves too little. Keeping text means one last
+  failure per hold, replaced on each failure, with a byte bound and readers
+  the user decides first. The operator line's 4,096-byte tail is no choice
+  of that stored bound. Task readers could then see text now confined to
+  the engine's log, including tool output, paths, provider errors or echoed
+  credentials, which cannot be reliably redacted. Restricting it to owners
+  and maintainers needs a reading path of its own. The change crosses jig's
+  task and core schemas, the hub payload and the client wire, with their
+  versions, migration and goldens. The user's to decide.
 - **What a deployment's operators may read of a run's prompts.** A run's
   prompts hold repository text and anything an agent read, and a real
   design of keeping them starts from who may read them
