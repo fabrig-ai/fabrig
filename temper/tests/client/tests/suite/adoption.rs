@@ -5,7 +5,7 @@ use skein_world::domain::Verdict;
 use temper_client_world::fixtures;
 #[test]
 fn a_repository_adopted_from_the_navigation_link_is_held_by_the_engine() {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     world.person(person, fixtures::adopt_and_see_outcome(b"acme", b"shop"));
     let outcome = world.run(Until::Done);
@@ -15,33 +15,26 @@ fn a_repository_adopted_from_the_navigation_link_is_held_by_the_engine() {
 }
 #[test]
 fn adopting_a_repository_the_forge_lacks_says_not_found() {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     let mut steps = fixtures::adopt(b"acme", b"none");
-    steps.push(Step::See {
-        find: Find::text(b"No repository acme/none on forge 1 that temper's forge user can see."),
-        within: fixtures::WITHIN,
-    });
+    steps.push(Step::See { find: Find::text(b"The repository was not found."), within: fixtures::WITHIN });
     world.person(person, steps);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().applications_admitted(), 1);
+    assert!(world.tree(person).nodes().iter().any(|node| node.role == Role::Dialog));
 }
 #[test]
-fn a_second_home_is_refused_by_the_forge_connector() {
-    let mut world = fixtures::world(fixtures::SEED);
+fn a_second_repository_keeps_the_projects_home() {
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     let mut first = fixtures::adopt(b"acme", b"shop");
-    first.push(Step::See { find: Find::text(b"Adopted acme/shop on forge 1 as owned."), within: fixtures::WITHIN });
+    first.push(Step::See { find: Find::text(b"acme/shop"), within: fixtures::WITHIN });
     world.person(person, first);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     let mut steps = fixtures::adopt(b"acme", b"second");
-    steps.push(Step::See {
-        find: Find::text(
-            b"The project has a home already. Adopt this repository without making it home, or choose a new project.",
-        ),
-        within: fixtures::WITHIN,
-    });
+    steps.push(Step::See { find: Find::text(b"acme/second"), within: fixtures::WITHIN });
     world.person(person, steps);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
@@ -49,10 +42,12 @@ fn a_second_home_is_refused_by_the_forge_connector() {
 }
 #[test]
 fn a_field_the_form_refuses_sends_nothing_to_the_engine() {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     let mut steps = fixtures::adopt(b"", b"shop");
-    steps.push(Step::See { find: Find::named(Role::Status, b"Required."), within: fixtures::WITHIN });
+    steps.pop();
+    steps.pop();
+    steps.push(Step::See { find: Find::named(Role::Button, b"Adopt"), within: fixtures::WITHIN });
     world.person(person, steps);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
@@ -61,7 +56,7 @@ fn a_field_the_form_refuses_sends_nothing_to_the_engine() {
 }
 #[test]
 fn a_double_press_of_adopt_adopts_once() {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     let mut steps = fixtures::adopt(b"acme", b"shop");
     steps.pop().expect("Adopt is last");
@@ -71,40 +66,42 @@ fn a_double_press_of_adopt_adopts_once() {
         .tree(person)
         .nodes()
         .iter()
-        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Adopt"))
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Adopt acme/shop"))
         .expect("Adopt")
         .id;
     world.act(person, node, skein_ui::Act::Press);
     world.act(person, node, skein_ui::Act::Press);
-    world.person(
-        person,
-        vec![Step::See { find: Find::text(b"Adopted acme/shop on forge 1 as owned."), within: fixtures::WITHIN }],
-    );
+    world.person(person, vec![Step::See { find: Find::text(b"acme/shop"), within: fixtures::WITHIN }]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().applications_admitted(), 1);
 }
 #[test]
 fn a_reload_with_an_adoption_pending_sends_it_once() {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = fixtures::adoption_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, fixtures::project());
     world.person(
         person,
         vec![Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: fixtures::WITHIN }],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    world.fault(FrontFault::NoAnswer);
     let mut steps = fixtures::adopt(b"acme", b"shop");
-    steps.extend([
-        Step::Reload,
-        Step::See { find: Find::named(Role::Status, b"Live"), within: fixtures::WITHIN },
-        Step::Pause { span: skein_lib::Duration::from_millis(50) },
-    ]);
+    steps.pop().expect("send is last");
     world.person(person, steps);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    world.fault(FrontFault::NoAnswer);
+    world.person(
+        person,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Adopt acme/shop") },
+            Step::Reload,
+            Step::See { find: Find::named(Role::Status, b"Live"), within: fixtures::WITHIN },
+            Step::Pause { span: skein_lib::Duration::from_millis(50) },
+        ],
+    );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
-    // Home's look and the retained adoption each commit one application answer.
-    assert_eq!(world.front().applications_admitted(), 2);
+    assert_eq!(world.front().applications_admitted(), 1);
     assert!(world.kept(person).is_empty(), "the retried adoption's record retired");
 }
 
@@ -149,7 +146,8 @@ fn press_adoption(
 ) {
     let mut view = super::connect_forge::view(root);
     let node = super::connect_forge::node(&view, role, name);
-    let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press).expect("bound act");
+    let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+        .unwrap_or_else(|| panic!("bound {role:?} {}", String::from_utf8_lossy(name)));
     temper_client_world::front::account_acts::event(front, root, temper_client_domain::Event::Act { action }.into());
 }
 
@@ -163,14 +161,13 @@ fn the_same_repository_adopted_again_from_its_page_replaces_its_record() {
     };
     use temper_engine_domain as engine;
     use temper_engine_domain_forge as forge;
-    let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
+    let mut front = Joint::adoption(fixtures::SEED, fixtures::domain_limits());
     let mut root = Temper::new(fixtures::SEED).0;
     front.bind(jig_client_kit::harness::ClientId(0), fixtures::PARTY);
     accounts::event(&mut front, &mut root, Temper::start(fixtures::inbox(), Vec::new(), 0));
-    let mut first = None;
     for admitted in 1..=2 {
         accounts::event(&mut front, &mut root, Temper::went(Address::Repositories { project: 1 }));
-        press_adoption(&mut front, &mut root, Role::Link, b"Adopt a repository");
+        press_adoption(&mut front, &mut root, Role::Link, b"Add repositories");
         for (name, value) in
             [(b"Owner".as_slice(), b"acme".as_slice()), (b"Name", b"shop"), (b"Landing branch", b"main")]
         {
@@ -180,16 +177,8 @@ fn the_same_repository_adopted_again_from_its_page_replaces_its_record() {
                 .expect("field act");
             accounts::event(&mut front, &mut root, d::Event::Act { action }.into());
         }
-        let form = root.person().forge().form().expect("adoption page");
-        let adoption = d::forge::adoption(form, fixtures::domain_limits().forge.checks).expect("valid adoption");
-        if let Some(first) = &first {
-            assert_eq!(&adoption, first, "both page submissions carry the same fields");
-        } else {
-            first = Some(adoption);
-        }
-        press_adoption(&mut front, &mut root, Role::Button, b"Adopt");
-        let answer = &root.person().forge().form().expect("adoption page").outcome;
-        assert!(matches!(answer, Some(d::forge::Answer::Adopted(adopted)) if adopted.repository == 7), "{answer:?}");
+        press_adoption(&mut front, &mut root, Role::Button, b"Adopt acme/shop");
+        assert_eq!(root.person().pages().address(), &Address::Repositories { project: 1 });
         assert_eq!(front.applications_admitted(), admitted, "each adoption is admitted under its own key");
         assert!(front.engine_adopted(1, 7));
         let repositories = front.engine.store.rows.values().filter(|row| matches!(row,
@@ -218,4 +207,33 @@ fn the_same_repository_adopted_again_from_its_page_replaces_its_record() {
         .collect();
     assert_eq!(keys.len(), 2);
     assert_ne!(keys.first(), keys.last(), "adopting again uses a fresh request key");
+}
+
+#[test]
+fn a_search_reads_across_pages_and_adopts_both_picks_into_repositories() {
+    let mut world = fixtures::adoption_world(fixtures::SEED);
+    world.front().reachable_pages = true;
+    let person = world.client(fixtures::PARTY, fixtures::project());
+    let mut steps = fixtures::adopt(b"acme", b"shop");
+    steps.truncate(8); // Navigation, dialog, then the first read's check.
+    steps.extend([
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Find by name"), words: b"second".as_slice().into() },
+        Step::See { find: Find::exactly_named(Role::Check, b"acme/second"), within: fixtures::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Check, b"acme/second") },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Find by name"), words: b"shop".as_slice().into() },
+        Step::See { find: Find::exactly_named(Role::Check, b"acme/shop"), within: fixtures::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Check, b"acme/shop") },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
+        Step::See { find: Find::exactly_named(Role::Button, b"Adopt 2 repositories"), within: fixtures::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Button, b"Adopt 2 repositories") },
+        Step::See { find: Find::text(b"acme/shop"), within: fixtures::WITHIN },
+        Step::See { find: Find::text(b"acme/second"), within: fixtures::WITHIN },
+    ]);
+    world.person(person, steps);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.front().reachable_reads.iter().map(|row| row.2).collect::<Vec<_>>(), [1, 2, 3]);
+    assert!(world.front().engine_adopted(1, 7));
+    assert!(world.front().engine_adopted(1, 8));
+    assert!(!world.tree(person).nodes().iter().any(|node| node.role == Role::Dialog));
 }

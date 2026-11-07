@@ -5,9 +5,51 @@ use skein_lib::{List, Reader, Writer, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
-    Title,
-    TitleNumber,
-    Forge,
+    SheetTitle,
+    SheetProject,
+    AddRepositories,
+    SheetForge,
+    Account,
+    MakeEmpty,
+    CopyPublic,
+    Find,
+    Repositories,
+    NotListed,
+    More,
+    What,
+    OwnedSummary,
+    ForkSummary,
+    ContextSummary,
+    WithCi,
+    WithoutCi,
+    Private,
+    InProject,
+    Copying,
+    SoFar,
+    Searching,
+    Found,
+    All,
+    Picked,
+    Suspended,
+    Full,
+    NoneReachable,
+    NoneFound,
+    AdoptOne,
+    AdoptMany,
+    Grant,
+    NotInstalled,
+    Collaborator,
+    InstallAnother,
+    Sources,
+    AccountSuspended,
+    ReadNotConnected,
+    ReadBusy,
+    ReadNoAnswer,
+    ReadAdminMissing,
+    ReadNotAdmin,
+    ReadRole,
+    TryAgain,
+    Reading,
     Owner,
     Name,
     Role,
@@ -64,16 +106,58 @@ pub enum Word {
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 56] = [
-    (Word::Title, &[b"Adopt a repository into ", b""], &[Name]),
-    (Word::TitleNumber, &[b"Adopt a repository into project ", b""], &[Number]),
-    (Word::Forge, &[b"Forge number"], &[]),
+pub const ROWS: [Row; 98] = [
+    (Word::SheetTitle, &[b"Add repositories to ", b""], &[Name]),
+    (Word::SheetProject, &[b"project ", b""], &[Number]),
+    (Word::AddRepositories, &[b"Add repositories"], &[]),
+    (Word::SheetForge, &[b"Forge"], &[]),
+    (Word::Account, &[b"Account"], &[]),
+    (Word::MakeEmpty, &[b"Make empty"], &[]),
+    (Word::CopyPublic, &[b"Copy public"], &[]),
+    (Word::Find, &[b"Find by name"], &[]),
+    (Word::Repositories, &[b"Repositories"], &[]),
+    (Word::NotListed, &[b"Not listed"], &[]),
+    (Word::More, &[b"More"], &[]),
+    (Word::What, &[b"What temper does with it"], &[]),
+    (Word::OwnedSummary, &[b"Owned"], &[]),
+    (Word::ForkSummary, &[b"Fork"], &[]),
+    (Word::ContextSummary, &[b"Context"], &[]),
+    (Word::WithCi, &[b", it runs CI"], &[]),
+    (Word::WithoutCi, &[b", no CI"], &[]),
+    (Word::Private, &[b"private"], &[]),
+    (Word::InProject, &[b"In ", b""], &[Name]),
+    (Word::Copying, &[b"Copying\xe2\x80\xa6"], &[]),
+    (Word::SoFar, &[b"", b" so far \xc2\xb7 more as you scroll"], &[Number]),
+    (Word::Searching, &[b"Searching \xc2\xb7 ", b" read so far"], &[Number]),
+    (Word::Found, &[b"", b" of ", b" repositories"], &[Number, Number]),
+    (Word::All, &[b"", b" repositories"], &[Number]),
+    (Word::Picked, &[b" \xc2\xb7 ", b" picked"], &[Number]),
+    (Word::Suspended, &[b"This account is suspended."], &[]),
+    (Word::Full, &[b"The picker is full. Use Not listed to add another repository."], &[]),
+    (Word::NoneReachable, &[b"None reachable."], &[]),
+    (Word::NoneFound, &[b"Nothing matches. Try another name, or use Not listed."], &[]),
+    (Word::AdoptOne, &[b"Adopt ", b""], &[Name]),
+    (Word::AdoptMany, &[b"Adopt ", b" repositories"], &[Number]),
+    (Word::Grant, &[b"Check ", b" exists, and grant it to temper\xe2\x80\x99s App on GitHub."], &[Name]),
+    (Word::NotInstalled, &[b"temper\xe2\x80\x99s App is not installed on ", b"."], &[Name]),
+    (Word::Collaborator, &[b"Make ", b" a collaborator with write on ", b"."], &[Name, Name]),
+    (Word::InstallAnother, &[b"Install on another account"], &[]),
+    (Word::Sources, &[b"Where they come from"], &[]),
+    (Word::AccountSuspended, &[b" \xc2\xb7 suspended"], &[]),
+    (Word::ReadNotConnected, &[b"Forge ", b" is not connected."], &[Number]),
+    (Word::ReadBusy, &[b"Forge ", b" is busy."], &[Number]),
+    (Word::ReadNoAnswer, &[b"Forge ", b" did not answer."], &[Number]),
+    (Word::ReadAdminMissing, &[b"Forge ", b"\xe2\x80\x99s admin\xe2\x80\x99s token is missing."], &[Number]),
+    (Word::ReadNotAdmin, &[b"Forge ", b"\xe2\x80\x99s admin, ", b", is not a site admin."], &[Number, Name]),
+    (Word::ReadRole, &[b"Your role does not hold the deployment\xe2\x80\x99s forges: give the owner and the name."], &[]),
+    (Word::TryAgain, &[b"Try again"], &[]),
+    (Word::Reading, &[b"Reading repositories\xe2\x80\xa6"], &[]),
     (Word::Owner, &[b"Owner"], &[]),
     (Word::Name, &[b"Name"], &[]),
     (Word::Role, &[b"Role"], &[]),
-    (Word::OwnedChoice, &[b"Owned: temper pushes, opens pull requests and lands"], &[]),
-    (Word::ForkChoice, &[b"Fork: temper contributes through a fork"], &[]),
-    (Word::ContextChoice, &[b"Context: temper only reads"], &[]),
+    (Word::OwnedChoice, &[b"temper pushes, opens pull requests and lands"], &[]),
+    (Word::ForkChoice, &[b"temper contributes through a fork"], &[]),
+    (Word::ContextChoice, &[b"temper only reads"], &[]),
     (Word::Home, &[b"Make it the project's home"], &[]),
     (Word::Prefix, &[b"Branch prefix"], &[]),
     (Word::Landing, &[b"Landing branch"], &[]),
@@ -131,10 +215,16 @@ pub const ROWS: [Row; 56] = [
     (Word::AdminScope, &[b"Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log."], &[]),
 ];
 fn phrase_id(connector: u16, index: usize) -> PhraseId {
-    PhraseId {
-        owner: owner(connector),
-        number: u16::try_from(index).expect("bounded forge phrases").checked_add(1000).expect("phrase id fits"),
-    }
+    let sheet = ROWS.len().checked_sub(53).expect("adoption words");
+    let number = if index < sheet {
+        u16::try_from(index).expect("sheet words").checked_add(6000).expect("sheet phrase id")
+    } else {
+        u16::try_from(index.checked_sub(sheet).expect("adoption word"))
+            .expect("adoption words")
+            .checked_add(1003)
+            .expect("adoption phrase id")
+    };
+    PhraseId { owner: owner(connector), number }
 }
 pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for (index, (word, literals, kinds)) in ROWS.iter().enumerate() {
@@ -157,12 +247,13 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
     }
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the closed vocabulary lists each phrase's hole bounds")]
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
+        Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,
         Word::Password => super::OWNED_PASSWORD_BYTES,
-        Word::Title => text.checked_add(16).expect("checked text bound"),
         Word::Adopted => {
             if index == 0 {
                 513
@@ -180,12 +271,60 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 256
             }
         }
-        Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
-        Word::PrefixOccupied | Word::NoSuchForge | Word::Unreachable | Word::InvalidAnswer => 256,
-        Word::AdminScope
+        Word::AdoptOne | Word::Grant | Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
+        Word::Collaborator => {
+            if index == 0 {
+                256
+            } else {
+                513
+            }
+        }
+        Word::NotInstalled
+        | Word::ReadNotAdmin
+        | Word::PrefixOccupied
+        | Word::NoSuchForge
+        | Word::Unreachable
+        | Word::InvalidAnswer => 256,
+        Word::SheetProject
+        | Word::AddRepositories
+        | Word::SheetForge
+        | Word::Account
+        | Word::MakeEmpty
+        | Word::CopyPublic
+        | Word::Find
+        | Word::Repositories
+        | Word::NotListed
+        | Word::More
+        | Word::What
+        | Word::OwnedSummary
+        | Word::ForkSummary
+        | Word::ContextSummary
+        | Word::WithCi
+        | Word::WithoutCi
+        | Word::Private
+        | Word::Copying
+        | Word::SoFar
+        | Word::Searching
+        | Word::Found
+        | Word::All
+        | Word::Picked
+        | Word::Suspended
+        | Word::Full
+        | Word::NoneReachable
+        | Word::NoneFound
+        | Word::AdoptMany
+        | Word::InstallAnother
+        | Word::Sources
+        | Word::AccountSuspended
+        | Word::ReadNotConnected
+        | Word::ReadBusy
+        | Word::ReadNoAnswer
+        | Word::ReadAdminMissing
+        | Word::ReadRole
+        | Word::TryAgain
+        | Word::Reading
+        | Word::AdminScope
         | Word::HomeHeld
-        | Word::TitleNumber
-        | Word::Forge
         | Word::Owner
         | Word::Name
         | Word::Role
