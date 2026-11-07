@@ -44,7 +44,9 @@ estimate 5.311441 CPU s saved by the focused repairs, without proving
 their at-least-6 aim; process-world instruction pairs remain unknown.
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
-sections 5, 7 and 9).
+sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'
+prefix once; checked allocation layout and native fork costs remain
+deferred there, with their measurements in temper's deployment-world account.
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
 llm-connection depart from

@@ -427,7 +427,14 @@ projection updates, protocol scheduling queries, gallery checks and the
 launcher. Remaining representation and algorithm work is deferred.
 Individual instruction savings establish no whole-suite CPU total, so the
 focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
-6.1 and 11). The hangup/rebind and Linux killed-box stories moved whole
+6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
+130.202313 fuzzy CPU s for the measured packages alone; whole-suite totals
+remain unknown. The real-loop focused median is 31.769481 CPU s against
+its standing 15 s ceiling. Eighteen named real-loop stories remain in
+fuzzy pending the user's placement decision. Exhaustive conformance cuts
+share their prefix, and the remaining representation, observation and
+profiling work is deferred (`domain/testing.md`, 5.2, 5.3, 6.1 and 11).
+The hangup/rebind and Linux killed-box stories moved whole
 into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
