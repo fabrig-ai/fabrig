@@ -245,6 +245,8 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Service, inherited, b"state");
     let mut document: serde_json::Value = serde_json::from_slice(&parameters.deployment).expect("deployment JSON");
     H::configure(&mut document);
+    let given = H::given(&document);
+    documents::settings::strip_models(&mut document);
     let bytes = serde_json::to_vec(&document).expect("deployment JSON");
     let mut service = temper_service::startup::with_setup_given(
         &bytes,
@@ -258,7 +260,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         None,
         None,
         None,
-        &H::given(&document),
+        &given,
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));

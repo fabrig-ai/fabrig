@@ -560,6 +560,12 @@ impl DecodedActivityLine {
         if let Some(archive) = &self.decoded {
             match &archive.turn {
                 TurnRead::Decoded(turn) => {
+                    if let Some(llm) = &turn.llm {
+                        weight = weight.saturating_add(byte_weight(llm.model.bytes()));
+                        if let Some(effort) = &llm.effort {
+                            weight = weight.saturating_add(byte_weight(effort.bytes()));
+                        }
+                    }
                     for message in &turn.messages {
                         weight = weight.saturating_add(u64::from(LINE_ROOM));
                         for block in &message.blocks {

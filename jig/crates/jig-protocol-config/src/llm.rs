@@ -76,6 +76,7 @@ pub(crate) fn parse(
     at: u32,
     path: &Path,
     directories: &Directories,
+    defaults: crate::Defaults,
     problems: &mut Problems,
 ) -> Option<Llm> {
     let mut object = check::object(document, at, path, problems, "llm")?;
@@ -98,7 +99,11 @@ pub(crate) fn parse(
         }
     }
     let mut models = List::<CatalogueModel>::with_capacity(document.len());
-    if let Some(items) = check::list(&mut object, document, b"models", MODELS, path, problems) {
+    if defaults == crate::Defaults::Passed {
+        if object.member(document, b"models").is_some() {
+            problems.push(path.member(b"models"), What::Stored);
+        }
+    } else if let Some(items) = check::list(&mut object, document, b"models", MODELS, path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"models").child(Segment::Index(u32::try_from(index).expect("list bounded by u32")));
             if let Some(value) = model(document, *at, &path, endpoints.as_slice(), problems) {
@@ -126,7 +131,7 @@ pub(crate) fn parse(
             }
         }
     }
-    let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, problems);
+    let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, defaults, problems);
     for (index, provider) in providers.iter().enumerate() {
         if let Some(name) = &provider.endpoint {
             let mut found = false;
@@ -162,6 +167,14 @@ fn program_bindings(
         let at = check::index(&path.member(b"endpoints"), index).member(b"program");
         let mut valid = false;
         let mut refused = program.is_empty() || program.len() > skein_lib::length::usize_of(jig_domain_accounts::NAME);
+        for provider in providers {
+            if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) {
+                valid = true;
+                if !provider.programs.contains(program) {
+                    refused = true;
+                }
+            }
+        }
         for model in models {
             if model.model.endpoint != endpoint.number {
                 continue;

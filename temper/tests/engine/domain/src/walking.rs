@@ -318,7 +318,7 @@ pub fn config(seed: u64) -> engine::Config {
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
                 project: 1,
-                identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                identity: temper_engine_domain_forge::user_key(1, 7_u64),
             }]),
             grants: Box::new([]),
             kinds: Box::default(),
@@ -714,7 +714,7 @@ impl World {
                     held: None,
                     reply_to: ReplyTo::new(Token::new(101)),
                     identity: people::Identity {
-                        key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                        key: temper_engine_domain_forge::user_key(1, 7_u64),
                         login: b"person".as_slice().into(),
                         name: b"Person".as_slice().into(),
                     },

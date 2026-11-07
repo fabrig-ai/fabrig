@@ -35,7 +35,7 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
 
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.slots":2,"fleet.workers":2,"hub.slots":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.slots":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480}. Overrides the profile's limits by their dotted names.
+- `overrides`: object, known limit names; optional; init writes {"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480}. Overrides the profile's limits by their dotted names.
 
 ## engine.deployment
 
@@ -70,7 +70,6 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 Shape: `llm`. Paths: `engine.llm`. The endpoints and providers, with document models when defaults are not passed.
 
 - `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
-- `models`: list of model, 64 models; required; init writes list (8 entries). Declares document defaults numbered by position from 1; passed models replace them.
 - `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
@@ -106,39 +105,13 @@ Shape: `header`. Paths: `engine.llm.endpoints[].headers[]`. One header added to 
 - `name`: text, 4096 bytes; required; init leaves it out. Names the request header.
 - `value`: text, 4096 bytes; required; init leaves it out. Gives the request header's value.
 
-## engine.llm.models[]
-
-Shape: `model`. Paths: `engine.llm.models[]`. A document model default, numbered by position from 1, with its context bounds, efforts and prices.
-
-- `name`: text, 4096 bytes; required; init writes "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-fable-5-1" | "gpt-6.1-sol" | "gpt-6-astra" | "gpt-6.1-terra" | "gpt-6-luna" | "demo". Names the model for charters, templates and authorities.
-- `endpoint`: text, 4096 bytes; required; init writes "anthropic" | "openai" | "demo". Names the configured endpoint serving this model.
-- `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
-- `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
-- `efforts`: list of text, 16 efforts; 32 bytes each; optional; init writes ["low","medium","high","xhigh","max"] | ["none","low","medium","high","xhigh","max"]. Lists the efforts the model takes, in order, with none when absent.
-- `effort`: text, 32 bytes; optional; init writes "high" | "medium". Names the effort a task given no choice takes, the first of the efforts when absent.
-- `prices`: prices; required; init writes object. Gives input, cached input and output prices in spend units.
-- `description`: text, 1 to 512 bytes; optional; init leaves it out. Describes what the model is good at for the brief's catalogue.
-- `shown`: text, 1 to 256 bytes; optional; init writes "Opus 5.5" | "Sonnet 5.5" | "Fable 5.1" | "GPT-6.1 Sol" | "GPT-6 Astra" | "GPT-6.1 Terra" | "GPT-6 Luna". Gives the model's name for showing.
-- `picker`: true or false; optional; init leaves it out. Says whether a picker shows the model, true when absent.
-
-## engine.llm.models[].prices
-
-Shape: `prices`. Paths: `engine.llm.models[].prices`. Model prices and their token unit.
-
-- `input`: integer, 1 to 18446744073709551615; required; init writes 4000 | 2000 | 10000 | 1000 | 100 | 1. Prices input tokens per price unit.
-- `cached`: integer, 1 to 18446744073709551615; required; init writes 4000 | 2000 | 10000 | 1000 | 100 | 1. Prices cached input tokens per price unit.
-- `output`: integer, 1 to 18446744073709551615; required; init writes 20000 | 10000 | 50000 | 5000 | 500 | 1. Prices output tokens per price unit.
-- `unit`: integer, 1 to 4294967295 tokens; required; init writes 1000000 | 1000. Gives the token count each price applies to.
-- `cache_write`: integer, 1 to 18446744073709551615; optional; init leaves it out. Prices cache writes separately when the provider charges for them.
-
 ## engine.llm.providers[]
 
 Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, its added models' endpoint, the document models it serves and the sources it offers.
 
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
-- `endpoint`: text, 4096 bytes; a configured endpoint name; optional; init leaves it out. Names the endpoint its added models take.
-- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6.1-sol","gpt-6-astra","gpt-6.1-terra","gpt-6-luna"] | ["claude-opus-5-5","claude-sonnet-5-5","claude-fable-5-1"] | ["demo"]. Names configured models served by this provider alone.
+- `endpoint`: text, 4096 bytes; a configured endpoint name; required; init writes "openai" | "anthropic" | "demo". Names the endpoint its added models take.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
 - `signed_in_plan`: true or false, required with sign_in; optional; init writes true | false. Says whether the provider's signed-in source is a plan.
 - `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage" | "https://claude.ai/settings/usage". Gives the public address where a holder manages usage.
@@ -234,7 +207,7 @@ Shape: `worker`. Paths: `workers[]`. A worker's connection, execution and stop b
 - `engine`: address, loopback or in-process; required; init writes {"in_process":"workers"}. Gives the engine address the worker dials.
 - `name`: text, link.name; at most 4096 bytes; required; init writes "worker". Gives the worker's configured name.
 - `secret`: text, 4096 bytes; data path; required; init writes "worker.secret". Names the private file holding the worker's secret.
-- `slots`: integer, hub.slots; required; init writes 1. Bounds how many runs the worker hosts at once.
+- `slots`: integer, hub.slots; required; init writes 4. Bounds how many runs the worker hosts at once.
 - `graces`: graces; required; init writes object. Gives the graces used to compute the worker's stop bound.
 - `programs`: programs; required; init writes object. Configures the host's local source-login checks.
 - `agent`: agent; required; init writes object. Names the agent program, its arguments and its configuration document.

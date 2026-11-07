@@ -1,7 +1,7 @@
 use super::fixtures::{self, DIRECTORIES, cases, content, parse, text};
 use crate::{files, template};
 use serde_json::{Value, json};
-use skein_lib::{List, bytes};
+use skein_lib::bytes;
 
 fn set(value: &mut Value, path: &str, replacement: Value) {
     *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
@@ -40,10 +40,18 @@ fn the_box_has_room_for_reference_creating_executors() {
 }
 
 #[test]
-fn the_box_keeps_eight_streams_and_four_calls_beside_them() {
-    for source in [fixtures::OWNED, template::TEMPER] {
+fn the_box_runs_four_agents_and_keeps_eight_streams_and_four_calls_beside_them() {
+    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
         let value = parse(source);
         let limits = &value["engine"]["limits"]["overrides"];
+        assert_eq!(value["workers"][0]["slots"], 4_u32, "workers[0].slots");
+        for name in ["checkout.workspaces", "git_component.operations"] {
+            assert_eq!(value["application"]["limits"]["overrides"][name], 4_u32, "{name}");
+        }
+        for name in ["fleet.slots", "hub.slots"] {
+            assert!(limits.get(name).is_none(), "engine overrides {name}");
+        }
+        assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none(), "worker overrides hub.slots");
         for name in ["clients.streams", "clients_http.streams"] {
             assert_eq!(limits[name], 8_u32, "{name}");
         }
@@ -61,7 +69,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
         json!([{
             "name": "openai", "number": 1_u32, "signed_in_plan": true,
             "manage_usage": "https://chatgpt.com/settings/usage",
-            "models": ["gpt-6.1-sol"], "sources": {"keys": true, "sign_in": {
+            "endpoint": "openai", "sources": {"keys": true, "sign_in": {
                 "issuer": "https://auth.openai.com", "client": "dynamic_agent_client", "name_hint": "temper",
                 "authorization": "https://auth.openai.com/api/accounts/authorize",
                 "token": "https://auth.openai.com/api/accounts/oauth/token",
@@ -82,7 +90,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
     assert_eq!(endpoint["transport"], "tls");
     assert_eq!(endpoint["server_name"], "api.openai.com");
     assert_eq!(endpoint["headers"], parse(b"[]"));
-    assert_eq!(owned["engine"]["llm"]["models"][0]["endpoint"], "openai");
+    assert!(owned["engine"]["llm"].get("models").is_none());
     let agent = parse(fixtures::AGENT);
     let endpoint = &agent["endpoints"][0];
     assert_eq!(endpoint["name"], "openai");
@@ -158,8 +166,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "clients": [{"id": "forgejo", "secret": null,
                 "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
         });
-        let mut openai = owned["engine"]["llm"]["providers"][0].clone();
-        openai["models"] = json!(["gpt-6.1-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6-luna"]);
+        let openai = owned["engine"]["llm"]["providers"][0].clone();
         for (path, value) in [
             (
                 "/engine/llm/providers",
@@ -167,7 +174,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     openai,
                     anthropic("providers"),
                     {"name": "demo", "number": 3_u64, "signed_in_plan": false,
-                     "models": ["demo"], "sources": {"keys": true}}
+                     "endpoint": "demo", "sources": {"keys": true}}
                 ]),
             ),
             (
@@ -180,11 +187,6 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
             ),
-            ("/engine/llm/models", {
-                let mut models = stock_models();
-                models.push(demo_model()).expect("seven stock models and demo fit");
-                json!(models.as_slice())
-            }),
             (
                 "/application/machine",
                 json!({
@@ -407,11 +409,6 @@ fn demo_turn(text: &str) -> Value {
     json!({"lines": [{"text": text}], "finish": "stop", "tokens": text.len().div_ceil(4)})
 }
 
-fn demo_model() -> Value {
-    json!({"name": "demo", "endpoint": "demo", "window": 1_048_576_u64, "output": 8_192_u64,
-           "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64}})
-}
-
 fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
@@ -602,7 +599,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
         expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
         expected["engine"]["owners"][0]["subject"] = json!("owner-a");
         expected["engine"].as_object_mut().unwrap().remove("acts");
-        for member in ["providers", "endpoints", "models"] {
+        for member in ["providers", "endpoints"] {
             expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
         }
         let mut agent = parse(content(&boxed, b"agent.json"));
@@ -631,30 +628,6 @@ fn the_bare_document_is_the_box_less_its_parts() {
 }
 
 // configuration.md, 13.4: the seven declarations, including their document order.
-fn stock_models() -> List<Value> {
-    let mut models = List::with_capacity(8);
-    for (name, shown, endpoint, effort, input, output) in [
-        ("claude-opus-5-5", "Opus 5.5", "anthropic", "high", 4_000_u32, 20_000_u32),
-        ("claude-sonnet-5-5", "Sonnet 5.5", "anthropic", "high", 2_000, 10_000),
-        ("claude-fable-5-1", "Fable 5.1", "anthropic", "high", 10_000, 50_000),
-        ("gpt-6.1-sol", "GPT-6.1 Sol", "openai", "high", 2_000, 10_000),
-        ("gpt-6-astra", "GPT-6 Astra", "openai", "high", 10_000, 50_000),
-        ("gpt-6.1-terra", "GPT-6.1 Terra", "openai", "medium", 1_000, 5_000),
-        ("gpt-6-luna", "GPT-6 Luna", "openai", "medium", 100, 500),
-    ] {
-        let efforts = if name == "gpt-6.1-terra" || name == "gpt-6-luna" {
-            json!(["none", "low", "medium", "high", "xhigh", "max"])
-        } else {
-            json!(["low", "medium", "high", "xhigh", "max"])
-        };
-        models
-            .push(json!({"name": name, "shown": shown, "endpoint": endpoint, "window": 1_048_576_u32,
-                "output": 8_192_u32, "efforts": efforts, "effort": effort,
-                "prices": {"input": input, "cached": input, "output": output, "unit": 1_000_000_u32}}))
-            .expect("seven stock models fit");
-    }
-    models
-}
 
 fn agent_limits(endpoint: &str) -> Value {
     json!({"window":1_048_576_u32,"output":8192,"reasoning_item":65_536_u32,
@@ -664,7 +637,7 @@ fn agent_limits(endpoint: &str) -> Value {
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
-            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["claude-opus-5-5","claude-sonnet-5-5","claude-fable-5-1"],"sources":{"programs":["claude_code"]}}"#)
+            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","sources":{"programs":["claude_code"]}}"#)
         }
         "endpoints" => {
             parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)
@@ -697,11 +670,7 @@ fn every_deployment_offers_claude_found_or_fetched() {
             for (member, at) in [("providers", 1), ("endpoints", 1)] {
                 assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
-            assert_eq!(
-                document["engine"]["llm"]["models"].as_array().unwrap()[..3],
-                stock_models().as_slice()[..3],
-                "{row}"
-            );
+            assert!(document["engine"]["llm"].get("models").is_none());
             assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
             assert_eq!(
                 agent["programs"]["claude_code"],

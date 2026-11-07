@@ -630,7 +630,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);
     for (kind, value) in [
-        (b"project-ways".as_slice(), r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (b"project-questions", "\"none\""),
     ] {
         let shown = call(&mut world, agent, &[b"settings", b"show", kind, b"1"]);

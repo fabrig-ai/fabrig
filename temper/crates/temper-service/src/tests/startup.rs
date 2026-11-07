@@ -42,7 +42,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     let document = transcript_document(3_421_267);
-    crate::startup(
+    fixtures::start(
         &document,
         &config::Directories::working(),
         &fixtures::files(),
@@ -156,7 +156,7 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             let needle = format!("\"root.loads.read_bytes\":{}", store.core.load_bytes);
             assert_eq!(text.matches(&needle).count(), 1);
             let document = text.replace(&needle, &format!("\"root.loads.read_bytes\":{read}"));
-            let started = crate::startup(
+            let started = fixtures::start(
                 document.as_bytes(),
                 &config::Directories::working(),
                 &fixtures::files(),
@@ -194,7 +194,7 @@ fn a_map_driven_page_needs_no_larger_read_bound() {
     assert!(store.store.chunk >= store.store.page.bytes);
     assert_eq!(store.core.load_bytes, 131_072);
     assert!(store.core.load_bytes < u64::from(store.store.page.bytes));
-    crate::startup(
+    fixtures::start(
         &document,
         &config::Directories::working(),
         &fixtures::files(),
@@ -308,7 +308,7 @@ fn the_welcome_member_reads_as_the_document_says() {
         assert_eq!(lines(&problems).as_ref(), b"", "{member}");
         assert_eq!(members.unwrap().welcome, expected, "{member}");
         let document = fixtures::with(&fixtures::document(), b"application", input.as_bytes());
-        crate::startup(
+        fixtures::start(
             &document,
             &config::Directories::working(),
             &fixtures::files(),
@@ -620,7 +620,7 @@ fn named_returns_the_worker_root_and_the_agent_configuration() {
 fn a_file_named_but_not_given_refuses_the_start_naming_it() {
     let mut files = fixtures::files();
     files.entries = fixtures::without(files.entries, b"worker-secret");
-    let refused = crate::startup(
+    let refused = fixtures::start(
         &fixtures::document(),
         &jig_protocol_config::Directories::working(),
         &files,
@@ -657,7 +657,7 @@ fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
 
 #[test]
 fn startup_makes_the_one_process_from_the_example() {
-    let mut service = match crate::startup(
+    let mut service = match fixtures::start(
         &fixtures::document(),
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),
@@ -699,7 +699,7 @@ fn a_workers_missing_or_oversized_secret_keeps_its_absolute_path() {
         if let Some(bytes) = bytes {
             files.entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(bytes))).unwrap();
         }
-        let found = match crate::startup(
+        let found = match fixtures::start(
             &document,
             &jig_protocol_config::Directories::working(),
             &files,
@@ -913,7 +913,7 @@ fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
 fn a_store_reader_derives_serves_limits_or_their_problem_path() {
     let document = fixtures::document();
     let directories = config::Directories::working();
-    let service = crate::startup(
+    let service = fixtures::start(
         &document,
         &directories,
         &fixtures::files(),
@@ -1184,7 +1184,7 @@ fn turn_configuration(project: u32) -> (Option<application::Members>, Problems) 
 
 fn assert_landing_projects_start(projects: &[u8]) {
     let document = fixtures::with(&fixtures::document(), b"application.landing.projects", projects);
-    if let Err(problems) = crate::startup(
+    if let Err(problems) = fixtures::start(
         &document,
         &config::Directories::working(),
         &fixtures::files(),
@@ -1387,7 +1387,7 @@ fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
     ] {
         let projects = tier_projects("[]", &format!(r#""merge_job":{command},"#));
         let input = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
-        let Err(problems) = crate::startup(
+        let Err(problems) = fixtures::start(
             &input,
             &config::Directories::working(),
             &fixtures::files(),
@@ -1585,7 +1585,7 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
         let overrides = core::str::from_utf8(&overrides).unwrap().trim_end().strip_suffix('}').unwrap();
         let overrides = format!("{overrides},\"root.brief.sections\":{sections}}}");
         let document = fixtures::with(&input, b"application.limits.overrides", overrides.as_bytes());
-        let started = crate::startup(
+        let started = fixtures::start(
             &document,
             &config::Directories::working(),
             &fixtures::files(),
@@ -1649,7 +1649,7 @@ fn capacity_overrides_name_the_failed_dependency() {
             crate::named(&document, &config::Directories::working()).expect("independent init override is admitted");
             continue;
         }
-        let found = crate::startup(
+        let found = fixtures::start(
             &document,
             &config::Directories::working(),
             &fixtures::files(),

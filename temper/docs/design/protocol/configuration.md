@@ -1304,6 +1304,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Four agents' resident memory** (13.4): the slot, workspace and git
+  operation fit checks admit four; they do not establish the memory used
+  by four agent processes and their programs on a laptop. Default: four
+  slots, with the after-landing measurement in `setup.md`, section 15;
+  a person's existing document keeps its configured concurrency.
 - **The model catalogue's store and list steps** (13.4): model settings,
   additions by name and per-account provider lists replace the model tables
   in `temper.json` and `agent.json` together
@@ -1894,7 +1899,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
-| kind 7 | for every project: `drafts`, `goals`, `changes` and `away` false, `way` 0, so that a fresh project shows Home, Needs you and Chats |
+| kind 7 | for every project: `drafts` true; `goals`, `changes` and `away` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **A project's kinds 6 and 7 have no row in the stock:** a project made
@@ -2053,8 +2058,11 @@ init`'s document carries none of them (`setup.md`, 8.3).
   (13.8; `setup.md`, 8.1) with the bounds that follow its message
   (`setup.md`, 8.1), the forge's repositories and output (`setup.md`,
   8.3), and the machine's
-  concurrency, which is the machine's to size and stays what the box
-  had: the worker's one slot, the hubs' and the fleet's slots, and the
+  concurrency, which is the machine's to size: the worker's 4 slots, so
+  that two chats and a goal's agents run side by side, which the hubs'
+  and the fleet's slots in `standard` already hold, with
+  `checkout.workspaces` and `git_component.operations` 4, the least they
+  take (`../domain/worker.md`, section 6); and, at what the box had, the
   clients' streams, `clients.streams` and `clients_http.streams` 8,
   each with four ordinary exchanges beside it in what carries it
   (`clients.exchanges`, `clients_http.calls` and temper's server

@@ -15,7 +15,7 @@ pub struct Ways {
     pub way: u32,
 }
 impl Ways {
-    pub const STOCK: Self = Self { drafts: false, goals: false, changes: false, away: false, way: 0 };
+    pub const STOCK: Self = Self { drafts: true, goals: false, changes: false, away: false, way: 0 };
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Route {

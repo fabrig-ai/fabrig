@@ -78,7 +78,7 @@ pub static FORMS: [Form; 55] = [
     Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it." },
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
-    Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, all switches are false and way is 0." },
+    Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0." },
     Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
         Word { word: b"none", line: b"No question route; the stock's value." },
         Word { word: b"foreman", line: b"A change's questions go to its foreman." },

@@ -1614,8 +1614,10 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
 
         providers: Box::new([]),
     };
-    let stock =
-        temper_service::stock::defaults(&llm, temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes);
+    let stock = temper_service::stock::with_models(
+        llm.models.clone(),
+        temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
+    );
     let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
     config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
     let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();
@@ -1640,7 +1642,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     }
     let mut owner = config.core.owners[0].clone();
     if member {
-        owner.identity.subject = 8_u64.to_be_bytes().into();
+        owner.identity = temper_engine_domain_forge::user_key(1, 8);
     }
     config.core.owners =
         Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
@@ -1669,7 +1671,7 @@ pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
         held: None,
         reply_to: ReplyTo::new(Token::new(2001)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"owner".as_slice().into(),
             name: b"Owner".as_slice().into(),
         },

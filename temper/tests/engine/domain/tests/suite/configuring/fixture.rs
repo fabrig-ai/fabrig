@@ -47,7 +47,7 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::defaults(&llm, limits().tasks.result_bytes);
+    config.core.defaults = temper_service::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
@@ -266,7 +266,7 @@ impl World {
             held: None,
             reply_to: ReplyTo::new(Token::new(11)),
             identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 8_u64),
                 login: b"member".as_slice().into(),
                 name: b"Member".as_slice().into(),
             },

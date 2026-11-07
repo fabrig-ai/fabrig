@@ -14,39 +14,41 @@ demo:
   More ways to start work:
     [10] Chat
       Ask a question or ask for a change.
-    [11] All ways to start work
-  [12] Set up temper
-  [13] Settings (current)
+    [11] Goal
+      Agents plan a larger change and land it.
+    [12] All ways to start work
+  [13] Set up temper
+  [14] Settings (current)
   * Pat
 demo · settings
 Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.
 Settings:
-  [14] How work runs (current)
-  [15] Repositories
-  [16] Forges
-  [17] Accounts
-  [18] Models
-  [19] Builders
+  [15] How work runs (current)
+  [16] Repositories
+  [17] Forges
+  [18] Accounts
+  [19] Models
+  [20] Builders
 Configure temper
 Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.
-[20] Start
+[21] Start
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
-Off
-[21] [ ] Chats can write drafts
+On
+[22] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[22] [ ] Goals
+[23] [ ] Goals
 Changes
 The landing queue, as a page.
 Hidden
-[23] [ ] Changes
+[24] [ ] Changes
 Away switch
 Lets agents decide within limits while you’re away.
 Hidden
-[24] [ ] Away switch
+[25] [ ] Away switch
 ## Status
 Status lines and reports
 Written words, beside the counts temper keeps itself.
@@ -63,9 +65,9 @@ Not built yet: this is what temper does today.
 ## What needs you
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [25] ( ) Answered by the goal, kept in its decisions
-  [26] ( ) Asked of me too
-  [27] (*) Not asked: each agent decides alone
+  [26] ( ) Answered by the goal, kept in its decisions
+  [27] ( ) Asked of me too
+  [28] (*) Not asked: each agent decides alone
 Funds
 Not built yet: this is what temper does today.
 Funds: (disabled)

@@ -136,14 +136,8 @@ pub struct World {
 fn config(settings: Settings) -> engine::Config {
     let mut config = walking::config(settings.seed);
     config.core.owners = Box::new([
-        people::InitialOwner {
-            project: 1,
-            identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-        },
-        people::InitialOwner {
-            project: 1,
-            identity: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-        },
+        people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 7_u64) },
+        people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 8_u64) },
     ]);
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
     policy.roles[0].requests = authority::Requests(1 | 4 | if settings.policy { 256 } else { 0 });
@@ -215,9 +209,9 @@ impl World {
         for row in store.rows.values() {
             match row {
                 Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity })) => {
-                    if identity.key.provider == 0 && identity.key.subject.as_ref() == 7_u64.to_be_bytes() {
+                    if identity.key == temper_engine_domain_forge::user_key(1, 7_u64) {
                         people[0] = *number;
-                    } else if identity.key.provider == 0 && identity.key.subject.as_ref() == 8_u64.to_be_bytes() {
+                    } else if identity.key == temper_engine_domain_forge::user_key(1, 8_u64) {
                         people[1] = *number;
                     }
                 }

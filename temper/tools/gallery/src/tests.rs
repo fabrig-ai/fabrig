@@ -3358,11 +3358,11 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
 
 #[test]
 fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
-    for (name, off) in [
-        ("settings-drafts-off", "Chats can write drafts"),
-        ("settings-goals-off", "Goals"),
-        ("settings-changes-off", "Changes"),
-        ("settings-away-off", "Away switch"),
+    for (name, off, changes) in [
+        ("settings-drafts-off", "Chats can write drafts", true),
+        ("settings-goals-off", "Goals", true),
+        ("settings-changes-off", "Changes", false),
+        ("settings-away-off", "Away switch", true),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
         let view = view(&sample);
@@ -3372,12 +3372,12 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
             let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
             assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
         }
-        for label in ["Goals", "Changes"] {
+        for (label, expected) in [("Goals", true), ("Changes", changes)] {
             let present = tree
                 .nodes()
                 .iter()
                 .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
-            assert_eq!(present, label != off, "{name}: {label} navigation");
+            assert_eq!(present, expected, "{name}: {label} navigation");
         }
         let ways = tree
             .nodes()

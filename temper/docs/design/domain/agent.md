@@ -920,9 +920,11 @@ and waits in the Needs you of each project it belongs to (jig's
   This lets a configuring chat name documents without a workspace or ctl.
   The same inventory names the caller project's people, one line each:
   its number, its login where temper holds one, its role's number, its
-  forge user's id where its identity is the forge's, and marks for the
-  task requester and for temper's own forge writer, who never counts as
-  a person. An absent forge identity is explicit and cannot count for
+  account on each forge of the project's repositories, by the host their
+  lines use, that forge's user's id or unknown (`forge.md`, section 4), and
+  marks for the task requester and for temper's own forge writer, who never
+  counts as a person. Someone known on none of them is said so once: an
+  absent forge identity is explicit and cannot count for
   approvals. Services are left out. It then names each configured owned-forge
   account (`../protocol/setup.md`, section 8), whose login alone verifies
   no project membership. The requester, a known forge identity and that
@@ -1084,7 +1086,13 @@ and waits in the Needs you of each project it belongs to (jig's
   left out), `forge-charter` and `project-policy` (with its
   `project`), each named and valued as the file names and values it,
   so that a description's landing rules, the forge's charters and a
-  project's own policy are proposed as its charters are.
+  project's own policy are proposed as its charters are. `charter`,
+  `template`, `policy`, `landing-rule` and `forge-charter` take a
+  `number`, and both tools' schemas say which; `project-policy`,
+  `project-ways` and `project-questions` take a `project`. A `settings`
+  read that leaves out the member its kind needs is answered with what
+  to do, "landing-rule needs number; read the inventory and name what it
+  lists", as a failed call, which a person's page keeps showing.
 - **A proposal's source** is exactly one of inline `items` or
   `note: {name, revision}`. The root checks the settings and recall families
   and loads the whole named note within the configured notes and load bounds.
@@ -1338,6 +1346,11 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **Proposal-form diagnostics** (8.1): `settings` reads name the kind
+  and its missing member; `propose_settings` keeps the shared settings-file
+  parser's errors. Default: those words, until a proposal needs the same
+  kind-specific guidance. Both tools' schemas name the numbered kinds.
 
 - **A real model revising a proposal** (8.1; the request `ui-proposal-2`
   of 2026-11-06): after landing, check that a request from "Change

@@ -636,7 +636,7 @@ fn project_member(driver: &mut temper_engine_domain_world::direct::Driver) -> u6
         held: None,
         reply_to: ReplyTo::new(Token::new(60)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"member".as_slice().into(),
             name: b"Member".as_slice().into(),
         },

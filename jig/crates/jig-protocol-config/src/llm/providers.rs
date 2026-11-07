@@ -62,6 +62,7 @@ pub(super) fn parse(
     path: &Path,
     models: &[CatalogueModel],
     directories: &Directories,
+    defaults: crate::Defaults,
     problems: &mut Problems,
 ) -> List<Provider> {
     let mut providers = List::<Provider>::with_capacity(document.len());
@@ -84,7 +85,7 @@ pub(super) fn parse(
     }
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"providers"), index);
-        if let Some(value) = provider(document, *at, &path, models, &mut claimed, directories, problems) {
+        if let Some(value) = provider(document, *at, &path, models, &mut claimed, directories, defaults, problems) {
             for previous in &providers {
                 if previous.name == value.name {
                     problems.push(path.member(b"name"), What::Unique);
@@ -104,6 +105,10 @@ pub(super) fn parse(
     providers
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "provider parsing carries the document, model claims and defaults mode together"
+)]
 fn provider(
     document: &Document,
     at: u32,
@@ -111,6 +116,7 @@ fn provider(
     models: &[CatalogueModel],
     claimed: &mut List<bool>,
     directories: &Directories,
+    defaults: crate::Defaults,
     problems: &mut Problems,
 ) -> Option<Provider> {
     let mut object = check::object(document, at, path, problems, "llm-provider")?;
@@ -142,14 +148,23 @@ fn provider(
     };
     let number = check::count(&mut object, document, b"number", path, problems);
     let mut served = None;
-    if let Some(items) = check::list(&mut object, document, b"models", document.len(), path, problems) {
+    if defaults == crate::Defaults::Passed {
+        if object.member(document, b"models").is_some() {
+            problems.push(path.member(b"models"), What::Stored);
+        }
+        served = Some(Box::default());
+    } else if let Some(items) = check::list(&mut object, document, b"models", document.len(), path, problems) {
         served = served_models(document, &items, &path.member(b"models"), models, claimed, problems);
     }
     let mut offered = None;
     if let Some(at) = object.required(document, b"sources", path, problems) {
         offered = sources(document, at, &path.member(b"sources"), directories, problems);
     }
-    let endpoint = super::optional_text(&mut object, document, b"endpoint", path, problems);
+    let endpoint = if defaults == crate::Defaults::Passed {
+        check::text(&mut object, document, b"endpoint", path, problems)
+    } else {
+        super::optional_text(&mut object, document, b"endpoint", path, problems)
+    };
     object.finish(document, path, problems);
     let offered = offered?;
     if offered.sign_in.is_some() && signed_at.is_none() {

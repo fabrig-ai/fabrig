@@ -135,9 +135,9 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
 fn the_playground_names_default_for_a_resolved_model() {
     use jig_client::contract as c;
     for (row, project, model, requested, expected) in [
-        ("default", f::PROJECT, true, false, "Using the default model"),
+        ("default", f::PROJECT, true, false, "Scripted model · Default"),
         ("requested", f::PROJECT, true, true, "Scripted model · Default"),
-        ("another project", f::SECOND_PROJECT, true, false, "Using the default model"),
+        ("another project", f::SECOND_PROJECT, true, false, "Scripted model · Default"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {

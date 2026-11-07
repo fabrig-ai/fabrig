@@ -8,8 +8,10 @@ pub const NOW: Time = Time::from_nanos(5);
 pub fn sign_in_engine() -> jig_protocol_config::Engine {
     use jig_protocol_config as config;
     let input = br#"{
-        "limits":{"profile":"small"}, "llm":{"endpoints":[],"models":[],"providers":[{
-            "name":"test","number":1,"models":[],"signed_in_plan":false,"sources":{"sign_in":{
+        "limits":{"profile":"small"}, "llm":{"endpoints":[{
+            "name":"test","number":1,"dialect":3,"provider":"test","address":{"socket":"127.0.0.1:9"},
+            "transport":"plaintext","headers":[],"connect_ms":1000,"handshake_ms":1000}],"providers":[{
+            "name":"test","number":1,"endpoint":"test","signed_in_plan":false,"sources":{"sign_in":{
                 "issuer":"https://issuer.test","client":"client","scopes":["openid"],
                 "authorization":"https://issuer.test/authorize","token":"https://issuer.test/token",
                 "keys":"https://issuer.test/keys","transport":"tls","server_name":"issuer.test",

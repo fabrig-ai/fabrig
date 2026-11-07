@@ -543,7 +543,7 @@ impl Application for Temper {
                     held: None,
                     reply_to: ReplyTo::new(Token::new(90)),
                     identity: people::Identity {
-                        key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                        key: temper_engine_domain_forge::user_key(1, 7_u64),
                         login: b"owner".as_slice().into(),
                         name: b"Owner".as_slice().into(),
                     },

@@ -156,10 +156,9 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
-    /// Offer two models and their efforts to the composer, with matching worker bounds.
+    /// Offer the stock models and their efforts to the composer, with matching worker bounds.
     #[must_use]
     pub fn with_model_picker(self) -> Self {
-        configuration::model_picker(self.scratch.path());
         self
     }
     /// The first-run demo, with the box's own fake LLM and forge, started when the playground is chosen.
@@ -237,11 +236,8 @@ impl Tier {
             format!("http://{socket}/bundle/{}/issuer.webmanifest", digest.file_name().to_str().expect("digest"));
         value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
         value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 2000.into();
-        let sign_in = serde_json::json!({
-            "issuer":"http://127.0.0.1:9", "client":"temper-test", "scopes":["openid","chat"],
-            "authorization":"http://127.0.0.1:9/authorize", "token":"http://127.0.0.1:9/token",
-            "keys":keys, "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
-        });
+        let mut sign_in = account_registration("http://127.0.0.1:9");
+        sign_in["keys"] = keys.into();
         account_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         tier
@@ -256,12 +252,7 @@ impl Tier {
         let origin = format!("http://{address}");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let sign_in = serde_json::json!({
-            "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
-            "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
-            "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
-            "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
-        });
+        let sign_in = account_registration(&origin);
         account_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         let mut peer = issuer::peer(address, &sign_in);
@@ -367,13 +358,23 @@ impl Tier {
     }
 }
 
+/// Public registration shared by the browser's account fixtures.
+fn account_registration(origin: &str) -> serde_json::Value {
+    serde_json::json!({
+        "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
+        "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
+        "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
+        "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
+    })
+}
+
 /// The two account stories share their provider and room for its driver.
 fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
     // One git operation leaves the small profile's sockets room for the accounts driver.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"Test provider", "number":17, "signed_in_plan":false, "models":["fake"],
+        "name":"Test provider", "number":1, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
     }]);
 }
@@ -408,6 +409,21 @@ mod tests {
         let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
             .expect("browser deployment admits stock settings");
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
+    }
+    #[test]
+    fn the_accounts_provider_keeps_the_stock_offer() {
+        let mut value = tier_configuration().1;
+        super::account_provider(&mut value, &super::account_registration("http://127.0.0.1:9"));
+        let document = jig_protocol_config::document(
+            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("account deployment admits stock settings");
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        assert_eq!(core.defaults.models.len(), 4);
+        assert!(core.defaults.models.iter().all(|entry| entry.model.provider == 1));
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {

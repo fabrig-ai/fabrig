@@ -23,7 +23,9 @@ fn configured() -> smith_agent_shell::config::Configuration {
 
 fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
     let engine = engine(&generated());
-    let policy = engine.charters.iter().find(|charter| charter.number == number).unwrap().policy.clone();
+    let charter = engine.charters.iter().find(|charter| charter.number == number).unwrap();
+    let policy =
+        jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core).unwrap().policy;
     let mut assignment = fixtures::assignment_with(fixtures::repository(1, b"org", b"repo"));
     assignment.charter = number;
     assignment.run.policy = policy;
@@ -32,11 +34,19 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
         vec![None; assignment.run.policy.alternatives.len().checked_add(1).unwrap()].into_boxed_slice();
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(
-        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0
+        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
+            .rules
+            .ceiling
+            .tools
+            .0
             & assignment.run.policy.tools.0,
     );
     assert_eq!(
-        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
+        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
+            .rules
+            .ceiling
+            .tools
+            .0,
         1 | 2 | 4 | 128 | 256 | 512 | 1024
     );
     assignment.run.ended_by =
@@ -94,7 +104,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, false, 42_265, 357_870),
         (1, true, 40_175, 359_960),
         (2, false, 36_070, 364_065),
-        (3, false, 42_713, 357_422),
+        (3, false, 42_859, 357_276),
         (4, false, 32_636, 367_499),
         (6, false, 33_860, 366_275),
         (9, false, 31_303, 368_832),
@@ -167,7 +177,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(3, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 357_422);
+    assert_eq!(room, 357_276);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

@@ -4,5 +4,6 @@
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod meter;
+mod refused;
 mod runtime;
 mod span;
