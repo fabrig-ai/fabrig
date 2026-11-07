@@ -919,12 +919,63 @@ fn smith_terminals_preserve_charge_and_the_root_result_contract() {
 
 #[test]
 fn root_call_answers_become_bounded_smith_text_or_error() {
+    use skein_forge::api;
+
     let done = answer(&temper_engine_domain::CallAnswer::Controlled);
     assert_eq!(done.text(), b"Done");
     assert!(!done.error());
     let denied = answer(&temper_engine_domain::CallAnswer::Unavailable);
     assert!(denied.error());
     assert!(!denied.text().is_empty());
+
+    for (value, phrase) in [
+        (api::Answer::Runs { runs: Box::new([]), more: false }, "answer of kind Runs"),
+        (
+            api::Answer::Run(api::Run {
+                id: 1,
+                number: 1,
+                workflow: Box::new([]),
+                commit: SHA1_HEAD,
+                event: api::Event::Dispatch,
+                actor: 1,
+                state: api::RunState::Completed,
+                conclusion: Some(api::Conclusion::Success),
+                url: Box::new([]),
+                created: skein_lib::Time::ZERO,
+                jobs: Box::new([]),
+            }),
+            "answer of kind Run",
+        ),
+        (api::Answer::Commits { commits: Box::new([]), more: false }, "answer of kind Commits"),
+        (api::Answer::Tree { entries: Box::new([]), more: false }, "answer of kind Tree"),
+        (api::Answer::Queued, "answer of kind Queued"),
+    ] {
+        let read = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+        assert_eq!(crate::unasked_kind(&read), Some(phrase));
+        for (rendered, tool) in [
+            (answer(&read), "the read"),
+            (crate::answer_for_tool(&read, b"read_file", 4096), "read_file"),
+            (crate::answer_for_tool(&read, b"read_compare", 4096), "read_compare"),
+            (crate::answer_bounded(&read, 4096), "the read"),
+            (crate::answer_for_task(&read, b"read_commit", 4096, CALL_TASK), "read_commit"),
+        ] {
+            let expected = format!(
+                "Forge read refused: {tool} got an {phrase}, which it never asks for. Nothing was read; read again."
+            );
+            assert!(rendered.error(), "{tool}: {phrase}");
+            assert_eq!(rendered.text(), expected.as_bytes());
+        }
+        for cap in [0, 32] {
+            let rendered = crate::answer_for_tool(&read, b"read_compare", cap);
+            let expected = format!(
+                "Forge read refused: read_compare got an {phrase}, which it never asks for. Nothing was read; read again."
+            );
+            assert!(rendered.error());
+            assert_eq!(rendered.text(), &expected.as_bytes()[..usize::try_from(cap).unwrap()]);
+        }
+    }
+    let read = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::Commit(SHA1_HEAD))));
+    assert_eq!(crate::unasked_kind(&read), None);
 }
 
 const SHA1_HEAD: [u8; 32] = [
