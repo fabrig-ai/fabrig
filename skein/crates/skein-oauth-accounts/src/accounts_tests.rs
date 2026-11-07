@@ -574,8 +574,6 @@ fn releasing_a_wanted_grant_keeps_its_rejection_waiting_at_the_earliest_time() {
     assert_eq!(owner.component.next_deadline(), Some(Time::from_nanos(25_000_000_000)));
 }
 
-
-
 #[test]
 fn adding_accounts_within_capacity_produces_no_refusal_event() {
     skein_rows::check(

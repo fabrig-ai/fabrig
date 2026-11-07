@@ -93,7 +93,8 @@ fn github_fake_status_posts_refuse_installation_and_person_even_with_app_grant()
         }
     }
 }
-pub(super) fn outside_installation_requests() -> Vec<Request> { [
+pub(super) fn outside_installation_requests() -> Box<[Request]> {
+    Box::<[Request]>::from([
         Request::CreateBranch {
             owner: f::boxed(b"acme"),
             name: f::boxed(b"absent"),
@@ -110,7 +111,8 @@ pub(super) fn outside_installation_requests() -> Vec<Request> { [
             description: Box::new([]),
             link: Box::new([]),
         },
-    ].into_iter().collect::<Vec<_>>() }
+    ])
+}
 #[test]
 fn github_fake_contents_token_writes_branches_and_issues() {
     let mut h = w::harness();

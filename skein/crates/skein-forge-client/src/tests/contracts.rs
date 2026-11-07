@@ -127,30 +127,38 @@ fn labelled_row() -> crate::LiveRecord {
 fn stored_record_measurements_count_their_variable_payload_bytes() {
     skein_rows::check(
         [
-            ("repository_measure_has_no_payload", ({ let repository = Stored::Repository(RepositoryRecord { repository: REPO, mark: None, clock: at(100) });
-     repository }, 0)),
-            ("branch_measure_counts_its_name", ({ let row = super::fixtures::keep::measure_row();
-     Stored::Live(row) }, u64::from(BRANCH_BYTES))),
-            ("stored_measure_counts_comment_and_echo_stamps", ({  Stored::Live(stamped_row()) }, STAMP_BYTES)),
-            ("stored_measure_counts_review_stamps", ({  Stored::Live(reviewed_row()) }, REVIEW_BYTES)),
-            ("stored_measure_counts_cached_label_width", ({  Stored::Live(labelled_row()) }, LABEL_BYTES)),
-            ("stored_measure_counts_cached_pull_reviewers", ({ let mut row = labelled_row();
-    row.cached.pull = Some(super::fixtures::keep::reviewed_pull(Box::new(REVIEWERS)));
-     Stored::Live(row) }, CACHED_PULL_BYTES)),
+            (
+                "repository_measure_has_no_payload",
+                (Stored::Repository(RepositoryRecord { repository: REPO, mark: None, clock: at(100) }), 0),
+            ),
+            (
+                "branch_measure_counts_its_name",
+                (
+                    {
+                        let row = super::fixtures::keep::measure_row();
+                        Stored::Live(row)
+                    },
+                    u64::from(BRANCH_BYTES),
+                ),
+            ),
+            ("stored_measure_counts_comment_and_echo_stamps", ({ Stored::Live(stamped_row()) }, STAMP_BYTES)),
+            ("stored_measure_counts_review_stamps", ({ Stored::Live(reviewed_row()) }, REVIEW_BYTES)),
+            ("stored_measure_counts_cached_label_width", ({ Stored::Live(labelled_row()) }, LABEL_BYTES)),
+            (
+                "stored_measure_counts_cached_pull_reviewers",
+                (
+                    {
+                        let mut row = labelled_row();
+                        row.cached.pull = Some(super::fixtures::keep::reviewed_pull(Box::new(REVIEWERS)));
+                        Stored::Live(row)
+                    },
+                    CACHED_PULL_BYTES,
+                ),
+            ),
         ],
         |(record, bytes)| assert_eq!(crate::measure::stored(&record), Some(bytes)),
     );
 }
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn effect_measure_uses_fixed_widths() {
@@ -230,12 +238,6 @@ fn answer_measurements_count_fixed_slots_and_variable_payloads() {
     );
 }
 
-
-
-
-
-
-
 const BYTE_CASES: usize = 4; // items, item, pull, job
 type ByteCase = (&'static str, Read, Answer, u32);
 fn byte_cases() -> [ByteCase; BYTE_CASES] {
@@ -259,7 +261,10 @@ fn answers_within_configured_admission_bounds_are_forwarded_unchanged() {
     skein_rows::check(
         [
             ("answer_bytes_at_bound_are_admitted", byte_cases()),
-            ("row_answers_at_bound_are_admitted", row_cases(ROW_BOUND).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM))),
+            (
+                "row_answers_at_bound_are_admitted",
+                row_cases(ROW_BOUND).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
+            ),
         ],
         |cases| {
             for (name, read, answer, bytes) in cases {
@@ -274,8 +279,14 @@ fn answers_within_configured_admission_bounds_are_forwarded_unchanged() {
 fn answers_exceeding_configured_admission_bounds_are_refused_consistently() {
     skein_rows::check(
         [
-            ("answer_bytes_past_bound_are_refused", byte_cases().map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1))),
-            ("row_answers_past_bound_are_refused", row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM))),
+            (
+                "answer_bytes_past_bound_are_refused",
+                byte_cases().map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1)),
+            ),
+            (
+                "row_answers_past_bound_are_refused",
+                row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
+            ),
         ],
         |cases| {
             for (name, read, answer, bytes) in cases {
@@ -351,10 +362,6 @@ fn answer_rows_past_bound_do_not_fit() {
         assert!(!crate::measure::answer_rows(&answer, ROW_BOUND), "{name}");
     }
 }
-
-
-
-
 
 #[test]
 fn scalar_answers_need_no_row_room() {

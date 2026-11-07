@@ -788,20 +788,52 @@ fn confidential_redirects_admit_https_and_fixed_loopback() {
 fn invalid_confidential_redirects_are_refused_during_registration_validation() {
     skein_rows::check(
         [
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 1", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://localhost.:8080/cb".as_slice()); value }),
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 2", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://localhost.evil:8080/cb"); value }),
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 3", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://localhost:0/cb"); value }),
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 4", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://127.0.0.1/cb"); value }),
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 5", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://127.0.0.1:8080"); value }),
-            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 6", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://app.example.com/cb"); value }),
-            ("confidential_redirects_never_vary: 1", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"http://127.0.0.1:8080/cb".as_slice()); value.terms = Some(terms::terms(false, true)); value }),
-            ("confidential_redirects_never_vary: 2", { let mut value = registration(false, WireFormat::Form); value.redirect_uri = boxed(b"https://app.example.com/cb"); value.terms = Some(terms::terms(false, true)); value }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 1", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://localhost.:8080/cb".as_slice());
+                value
+            }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 2", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://localhost.evil:8080/cb");
+                value
+            }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 3", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://localhost:0/cb");
+                value
+            }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 4", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://127.0.0.1/cb");
+                value
+            }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 5", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://127.0.0.1:8080");
+                value
+            }),
+            ("confidential_redirects_refuse_loopback_neighbours_and_plain_http: 6", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://app.example.com/cb");
+                value
+            }),
+            ("confidential_redirects_never_vary: 1", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"http://127.0.0.1:8080/cb".as_slice());
+                value.terms = Some(terms::terms(false, true));
+                value
+            }),
+            ("confidential_redirects_never_vary: 2", {
+                let mut value = registration(false, WireFormat::Form);
+                value.redirect_uri = boxed(b"https://app.example.com/cb");
+                value.terms = Some(terms::terms(false, true));
+                value
+            }),
         ],
         |registration| assert_eq!(validate_registration(&registration, &limits(), true), Err(Failure::InvalidRedirect)),
     );
 }
-
-
 
 #[test]
 fn a_sign_in_without_refresh_completes_and_round_trips() {
@@ -845,7 +877,14 @@ fn permitted_client_limits_pass_validation_including_large_bounds() {
     skein_rows::check(
         [
             ("valid_accepts_test_limits", limits()),
-            ("valid_ignores_heap_key_strings", ClientLimits { keys: u32::MAX, document: Limits { string_bytes: u32::MAX, ..limits().document }, ..limits() }),
+            (
+                "valid_ignores_heap_key_strings",
+                ClientLimits {
+                    keys: u32::MAX,
+                    document: Limits { string_bytes: u32::MAX, ..limits().document },
+                    ..limits()
+                },
+            ),
         ],
         |bounds| assert!(client_valid(&bounds)),
     );
@@ -864,42 +903,35 @@ fn invalid_client_limits_refuse_validation_and_client_construction() {
             ("valid_refuses_zero_request_time", ClientLimits { request_time: Duration::ZERO, ..limits() }),
             ("valid_refuses_zero_sign_in_time", ClientLimits { sign_in_time: Duration::ZERO, ..limits() }),
             ("valid_refuses_modulus_outside_supported_range", ClientLimits { modulus_bits: 2047, ..limits() }),
-            ("valid_refuses_document_length_past_tokenizer", ClientLimits { document: Limits { document_bytes: u32::MAX, ..limits().document }, ..limits() }),
+            (
+                "valid_refuses_document_length_past_tokenizer",
+                ClientLimits { document: Limits { document_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
             ("valid_refuses_parameter_slots_past_u32", ClientLimits { parameter_bytes: u32::MAX, ..limits() }),
-            ("valid_refuses_token_bytes_past_record_schema", ClientLimits { document: Limits { token_bytes: u32::MAX, ..limits().document }, ..limits() }),
-            ("valid_refuses_id_token_bytes_past_record_schema", ClientLimits { document: Limits { id_token_bytes: u32::MAX, ..limits().document }, ..limits() }),
-            ("valid_refuses_issued_client_bytes_past_record_schema", ClientLimits {
-        document: Limits { issued_client_bytes: u32::MAX, ..limits().document },
-        ..limits()
-    }),
-            ("valid_refuses_granted_bytes_past_record_schema", ClientLimits { document: Limits { granted_bytes: u32::MAX, ..limits().document }, ..limits() }),
-            ("valid_refuses_subject_bytes_past_record_schema", ClientLimits { document: Limits { subject_bytes: u32::MAX, ..limits().document }, ..limits() }),
+            (
+                "valid_refuses_token_bytes_past_record_schema",
+                ClientLimits { document: Limits { token_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
+            (
+                "valid_refuses_id_token_bytes_past_record_schema",
+                ClientLimits { document: Limits { id_token_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
+            (
+                "valid_refuses_issued_client_bytes_past_record_schema",
+                ClientLimits { document: Limits { issued_client_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
+            (
+                "valid_refuses_granted_bytes_past_record_schema",
+                ClientLimits { document: Limits { granted_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
+            (
+                "valid_refuses_subject_bytes_past_record_schema",
+                ClientLimits { document: Limits { subject_bytes: u32::MAX, ..limits().document }, ..limits() },
+            ),
         ],
         refuses_limits,
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn refused_and_ignored_events_preserve_the_exchange() {

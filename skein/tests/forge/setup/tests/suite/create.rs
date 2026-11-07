@@ -160,8 +160,14 @@ fn a_present_org_without_an_owner_is_left_owned_by_its_person() {
 fn missing_creation_scopes_refuse_at_the_repository_stage() {
     skein_rows::check(
         [
-            ("a_token_without_repository_scope_stops_at_repository", &[b"read:user".as_slice(), b"write:organization", b"write:admin"][..]),
-            ("a_token_without_organization_write_stops_at_repository_creation", &[b"read:user".as_slice(), b"read:organization", b"write:repository", b"write:admin"][..]),
+            (
+                "a_token_without_repository_scope_stops_at_repository",
+                &[b"read:user".as_slice(), b"write:organization", b"write:admin"][..],
+            ),
+            (
+                "a_token_without_organization_write_stops_at_repository_creation",
+                &[b"read:user".as_slice(), b"read:organization", b"write:repository", b"write:admin"][..],
+            ),
         ],
         |scopes| {
             let mut world = world();
@@ -170,4 +176,3 @@ fn missing_creation_scopes_refuse_at_the_repository_stage() {
         },
     );
 }
-

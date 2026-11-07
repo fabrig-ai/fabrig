@@ -117,12 +117,15 @@ fn an_existing_file_is_422_and_keeps_the_same_head() {
 fn file_creation_refuses_missing_repository_or_branch_targets() {
     skein_rows::check(
         [
-            ("creating_a_file_on_a_missing_branch_is_404", (&[(REPO_ROUTE, REPO_BODY)][..], {
-                let mut request = file();
-                let Request::CreateFile { branch, .. } = &mut request else { unreachable!() };
-                *branch = boxed(b"missing");
-                request
-            })),
+            (
+                "creating_a_file_on_a_missing_branch_is_404",
+                (&[(REPO_ROUTE, REPO_BODY)][..], {
+                    let mut request = file();
+                    let Request::CreateFile { branch, .. } = &mut request else { unreachable!() };
+                    *branch = boxed(b"missing");
+                    request
+                }),
+            ),
             ("creating_a_file_in_a_missing_repository_is_404", (&[][..], file())),
         ],
         |(setup, request)| {

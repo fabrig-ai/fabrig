@@ -58,12 +58,10 @@ fn framed_response_bodies_satisfy_reads_and_end_reusable() {
             assert!(exchanged.ended, "{read:?}");
             assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
             assert_eq!(exchanged.body, body, "{read:?}");
-            
+
         },
     );
 }
-
-
 
 #[test]
 fn chunk_lines_may_end_with_lf_alone_and_sizes_may_be_long_and_mixed_case() {
@@ -439,5 +437,3 @@ fn a_demand_past_what_the_intake_holds_is_the_side_above_s_bug() {
     machine.bytes(b"\r\n");
     machine.down(Request::Body(Down::Demand { read: Read::Fill(5), room: 0 }));
 }
-
-

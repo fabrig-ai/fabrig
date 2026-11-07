@@ -312,12 +312,15 @@ fn openid_key_routes_require_nonzero_key_storage_capacities() {
         ],
         |bounds| {
             for direct in [false, true] {
-                assert_eq!(validate_registration(&registration_for_keys(direct), &bounds, true), Err(Failure::Limit), "direct {direct}");
+                assert_eq!(
+                    validate_registration(&registration_for_keys(direct), &bounds, true),
+                    Err(Failure::Limit),
+                    "direct {direct}"
+                );
             }
         },
     );
 }
-
 
 fn is_visit(result: Option<Request>) -> bool {
     match result {

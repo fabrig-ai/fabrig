@@ -244,29 +244,51 @@ struct SuffixRow {
 fn suffix_ranges_return_trailing_bytes_and_literal_coordinates() {
     skein_rows::check(
         [
-            ("a_suffix_range_answers_206_with_the_slices_last_bytes", SuffixRow { slice: {
-                let mut slice = [b'x'; 112];
-                for (place, byte) in slice[102..].iter_mut().zip(b"0123456789") { *place = *byte; }
-                boxed(&slice)
-            }, length: 10, body: boxed(b"0123456789"), header: b"bytes 102-111/112" }),
-            ("a_suffix_longer_than_the_slice_answers_it_all", SuffixRow { slice: boxed(&[b'x'; 112]), length: 100_000, body: boxed(&[b'x'; 112]), header: b"bytes 0-111/112" }),
-            ("a_suffix_range_over_an_empty_log_names_no_byte", SuffixRow { slice: boxed(b""), length: 10, body: boxed(b""), header: b"bytes 0--1/0" }),
+            (
+                "a_suffix_range_answers_206_with_the_slices_last_bytes",
+                SuffixRow {
+                    slice: {
+                        let mut slice = [b'x'; 112];
+                        for (place, byte) in slice[102..].iter_mut().zip(b"0123456789") {
+                            *place = *byte;
+                        }
+                        boxed(&slice)
+                    },
+                    length: 10,
+                    body: boxed(b"0123456789"),
+                    header: b"bytes 102-111/112",
+                },
+            ),
+            (
+                "a_suffix_longer_than_the_slice_answers_it_all",
+                SuffixRow {
+                    slice: boxed(&[b'x'; 112]),
+                    length: 100_000,
+                    body: boxed(&[b'x'; 112]),
+                    header: b"bytes 0-111/112",
+                },
+            ),
+            (
+                "a_suffix_range_over_an_empty_log_names_no_byte",
+                SuffixRow { slice: boxed(b""), length: 10, body: boxed(b""), header: b"bytes 0--1/0" },
+            ),
         ],
         |row| {
             let request = Request::JobLog { at: at(), job: 1, attempt: 1, step: Some(3) };
             let reply = response::answer(
-                &config(), &crate::setup::Store::new(&limits()), &limits(), &request,
-                &Select::Raw(Some(Range::Suffix(row.length))), &a::Answer::File(row.slice),
-            ).expect("Suffix");
+                &config(),
+                &crate::setup::Store::new(&limits()),
+                &limits(),
+                &request,
+                &Select::Raw(Some(Range::Suffix(row.length))),
+                &a::Answer::File(row.slice),
+            )
+            .expect("Suffix");
             assert_eq!((reply.status, &*reply.body), (206, row.body.as_ref()));
             assert_eq!(header_value(&reply.headers), Some(row.header));
         },
     );
 }
-
-
-
-
 
 #[test]
 fn a_head_range_over_an_empty_log_answers_200() {

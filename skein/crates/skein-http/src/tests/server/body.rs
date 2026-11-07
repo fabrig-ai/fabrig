@@ -35,15 +35,58 @@ const CHUNKED: &[u8] = b"POST / HTTP/1.1\r\nHost: h\r\nTransfer-Encoding: chunke
 fn framed_request_bodies_satisfy_reads_and_end_reusable() {
     skein_rows::check(
         [
-            ("a_body_by_length_is_read_to_its_length_and_ended: 1", (request(POST_11, b"hello\nworld"), Read::Fill(1), b"hello\nworld".as_slice())),
-            ("a_body_by_length_is_read_to_its_length_and_ended: 2", (request(POST_11, b"hello\nworld"), Read::Fill(3), b"hello\nwor".as_slice())),
-            ("a_body_by_length_is_read_to_its_length_and_ended: 3", (request(POST_11, b"hello\nworld"), Read::Fill(16), b"".as_slice())),
-            ("a_body_by_length_is_read_to_its_length_and_ended: 4", (request(POST_11, b"hello\nworld"), LINE, b"hello\n".as_slice())),
-            ("a_body_by_length_is_read_to_its_length_and_ended: 5", (request(POST_11, b"hello\nworld"), Read::Line { max: 4 }, b"hello\nworl".as_slice())),
-            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 1", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(1), b"hello\nworld!\n".as_slice())),
-            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 2", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(13), b"hello\nworld!\n".as_slice())),
-            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 3", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), LINE, b"hello\nworld!\n".as_slice())),
-            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 4", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Scan { until: Delimiter::LF, max: 4 }, b"hello\nworld!\n".as_slice())),
+            (
+                "a_body_by_length_is_read_to_its_length_and_ended: 1",
+                (request(POST_11, b"hello\nworld"), Read::Fill(1), b"hello\nworld".as_slice()),
+            ),
+            (
+                "a_body_by_length_is_read_to_its_length_and_ended: 2",
+                (request(POST_11, b"hello\nworld"), Read::Fill(3), b"hello\nwor".as_slice()),
+            ),
+            (
+                "a_body_by_length_is_read_to_its_length_and_ended: 3",
+                (request(POST_11, b"hello\nworld"), Read::Fill(16), b"".as_slice()),
+            ),
+            (
+                "a_body_by_length_is_read_to_its_length_and_ended: 4",
+                (request(POST_11, b"hello\nworld"), LINE, b"hello\n".as_slice()),
+            ),
+            (
+                "a_body_by_length_is_read_to_its_length_and_ended: 5",
+                (request(POST_11, b"hello\nworld"), Read::Line { max: 4 }, b"hello\nworl".as_slice()),
+            ),
+            (
+                "a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 1",
+                (
+                    request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"),
+                    Read::Fill(1),
+                    b"hello\nworld!\n".as_slice(),
+                ),
+            ),
+            (
+                "a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 2",
+                (
+                    request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"),
+                    Read::Fill(13),
+                    b"hello\nworld!\n".as_slice(),
+                ),
+            ),
+            (
+                "a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 3",
+                (
+                    request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"),
+                    LINE,
+                    b"hello\nworld!\n".as_slice(),
+                ),
+            ),
+            (
+                "a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 4",
+                (
+                    request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"),
+                    Read::Scan { until: Delimiter::LF, max: 4 },
+                    b"hello\nworld!\n".as_slice(),
+                ),
+            ),
         ],
         |(wire, read, body)| {
             let exchanged = read_by(&wire, read);
@@ -54,8 +97,6 @@ fn framed_request_bodies_satisfy_reads_and_end_reusable() {
         },
     );
 }
-
-
 
 #[test]
 fn the_first_demand_of_an_empty_body_gets_its_end() {

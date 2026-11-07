@@ -34,20 +34,58 @@ fn refused(call: Call, limits: Limits) -> Refusal {
 fn valid_calls_encode_their_expected_http_request_heads() {
     skein_rows::check(
         [
-            ("a_get_is_its_request_line_its_fields_and_a_blank_line", (get(), b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice())),
-            ("a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: post", (call(Method::Post, Body::Length(1234)), b"POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 1234\r\n\r\n".as_slice())),
-            ("a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: put", (call(Method::Put, Body::None), b"PUT / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n".as_slice())),
-            ("a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: delete", (call(Method::Delete, Body::None), b"DELETE / HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice())),
-            ("a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: get", (call(Method::Get, Body::Length(0)), b"GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n".as_slice())),
-            ("a_call_that_closes_says_so", (Call { close: true, ..get() }, b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n".as_slice())),
-            ("fields_are_written_in_order_as_given", ({ let fields = Box::new([
-        header(b"Host", b"api.example"),
-        header(b"x-api-key", b"k\xc3\xa9y"),
-        header(b"Accept", b"text/event-stream"),
-        header(b"Empty", b""),
-    ]);
-Call { target: boxed(b"/v1/messages?beta=true"), headers: fields, ..get() } }, &b"GET /v1/messages?beta=true HTTP/1.1\r\nHost: api.example\r\nx-api-key: k\xc3\xa9y\r\n\
-           Accept: text/event-stream\r\nEmpty: \r\n\r\n"[..])),
+            (
+                "a_get_is_its_request_line_its_fields_and_a_blank_line",
+                (get(), b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice()),
+            ),
+            (
+                "a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: post",
+                (
+                    call(Method::Post, Body::Length(1234)),
+                    b"POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 1234\r\n\r\n".as_slice(),
+                ),
+            ),
+            (
+                "a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: put",
+                (
+                    call(Method::Put, Body::None),
+                    b"PUT / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n".as_slice(),
+                ),
+            ),
+            (
+                "a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: delete",
+                (call(Method::Delete, Body::None), b"DELETE / HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice()),
+            ),
+            (
+                "a_body_is_announced_by_its_length_and_none_by_zero_where_a_body_means_something: get",
+                (
+                    call(Method::Get, Body::Length(0)),
+                    b"GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n".as_slice(),
+                ),
+            ),
+            (
+                "a_call_that_closes_says_so",
+                (
+                    Call { close: true, ..get() },
+                    b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n".as_slice(),
+                ),
+            ),
+            (
+                "fields_are_written_in_order_as_given",
+                (
+                    {
+                        let fields = Box::new([
+                            header(b"Host", b"api.example"),
+                            header(b"x-api-key", b"k\xc3\xa9y"),
+                            header(b"Accept", b"text/event-stream"),
+                            header(b"Empty", b""),
+                        ]);
+                        Call { target: boxed(b"/v1/messages?beta=true"), headers: fields, ..get() }
+                    },
+                    &b"GET /v1/messages?beta=true HTTP/1.1\r\nHost: api.example\r\nx-api-key: k\xc3\xa9y\r\n\
+           Accept: text/event-stream\r\nEmpty: \r\n\r\n"[..],
+                ),
+            ),
         ],
         |(call, wire)| assert_eq!(written(call).as_ref(), wire),
     );
@@ -69,12 +107,6 @@ fn every_method_is_spelt_as_the_standard_spells_it() {
         assert!(head.starts_with(name) && head[name.len()] == b' ', "{method:?}");
     }
 }
-
-
-
-
-
-
 
 #[test]
 fn the_room_asked_for_is_the_head_and_nothing_is_read_before_it_is_sent() {

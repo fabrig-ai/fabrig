@@ -265,8 +265,6 @@ fn refunds_remain_capped_by_the_reported_forge_allowance() {
     );
 }
 
-
-
 #[test]
 fn the_last_unit_the_forge_left_holds_every_class_until_its_reset() {
     let mut h = Harness::new(LIMITS);

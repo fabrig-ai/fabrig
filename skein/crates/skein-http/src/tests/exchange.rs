@@ -351,11 +351,9 @@ fn invalid_client_limits_fail_validation_and_constructor_admission() {
         ],
         |limits| {
             assert!(!client::valid(&limits));
-            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || { let _machine = client::Client::new(&limits); });
+            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || {
+                let _machine = client::Client::new(&limits);
+            });
         },
     );
 }
-
-
-
-

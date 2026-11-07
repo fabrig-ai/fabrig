@@ -171,10 +171,7 @@ fn github_either_mint_401_stops_with_key_refused() {
 #[test]
 fn mint_access_refusals_wait_before_reading_installations_again() {
     skein_rows::check(
-        [
-            ("github_mint_403_or_404_reads_installations_again", 403),
-            ("github_mint_404_reads_installations_again", 404),
-        ],
+        [("github_mint_403_or_404_reads_installations_again", 403), ("github_mint_404_reads_installations_again", 404)],
         mint_reread,
     );
 }
@@ -236,7 +233,10 @@ fn github_accepted_ids_past_the_bound_are_ignored() {
 fn nontransient_read_refusals_report_their_stage_and_status() {
     skein_rows::check(
         [
-            ("github_nontransient_start_refusals_name_the_read_or_installation", (Stage::Listing, StartRead::Installations, &[403, 422])),
+            (
+                "github_nontransient_start_refusals_name_the_read_or_installation",
+                (Stage::Listing, StartRead::Installations, &[403, 422]),
+            ),
             ("github_nontransient_viewer_refusals_name_the_read", (Stage::Identity, StartRead::Viewer, &[401, 422])),
         ],
         |(v0, v1, v2)| refused_read(v0, v1, v2),
@@ -290,14 +290,19 @@ fn transient(stage: Stage, cases: &[(&str, u16, &[u8])]) {
 fn transient_start_failures_back_off_and_restart_listing() {
     skein_rows::check(
         [
-
             ("github_start_server_or_malformed_failures_back_off_to_listing", (Stage::Listing, SERVER_OR_MALFORMED)),
-
-            ("github_full_mint_server_or_malformed_failures_back_off_to_listing", (Stage::Full, MINT_SERVER_OR_MALFORMED)),
-
-            ("github_contents_mint_server_or_malformed_failures_back_off_to_listing", (Stage::Contents, MINT_SERVER_OR_MALFORMED)),
-
-            ("github_identity_server_or_malformed_failures_back_off_to_listing", (Stage::Identity, SERVER_OR_MALFORMED)),
+            (
+                "github_full_mint_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Full, MINT_SERVER_OR_MALFORMED),
+            ),
+            (
+                "github_contents_mint_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Contents, MINT_SERVER_OR_MALFORMED),
+            ),
+            (
+                "github_identity_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Identity, SERVER_OR_MALFORMED),
+            ),
         ],
         |(stage, cases)| {
             for &(label, status, body) in cases {
@@ -311,12 +316,6 @@ fn transient_start_failures_back_off_and_restart_listing() {
         },
     );
 }
-
-
-
-
-
-
 
 #[test]
 fn github_wait_doubles_without_reset_at_a_successful_page() {
@@ -363,7 +362,10 @@ fn invalid_minted_tokens_publish_nothing_and_trigger_backoff() {
     skein_rows::check(
         [
             ("github_mint_tokens_must_be_safe_nonempty_bounded_and_future: empty", (b"".as_slice(), EXPIRES)),
-            ("github_mint_tokens_must_be_safe_nonempty_bounded_and_future: unsafe", (b"bad\\nvalue".as_slice(), EXPIRES)),
+            (
+                "github_mint_tokens_must_be_safe_nonempty_bounded_and_future: unsafe",
+                (b"bad\\nvalue".as_slice(), EXPIRES),
+            ),
             ("github_expired_mint_token_is_malformed", (FULL, b"1970-01-01T00:00:00Z".as_slice())),
         ],
         |(token, expires)| {
@@ -497,8 +499,6 @@ fn replacement_discards_old_startup_work_across_every_phase() {
     );
 }
 
-
-
 fn replacement(stage: Stage, expected_tokens: usize) {
     let mut h = at(stage);
     let owner = *h.peers.first().expect("old peer").0;
@@ -533,8 +533,6 @@ fn closing_startup_phases_prevents_all_subsequent_private_work() {
         close_phase,
     );
 }
-
-
 
 fn close_phase(stage: Stage) {
     let mut h = at(stage);
@@ -607,21 +605,14 @@ fn github_bot_permission_waits_for_the_first_full_mint() {
 }
 
 #[test]
-fn github_transient_start_failures_back_off_to_listing() {
-    transient(Stage::Listing, TRANSPORT_OR_RATE);
-}
-
-#[test]
-fn github_transient_full_mint_failures_back_off_to_listing() {
-    transient(Stage::Full, TRANSPORT_OR_RATE);
-}
-
-#[test]
-fn github_transient_contents_mint_failures_back_off_to_listing() {
-    transient(Stage::Contents, TRANSPORT_OR_RATE);
-}
-
-#[test]
-fn github_transient_identity_failures_back_off_to_listing() {
-    transient(Stage::Identity, TRANSPORT_OR_RATE);
+fn transport_and_rate_start_failures_restart_listing() {
+    skein_rows::check(
+        [
+            ("github_transient_start_failures_back_off_to_listing", Stage::Listing),
+            ("github_transient_full_mint_failures_back_off_to_listing", Stage::Full),
+            ("github_transient_contents_mint_failures_back_off_to_listing", Stage::Contents),
+            ("github_transient_identity_failures_back_off_to_listing", Stage::Identity),
+        ],
+        |stage| transient(stage, TRANSPORT_OR_RATE),
+    );
 }

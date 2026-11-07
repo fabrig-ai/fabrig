@@ -619,21 +619,20 @@ mod tests {
         let Some(http::Request::Respond(response)) = server.connection.requests.pop() else { panic!("HTTP refusal") };
         (response.status, server.body.len())
     }
-#[test]
-fn http_intake_enforces_its_request_body_byte_bound() {
-    skein_rows::check(
-        [
-            ("github_http_intake_accepts_a_body_at_its_bound", (b"body".as_slice(), 404, 0..=0)),
-            ("github_http_intake_refuses_one_byte_past_its_bound", (b"body!".as_slice(), 413, 0..=BODY_BOUND)),
-        ],
-        |(body, expected, retained)| {
-            let (status, bytes) = intake(body);
-            assert_eq!(status, expected);
-            assert!(retained.contains(&bytes));
-        },
-    );
-}
-
+    #[test]
+    fn http_intake_enforces_its_request_body_byte_bound() {
+        skein_rows::check(
+            [
+                ("github_http_intake_accepts_a_body_at_its_bound", (b"body".as_slice(), 404, 0..=0)),
+                ("github_http_intake_refuses_one_byte_past_its_bound", (b"body!".as_slice(), 413, 0..=BODY_BOUND)),
+            ],
+            |(body, expected, retained)| {
+                let (status, bytes) = intake(body);
+                assert_eq!(status, expected);
+                assert!(retained.contains(&bytes));
+            },
+        );
+    }
 }
 
 #[cfg(test)]

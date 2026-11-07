@@ -125,8 +125,33 @@ fn ask_repository(h: &mut fixtures::Harness, request: &Request) {
 fn repository_routes_refuse_tokens_lacking_required_access_scope() {
     skein_rows::check(
         [
-            ("an_admin_without_repository_scope_is_refused_each_repository_route", (&[b"write:admin".as_slice(), b"read:user".as_slice()][..], repository_reads().into_iter().chain(repository_writes().map(|(request, _)| request)).collect::<Vec<_>>())),
-            ("read_repository_scope_is_refused_each_repository_write", (&[b"read:repository".as_slice()][..], repository_writes().map(|(request, _)| request).into_iter().collect::<Vec<_>>())),
+            (
+                "an_admin_without_repository_scope_is_refused_each_repository_route",
+                (&[b"write:admin".as_slice(), b"read:user".as_slice()][..], {
+                    // Four read routes and four write routes.
+                    const REQUESTS: u32 = 8;
+                    let mut requests = skein_lib::List::with_capacity(REQUESTS);
+                    for request in repository_reads() {
+                        requests.push(request).expect("read fixture");
+                    }
+                    for (request, _) in repository_writes() {
+                        requests.push(request).expect("write fixture");
+                    }
+                    requests.into_boxed()
+                }),
+            ),
+            (
+                "read_repository_scope_is_refused_each_repository_write",
+                (&[b"read:repository".as_slice()][..], {
+                    // Four write routes.
+                    const REQUESTS: u32 = 4;
+                    let mut requests = skein_lib::List::with_capacity(REQUESTS);
+                    for (request, _) in repository_writes() {
+                        requests.push(request).expect("write fixture");
+                    }
+                    requests.into_boxed()
+                }),
+            ),
         ],
         |(scopes, requests)| {
             let mut h = scoped_repository_admin(scopes);
@@ -142,7 +167,10 @@ fn repository_read_scopes_admit_every_repository_read_route() {
     skein_rows::check(
         [
             ("read_repository_scope_admits_each_repository_read", &[b"read:repository".as_slice()][..]),
-            ("write_repository_and_all_scopes_admit_each_repository_read", &[b"write:repository".as_slice(), b"all".as_slice()][..]),
+            (
+                "write_repository_and_all_scopes_admit_each_repository_read",
+                &[b"write:repository".as_slice(), b"all".as_slice()][..],
+            ),
         ],
         |scopes| {
             for scope in scopes {
@@ -155,7 +183,6 @@ fn repository_read_scopes_admit_every_repository_read_route() {
         },
     );
 }
-
 
 #[test]
 fn write_repository_and_all_scopes_admit_each_repository_write() {

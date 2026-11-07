@@ -91,18 +91,45 @@ struct LogRow {
 fn job_log_reads_select_bytes_by_job_attempt_and_step() {
     skein_rows::check(
         [
-            ("a_job_log_is_read_by_job_id_and_attempt: known", LogRow { job: 1, attempt: 1, step: None, expected: Ok(Answer::File(copy_of(WHOLE_LOG))) }),
-            ("a_job_log_is_read_by_job_id_and_attempt: attempt", LogRow { job: 1, attempt: 2, step: None, expected: Err(Error::Missing(What::Job)) }),
-            ("a_job_log_is_read_by_job_id_and_attempt: job", LogRow { job: 2, attempt: 1, step: None, expected: Err(Error::Missing(What::Job)) }),
-            ("each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: setup", LogRow { job: 1, attempt: 1, step: Some(0), expected: Ok(Answer::File(copy_of(b"set up ci\n"))) }),
-            ("each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: workflow", LogRow { job: 1, attempt: 1, step: Some(1), expected: Ok(Answer::File(copy_of(WORKFLOW_LOG))) }),
-            ("each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: completion", LogRow { job: 1, attempt: 1, step: Some(2), expected: Ok(Answer::File(copy_of(b"job ci failed\n"))) }),
-            ("each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: whole", LogRow { job: 1, attempt: 1, step: None, expected: Ok(Answer::File(copy_of(WHOLE_LOG))) }),
-            ("a_log_step_past_the_last_is_missing", LogRow { job: 1, attempt: 1, step: Some(3), expected: Err(Error::Missing(What::Job)) }),
+            (
+                "a_job_log_is_read_by_job_id_and_attempt: known",
+                LogRow { job: 1, attempt: 1, step: None, expected: Ok(Answer::File(copy_of(WHOLE_LOG))) },
+            ),
+            (
+                "a_job_log_is_read_by_job_id_and_attempt: attempt",
+                LogRow { job: 1, attempt: 2, step: None, expected: Err(Error::Missing(What::Job)) },
+            ),
+            (
+                "a_job_log_is_read_by_job_id_and_attempt: job",
+                LogRow { job: 2, attempt: 1, step: None, expected: Err(Error::Missing(What::Job)) },
+            ),
+            (
+                "each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: setup",
+                LogRow { job: 1, attempt: 1, step: Some(0), expected: Ok(Answer::File(copy_of(b"set up ci\n"))) },
+            ),
+            (
+                "each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: workflow",
+                LogRow { job: 1, attempt: 1, step: Some(1), expected: Ok(Answer::File(copy_of(WORKFLOW_LOG))) },
+            ),
+            (
+                "each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: completion",
+                LogRow { job: 1, attempt: 1, step: Some(2), expected: Ok(Answer::File(copy_of(b"job ci failed\n"))) },
+            ),
+            (
+                "each_step_of_a_failed_jobs_log_is_a_slice_of_its_own: whole",
+                LogRow { job: 1, attempt: 1, step: None, expected: Ok(Answer::File(copy_of(WHOLE_LOG))) },
+            ),
+            (
+                "a_log_step_past_the_last_is_missing",
+                LogRow { job: 1, attempt: 1, step: Some(3), expected: Err(Error::Missing(What::Job)) },
+            ),
         ],
         |row| {
             let (mut h, _) = failing(0);
-            assert_eq!(h.call(PERSON, read(Read::Log { job: row.job, attempt: row.attempt, step: row.step })), row.expected);
+            assert_eq!(
+                h.call(PERSON, read(Read::Log { job: row.job, attempt: row.attempt, step: row.step })),
+                row.expected
+            );
         },
     );
 }
@@ -282,10 +309,6 @@ fn a_cancelled_job_has_its_workflow_and_completion_steps_cancelled() {
     assert_eq!(steps[2].status, StepStatus::Cancelled);
     assert_eq!(&*steps[2].log, b"job ci cancelled\n");
 }
-
-
-
-
 
 #[test]
 fn a_job_read_by_id_answers_its_latest_attempt() {

@@ -78,8 +78,6 @@ fn latest_answer_replaces_the_repository_lookup_window() {
     assert_eq!((got.cost, got.rate, &got.result), (TWO_REQUESTS, Some(SECOND), &Ok(Answer::Commit([0; 32]))));
 }
 
-
-
 #[test]
 fn github_without_rate_headers_reports_no_window() {
     let mut h = github_known();

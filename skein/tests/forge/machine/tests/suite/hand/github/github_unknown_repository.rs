@@ -67,7 +67,10 @@ struct ProbeRows {
 fn exhausting_installation_probes_returns_missing_with_incurred_cost() {
     skein_rows::check(
         [
-            ("all_installation_probes_404_is_missing", ProbeRows { accounts: &[(2, 23, b"other", b"artificial-full-two")], cost: 2, one: 1, two: 1 }),
+            (
+                "all_installation_probes_404_is_missing",
+                ProbeRows { accounts: &[(2, 23, b"other", b"artificial-full-two")], cost: 2, one: 1, two: 1 },
+            ),
             ("single_installation_probe_404_is_missing", ProbeRows { accounts: &[], cost: 1, one: 1, two: 0 }),
         ],
         |row| {
@@ -342,7 +345,10 @@ fn closing_discovery_phases_suppresses_the_pending_call_terminal() {
         [
             ("close_during_discovery_token_wait_has_no_terminal", (Time::ZERO, vec![f::status(404)])),
             ("close_during_a_written_probe_has_no_terminal", (Time::from_nanos(3_600_000_000_000), vec![])),
-            ("close_during_discovery_continuation_has_no_terminal", (Time::from_nanos(3_600_000_000_000), vec![f::ok(f::GITHUB_REPOSITORY)])),
+            (
+                "close_during_discovery_continuation_has_no_terminal",
+                (Time::from_nanos(3_600_000_000_000), vec![f::ok(f::GITHUB_REPOSITORY)]),
+            ),
         ],
         |(expiry, responses)| {
             let mut h = candidates();
@@ -356,7 +362,6 @@ fn closing_discovery_phases_suppresses_the_pending_call_terminal() {
         },
     );
 }
-
 
 #[test]
 fn no_eligible_candidate_preserves_landed_admission_failure() {

@@ -115,8 +115,10 @@ fn renewal_keeps_old_full_while_minting() {
     usable(&h, FULL);
     public_ready(&h);
 }
+type MintReplies = std::vec::Vec<(u64, Box<[u8]>)>;
+
 struct BackoffRow {
-    responses: std::vec::Vec<(u64, Box<[u8]>)>,
+    responses: MintReplies,
     due: u64,
     credential: &'static [u8],
     deadline: Time,
@@ -125,11 +127,28 @@ struct BackoffRow {
 fn renewal_backoff_keeps_the_current_full_credential_usable() {
     skein_rows::check(
         [
-            ("renewal_keeps_old_full_during_backoff", BackoffRow { responses: vec![], due: FULL_DUE, credential: FULL, deadline: Time::from_nanos(3_541_000_000_000) }),
-            ("contents_backoff_leaves_full_usable", BackoffRow { responses: vec![(FULL_DUE, mint(NEW_FULL, LATER))], due: CONTENTS_DUE, credential: NEW_FULL, deadline: Time::from_nanos(4_141_000_000_000) }),
+            (
+                "renewal_keeps_old_full_during_backoff",
+                BackoffRow {
+                    responses: vec![],
+                    due: FULL_DUE,
+                    credential: FULL,
+                    deadline: Time::from_nanos(3_541_000_000_000),
+                },
+            ),
+            (
+                "contents_backoff_leaves_full_usable",
+                BackoffRow {
+                    responses: vec![(FULL_DUE, mint(NEW_FULL, LATER))],
+                    due: CONTENTS_DUE,
+                    credential: NEW_FULL,
+                    deadline: Time::from_nanos(4_141_000_000_000),
+                },
+            ),
         ],
         |row| {
-            let responses: std::vec::Vec<_> = row.responses.iter().map(|(at, response)| (*at, response.as_ref())).collect();
+            let responses: std::vec::Vec<_> =
+                row.responses.iter().map(|(at, response)| (*at, response.as_ref())).collect();
             let mut h = renewal_after(&responses, row.due);
             h.answer(FORGE, &fixtures::status(503));
             usable(&h, row.credential);
@@ -429,9 +448,12 @@ fn installation_loss_discards_results_of_already_written_renewals() {
     skein_rows::check(
         [
             ("loss_discards_a_written_renewal_result", (vec![], FULL_DUE, NEW_FULL)),
-            ("loss_discards_a_written_contents_renewal", (vec![(FULL_DUE, mint(NEW_FULL, LATER))], CONTENTS_DUE, NEW_CONTENTS)),
+            (
+                "loss_discards_a_written_contents_renewal",
+                (vec![(FULL_DUE, mint(NEW_FULL, LATER))], CONTENTS_DUE, NEW_CONTENTS),
+            ),
         ],
-        |(responses, due, token): (std::vec::Vec<(u64, Box<[u8]>)>, u64, &[u8])| {
+        |(responses, due, token): (MintReplies, u64, &[u8])| {
             let responses: std::vec::Vec<_> = responses.iter().map(|(at, response)| (*at, response.as_ref())).collect();
             let mut h = renewal_after(&responses, due);
             accepted(&mut h, &[]);
@@ -507,7 +529,6 @@ fn closing_renewal_phases_discards_tokens_and_pending_work() {
     );
 }
 
-
 #[test]
 fn replacing_renewal_phases_discards_tokens_and_pending_work() {
     skein_rows::check(
@@ -519,7 +540,6 @@ fn replacing_renewal_phases_discards_tokens_and_pending_work() {
         replace,
     );
 }
-
 
 #[test]
 fn renewed_contents_follows_changes_once() {
@@ -575,8 +595,6 @@ fn renewal_debug_redacts_old_new_and_held_tokens() {
     }
 }
 
-
-
 #[test]
 fn renewal_send_arms_a_fresh_request_deadline() {
     let mut h = renewing();
@@ -597,7 +615,6 @@ fn waiting_for_a_socket_consumes_the_due_alarm() {
     assert_eq!(h.connections_opened(), 2);
     assert_eq!(requests(&h), INITIAL_REQUESTS);
 }
-
 
 fn renewal_after(responses: &[(u64, &[u8])], due: u64) -> Harness {
     let mut h = ready();

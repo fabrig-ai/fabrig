@@ -263,14 +263,22 @@ fn the_first_256_counts_have_distinct_nonzero_short_forms() {
 fn invalid_fake_object_spellings_decode_to_no_commit() {
     skein_rows::check(
         [
-            ("a_changed_mix_count_or_tail_names_no_commit", (0..32).map(|byte| {
+            ("a_changed_mix_count_or_tail_names_no_commit", {
+                // One mutation for each byte of the 32-byte object representation.
+                const OBJECT_BYTES: u32 = 32;
+                let mut objects = skein_lib::List::with_capacity(OBJECT_BYTES);
+                for byte in 0..usize::try_from(OBJECT_BYTES).expect("object width") {
+                    let mut object = routes::object(1);
+                    *object.bytes.get_mut(byte).expect("object byte") ^= 1;
+                    objects.push(object).expect("one object per byte");
+                }
+                objects.into_boxed()
+            }),
+            ("sha256_names_no_commit", {
                 let mut object = routes::object(1);
-                *object.bytes.get_mut(byte).expect("object byte") ^= 1;
-                object
-            }).collect::<Vec<_>>()),
-            ("sha256_names_no_commit", { let mut object = routes::object(1);
                 object.format = skein_forge::forgejo::id::ObjectFormat::Sha256;
-                alloc::vec![object] }),
+                Box::<[skein_forge::forgejo::id::ObjectId]>::from([object])
+            }),
         ],
         |objects| {
             for object in objects {
@@ -279,8 +287,6 @@ fn invalid_fake_object_spellings_decode_to_no_commit() {
         },
     );
 }
-
-
 
 #[test]
 fn a_limit_without_a_page_takes_the_default_paging_num() {

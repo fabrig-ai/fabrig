@@ -204,7 +204,10 @@ fn repository_adoption_accepts_either_supported_repository_identifier_form() {
     skein_rows::check(
         [
             ("the_host_adopts_a_repository_and_hands_up_nothing", Repository::Id(NonZeroU64::new(1).unwrap())),
-            ("the_host_adopts_a_repository_by_its_path_and_hands_up_nothing", Repository::Path { owner: b"alice".as_slice().into(), name: b"specimen".as_slice().into() }),
+            (
+                "the_host_adopts_a_repository_by_its_path_and_hands_up_nothing",
+                Repository::Path { owner: b"alice".as_slice().into(), name: b"specimen".as_slice().into() },
+            ),
         ],
         |repository| {
             use skein_forge::forgejo::request::Grant;
@@ -221,25 +224,34 @@ fn repository_adoption_accepts_either_supported_repository_identifier_form() {
 fn missing_adoption_targets_report_their_supplied_repository_identifier() {
     skein_rows::check(
         [
-            ("an_adopt_of_a_repository_the_forge_lacks_stops_missing_naming_its_id", (Repository::Id(NonZeroU64::new(99).unwrap()), b"99".as_slice())),
-            ("an_adopt_by_a_path_the_forge_lacks_stops_missing_naming_the_path", (Repository::Path { owner: b"alice".as_slice().into(), name: b"absent".as_slice().into() }, b"alice/absent".as_slice())),
+            (
+                "an_adopt_of_a_repository_the_forge_lacks_stops_missing_naming_its_id",
+                (Repository::Id(NonZeroU64::new(99).unwrap()), b"99".as_slice()),
+            ),
+            (
+                "an_adopt_by_a_path_the_forge_lacks_stops_missing_naming_the_path",
+                (
+                    Repository::Path { owner: b"alice".as_slice().into(), name: b"absent".as_slice().into() },
+                    b"alice/absent".as_slice(),
+                ),
+            ),
         ],
         |(repository, subject)| {
             let mut world = HostWorld::new(7, &[]);
             fixtures::seed_bot_tokens(world.store_mut());
             world.run_plan(1, Plan::Adopt { forge: 1, repository });
             world.finish();
-            assert_eq!(world.heard(), &[Heard::Stop {
-                run: Token::new(1),
-                failure: Failure { forge: 1, step: Stage::Repository, subject: subject.into(), why: Why::Missing },
-                at: Duration::ZERO,
-            }]);
+            assert_eq!(
+                world.heard(),
+                &[Heard::Stop {
+                    run: Token::new(1),
+                    failure: Failure { forge: 1, step: Stage::Repository, subject: subject.into(), why: Why::Missing },
+                    at: Duration::ZERO,
+                }]
+            );
         },
     );
 }
-
-
-
 
 // forge-setup.md, 4.8: the fixture's picker page holds four repositories.
 const PICKER_PAGE: u32 = 4;

@@ -610,16 +610,28 @@ fn invalid_client_limits_refuse_validation_and_preparation() {
     skein_rows::check(
         [
             ("valid_refuses_zero_error_bytes", Limits { error_bytes: 0, ..limits() }),
-            ("valid_refuses_too_few_http_headers", Limits { http: http::Limits { headers: 5, ..limits().http }, ..limits() }),
+            (
+                "valid_refuses_too_few_http_headers",
+                Limits { http: http::Limits { headers: 5, ..limits().http }, ..limits() },
+            ),
             ("valid_refuses_zero_output_items", Limits { output_items: 0, ..limits() }),
             ("valid_refuses_zero_depth", Limits { depth: 0, ..limits() }),
             ("valid_refuses_zero_tokens", Limits { tokens: 0, ..limits() }),
-            ("valid_refuses_an_http_head_below_blank_line", Limits { http: http::Limits { head: 1, ..limits().http }, ..limits() }),
+            (
+                "valid_refuses_an_http_head_below_blank_line",
+                Limits { http: http::Limits { head: 1, ..limits().http }, ..limits() },
+            ),
             ("valid_refuses_a_zero_http_read", Limits { http: http::Limits { read: 0, ..limits().http }, ..limits() }),
             ("valid_refuses_a_zero_http_send", Limits { http: http::Limits { send: 0, ..limits().http }, ..limits() }),
             ("valid_refuses_a_zero_sse_chunk", Limits { sse: sse::Limits { chunk: 0, ..limits().sse }, ..limits() }),
-            ("valid_refuses_sse_demand_past_http_read", Limits { http: http::Limits { read: 1, ..limits().http }, ..limits() }),
-            ("valid_refuses_json_demand_past_sse_chunk", Limits { sse: sse::Limits { chunk: 1, ..limits().sse }, ..limits() }),
+            (
+                "valid_refuses_sse_demand_past_http_read",
+                Limits { http: http::Limits { read: 1, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_json_demand_past_sse_chunk",
+                Limits { sse: sse::Limits { chunk: 1, ..limits().sse }, ..limits() },
+            ),
             ("valid_refuses_a_wire_length_past_tokenizer", Limits { skip: u32::MAX, ..limits() }),
             ("valid_refuses_an_error_length_past_tokenizer", Limits { error_bytes: u32::MAX, ..limits() }),
             ("valid_refuses_tagged_token_capacity_past_u32", Limits { tokens: u32::MAX, ..limits() }),
@@ -628,34 +640,6 @@ fn invalid_client_limits_refuse_validation_and_preparation() {
         refuses_limits,
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn valid_ignores_heap_opened_items() {

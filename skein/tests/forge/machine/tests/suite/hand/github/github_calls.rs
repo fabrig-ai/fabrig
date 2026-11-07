@@ -126,14 +126,19 @@ fn rename_keeps_repository_account_routing() {
 fn unaccepted_repository_installations_reject_calls_without_issuing_io() {
     skein_rows::check(
         [
-            ("unaccepted_account_is_not_installed_without_io", [branch(), locate(b"acme")]),
-            ("merge_and_reviewers_require_the_repository_installation", [merge(), reviewers()]),
+            (
+                "unaccepted_account_is_not_installed_without_io",
+                ([branch(), locate(b"acme")], &[(2, 23, b"stray".as_slice(), b"artificial-full-two".as_slice())][..]),
+            ),
+            ("merge_and_reviewers_require_the_repository_installation", ([merge(), reviewers()], &[][..])),
         ],
-        |operations| {
+        |(operations, accounts)| {
             for op in operations {
                 let mut h = known();
                 h.component.test_github_mut().rows.get_mut(&1).expect("row").accepted = false;
-                f::github_account(&mut h, 2, 23, b"stray", b"artificial-full-two");
+                for &(id, account, login, token) in accounts {
+                    f::github_account(&mut h, id, account, login, token);
+                }
                 h.call(1, REPO, op);
                 answered(&mut h, 0, Err(Error::NotInstalled));
                 assert_eq!(h.connections_opened(), 0);

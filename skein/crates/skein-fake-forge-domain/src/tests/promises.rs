@@ -1,7 +1,7 @@
 //! Hand-built decoded streams, judged through the public API alone.
 
 use alloc::boxed::Box;
-use skein_lib::bytes::copy_of;
+use skein_lib::{List, bytes::copy_of};
 
 use crate::api::{Error, Kind, QueueRemoval, Verdict as ReviewVerdict};
 use crate::promises::{Allowance, Bounds, Breach, Decision, Judge, Profile, Promise, Recorded, Verdict, Why};
@@ -79,7 +79,7 @@ fn edited(id: u64, by: u64) -> Observation {
 }
 
 fn labelled(number: u64, labels: &[&[u8]], by: u64) -> Observation {
-    let mut names = skein_lib::List::with_capacity(u32::try_from(labels.len()).unwrap());
+    let mut names = List::with_capacity(u32::try_from(labels.len()).unwrap());
     for label in labels {
         names.push(copy_of(label)).unwrap();
     }
@@ -117,17 +117,25 @@ fn group(ended: bool, landed: bool) -> Observation {
 fn duplicate_client_markers_breach_once_within_their_namespace() {
     skein_rows::check(
         [
-            ("once_fails_on_two_pulls_with_one_key", { let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/pull/same")); 
-    for number in [1, 2] {
-        row.before.push(recorded(opened(REPOSITORY, number, Kind::Pull, b"<key>same</key>", CLIENT)));
-    }
-     row }),
-            ("once_fails_on_two_comments_with_one_key", { let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/comment/same")); 
-    row.before.push(recorded(pull(1, CLIENT)));
-    for id in [1, 2] {
-        row.before.push(recorded(comment(1, id, b"<key>same</key>", CLIENT)));
-    }
-     row }),
+            ("once_fails_on_two_pulls_with_one_key", {
+                let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/pull/same"));
+                for number in [1, 2] {
+                    row.before
+                        .push(recorded(opened(REPOSITORY, number, Kind::Pull, b"<key>same</key>", CLIENT)))
+                        .expect("bounded stream fixture");
+                }
+                row
+            }),
+            ("once_fails_on_two_comments_with_one_key", {
+                let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/comment/same"));
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                for id in [1, 2] {
+                    row.before
+                        .push(recorded(comment(1, id, b"<key>same</key>", CLIENT)))
+                        .expect("bounded stream fixture");
+                }
+                row
+            }),
         ],
         promised,
     );
@@ -148,8 +156,6 @@ fn once_passes_one_key_across_kinds_and_repositories() {
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
 
-
-
 #[test]
 fn once_uses_the_first_marker_and_next_close() {
     let mut judge = judge();
@@ -163,25 +169,36 @@ fn once_uses_the_first_marker_and_next_close() {
 fn nonforward_client_pushes_breach_the_forced_promise() {
     skein_rows::check(
         [
-            ("forced_fails_on_a_move_that_does_not_descend", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/bot%2Fwork")); 
-    row.before.push(movement(b"bot/work", Some(HEAD), COMMIT, CLIENT, Some(false)));
-     row }),
-            ("forced_fails_on_a_remake_that_does_not_descend", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work")); 
-    row.before.push(movement(b"work", None, HEAD, CLIENT, None));
-    row.before.push(recorded(deleted(b"work", HEAD, CLIENT)));
-    row.before.push(movement(b"work", None, COMMIT, CLIENT, Some(false)));
-     row }),
-            ("forced_fails_on_a_rejected_push", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work")); 
-    row.before.push(recorded(Observation::Rejected { repository: copy_of(REPOSITORY), branch: copy_of(b"work"), commit: HEAD, by: CLIENT }));
-     row }),
+            ("forced_fails_on_a_move_that_does_not_descend", {
+                let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/bot%2Fwork"));
+                row.before
+                    .push(movement(b"bot/work", Some(HEAD), COMMIT, CLIENT, Some(false)))
+                    .expect("bounded stream fixture");
+                row
+            }),
+            ("forced_fails_on_a_remake_that_does_not_descend", {
+                let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work"));
+                row.before.push(movement(b"work", None, HEAD, CLIENT, None)).expect("bounded stream fixture");
+                row.before.push(recorded(deleted(b"work", HEAD, CLIENT))).expect("bounded stream fixture");
+                row.before.push(movement(b"work", None, COMMIT, CLIENT, Some(false))).expect("bounded stream fixture");
+                row
+            }),
+            ("forced_fails_on_a_rejected_push", {
+                let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work"));
+                row.before
+                    .push(recorded(Observation::Rejected {
+                        repository: copy_of(REPOSITORY),
+                        branch: copy_of(b"work"),
+                        commit: HEAD,
+                        by: CLIENT,
+                    }))
+                    .expect("bounded stream fixture");
+                row
+            }),
         ],
         promised,
     );
 }
-
-
-
-
 
 #[test]
 fn forced_passes_forward_moves_and_another_users_force() {
@@ -195,120 +212,180 @@ fn forced_passes_forward_moves_and_another_users_force() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the recorded foreign-ownership streams share one verdict body")]
 fn unallowed_client_writes_breach_foreign_ownership_promises() {
     skein_rows::check(
         [
-            ("foreign_fails_on_a_write_to_another_users_item", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); 
-    row.before.push(recorded(pull(1, PERSON)));
-    row.before.push(recorded(revised(1, CLIENT)));
-     row }),
-            ("foreign_fails_on_a_move_of_an_unowned_branch", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work")); 
-    row.before.push(movement(b"work", Some(HEAD), COMMIT, CLIENT, Some(true)));
-     row }),
-            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let labels = &[&b"bot/ready"[..], b"person/keep"][..];
+            ("foreign_fails_on_a_write_to_another_users_item", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                row.before.push(recorded(pull(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(revised(1, CLIENT))).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_a_move_of_an_unowned_branch", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work"));
+                row.before
+                    .push(movement(b"work", Some(HEAD), COMMIT, CLIENT, Some(true)))
+                    .expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 1", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let labels = &[&b"bot/ready"[..], b"person/keep"][..];
 
-        row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
-        
-        row.before.push(recorded(pull(1, PERSON)));
-        row.before.push(recorded(labelled(1, &[b"person/old"], PERSON)));
-        row.before.push(recorded(labelled(1, labels, CLIENT)));
-         row }),
-            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let labels = &[];
+                row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
 
-        row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
-        
-        row.before.push(recorded(pull(1, PERSON)));
-        row.before.push(recorded(labelled(1, &[b"person/old"], PERSON)));
-        row.before.push(recorded(labelled(1, labels, CLIENT)));
-         row }),
-            ("foreign_fails_on_an_edit_over_another_users_edit: 1", { let (entry, subject) = (revised(1, CLIENT), &b"owner%2Frepo/item/1"[..]); let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
+                row.before.push(recorded(pull(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(labelled(1, &[b"person/old"], PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(labelled(1, labels, CLIENT))).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 2", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let labels = &[];
 
-        row.before.push(recorded(pull(1, CLIENT)));
-        row.before.push(recorded(comment(1, 1, b"mine", CLIENT)));
-        row.before.push(recorded(revised(1, PERSON)));
-        row.before.push(recorded(edited(1, PERSON)));
-        row.before.push(recorded(entry));
-         row }),
-            ("foreign_fails_on_an_edit_over_another_users_edit: 2", { let (entry, subject) = (edited(1, CLIENT), &b"owner%2Frepo/comment/1"[..]); let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
+                row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
 
-        row.before.push(recorded(pull(1, CLIENT)));
-        row.before.push(recorded(comment(1, 1, b"mine", CLIENT)));
-        row.before.push(recorded(revised(1, PERSON)));
-        row.before.push(recorded(edited(1, PERSON)));
-        row.before.push(recorded(entry));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Depends { repository: copy_of(REPOSITORY), number: 1, dependencies: Box::new([]), by: CLIENT };
+                row.before.push(recorded(pull(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(labelled(1, &[b"person/old"], PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(labelled(1, labels, CLIENT))).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_an_edit_over_another_users_edit: 1", {
+                let (entry, subject) = (revised(1, CLIENT), &b"owner%2Frepo/item/1"[..]);
+                let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Requested { repository: copy_of(REPOSITORY), number: 1, reviewers: Box::new([]), by: CLIENT };
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(comment(1, 1, b"mine", CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(revised(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(edited(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_an_edit_over_another_users_edit: 2", {
+                let (entry, subject) = (edited(1, CLIENT), &b"owner%2Frepo/comment/1"[..]);
+                let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 3", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Reviewed {
-            repository: copy_of(REPOSITORY),
-            number: 1,
-            id: 1,
-            commit: HEAD,
-            verdict: ReviewVerdict::Approve,
-            body: copy_of(b""),
-            by: CLIENT,
-        };
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(comment(1, 1, b"mine", CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(revised(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(edited(1, PERSON))).expect("bounded stream fixture");
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 1", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = Observation::Depends {
+                    repository: copy_of(REPOSITORY),
+                    number: 1,
+                    dependencies: Box::new([]),
+                    by: CLIENT,
+                };
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 4", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Closed { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 2", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = Observation::Requested {
+                    repository: copy_of(REPOSITORY),
+                    number: 1,
+                    reviewers: Box::new([]),
+                    by: CLIENT,
+                };
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 5", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Reopened { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 3", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = Observation::Reviewed {
+                    repository: copy_of(REPOSITORY),
+                    number: 1,
+                    id: 1,
+                    commit: HEAD,
+                    verdict: ReviewVerdict::Approve,
+                    body: copy_of(b""),
+                    by: CLIENT,
+                };
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 6", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = comment(1, 1, b"", CLIENT);
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 4", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = Observation::Closed { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 7", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = enqueued(1, HEAD);
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 5", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = Observation::Reopened { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_each_unallowed_item_write: 8", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = merged(1, HEAD, CLIENT);
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 6", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = comment(1, 1, b"", CLIENT);
 
-        row.before.push(recorded(entry));
-        row.decisions.push(decision(1, HEAD));
-         row }),
-            ("foreign_fails_on_preexisting_comment_edits_and_removals: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1")); let entry = edited(1, CLIENT);
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 7", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = enqueued(1, HEAD);
 
-        row.before.push(recorded(entry));
-         row }),
-            ("foreign_fails_on_preexisting_comment_edits_and_removals: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1")); let entry = Observation::Removed { repository: copy_of(REPOSITORY), number: 1, id: 1, by: CLIENT };
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_each_unallowed_item_write: 8", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+                let entry = merged(1, HEAD, CLIENT);
 
-        row.before.push(recorded(entry));
-         row }),
-            ("foreign_fails_on_an_unowned_deletion_at_the_stream_end", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work")); 
-    row.before.push(recorded(deleted(b"work", HEAD, CLIENT)));
-     row }),
-            ("foreign_does_not_exempt_an_ordinary_queue_named_branch", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/gh-readonly-queue%2Fmain%2Fpr-1-30")); 
-    row.before.push(movement(b"gh-readonly-queue/main/pr-1-30", Some(HEAD), COMMIT, CLIENT, Some(true)));
-     row }),
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row.decisions.push(decision(1, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_preexisting_comment_edits_and_removals: 1", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1"));
+                let entry = edited(1, CLIENT);
+
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_preexisting_comment_edits_and_removals: 2", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1"));
+                let entry = Observation::Removed { repository: copy_of(REPOSITORY), number: 1, id: 1, by: CLIENT };
+
+                row.before.push(recorded(entry)).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_fails_on_an_unowned_deletion_at_the_stream_end", {
+                let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work"));
+                row.before.push(recorded(deleted(b"work", HEAD, CLIENT))).expect("bounded stream fixture");
+                row
+            }),
+            ("foreign_does_not_exempt_an_ordinary_queue_named_branch", {
+                let mut row =
+                    PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/gh-readonly-queue%2Fmain%2Fpr-1-30"));
+                row.before
+                    .push(movement(b"gh-readonly-queue/main/pr-1-30", Some(HEAD), COMMIT, CLIENT, Some(true)))
+                    .expect("bounded stream fixture");
+                row
+            }),
         ],
         promised,
     );
 }
-
-
-
-
-
-
 
 #[test]
 fn foreign_passes_allowed_writes_and_owned_objects() {
@@ -372,14 +449,6 @@ fn foreign_passes_each_named_item_allowance() {
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
 
-
-
-
-
-
-
-
-
 #[test]
 fn dependencies_do_not_overwrite_the_item_body() {
     let mut judge = judge();
@@ -396,33 +465,39 @@ fn dependencies_do_not_overwrite_the_item_body() {
 fn merge_order_requires_matching_repository_item_and_head_decisions() {
     skein_rows::check(
         [
-            ("order_fails_on_a_merge_without_its_decision", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
-    row.before.push(recorded(pull(1, CLIENT)));
-    row.before.push(recorded(merged(1, HEAD, CLIENT)));
-    row.decisions.push(decision(2, HEAD));
-     row }),
-            ("order_fails_on_an_enqueue_decided_at_another_head", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
-    row.before.push(recorded(pull(1, CLIENT)));
-    row.decisions.push(decision(1, COMMIT));
-    row.after.push(recorded(enqueued(1, HEAD)));
-     row }),
-            ("order_fails_on_a_merge_with_no_decisions_given", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
-    row.before.push(recorded(pull(1, CLIENT)));
-    row.before.push(recorded(merged(1, HEAD, CLIENT)));
-     row }),
-            ("order_does_not_use_another_repositorys_decision", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
-    row.before.push(recorded(pull(1, CLIENT)));
-    row.decisions.push(Decision { repository: copy_of(OTHER), number: 1, head: HEAD });
-    row.after.push(recorded(enqueued(1, HEAD)));
-     row }),
+            ("order_fails_on_a_merge_without_its_decision", {
+                let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30"));
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(merged(1, HEAD, CLIENT))).expect("bounded stream fixture");
+                row.decisions.push(decision(2, HEAD)).expect("bounded stream fixture");
+                row
+            }),
+            ("order_fails_on_an_enqueue_decided_at_another_head", {
+                let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30"));
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.decisions.push(decision(1, COMMIT)).expect("bounded stream fixture");
+                row.after.push(recorded(enqueued(1, HEAD))).expect("bounded stream fixture");
+                row
+            }),
+            ("order_fails_on_a_merge_with_no_decisions_given", {
+                let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30"));
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.before.push(recorded(merged(1, HEAD, CLIENT))).expect("bounded stream fixture");
+                row
+            }),
+            ("order_does_not_use_another_repositorys_decision", {
+                let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30"));
+                row.before.push(recorded(pull(1, CLIENT))).expect("bounded stream fixture");
+                row.decisions
+                    .push(Decision { repository: copy_of(OTHER), number: 1, head: HEAD })
+                    .expect("bounded stream fixture");
+                row.after.push(recorded(enqueued(1, HEAD))).expect("bounded stream fixture");
+                row
+            }),
         ],
         promised,
     );
 }
-
-
-
-
 
 #[test]
 fn order_passes_merges_and_enqueues_decided_at_their_heads() {
@@ -436,8 +511,6 @@ fn order_passes_merges_and_enqueues_decided_at_their_heads() {
     observe(&mut judge, merged(2, HEAD, CLIENT));
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
-
-
 
 #[test]
 fn a_stream_with_lost_entries_is_undecided() {
@@ -483,13 +556,13 @@ fn object_tables_distinguish_capacity_from_one_additional_object() {
             let mut profile = profile();
             profile.bounds.objects = 1;
             let mut judge = Judge::new(profile);
-            for number in 1..=count { observe(&mut judge, pull(number, CLIENT)); }
+            for number in 1..=count {
+                observe(&mut judge, pull(number, CLIENT));
+            }
             assert_eq!(finish(&mut judge), expected);
         },
     );
 }
-
-
 
 #[test]
 fn per_repository_tables_have_separate_bounds() {
@@ -815,18 +888,23 @@ fn an_intervening_observation_ends_a_rebase_exemption() {
     assert_eq!(finish(&mut judge), fails(Promise::Forced, b"owner%2Frepo/work"));
 }
 
-
 struct PromiseRow {
     profile: Profile,
-    before: Vec<Recorded>,
-    decisions: Vec<Decision>,
-    after: Vec<Recorded>,
+    before: List<Recorded>,
+    decisions: List<Decision>,
+    after: List<Recorded>,
     expected: Verdict,
 }
 
 impl PromiseRow {
     fn new(expected: Verdict) -> Self {
-        Self { profile: profile(), before: Vec::new(), decisions: Vec::new(), after: Vec::new(), expected }
+        Self {
+            profile: profile(),
+            before: List::with_capacity(OBJECTS),
+            decisions: List::with_capacity(DECISIONS),
+            after: List::with_capacity(OBJECTS),
+            expected,
+        }
     }
 }
 
@@ -843,8 +921,14 @@ fn movement(branch: &[u8], from: Option<u64>, to: u64, by: u64, forward: Option<
 
 fn promised(row: PromiseRow) {
     let mut judge = Judge::new(row.profile);
-    for entry in row.before { judge.observe(&entry); }
-    for decision in row.decisions { judge.decide(&decision); }
-    for entry in row.after { judge.observe(&entry); }
+    for entry in row.before.into_boxed() {
+        judge.observe(&entry);
+    }
+    for decision in row.decisions.into_boxed() {
+        judge.decide(&decision);
+    }
+    for entry in row.after.into_boxed() {
+        judge.observe(&entry);
+    }
     assert_eq!(finish(&mut judge), row.expected);
 }

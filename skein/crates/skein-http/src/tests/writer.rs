@@ -132,21 +132,58 @@ struct EventRow {
 fn sse_events_encode_fields_and_normalized_data_lines() {
     skein_rows::check(
         [
-            ("an_event_is_its_fields_in_order_and_a_blank_line: 1", EventRow { event: b"delta", data: b"{\"a\":1}", id: Some(boxed(b"7")), retry: Some(1500), wire: b"event: delta\nid: 7\nretry: 1500\ndata: {\"a\":1}\n\n" }),
-            ("an_event_is_its_fields_in_order_and_a_blank_line: 2", EventRow { event: b"", data: b"x", id: None, retry: None, wire: b"data: x\n\n" }),
-            ("an_event_is_its_fields_in_order_and_a_blank_line: 3", EventRow { event: b"", data: b"x", id: Some(boxed(b"")), retry: None, wire: b"id: \ndata: x\n\n" }),
-            ("an_event_is_its_fields_in_order_and_a_blank_line: 4", EventRow { event: b"", data: b"", id: None, retry: None, wire: b"data: \n\n" }),
-            ("an_event_is_its_fields_in_order_and_a_blank_line: 5", EventRow { event: b"", data: b" lead", id: None, retry: None, wire: b"data:  lead\n\n" }),
-            ("data_is_split_at_every_line_ending: 1", EventRow { event: b"", data: b"a\nb\r\nc\rd", id: None, retry: None, wire: b"data: a\ndata: b\ndata: c\ndata: d\n\n" }),
-            ("data_is_split_at_every_line_ending: 2", EventRow { event: b"", data: b"a\n", id: None, retry: None, wire: b"data: a\ndata: \n\n" }),
-            ("data_is_split_at_every_line_ending: 3", EventRow { event: b"", data: b"\r\n\r\n", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" }),
-            ("data_is_split_at_every_line_ending: 4", EventRow { event: b"", data: b"\n\r", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" }),
+            (
+                "an_event_is_its_fields_in_order_and_a_blank_line: 1",
+                EventRow {
+                    event: b"delta",
+                    data: b"{\"a\":1}",
+                    id: Some(boxed(b"7")),
+                    retry: Some(1500),
+                    wire: b"event: delta\nid: 7\nretry: 1500\ndata: {\"a\":1}\n\n",
+                },
+            ),
+            (
+                "an_event_is_its_fields_in_order_and_a_blank_line: 2",
+                EventRow { event: b"", data: b"x", id: None, retry: None, wire: b"data: x\n\n" },
+            ),
+            (
+                "an_event_is_its_fields_in_order_and_a_blank_line: 3",
+                EventRow { event: b"", data: b"x", id: Some(boxed(b"")), retry: None, wire: b"id: \ndata: x\n\n" },
+            ),
+            (
+                "an_event_is_its_fields_in_order_and_a_blank_line: 4",
+                EventRow { event: b"", data: b"", id: None, retry: None, wire: b"data: \n\n" },
+            ),
+            (
+                "an_event_is_its_fields_in_order_and_a_blank_line: 5",
+                EventRow { event: b"", data: b" lead", id: None, retry: None, wire: b"data:  lead\n\n" },
+            ),
+            (
+                "data_is_split_at_every_line_ending: 1",
+                EventRow {
+                    event: b"",
+                    data: b"a\nb\r\nc\rd",
+                    id: None,
+                    retry: None,
+                    wire: b"data: a\ndata: b\ndata: c\ndata: d\n\n",
+                },
+            ),
+            (
+                "data_is_split_at_every_line_ending: 2",
+                EventRow { event: b"", data: b"a\n", id: None, retry: None, wire: b"data: a\ndata: \n\n" },
+            ),
+            (
+                "data_is_split_at_every_line_ending: 3",
+                EventRow { event: b"", data: b"\r\n\r\n", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" },
+            ),
+            (
+                "data_is_split_at_every_line_ending: 4",
+                EventRow { event: b"", data: b"\n\r", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" },
+            ),
         ],
         |row| assert_eq!(framed(row.event, row.data, row.id, row.retry), row.wire),
     );
 }
-
-
 
 #[test]
 fn a_comment_is_a_block_of_its_own() {

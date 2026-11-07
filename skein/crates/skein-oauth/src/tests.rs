@@ -243,7 +243,11 @@ fn saved_token_records_round_trip_with_optional_fields() {
             ("a_record_round_trips_each_addition: earliest", additions([false, false, false, false, true])),
             ("a_record_round_trips_each_addition: all", additions([true; 5])),
             ("a_record_round_trips_each_addition: none", additions([false; 5])),
-            ("a_record_round_trips_each_addition: granted empty", { let mut value = additions([false; 5]); value.granted_scopes = Some(boxed(b"")); value }),
+            ("a_record_round_trips_each_addition: granted empty", {
+                let mut value = additions([false; 5]);
+                value.granted_scopes = Some(boxed(b""));
+                value
+            }),
             ("a_full_record_round_trips", SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) }),
         ],
         |record| {
@@ -299,12 +303,22 @@ fn a_record_decodes_the_independent_schema_bytes() {
 fn incomplete_or_trailing_record_bytes_decode_as_malformed() {
     skein_rows::check(
         [
-            ("a_record_cut_short_is_malformed", (0..RECORD_BYTES.len()).map(|length| boxed(RECORD_BYTES.get(..length).expect("prefix"))).collect::<Vec<_>>()),
-            ("a_record_with_a_trailing_byte_is_malformed", { let mut writer = skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
-    writer.put(RECORD_BYTES).expect("room for record");
-    writer.put(&[0]).expect("room for trailing byte");
-    let trailing = writer.finish();
- alloc::vec![trailing] }),
+            ("a_record_cut_short_is_malformed", {
+                let mut inputs =
+                    skein_lib::List::with_capacity(u32::try_from(RECORD_BYTES.len()).expect("fixture length"));
+                for length in 0..RECORD_BYTES.len() {
+                    inputs.push(boxed(RECORD_BYTES.get(..length).expect("prefix"))).expect("prefix fixture");
+                }
+                inputs.into_boxed()
+            }),
+            ("a_record_with_a_trailing_byte_is_malformed", {
+                let mut writer =
+                    skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
+                writer.put(RECORD_BYTES).expect("room for record");
+                writer.put(&[0]).expect("room for trailing byte");
+                let trailing = writer.finish();
+                Box::<[Box<[u8]>]>::from([trailing])
+            }),
         ],
         |inputs| {
             for input in inputs {
@@ -313,8 +327,6 @@ fn incomplete_or_trailing_record_bytes_decode_as_malformed() {
         },
     );
 }
-
-
 
 #[test]
 fn refresh_only_startup_retains_or_rotates_refresh_and_resumes_saved_generation() {
@@ -438,12 +450,6 @@ fn unsupported_record_versions_consistently_produce_the_version_error() {
         |input| assert!(decode_record(&input, &limits()) == Err(DecodeError::Version)),
     );
 }
-
-
-
-
-
-
 
 // Schema ceilings in oauth.md, 6.4; token_bytes also bounds refresh and metadata.
 const TOKEN_CEILING: u32 = 65_536;

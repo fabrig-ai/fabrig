@@ -309,8 +309,6 @@ fn deferred_viewer_refusals_stop_once_naming_their_status() {
     );
 }
 
-
-
 fn terminal_viewer(status: u16) {
     let mut h = at(Stage::Viewer);
     h.answer(FORGE, &fixtures::status(status));
@@ -425,7 +423,6 @@ fn transient_mint_responses_retry_the_selected_scope_directly() {
         |(v0, v1)| transient_mint(v0, v1),
     );
 }
-
 
 fn transient_mint(status: u16, body: &[u8]) {
     let mut h = at(Stage::Contents);
@@ -561,7 +558,6 @@ fn private_job_diagnostics_keep_both_installation_tokens_hidden() {
     );
 }
 
-
 fn redacted(stage: Stage) {
     let h = at(stage);
     let debug = std::format!("{:?} {:?} {:?}", h.component, h.up, h.io);
@@ -583,16 +579,6 @@ fn installation_loss_discards_late_minted_token_values() {
         |(v0, v1)| stale(v0, v1),
     );
 }
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn closing_ready_phases_discards_all_remaining_private_work() {
@@ -627,22 +613,6 @@ fn replacing_ready_phases_discards_all_remaining_private_work() {
         replace_at,
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn unrelated_acceptance_keeps_the_written_full_eligible() {
@@ -765,18 +735,6 @@ fn acceptance_after_late_stop_cannot_restart_work() {
     assert_eq!(h.start(FORGE), Start::Stopped(Stopped::KeyRefused));
     assert_eq!(h.connections_opened(), 1);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[test]
 fn lost_unsent_mint_is_retired_without_sending() {

@@ -446,15 +446,9 @@ fn invalid_server_limits_fail_validation_and_constructor_admission() {
         ],
         |limits| {
             assert!(!crate::server::valid(&limits));
-            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || { let _machine = crate::server::Server::new(&limits); });
+            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || {
+                let _machine = crate::server::Server::new(&limits);
+            });
         },
     );
 }
-
-
-
-
-
-
-
-

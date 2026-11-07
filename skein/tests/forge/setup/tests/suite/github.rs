@@ -69,8 +69,19 @@ struct PageRow {
 fn installation_repository_pages_return_rows_and_pagination_facts() {
     skein_rows::check(
         [
-            ("the_host_lists_the_first_page_of_an_installations_repositories", PageRow { seed: 7, page: 1, rows: Box::new([row(2, b"widgets", true), row(4, b"tools", false)]), more: true }),
-            ("the_host_lists_the_last_page_of_an_installations_repositories", PageRow { seed: 11, page: 2, rows: Box::new([row(6, b"absent", false)]), more: false }),
+            (
+                "the_host_lists_the_first_page_of_an_installations_repositories",
+                PageRow {
+                    seed: 7,
+                    page: 1,
+                    rows: Box::new([row(2, b"widgets", true), row(4, b"tools", false)]),
+                    more: true,
+                },
+            ),
+            (
+                "the_host_lists_the_last_page_of_an_installations_repositories",
+                PageRow { seed: 11, page: 2, rows: Box::new([row(6, b"absent", false)]), more: false },
+            ),
         ],
         |row| {
             let mut world = HostWorld::github(row.seed, &[]);

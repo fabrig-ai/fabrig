@@ -133,9 +133,26 @@ fn setup_by_id_reads_lent_settings_and_keeps_the_unhosted_default() {
 fn admin_repository_reads_use_setup_without_domain_calls() {
     skein_rows::check(
         [
-            ("admin_reads_a_public_repository_from_setup", (&[][..], by_id(), expected_repository(2, b"acme", b"http://127.0.0.1:3000/acme/widgets"))),
-            ("admin_reads_another_owners_private_repository", (&[u64::from(OTHER)][..], Request::RepositoryById { id: u64::from(OTHER) }, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"))),
-            ("admin_reads_another_owners_private_repository_by_path_without_a_domain_grant", (&[u64::from(OTHER)][..], Request::Repository { at: other() }, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"))),
+            (
+                "admin_reads_a_public_repository_from_setup",
+                (&[][..], by_id(), expected_repository(2, b"acme", b"http://127.0.0.1:3000/acme/widgets")),
+            ),
+            (
+                "admin_reads_another_owners_private_repository",
+                (
+                    &[u64::from(OTHER)][..],
+                    Request::RepositoryById { id: u64::from(OTHER) },
+                    expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"),
+                ),
+            ),
+            (
+                "admin_reads_another_owners_private_repository_by_path_without_a_domain_grant",
+                (
+                    &[u64::from(OTHER)][..],
+                    Request::Repository { at: other() },
+                    expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"),
+                ),
+            ),
         ],
         |(private, request, document)| {
             let mut h = harness();
@@ -149,7 +166,6 @@ fn admin_repository_reads_use_setup_without_domain_calls() {
         },
     );
 }
-
 
 #[test]
 fn non_admin_repository_path_read_reaches_the_domain() {
@@ -209,7 +225,10 @@ fn config_token_setup_reads_pass_through_the_domain_once() {
     skein_rows::check(
         [
             ("config_token_repository_read_reaches_the_domain", by_id()),
-            ("config_token_permission_read_reaches_the_domain", Request::Permission { at: fixtures::at(), login: boxed(b"person") }),
+            (
+                "config_token_permission_read_reaches_the_domain",
+                Request::Permission { at: fixtures::at(), login: boxed(b"person") },
+            ),
         ],
         |request| {
             let mut h = Harness::new(fixtures::config());
@@ -225,7 +244,10 @@ fn permission_reads_return_the_latest_collaborator_put_value() {
     skein_rows::check(
         [
             ("permission_reads_back_a_collaborator_put", (&[Grant::Write][..], d::Permission::Write)),
-            ("permission_reads_back_a_downgraded_collaborator_put", (&[Grant::Write, Grant::Read][..], d::Permission::Read)),
+            (
+                "permission_reads_back_a_downgraded_collaborator_put",
+                (&[Grant::Write, Grant::Read][..], d::Permission::Read),
+            ),
         ],
         |(grants, permission)| {
             let mut h = harness();
@@ -306,7 +328,13 @@ fn permission_reads_refuse_unknown_repository_or_user_identities() {
     skein_rows::check(
         [
             ("permission_of_an_unknown_login_is_not_found", permission(b"widgets")),
-            ("permission_of_an_unknown_repository_is_not_found", Request::Permission { at: skein_forge::forgejo::request::Repo { owner: boxed(b"alice"), ..repo() }, login: boxed(b"bob") }),
+            (
+                "permission_of_an_unknown_repository_is_not_found",
+                Request::Permission {
+                    at: skein_forge::forgejo::request::Repo { owner: boxed(b"alice"), ..repo() },
+                    login: boxed(b"bob"),
+                },
+            ),
         ],
         |request| {
             let mut h = harness();
@@ -401,8 +429,18 @@ fn full_grant_table_refuses_a_new_scenario_grant() {
 fn scenario_grants_enforce_the_configured_login_byte_bound() {
     skein_rows::check(
         [
-            ("scenario_grant_refuses_a_login_past_its_bound", (usize::try_from(fixtures::limits().documents.string_bytes).unwrap().saturating_add(1), Err(crate::Error::Limits), None)),
-            ("scenario_grant_accepts_a_login_at_its_bound", (usize::try_from(fixtures::limits().documents.string_bytes).unwrap(), Ok(()), Some(Grant::Read))),
+            (
+                "scenario_grant_refuses_a_login_past_its_bound",
+                (
+                    usize::try_from(fixtures::limits().documents.string_bytes).unwrap().saturating_add(1),
+                    Err(crate::Error::Limits),
+                    None,
+                ),
+            ),
+            (
+                "scenario_grant_accepts_a_login_at_its_bound",
+                (usize::try_from(fixtures::limits().documents.string_bytes).unwrap(), Ok(()), Some(Grant::Read)),
+            ),
         ],
         |(length, result, grant)| {
             let mut h = harness();
@@ -418,7 +456,6 @@ fn scenario_login(length: usize) -> Box<[u8]> {
     login.fill(b'a');
     login
 }
-
 
 fn created_bot(h: &mut Harness) -> d::User {
     let request = Request::CreateUser {

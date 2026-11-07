@@ -320,7 +320,10 @@ fn lock_replies_without_pending_ownership_are_unlocked_immediately() {
     skein_rows::check(
         [
             ("a_locked_for_no_pending_lock_is_unlocked_at_once", (Box::<[Request]>::from([]), &[][..])),
-            ("a_locked_after_the_lock_wait_is_unlocked_at_once", (Box::<[Request]>::from([Request::Grant { account: ACCOUNT }]), &[limits().lock_wait][..])),
+            (
+                "a_locked_after_the_lock_wait_is_unlocked_at_once",
+                (Box::<[Request]>::from([Request::Grant { account: ACCOUNT }]), &[limits().lock_wait][..]),
+            ),
         ],
         |(requests, elapsed): (Box<[Request]>, &[Duration])| {
             let mut owner = shared_component();

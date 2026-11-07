@@ -890,10 +890,6 @@ fn unrepresentable_control_frame_limits_fail_validation() {
     );
 }
 
-
-
-
-
 #[test]
 #[expect(clippy::disallowed_macros, reason = "Debug regression tests format made-up credential canaries")]
 fn debug_of_an_opening_shows_the_credentials_length_never_its_bytes() {

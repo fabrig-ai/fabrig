@@ -206,29 +206,106 @@ fn full_and_oversized_admission_answer_once_without_an_api_call() {
     drop(h.one());
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the named input records share one refusal body")]
 fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
     skein_rows::check(
         [
-            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: duplicate", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(1, 101, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
-            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: order", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 101, api::Kind::Issue), listing_item(2, 100, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
-            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: identity", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(2, 100, api::Kind::Issue), listing_item(1, 100, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
-            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: kind", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(2, 100, api::Kind::Pull)]), more: false, now: at(101) }, 1)),
+            (
+                "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: duplicate",
+                (
+                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items {
+                        items: Box::new([
+                            listing_item(1, 100, api::Kind::Issue),
+                            listing_item(1, 101, api::Kind::Issue),
+                        ]),
+                        more: false,
+                        now: at(101),
+                    },
+                    1,
+                ),
+            ),
+            (
+                "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: order",
+                (
+                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items {
+                        items: Box::new([
+                            listing_item(1, 101, api::Kind::Issue),
+                            listing_item(2, 100, api::Kind::Issue),
+                        ]),
+                        more: false,
+                        now: at(101),
+                    },
+                    1,
+                ),
+            ),
+            (
+                "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: identity",
+                (
+                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items {
+                        items: Box::new([
+                            listing_item(2, 100, api::Kind::Issue),
+                            listing_item(1, 100, api::Kind::Issue),
+                        ]),
+                        more: false,
+                        now: at(101),
+                    },
+                    1,
+                ),
+            ),
+            (
+                "malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: kind",
+                (
+                    Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
+                    Answer::Items {
+                        items: Box::new([
+                            listing_item(1, 100, api::Kind::Issue),
+                            listing_item(2, 100, api::Kind::Pull),
+                        ]),
+                        more: false,
+                        now: at(101),
+                    },
+                    1,
+                ),
+            ),
             ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1 }, Answer::Done, 1)),
-            ("comparisons_must_return_the_requested_endpoints", (Read::Compare { before: [1; 32], after: [2; 32] }, Answer::Compare { before: [0; 32], after: [2; 32], contains_before: false, files: Box::new([]), commits: Box::new([]) }, 1)),
-            ("an_answer_for_another_pull_cannot_satisfy_a_fresh_read", (Read::Pull { number: 8 }, Answer::Pull(api::Pull {
-        queued: None,
-        dequeued: None,
-        reviewers: Box::new([]),
-        number: 9,
-        state: api::State::Open,
-        head: Box::new([]),
-        base: Box::new([]),
-        commit: [1; 32],
-        base_commit: None,
-        merged: None,
-        mergeable: true,
-        ci: api::Ci::None,
-    }), 8)),
+            (
+                "comparisons_must_return_the_requested_endpoints",
+                (
+                    Read::Compare { before: [1; 32], after: [2; 32] },
+                    Answer::Compare {
+                        before: [0; 32],
+                        after: [2; 32],
+                        contains_before: false,
+                        files: Box::new([]),
+                        commits: Box::new([]),
+                    },
+                    1,
+                ),
+            ),
+            (
+                "an_answer_for_another_pull_cannot_satisfy_a_fresh_read",
+                (
+                    Read::Pull { number: 8 },
+                    Answer::Pull(api::Pull {
+                        queued: None,
+                        dequeued: None,
+                        reviewers: Box::new([]),
+                        number: 9,
+                        state: api::State::Open,
+                        head: Box::new([]),
+                        base: Box::new([]),
+                        commit: [1; 32],
+                        base_commit: None,
+                        merged: None,
+                        mergeable: true,
+                        ci: api::Ci::None,
+                    }),
+                    8,
+                ),
+            ),
         ],
         |(read, answer, owner)| {
             let mut h = Harness::new(LIMITS);
@@ -530,7 +607,6 @@ fn entry_refusal_is_observable_even_without_diagnostics() {
     assert!(h.domain.pop_fact().is_none());
 }
 
-
 #[test]
 fn deployment_config_and_decoded_key_frames_are_checked() {
     let d = configured(&LIMITS);
@@ -753,51 +829,3 @@ fn permitted_forge_limits_pass_validation_including_large_bounds() {
         |limits| assert!(crate::valid(&limits)),
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
