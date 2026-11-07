@@ -9,6 +9,11 @@ files = [
   "temper/crates/temper-engine-smith/src/tests.rs",
   "temper/docs/help/reference/host-tools.md",
   "temper/docs/design/domain/agent.status.md",
+  "temper/crates/temper-service/src/limits.rs",
+  "temper/crates/temper-service/src/tests/limits.rs",
+  "temper/crates/temper-service/src/tests/stock_brief.rs",
+  "temper/docs/design/protocol/configuration.md",
+  "temper/docs/design/protocol/configuration.status.md",
 ]
 effort = "high"
 minutes = 75
@@ -102,3 +107,5 @@ As the implementer's text says, and: the byte growth of the `goal` and `read_bra
 ## Answers
 
 2026-11-07. **Q:** the 289-byte `goal` description that `agent.md`, 4.3.2 bound fails `every_description_is_within_its_bound` (160 bytes): raise the bound for `goal`, or change the words? **A:** change the words; the bound stays. The two design documents disagreed, and the 160-byte bound (`protocol/documentation.md`, 8) is the general rule every declaration, the help page and the stock briefs' room rest on, where the long text was this plan's own wording. `agent.md`, 4.3.2 now binds 156 bytes: "Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change." It keeps the when and the pointer to `change`; what `advisor` does stays in that member's description, unchanged. Acceptance 1 says so. Put these words in `calls.rs` and in the declaration test's expected text, keep the rest of the pushed work (the refusals, the prefix, the bounded refusal path), and carry on from Steps 3. Bite once more with the last sentence dropped. Report the stock brief room as the Report section asks.
+
+2026-11-07. **Q:** the 34 bytes the declarations grow take charter 3's whole-spec room from 356,495 to 356,461, and `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds` fails: lower `standard`'s brief by 34 bytes, or recover 34 bytes elsewhere? **A:** lower it, to 354,988. The standard brief is not a figure of its own: `configuration.md`, 13.4 calls it "what the host part leaves charter 3 at init's models", and the test holds that rule (`room - FRAMING - MARGIN`), which stays, with its 1,472 bytes of framing and one-byte margin. Recovering bytes elsewhere would shorten words a design binds, and the user's larger brief (1 MB, section 11) stays undecided either way. The task's acceptance 6 can't hold without it, so `files` now takes it in: in `temper-service`, `limits.rs`'s `STANDARD_BRIEF.brief_bytes` and its comment (room 356,461), `tests/limits.rs`'s expected `brief_bytes`, and `tests/stock_brief.rs`'s `room` assertion; in the design, the 355,022 in `protocol/configuration.md`, 13.4 and the 355,022 / 356,495 in `configuration.status.md` (two places), updated in place with no other words changed. Grep the repository for `355,022`, `355_022`, `356,495` and `356_495` after, and expect no hit. Then carry on with acceptance 6's runs and report the figures.
