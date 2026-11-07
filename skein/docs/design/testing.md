@@ -460,6 +460,18 @@ seeded decoder comparisons, sign-in faults including restart, and the
 forge machine world's every-byte TLS sweep run in fuzzy.
 Measurements use the tier's profile and keep the same budget rule.
 
+The exhaustive wall-day round trips and Gregorian phrase comparisons,
+and HTTP response and request prefixes compared with a reference, belong
+in fuzzy (testing-strategy.md, 8). Focused keeps named calendar edges and
+incomplete-event behaviours. UTF-8's longer sequences use their range
+boundaries in focused; random interiors go through the public writer in
+fuzzy. The private Huffman builder's comparison keeps four seeds, two per
+rarity regime, with its completeness, canonical decoding, width and
+reference-weight checks. Scenario counts follow what their assertions
+need: a ring still wraps, a store remains larger than its ceiling, and
+every asserted close-state wait still occurs. Every retained turn of a
+memory test stays metered.
+
 Replay: a seed replays to the same trace of submissions and completions,
 and a JSON world, an HTTP world, an io world and an echo world to the
 same run; a TLS world does not, as rustls draws from the kernel. The
@@ -483,6 +495,29 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 
 ## 9. Open questions
 
+- **Further scenario and product costs** (2, 7). KV's CRC-32C and row
+  copying, LLM replay conversion, real TLS and RSA, HTTP byte and chunk
+  decoding, protocol generation, conformance pattern generation, GitHub
+  transcript and secret checks, and fail-stop symbolization retain work
+  that the scenarios require. Further changes must preserve the same
+  bytes, refusals, reports, waits and ceilings. Request-table admission
+  scans, LRU operations, KV duplicate-key scans and file observation,
+  Huffman's reference sorting and the remaining fixture work also have
+  identified costs; the measured candidates below the repair's roughly
+  0.05 CPU s stop rule stay. The per-row instruction pairs, causes and
+  requirements for a further fix are in
+  `skein/docs/development/skein-limits-heavy.md`. Shared helper and JSON
+  costs recorded there overlap separate repairs; their original counts
+  are not measurements of what remains after those repairs.
+- **Complete process-world instruction measurements** (2, 5, 7).
+  Profiling the process operations needs a profiler that supports them;
+  Callgrind's unsupported operations leave incomplete counts. A native
+  CPU observation is no instruction comparison. Containment, observation,
+  deadlines and the fixture starts each behaviour requires stay.
+- **Process startup cost** (6, 7). Isolating the cost before a test's
+  body needs separate measurements. Further table tests must still be
+  cases of one behaviour under testing-strategy.md, 8, keeping every
+  assertion; a test past its guide cannot be merged away to make room.
 - **The counting allocator's remaining cost** (5). One thread-local
   access, its cells, layout construction and preconditions, allocation
   numbers, size conversions and System allocation remain necessary.

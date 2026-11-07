@@ -1302,6 +1302,10 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A chat checking the forge before declaring a repository absent**
+  (13.4, charter 1): the stock directs `read_branch` for a repository
+  outside the checkout. Default: the instruction and its phrase assertion;
+  a real-model observation follows landing, with no new tool or authority.
 - **Four agents' resident memory** (13.4): the slot, workspace and git
   operation fit checks admit four; they do not establish the memory used
   by four agent processes and their programs on a laptop. Default: four

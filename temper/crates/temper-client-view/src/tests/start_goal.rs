@@ -15,6 +15,7 @@ const TEXT: u32 = 256;
 
 struct Sheet {
     root: Domain,
+    watch: skein_lib::Token,
     limits: temper_client_domain::Limits,
 }
 impl Sheet {
@@ -42,7 +43,7 @@ impl Sheet {
             member.templates.push(template).unwrap();
         }
         f::deliver_me(&mut root, watch, me);
-        Self { root, limits }
+        Self { root, watch, limits }
     }
     fn act(&mut self, act: Act) {
         temper_client_domain::step(
@@ -74,16 +75,41 @@ fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
     }
     panic!("named node: {role:?} {name:?}")
 }
+fn styled(tree: &Tree, style: skein_ui::Style) -> Option<usize> {
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&style) {
+            return Some(index);
+        }
+    }
+    None
+}
 fn press(tree: &Tree, bindings: &Bindings, role: Role, name: &[u8]) -> Action {
     bindings.decode(node(tree, role, name).binding.unwrap().token, skein_ui::Act::Press).unwrap()
 }
 
 #[test]
-fn no_draft_opens_no_sheet() {
+fn no_draft_opens_the_sheet() {
     let mut sheet = Sheet::new();
     sheet.act(Act::OpenStart { draft: None, chat: None });
-    assert!(sheet.root.pages().start().is_none());
-    assert!(sheet.tree(&f::browser_words()).0.nodes().is_empty());
+    for words in [f::words(), f::browser_words()] {
+        let (tree, bindings) = sheet.tree(&words);
+        node(&tree, Role::Heading { level: 2 }, b"Start a goal");
+        let draft = node(&tree, Role::TextField, b"Draft");
+        assert_eq!(draft.placeholder.as_deref(), Some(b"docs/design/draft/name.md".as_slice()));
+        assert_eq!(
+            bindings.decode(draft.binding.unwrap().token, skein_ui::Act::Input { value: PATH.into() }),
+            Some(Action::Pages(Act::StartDraft { words: PATH.into() }))
+        );
+        assert!(node(&tree, Role::Button, b"Start goal").states.as_slice().contains(&State::Disabled));
+        assert!(skein_lib::bytes::find(&f::text(&tree), b"The goal takes the draft").is_none());
+        let mut fields = List::with_capacity(2);
+        for node in tree.nodes() {
+            if node.role == Role::TextField {
+                fields.push(node.name.as_deref().unwrap()).unwrap();
+            }
+        }
+        assert_eq!(fields.as_slice(), [b"Draft".as_slice(), b"Name"]);
+    }
 }
 #[test]
 fn a_draft_names_the_sheet_and_its_name() {
@@ -295,5 +321,53 @@ fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
     let (tree, _) = sheet.tree(&f::browser_words());
     for name in [b"Follow the away switch".as_slice(), b"Always ask"] {
         assert!(node(&tree, Role::Choice, name).states.as_slice().contains(&State::Disabled));
+    }
+}
+
+#[test]
+fn no_funds_says_why_and_clears_when_me_gives_budget() {
+    for given in [false, true] {
+        for reserved in [0, 1] {
+            let mut sheet = Sheet::new();
+            let mut me = sheet.root.pages().me(sheet.root.client()).unwrap().clone();
+            let member = me.projects.get_mut(0).unwrap();
+            member.creating.as_mut().unwrap().within.budget = 0;
+            member.templates.get_mut(2).unwrap().budget = c::TemplateBudget::Given;
+            member.pool = Some(c::PoolLedger {
+                source: c::Funder::Pool { project: f::PROJECT, person: me.party.number, period: 1 },
+                parent: None,
+                numbers: c::Numbers { budget: 1, spent: 0, spent_below: 0, reserved },
+                left: 0,
+                closed: false,
+                began: None,
+                next: None,
+            });
+            f::deliver_me(&mut sheet.root, sheet.watch, me.clone());
+            sheet.act(Act::OpenStart {
+                draft: if given { Some(PATH.into()) } else { None },
+                chat: if given { Some(CHAT) } else { None },
+            });
+            if !given {
+                sheet.act(Act::StartDraft { words: PATH.into() });
+            }
+            for words in [f::words(), f::browser_words()] {
+                let (tree, _) = sheet.tree(&words);
+                let expected = if reserved == 0 {
+                    "Nothing is left in your pool to fund a goal."
+                } else {
+                    "Nothing is left in your pool to fund a goal: your open chats hold it. Close one you’ve finished with, and you can start this."
+                };
+                let error = styled(&tree, look::SHEET_ERROR).expect("funds line");
+                let foot = styled(&tree, look::SHEET_FOOT).unwrap();
+                assert!(error < foot);
+                assert_eq!(f::node_text(&tree, error).as_ref(), expected.as_bytes());
+                assert!(node(&tree, Role::Button, b"Start goal").states.as_slice().contains(&State::Disabled));
+            }
+            me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.budget = 1;
+            f::deliver_me(&mut sheet.root, sheet.watch, me);
+            let (tree, _) = sheet.tree(&f::browser_words());
+            assert!(styled(&tree, look::SHEET_ERROR).is_none());
+            assert!(!node(&tree, Role::Button, b"Start goal").states.as_slice().contains(&State::Disabled));
+        }
     }
 }

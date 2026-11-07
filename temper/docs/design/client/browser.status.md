@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Section 2.4's used, expired and unknown paragraphs are present through the
+shared view. Section 4.6's cookie story expects unknown when reopening its
+old link after restarting serve; no runtime result is supplied here.
+Cookie fallback remains deferred in section 5.
+
 Section 7.2's `settings-all-hidden` sample names every switch off,
 separately from the drafts-on stock. The view tables hold Goals in the
 rail and phone tab bar with kind 7's Goals hidden and a goal present.

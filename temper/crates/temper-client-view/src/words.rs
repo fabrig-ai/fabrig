@@ -155,6 +155,10 @@ pub enum Word {
     StartGoalTitle,
     StartGoalFrom,
     StartGoalLead,
+    StartGoalDraft,
+    StartGoalDraftHint,
+    StartGoalNoFunds,
+    StartGoalNoFundsHeld,
     StartGoalName,
     StartGoalDefault,
     StartGoalWays,
@@ -286,11 +290,12 @@ pub enum Word {
     GoalPaused,
     GoalPlanning,
     GoalLanded,
+    GoalDoneAt,
     GoalLandedAlone,
     GoalClosed,
     GoalFailed,
     GoalPlanningLine,
-    GoalTasksLanded,
+    GoalTasksDone,
     GoalLandedLine,
     GoalClosedLine,
     GoalFailedLine,
@@ -383,6 +388,8 @@ pub enum Word {
     NeedsProgress,
     NeedsProgressCut,
     NeedsSaw,
+    NeedsCut,
+    NeedsCutRest,
     NeedsRecommended,
     NeedsReply,
     NeedsLater,
@@ -1425,7 +1432,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 1971;
+const PHRASES: u32 = 1978;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1452,10 +1459,10 @@ const PHRASES: u32 = 1971;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3434;
+const SEGMENTS: u32 = 3443;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 48110;
-const ALL: [Word; 1304] = [
+const ENGLISH_BYTES: u32 = 48452;
+const ALL: [Word; 1311] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1596,6 +1603,10 @@ const ALL: [Word; 1304] = [
     Word::StartGoalTitle,
     Word::StartGoalFrom,
     Word::StartGoalLead,
+    Word::StartGoalDraft,
+    Word::StartGoalDraftHint,
+    Word::StartGoalNoFunds,
+    Word::StartGoalNoFundsHeld,
     Word::StartGoalName,
     Word::StartGoalDefault,
     Word::StartGoalWays,
@@ -1723,11 +1734,12 @@ const ALL: [Word; 1304] = [
     Word::GoalPaused,
     Word::GoalPlanning,
     Word::GoalLanded,
+    Word::GoalDoneAt,
     Word::GoalLandedAlone,
     Word::GoalClosed,
     Word::GoalFailed,
     Word::GoalPlanningLine,
-    Word::GoalTasksLanded,
+    Word::GoalTasksDone,
     Word::GoalLandedLine,
     Word::GoalClosedLine,
     Word::GoalFailedLine,
@@ -1817,6 +1829,8 @@ const ALL: [Word; 1304] = [
     Word::NeedsProgress,
     Word::NeedsProgressCut,
     Word::NeedsSaw,
+    Word::NeedsCut,
+    Word::NeedsCutRest,
     Word::NeedsRecommended,
     Word::NeedsReply,
     Word::NeedsLater,
@@ -2796,6 +2810,10 @@ impl Word {
             Self::StartGoalTitle => 3550,
             Self::StartGoalFrom => 3551,
             Self::StartGoalLead => 3552,
+            Self::StartGoalDraft => 4111,
+            Self::StartGoalDraftHint => 4112,
+            Self::StartGoalNoFunds => 4113,
+            Self::StartGoalNoFundsHeld => 4114,
             Self::StartGoalName => 3553,
             Self::StartGoalDefault => 3554,
             Self::StartGoalWays => 3555,
@@ -3002,11 +3020,12 @@ impl Word {
             Self::GoalPaused => 3256,
             Self::GoalPlanning => 3257,
             Self::GoalLanded => 3258,
+            Self::GoalDoneAt => 4115,
             Self::GoalLandedAlone => 3259,
             Self::GoalClosed => 3260,
             Self::GoalFailed => 3261,
             Self::GoalPlanningLine => 3262,
-            Self::GoalTasksLanded => 3263,
+            Self::GoalTasksDone => 3263,
             Self::GoalLandedLine => 3264,
             Self::GoalClosedLine => 3265,
             Self::GoalFailedLine => 3266,
@@ -3098,6 +3117,8 @@ impl Word {
             Self::NeedsProgress => 3309,
             Self::NeedsProgressCut => 3310,
             Self::NeedsSaw => 3311,
+            Self::NeedsCut => 4101,
+            Self::NeedsCutRest => 4102,
             Self::NeedsRecommended => 3312,
             Self::NeedsReply => 3313,
             Self::NeedsLater => 3314,
@@ -4492,6 +4513,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartGoalTitle => (&[b"Start a goal"], &[]),
         Word::StartGoalFrom => (&[b"Start a goal from ", b""], &[Name]),
         Word::StartGoalLead => (&[b"The goal takes the draft as it is now. Later edits reach it through Amend."], &[]),
+        Word::StartGoalDraft => (&[b"Draft"], &[]),
+        Word::StartGoalDraftHint => (&[b"docs/design/draft/name.md"], &[]),
+        Word::StartGoalNoFunds => (&[b"Nothing is left in your pool to fund a goal."], &[]),
+        Word::StartGoalNoFundsHeld => (&[b"Nothing is left in your pool to fund a goal: your open chats hold it. Close one you\xe2\x80\x99ve finished with, and you can start this."], &[]),
         Word::StartGoalName => (&[b"Name"], &[]),
         Word::StartGoalDefault => (&[b" ", b"\xe2\x80\x99s default."], &[Name]),
         Word::StartGoalWays => (&[b"The project\xe2\x80\x99s ways of working"], &[]),
@@ -4585,11 +4610,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalPaused => (&[b"paused by you"], &[]),
         Word::GoalPlanning => (&[b"planning"], &[]),
         Word::GoalLanded => (&[b"landed ", b""], &[Name]),
+        Word::GoalDoneAt => (&[b"done ", b""], &[Name]),
         Word::GoalLandedAlone => (&[b"landed"], &[]),
         Word::GoalClosed => (&[b"closed"], &[]),
         Word::GoalFailed => (&[b"failed"], &[]),
         Word::GoalPlanningLine => (&[b"Planning from the draft."], &[]),
-        Word::GoalTasksLanded => (&[b"", b" of ", b" tasks landed."], &[Number, Number]),
+        Word::GoalTasksDone => (&[b"", b" of ", b" tasks done."], &[Number, Number]),
         Word::GoalLandedLine => (&[b"Landed."], &[]),
         Word::GoalClosedLine => (&[b"Closed by you."], &[]),
         Word::GoalFailedLine => (&[b"Failed."], &[]),
@@ -4713,6 +4739,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
         Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
         Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsCut => (&[b"This question is cut here."], &[]),
+        Word::NeedsCutRest => (&[b"Read the rest"], &[]),
         Word::NeedsRecommended => (&[b"recommended"], &[]),
         Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
         Word::NeedsLater => (&[b"Later"], &[]),

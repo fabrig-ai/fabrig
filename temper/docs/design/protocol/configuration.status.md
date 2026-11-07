@@ -2,6 +2,10 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 13.4's charter 1 has the forge-first `read_branch` instruction for
+a repository outside its checkout, held by a stock phrase assertion.
+Real-model observation of that wording remains deferred in section 11.
+
 Section 13.4 has no known gap in kind 7's stock: the client, forge,
 service's size literal and ctl use drafts on, the other three switches
 off and way 0. A stored value with drafts off keeps that choice; the

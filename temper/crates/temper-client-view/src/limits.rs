@@ -170,6 +170,8 @@ impl Limits {
             .checked_add(11)?
             // The adoption form's region, named by the page's heading.
             .checked_add(1)?
+            // One question read whole: sixteen choices and their marks, context, Saw and cut line.
+            .checked_add(temper_client_domain::question::CHOICES.checked_mul(3)?.checked_add(12)?)?
             // GitHub's App line keeps each installation in its own bounded text slot.
             .checked_add(
                 temper_client_domain::forge::forges::ROWS
@@ -187,6 +189,8 @@ impl Limits {
             .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
             // One chat request and one composer, each at long_text.
             .checked_add(receiving.long_text.checked_mul(2)?)?
+            // One question read whole.
+            .checked_add(receiving.long_text)?
             .checked_add(text.checked_mul(24)?)?;
         let nodes = choices
             .checked_add(structural)?

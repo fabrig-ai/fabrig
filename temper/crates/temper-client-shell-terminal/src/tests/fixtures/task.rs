@@ -118,7 +118,7 @@ fn goal_tasks(b: &mut skein_ui::Builder) {
     b.name(b"1 landed");
     b.open(Role::Paragraph);
     b.style(look::GOAL_LINE);
-    task_link(b, b"Advise on the change");
+    task_link(b, b"Implement the change");
     b.text(Run::Plain, " · ".as_bytes());
     text(b, Role::Text, b"00:00");
     b.close();
