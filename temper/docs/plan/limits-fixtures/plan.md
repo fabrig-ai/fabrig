@@ -45,3 +45,66 @@ These were kept apart by the tasks' boundaries:
 - **`limits-heavy`** owns `temper-client-view/src/tests/limits.rs`, `setup_malformed_queries_are_bad_requests`, `box_listeners`, `forge_land`, `fake_backends` and `fabrig_scale`. No task here takes them.
 - **`limits-worlds`** profiles the same engine and store from the real loop, so it may find the same causes. `forge-routes-steps` reads its trunk before fixing a shared cause.
 - **`goal-delivery`** changes `forge_routes/goal_delivery.rs`, and **`look-round-13`** changes `temper/tests/client/tests/suite/**`. `forge-routes-steps` and `client-world` leave them.
+
+## Before and after
+
+Measured on `debian-32gb-hel1-11`, 2026-11-07 UTC, from the plan base
+`7ffd748466210b3b131113777ca14de89f592874` to integration tip
+`f81186919ac77f2d6ef5ebef094fe026fc9c50e6`.
+Full counts, every named probe/check, causal costs and both invariant checks
+are in `temper/docs/plan/limits-fixtures/figures.md`.
+Each percentage below is a sampled test’s net instruction change; negative
+means fewer instructions. Intervening plans are included in the net result.
+
+- `temper-engine-domain-world::suite`, `forge_routes`: floors -0.08% / -0.08%; original median -19.62%; advisor median -28.66%; resolution probe -2.66%.
+- `temper-engine-domain-world::suite`, `root_routes`: floor -0.12%; median -9.27%.
+- `temper-engine-domain-world::suite`, all: binary floor -0.12%; route medians above; named walking replay -0.65%.
+- `temper-service`, `setup`: floor -0.42%; original median -59.63%; later-selected median -77.38%; request/keep-order probe -74.43%; shared setup probe -77.44%; named malformed-query check -83.14%.
+- `temper-service`, `tests::stock`: floor -0.42%; median -0.41%; stock construction probe -79.02%.
+- `temper-service`, all: setup/stock samples above; remainder floor -0.40%, median -30.62%; named fuzzy replay -34.13%.
+- `temper-client-world::suite`, all: floor -0.38%; dismissal median -60.42%; recovery probe -7.67%.
+- `temper-client-view`, all outside `tests::limits`: floor -0.53%; median -20.48%; words-fixture probe -16.73%.
+- `temper::suite`, `startup`: floor -0.25%; median -8.33%, including child instructions.
+- `temper::suite`, `forge`: floor -8.04%; median -8.79%, including child instructions.
+
+All 68 available one-test traces passed. Six newly added checks have an
+`unknown` base figure, with their adding commits recorded in `figures.md`.
+Name comparison accounts for all 11 missing base names in other plans
+(model-picker `50e7171ce1`, proposal revision `74918c6e56`); none was removed
+by this plan. Nextest settings, tier budgets and every Cargo manifest are
+unchanged. No whole-suite CPU saving is inferred from the samples.
+
+### Causes not fixed
+
+The R identifiers refer to the cause table in
+`temper/docs/plan/limits-fixtures/figures.md`; its source figures give the
+sampled cost and stop-rule calculation for each. Each remaining cause has
+its required further work below.
+
+- R1: **Loader relocations and process/harness floor**. Requires binary/loader/linker work; build settings are closed. Fixture changes cannot remove process startup.
+- R2: **First typed engine/init configuration parse and validation**. A generated typed stock/projection checked against the shipped input, or parser/validator work, including skein Slice::answer allocation/copy. Per-process caching cannot remove the first call.
+- R3: **Two startup document parses with different consumers**. Share the bounded parsed document through startup/setup interfaces while preserving depth/token/byte limits and diagnostic ordering.
+- R4: **Remaining stock parse and init generation**. Further parser/generator work. Task whole-stock upper estimates are 0.42 and 0.017 CPU s; a generated-byte cache was not justified.
+- R5: **Real first start, durable rows and cold restoration**. An independent configuration-dependent writer for complete policy/settings/start rows, counters and durable state, checked against the real two-commit script. A start mark alone is insufficient.
+- R6: **Repeated admission and owned policy/configuration snapshots**. Share checked construction results or change snapshot/config ownership while retaining distinct admission checks and journal/restart lifetimes.
+- R7: **Hosted store replacement and secret exchanges**. An in-memory hosted-store constructor over supplied maps, retaining driver state, wires, durable startup rules and secret exchanges.
+- R8: **Sizing translations and generated bound validation**. Shared checked sizing/codec interfaces across application, commit/frame and store boundaries, or generator changes with schema/bound tests. Discarded stores no longer pay this cost.
+- R9: **Reusable replacement store during a story restart**. A distinct consuming restart cut path preserving the retained driver destructor/oracle contract; the public reusable take_store must leave usable replacement storage.
+- R10: **Real row encoding/decoding and temporary owned values**. Borrowed translation/writer interfaces that preserve encoded bytes, malformed/bound refusals and real codec execution. Typed-mirror bypass would weaken the world.
+- R11: **Separate owning rows for history, mirror and inflight write**. A borrowed commit-encoding seam or durable-fork representation; mirror and replayable history still retain independent values.
+- R12: **One-row restore/map requests and cursor/key copies**. A batching/paging algorithm preserving encoded bounds, lookahead cursor, first-row refusal and corruption/diagnostic order, with boundary tests.
+- R13: **Actual story decisions, engine stepping and readback**. Profile admission/snapshot and page projection/stepping mechanisms with lower-tier stories; retain all inputs, durable commits, deliveries and assertions.
+- R14: **Independent teardown and restart oracle**. Cheaper snapshot/paging and retained-configuration representation while preserving the independent restart and final-store oracle.
+- R15: **Cold English construction, remaining ordering and allocations**. Already ordered vocabulary writers with a checked ordered-input path and a cheaper construction representation, retaining every word, form and hole.
+- R16: **Owned nested Words clones and teardown**. Flatten loaded-book allocations or change caller/ownership/lifetime interfaces. View owns Words; removing its cache would rebuild the book for repeat clients.
+- R17: **Remaining capacity/presence/maximum scans**. A trusted checked vocabulary summary/representation that still detects public book/connector mutation, missing vocabulary and overflow. Domain limits alone cannot key a safe cache.
+- R18: **Whole-book validation and capacity arithmetic**. Fuse checked passes with preserved whole-load error precedence and bounded occurrence counters. Local limits arithmetic alone is below the stop rule.
+- R19: **Semantic drawing and tree diff during real stories**. A different indexed traversal preserving keyed/role sibling matching, stable identities and exact patch behavior, checked in skein UI tests.
+- R20: **Applying and independently checking drawn trees**. An incremental model/checking representation preserving the independent patch oracle and callback builds.
+- R21: **Domain setup and semantic rendering that assertions consume**. A separate domain/rendering profile and mechanism change; retain differently bounded Views, domain facts and asserted text.
+- R22: **Paired configurations, piece/config copies and idle bookkeeping**. Factor paired per-configuration construction or introduce borrowed codec/config views without losing consumed inputs. Reported individual upper estimates stay below 0.529 CPU s.
+- R23: **Referee/default words, fake/component/Truth setup and engine limits**. An explicit words constructor or lazy/copy changes would add interfaces/state for sub-threshold savings. Preserve fakes and complete decision vocabulary. Domain fake construction is only 86,411 over three pairs.
+- R24: **Required GitHub signing**. Cryptographic implementation work, or a separately justified fixture seam retaining wire authentication; a canned token would skip the signing path.
+- R25: **Remaining Face, connection and local settling/manifest mechanics**. Connection settling must retain forge.above for assertions; keep required framing/routing and scenario time advancement. Connection-only estimated reach is 0.060 CPU s; local advance/manifest upper estimates 0.211/0.093.
+- R26: **Process fixtures, measured turn bounds and scripts**. A cheaper equivalent bound encoder or byte-identical runtime-path templates; shared process fixture work belongs to model-catalogue-2/process-fixtures. Measure kernel file/exec cost separately while preserving process proof.
+- R27: **Cheap rule checks and harness work**. Retain the behavior checked. No shared expensive fixture is reached; harness work is outside fixture repairs.
