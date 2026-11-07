@@ -1,11 +1,14 @@
 # people: status
 
-2026-11-06. Where jig's code lags or departs from [people.md](people.md).
+2026-11-07. Where jig's code lags or departs from [people.md](people.md).
 Unlisted sections, including public reading (13) and 5.1's refusal of a
 live task's move to its current requester as not offered, have no known gap.
 Loading goals ended before publication or across a restart remains
 deferred in section 12; a connector's retained commits do not widen the
 tasks handed from the public index (13.3, 13.9).
+Section 13.3's title decision is carried by temper's publication help and
+completed ctl answer. No acknowledgement precedes `SetVisibility`; that
+client step remains deferred in temper's `client/tools.md`, section 14.
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a

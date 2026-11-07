@@ -1,6 +1,6 @@
 # model-catalogue: status
 
-2026-11-06. Where the design lags or departs from [model-catalogue.md](model-catalogue.md).
+2026-11-07. Where the design lags or departs from [model-catalogue.md](model-catalogue.md).
 
 - **Design lags:**
   - 3: `../client/README.md`, 3.5 gives an unusable account a fix only while
