@@ -8,6 +8,7 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     let model = w::MeModel::new(
         limits.wire(),
         w::MeModelParts {
+            new_until: None,
             number: 1,
             source: w::ModelSource::Stock,
             estimated: false,
@@ -174,6 +175,7 @@ fn malformed_offer_efforts_and_shown_names_are_refused() {
         let model = w::MeModel::new(
             limits.wire(),
             w::MeModelParts {
+                new_until: None,
                 number: 1,
                 source: w::ModelSource::Stock,
                 estimated: false,

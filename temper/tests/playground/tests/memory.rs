@@ -81,7 +81,7 @@ fn name(process: &Process<()>) -> &'static str {
         Process::Peer(_) => "fake LLM",
         Process::Forge(_) => "fake forge HTTP",
         Process::Git(_) | Process::GitRoute(_) => "git",
-        Process::Agent(_) => "agent",
+        Process::Agent(_) | Process::List(_) => "agent",
         Process::Shell(_) => "shell",
         Process::Visitor(_) => "visitor",
         Process::Other(never) => match *never {},

@@ -15,6 +15,20 @@ record Directory {
 record Workspace { directories: list 64 Directory }
 enum Scheme { bearer, key }
 record CredentialValue { scheme: Scheme bytes: secret 8192 }
+# One list invocation uses standalone records, outside the channel's kind order.
+record ListAsk { endpoint: u32 credential: option CredentialValue }
+record ListRow {
+    name: bytes 128
+    shown: option bytes 64
+    window: option u32
+    output: option u32
+    efforts: list 8 bytes 16
+}
+record ListRefused { status: u16 }
+enum ListFailed { refused: ListRefused, unreachable, unreadable, deadline }
+record ListRows { rows: list 256 ListRow }
+record ListFailure { failure: ListFailed }
+enum ListAnswer { listed: ListRows, failed: ListFailure }
 record ProgramValue { name: text 32 }
 enum GrantValue { credential: CredentialValue, program: ProgramValue }
 record Grant {

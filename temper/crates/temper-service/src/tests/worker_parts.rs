@@ -344,6 +344,7 @@ fn program_resource_debug_exposes_only_counts() {
         crate::settings::PROGRAM_PATH_BYTES,
         1000,
         Some(skein_io::kernel::Fd::new(8)),
+        None,
     )
     .expect("explicit command resources fit");
     assert_eq!(format!("{resources:?}"), "Resources { programs: 1, environment_entries: 1 }");

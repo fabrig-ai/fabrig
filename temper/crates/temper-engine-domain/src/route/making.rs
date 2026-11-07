@@ -153,6 +153,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::AccountSignedOut { .. }
         | people::Outcome::AccountKeyKept { .. }
         | people::Outcome::AccountProgramDeclared { .. }
+        | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::AccountMovedIn { .. }
@@ -222,6 +223,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
         | core::Held::Assign { .. }
+        | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }

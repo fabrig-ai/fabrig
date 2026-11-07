@@ -116,6 +116,7 @@ pub fn limits() -> engine::Limits {
         room_refusals: 2,
     };
     let fleet = fleet::Limits {
+        reads: 1,
         configured_workers: 1,
         worker_name_bytes: 32,
         program_sources: 12,
@@ -345,6 +346,7 @@ pub fn config(seed: u64) -> engine::Config {
                 models: models(),
                 llm_providers: accounts::Providers {
                     providers: Box::new([accounts::Provider {
+                        list: None,
                         number: 1,
                         name: Box::from(b"Scripted".as_slice()),
                         signed_in_plan: false,

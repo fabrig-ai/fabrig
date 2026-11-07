@@ -33,6 +33,7 @@ These come with temper.
 Opus 5.5 claude-opus-5-5 · high · the default On
 Sonnet 5.5 claude-sonnet-5-5 · high Off
 ## OpenAI
-These come with temper.
-GPT-6.1 Sol gpt-6.1-sol · high On
+Your ChatGPT plan. Read from OpenAI just now.
+[20] Read again
+GPT-6.1 Sol gpt-6.1-sol · high · new On
 To change a default or a role’s models, tell Configure temper.

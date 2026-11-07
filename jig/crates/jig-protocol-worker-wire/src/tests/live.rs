@@ -2,13 +2,8 @@ use super::fixtures::{SIZES_LARGE, SIZES_ONE_SLOT};
 use crate::{self as wire, sizes, v9};
 use skein_lib::{Reader, Writer};
 
-fn repeated(byte: u8, length: u32) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(length).unwrap());
-    for _ in 0..length {
-        writer.put(&[byte]).unwrap();
-    }
-    writer.finish()
-}
+use super::fixtures::repeated;
+
 fn full_piece(kind: wire::LiveKind, bytes: u32) -> wire::Piece {
     wire::Piece::new(
         &wire::CEILINGS,

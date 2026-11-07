@@ -79,6 +79,9 @@ pub enum AnswerOn {
 /// Every jig request, without keys owned by the root table.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ask {
+    ReadLists {
+        provider: u32,
+    },
     /// Propose the settings as a revision left them, against the newest (domain/engine.md, 17.10).
     Restore {
         revision: u32,
@@ -263,6 +266,7 @@ pub enum AskAccountHolder {
 /// The durable result of one ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Outcome {
+    Account(super::AccountAnswer),
     /// A restore proposed for review (domain/engine.md, 17.10).
     Restored {
         proposal: u64,

@@ -101,6 +101,7 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     member
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,
@@ -378,8 +379,28 @@ fn world_in_layout(
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
                             let mut doc = accounts(w, then);
-                            if let Then::Models { one_account: true, .. } = then {
-                                doc.accounts.truncate(1);
+                            if let Then::Models { one_account, state } = then {
+                                if one_account {
+                                    doc.accounts.truncate(1);
+                                }
+                                if matches!(
+                                    state,
+                                    super::samples::ModelState::Read
+                                        | super::samples::ModelState::ReadFailed
+                                        | super::samples::ModelState::New
+                                ) {
+                                    let at = offset(Reference, -120);
+                                    doc.accounts.get_mut(1).expect("OpenAI account").list = Some(c::AccountList {
+                                        read: Some(at),
+                                        tried: Some(at),
+                                        failure: if state == super::samples::ModelState::ReadFailed {
+                                            Some(c::AccountListFailure::Deadline)
+                                        } else {
+                                            None
+                                        },
+                                        left_out: 0,
+                                    });
+                                }
                             }
                             if let Some(name) = picker {
                                 picker::accounts(&mut doc, name);
@@ -3343,6 +3364,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 number: 1,
                 place: 1,
@@ -3372,6 +3394,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 number: 2,
                 place: 2,
@@ -3420,6 +3443,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 number: 1,
                 place: 1,
@@ -3455,6 +3479,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 facts: if matches!(w, FirstRun { step: 5..=9 }) {
                     List::from_boxed(Box::new([c::AccountFact {
                         kind: c::FACT_EMAIL,
@@ -5346,6 +5371,10 @@ fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelS
         model.efforts =
             List::from_boxed(Box::new([text("low"), text("medium"), text("high"), text("xhigh"), text("max")]));
         model.effort = Some(text(effort));
+        if state == ModelState::New && name == "gpt-6-luna" {
+            model.source = c::ModelSource::List;
+            model.new_until = Some(offset(Reference, 7 * 24 * 60));
+        }
         model.picker = name != "gpt-6-luna" && !(state == ModelState::Off && name == "claude-sonnet-5-5");
         if state == ModelState::Added && name == "claude-sonnet-5-5" {
             model.source = c::ModelSource::Person;

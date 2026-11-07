@@ -292,6 +292,8 @@ pub struct States {
     pub checked: bool,
     pub expanded: bool,
     pub selected: bool,
+    /// A toggle's `pressed` reads `true` (skein/docs/design/browser.md, 5).
+    pub pressed: bool,
 }
 
 /// A box in whole CSS pixels.

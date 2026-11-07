@@ -73,6 +73,7 @@ fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
     assert_eq!(asked, starts(1, PROVIDER, 0));
     commit(&mut store, &asked);
     let made = Stored::Account {
+        list: None,
         place: 0,
         uses: None,
         number: 1,

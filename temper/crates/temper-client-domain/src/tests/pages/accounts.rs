@@ -714,6 +714,7 @@ fn typed_account_lists_outlive_the_task_window() {
                 .unwrap();
         }
         rows.push(c::AccountLine {
+            list: None,
             facts: List::with_capacity(0),
             number,
             place: number,
@@ -961,6 +962,7 @@ fn connected_document(kind: c::AccountKind, usable: bool) -> Box<c::Accounts> {
     doc.accounts = List::with_capacity(1);
     doc.accounts
         .push(c::AccountLine {
+            list: None,
             facts: List::with_capacity(0),
             number: ACCOUNT,
             place: 0,

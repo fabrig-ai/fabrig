@@ -103,7 +103,8 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             {
                 Some((name.raw(), words.clone()))
             }
-            host::LinkDown::Sources { .. }
+            host::LinkDown::ReadList { .. }
+            | host::LinkDown::Sources { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }
             | host::LinkDown::Message { .. }

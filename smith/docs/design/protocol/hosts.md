@@ -101,6 +101,12 @@ The contract is domain/host.md's.
   the source, and the agent checks again at the run's start. The half
   finds the program and the source's configuration directory as the
   agent does (agent.md, section 4).
+- **Reading a list.** When its host asks, with an endpoint, a credential's value
+  and a deadline, the half runs the agent with `--list` in the environment it
+  gives every agent, holding no credential (agent.md, 6.1), writes the ask to its
+  standard input, reads the answer from its standard output, and answers it, or
+  deadline on expiry, once the child has settled. It holds the value no longer
+  than that. Like a check, it is no record of the channel's and takes no slot.
 - **Signing out of a program source.** When its host asks, the half
   runs the program's own sign-out in the source's configuration
   directory and environment, with the host's deadline (programs.md,

@@ -271,6 +271,7 @@ impl Words {
     /// Say all durable outcomes, preserving who decided first and when.
     pub fn outcome(&self, b: &mut Builder, outcome: &Outcome) {
         match outcome {
+            Outcome::Account(_) => {}
             Outcome::Restored { proposal, to, left_out } => {
                 self.text(b, JigPhrase::SettingsRestored, &[Hole::Number(*proposal), Hole::Number(u64::from(*to))]);
                 for setting in left_out {

@@ -43,7 +43,7 @@ mod task_wait;
 
 use jig_domain_people::ApplicationScope;
 
-pub use accounts::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine};
+pub use accounts::{AccountLine, AccountList, Accounts, LastEnd, SignInLine, SourceLine};
 pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
@@ -230,6 +230,7 @@ pub enum Touch {
     Settings,
     Deployment,
     Accounts(Option<u64>),
+    AccountLines(Option<u64>),
 }
 
 impl Subject {
@@ -267,13 +268,16 @@ impl Subject {
                 Touch::Party(party) => party == *owner,
                 Touch::Frames => true,
                 Touch::Accounts(party) => party.is_none() || party == Some(*owner),
-                Touch::Settings | Touch::Deployment => false,
+                Touch::Settings | Touch::Deployment | Touch::AccountLines(_) => false,
             },
             Self::Inbox { party } => touch == Touch::Party(*party),
             Self::Settings => touch == Touch::Settings,
-            Self::Deployment => touch == Touch::Deployment,
+            Self::Deployment => match touch {
+                Touch::Deployment | Touch::AccountLines(_) => true,
+                Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Accounts(_) => false,
+            },
             Self::Accounts { party: owner } => match touch {
-                Touch::Accounts(party) => party.is_none() || party == Some(*owner),
+                Touch::Accounts(party) | Touch::AccountLines(party) => party.is_none() || party == Some(*owner),
                 Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Deployment => false,
             },
             Self::Application { .. }

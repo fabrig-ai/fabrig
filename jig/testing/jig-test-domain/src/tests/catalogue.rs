@@ -12,6 +12,7 @@ fn an_ask_for_the_catalogue_tells_the_store_then_the_clients() {
     let mut domain = fixtures::domain();
     let env = fixtures::env();
     let models: Box<[CatalogueModel]> = Box::new([CatalogueModel {
+        first_read: None,
         number: 1,
         model: core::Model::hole(),
         shown: None,

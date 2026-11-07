@@ -163,6 +163,7 @@ impl Owner {
                 &child_limits,
                 child::Providers {
                     providers: Box::new([child::Provider {
+                        list: None,
                         number: 1,
                         name: b"Fake".as_slice().into(),
                         signed_in_plan: true,
@@ -227,6 +228,7 @@ impl Owner {
             let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: child_limits };
             for record in [
                 child::Stored::Account {
+                    list: None,
                     number: account + 1_000,
                     provider: 1,
                     holder: child::Holder::Deployment,
@@ -270,6 +272,7 @@ impl Owner {
         if held {
             for record in [
                 child::Stored::Account {
+                    list: None,
                     number: 1000,
                     provider: 1,
                     holder: child::Holder::Party(7),
@@ -661,6 +664,7 @@ impl Owner {
                     self.answers.push(answer);
                 }
                 child::Request::Programs { .. }
+                | child::Request::ReadList { .. }
                 | child::Request::CheckProgram { .. }
                 | child::Request::SignOutProgram { .. }
                 | child::Request::Granted { grant: _ }
