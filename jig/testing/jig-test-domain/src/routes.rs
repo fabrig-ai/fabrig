@@ -322,8 +322,21 @@ fn route_ask(
         core::Ask::UnsubscriptionDone { request, key } => {
             crate::topics::unsubscribed(domain, number, request, key, work);
         }
-        core::Ask::Catalogue { .. }
-        | core::Ask::DropSubscription { .. }
+        core::Ask::Catalogue { models } => {
+            domain.catalogue_pending = true;
+            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
+            for row in &models {
+                names
+                    .push(core::settings::ModelName {
+                        name: row.model.name.clone(),
+                        efforts: row.model.efforts.clone(),
+                    })
+                    .expect("one name per position");
+            }
+            domain.now.push(crate::Request::StoreCatalogue { names: names.into_boxed() });
+            domain.now.push(crate::Request::ClientsCatalogue { models });
+        }
+        core::Ask::DropSubscription { .. }
         | core::Ask::ForgetProjection { .. }
         | core::Ask::Hold { .. }
         | core::Ask::RepairRefused { .. }

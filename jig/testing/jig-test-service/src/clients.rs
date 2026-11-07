@@ -208,6 +208,14 @@ impl Clients {
                     None => false,
                 })
     }
+    pub(super) fn catalogue(&mut self, models: Box<[core::settings::CatalogueModel]>) {
+        let models = kit::translate::llm::catalogue(&models);
+        if let Some(settings) = &mut self.settings {
+            settings.models = models;
+        } else {
+            self.down(kit::Event::Catalogue { models });
+        }
+    }
     pub fn down(&mut self, event: kit::Event) {
         if let kit::Event::Stop = &event {
             self.server.stop(&mut self.server_out);

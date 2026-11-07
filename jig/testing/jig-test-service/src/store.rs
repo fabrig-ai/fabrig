@@ -83,6 +83,9 @@ impl Store {
     pub(super) fn adopt(&mut self, fd: Fd, user: u32) -> Result<(), Fd> {
         self.host.adopt(fd, user, self.installation)
     }
+    pub(super) fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+        self.host.component.catalogue(names);
+    }
     pub(super) fn down(&mut self, out: StoreOut) -> bool {
         if let StoreOut::Start { phase, .. } = &out {
             if self.restoring == Some(*phase) {

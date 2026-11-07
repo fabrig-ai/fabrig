@@ -6,6 +6,10 @@ use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
 #[derive(Debug)]
 pub enum Event {
+    /// Replace the catalogue before its commit (domain/engine.md, 17.11).
+    Catalogue {
+        models: Box<[Model]>,
+    },
     Transport(FromTransport),
     Reply {
         to: ReplyTo,
