@@ -21,7 +21,7 @@ Acceptance:
 - A test holds every figure in those files to `temper/docs/design/protocol/configuration.md`, 13.8's relations, computed from that agent's measured T and payload, so an edition that drifts is red.
 - `each_turn_bound_accepts_equality_and_names_one_byte_short` has rows for both hubs' `hub.outcome_bytes` and for `forge.client.op_bytes`, each accepting equality and naming one byte short. The other limits of 13.8's table already have their rows (`root_checks.rs`, `hello_refused.rs`, `startup/calls_tests.rs`): say so in the report, or add the one that lacks it.
 - A `change` input of the reference's payload decodes with its words whole, in `temper-engine-smith`'s tests; one past `HostInput::CAPACITY` is `Problem::TooLarge`.
-- At the reference's limits a brief with a section of 128 KB stays whole through both entrances, and one past the room is cut with its `[cut N bytes; whole: READ]` line: rows of `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds` and `review_fitting_uses_the_configured_assignment_envelope`.
+- At the reference's limits a brief with a section of the pair's payload P, the largest spec one call carries, stays whole through both entrances, and one past the room is cut with its `[cut N bytes; whole: READ]` line: rows of `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds` and `review_fitting_uses_the_configured_assignment_envelope`. At 131,072 and 98,500, P is that 128 KB; at the fallback, see `## Answers`.
 - `temper init`'s figures, `temper-service/src/stock.rs` and the T of 16,803,810 don't move, and no charter's words, spend, period or time does.
 - Focused and fuzzy tests of each changed package and of the readers below pass.
 
@@ -81,3 +81,19 @@ This changes what a shared file means, so run its readers' tests: `heavy cargo n
 ## Report
 
 Which figures the reference took and why, and T for them. Each limit that moved, with its value, and any not named in `notes/contracts.md`. What the start names for each limit in 13.8's table, as a list. The test's cost. Any heap ceiling that moved, before and after. Anything the reference now can't do on a stock agent, in a line for the design.
+
+## Answers
+
+2026-11-07. **Q: at the fallback, smith's charter allowance is 2 × 63,740 = 127,480 bytes, so a 131,072-byte section can't stay whole. Does the brief acceptance bend, or must smith admit a larger charter?** The acceptance follows the pair; smith's derivation doesn't move.
+
+- **The fallback stands.** `smith-room` measured the refusal (`turn-in-transcript`, `session.said_text` 1,245,440 past `transcript.said_text` 1,048,576), so `room.json` holds 63,740 and 48,000. The request ties 128 KB to the larger pair and 64 KB to this one, and asks of a brief that it hold a whole spec and be cut past its room. A spec reaches the store through one call, so at this pair it stops at about P, and none of the pipeline's 1,406 passed 64 KB (`goal-as-designer.md`, 10). The cut's 128 KB was the larger pair's P.
+- **The receiving rows,** in `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds` or a table beside it in `stock_brief.rs`, on `fixtures::stock_configuration(63_740, 48_000)`, the coding charter and its writable workspace. Measure the room in the test, from `run::charter_room` and `run::brief_room` against the charter with an empty section, never as a literal:
+  - a section of 63,740 stays whole;
+  - a section at the measured room stays whole;
+  - a section one byte past it is cut, with its `[cut N bytes; whole: READ]` line;
+  - a section of 131,072 is cut, with that line. The asking run's probe kept 90,190 bytes here: that's a check on the measurement, not a figure to pin.
+- **The envelope's row,** in `review_fitting_uses_the_configured_assignment_envelope`: a bound of 262,144 keeps a section of 63,740 whole, and one past that bound's room is cut. This entrance's room passes the receiving one, and that is fine: the worker's fit is the one that binds.
+- **The existing assertions stay as they are:** these are new rows. `hub.charter_bytes` stays 262,144, as `jig-room` set it and the request asks.
+- **`notes/contracts.md`, 4's figures are the larger pair's.** `room.json` takes the fallback's by 13.8's relations: `hub.event_bytes` is 63,738, the payload less two, and the zeros follow T = 18,431,842, read from the measurement rather than copied. Only the pair's figures change; `limits.json`'s and `settings.json`'s other shares stay as the spec has them.
+- **If a charter the reference gives a `change`'s spec leaves less than 63,740 of room,** with the reference's own instructions, that's a `Question:` with the measurement: a whole spec is what the request asks for. The asking run's probe says it shouldn't happen, leaving about 90 KB on the stock's coding charter.
+- **Report, under what the reference can't do:** a section past the measured room, whatever `hub.charter_bytes` allows, is cut at the worker, and why: the receiving allowance, 2 × P, binds before 262,144. `room-close` writes that line into 13.8.
