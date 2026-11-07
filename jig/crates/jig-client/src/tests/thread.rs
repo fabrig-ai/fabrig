@@ -100,12 +100,12 @@ fn the_latest_llm_is_the_newest_turn_at_the_live_end() {
         assert_eq!(thread.page(page), None);
         assert_eq!(thread.latest_llm, expected);
         assert!(thread.older().is_some());
-        let mut historical = sized_page(&[4, 3], None, Some(b"newer"));
-        let TurnRead::Decoded(turn) = &mut historical.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn else {
+        let mut older_page = sized_page(&[4, 3], None, Some(b"newer"));
+        let TurnRead::Decoded(turn) = &mut older_page.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn else {
             panic!("decoded fixture")
         };
         turn.llm = Some(ModelEffort { model: text(b"history"), effort: None });
-        assert_eq!(thread.page(historical), None);
+        assert_eq!(thread.page(older_page), None);
         assert_eq!(positions(&thread).as_ref(), &[4, 3]);
         assert_eq!(thread.latest_llm, expected, "older pages leave the latest model alone");
         assert!(thread.newer().is_some());
