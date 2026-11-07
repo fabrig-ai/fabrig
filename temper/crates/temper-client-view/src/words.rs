@@ -367,6 +367,10 @@ pub enum Word {
     ChangesNine,
 
     ConfigureTitle,
+    AskTab,
+    AskUnavailable,
+    HomeNoteAsk,
+    HomeNoteAskChats,
     ConfigureQuestion,
     ConfigureLede,
     ConfigureSets,
@@ -1507,7 +1511,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2063;
+const PHRASES: u32 = 2067;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1534,10 +1538,10 @@ const PHRASES: u32 = 2063;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3634;
+const SEGMENTS: u32 = 3638;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 50585;
-const ALL: [Word; 1385] = [
+const ENGLISH_BYTES: u32 = 50760;
+const ALL: [Word; 1389] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1885,6 +1889,10 @@ const ALL: [Word; 1385] = [
     Word::ChangesEight,
     Word::ChangesNine,
     Word::ConfigureTitle,
+    Word::AskTab,
+    Word::AskUnavailable,
+    Word::HomeNoteAsk,
+    Word::HomeNoteAskChats,
     Word::ConfigureQuestion,
     Word::ConfigureLede,
     Word::ConfigureSets,
@@ -3272,6 +3280,10 @@ impl Word {
             Self::ChangesNine => 3242,
 
             Self::ConfigureTitle => 3189,
+            Self::AskTab => 4147,
+            Self::AskUnavailable => 4148,
+            Self::HomeNoteAsk => 4149,
+            Self::HomeNoteAskChats => 4150,
             Self::ConfigureQuestion => 3190,
             Self::ConfigureLede => 3191,
             Self::ConfigureSets => 3192,
@@ -5071,9 +5083,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeProjectReady => (&[b"", b" is ready."], &[Name]),
         Word::HomeOptional => (&[b"Optional"], &[]),
         Word::HomeSkip => (&[b"Skip"], &[]),
-        Word::HomeNoteThree => (&[b"Three steps left. Skip them if you like; they stay in Settings and Chats."], &[]),
+        Word::HomeNoteThree => (&[b"Three steps left. Skip them if you like; they stay in Ask temper, Settings and Chats."], &[]),
         Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in Settings and Chats."], &[]),
-        Word::HomeNoteTwoSettings => (&[b"Two steps left. Skip them if you like; they stay in Settings."], &[]),
+        Word::HomeNoteTwoSettings => (&[b"Two steps left. Skip them if you like; they stay in Ask temper and Settings."], &[]),
         Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in Settings."], &[]),
         Word::HomeNoteChats => (&[b"One step left. Skip it if you like; it stays in Chats."], &[]),
         Word::HomeSkipRefused => (&[b"temper couldn't keep that. Try Skip again."], &[]),
@@ -5109,7 +5121,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeGitHub => (&[b"temper\xe2\x80\x99s App reaches its repositories on ", b"."], &[Name]),
         Word::HomeNone => (&[b"Until one is in, chats talk and plan but change no code."], &[]),
         Word::HomeChat => (&[b"Start a chat"], &[]),
-        Word::HomeChatDetail => (&[b"Ask a question or ask for a change."], &[]),
+        Word::HomeChatDetail => (&[b"Ask about the code or ask for a change."], &[]),
         Word::HomeNewChat => (&[b"New chat"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
@@ -5249,7 +5261,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BrandHome => (&[b"temper home"], &[]),
         Word::RailNewMenu => (&[b"More ways to start work"], &[]),
         Word::RailNewChat => (&[b"Chat"], &[]),
-        Word::RailNewChatDescription => (&[b"Ask a question or ask for a change."], &[]),
+        Word::RailNewChatDescription => (&[b"Ask about the code or ask for a change."], &[]),
         Word::RailNewGoal => (&[b"Goal"], &[]),
         Word::RailNewGoalDescription => (&[b"Agents plan a larger change and land it."], &[]),
         Word::RailNewAll => (&[b"All ways to start work"], &[]),
@@ -5596,7 +5608,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftSplit => (&[b"Split"], &[]),
         Word::DraftDraft => (&[b"Draft"], &[]),
         Word::StartOver => (&[b"Start over"], &[]),
-        Word::StartOverQuestion => (&[b"A new configuring chat starts. This one stays in Chats."], &[]),
+        Word::StartOverQuestion => (&[b"A new Ask temper chat starts. This one stays in Chats."], &[]),
         Word::DraftNotProposed => (&[b"T", b" \xc2\xb7 not proposed yet"], &[Number]),
         Word::DraftWaits => (&[b"Proposal ", b" \xc2\xb7 waits for an owner"], &[Number]),
         Word::DraftAccepted => (&[b"Accepted at ", b""], &[Name]),
@@ -5855,8 +5867,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelsPicker => (&[b"", b" in the picker"], &[Name]),
         Word::ModelsLeftOut => (&[b"", b" more models don't fit the catalogue."], &[Number]),
         Word::ModelsDefault => (&[b" \xc2\xb7 the default"], &[]),
-        Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, tell "], &[]),
-        Word::ModelsConfigure => (&[b"Configure temper."], &[]),
+        Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, "], &[]),
+        Word::ModelsConfigure => (&[b"ask temper."], &[]),
         Word::SettingsBuildersTab => (&[b"Builders"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
         Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
@@ -5867,7 +5879,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BuilderConnected => (&[b"Connected"], &[]),
         Word::BuilderDraining => (&[b"Draining"], &[]),
         Word::BuilderNotConnected => (&[b"Not connected"], &[]),
-        Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which builders it runs on. Tell Configure temper to change it."], &[]),
+        Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which builders it runs on. Ask temper to change it."], &[]),
         Word::BuildersNone => (&[b"No builder is connected."], &[]),
         Word::BuildersNoRole => (&[b"Builders are seen by the deployment\xe2\x80\x99s owners."], &[]),
         Word::BuildersCut => (&[b"Some builder facts were omitted."], &[]),
@@ -5891,7 +5903,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsNoneBody => (&[b"Chats in ", b" talk and plan, but change no code until a repository is in."], &[Name]),
         Word::SettingsSignedIn => (&[b"Signed in as ", b""], &[Name]),
         Word::Goals => (&[b"Goals"], &[]),
-        Word::ConfigureTitle => (&[b"Configure temper"], &[]),
+        Word::ConfigureTitle => (&[b"Ask temper"], &[]),
+        Word::AskTab => (&[b"Ask"], &[]),
+        Word::AskUnavailable => (&[b"Ask temper isn't set up in this project."], &[]),
+        Word::HomeNoteAsk => (&[b"One step left. Skip it if you like; it stays in Ask temper."], &[]),
+        Word::HomeNoteAskChats => (&[b"Two steps left. Skip them if you like; they stay in Ask temper and Chats."], &[]),
         Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),
         Word::ConfigureLede => (&[b"Tell it how you work, in your own words or by pointing at a document."], &[]),
         Word::ConfigureSets => (&[b"What it sets"], &[]),
@@ -5916,8 +5932,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
         Word::ConfigureDesign => (&[b"I write a design draft first; agents plan its tasks and land them together once checked."], &[]),
         Word::ConfigureUnsure => (&[b"Not sure yet. What can temper do?"], &[]),
-        Word::ConfigureWords => (&[b"Describe how you work, or what to change"], &[]),
-        Word::Configuring => (&[b"Configuring"], &[]),
+        Word::ConfigureWords => (&[b"Ask temper, or tell it how you work"], &[]),
+        Word::Configuring => (&[b"Ask temper"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::ConfigureOwn => (&[b"temper\xe2\x80\x99s own way"], &[]),
         Word::ConfigureOwnTitle => (&[b"At scale, as temper builds itself"], &[]),

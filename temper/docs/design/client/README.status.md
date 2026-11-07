@@ -341,10 +341,6 @@ read's head explicit.
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
-- **Not yet:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*: Settings'
-  How work runs has no Ask temper row, and there is no `Ask { project }`
-  page; nothing starts a chat from template 5 but ctl's `chat start
-  --template 5`.
 - **Design departs:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*, from
   the mock (`greenfield/`), which draws neither Configure temper nor Ask
   temper on Settings: Ask temper stands beside Configure temper until the

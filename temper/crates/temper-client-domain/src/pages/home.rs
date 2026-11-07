@@ -1034,7 +1034,7 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }
         | crate::Address::Goals { .. }
-        | crate::Address::Configure { .. }
+        | crate::Address::Ask { .. }
         | crate::Address::Adopt { .. } => return,
     };
     let facts = facts(root, project, env.wall);

@@ -22,7 +22,7 @@ pub enum Context {
         executor: c::TemplateExecutor,
         model_index: Option<u8>,
     },
-    /// The configuring template for a configuring chat, otherwise CHAT.
+    /// The Ask template for an Ask temper chat, otherwise CHAT.
     Task {
         project: u32,
         task: u64,
@@ -332,8 +332,8 @@ pub(crate) fn refresh(pages: &mut Pages, client: &Client) {
             Some(Context::Task {
                 project: task.project,
                 task: task.chip.task,
-                template: if super::chats::configuring(me, task.project, &task.chip.executor) {
-                    super::chats::configuring_template(Some(me), Some(task.project))
+                template: if super::chats::asking(me, task.project, &task.chip.executor) {
+                    super::chats::ASKING_TEMPLATE
                 } else {
                     jig_client::shapes::CHAT
                 },
@@ -343,8 +343,8 @@ pub(crate) fn refresh(pages: &mut Pages, client: &Client) {
             task.llm.as_ref(),
         );
     } else if pages.chats.is_some() {
-        let template = if let Address::Configure { .. } = pages.address() {
-            super::chats::configuring_template(Some(me), pages.project)
+        let template = if let Address::Ask { .. } = pages.address() {
+            super::chats::ASKING_TEMPLATE
         } else {
             jig_client::shapes::CHAT
         };

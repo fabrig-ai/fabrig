@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 320;
+pub const N: usize = 321;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,7 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "ask", world: Solo, address: Address::Ask { project: 1 }, then: Shown },
         Sample { name: "chat-terminal-question", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "chat-terminal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -520,40 +521,35 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
-        Sample {
-            name: "configure",
-            world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
-            then: Shown,
-        },
+        Sample { name: "configure", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
             name: "configure-reference",
             world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
+            address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
             name: "configure-reference-draft",
             world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
+            address: Address::Ask { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
         Sample {
             name: "configure-typing",
             world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
+            address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
             name: "configure-sending",
             world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
+            address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
             name: "configure-refused",
             world: FirstRun { step: 7 },
-            address: Address::Configure { project: 1 },
+            address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
@@ -910,7 +906,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-started-model-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-started-model-changing", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-started-model-refused", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "configure-model-open", world: Bare, address: Address::Configure { project: 1 }, then: Shown },
+        Sample { name: "configure-model-open", world: Bare, address: Address::Ask { project: 1 }, then: Shown },
         Sample { name: "chat-paused", world: Solo, address: Address::Chat { task: 6 }, then: Then::Paused },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
@@ -1270,7 +1266,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => {
             return None;
         }
@@ -1309,7 +1305,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => String::new(),
     };
     let way = if let Address::ConnectModel { way: Some(way) } = sample.address {

@@ -13,8 +13,8 @@ use jig_client::contract::{
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
 use skein_lib::{Env, List, Map, Queue, Time, Writer};
 
-/// The configuring agent's stock template (temper/docs/design/protocol/configuration.md, 13.4).
-const CONFIGURING_TEMPLATE: u32 = 3;
+/// Ask temper's stock template (temper/docs/design/protocol/configuration.md, 13.4).
+pub const ASKING_TEMPLATE: u32 = 5;
 
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the configured query is private watch bookkeeping")]
@@ -387,11 +387,8 @@ impl Chats {
         }
         self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "configuring starts share the composer's identity, choice and send state"
-    )]
-    pub(crate) fn configure_chat(
+    #[expect(clippy::too_many_arguments, reason = "Ask starts share the composer's identity, choice and send state")]
+    pub(crate) fn ask_chat(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
@@ -408,7 +405,12 @@ impl Chats {
         }
         self.words = words;
         self.beyond = 0;
-        let template = configuring_template(me, project);
+        let template = ASKING_TEMPLATE;
+        if let (Some(me), Some(project)) = (me, project)
+            && jig_client::shapes::template(me, project, template).is_none()
+        {
+            return;
+        }
         self.send(env, me, project, template, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
@@ -562,10 +564,10 @@ impl Chats {
         }
         counts
     }
-    /// The person's newest configuring chat in the project, not closed
+    /// The person's newest Ask temper chat in the project, not closed
     /// (temper/docs/design/client/README.md, 3.5, Settings).
     #[must_use]
-    pub fn open_configuring(&self, client: &Client, me: Option<&Me>, project: u32) -> Option<u64> {
+    pub fn open_asking(&self, client: &Client, me: Option<&Me>, project: u32) -> Option<u64> {
         let query = self.query?;
         if query.project != Some(project) {
             return None;
@@ -576,10 +578,10 @@ impl Chats {
             && document.state != jig_client::State::Ended
             && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
         {
-            newest_configuring(&live.rows, me, project, &mut newest);
+            newest_asking(&live.rows, me, project, &mut newest);
         }
         if let Some(page) = &self.page {
-            newest_configuring(&page.live, me, project, &mut newest);
+            newest_asking(&page.live, me, project, &mut newest);
         }
         newest
     }
@@ -597,10 +599,10 @@ fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
 }
 
-/// A chat of template 3's charter (temper/docs/design/client/README.md, 3.5, To begin).
+/// A chat of template 5's charter (temper/docs/design/client/README.md, 3.5, To begin).
 #[must_use]
-pub fn configuring(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
-    let Some(template) = jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE) else { return false };
+pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
+    let Some(template) = jig_client::shapes::template(me, project, ASKING_TEMPLATE) else { return false };
     match template.executor {
         c::TemplateExecutor::Charter(charter) => *executor == c::ChipExecutor::Agent { charter },
         c::TemplateExecutor::Chosen => false,
@@ -611,7 +613,7 @@ fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &
     for row in rows {
         if row.project == project {
             let configuring = match me {
-                Some(me) => configuring(me, project, &row.chip.executor),
+                Some(me) => asking(me, project, &row.chip.executor),
                 None => false,
             };
             counts.0 |= configuring;
@@ -620,26 +622,15 @@ fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &
     }
 }
 
-pub(super) fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
-    if let Some(me) = me
-        && let Some(project) = project
-        && jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some()
-    {
-        CONFIGURING_TEMPLATE
-    } else {
-        jig_client::shapes::CHAT
-    }
-}
-
 fn show_chat(task: u64, from: &Address, out: &mut Queue<Request>) {
     let address = Address::Chat { task };
     out.push(if let Address::NewChat { .. } = from { Request::Replace { address } } else { Request::Show { address } });
 }
 
-fn newest_configuring(rows: &List<c::TaskLine>, me: &Me, project: u32, newest: &mut Option<u64>) {
+fn newest_asking(rows: &List<c::TaskLine>, me: &Me, project: u32, newest: &mut Option<u64>) {
     for row in rows {
         if row.project == project
-            && configuring(me, project, &row.chip.executor)
+            && asking(me, project, &row.chip.executor)
             && row.ended_at.is_none()
             && !ended(&row.chip)
         {

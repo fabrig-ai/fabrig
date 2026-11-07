@@ -217,23 +217,23 @@ fn needs(w: World) -> c::Needs {
 /// The gallery's T10 is configuring beside ordinary chats.
 fn configuring_chip(chip: &mut c::Chip) {
     if chip.task == 10 {
-        chip.executor = c::ChipExecutor::Agent { charter: 3 };
+        chip.executor = c::ChipExecutor::Agent { charter: 11 };
     }
 }
-/// The configuring gallery states list template 3 and its creating bounds.
+/// The configuring gallery states list template 5 and its creating bounds.
 fn configure_frame(me: &mut c::Me) {
     let member = me.projects.get_mut(0).expect("configure project");
     let stock = member.templates.get(0).expect("stock chat").clone();
     let mut configuring = stock.clone();
-    configuring.number = 3;
-    configuring.name = doc("Configuring");
-    configuring.executor = c::TemplateExecutor::Charter(3);
+    configuring.number = 5;
+    configuring.name = doc("Ask temper");
+    configuring.executor = c::TemplateExecutor::Charter(11);
     member.templates = List::with_capacity(2);
     member.templates.push(stock).expect("stock");
     member.templates.push(configuring).expect("configuring");
     let mut charters = List::with_capacity(2);
     charters.push(1).expect("stock charter");
-    charters.push(3).expect("configuring charter");
+    charters.push(11).expect("asking charter");
     member.creating = Some(c::Creating {
         within: c::CreateBounds {
             authority: Box::new(c::AuthorityDocument::complete(c::Authority {
@@ -265,7 +265,7 @@ fn agent_work_task() -> c::Task {
     let mut task = chat_work::task("chat-work-running");
     task.label = 0;
     task.flags.conversation = false;
-    task.chip.executor = c::ChipExecutor::Agent { charter: 3 };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 11 };
     task.chip.details.details.executor = c::Executor::Agent { charter: 3 };
     task.chip.details.details.attempt = Some(1);
     task.chip.details.details.run_since = Some(Wall::from_nanos(chat_work::AT));
@@ -329,7 +329,7 @@ fn world_in_layout(
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
-    let configuring = configuring_chat || matches!(address, Address::Configure { .. });
+    let configuring = configuring_chat || matches!(address, Address::Ask { .. });
     let connecting = matches!(
         address,
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
@@ -3991,7 +3991,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         });
     }
     if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 10 {
-        t.chip.title = doc("Configure temper");
+        t.chip.title = doc("Ask temper");
         t.activity = 1;
         t.spec = c::SpecificationDocument::complete(c::Specification {
             asks: false,

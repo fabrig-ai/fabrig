@@ -2919,7 +2919,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let top_nodes = subtree(tree, top);
         for (role, name) in [
             (Role::Heading { level: 1 }, b"T9 \xc2\xb7 Hello".as_slice()),
-            (Role::Link, b"Settings"),
+            (Role::Link, b"Ask temper"),
             (Role::Status, b"Parked"),
             (Role::Paragraph, b"7 spent \xc2\xb7 of 7"),
             (Role::Button, b"Pause"),
@@ -2978,7 +2978,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         }
         assert_eq!(
             crate::href(&mut view, back).as_deref(),
-            Some(d::address::print(&Address::Settings { project: fixtures::PROJECT }).as_ref())
+            Some(d::address::print(&Address::Ask { project: fixtures::PROJECT }).as_ref())
         );
     }
     let view = fixtures::page_view(&root);
@@ -2994,7 +2994,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
 }
 
 #[test]
-fn only_a_delivered_template_three_executor_changes_chat_path_and_navigation() {
+fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
     use crate::look;
     for (listed, charter, configuring) in [(true, 37, true), (true, 1, false), (false, 37, false), (false, 1, false)] {
         let root = configuring_task_root(configuring_task(), listed, charter);
@@ -3004,12 +3004,17 @@ fn only_a_delivered_template_three_executor_changes_chat_path_and_navigation() {
             assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
             for style in [look::RAIL, look::TABBAR] {
                 if let Some(at) = style_position(tree.nodes(), style) {
-                    for name in [b"Settings".as_slice(), b"Chats"] {
+                    for name in [b"Ask temper".as_slice(), b"Chats"] {
                         let nodes = subtree(tree, at);
-                        let link = named_position(nodes, Role::Link, Some(name)).unwrap();
+                        let link = named_position(nodes, Role::Link, Some(name));
+                        if name == b"Ask temper" && !listed {
+                            assert!(link.is_none());
+                            continue;
+                        }
+                        let link = link.unwrap();
                         assert_eq!(
                             nodes[link].states.as_slice().contains(&skein_ui::State::Current),
-                            if name == b"Settings" { configuring } else { !configuring }
+                            if name == b"Ask temper" { configuring } else { !configuring }
                         );
                     }
                 }
@@ -3223,7 +3228,7 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     let close = named_position(controls, Role::Button, Some(b"Close")).unwrap();
                     assert!(status < stop && stop < close && close < spend);
                 }
-                let path = if configuring { b"Settings".as_slice() } else { b"Chats" };
+                let path = if configuring { b"Ask temper".as_slice() } else { b"Chats" };
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {
@@ -3232,7 +3237,7 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 }
                 assert_eq!(links.len(), 2, "phone back and desktop path");
                 let address = if configuring {
-                    Address::Settings { project: fixtures::PROJECT }
+                    Address::Ask { project: fixtures::PROJECT }
                 } else {
                     Address::Chats { filter: temper_client_domain::ChatsFilter::All }
                 };
@@ -3733,7 +3738,7 @@ fn a_closed_chat_says_what_it_ran_on() {
         ),
         (None, Some(model_choice("gpt-6-astra", None)), None, 1, true, true, Some("T9 · GPT-6 Astra · high")),
         (None, None, Some(1), 1, true, true, Some("T9 · GPT-6 Astra · high")),
-        (None, None, Some(3), 37, true, true, Some("T9 · GPT-6 Astra · high")),
+        (None, None, Some(5), 37, true, true, Some("T9 · GPT-6 Astra · high")),
         (None, None, None, 37, true, true, Some("T9 · Using the default model")),
         (None, None, Some(1), 37, true, true, Some("T9 · Using the default model")),
         (Some(model_effort("gpt-6-astra", Some("low"))), None, Some(1), 1, false, true, None),

@@ -54,7 +54,7 @@ fn its_items_go_where_they_say() {
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         for (name, description, draft) in [
-            (b"Chat".as_slice(), b"Ask a question or ask for a change.".as_slice(), false),
+            (b"Chat".as_slice(), b"Ask about the code or ask for a change.".as_slice(), false),
             (b"Goal".as_slice(), b"Agents plan a larger change and land it.".as_slice(), true),
         ] {
             let node = styled(view.tree(), look::RAIL_NEW)
@@ -348,7 +348,7 @@ pub(super) fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: O
         llm: None,
     };
     let mut configuring = goal.clone();
-    configuring.number = 3;
+    configuring.number = 5;
     configuring.executor = c::TemplateExecutor::Charter(3);
     me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([goal, configuring]));
     let mut out = Queue::uncapped();
@@ -486,7 +486,7 @@ fn goals_is_current_on_its_page_a_goal_and_a_goals_task() {
 
 #[test]
 fn a_chat_is_never_goals() {
-    for (configuring, expected) in [(false, b"Chats".as_slice()), (true, b"Settings".as_slice())] {
+    for (configuring, expected) in [(false, b"Chats".as_slice()), (true, b"Ask temper".as_slice())] {
         let (mut root, me, chat) = f::root_at(Address::Chat { task: GOAL_TASK }, &f::domain_limits());
         with_goal_fact(&mut root, me, Some(true));
         let mut document = f::task::delegate();
@@ -596,7 +596,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
-                    | Address::Configure { .. }
+                    | Address::Ask { .. }
                     | Address::Accounts
                     | Address::ConnectModel { .. }
                     | Address::Forges
@@ -861,7 +861,7 @@ fn settings_is_current_on_every_page_of_settings() {
         Address::ConnectForge { forge: None },
         Address::ConnectModel { way: None },
         Address::Adopt { project: f::PROJECT },
-        Address::Configure { project: f::PROJECT },
+        Address::Ask { project: f::PROJECT },
         Address::Chat { task: 9 },
     ] {
         let (mut root, _, _) = f::root_at(address.clone(), &f::domain_limits());
@@ -900,7 +900,11 @@ fn settings_is_current_on_every_page_of_settings() {
                     .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
                     .collect();
                 assert_eq!(links.len(), 1, "{address:?}");
-                assert!(links[0].states.as_slice().contains(&State::Current), "{address:?}");
+                if let Address::Ask { .. } | Address::Chat { .. } = address {
+                    assert!(!links[0].states.as_slice().contains(&State::Current), "{address:?}");
+                } else {
+                    assert!(links[0].states.as_slice().contains(&State::Current), "{address:?}");
+                }
             }
         }
     }

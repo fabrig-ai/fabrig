@@ -144,7 +144,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Builders { .. }
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Goals { .. }
-            | temper_client_domain::Address::Configure { .. }
+            | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
             }
@@ -168,7 +168,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Builders { .. }
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Goals { .. }
-            | temper_client_domain::Address::Configure { .. }
+            | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up
@@ -265,7 +265,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Goals { project, .. } = root.pages().address() {
         crate::pages::goals::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
-    } else if let temper_client_domain::Address::Configure { project } = root.pages().address() {
+    } else if let temper_client_domain::Address::Ask { project } = root.pages().address() {
         crate::pages::configure::main(
             &mut builder,
             root,

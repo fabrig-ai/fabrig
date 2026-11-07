@@ -1517,7 +1517,7 @@ fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).unwrap();
     let mut configuring = project.templates.get(0).unwrap().clone();
-    configuring.number = 3;
+    configuring.number = 5;
     let mut templates = skein_lib::List::with_capacity(2);
     templates.push(project.templates.get(0).unwrap().clone()).unwrap();
     templates.push(configuring).unwrap();
@@ -1597,7 +1597,7 @@ fn a_done_start_over_shows_configure() {
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);
     let mut out = answer_start_over(&mut pages, &client, seen_answer());
-    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Configure { project: fixtures::PROJECT } }));
+    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Ask { project: fixtures::PROJECT } }));
     assert!(out.is_empty());
     assert!(pages.confirmation().is_none());
     assert!(pages.chat().unwrap().closing.is_none());

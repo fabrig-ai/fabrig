@@ -1119,7 +1119,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   #app > .temper-rail .temper-projects > summary { justify-content: flex-start; padding: 6px 0; border: 0; background: none; font-size: 17px; font-weight: 600; }
   #app > .temper-rail .temper-projects > summary::before { content: '✦'; margin-right: 8px; color: var(--gf-signal); font-weight: 400; }
   #app > .temper-rail .temper-projects-menu { right: auto; min-width: 220px; }
-  #app > .temper-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--gf-line); background: var(--gf-surface); }
+  #app > .temper-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; padding: 4px 8px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--gf-line); background: var(--gf-surface); }
   #app > .temper-tabbar > a { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; color: var(--gf-muted); }
   #app > .temper-tabbar > a[aria-current] { color: var(--gf-ink); font-weight: 600; }
 }
@@ -2194,6 +2194,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 
 
 /* ==== ui: settings ==== */
+#app > .temper-tabbar { grid-template-columns: repeat(5, auto); white-space: nowrap; }
 #app > .temper-settings .temper-models-add { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 #app > .temper-settings .temper-models-add > input { flex: 1 1 200px; min-width: 0; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
 #app > .temper-settings .temper-models-add > select { padding: 6px 8px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
