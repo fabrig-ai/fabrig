@@ -366,10 +366,7 @@ impl Core {
             return false;
         }
         match self.tasks.task(context.task).expect("a due task is live").executor {
-            tasks::Executor::Agent { .. } => match self.run_admission(context, self.run_wall, Box::new([])) {
-                crate::RunAdmission::Allow(_) | crate::RunAdmission::Hold(_) => true,
-                crate::RunAdmission::Wait(_) => false,
-            },
+            tasks::Executor::Agent { .. } => self.agent_ready(context.task),
             tasks::Executor::Job { .. } => {
                 match crate::routing::run::jobs::admission(self, context, self.run_wall, Box::new([])) {
                     Ok(()) | Err(crate::RunAdmission::Hold(_)) => true,
