@@ -31,7 +31,7 @@ Acceptance:
 
 Owns the status files in the header. May also change, each only as said:
 
-- `temper/docs/design/protocol/configuration.md`, 13.8 and 13.9: if `room.json` holds 63,740 and 48,000, say those are the reference's figures, and that the larger was refused and by what; if it holds 131,072 and 98,500, drop the sentence about the fallback. The figures in the table of 13.9 follow. If `reference-room` moved a limit beyond 13.8's table, add its row.
+- `temper/docs/design/protocol/configuration.md`, 13.8 and 13.9: if `room.json` holds 63,740 and 48,000, say those are the reference's figures, that the larger was refused and by what, and that a run's charter allowance, 2 × the payload, 127,480, binds a brief before `hub.charter_bytes`'s 262,144, so a section past the room `reference-room`'s report gives is cut at the worker; if it holds 131,072 and 98,500, drop the sentence about the fallback. The figures in the table of 13.9 follow. If `reference-room` moved a limit beyond 13.8's table, add its row.
 - `temper/docs/design/domain/agent.md`, 4.3: `it leaves at least 361 bytes` takes what `every_stock_charter_admits_its_whole_maximal_brief` holds now, if that moved. `temper/docs/design/protocol/configuration.md`, 13.4 and section 11's `355,965` and `configuration.status.md`'s, if `root.brief.brief_bytes` moved.
 - `smith/docs/design/protocol/limits.md`, 3.10's last paragraph, if `smith-room` measured otherwise.
 - `jig/docs/design/protocol/configuration.md`, 6, if `jig-room` kept `authority.batch` out of `standard`, and `temper/docs/design/protocol/configuration.md`, 13.8's *A batch* with it, saying what refused it.
