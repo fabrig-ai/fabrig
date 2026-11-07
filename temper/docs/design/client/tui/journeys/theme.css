@@ -1,0 +1,39 @@
+.tui-dark {
+  --bg: #191816;
+  --ink: #E8E3DA;
+  --dim: #9A9388;
+  --faint: #6A655C;
+  --sel: #2A2825;
+  --accent: #E08A68;
+  --good: #8FC28F;
+}
+.tui-light {
+  --bg: #FFFEFD;
+  --ink: #34312C;
+  --dim: #7A736A;
+  --faint: #B5AEA3;
+  --sel: #F4F0E9;
+  --accent: #B8664E;
+  --good: #3F7D4E;
+}
+pre.tui { color: var(--ink); background: var(--bg); font-family: monospace; line-height: 1; width: max-content; }
+.f-bg { --tui-f: var(--bg); color: var(--tui-f); }
+.b-bg { --tui-b: var(--bg); background: var(--tui-b); }
+.f-ink { --tui-f: var(--ink); color: var(--tui-f); }
+.b-ink { --tui-b: var(--ink); background: var(--tui-b); }
+.f-dim { --tui-f: var(--dim); color: var(--tui-f); }
+.b-dim { --tui-b: var(--dim); background: var(--tui-b); }
+.f-faint { --tui-f: var(--faint); color: var(--tui-f); }
+.b-faint { --tui-b: var(--faint); background: var(--tui-b); }
+.f-sel { --tui-f: var(--sel); color: var(--tui-f); }
+.b-sel { --tui-b: var(--sel); background: var(--tui-b); }
+.f-accent { --tui-f: var(--accent); color: var(--tui-f); }
+.b-accent { --tui-b: var(--accent); background: var(--tui-b); }
+.f-good { --tui-f: var(--good); color: var(--tui-f); }
+.b-good { --tui-b: var(--good); background: var(--tui-b); }
+.bold { font-weight: bold; }
+.dim { opacity: .65; }
+.italic { font-style: italic; }
+.underline { text-decoration: underline; }
+.reverse { color: var(--tui-b, var(--bg)) !important; background: var(--tui-f, var(--ink)) !important; }
+.cursor { outline: 1px solid currentColor; }

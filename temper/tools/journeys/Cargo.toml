@@ -12,6 +12,10 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+temper-client-shell-tui = { workspace = true, features = ["record"] }
+temper-client-tui.workspace = true
+skein-ui-screen.workspace = true
+skein-ui-screen-terminal.workspace = true
 temper-client-shell-web.workspace = true
 skein-fail-stop.workspace = true
 skein-ui.workspace = true
@@ -23,6 +27,7 @@ skein-fake-person-browser.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+jig-client.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 
