@@ -76,7 +76,11 @@ a recorded departure; the fake-model `chat-draft` journey starts with
 drafts on, and the real-box checks follow landing (`client/README.md`,
 `client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
-on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
+on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
+The owned-forge live judge names surviving descendants and their parent
+and group rows at stop; the survivor's cause remains unproved and unfixed,
+with diagnosis deferred to the next after-landing red (`protocol/setup.md`,
+7.2 and 15; `protocol/setup.status.md`, **Not yet:** 7.2). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
 name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
