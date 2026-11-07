@@ -19,6 +19,17 @@ is bounded by the requester's role, with instructions alone naming that
 requester; a chat-called goal keeps asking its chat. The requester-only
 permission, agreed-goal shape and after-landing observations remain deferred
 (`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+Person-task questions read whole through `TaskText`, with context and
+choice buttons; short reads and cut message questions say so and link on.
+Goals opens the Draft-path sheet, which blocks an unfunded start and
+names open chats holding the pool. A goal's task bar counts landed change
+results; its row and headline say tasks done. More whole question bands,
+row landing counts and browser, walk and render checks remain later work
+(`client/README.md`, 3.5, 5.8, 5.14 and 11; `client/browser.md`, 5).
+Ctl distinguishes a retained decision from an unknown proposal, saying
+the latter may have been decided or replaced; returning decided first
+for an automatically replaced task proposal needs jig's decision history
+(`client/tools.md`, 7 and 14).
 Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
