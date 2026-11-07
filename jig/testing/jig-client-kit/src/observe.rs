@@ -238,6 +238,20 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
                 let mut receipts = vec![Receipt::Answer {
                     attempt: *attempt,
                     final_answer: *envelope == RequestEnvelope::Final,
+                    // The core's replies name configured indices; an absent model has no
+                    // name it can encode (translate/llm.rs, refusal). This named refusal
+                    // is the component's before-admission check, not a core decision.
+                    unconfigured_model: *envelope == RequestEnvelope::Final
+                        && matches!(
+                            answer,
+                            Some(jig_client::Answered::Jig(Answer::Refused {
+                                refusal: jig_client::contract::Refusal::Llm {
+                                    why: jig_client::contract::LlmWhy::Unconfigured,
+                                    ..
+                                },
+                                ..
+                            }))
+                        ),
                     words,
                 }];
                 if *envelope == RequestEnvelope::Final
@@ -747,45 +761,99 @@ mod tests {
             assert_eq!(super::jig_card(view.tree(), node.id), node.key.map(CardKey::of));
         }
     }
+    fn final_without_write(up: &jig_client::Up) -> skein_world::domain::Verdict {
+        use crate::harness::{ClientId, Observation, Sent, referee::Rules};
+        use skein_lib::{Duration, Time, Token};
+        use skein_world::domain::Referee;
+        let mut referee =
+            Referee::new(Rules::new(Duration::from_secs(1), Duration::from_secs(1), Duration::from_secs(1)));
+        let client = ClientId(0);
+        referee.observe(
+            Time::ZERO,
+            Observation::Request {
+                client,
+                party: 1,
+                sent: Sent { attempt: Token::new(73), key: [1; 16], card: None, revision: None, words: None },
+            },
+            &mut Vec::new(),
+        );
+        for receipt in super::up_received(up) {
+            referee.observe(Time::ZERO, Observation::Delivered { client, receipt }, &mut Vec::new());
+        }
+        referee.verdict()
+    }
+
     #[test]
     fn public_owner_answer_receipts_keep_original_attempt_envelope_and_exact_message_ids() {
         use super::{Receipt, received};
         use jig_client::Answered;
-        use jig_client_domain::contract::{Answer, DocumentOutcome, Outcome};
+        use jig_client_domain::contract::{Answer, DocumentOutcome, LlmWhy, Outcome, Refusal, Text};
         use jig_client_test_domain::Event;
         use skein_lib::{RequestEnvelope, Token};
+        use skein_world::domain::Verdict;
+        let model = Text::new(b"not-in-the-catalogue".as_slice().into(), 64).expect("model name");
         let cases = [
-            (DocumentOutcome::Said { task: u64::MAX, message: 37 }, Some((u64::MAX, 37))),
-            (DocumentOutcome::Said { task: 41, message: u64::MAX }, Some((41, u64::MAX))),
-            (DocumentOutcome::QuestionAnswered { task: 43, question: 47, message: 53 }, Some((43, 53))),
+            (
+                Answer::Done(Outcome::Document(DocumentOutcome::Said { task: u64::MAX, message: 37 })),
+                Some((u64::MAX, 37)),
+                false,
+            ),
+            (
+                Answer::Done(Outcome::Document(DocumentOutcome::Said { task: 41, message: u64::MAX })),
+                Some((41, u64::MAX)),
+                false,
+            ),
+            (
+                Answer::Done(Outcome::Document(DocumentOutcome::QuestionAnswered {
+                    task: 43,
+                    question: 47,
+                    message: 53,
+                })),
+                Some((43, 53)),
+                false,
+            ),
+            (
+                Answer::Refused { refusal: Refusal::Llm { model: model.clone(), why: LlmWhy::Unconfigured }, at: None },
+                None,
+                true,
+            ),
+            (Answer::Refused { refusal: Refusal::Llm { model, why: LlmWhy::Effort }, at: None }, None, false),
+            (Answer::Refused { refusal: Refusal::NotOffered, at: None }, None, false),
         ];
-        for (outcome, expected) in cases {
+        for (answer, expected, exempt) in cases {
             for envelope in [RequestEnvelope::Final, RequestEnvelope::Again, RequestEnvelope::Lost] {
-                let event = Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Answer {
-                            attempt: Token::new(73),
-                            envelope,
-                            answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome.clone())))),
-                            why: None,
-                        },
-                    },
+                let up = jig_client::Up::Answer {
+                    attempt: Token::new(73),
+                    envelope,
+                    answer: Some(Answered::Jig(answer.clone())),
+                    why: None,
                 };
+                let event = Event::Client { event: jig_client::Event::Up { up: up.clone() } };
                 let receipts: Vec<_> =
                     received(&event).into_iter().filter(|receipt| matches!(receipt, Receipt::Answer { .. })).collect();
-                let [Receipt::Answer { attempt, final_answer, words }] = receipts.as_slice() else {
+                let [Receipt::Answer { attempt, final_answer, unconfigured_model, words }] = receipts.as_slice() else {
                     panic!("one original answer envelope");
                 };
                 assert_eq!(*attempt, Token::new(73));
                 assert_eq!(*final_answer, envelope == RequestEnvelope::Final);
                 assert_eq!(*words, expected);
+                assert_eq!(*unconfigured_model, exempt && *final_answer);
+                if *final_answer {
+                    let verdict = final_without_write(&up);
+                    if exempt {
+                        assert_eq!(verdict, Verdict::Passed, "component refusal meets its request deadline");
+                    } else {
+                        let Verdict::Failed(failure) = verdict else { panic!("a core final needs a write: {up:?}") };
+                        assert_eq!(failure.why, "nothing shown done before durable: final answer has no write");
+                    }
+                }
             }
             let signed_out = Event::Client {
                 event: jig_client::Event::Up {
                     up: jig_client::Up::Answer {
                         attempt: Token::new(73),
                         envelope: RequestEnvelope::SignedOut,
-                        answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome)))),
+                        answer: Some(Answered::Jig(answer)),
                         why: None,
                     },
                 },

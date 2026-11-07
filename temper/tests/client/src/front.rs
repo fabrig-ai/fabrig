@@ -117,7 +117,8 @@ struct HeldReply {
     next: usize,
     words: Vec<u8>,
 }
-fn engine_limits() -> engine::Limits {
+#[must_use]
+pub fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     // The world's engine admits the whole starters and cues its client offers.
     limits.people.words = limits.people.words.max(temper_client_protocol_wire::CUE_BYTES);
