@@ -2,6 +2,10 @@
 
 2026-11-07. Where jig's code lags or departs from [store.md](store.md).
 
+Sections 4.4, 7.2 and 15.9 have no known gap in facts' key tag 5, their
+bounded codec, restoration after the accounts and sources, or removal
+with the account. The accounts family changes in place under section 5.
+
 Sections 5 and 5.1 have no known gap in loading model-setting names before
 family restoration and taking catalogue updates before their commit, so a
 person's stored model retains its number across restart.

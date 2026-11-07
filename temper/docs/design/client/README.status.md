@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.5 have no known implementation gap in naming accounts
+by email on Ready, the Model step, the model-check pane, the picker or
+Accounts, including terminal words and the display/source-name fallback.
+The real-login render check and browser and process stories remain
+section 11's after-landing work; no real-provider result is supplied here.
+
 Section 3.5 has no known implementation gap in drawing a Markdown flow
 in a chat or its document. The page routes skein-ui's flow owner and
 names under temper's limits; its host test checks the case's SVG and
@@ -502,8 +508,6 @@ read's head explicit.
   them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
-- **Not yet:** 3.5: the render check of `ready-account-email` on a real
-  sign-in and a real Claude Code login follows landing; temper/ui owns it.
 - **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
