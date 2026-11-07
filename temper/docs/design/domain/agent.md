@@ -1057,7 +1057,13 @@ and waits in the Needs you of each project it belongs to (jig's
   left out), `forge-charter` and `project-policy` (with its
   `project`), each named and valued as the file names and values it,
   so that a description's landing rules, the forge's charters and a
-  project's own policy are proposed as its charters are.
+  project's own policy are proposed as its charters are. `charter`,
+  `template`, `policy`, `landing-rule` and `forge-charter` take a
+  `number`, and both tools' schemas say which; `project-policy`,
+  `project-ways` and `project-questions` take a `project`. A `settings`
+  read that leaves out the member its kind needs is answered with what
+  to do, "landing-rule needs number; read the inventory and name what it
+  lists", as a failed call, which a person's page keeps showing.
 - **A proposal's source** is exactly one of inline `items` or
   `note: {name, revision}`. The root checks the settings and recall families
   and loads the whole named note within the configured notes and load bounds.

@@ -1,3 +1,22 @@
 draft = "ui-box-slots"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-box-slots/inputs/request.md", "temper/docs/design/domain/worker.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "box-words"
+title = "a box's wait says other work is running, and a settings read short of a member says which kind needs it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.5"
+
+[[slice]]
+id = 1
+story = "a person on a box reads what a wait means and what a failed call asked for"
+parts = ["box-words"]
+walk = false
