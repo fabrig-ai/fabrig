@@ -17,6 +17,20 @@ fn main() -> ExitCode {
     if configuration == smith_agent_shell::relay::FLAG {
         return smith_agent_shell::relay::main();
     }
+    if configuration == smith_agent_shell::list::FLAG {
+        let Some(path) = arguments.next() else {
+            eprintln!("smith-agent: usage: smith-agent --list CONFIG.json");
+            return ExitCode::FAILURE;
+        };
+        if arguments.next().is_some() {
+            eprintln!("smith-agent: usage: smith-agent --list CONFIG.json");
+            return ExitCode::FAILURE;
+        }
+        return match smith_agent_shell::list::run(Path::new(&path), Box::new(std::io::stderr())) {
+            Ok(Exit::Code(code)) => ExitCode::from(code),
+            Ok(Exit::Signal(_)) | Err(_) => ExitCode::FAILURE,
+        };
+    }
     if arguments.next().is_some() {
         eprintln!("smith-agent: usage: smith-agent CONFIG.json");
         return ExitCode::FAILURE;
