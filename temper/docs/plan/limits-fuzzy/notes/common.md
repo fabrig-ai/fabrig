@@ -1,6 +1,6 @@
 # limits-fuzzy: the rules every task names
 
-The request is `temper/docs/plan/limits-fuzzy/inputs/request.md`: read *For every task of this plan*, which binds whatever your spec says. `notes/measuring.md` says how a sweep is profiled and written down. Both paths are under `temper/docs/plan/limits-fuzzy/`.
+The request is `temper/docs/plan/limits-fuzzy/inputs/request.md`: read *For every task of this plan*, which binds whatever your spec says. `notes/measuring.md` says how a sweep is profiled and written down, and `notes/contracts.md` holds the shape that crosses tasks. All three paths are under `temper/docs/plan/limits-fuzzy/`.
 
 The repair's order is `skein/docs/foundation/testing-strategy.md`, 8.1: does the test belong here; if so, can it be made faster, at the cause; if neither, the measurements go in the report and the test stays. **What a test checks decides its place, never its cost.** Every sweep named in this plan belongs in the fuzzy suite: each settles many drawn worlds or inputs (`temper/docs/design/domain/testing.md`, 6.1). This plan moves none.
 
@@ -12,7 +12,8 @@ One writer per crate. A cause the profile puts in a crate you don't own goes und
 |---|---|
 | `public-wire` | `temper/tests/codecs/**` |
 | `one-process-sweeps` | `temper/tests/one-process/**` |
-| `engine-sweeps` | `temper/tests/engine/domain/**`, and the state types' derive lines its spec names, in the crates under that world |
+| `state-hash` | the derive lines of skein's and jig's state types, in `notes/contracts.md` |
+| `engine-sweeps` | `temper/tests/engine/domain/**`, and the derive lines of temper's state types, in `notes/contracts.md` |
 | `under-causes` | the crates under the worlds and `temper/tests/real-loop/**`, once the three above have merged |
 | `close` | the account in `temper/docs/development/limits-fuzzy.md` |
 
