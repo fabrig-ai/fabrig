@@ -1418,6 +1418,11 @@ made by the forge connector from what it keeps of the change
   retain the shared welcome panels and the sheet's search and scroll;
   Home's sheet unification and its two unmocked entry drawings belong to
   the repository-copies follow-up (`../draft/repository-copies.md`, 11).
+  Compare the request-owned controls, including the sheet's select
+  chevrons, source chooser, captions, Copy public's four-line box, list
+  margins, empty search and More summary, and the connect actions' type.
+  Settings' shared H1 and the open project menu row keep their frame's
+  design, as the repair request leaves them.
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor

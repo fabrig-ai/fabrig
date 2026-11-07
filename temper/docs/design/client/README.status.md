@@ -96,11 +96,22 @@ Sections 3.5, 4.4, 4.6 and 5.2 have no known implementation gap in the
 `connect-flows` shared model and forge panels, completion on Accounts or
 Forges, or Settings' three-source repository sheet. Search and scroll,
 plural picks, make/copy and failed-row retry and dismissal are present.
-The source and print account is commit `9164d33492`; it establishes no
-rendered equality. Section 11 carries temper/ui's render comparison and
-Home sheet follow-up. The repaired browser stories retain account history,
-scroll/search/adoption and 420 px sheet geometry, with no passing runtime
-result supplied here (`browser.status.md`, 4.6).
+The flow paths name the chosen model way, Forges offers "+ Connect a forge",
+and the sheet draws the query in its empty row, hides the completed empty
+search's count and keeps the dot in More's summary. Copy public has a
+browser caption over its named field; the terminal prints the field's name
+once. The repair account is commit `73fd6f4bae`; it establishes no rendered
+equality. Section 11 carries temper/ui's comparison of the request-owned
+parts, including these controls, and the Home sheet follow-up. The browser
+stories retain account history, scroll/search/adoption and 420 px sheet
+geometry, with no passing runtime result supplied here (`browser.status.md`,
+4.6).
+
+- **Design departs:** 4.4, from `look-round-14`'s request for Copy public's
+  `rows=4`: the field takes a 107 px minimum height in the stylesheet,
+  because skein-ui carries no rows attribute. The plan's cut chose the
+  four-line box by rule; its rendered height remains section 11's
+  after-landing comparison.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
@@ -109,9 +120,12 @@ result supplied here (`browser.status.md`, 4.6).
 
 Section 3.5's Models tab, switches, add-by-name form, source, estimated
 prices, omitted count and All models' link to the project's Models tab
-have no known implementation gap. The client world holds switches and
-adding across reloads. Page 07's render comparison at 1440, 1280, 1000 and
-420 px belongs to temper/ui after landing; it and browser and real-provider
+have no known implementation gap. Provider, the name and Add share one
+unwrapped row with the field's label visually hidden; its accessible name
+remains. The Provider and Add section headings have 6 px bottom margins.
+The client world holds switches and adding across reloads. Page 07's
+render comparison at 1440, 1280, 1000 and 420 px belongs to temper/ui after
+landing; it and browser and real-provider
 checks remain section 11's deferred work, with no outcome supplied here.
 - **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
   now and on purpose: an address under the project, `/projects/<project>/settings/models`, as
