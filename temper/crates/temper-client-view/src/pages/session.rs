@@ -15,7 +15,14 @@ pub(crate) enum Path {
 /// A chat retains its numbered name while the browser shows its title.
 pub(crate) enum Heading<'a> {
     Words(&'a [u8]),
-    Chat { whole: &'a [u8], title: &'a [u8] },
+    /// A chat's: named `whole`, "TN · TITLE"; showing `short` in a browser and `numbered`,
+    /// "TN · SHORT", in the terminal; with `hint`, the whole title, where it is cut.
+    Chat {
+        whole: &'a [u8],
+        short: &'a [u8],
+        numbered: &'a [u8],
+        hint: Option<&'a [u8]>,
+    },
 }
 /// Opens the bar and its path; the caller adds its right part and closes it.
 pub(crate) fn top(
@@ -58,14 +65,17 @@ pub(crate) fn top(
     b.close();
     match heading {
         Heading::Words(words) => text(b, Role::Heading { level: 1 }, words, None),
-        Heading::Chat { whole, title } => {
+        Heading::Chat { whole, short, numbered, hint } => {
             b.open(Role::Heading { level: 1 });
             b.name(whole);
+            if let Some(hint) = hint {
+                b.hint(hint);
+            }
             b.text(
                 Run::Plain,
                 match w.shell {
-                    crate::words::Shell::Browser => title,
-                    crate::words::Shell::Terminal => whole,
+                    crate::words::Shell::Browser => short,
+                    crate::words::Shell::Terminal => numbered,
                 },
             );
             b.close();
