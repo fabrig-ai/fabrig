@@ -51,7 +51,12 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 `revision` (`domain/engine.md`). Four of the worlds' files name a fixture again,
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
-2026-11-06 has it read the commit's rows (`domain/testing.md`).
+2026-11-06 has it read the commit's rows. Views are made only for readers,
+but a keyed feed and proof that the focused suite fits 30 CPU s remain
+(`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
+step cover its fuzzy stories; the other stories can miss transient grant
+values between arrival and end checks (`protocol/channel.md`, sections 12
+and 14).
 A Finite report can deliver when its policy and workspace permit it,
 keeping its report contract; a procedure on its requester's resource can
 step beside that requester's writing run (`domain/hosts.md`, section 8;
