@@ -261,5 +261,5 @@ pub fn context_rejected(peer: &llm::Peer) -> bool {
 
 /// Admit the observed reasoning turn when it is replayed in the next request.
 pub(crate) fn reasoning(scripts: Box<[api::Script]>) -> llm::Peer {
-    Options { request_bytes: 131_072, document_bytes: 131_072, ..Options::default() }.make(scripts, credential(false))
+    Options::default().make(scripts, credential(false))
 }

@@ -272,12 +272,12 @@ fn configuration_output(anthropic: bool, output: u32) -> agent::Config {
     configuration
 }
 
-/// The same process with the live reasoning-item entrance for the stopped-turn story.
+/// The same process with the stopped-turn reasoning-item entrance for the stopped-turn story.
 fn reasoning_configuration() -> agent::Config {
     let mut declaration = declarations(0);
     declaration.endpoints[0].models[0].window = 272_000;
     declaration.endpoints[0].models[0].output = 16_384;
-    declaration.endpoints[0].models[0].reasoning_item = 65_536;
+    declaration.endpoints[0].models[0].reasoning_item = 8_192;
     let limits = agent::profile::derive(&profile(), &declaration).expect("reasoning profile derives");
     let mut configuration = configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
     configuration.domain.models[0].window = 272_000;
