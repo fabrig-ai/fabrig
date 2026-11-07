@@ -148,7 +148,7 @@ fn references_go_under_the_prefix() {
 }
 
 #[test]
-fn the_stylesheet_names_no_class() {
+fn the_stylesheet_names_only_the_kits_flow_classes() {
     let stylesheet = include_str!("../skein-ui.css");
     let mut remaining = stylesheet;
     let mut without_comments = String::new();
@@ -158,7 +158,29 @@ fn the_stylesheet_names_no_class() {
         remaining = &comment[comment.find("*/").expect("comment closes") + 2..];
     }
     without_comments.push_str(remaining);
-    assert!(!without_comments.contains('.'), "the stylesheet uses no class selector");
+    for block in without_comments.split('{') {
+        let selectors = block.rsplit('}').next().expect("selector before its declarations");
+        for selector in selectors.split(',') {
+            for class in selector.split('.').skip(1) {
+                let name = class.split(|c: char| !c.is_ascii_alphanumeric() && c != '-').next().expect("class name");
+                assert!(
+                    [
+                        "skein-ui-flow-box",
+                        "skein-ui-flow-name",
+                        "skein-ui-flow-caption",
+                        "skein-ui-flow-arrow",
+                        "skein-ui-flow-strong"
+                    ]
+                    .contains(&name),
+                    "the stylesheet names no owner's class: {name}"
+                );
+                assert!(
+                    selector.trim().starts_with("[data-drawn] > svg "),
+                    "flow tokens outweigh the marks: {selector}"
+                );
+            }
+        }
+    }
 }
 
 #[test]

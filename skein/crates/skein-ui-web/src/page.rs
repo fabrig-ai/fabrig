@@ -60,6 +60,7 @@ struct Held {
     element: Element,
     size: Option<(u16, u16)>,
     drawn: Option<Element>,
+    scene_height: bool,
     href: Option<Box<[u8]>>,
     follow_log: bool,
     end_requested: bool,
@@ -78,7 +79,8 @@ pub struct Page<'a> {
     roots: Vec<NodeId>,
     links: Vec<NodeId>,
     focused: Option<NodeId>,
-    scene: Scene,
+    pub(crate) scene: Option<Scene>,
+    limits: Limits,
     limit: u32,
     act_bytes: u32,
     menu: Option<NodeId>,
@@ -97,7 +99,8 @@ impl<'a> Page<'a> {
             roots: Vec::new(),
             links: Vec::new(),
             focused: None,
-            scene: Scene::new(limits),
+            scene: None,
+            limits: *limits,
             limit: limits.nodes,
             act_bytes: limits.drawing_bytes,
             menu: None,
@@ -362,6 +365,7 @@ impl<'a> Page<'a> {
                 element,
                 size: None,
                 drawn: None,
+                scene_height: false,
                 href: None,
                 follow_log: !made.attribute.states.as_slice().contains(&State::Continues),
                 end_requested: false,
@@ -446,15 +450,18 @@ impl<'a> Page<'a> {
     fn draw(&mut self, node: NodeId) {
         let held = self.nodes.get_mut(&node).expect("held node");
         held.drawn = None;
+        held.scene_height = false;
         if components::index(&held.made, &self.look).is_some() {
             return;
         }
         if let Some(drawing) = &held.made.attribute.drawing
             && let Some((width, height)) = held.size
         {
-            self.scene.clear();
-            if (self.look.draw)(drawing.kind, &drawing.data, width, height, &mut self.scene) && !self.scene.refused() {
-                held.drawn = Some(svg::draw(&self.scene, self.look.names, width, height));
+            let scene = self.scene.get_or_insert_with(|| Scene::new(&self.limits));
+            scene.clear();
+            if (self.look.draw)(drawing.kind, &drawing.data, width, height, scene) && !scene.refused() {
+                held.scene_height = scene.height().is_some();
+                held.drawn = Some(svg::draw(scene, self.look.names, width, height));
             }
         }
     }
@@ -468,6 +475,9 @@ impl<'a> Page<'a> {
         if let Some(svg) = &held.drawn {
             let core = semantic_mut(&mut element);
             core.set("data-drawn", "");
+            if held.scene_height {
+                core.set("data-scene-height", "");
+            }
             core.children.insert(0, Child::Element(svg.clone()));
         }
         element
@@ -715,7 +725,8 @@ impl Page<'_> {
                 self.draw(node);
                 self.held(node).drawn.as_ref()?;
                 let mut data = List::with_capacity(self.act_bytes);
-                if !self.scene.refused() && self.scene.act_at(&under, Point { x, y }, &mut data) {
+                let scene = self.scene.as_ref()?;
+                if !scene.refused() && scene.act_at(&under, Point { x, y }, &mut data) {
                     Some((node, Act::Drawing { data: data.into_boxed() }))
                 } else {
                     None
