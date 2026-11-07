@@ -1077,6 +1077,8 @@ fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }

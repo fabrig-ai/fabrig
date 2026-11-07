@@ -693,6 +693,46 @@ replay says the same clocks (`README.md`, 5.12).
   name is drawn; a flow takes the tokens' look below. The sheet to start a goal
   is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
   through the modes.
+- **A chat's terminal** (`README.md`, 3.5) is the requests `chat-terminal`,
+  `chat-terminal-font` and `chat-terminal-draft`'s `terminal.css`, in `temper.css`
+  under `/* ==== ui: chats ==== */`, its selectors on temper's tokens:
+  - *Its tokens:* `temper-terminal` on the page's main, for the request's `.tt`,
+    with `temper-terminal-light` for `[data-theme="light"]` and
+    `temper-terminal-plex` for `[data-font="plex"]`; `temper-terminal-top`,
+    `-where`, `-star`, `-place`, `-sep`, `-task`, `-acts` and `-btn` for the top
+    line; `temper-terminal-run` for the running line; `temper-terminal-line` and
+    `-hint` for the quiet line; `temper-terminal-head` for a list's head;
+    `temper-terminal-note` for a note; `temper-to-terminal` for `>_` in the bar.
+    The conversation, the box, the list and the pane keep the page's own tokens
+    (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
+    rules reach under `.temper-terminal`; the list is skein's options menu, whose
+    `listbox` and `option` roles the rules select.
+  - *Its ground and ink:* dark first, the request's `--bg` `#191816`, `--ink`
+    `#e8e3da`, `--dim`, `--faint`, `--line`, `--sel`, `--accent` `#e08a68` and
+    `--good`, as variables on `.temper-terminal`, and its light ones on
+    `.temper-terminal-light`. Both themes are the terminal's: the rest of the
+    client keeps its light palette.
+  - *Its type:* DejaVu Sans Mono 400 and 700 at 11pt, line height 1.6, ligatures
+    off, a single size, 13px at 760 px or less; with `temper-terminal-plex`, IBM
+    Plex Mono at 14px, bold 500. The two DejaVu Sans Mono weights are the
+    request's subsets, in the bundle's `files/fonts/` as
+    `dejavu-sans-mono-400.woff2` and `-700.woff2`, beside the DejaVu licence
+    already there, `files/fonts/README.txt` saying where they come from and how
+    they were cut; their `@font-face` rules stand with the others, and a browser
+    fetches them only when the terminal first draws. Italic is the regular face
+    slanted; text past the subset falls back to the system's monospace.
+  - *Its layout:* fixed over the whole window, a grid of the top line and the
+    panes; the conversation's column 100 characters at most, left; Split two
+    halves behind a rule, the phone's one pane with the box at the foot; the
+    request's 760 px rules.
+  - *The draft beside it:* the pane keeps `.temper-doc`'s rules from *A chat's
+    document*, above; the terminal sets their variables on its pane, its ground
+    `--doc-bg` a shade lighter than the terminal's, its ink softer, a box a shade
+    above the ground, the strong box in the ink, a changed section's pale block
+    and note in the terminal's accent (the request's `--doc-*` values, light and
+    dark), and adds only what the shell's rules don't say: the pane's ground, its
+    padding and its rule. It restates none of the shell's document rules, which
+    `terminal.css` restates as a page outside `#app` must.
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
@@ -1734,6 +1774,15 @@ from the engine's own answers, is where the look is tuned.
 | `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
 | `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
 | `chat-start-goal` | a chat's sheet to start a goal, open |
+| `chat-terminal` | the `chat-draft` chat with ">_" pressed: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
+| `chat-terminal-draft` | the same with the draft beside it (page 03) |
+| `chat-terminal-commands` | the same with "/" in the box: the commands' list (page 04) |
+| `chat-terminal-model` | the same with `/model`'s list (page 05) |
+| `chat-terminal-working` | a turn running: the running line above the box (page 06) |
+| `chat-terminal-light` | the terminal in its light theme and IBM Plex Mono, its draft beside it |
+| `chat-terminal-closed` | a closed chat in the terminal: the box for commands, "/new starts another chat" |
+| `chat-terminal-question` | a chat whose goal asked the person: the question's list under the box |
+| `chat-terminal-proposal` | a configuring chat's proposal in the terminal: its one line and its acts |
 | `chat-start-goal-refused` | the same sheet, refused in jig's words |
 | `chat-goal-linked` | a chat with its goal started: "Goal TITLE →", and its line |
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |

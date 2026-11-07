@@ -34,6 +34,8 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
@@ -89,6 +91,8 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
@@ -145,6 +149,8 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
@@ -618,3 +624,72 @@ fn a_stream_refused_full_reaches_the_client_link() {
 
 #[path = "host_tests_copy.rs"]
 mod copy;
+
+#[test]
+fn the_look_is_kept_and_full_screen_carried() {
+    use root::pages::terminal::{Font, Look, Theme};
+    let terminal = Look { terminal: true, theme: Theme::Dark, font: Font::DejaVu };
+    let light = Look { terminal: false, theme: Theme::Light, font: Font::Plex };
+    for (value, decoded) in [
+        (Some(b"100".as_slice()), Some(terminal)),
+        (Some(b"011".as_slice()), Some(light)),
+        (Some(b"000".as_slice()), Some(Look::default())),
+        (Some(b"111".as_slice()), Some(Look { terminal: true, ..light })),
+        (Some(b"1".as_slice()), None),
+        (Some(b"abc".as_slice()), None),
+        (Some(b"1000".as_slice()), None),
+        (Some(b"200".as_slice()), None),
+        (Some(b"020".as_slice()), None),
+        (Some(b"002".as_slice()), None),
+        (None, None),
+    ] {
+        assert_eq!(value.and_then(records::decode_look), decoded, "{value:?}");
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let stored = value
+            .map(|value| skein_ui_web::store::Record { key: records::LOOK_KEY.into(), value: value.into() })
+            .into_iter()
+            .collect();
+        host.start(b"/chats/new", stored, None);
+        assert_eq!(host.root.pages().look(), decoded.unwrap_or_default(), "{value:?}");
+        let duties = host.report(Report::Start);
+        assert_eq!(duties.keep_look, None, "start never writes a look");
+        assert_eq!(duties.screen, None, "a reload never asks for full screen");
+    }
+    for (look, bytes) in [(terminal, *b"100"), (light, *b"011")] {
+        assert_eq!(records::encode_look(look), bytes);
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        host.out.push(Request::KeepLook { look });
+        let duties = host.report(Report::Start);
+        assert_eq!(duties.keep_look, Some(bytes));
+        assert!(duties.asked.is_empty(), "the transport carries no kept write");
+        assert_eq!(duties.writes, 0);
+        assert_eq!(host.report(Report::Start).keep_look, None, "a duty is taken once");
+    }
+    for on in [true, false] {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        host.out.push(Request::Screen { on });
+        let duties = host.report(Report::Start);
+        assert_eq!(duties.screen, Some(on));
+        assert!(duties.asked.is_empty());
+        assert_eq!(host.report(Report::Start).screen, None);
+    }
+    for (report, listing) in [
+        (skein_ui_web::screen::Report::Entered, Some(root::pages::terminal::Listing::Model)),
+        (skein_ui_web::screen::Report::Left, None),
+        (skein_ui_web::screen::Report::Refused, Some(root::pages::terminal::Listing::Model)),
+    ] {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        host.event(Event::LookKept { look: terminal });
+        host.event(Event::Act {
+            action: root::Action::Pages(root::pages::Act::Terminal(root::pages::terminal::Act::Run {
+                command: root::pages::terminal::Command::Model,
+            })),
+        });
+        let duties = host.report(Report::Screen(report));
+        assert_eq!(host.root.pages().listing(), listing, "{report:?}");
+        assert_eq!(host.root.pages().look(), terminal, "leaving full screen keeps the terminal");
+        assert_eq!(duties.screen, None);
+        assert_eq!(duties.keep_look, None);
+        assert!(duties.asked.is_empty());
+    }
+}

@@ -13,6 +13,16 @@ and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
 reference keeps its numbered words without figures (`client/README.md`,
 3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
+A browser's other chat look is built: its terminal frame, commands, kept
+mode/theme/font, full screen, document, question list and compact cards,
+with nine gallery states. Its quiet line retains the bar's budget words,
+settings proposals retain Accept and Change something, commands match
+case exactly, background presses do not focus the box, options do not
+select on hover, adjacent help notes share paragraph spacing, and Plex
+stays 14px on a phone; temper/ui owns these recorded departures. Its
+render comparison follows landing, and compilation and print checks
+establish no rendered equality (`client/README.md`, 3.5 and 11;
+`client/browser.md`, 2.5, 7.2 and 5; `draft/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;

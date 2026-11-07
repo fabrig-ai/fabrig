@@ -334,6 +334,17 @@ fn world_in_layout(
     );
     let limits = limits();
     let (mut root, mut out) = started(address);
+    if goals == Some("chat-terminal-question") {
+        step(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Terminal(
+                    temper_client_domain::pages::terminal::Act::Enter,
+                )),
+            },
+            &mut out,
+        );
+    }
     let mut forge_watch = None;
     let mut accounts_watch = None;
     let mut settings_chat_watch = None;
@@ -433,6 +444,26 @@ fn world_in_layout(
                                     .filter(|g| g.facts.number == number)
                                     .map_or_else(|| shown_task(w, number, then), |g| g.document(w))
                             };
+                            if goals == Some("chat-terminal-question") && number == 1 {
+                                task.result = None;
+                                task.chip.details.details.ending = None;
+                                task.chip.details.details.ended_at = None;
+                                task.chip.phase = c::Phase::Active;
+                                task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+                                task.run_wait = None;
+                                task.waits_on = c::WaitsOn::Party {
+                                    whom: c::Whom::Person(frame(w, false, false).party.number),
+                                    entries: 1,
+                                    task: 3,
+                                    kind: c::WaitedFor::Question,
+                                };
+                            }
+                            if goals == Some("chat-terminal-working") {
+                                task.chip.phase = c::Phase::Running;
+                                task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                                task.chip.details.details.attempt = Some(1);
+                                task.waits_on = c::WaitsOn::Nothing;
+                            }
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
@@ -490,8 +521,18 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Chips(chips))
                         }
-                        c::Subject::Run { .. } => {
-                            goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                        c::Subject::Run { task, .. } => {
+                            if goals == Some("chat-terminal-working") {
+                                Some(c::Delivery::RunState(Box::new(c::RunState {
+                                    task,
+                                    attempt: Some(1),
+                                    committed_turn: 0,
+                                    writing: None,
+                                    call: None,
+                                })))
+                            } else {
+                                goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                            }
                         }
                         c::Subject::Chips { .. } => None,
                     };
@@ -1555,7 +1596,11 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             task: document(Solo, 3).chip,
             from: Some(c::Requester::Task(3)),
             message: 1,
-            words: c::DocumentText::complete(text(QUESTION)),
+            words: c::DocumentText::complete(text(if goals == Some("chat-terminal-question") {
+                "Keep the trailing comma?\n\nChoice: Keep it (recommended)\nChoice: Drop it"
+            } else {
+                QUESTION
+            })),
             since: offset(Solo, -18),
             acts: offers(&[c::ActKind::Answer]),
             ending: None,
@@ -1982,7 +2027,7 @@ fn goal_inbox(
     let mut rows = List::with_capacity(room);
     let mut selection = List::with_capacity(room);
     if w == Solo
-        && goal == Some(3)
+        && (goal == Some(3) || (goal == Some(1) && name == Some("chat-terminal-question")))
         && group == c::InboxReadGroup::Needs
         && project.is_none_or(|project| project == PROJECT)
     {

@@ -180,6 +180,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::StartGoal
         | Act::Switcher(_)
         | Act::Away(_)
+        | Act::Terminal(_)
         | Act::Models(_)
         | Act::Needs(_)
         | Act::Choice(_)

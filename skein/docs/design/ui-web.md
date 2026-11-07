@@ -521,7 +521,7 @@ the host tests (section 14).
 | choice, choice group | `<input type="radio">` with its label, `role="radiogroup"` |
 | check | `<input type="checkbox">` with its label |
 | select, option | `<select>`, `<option>` showing its name as its text |
-| menu, menu item | `role="menu"` behind its button, `role="menuitem"` |
+| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; a menu of a field's options (`ui.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (section 7) |
 | disclosure | `<details>` with `<summary>`, holding its name, then its description's element |
 | dialog | `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
@@ -763,7 +763,25 @@ the host tests (section 14).
   on an item closes the menu. A press outside an open menu closes it, the
   press still going to what it lands on, and the focus returns to the
   menu's button, as on Escape, unless that press took it to another
-  control. **An address changed folds the
+  control. **A field's options** (`ui.md`, 3.2, *options*) are no
+  menu-button: the menu is a `listbox`, shown while it is in the tree, its
+  items `option`s, and its field the text box that controls it,
+  `aria-autocomplete="list"`, `aria-controls` naming the list and
+  `aria-activedescendant` its active option, `aria-selected` on that
+  option alone. The active option starts at the item the tree marks
+  selected, or the first enabled one, and stays while that item stays in
+  the list across an apply; otherwise it starts again. While the field
+  holds the focus and its list an enabled option: ArrowDown and ArrowUp
+  move the active option, wrapping and skipping disabled ones; Enter,
+  with no Shift and no composition under way, presses the active option
+  and gives the field no `Submit` for that Enter; Tab, where the field's
+  words are not empty, differ from the active option's name and begin
+  it, writes that name into the field and reports it as the field's
+  `Input`, the focus staying, and otherwise moves the focus as the
+  browser does; Escape is the form's, as above. A press on an option
+  presses it, and its pointer's down keeps the focus in the field.
+  PageUp and PageDown scroll the log as from any field (below).
+  **An address changed folds the
   disclosures:** when the path or the query the page shows moved since
   the page part's last apply (a new entry, one replaced, back or
   forward), it folds every open `<details>` in that apply, so a
@@ -1007,6 +1025,18 @@ component instead (6.1).
   start. A write fails when the platform refuses it, its quota full, or
   past the small store's own bound, the application's parameter,
   unbounded by default, which a story sets low (14.2).
+- **The kept store** is the browser's local storage, beside the small
+  store: what a person chooses once for every tab of the origin (a
+  look), never a request, a credential or a stream's place. Its records
+  are the small store's form, base64 text under the application's prefix,
+  read whole at start; a write fails as the small store's does, and a
+  page that has no local storage (a private window that refuses it, the
+  worker, a test's platform unless it says otherwise) reads none and
+  refuses every write: the trait's default. The transport never carries
+  it: the shell writes a kept record when its application asks, outside a
+  step's whole, and a failed write changes nothing but that record.
+  Another tab of the origin reads the record at its own start; no tab is
+  told of another's write.
 
 ## 11. Effects in a browser
 
@@ -1037,9 +1067,31 @@ share sheet, a clipboard write, a file picked).
   rejected with `NotAllowedError` is refused, and any other rejection
   failed; both are the application's to say, and neither touches the
   page.
+- **Full screen,** a part of skein's, asked in the turn of a person's
+  act, as a tab is:
+  - *Entered:* `requestFullscreen` on the document's element. Once the
+    page is in full screen, the part asks `navigator.keyboard.lock` for
+    `Escape` alone, where the browser has it (Chromium's, in a secure
+    context), so that a short Escape reaches the page as any key does and
+    a long one still leaves full screen, as the browser's own notice
+    says; the desktop's own shortcuts are the browser's and stay so. A
+    lock refused or missing changes nothing else: there a browser keeps
+    Escape, and it leaves full screen, as Firefox and Safari do. The
+    report `Entered` follows the browser's change; a request refused, by
+    a browser with no full screen, an activation spent or a rejected
+    promise, is reported `Refused`, at once where nothing was asked.
+  - *Left:* by the browser (its Escape, its long Escape, its own control)
+    or by the application's `leave`, which exits full screen when the
+    page is in it and otherwise does nothing. Leaving unlocks the keyboard
+    and is reported `Left`, once for each `Entered`, whoever left. The
+    page's tree is untouched by either: what full screen means to a
+    person is the application's, which draws it.
+  - *A page with none,* the worker's or a test's unless it says
+    otherwise, reports each request `Refused`.
 - **A reload ends what is in flight:** an effect asked before it gives
   no report after it; the state machine starts again from its small
-  store (section 5), which holds no effect in flight.
+  store (section 5), which holds no effect in flight. A reload leaves
+  full screen, as the browser does, with no report.
 
 ## 12. The stylesheet
 

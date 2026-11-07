@@ -12,6 +12,13 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         crate::pages::acted(&mut root.pages);
     }
     match event {
+        Event::ScreenLeft => pages(
+            root,
+            env,
+            crate::pages::Event::Act { act: crate::pages::Act::Terminal(crate::pages::terminal::Act::Dismiss) },
+            out,
+        ),
+        Event::LookKept { look } => root.pages.restore_look(look),
         Event::Copied { token, written } => root.copy.copied(env.now, token, written),
         Event::Start { address, kept, with } => {
             if !root.unlinked {
@@ -151,6 +158,8 @@ fn route_pages(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted pages output") {
+            crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
+            crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
             crate::pages::Request::OpenTab { provider } => {
                 root.tab = root.pages.sign_in_key();
                 out.push(Request::Tab { tab: crate::Tab::Open { provider } });
@@ -390,6 +399,8 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     root.pages.suggest(env, &root.client, &words, &mut child);
     while let Some(request) = child.pop() {
         match request {
+            crate::pages::Request::Screen { on } => out.push(Request::Screen { on }),
+            crate::pages::Request::KeepLook { look } => out.push(Request::KeepLook { look }),
             crate::pages::Request::OpenTab { .. } => unreachable!("a suggestion asks no sign-in"),
             crate::pages::Request::Client(event) => client(root, env, event, out),
             crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),

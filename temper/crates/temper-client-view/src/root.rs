@@ -110,69 +110,72 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut builder = view.render.builder();
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
-    if let Some(project) = rail_project {
-        crate::frame::rail(
-            &mut builder,
-            root,
-            &view.forge_words,
-            &mut view.pages,
-            &mut view.forge,
-            project,
-            &mut times,
-            &view.forge_sign_in,
-        );
-    } else {
-        crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
-    }
-    match root.pages().address() {
-        temper_client_domain::Address::Welcome { .. } => {}
-        temper_client_domain::Address::ConnectModel { .. }
-        | temper_client_domain::Address::Accounts
-        | temper_client_domain::Address::Chats { .. }
-        | temper_client_domain::Address::NewChat { .. }
-        | temper_client_domain::Address::Chat { .. }
-        | temper_client_domain::Address::Task { .. }
-        | temper_client_domain::Address::Inbox { .. }
-        | temper_client_domain::Address::Forges
-        | temper_client_domain::Address::ConnectForge { .. }
-        | temper_client_domain::Address::Home { .. }
-        | temper_client_domain::Address::Changes { .. }
-        | temper_client_domain::Address::Settings { .. }
-        | temper_client_domain::Address::Models { .. }
-        | temper_client_domain::Address::Builders { .. }
-        | temper_client_domain::Address::Repositories { .. }
-        | temper_client_domain::Address::Goals { .. }
-        | temper_client_domain::Address::Configure { .. }
-        | temper_client_domain::Address::Adopt { .. } => {
-            crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+    let terminal = crate::pages::terminal::shown(root, &view.forge_words);
+    if !terminal {
+        if let Some(project) = rail_project {
+            crate::frame::rail(
+                &mut builder,
+                root,
+                &view.forge_words,
+                &mut view.pages,
+                &mut view.forge,
+                project,
+                &mut times,
+                &view.forge_sign_in,
+            );
+        } else {
+            crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
         }
-    }
-    match root.pages().address() {
-        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat { .. } => {
-            crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+        match root.pages().address() {
+            temper_client_domain::Address::Welcome { .. } => {}
+            temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Accounts
+            | temper_client_domain::Address::Chats { .. }
+            | temper_client_domain::Address::NewChat { .. }
+            | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Task { .. }
+            | temper_client_domain::Address::Inbox { .. }
+            | temper_client_domain::Address::Forges
+            | temper_client_domain::Address::ConnectForge { .. }
+            | temper_client_domain::Address::Home { .. }
+            | temper_client_domain::Address::Changes { .. }
+            | temper_client_domain::Address::Settings { .. }
+            | temper_client_domain::Address::Models { .. }
+            | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Repositories { .. }
+            | temper_client_domain::Address::Goals { .. }
+            | temper_client_domain::Address::Configure { .. }
+            | temper_client_domain::Address::Adopt { .. } => {
+                crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+            }
         }
-        temper_client_domain::Address::Welcome { .. }
-        | temper_client_domain::Address::ConnectModel { .. }
-        | temper_client_domain::Address::Accounts
-        | temper_client_domain::Address::Chat { .. }
-        | temper_client_domain::Address::Task { .. }
-        | temper_client_domain::Address::Inbox { .. }
-        | temper_client_domain::Address::Forges
-        | temper_client_domain::Address::ConnectForge { .. }
-        | temper_client_domain::Address::Home { .. }
-        | temper_client_domain::Address::Changes { .. }
-        | temper_client_domain::Address::Settings { .. }
-        | temper_client_domain::Address::Models { .. }
-        | temper_client_domain::Address::Builders { .. }
-        | temper_client_domain::Address::Repositories { .. }
-        | temper_client_domain::Address::Goals { .. }
-        | temper_client_domain::Address::Configure { .. }
-        | temper_client_domain::Address::Adopt { .. } => {
-            // Outside Chats and NewChat the line shows only while the
-            // playground is leaving; while it runs, the frame's "Set up
-            // temper" is the way out (temper/docs/design/client/README.md, 5.1).
-            if root.forge().leaving() {
+        match root.pages().address() {
+            temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat { .. } => {
                 crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+            }
+            temper_client_domain::Address::Welcome { .. }
+            | temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Accounts
+            | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Task { .. }
+            | temper_client_domain::Address::Inbox { .. }
+            | temper_client_domain::Address::Forges
+            | temper_client_domain::Address::ConnectForge { .. }
+            | temper_client_domain::Address::Home { .. }
+            | temper_client_domain::Address::Changes { .. }
+            | temper_client_domain::Address::Settings { .. }
+            | temper_client_domain::Address::Models { .. }
+            | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Repositories { .. }
+            | temper_client_domain::Address::Goals { .. }
+            | temper_client_domain::Address::Configure { .. }
+            | temper_client_domain::Address::Adopt { .. } => {
+                // Outside Chats and NewChat the line shows only while the
+                // playground is leaving; while it runs, the frame's "Set up
+                // temper" is the way out (temper/docs/design/client/README.md, 5.1).
+                if root.forge().leaving() {
+                    crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+                }
             }
         }
     }
@@ -354,6 +357,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     }
     if let Some(project) = rail_project
+        && !terminal
         && view.forge_words.shell == crate::words::Shell::Browser
     {
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);

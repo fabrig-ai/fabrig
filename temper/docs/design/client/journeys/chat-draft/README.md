@@ -48,6 +48,10 @@ those provenance lines, beyond its shortened specification preview.
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
 
+The chat's bar offers Chat, Split, Draft and ">_" ("Terminal, full screen"),
+with "Start goal…" once the draft has a section (`../../README.md`, 3.5,
+*A chat's terminal*).
+
 The chat prints before starting the goal keep the call run and its rows,
 the document write's line and Show, and the end of the answer. Latest is
 a sibling of the log in Chat and Split, hidden until the live log is away

@@ -1,5 +1,6 @@
 mod models;
 mod needs;
+mod terminal;
 use crate::ChatsFilter;
 mod accounts;
 mod builders;

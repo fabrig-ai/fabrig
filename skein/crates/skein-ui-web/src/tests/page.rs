@@ -244,6 +244,7 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -288,6 +289,7 @@ fn a_changed_tag_replaces_the_element() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -647,6 +649,7 @@ fn a_changed_count_sets_each_items_setsize_again() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -742,6 +745,7 @@ fn a_component_patch_receives_the_new_value() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -969,6 +973,7 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1043,6 +1048,7 @@ fn setting_then_clearing_a_placeholder_or_hint_updates_its_attributes() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1101,6 +1107,7 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1148,6 +1155,7 @@ fn a_progress_that_moves_keeps_its_element_and_says_its_new_words() {
             | Op::Replace { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -1216,6 +1224,7 @@ fn list_op_kinds(ops: &[Op]) -> Vec<&str> {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
