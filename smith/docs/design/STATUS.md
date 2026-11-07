@@ -38,9 +38,6 @@ with their exit and retained output tail. A silent check still has no
 output to report; phase messages belong to its repository, and no timeout
 figure changes (`domain/run.md`, 8.1 and 15).
 
-A sub-agent's cut answer is marked without words on how to read the
-rest (`domain/run.md`, `protocol/limits.md`).
-
 Design documents:
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/run.md`](domain/run.status.md)

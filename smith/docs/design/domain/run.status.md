@@ -25,9 +25,6 @@ a silent check still has no output to report (section 15).
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
   marks the budget's thresholds.
-- **Not yet:** 5.3: a cut answer's marker is the bracket alone, with no
-  words on how much was left out or how to read it
-  (`smith-domain/src/feedback.rs`, `render_child`).
 - **Departs:** 3.3: the workspace's section renders as `## Checkout`, and
   the system text says "the checkout" (`smith-domain-run/src/prompt.rs`,
   `render_checkout`). The user's request of 2026-11-04 asks that the word

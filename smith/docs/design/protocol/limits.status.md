@@ -28,9 +28,6 @@ runtime outcome is supplied here.
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
   ceilings; the deployment's receiving limit still applies.
-- **Not yet:** 6: a sub-agent's cut answer is marked `[child-result cut=N
-  stop=S]` alone, with no words on how to read the rest
-  (`smith-domain/src/feedback.rs`, `render_child`).
 - **Departs:** 9: a derived limit is named by its layer and its field, but
   `ComponentLimits`' `translation` reports `adapter.tool_bytes` and
   `adapter.history_bytes`
