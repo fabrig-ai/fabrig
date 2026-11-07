@@ -1800,6 +1800,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
         })
         .unwrap();
     rows.push(c::AccountLine {
+        facts: List::with_capacity(0),
         number: 2,
         place: 1,
         uses: None,
@@ -1815,6 +1816,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
     .unwrap();
     if !model {
         rows.push(c::AccountLine {
+            facts: List::with_capacity(0),
             number: 1,
             place: 1,
             uses: None,

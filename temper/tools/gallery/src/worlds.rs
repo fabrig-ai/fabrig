@@ -3342,6 +3342,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                facts: List::with_capacity(0),
                 number: 1,
                 place: 1,
                 uses: None,
@@ -3370,6 +3371,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                facts: List::with_capacity(0),
                 number: 2,
                 place: 2,
                 uses: None,
@@ -3417,6 +3419,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                facts: List::with_capacity(0),
                 number: 1,
                 place: 1,
                 uses: None,
@@ -3453,6 +3456,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                facts: List::with_capacity(0),
                 number: 1,
                 place: 1,
                 uses: None,

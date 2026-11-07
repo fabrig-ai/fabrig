@@ -29,6 +29,9 @@ const MADE_ACCOUNT: u32 = 1;
 const UNKNOWN: u64 = 99;
 
 pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Limits>) {
+    fixture_with_roles(records, Box::new([people::Holding { person: ALICE, role: people::Role::Owner }]))
+}
+fn fixture_with_roles(records: Vec<accounts::Stored>, deployment_roles: Box<[people::Holding]>) -> (Core, Env<Limits>) {
     let mut limits = limits();
     // Three holders, plus a second own account for the cut test.
     limits.accounts.accounts = 4;
@@ -77,7 +80,11 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
             people::Event::Restore {
                 record: people::Stored::Roles {
                     project,
-                    holdings: Box::new([people::Holding { person: ALICE, role: people::Role::Owner }]),
+                    holdings: if project == people::DEPLOYMENT {
+                        deployment_roles.clone()
+                    } else {
+                        Box::new([people::Holding { person: ALICE, role: people::Role::Owner }])
+                    },
                 },
             },
             &mut out,
@@ -178,6 +185,7 @@ fn a_partys_accounts_document_lists_its_own_accounts_with_their_sources_in_order
     assert_eq!(
         document(&core, &env, ALICE).accounts.as_slice(),
         &[AccountLine {
+            facts: List::with_capacity(0),
             provider_name: Some(Text { bytes: b"Fake".as_slice().into(), cut: false }),
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             place: 0,
@@ -651,4 +659,75 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
         );
     }
     assert_eq!(people::USES, accounts::USES);
+}
+
+#[test]
+fn restored_account_facts_follow_registration_and_audience() {
+    use accounts::{AccountFact, FactValue as V, FactWindow};
+    let rows = [
+        (1, V::Text(b"you@example.com".as_slice().into()), 1, true, false),
+        (2, V::Text(vec![b'n'; 255].into()), 2, true, false),
+        (3, V::Text(b"Plan".as_slice().into()), 3, true, true),
+        (4, V::Text(b"Workspace".as_slice().into()), 4, true, true),
+        (5, V::Instant(Wall::from_nanos(131)), 5, true, false),
+        (6, V::Instant(Wall::from_nanos(133)), 6, true, false),
+        (
+            7,
+            V::Window(FactWindow {
+                length: Some(Duration::from_nanos(137)),
+                used: Some(10_000),
+                resets: Some(Wall::from_nanos(139)),
+                state: 3,
+            }),
+            6,
+            true,
+            true,
+        ),
+        (8, V::Text(b"future kind".as_slice().into()), 1, false, false),
+        (1, V::Text(b"future origin".as_slice().into()), 7, false, false),
+        (7, V::Window(FactWindow { length: None, used: None, resets: None, state: 4 }), 6, false, false),
+    ];
+    for (kind, value, origin, registered, account_audience) in rows {
+        let fact = AccountFact {
+            kind,
+            label: vec![b'l'; 32].into(),
+            value,
+            seen: Wall::from_nanos(149),
+            source: Some(FIRST_SOURCE),
+            origin,
+        };
+        // A current deployment owner who is not a configured first owner reads only account kinds too.
+        for bob_role in [people::Role::Member, people::Role::Owner] {
+            let mut records = mixed();
+            records.push(accounts::Stored::Facts { account: OWN, facts: Box::new([fact.clone()]) });
+            records.push(accounts::Stored::Facts { account: DEPLOYMENT, facts: Box::new([fact.clone()]) });
+            let roles = Box::new([
+                people::Holding { person: ALICE, role: people::Role::Owner },
+                people::Holding { person: BOB, role: bob_role },
+            ]);
+            let (core, mut env) = fixture_with_roles(records, roles);
+            // A whole fact is independent of the document's text and line limits.
+            env.limits.documents.text_bytes = 1;
+            env.limits.documents.lines = 1;
+            let expected: &[AccountFact] = if registered { core::slice::from_ref(&fact) } else { &[] };
+            let own = document(&core, &env, ALICE);
+            assert_eq!(own.accounts.get(0).unwrap().facts.as_slice(), expected, "{kind}, {origin}");
+            assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&fact));
+            assert_eq!(core.accounts.account_facts(DEPLOYMENT), core::slice::from_ref(&fact));
+            for (reader, shown) in [(ALICE, registered), (BOB, account_audience)] {
+                let Document::Deployment(doc) =
+                    make(&core, &env.limits, reader, &Subject::Deployment, &window(), env.wall).unwrap()
+                else {
+                    panic!("deployment")
+                };
+                assert_eq!(
+                    doc.accounts.get(0).unwrap().facts.as_slice(),
+                    if shown { core::slice::from_ref(&fact) } else { &[] },
+                    "{kind}, {origin}, {reader}, {bob_role:?}"
+                );
+                assert!(!doc.cut);
+                assert!(!doc.accounts.get(0).unwrap().cut);
+            }
+        }
+    }
 }

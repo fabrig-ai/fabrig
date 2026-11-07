@@ -83,6 +83,7 @@ pub fn with_account(until: Option<u64>) -> w::Deployment {
     let account = w::Account::new(
         &lim,
         w::AccountParts {
+            facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
             skein_bools: [false, true, false, true, false],
@@ -123,6 +124,7 @@ pub fn account_expected(until: Option<u64>) -> c::Deployment {
     owner
         .accounts
         .push(c::Account {
+            facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
             number: 1,
