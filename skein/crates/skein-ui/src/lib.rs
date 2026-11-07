@@ -8,6 +8,7 @@ mod binding;
 pub(crate) mod builder;
 pub mod date;
 pub(crate) mod diff;
+pub mod flow;
 mod limits;
 pub mod look;
 pub mod markdown;

@@ -1,0 +1,42 @@
+draft = "diagrams"
+repo = "fabrig"
+sources = ["temper/docs/plan/diagrams/inputs/request.md", "skein/docs/design/draft/diagrams.md", "skein/docs/design/draft/diagrams/README.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "scene-height"
+title = "a scene may say its height, and the web puts its SVG in the figure's flow"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 11.2"
+
+[[part]]
+id = "flow"
+title = "skein-ui reads a flow from Markdown and draws it, byte for byte as the cases have it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 10.1"
+
+[[part]]
+id = "temper-flow"
+title = "temper draws a flow, in its look, and its agents are told to write one"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "a flow in Markdown prints its case's scene, byte for byte, at each width"
+parts = ["scene-height", "flow"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a person reads an agent's flow drawn in temper's look, in a chat and in its document"
+parts = ["temper-flow"]
+walk = false

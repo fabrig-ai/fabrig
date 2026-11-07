@@ -697,6 +697,13 @@ replay says the same clocks (`README.md`, 5.12).
   a chat's document's, `.temper-doc-flow`, which holds the
   picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
   under the chats' marker.
+- **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
+  `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
+  `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
+  box `--gf-ink` with a `--gf-surface` name, names `--gf-sans` 500 at 13 px and
+  captions 400 at 12 px in `--gf-muted`, arrows `--gf-faint` at 1.5 with round ends. A
+  flow's figure, which has no token, takes no margin, so that its first measure is
+  its width in the page.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.

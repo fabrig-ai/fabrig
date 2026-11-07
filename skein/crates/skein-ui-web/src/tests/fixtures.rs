@@ -147,6 +147,20 @@ pub fn binding(number: u64) -> skein_ui::Binding {
 pub fn drawing_look() -> crate::Look<'static> {
     crate::Look { draw: drawing, ..look() }
 }
+pub const DRAWING_HEIGHT: u16 = 74;
+pub fn scene_height_look() -> crate::Look<'static> {
+    crate::Look { draw: drawing_with_height, ..look() }
+}
+fn drawing_with_height(
+    kind: skein_ui::DrawingKind,
+    data: &[u8],
+    width: u16,
+    _: u16,
+    scene: &mut skein_ui::scene::Scene,
+) -> bool {
+    scene.set_height(DRAWING_HEIGHT);
+    drawing(kind, data, width, DRAWING_HEIGHT, scene)
+}
 fn drawing(_: skein_ui::DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut skein_ui::scene::Scene) -> bool {
     use skein_ui::scene::{Anchor, Point};
     if data == b"refuse" {
