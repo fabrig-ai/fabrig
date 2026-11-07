@@ -6,13 +6,18 @@
 //! No domain vocabulary, platform language or application is known here.
 
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Duration, List, Wall, Writer, usize_of};
+use skein_lib::{Decimal, Duration, List, Map, Wall, Writer, usize_of};
 
 /// A phrase in an owner's closed vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct PhraseId {
     pub owner: crate::tree::Owner,
     pub number: u16,
+}
+impl PhraseId {
+    fn key(self) -> u64 {
+        u64::from(self.owner.number).checked_shl(16).expect("u32 owner and u16 phrase fit u64") | u64::from(self.number)
+    }
 }
 /// The declared type of a phrase's hole.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -199,7 +204,7 @@ struct Capacity {
 /// Checked language data and the capacities shared across its languages.
 #[derive(Clone, Debug)]
 pub struct Phrasebook {
-    ids: Box<[PhraseId]>,
+    ids: Box<[u64]>,
     shapes: Box<[PhraseShape]>,
     languages: Box<[Language]>,
     capacities: List<Capacity>,
@@ -232,19 +237,13 @@ impl Phrasebook {
         {
             return Err(Invalid::Limit);
         }
-        // Id is the first derived ordering field. Equal ids become adjacent,
-        // regardless of the caller's order or the rest of their declarations.
-        shapes.sort_unstable();
-        for pair in shapes.windows(2) {
-            let earlier = pair.first().expect("window has two shapes");
-            let later = pair.last().expect("window has two shapes");
-            if earlier.id == later.id {
-                return Err(Invalid::Duplicate { id: later.id });
-            }
-        }
+        // Only ids order declarations: duplicate ids are refused before their
+        // holes or forms are checked.
+        let ordered = ordered_shapes(shapes)?;
+        shapes = ordered.shapes;
         let mut ids = List::with_capacity(limits.phrases);
         for shape in &shapes {
-            ids.push(shape.id).expect("declared shapes fit their limit");
+            ids.push(shape.id.key()).expect("declared shapes fit their limit");
             if shape.holes.len() > usize::from(limits.holes) {
                 return Err(Invalid::Limit);
             }
@@ -267,7 +266,12 @@ impl Phrasebook {
             if language.phrases.len() > usize_of(limits.phrases) {
                 return Err(Invalid::Limit);
             }
-            language.phrases.sort_unstable();
+            if has_declaration_order(&shapes, &ordered.positions, &language.phrases) {
+                let phrases = core::mem::replace(&mut language.phrases, Box::new([]));
+                language.phrases = ordered_phrases(phrases, &ordered.positions);
+            } else {
+                language.phrases.sort_unstable();
+            }
             for pair in language.phrases.windows(2) {
                 let earlier = pair.first().expect("window has two phrases");
                 let later = pair.last().expect("window has two phrases");
@@ -278,20 +282,20 @@ impl Phrasebook {
             if language.phrases.len() != shapes.len() {
                 let mut supplied = List::with_capacity(limits.phrases);
                 for words in &language.phrases {
-                    supplied.push(words.id).expect("language phrases fit their limit");
+                    supplied.push(words.id.key()).expect("language phrases fit their limit");
                 }
-                for id in &ids {
-                    if supplied.as_slice().binary_search(id).is_err() {
-                        return Err(Invalid::Missing { id: *id });
+                for shape in &shapes {
+                    if supplied.as_slice().binary_search(&shape.id.key()).is_err() {
+                        return Err(Invalid::Missing { id: shape.id });
                     }
                 }
                 return Err(Invalid::Limit);
             }
             for (position, words) in language.phrases.iter().enumerate() {
-                let index = if ids.get(position) == Some(&words.id) {
+                let index = if ids.get(position) == Some(&words.id.key()) {
                     position
                 } else {
-                    let Ok(index) = ids.binary_search(&words.id) else {
+                    let Ok(index) = ids.binary_search(&words.id.key()) else {
                         return Err(Invalid::Unknown { id: words.id });
                     };
                     index
@@ -336,14 +340,14 @@ impl Phrasebook {
     /// The longest bound of any loaded language's form for this phrase.
     #[must_use]
     pub fn capacity(&self, id: PhraseId) -> Option<u32> {
-        let index = self.ids.binary_search(&id).ok()?;
+        let index = self.ids.binary_search(&id.key()).ok()?;
         let capacity = self.capacities.get(u32::try_from(index).expect("phrase index fits its u32 bound"))?;
         assert!(capacity.id == id, "capacity has the id table's order");
         Some(capacity.bytes)
     }
     /// Say typed facts in a selected loaded language, with measured bounded bytes.
     pub fn say(&self, language: u16, id: PhraseId, values: &[Hole]) -> Result<Saying, Invalid> {
-        let Ok(index) = self.ids.binary_search(&id) else {
+        let Ok(index) = self.ids.binary_search(&id.key()) else {
             return Err(Invalid::Unknown { id });
         };
         let shape = self.shapes.get(index).expect("id table has the shapes' order");
@@ -432,6 +436,75 @@ fn form(phrase: &Phrase, class: PluralClass) -> Option<&Form> {
         }
     }
     None
+}
+// A language given in its declarations' order uses the same permutation.
+// Differently ordered languages keep their independent id sort.
+struct ShapeOrder {
+    shapes: Box<[PhraseShape]>,
+    positions: Box<[u32]>,
+}
+fn ordered_shapes(shapes: Box<[PhraseShape]>) -> Result<ShapeOrder, Invalid> {
+    let count = u32::try_from(shapes.len()).expect("shapes fit their u32 limit");
+    let mut order = Map::with_capacity(count);
+    let mut source = List::with_capacity(count);
+    let mut duplicate: Option<PhraseId> = None;
+    for (index, shape) in shapes.into_iter().enumerate() {
+        let position = u32::try_from(index).expect("shape index fits its u32 limit");
+        let replaced = order.insert(shape.id.key(), position).expect("at most one key per shape");
+        if replaced.is_some() {
+            duplicate = Some(match duplicate {
+                Some(id) => id.min(shape.id),
+                None => shape.id,
+            });
+        }
+        source.push(Some(shape)).expect("one source per shape");
+    }
+    if let Some(id) = duplicate {
+        return Err(Invalid::Duplicate { id });
+    }
+    let mut sorted = List::with_capacity(count);
+    let mut positions = List::with_capacity(count);
+    for (_key, position) in &order {
+        let shape = source
+            .get_mut(*position)
+            .expect("source position was enumerated")
+            .take()
+            .expect("each source position occurs once");
+        sorted.push(shape).expect("one result per shape");
+        positions.push(*position).expect("one position per shape");
+    }
+    Ok(ShapeOrder { shapes: sorted.into_boxed(), positions: positions.into_boxed() })
+}
+fn has_declaration_order(shapes: &[PhraseShape], positions: &[u32], phrases: &[Phrase]) -> bool {
+    if phrases.len() != shapes.len() {
+        return false;
+    }
+    for (shape, position) in shapes.iter().zip(positions) {
+        let Some(phrase) = phrases.get(usize_of(*position)) else {
+            return false;
+        };
+        if phrase.id != shape.id {
+            return false;
+        }
+    }
+    true
+}
+fn ordered_phrases(phrases: Box<[Phrase]>, positions: &[u32]) -> Box<[Phrase]> {
+    let count = u32::try_from(phrases.len()).expect("phrases fit their u32 limit");
+    let mut source = List::with_capacity(count);
+    for phrase in phrases {
+        source.push(Some(phrase)).expect("one source per phrase");
+    }
+    let mut sorted = List::with_capacity(count);
+    for position in positions {
+        let phrase = source
+            .get_mut(*position)
+            .expect("source position was enumerated")
+            .take()
+            .expect("each source position occurs once");
+        sorted.push(phrase).expect("one result per phrase");
+    }
+    sorted.into_boxed()
 }
 fn check_forms(shape: &PhraseShape, words: &Phrase) -> Result<(), Invalid> {
     let needed = if shape.plural.is_some() { 2 } else { 1 };

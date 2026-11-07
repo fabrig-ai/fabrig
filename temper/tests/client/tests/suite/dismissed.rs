@@ -41,7 +41,7 @@ struct Probe {
     answers: Vec<Answered>,
 }
 fn probe(seed: u64, env: &Env<temper_client_domain::Limits>) -> Probe {
-    let (mut root, _) = Temper::new(seed);
+    let mut root = Root::Person(Box::new(temper_client_domain::unlinked(&env.limits, seed)));
     let mut out = Queue::uncapped();
     Temper::step(&mut root, env, Temper::start(fixtures::inbox(), Vec::new(), 0), &mut out);
     Probe { root, out, sent: None, attempt: None, answers: Vec::new() }
