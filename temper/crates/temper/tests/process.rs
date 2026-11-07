@@ -110,8 +110,13 @@ fn temper_open_adopts_a_repository_by_commands() {
     }
     typist.type_on(b"[x] It runs CI", b"");
     typist.wait_for(b"[ ] It runs CI", support::WITHIN);
-    typist.type_on(b"Adopt", b"");
+    typist.type_on(b"Adopt acme/widget", b"");
     typist.wait_for(b"## Repositories \xc2\xb7 1", support::WITHIN);
+    typist.type_on(b"How work runs", b"");
+    typist.wait_for(b"== How work runs in ", support::WITHIN);
+    typist.type_on(b"Repositories", b"");
+    typist.wait_for(b"## Repositories \xc2\xb7 1", support::WITHIN);
+    typist.wait_for(b"acme/widget", support::WITHIN);
     typist.type_line(b"q");
     assert_eq!(typist.exit(support::WITHIN), 0, "stderr: {}", typist.stderr());
     forgejo.stop();
