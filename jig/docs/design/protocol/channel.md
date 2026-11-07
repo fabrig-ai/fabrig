@@ -895,7 +895,9 @@ ones in the fuzzy suite.
   usable, no run is placed on a worker before its first `logins` after
   its hello, no run is placed on a host that keeps a person's logins
   unless that person's accounts pay for it, and no credential grant's
-  value appears in any domain's state.
+  value appears in any domain's state. The focused suite looks for a
+  grant's value where one can newly arrive and at the story's end; the
+  fuzzy suite looks at each step of a root.
 - **The application's worlds** keep running its hosts without bytes
   (`../domain/testing.md`), on the domain's vocabulary.
 - **Fuzzing,** in the fuzzy suite: each record's decoder and the

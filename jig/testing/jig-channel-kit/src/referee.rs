@@ -7,6 +7,44 @@ use jig_domain_core as core;
 use jig_fake_parties as parties;
 use skein_lib::Time;
 use std::{cell::RefCell, rc::Rc};
+/// When `observe_roots` formats a host's roots. A root's state can newly hold
+/// a grant only once the grant exists, so a host is due when the wire's count
+/// of grants has moved since it was last checked, and at its next root step
+/// after that, when the receiving root has taken the grant up. `every_step`
+/// keeps the check at each root step, for `fuzzy::channel`.
+pub struct RootChecks {
+    every_step: bool,
+    hosts: std::collections::BTreeMap<u64, RootCheck>,
+}
+
+#[derive(Default)]
+struct RootCheck {
+    grants: usize,
+    steps: u64,
+    next_step: bool,
+}
+
+impl RootChecks {
+    #[must_use]
+    pub fn new(every_step: bool) -> Self {
+        Self { every_step, hosts: std::collections::BTreeMap::new() }
+    }
+
+    /// Whether this host, at this many root steps and with this many grants
+    /// seen on the wire, is due; records that it was checked when it is.
+    pub fn due(&mut self, grants: usize, host: u64, steps: u64) -> bool {
+        let checked = self.hosts.entry(host).or_default();
+        let new_grant = grants != checked.grants;
+        if !new_grant && !((self.every_step || checked.next_step) && steps != checked.steps) {
+            return false;
+        }
+        checked.grants = grants;
+        checked.steps = steps;
+        checked.next_step = new_grant;
+        true
+    }
+}
+
 #[expect(clippy::struct_excessive_bools, reason = "independent party, injection and settlement controls")]
 pub struct Referee {
     pub(crate) accounts: crate::account_setup::Setup,
@@ -25,9 +63,8 @@ pub struct Referee {
     pub(crate) calibrating_held_turn: bool,
     pub(crate) resumed_attempt: u64,
     pub(crate) engine_observed: usize,
-    pub(crate) roots_observed: std::collections::BTreeMap<u64, u64>,
+    pub(crate) root_checks: RootChecks,
     pub(crate) formatted: String,
-    pub(crate) grants_observed: usize,
     pub(crate) engine_instance: Option<u64>,
     pub(crate) views: Rc<RefCell<crate::world::Views>>,
 }
@@ -736,20 +773,15 @@ impl Referee {
 impl Referee {
     fn observe_roots(&mut self, worker: &crate::processes::Wire, procs: &[Proc]) {
         let grants: Vec<_> = worker.grants.iter().map(AsRef::as_ref).collect();
-        if self.grants_observed != grants.len() {
-            self.roots_observed.clear();
-            self.grants_observed = grants.len();
-        }
         for proc in procs {
             if let Proc::Engine(host) | Proc::Worker(host) = proc
                 && !grants.is_empty()
-                && self.roots_observed.get(&host.revision.0) != Some(&host.service.root_steps())
+                && self.root_checks.due(grants.len(), host.revision.0, host.service.root_steps())
             {
                 use std::fmt::Write;
                 self.formatted.clear();
                 write!(&mut self.formatted, "{:?}", Roots(&host.service)).expect("root state");
                 self.rules.roots(&self.formatted, &grants);
-                self.roots_observed.insert(host.revision.0, host.service.root_steps());
             }
         }
         assert_eq!(self.rules.verdict(), skein_world::domain::Verdict::Passed);
@@ -930,6 +962,7 @@ impl Referee {
         if !matches!(self.story, crate::stories::Story::Drain | crate::stories::Story::Providers) {
             return;
         }
+        let grants = worker_wire(procs).grants.clone();
         for proc in procs {
             if let Proc::Engine(host) = proc {
                 if !self.injected && crate::world::pending_turn(&self.store.borrow()) {
@@ -938,11 +971,16 @@ impl Referee {
                     host.service.shutdown();
                 }
                 if self.injected && !self.views.borrow().engine_drained && host.service.is_empty() {
+                    use std::fmt::Write;
                     assert_eq!(host.service.end(), Some(&jig_test_service::End::Drained));
                     let mut views = self.views.borrow_mut();
                     views.engine_drained = true;
                     views.commits_waiting_at_drain = self.store.borrow().pending.len();
                     assert_eq!(views.commits_waiting_at_drain, 0);
+                    self.formatted.clear();
+                    write!(&mut self.formatted, "{:?}", Roots(&host.service)).expect("root state");
+                    self.rules.roots(&self.formatted, &grants.iter().map(AsRef::as_ref).collect::<Vec<_>>());
+                    assert_eq!(self.rules.verdict(), skein_world::domain::Verdict::Passed);
                     host.service = jig_test_service::startup(
                         &if matches!(self.story, crate::stories::Story::Providers) {
                             crate::fixtures::providers_document()
