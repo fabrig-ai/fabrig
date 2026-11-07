@@ -23,6 +23,11 @@ charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Later pages, changes to a known name's figures and catalogue-number reuse
+remain deferred (`domain/engine.md`, section 16).
+A list read changing only the omitted count leaves `me` unmarked, so the
+page's count can stay stale (`domain/engine.md`, 17.12;
+`client/domain/contract.md`, 5.1).
 Standard admits batches of 32, charters of 262,144 bytes and outcomes of
 131,072; a change body's bound follows its contract's words. Message
 rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;

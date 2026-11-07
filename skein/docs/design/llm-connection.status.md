@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [llm-connection.md](llm-connection.md).
 
+Section 4.3 has no known implementation gap in the standalone exchange,
+connection cleanup, deadlines or typed answers without refusal bodies.
+Sharing its exchange shape remains section 9's open question.
+
 - **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
