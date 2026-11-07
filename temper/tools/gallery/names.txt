@@ -230,7 +230,10 @@ settings-goals
 settings-goals-off
 settings-refused
 sheet-adopt
+sheet-copy
+sheet-copy-lines
 sheet-empty
+sheet-empty-source
 sheet-few
 sheet-none
 sheet-searching

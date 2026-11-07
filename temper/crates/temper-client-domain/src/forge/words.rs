@@ -12,6 +12,18 @@ pub enum Word {
     Account,
     MakeEmpty,
     CopyPublic,
+    Organization,
+    MakeOn,
+    CopiedInto,
+    Addresses,
+    AddressExample,
+    UseIt,
+    AdoptIt,
+    MakeOne,
+    MakeIt,
+    Copy,
+    CopyOne,
+    CopyMany,
     Find,
     Repositories,
     NotListed,
@@ -106,7 +118,7 @@ pub enum Word {
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 98] = [
+pub const ROWS: [Row; 110] = [
     (Word::SheetTitle, &[b"Add repositories to ", b""], &[Name]),
     (Word::SheetProject, &[b"project ", b""], &[Number]),
     (Word::AddRepositories, &[b"Add repositories"], &[]),
@@ -114,6 +126,18 @@ pub const ROWS: [Row; 98] = [
     (Word::Account, &[b"Account"], &[]),
     (Word::MakeEmpty, &[b"Make empty"], &[]),
     (Word::CopyPublic, &[b"Copy public"], &[]),
+    (Word::Organization, &[b"Organization"], &[]),
+    (Word::MakeOn, &[b"On ", b", with a README and a starter CI check."], &[Name]),
+    (Word::CopiedInto, &[b"Copied into ", b" from GitHub or another git host. Each keeps its owner and name, and nothing is sent back."], &[Name]),
+    (Word::Addresses, &[b"Their addresses, one per line"], &[]),
+    (Word::AddressExample, &[b"github.com/owner/name"], &[]),
+    (Word::UseIt, &[b"Use it"], &[]),
+    (Word::AdoptIt, &[b"Adopt it"], &[]),
+    (Word::MakeOne, &[b"Make ", b""], &[Name]),
+    (Word::MakeIt, &[b"Make it"], &[]),
+    (Word::Copy, &[b"Copy"], &[]),
+    (Word::CopyOne, &[b"Copy ", b""], &[Name]),
+    (Word::CopyMany, &[b"Copy ", b" repositories"], &[Number]),
     (Word::Find, &[b"Find by name"], &[]),
     (Word::Repositories, &[b"Repositories"], &[]),
     (Word::NotListed, &[b"Not listed"], &[]),
@@ -251,6 +275,7 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
         Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
+        Word::CopyOne => text.checked_mul(3).expect("lossy address fits").max(513),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,
         Word::Password => super::OWNED_PASSWORD_BYTES,
@@ -271,7 +296,7 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 256
             }
         }
-        Word::AdoptOne | Word::Grant | Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
+        Word::MakeOne | Word::AdoptOne | Word::Grant | Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
         Word::Collaborator => {
             if index == 0 {
                 256
@@ -279,7 +304,9 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 513
             }
         }
-        Word::NotInstalled
+        Word::MakeOn
+        | Word::CopiedInto
+        | Word::NotInstalled
         | Word::ReadNotAdmin
         | Word::PrefixOccupied
         | Word::NoSuchForge
@@ -291,6 +318,14 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
         | Word::Account
         | Word::MakeEmpty
         | Word::CopyPublic
+        | Word::Organization
+        | Word::Addresses
+        | Word::AddressExample
+        | Word::UseIt
+        | Word::AdoptIt
+        | Word::MakeIt
+        | Word::Copy
+        | Word::CopyMany
         | Word::Find
         | Word::Repositories
         | Word::NotListed
@@ -1411,6 +1446,26 @@ pub fn sheet_remedy(remedy: &super::sheet::Remedy) -> Box<[u8]> {
             b".",
         ]),
     }
+}
+
+/// A copy line keeps all its words even when its raw address is longer than a phrase hole.
+#[must_use]
+pub fn sheet_line(line: &super::making::Line) -> Option<Box<[u8]>> {
+    use super::making::Line;
+    Some(match line {
+        Line::To { .. } => return None,
+        Line::Bad { raw } => join_words(&[b"Not an address: ", &lossy(raw), b". Write it as github.com/owner/name."]),
+        Line::NotAHost { raw, line } => {
+            let raw = raw.strip_prefix(b"https://").unwrap_or(raw);
+            let raw = raw.strip_prefix(b"http://").unwrap_or(raw);
+            let host = match skein_lib::bytes::find(raw, b"/") {
+                Some(end) => raw.get(..end).expect("found host separator"),
+                None => raw,
+            };
+            join_words(&[&lossy(host), b" isn\xe2\x80\x99t a host. Did you mean ", line, b"?"])
+        }
+        Line::Taken { org, name, .. } => join_words(&[&full_name(org, name), b" is already on this forge."]),
+    })
 }
 
 /// A sheet keeps the refusal beside the remaining selections (client/README.md, 4.4).
