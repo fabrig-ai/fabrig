@@ -29,6 +29,33 @@ fn a_goal_issue_follows_its_milestone_and_closes() {
 fn lost_issue_creation_answer_recovers_without_a_second_issue() {
     stories::run(Story::IssueCreation, Cut::None, 71).expect("issue creation uncertainty");
 }
+
+#[test]
+fn a_forked_cut_ends_as_a_fresh_cut_does() {
+    // PersonWords has the fewest native baseline commits: 17, versus IssueCreation's 21.
+    let story = Story::PersonWords;
+    let seed = 101;
+    let first_live = Temper::store(&Config::for_story(seed, story)).applied + 1;
+    let baseline = stories::run(story, Cut::None, seed).expect("baseline");
+    let fresh = (first_live..=baseline.commits)
+        .map(|cut| {
+            let outcome = stories::run(story, Cut::AfterCommit(cut), seed).expect("fresh cut");
+            assert!(outcome.crashes.contains(&cut), "fresh cut {cut} fired");
+            (cut, outcome)
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let outcome = stories::run(story, Cut::EachCommitFrom(first_live), seed).expect("forked cuts");
+    if outcome.forked.is_empty() || outcome.crashes != baseline.crashes {
+        // The story also restarts itself; the complete crash list identifies its added cut.
+        let mut cuts = fresh.iter().filter(|(_, expected)| expected.crashes == outcome.crashes);
+        let (cut, expected) = cuts.next().expect("fresh outcome for this child's crashes");
+        assert!(cuts.next().is_none(), "crashes identify one cut");
+        assert_eq!(outcome, *expected, "cut {cut}");
+    }
+    jig_conformance::cut_passed();
+    assert_eq!(outcome.forked, (first_live..=baseline.commits).collect::<Vec<_>>(), "every live cut compared");
+}
+
 /// Crash one native story at its configured receipt cuts, including writer
 /// restoration, an already deleted branch, a lost milestone comment and a
 /// retained live-run word; its baseline runs above and in the fuzzy sweep.
