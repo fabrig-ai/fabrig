@@ -4826,6 +4826,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
@@ -4892,6 +4893,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
