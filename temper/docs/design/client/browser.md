@@ -1144,7 +1144,7 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
   and the browser's address becomes the callback's, its `code` and the
   link's `state` there. Nothing of the token's is the browser's.
 
-### 4.6 The twelve
+### 4.6 The stories
 
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
@@ -1181,6 +1181,12 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
 14. **Reading back** (4.1, 5).
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`.
+16. **The composer's model picker** (`README.md`, 3.5): on a started chat,
+    open the menu at 420 px, press a model and then an effort, each changing
+    the line with one press; outside and Escape fold it. This checks the
+    browser's disclosure, viewport and focus behaviour; the domain and view
+    tests hold account filtering, amendments, refusal and search. It does
+    not prove which model a subsequent provider request uses.
 
 The cap includes all browser tests, whatever their names.
 
@@ -1314,7 +1320,8 @@ Not in the tier, each in the lowest world that shows it:
   change; the repaired long story's query count alone gives no reason to add it.
 - **The remaining browser cost** (4.3, 4.6): another repair may prepare the
   other stories' histories outside the page, and combine stories sharing a setup
-  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
+  before dropping a browser-only proof, including the picker with another
+  started-chat story. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
 - **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
