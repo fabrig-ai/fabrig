@@ -15,10 +15,6 @@ unignored. Its store keeps the latest configured catalogue for both
 crash reopening and forks, so the restart oracle reads the same model
 names.
 
-- **Not yet:** 13.2: an asking charter's proposal is judged for its approvals at
-  acceptance alone, not at its call (`temper-engine-domain/src/route/tools.rs`,
-  `propose_settings`; `route/kinds.rs`, `approval_refusal`).
-
 Section 13.2 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its
 proposal-items read carries `owned_approval` through the client wire so

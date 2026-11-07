@@ -306,7 +306,6 @@ pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<
 }
 
 /// Decode host calls with execution models and whole catalogue settings.
-#[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
 pub fn call_configured(
     name: run::CallName,
     tool: &[u8],
@@ -314,8 +313,21 @@ pub fn call_configured(
     models: &[engine::Model],
     catalogue: &[jig_domain_core::settings::CatalogueModel],
 ) -> Result<Decoded, Problem> {
+    call_in(name, tool, input, models, catalogue, &[])
+}
+
+/// Decode host calls with the task project's readable repository identities.
+#[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
+pub fn call_in(
+    name: run::CallName,
+    tool: &[u8],
+    input: &run::HostInput,
+    models: &[engine::Model],
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
+    repositories: &[engine::RepositoryIdentity],
+) -> Result<Decoded, Problem> {
     if tool == b"propose_settings" {
-        return crate::settings::proposal(name, input.bytes(), catalogue);
+        return crate::settings::proposal(name, input.bytes(), catalogue, repositories);
     }
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {

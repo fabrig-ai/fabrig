@@ -231,6 +231,7 @@ impl DocumentFlight {
             | CallAnswer::ChangeRefused { .. }
             | CallAnswer::NoteRecalled { .. }
             | CallAnswer::Document(_)
+            | CallAnswer::Parts(_)
             | CallAnswer::Unavailable) => return answer,
         };
         CallAnswer::Document(Box::new(crate::Documented {

@@ -105,25 +105,22 @@ pub(crate) fn proposal(
     name: run::CallName,
     bytes: &[u8],
     configured: &[s::CatalogueModel],
+    repositories: &[engine::RepositoryIdentity],
 ) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
     only(&value, &[b"against", b"items", b"note", b"reason", b"more"], b"propose_settings")?;
-    if let Some(more) = value.field(b"more")?
-        && more.boolean(b"more")?
-    {
-        return Ok(Decoded::Answered(
-            run::HostAnswer::new(
-                b"propose_settings: more is not taken yet; give the whole set in one call.".as_slice().into(),
-                true,
-            )
-            .ok_or(Problem::TooLarge)?,
-        ));
-    }
+    let more = match value.field(b"more")? {
+        Some(more) => more.boolean(b"more")?,
+        None => false,
+    };
     let against = positive(value.required(b"against")?, b"against")?;
     let reason = value.required(b"reason")?.text(b"reason")?;
     if let Some(note) = value.field(b"note")? {
         if value.field(b"items")?.is_some() {
             return Err(Problem::Range(b"items"));
+        }
+        if value.field(b"more")?.is_some() {
+            return Err(Problem::Range(b"more"));
         }
         only(note, &[b"name", b"revision"], b"note")?;
         let note_name = note.required(b"name")?.number(b"name")?;
@@ -143,60 +140,18 @@ pub(crate) fn proposal(
     }
     value.required(b"items")?;
     let limits = settings_form::Limits::standard();
-    let normalized;
-    let bytes = if value.field(b"more")?.is_some() {
-        normalized = proposal_without_more(bytes)?;
-        normalized.as_ref()
-    } else {
-        bytes
-    };
-    let items = settings_form::file::proposal_items(bytes, &limits);
-    proposal_items(name.completion, name.position, against, reason, items, configured)
-}
-
-// The shared settings-file parser takes no batching member. A false more
-// carries the same whole proposal, with that member removed at the host boundary.
-fn proposal_without_more(bytes: &[u8]) -> Result<Box<[u8]>, Problem> {
-    let length = u32::try_from(bytes.len()).or(Err(Problem::TooLarge))?;
-    let parsed = skein_json::parse(
-        bytes,
-        &skein_json::tokenizer::Limits { depth: 16, string: length, number: 24, chunk: length.max(1), length },
-        &skein_json::document::Limits { tokens: length, text: length },
-    )
-    .or(Err(Problem::Malformed))?;
-    let more = parsed.member(0, b"more").ok_or(Problem::Missing(b"more"))?;
-    let key = more.checked_sub(1).ok_or(Problem::Malformed)?;
-    let limits = skein_json::writer::Limits { depth: 16, length };
-    let mut measure = skein_json::writer::Encoder::measure(&limits);
-    encode_without_more(&mut measure, &parsed, key, more);
-    let length = measure.measured().or(Err(Problem::TooLarge))?;
-    let mut out = skein_json::writer::Encoder::write(length, &limits);
-    encode_without_more(&mut out, &parsed, key, more);
-    Ok(out.finish())
-}
-
-fn encode_without_more(out: &mut skein_json::writer::Encoder, parsed: &skein_json::Document, key: u32, more: u32) {
-    use skein_json::Kind;
-    for at in 0..parsed.len() {
-        if at == key || at == more {
-            continue;
-        }
-        let record = parsed.token(at).expect("retained JSON token");
-        let text = parsed.text(record).expect("retained JSON text");
-        match record.kind {
-            Kind::ObjectStart => out.object_start(),
-            Kind::ObjectEnd => out.object_end(),
-            Kind::ArrayStart => out.array_start(),
-            Kind::ArrayEnd => out.array_end(),
-            Kind::Key => out.key(text),
-            Kind::String => out.string(text),
-            Kind::Number => out.number(text),
-            Kind::True => out.boolean(true),
-            Kind::False => out.boolean(false),
-            Kind::Null => out.null(),
-            Kind::Long => unreachable!("whole host JSON retains every string"),
-        }
+    let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
+    for repository in repositories {
+        identities
+            .push(settings_form::file::Repository {
+                host: &repository.host,
+                owner: &repository.owner,
+                name: &repository.name,
+            })
+            .expect("one resolver per repository");
     }
+    let items = settings_form::file::proposal_items_in(bytes, &limits, Some(identities.as_slice()));
+    proposal_items(name.completion, name.position, against, reason, items, configured, more)
 }
 
 /// Decode an authorized, revision-checked note's whole settings file through
@@ -206,7 +161,7 @@ pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[s::Catalogu
         return Err(Problem::Range(b"note"));
     };
     let items = settings_form::file::decode(bytes, &settings_form::Limits::standard());
-    proposal_items(call.completion, call.position, against, reason, items, configured)
+    proposal_items(call.completion, call.position, against, reason, items, configured, false)
 }
 
 fn proposal_items(
@@ -216,6 +171,7 @@ fn proposal_items(
     reason: Box<[u8]>,
     items: Result<List<c::SettingItem>, Box<[u8]>>,
     configured: &[s::CatalogueModel],
+    more: bool,
 ) -> Result<Decoded, Problem> {
     let limits = settings_form::Limits::standard();
     let items = match items {
@@ -240,7 +196,7 @@ fn proposal_items(
     Ok(Decoded::Call(engine::Call {
         completion,
         position,
-        tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds, more },
     }))
 }
 
@@ -682,6 +638,80 @@ fn malformed_setting(
             None => None,
         },
     }
+}
+
+/// Render unrecorded parts in the contract's words (domain/agent.md, 8.4.2).
+pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer) -> Result<bool, Problem> {
+    use engine::PartsAnswer as P;
+    text.add(b"propose_settings: ")?;
+    match parts {
+        P::Holding { count, total, against, dropped } => {
+            text.add(b"holding ")?;
+            part_items(text, *count)?;
+            text.add(b" for revision ")?;
+            text.number(u64::from(*against))?;
+            text.add(b", ")?;
+            text.number(u64::from(*total))?;
+            text.add(b" in all; ")?;
+            match dropped {
+                Some((count, revision)) => {
+                    text.add(b"the ")?;
+                    text.number(u64::from(*count))?;
+                    text.add(b" held for revision ")?;
+                    text.number(u64::from(*revision))?;
+                    text.add(b" were dropped. Nothing is proposed until a call without more.")?;
+                }
+                None => text.add(b"nothing is proposed until a call without more.")?,
+            }
+            return Ok(false);
+        }
+        P::Held { setting } => {
+            let setting = match setting {
+                s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
+                s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
+                s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
+                s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
+                s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
+                s::Setting::Rules => c::Setting::Rules,
+                s::Setting::Application { kind, scope, number } => c::Setting::Application { kind: *kind, scope: *scope, number: *number },
+            };
+            let mut measure = settings_form::Text::measure();
+            settings_form::render::setting_text(setting, &mut measure);
+            let mut out = settings_form::Text::writing_exact(measure);
+            settings_form::render::setting_text(setting, &mut out);
+            text.add(&out.finish())?;
+            text.add(b" is held already, from an earlier part; nothing was added.")?;
+        }
+        P::PastBound { most, would } => {
+            text.add(b"a proposal holds at most ")?;
+            part_items(text, *most)?;
+            text.add(b", and this call would make ")?;
+            text.number(u64::from(*would))?;
+            text.add(b"; nothing was added.")?;
+        }
+        P::Revision { held, against, named } => {
+            text.add(b"the ")?;
+            part_items(text, *held)?;
+            text.add(b" held are for revision ")?;
+            text.number(u64::from(*against))?;
+            text.add(b", and this call names ")?;
+            text.number(u64::from(*named))?;
+            text.add(b"; nothing was proposed, and they were dropped. Give the whole set again against ")?;
+            text.number(u64::from(*named))?;
+            text.add(b".")?;
+        }
+        P::Restarted => text.add(b"temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.")?,
+        P::NotOffered => text.add(b"more is not offered to this charter; give the whole set in one call, or from a note.")?,
+        P::Approvals { why } => {
+            text.add(b"not proposed, as acceptance would refuse it: ")?;
+            text.add(why)?;
+        }
+    }
+    Ok(true)
+}
+fn part_items(text: &mut crate::answers::Text, count: u32) -> Result<(), Problem> {
+    text.number(u64::from(count))?;
+    text.add(if count == 1 { b" item" } else { b" items" })
 }
 
 #[cfg(test)]

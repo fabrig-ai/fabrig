@@ -406,15 +406,5 @@ pub(super) fn settings_value(
 }
 
 fn propose_settings(domain: &mut Domain, to: ReplyTo, key: crate::CallKey, tool: Tool) {
-    let Tool::ProposeSettings { against, items, reason, kinds } = tool else { unreachable!("whole proposal") };
-    if let Some(jig_domain_people::Refusal::Judged { why, .. }) = super::room_refusal(domain.host_part, &items) {
-        super::host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body: why });
-        return;
-    }
-    domain.kinds = kinds;
-    domain.work.push(Work::Core(core::Event::NamedAction {
-        to,
-        key,
-        action: core::NamedAction::ProposeSettings { against, items, reason },
-    }));
+    super::settings_parts::call(domain, to, key, tool);
 }

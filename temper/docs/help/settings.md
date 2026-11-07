@@ -117,8 +117,9 @@ its default. A stored change still wins over a changed default.
   and proposed policy, each whole. Each verb's help gives its arguments:
   `temper ctl help settings apply`.
 - A settings file holds the items: `temper help settings-fields` gives its form.
-- A run needs the settings family in its charter and authority to read
-  with `settings` and propose with `propose_settings`: stock charter 3 alone
+- A run needs the settings family in its charter and authority to read settings
+  and propose with `propose_settings`: stock charter 3 reads with `settings`,
+  and charter 11 uses `see` and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter` and
   `project-policy`, `project-ways` and `project-questions`, in the settings

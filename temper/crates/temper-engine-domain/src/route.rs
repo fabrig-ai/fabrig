@@ -25,6 +25,7 @@ pub(crate) mod proposals;
 pub(crate) mod public;
 pub(crate) mod see;
 pub use see::{SeeAnswer, SeeLanding, SeeProposal, SeeRepository, SeeSettings};
+pub(crate) mod settings_parts;
 mod tools;
 pub(crate) mod trials;
 use crate::archive::take_read;
@@ -452,6 +453,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, routed);
             }
             Work::ForgeRestored => {
+                settings_parts::restored(domain);
                 domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);

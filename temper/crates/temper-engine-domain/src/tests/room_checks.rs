@@ -246,6 +246,7 @@ fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
             completion: 1,
             position: 0,
             tool: crate::Tool::ProposeSettings {
+                more: false,
                 against: 1,
                 items: items(),
                 reason: b"a charter".as_slice().into(),

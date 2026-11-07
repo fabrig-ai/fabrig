@@ -145,7 +145,7 @@ fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientW
     let proposed = front.host_tool(
         task,
         3,
-        engine::Tool::ProposeSettings { against: inventory.newest, items, reason: reason.into(), kinds },
+        engine::Tool::ProposeSettings { more: false, against: inventory.newest, items, reason: reason.into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal, holder }) = proposed else {
         panic!("settings proposal: {proposed:?}")
@@ -669,7 +669,7 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
     let proposed = world.front().host_tool(
         task,
         2,
-        engine::Tool::ProposeSettings { against: 2, items, reason: REASON.as_bytes().into(), kinds },
+        engine::Tool::ProposeSettings { more: false, against: 2, items, reason: REASON.as_bytes().into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: second, .. }) = proposed else {
         panic!("second proposal: {proposed:?}")
@@ -758,6 +758,7 @@ fn change_something_replaces_the_card_below() {
         task,
         2,
         engine::Tool::ProposeSettings {
+            more: false,
             against: 1,
             items,
             reason: b"Wait three seconds instead".as_slice().into(),

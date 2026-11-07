@@ -146,12 +146,13 @@ fn decode(
     let engine::HostRequest::Decode { to, call, .. } = *request else { panic!("decode") };
     assert_eq!(call.name.as_ref(), name);
     let input = smith_domain_run::HostInput::attested(call.input).expect("host input");
-    let decoded = temper_engine_smith::call_configured(
+    let decoded = temper_engine_smith::call_in(
         smith_domain_run::CallName { activation: run.attempt, completion, position: 0 },
         &call.tool,
         &input,
         driver.root.models(),
         &driver.root.catalogue(),
+        &driver.root.repository_identities(run.task),
     )
     .expect("valid host call");
     (to, decoded)
