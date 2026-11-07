@@ -10,6 +10,8 @@ use jig_client_protocol_wire::v19 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
+#[path = "approval.rs"]
+mod approval;
 #[path = "closing.rs"]
 mod closing;
 #[path = "mint.rs"]
@@ -36,6 +38,7 @@ pub enum Unusable {
 pub struct Component {
     settings: Settings,
     provider: provider::State,
+    approval: approval::State,
     rng: CryptoRng,
     link: Option<Link>,
     past_links: Queue<(skein_lib::Secret, Past)>,
@@ -104,6 +107,7 @@ impl Component {
         let mut value = Self {
             public,
             provider: provider::State::new(&env.limits),
+            approval: approval::State::new(),
             settings,
             rng,
             link: None,
@@ -180,19 +184,7 @@ impl Component {
             }
             Event::Transport(message) => self.transport(env, message, out),
             Event::Reply { to, reply } => self.reply(env, to.into_token(), reply, out),
-            Event::SignInRefused { to } => {
-                let exchange = to.into_token();
-                if let Some((reserved, _)) = &self.spending
-                    && *reserved == exchange
-                {
-                    let (_, link) = self.spending.take().expect("matching reservation");
-                    self.remember_link(link, Past::Used);
-                }
-                let why = if self.stopping() { crate::MintRefusal::NotReady } else { crate::MintRefusal::Bound };
-                if !self.mint_refused(exchange, why, out) {
-                    self.refused(exchange);
-                }
-            }
+            Event::SignInRefused { to } => self.sign_in_refused(to.into_token(), out),
             Event::Secrets(SecretsAnswer::Got { owner: SecretOwner::PublicNames, value }) => {
                 self.public_key(value, out);
             }
@@ -302,7 +294,9 @@ impl Component {
                     ready = Some(*exchange);
                     break;
                 }
-                Waiting::Core { .. }
+                Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
                 | Waiting::SignOut { .. }
                 | Waiting::Watch { .. }
@@ -327,14 +321,14 @@ impl Component {
                     Route::Request => self.request(env, exchange, sign_in, &body, out),
                     Route::SignOut => self.sign_out(env, exchange, sign_in, &body, out),
                     Route::Authorize => self.authorize_checked(env, exchange, sign_in, &body, out),
-                    Route::ApprovalAsk
-                    | Route::ApprovalRead
-                    | Route::ApprovalDecide
-                    | Route::ApprovalTake
-                    | Route::Link
-                    | Route::Service => {}
+                    Route::ApprovalRead | Route::ApprovalDecide => {
+                        self.approval_checked(env, exchange, sign_in, route, &body);
+                    }
+                    Route::ApprovalAsk | Route::ApprovalTake | Route::Link | Route::Service => {}
                 },
-                Waiting::Core { .. }
+                Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
                 | Waiting::SignOut { .. }
                 | Waiting::Watch { .. }
@@ -418,10 +412,9 @@ impl Component {
         body: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
-        let (credential, _browser) = authentication;
         let exchange = self.name();
         let mut connection = Exchange::new(exchange, route == Route::Stream);
-        self.body(env, &mut connection, route, body, credential, out);
+        self.body(env, &mut connection, route, body, authentication, out);
         self.connections.insert(owner, connection).expect("transport bounds active exchanges");
     }
     #[expect(clippy::too_many_lines, reason = "dispatch keeps disabled approval answers before credential lookup")]
@@ -431,10 +424,20 @@ impl Component {
         connection: &mut Exchange,
         route: Route,
         body: Box<[u8]>,
-        credential: Option<skein_lib::Secret>,
+        authentication: (Option<skein_lib::Secret>, bool),
         out: &mut Queue<Request>,
     ) {
         let exchange = connection.name;
+        let (credential, browser) = authentication;
+        if self.settings.approval && (route == Route::ApprovalRead || route == Route::ApprovalDecide) && !browser {
+            let answer = if route == Route::ApprovalRead {
+                routes::approval_state(w::ApprovalState::NotABrowser)
+            } else {
+                routes::approval_decided(w::ApprovalDecided::NotABrowser)
+            };
+            connection.respond(crate::Reply::Record(answer));
+            return;
+        }
         if body.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
             connection.respond(crate::Reply::NotARecord);
             return;
@@ -449,13 +452,15 @@ impl Component {
             return;
         }
         match route {
+            Route::ApprovalAsk if self.settings.approval => self.approval_ask(env, connection, &body),
+            Route::ApprovalTake if self.settings.approval => self.approval_take(env, connection, &body, out),
             Route::ApprovalAsk => {
                 connection.respond(crate::Reply::Record(routes::approval_ask_answer(w::ApprovalAskAnswer::Refused)));
             }
-            Route::ApprovalRead => {
+            Route::ApprovalRead if !self.settings.approval => {
                 connection.respond(crate::Reply::Record(routes::approval_state(w::ApprovalState::Unknown)));
             }
-            Route::ApprovalDecide => {
+            Route::ApprovalDecide if !self.settings.approval => {
                 connection.respond(crate::Reply::Record(routes::approval_decided(w::ApprovalDecided::Unknown)));
             }
             Route::ApprovalTake => {
@@ -513,7 +518,9 @@ impl Component {
                     self.link_sign_in(exchange, None, out);
                 }
             }
-            Route::Authorize
+            Route::ApprovalRead
+            | Route::ApprovalDecide
+            | Route::Authorize
             | Route::Service
             | Route::SignOut
             | Route::Request
@@ -585,7 +592,9 @@ impl Component {
                 }
             },
             Waiting::Authorize { authorization, .. } => self.authorize_reply(env, exchange, reply, authorization),
-            Waiting::Core { held } => self.sign_in_reply(env, exchange, reply, held, out),
+            Waiting::ApprovalWhose { digest } => self.approval_whose(env, exchange, digest, reply, out),
+            Waiting::ApprovalCore { digest } => self.approval_reply(env, exchange, digest, reply, out),
+            Waiting::Core { held } => self.sign_in_reply(env, exchange, reply, held, false, out),
             Waiting::Ask { sign_in, .. } => self.ask_reply(env, exchange, sign_in, reply, out, waiting),
             Waiting::LinkGet { .. }
             | Waiting::Watch { .. }
@@ -657,7 +666,9 @@ impl Component {
                 let answer = crate::translate::answers::moving_out(account, number, record, &env.limits.wire);
                 self.answer(exchange, answer);
             }
-            Waiting::Core { .. }
+            Waiting::ApprovalWhose { .. }
+            | Waiting::ApprovalCore { .. }
+            | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
             | Waiting::SignOut { .. }
             | Waiting::Watch { .. }
@@ -704,7 +715,9 @@ impl Component {
                 };
                 self.answer(exchange, answer);
             }
-            Waiting::Core { .. }
+            Waiting::ApprovalWhose { .. }
+            | Waiting::ApprovalCore { .. }
+            | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
             | Waiting::SignOut { .. }
             | Waiting::Watch { .. }
@@ -720,6 +733,26 @@ impl Component {
             | Waiting::Carry { .. } => {
                 self.pending.exchanges.insert(exchange, waiting).expect("same slot");
             }
+        }
+    }
+    fn sign_in_refused(&mut self, exchange: Token, out: &mut Queue<Request>) {
+        if let Some(waiting) = self.pending.exchanges.get(&exchange)
+            && waiting.approval_take()
+        {
+            self.approval.refused(exchange);
+            self.pending.exchanges.remove(&exchange);
+            self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
+            return;
+        }
+        if let Some((reserved, _)) = &self.spending
+            && *reserved == exchange
+        {
+            let (_, link) = self.spending.take().expect("matching reservation");
+            self.remember_link(link, Past::Used);
+        }
+        let why = if self.stopping() { crate::MintRefusal::NotReady } else { crate::MintRefusal::Bound };
+        if !self.mint_refused(exchange, why, out) {
+            self.refused(exchange);
         }
     }
     fn refused(&mut self, exchange: Token) {
@@ -754,7 +787,9 @@ impl Component {
         let mut count = 0_u32;
         for (_, waiting) in &self.pending.exchanges {
             match waiting {
-                Waiting::Core { .. }
+                Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
                 | Waiting::SignOut { .. }
                 | Waiting::Watch { .. }
@@ -779,6 +814,12 @@ impl Component {
             Some(link) => Some(link.until),
             None => None,
         };
+        if let Some(deadline) = self.approval.next_deadline() {
+            next = Some(match next {
+                Some(next) => next.min(deadline),
+                None => deadline,
+            });
+        }
         for (_, stream) in &self.streams {
             if !stream.closing() && !stream.waiting {
                 next = Some(match next {
@@ -790,6 +831,7 @@ impl Component {
         next
     }
     pub fn fire(&mut self, env: &Env<Limits>) {
+        self.approval.sweep(env.now);
         if expired(self.link.as_ref(), env.now) {
             let link = self.link.take().expect("expired link");
             self.remember_link(link, Past::Expired);

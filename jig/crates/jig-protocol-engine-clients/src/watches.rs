@@ -246,7 +246,9 @@ impl Component {
                 | Waiting::Read { sign_in, .. }
                 | Waiting::Authorize { sign_in, .. }
                 | Waiting::ApplicationRead { sign_in, .. } => Some(*sign_in),
-                Waiting::Core { .. }
+                Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
                 | Waiting::SignOut { .. }
                 | Waiting::Keep { .. }
