@@ -16,6 +16,8 @@ fn cluster_engine(name: &str) -> jig_protocol_config::Engine {
 }
 
 fn configured_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+    let mut value = value.clone();
+    crate::support::configuration::use_stock(&mut value);
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &super::DOCUMENT).expect("engine document");
     temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
