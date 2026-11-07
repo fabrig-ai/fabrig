@@ -235,6 +235,7 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
 }
 
 impl Decoded {
+    #[cfg(unix)]
     pub(crate) fn list_endpoints(self) -> Result<llm::Endpoints, String> {
         llm::Endpoints::new(
             native::endpoints(self.endpoints.llm, &self.limits.llm.connection, &mut std::io::sink())
