@@ -667,6 +667,7 @@ fn paged_walks_repeat_on_open_and_after_crash() {
     use jig_domain_core::settings as s;
     use jig_domain_people as people;
     let model = s::CatalogueModel {
+        first_read: None,
         number: 1,
         model: temper_engine_domain_world::walking::charter().policy.model,
         shown: None,
