@@ -72,7 +72,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 14;
+pub const CLIENT_VERSION: u32 = 16;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -131,6 +131,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         forge_row_repositories: 16,
         forge_row_makings: MAKINGS,
         make_copy_address: 512,
+        dismiss_making_org: bounds.field_bytes,
+        dismiss_making_name: bounds.field_bytes,
         make_repository_org: bounds.field_bytes,
         make_repository_name: bounds.field_bytes,
         making_made_branch: bounds.field_bytes,
@@ -345,6 +347,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
+        | v1::Request::DismissMaking(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::TryAccount(_)

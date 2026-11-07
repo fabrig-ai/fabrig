@@ -532,7 +532,31 @@ fn world_in_layout(
                         v1::Read::ProposalItems(_) if settings_chat.is_some() => {
                             settings_proposal_values(&mut root, read, &mut out);
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) | v1::Read::ProgramEnvironment => {}
+                        v1::Read::ProgramEnvironment => {
+                            if let Address::ConnectModel { .. } = root.pages().address() {
+                                let value = v1::ProgramEnvironmentAnswer::new(
+                                    &v1::CEILINGS,
+                                    v1::ProgramEnvironmentAnswerParts { environment: Box::new([]) },
+                                )
+                                .expect("default program environment");
+                                step(
+                                    &mut root,
+                                    Event::Client {
+                                        event: jig_client::Event::Up {
+                                            up: jig_client::Up::ReadDone {
+                                                read,
+                                                result: jig_client::Readout::Family {
+                                                    family: FORGE,
+                                                    record: Some(wire::program_environment_answer(&value)),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    &mut out,
+                                );
+                            }
+                        }
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -547,7 +571,9 @@ fn world_in_layout(
                     let subject = match watching.watch() {
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
-                            if copies {
+                            if settings == Some("repositories-making") {
+                                repositories_making_watched(&mut root, watch, &mut out);
+                            } else if copies {
                                 copies_watched(&mut root, watch, &mut out);
                             } else {
                                 forges_watched(&mut root, w, watch, &mut out);
@@ -692,6 +718,76 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire as wire;
     let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: forges(world) };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
+}
+pub(super) fn repositories_making_world() -> Domain {
+    world_in_layout(
+        FirstRun { step: 7 },
+        Address::Repositories { project: PROJECT },
+        Then::Shown,
+        false,
+        None,
+        Some("repositories-making"),
+        false,
+    )
+    .0
+}
+fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows =
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").into_parts().forges;
+    let row = rows.get_mut(0).expect("owned forge");
+    let mut parts = home_copies(row.clone().into_parts(), "home-copying");
+    let mut makings = List::with_capacity(3);
+    for making in parts.makings.into_boxed() {
+        makings.push(making).expect("making fixture rows");
+    }
+    parts.makings = makings;
+    parts
+        .makings
+        .push(
+            w::RepositoryMaking::new(
+                &w::CEILINGS,
+                w::RepositoryMakingParts {
+                    org: b"octo".as_slice().into(),
+                    name: b"vsr".as_slice().into(),
+                    from: w::MakeFrom::Copy(
+                        w::MakeCopy::new(
+                            &w::CEILINGS,
+                            w::MakeCopyParts { address: b"https://github.com/octo/vsr".as_slice().into() },
+                        )
+                        .expect("failed source"),
+                    ),
+                    into: Some(
+                        w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: PROJECT, home: false })
+                            .expect("failed project"),
+                    ),
+                    state: w::MakingState::Failed(
+                        w::MakingFailed::new(
+                            &w::CEILINGS,
+                            w::MakingFailedParts {
+                                step: w::MakeStep::Repository,
+                                reason: w::MakeFailure::NotAllowed,
+                                words: b"You can not import from disallowed hosts.".as_slice().into(),
+                            },
+                        )
+                        .expect("forge words"),
+                    ),
+                },
+            )
+            .expect("failed making"),
+        )
+        .expect("failed row room");
+    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("making fixture");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("making rows")),
+    };
     step(
         root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
@@ -3255,7 +3351,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                     name: Some(Box::from("pat@example.com".as_bytes())),
                     place: 1,
                     number: 3,
-                    kind: if then == Then::KeyReady { c::AccountKind::Key } else { c::AccountKind::SignIn },
+                    kind: c::AccountKind::SignIn,
                     state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
@@ -3267,7 +3363,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 number: 2,
                 place: 2,
                 uses: None,
-                plan: then != Then::KeyReady,
+                plan: true,
                 provider: Some(18),
                 provider_name: Some(doc("openai")),
                 manage_usage: None,
@@ -3442,8 +3538,6 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::HeldChange
             | Then::Paused
             | Then::HeldTask
-            | Then::Filled
-            | Then::Refused
             | Then::SignedOut
             | Then::GoogleSignIn
             | Then::OutOfDate
@@ -3455,8 +3549,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
-            | Then::AccountRefused
-            | Then::KeyReady => None,
+            | Then::AccountRefused => None,
         },
         usable: w != World::Bare && w != (FirstRun { step: 0 }),
         settled: true,

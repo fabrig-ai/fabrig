@@ -257,7 +257,10 @@ impl Builder {
             assert!(self.node().role == Role::Item, "completed belongs to items");
         }
         if state == State::Continues {
-            assert!(self.node().role == Role::Log, "continues belongs to logs");
+            assert!(
+                self.node().role == Role::Log || self.node().role == Role::List,
+                "continues belongs to logs or lists"
+            );
         }
         if state == State::FoldsAway {
             assert!(self.node().role == Role::Disclosure, "folds away belongs to disclosures");
@@ -580,7 +583,8 @@ fn acted_on(role: Role) -> bool {
         | Role::Option
         | Role::MenuItem
         | Role::Drawing
-        | Role::Log => true,
+        | Role::Log
+        | Role::List => true,
         Role::Page
         | Role::Banner
         | Role::Navigation
@@ -593,7 +597,6 @@ fn acted_on(role: Role) -> bool {
         | Role::Heading { .. }
         | Role::Paragraph
         | Role::Text
-        | Role::List
         | Role::Item
         | Role::Table
         | Role::Row

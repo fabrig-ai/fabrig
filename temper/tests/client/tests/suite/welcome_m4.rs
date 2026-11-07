@@ -62,6 +62,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
             let view = page(&mut front, &mut root, address);
             let tree = Temper::tree(&view);
             let text = words(tree);
+            let in_row = *root.person().pages().address() == Address::Forges;
             let progress: Vec<_> = tree
                 .nodes()
                 .iter()
@@ -94,11 +95,24 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
                 text.iter().any(|line| line.contains(&format!("{label} failed: QA stopped the box"))),
                 "{label}: failure names its step: {text:?}"
             );
+            if in_row {
+                let items: Vec<_> = tree.nodes().iter().filter(|node| node.role == Role::Item).collect();
+                for (index, item) in items.iter().enumerate() {
+                    assert_eq!(
+                        item.styles.as_slice().contains(&temper_client_view::look::CONNECT_FAILED),
+                        index == failed
+                    );
+                }
+            }
             for (index, line) in progress.iter().enumerate() {
-                assert_eq!(line.contains("failed"), index == failed, "{label}: failed status at {index}: {line}");
+                assert_eq!(
+                    line.contains("failed"),
+                    !in_row && index == failed,
+                    "{label}: failed status at {index}: {line}"
+                );
                 assert_eq!(
                     line.contains("done"),
-                    failed != SETUP_STEPS && index < failed,
+                    !in_row && failed != SETUP_STEPS && index < failed,
                     "{label}: preceding steps done at {index}: {line}"
                 );
             }

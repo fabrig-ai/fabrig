@@ -116,7 +116,7 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     front.engine.settle();
     revisit(&mut front, &mut root);
     let ready = view(&root);
-    node(&ready, Role::Heading { level: 2 }, b"GitHub is connected");
+    node(&ready, Role::Paragraph, b"Connected GitHub.");
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
     assert!(front.reachable_reads.is_empty());
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("ready rows") };
@@ -129,8 +129,8 @@ fn ready_for_an_account_without_repositories_adopts_nothing() {
     let (front, root) = Joint::github_fixture_with(fixtures::SEED, true, true);
     assert!(front.reachable_reads.is_empty());
     let ready = view(&root);
-    node(&ready, Role::Heading { level: 2 }, b"GitHub is connected");
-    node(&ready, Role::Paragraph, b"Connected as app[bot].");
+    node(&ready, Role::Paragraph, b"Connected GitHub.");
+    node(&ready, Role::Description, "app[bot] · user 1".as_bytes());
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"More")));
 }

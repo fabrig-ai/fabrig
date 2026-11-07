@@ -721,3 +721,61 @@ fn an_empty_environment_answer_confirms_the_default_directories() {
     assert_eq!(page.program_environment(), b"");
     assert!(page.program_environment_answered());
 }
+
+#[test]
+fn connected_matches_the_person_provider_and_source_kind() {
+    let (mut root, _, watch) = opened(c::HeldRole::Owner);
+    let way = Way::Program { provider: PROVIDER };
+    assert!(!connect_model::connected(&root, way));
+    program_document(&mut root, watch, true, false);
+    assert!(connect_model::connected(&root, way), "a held source counts even when not usable");
+    assert!(!connect_model::connected(&root, Way::SignIn { provider: PROVIDER, plan: true }));
+    assert!(!connect_model::connected(&root, Way::Program { provider: PROVIDER + 1 }));
+    let mut doc = pages::accounts::document(root.client()).unwrap().clone();
+    doc.accounts.get_mut(0).unwrap().holder = c::AccountHolder::Party(fixtures::PARTY + 1);
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc))));
+    assert!(!connect_model::connected(&root, way));
+}
+#[test]
+fn the_default_is_the_first_unconnected_way_or_none() {
+    let (mut root, _, watch) = opened(c::HeldRole::Owner);
+    let first = Way::Program { provider: PROVIDER };
+    let second = Way::SignIn { provider: PROVIDER, plan: true };
+    let mut ways = skein_lib::List::with_capacity(2);
+    assert_eq!(connect_model::default_way(&ways, &root), None);
+    ways.push(first).unwrap();
+    ways.push(second).unwrap();
+    assert_eq!(connect_model::default_way(&ways, &root), Some(first));
+    program_document(&mut root, watch, true, false);
+    assert_eq!(connect_model::default_way(&ways, &root), Some(second));
+    let mut doc = pages::accounts::document(root.client()).unwrap().clone();
+    let mut source = doc.accounts.get(0).unwrap().sources.get(0).unwrap().clone();
+    source.kind = c::AccountKind::SignIn;
+    source.number = 44;
+    source.name = None;
+    let mut sources = skein_lib::List::with_capacity(2);
+    sources.push(doc.accounts.get(0).unwrap().sources.get(0).unwrap().clone()).unwrap();
+    sources.push(source).unwrap();
+    doc.accounts.get_mut(0).unwrap().sources = sources;
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc))));
+    assert_eq!(connect_model::default_way(&ways, &root), None);
+}
+#[test]
+fn demo_is_not_a_way_before_the_playground_is_read() {
+    let mut providers = skein_lib::List::with_capacity(1);
+    providers
+        .push(c::ProviderOffer {
+            provider: PROVIDER,
+            name: c::DocumentText::complete(c::Text::new(b"demo".as_slice().into(), 32).unwrap()),
+            key_bytes: 4096,
+            sign_in: true,
+            signed_in_plan: false,
+            key: true,
+            programs: skein_lib::List::with_capacity(0),
+            programs_cut: false,
+            none: false,
+            manage_usage: None,
+        })
+        .unwrap();
+    assert!(pages::accounts::ways(&providers, None, c::AskAccountHolder::Own).is_empty());
+}

@@ -298,3 +298,57 @@ fn an_unbound_log_prints_as_it_did() {
     assert_eq!(print.text.as_slice(), b"== ops == \nMessages:\n  Log description\n  entry\n");
     assert!(print.numbers.is_empty());
 }
+
+fn reading_lists(b: &mut Builder) {
+    for bound in [false, true] {
+        b.open(Role::List);
+        b.name(b"Entries");
+        if bound {
+            b.bind(fixtures::binding());
+            b.state(State::Continues);
+        }
+        fixtures::leaf(b, Role::Item, b"Entry");
+        b.close();
+    }
+}
+
+#[test]
+fn down_nears_a_bound_lists_foot_and_up_skips_it() {
+    let lists = fixtures::page(reading_lists);
+    let mixed = fixtures::page(|b| {
+        reading_lists(b);
+        b.open(Role::Log);
+        b.bind(fixtures::binding());
+        b.close();
+    });
+    let log = bound_reading_node(&mixed, Role::Log);
+    for tree in [&lists, &mixed] {
+        let list = bound_reading_node(tree, Role::List);
+        assert!(numbers(tree).numbers.is_empty(), "lists and logs take no numbered press");
+        for line in [b"down".as_slice(), b"\x1b[6~"] {
+            assert_eq!(
+                command(line, None, tree, READING_LINE_BYTES),
+                Command::Act { node: list, first: Act::Near { edge: LogEdge::Foot }, submit: false }
+            );
+        }
+    }
+    for line in [b"up".as_slice(), b"\x1b[5~"] {
+        assert_eq!(
+            command(line, None, &lists, READING_LINE_BYTES),
+            Command::Refused { refusal: Refusal::Unknown, number: 0 }
+        );
+        assert_eq!(
+            command(line, None, &mixed, READING_LINE_BYTES),
+            Command::Act { node: log, first: Act::Near { edge: LogEdge::Head }, submit: false }
+        );
+    }
+}
+
+fn bound_reading_node(tree: &Tree, role: Role) -> NodeId {
+    for node in tree.nodes() {
+        if node.role == role && node.binding.is_some() {
+            return node.id;
+        }
+    }
+    unreachable!("fixture has a bound reading node")
+}

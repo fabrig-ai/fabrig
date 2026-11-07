@@ -3,6 +3,45 @@ use crate::{forge, tests::fixtures};
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, source, v1 as w};
 
+#[test]
+fn address_lines_keep_independent_validation_and_repairs() {
+    use super::{Line, lines};
+    let parsed = lines(
+        b" github.com/octo/vsr\n octo/vsr\ngithub/octo/vsr\na\nhttps://host.example/o/n.git\n\nwork/taken\n",
+        &|org, name| org == b"work" && name == b"taken",
+    );
+    assert_eq!(
+        parsed.as_slice(),
+        [
+            Line::To {
+                address: b"https://github.com/octo/vsr".as_slice().into(),
+                org: b"octo".as_slice().into(),
+                name: b"vsr".as_slice().into(),
+            },
+            Line::To {
+                address: b"https://github.com/octo/vsr".as_slice().into(),
+                org: b"octo".as_slice().into(),
+                name: b"vsr".as_slice().into(),
+            },
+            Line::NotAHost {
+                raw: b"github/octo/vsr".as_slice().into(),
+                line: b"github.com/octo/vsr".as_slice().into(),
+            },
+            Line::Bad { raw: b"a".as_slice().into() },
+            Line::To {
+                address: b"https://host.example/o/n".as_slice().into(),
+                org: b"o".as_slice().into(),
+                name: b"n".as_slice().into(),
+            },
+            Line::Taken {
+                raw: b"work/taken".as_slice().into(),
+                org: b"work".as_slice().into(),
+                name: b"taken".as_slice().into(),
+            },
+        ]
+    );
+}
+
 fn copy(address: &[u8]) -> w::MakeFrom {
     w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap())
 }

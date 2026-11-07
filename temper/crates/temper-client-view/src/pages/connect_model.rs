@@ -5,6 +5,7 @@ use crate::{
         words::{self, Word as W},
     },
     flow::{self, Control},
+    look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -120,93 +121,190 @@ pub(super) fn choice(
     } else {
         Control::SecondaryLink { name: &label, to }
     };
-    flow::choice_card(b, &heading);
+    if welcome(root) {
+        flow::choice_card(b, &heading);
+    }
     crate::cards::text(b, Role::Paragraph, &description);
     b.open(Role::Paragraph);
-    b.style(crate::look::FLOW_MUTED);
+    b.style(look::FLOW_MUTED);
     b.name(&say(w, note));
     b.text(Run::Plain, &say(w, note));
     b.close();
     b.open(Role::Slot);
-    b.style(crate::look::FLOW_ACTIONS);
-    flow::control(b, control);
+    b.style(if welcome(root) { look::FLOW_ACTIONS } else { look::CONNECT_ACTS });
+    if welcome(root) {
+        flow::control(b, control);
+    } else {
+        connect_control(
+            b,
+            root,
+            bindings,
+            &label,
+            Role::Button,
+            Meaning::Model(Act::SignIn { name: root.pages().account_name(), way }),
+            true,
+            false,
+        );
+        other_ways(b, root, w, bindings);
+    }
     b.close();
+    if welcome(root) {
+        b.close();
+    }
+}
+/// Shared plan cards (temper/docs/design/client/README.md, 3.5, `ConnectModel` and Model).
+fn cards(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
+    let Some(me) = accounts::current_me(root.client()) else { return };
+    let mut plans = skein_lib::List::with_capacity(ways.len());
+    for name in [b"openai".as_slice(), b"anthropic"] {
+        for offer in &me.providers {
+            if offer.name.bytes() != name {
+                continue;
+            }
+            for way in ways {
+                if way.provider() == offer.provider {
+                    match way {
+                        Way::SignIn { .. } | Way::Program { .. } => {
+                            plans.push(*way).expect("one card per provider");
+                            break;
+                        }
+                        Way::Key { .. } => {}
+                    }
+                }
+            }
+        }
+    }
+    if plans.is_empty() && welcome(root) {
+        b.open(Role::Slot);
+        b.style(look::MODEL_CHOICES);
+        for way in ways {
+            choice(b, root, w, bindings, *way, ways);
+        }
+        b.close();
+        return;
+    }
+    if plans.is_empty() {
+        for way in ways {
+            match way {
+                Way::SignIn { .. } | Way::Program { .. } => plans.push(*way).expect("offered plans fit"),
+                Way::Key { .. } => {}
+            }
+        }
+    }
+    let default = model::default_way(&plans, root);
+    if plans.is_empty() {
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(if welcome(root) { look::MODEL_CHOICES } else { look::CONNECT_CARDS });
+    for way in &plans {
+        plan_card(b, root, w, bindings, *way, ways, default);
+    }
     b.close();
 }
-/// The welcome's Model step: a card for each plan its card names, `openai`'s
-/// and `anthropic`'s, its sign-in or subscription alone, a sign-in the
-/// default; no key and no other provider's ways
-/// (`temper/docs/design/client/README.md`, 3.5).
-fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
+fn plan_card(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    way: Way,
+    ways: &skein_lib::List<Way>,
+    default: Option<Way>,
+) {
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let mut shown = false;
-    b.open(Role::Slot);
-    b.style(crate::look::MODEL_CHOICES);
-    for offer in &me.providers {
-        if offer.name.bytes() != b"openai" && offer.name.bytes() != b"anthropic" {
-            continue;
+    let (_, plan) = names(me, way);
+    let heading = crate::choice::shown(plan, w);
+    b.open(Role::Region);
+    b.name(&heading);
+    if welcome(root) {
+        b.style(look::FLOW_CARD);
+        b.style(look::FLOW_CHOICE);
+    } else {
+        b.style(look::CONNECT_CARD);
+        if default == Some(way) {
+            b.style(look::CONNECT_DEFAULT);
         }
-        // A plan alone: a key is added from the accounts page (3.5).
-        let mut main = None;
-        for way in ways {
-            if way.provider() == offer.provider
-                && let Way::SignIn { .. } | Way::Program { .. } = way
-            {
-                main = main.or(Some(*way));
-            }
+    }
+    crate::cards::text(b, Role::Heading { level: 2 }, &heading);
+    let name = [Hole::Name(crate::choice::shown(plan, w))];
+    let (description, note) = match way {
+        Way::Program { .. } => {
+            (w.say(Word::WelcomeModelSubscription, &name), w.say(Word::WelcomeModelProgramTime, &[]))
         }
-        let Some(way) = main else { continue };
-        shown = true;
-        let (_, plan) = names(me, way);
-        flow::choice_card(b, &crate::choice::shown(plan, w));
-        let name = [Hole::Name(crate::choice::shown(plan, w))];
-        let (description, note) = match way {
-            Way::Program { .. } => {
-                (w.say(Word::WelcomeModelSubscription, &name), w.say(Word::WelcomeModelProgramTime, &[]))
-            }
-            Way::SignIn { .. } | Way::Key { .. } => {
-                (w.say(Word::WelcomeModelPlan, &name), w.say(Word::WelcomeModelSignInTime, &[]))
-            }
-        };
-        crate::cards::text(b, Role::Paragraph, &description);
-        b.open(Role::Paragraph);
-        b.style(crate::look::FLOW_MUTED);
+        Way::SignIn { .. } | Way::Key { .. } => {
+            (w.say(Word::WelcomeModelPlan, &name), w.say(Word::WelcomeModelSignInTime, &[]))
+        }
+    };
+    crate::cards::text(b, Role::Paragraph, &description);
+    let connected = model::connected(root, way);
+    b.open(Role::Paragraph);
+    b.style(if welcome(root) { look::FLOW_MUTED } else { look::CONNECT_MUTED });
+    if connected {
+        b.open(Role::Text);
+        b.style(look::CONNECT_YES);
+        b.name(&say(w, W::Connected));
+        b.text(Run::Plain, &say(w, W::Connected));
+        b.close();
+    } else {
         b.name(&note);
         b.text(Run::Plain, &note);
-        b.close();
-        b.open(Role::Slot);
-        b.style(crate::look::FLOW_ACTIONS);
-        let label = label(me, way, ways, w);
-        let meaning = match way {
-            Way::SignIn { .. } => Meaning::Model(Act::SignIn { name: root.pages().account_name(), way }),
-            Way::Key { .. } | Way::Program { .. } => {
-                Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way))))
-            }
-        };
-        if let Some(to) = bindings.insert(meaning) {
-            flow::control(
-                b,
-                match way {
-                    Way::SignIn { .. } => Control::PrimaryButton { name: &label, to },
-                    Way::Key { .. } | Way::Program { .. } => Control::SecondaryLink { name: &label, to },
-                },
-            );
-        }
-        b.close();
-        b.close();
     }
     b.close();
-    if !shown {
-        choices(b, root, w, bindings, ways);
-    }
-}
-fn choices(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
     b.open(Role::Slot);
-    b.style(crate::look::MODEL_CHOICES);
-    for way in ways {
-        choice(b, root, w, bindings, *way, ways);
+    b.style(if welcome(root) { look::FLOW_ACTIONS } else { look::CONNECT_ACTS });
+    let label = if connected { say(w, W::AnotherPlan) } else { label(me, way, ways, w) };
+    let (role, meaning) = match way {
+        Way::SignIn { .. } => (Role::Button, Meaning::Model(Act::SignIn { name: root.pages().account_name(), way })),
+        Way::Key { .. } | Way::Program { .. } => {
+            (Role::Link, Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+        }
+    };
+    connect_control(b, root, bindings, &label, role, meaning, default == Some(way), false);
+    b.close();
+    b.close();
+}
+
+#[expect(clippy::too_many_arguments, reason = "the connection control keeps its role, meaning and state together")]
+fn connect_control(
+    b: &mut Builder,
+    root: &Domain,
+    bindings: &mut Bindings,
+    name: &[u8],
+    role: Role,
+    meaning: Meaning,
+    primary: bool,
+    disabled: bool,
+) {
+    let Some(to) = bindings.insert(meaning) else { return };
+    b.open(role);
+    b.style(if welcome(root) {
+        if primary { look::FLOW_PRIMARY } else { look::FLOW_SECONDARY }
+    } else if primary {
+        look::CONNECT_PRIMARY
+    } else {
+        look::CONNECT_SECONDARY
+    });
+    b.name(name);
+    if role == Role::Link {
+        b.link(to);
+        b.text(Run::Plain, name);
+    }
+    b.bind(to);
+    if disabled {
+        b.state(State::Disabled);
     }
     b.close();
+}
+pub(super) fn other_ways(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    if welcome(root) {
+        return;
+    }
+    if let Some(to) = bindings.insert(Meaning::Go(model::address(root.pages().address(), None))) {
+        crate::link(b, &say(w, W::AllWays), to);
+        b.style(look::CONNECT_QUIET);
+        b.text(Run::Plain, &say(w, W::AllWays));
+        b.close();
+    }
 }
 pub(super) fn request_for_way(page: &model::ConnectModel, way: Way) -> bool {
     if page.request.returned() && model::model_way(way).kind == WayKind::SignIn {
@@ -276,28 +374,51 @@ pub(crate) fn main(
     text_per_node: u32,
 ) {
     b.open(Role::Main);
-    b.style(crate::look::MAIN);
-    b.style(crate::look::PAGE);
+    b.style(look::MAIN);
+    b.style(look::SETTINGS);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_COL);
+    b.style(look::CONNECT);
     super::settings::path(b, root, w, pages, project, super::settings::FlowTab::Accounts, Word::PathConnectAccount);
-    crate::cards::text(b, Role::Heading { level: 1 }, &w.say(Word::ConnectModel, &[]));
     let way = model::way(root.pages(), root.client());
-    let middle = if match way {
-        Some(Way::SignIn { .. }) => true,
-        Some(Way::Key { .. } | Way::Program { .. }) | None => false,
-    } {
-        W::SigningIn
-    } else {
-        W::Details
+    let heading = match way {
+        Some(way) => way_heading(root, w, way),
+        None => w.say(Word::ConnectModel, &[]),
     };
-    let current = match way {
-        Some(way) if ready(root, way) => 2,
-        Some(_) => 1,
-        None => 0,
-    };
-    flow::steps(b, w, &[&say(w, W::Choose), &say(w, middle), &say(w, W::Ready)], current);
+    b.open(Role::Heading { level: 1 });
+    b.style(look::SETTINGS_HEADLINE);
+    b.name(&heading);
+    b.text(Run::Plain, &heading);
+    b.close();
+    if way.is_none() {
+        b.open(Role::Paragraph);
+        b.style(look::SETTINGS_LEDE);
+        b.name(&say(w, W::ModelLead));
+        b.text(Run::Plain, &say(w, W::ModelLead));
+        b.close();
+    }
     body(b, root, w, bindings, text_per_node);
     b.close();
+    b.close();
 }
+fn way_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
+    let Some(me) = accounts::current_me(root.client()) else { return say(w, W::Unknown) };
+    let (brand, plan) = names(me, way);
+    match way {
+        Way::SignIn { plan: true, .. } => named(w, W::YourPlan, plan),
+        Way::SignIn { plan: false, .. } => signing_heading(root, w, way),
+        Way::Program { .. } => w.say(Word::ModelProgramTitle, &[Hole::Name(crate::choice::shown(plan, w))]),
+        Way::Key { .. } => named(
+            w,
+            match brand.first() {
+                Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyTitle,
+                _ => W::KeyTitleA,
+            },
+            brand,
+        ),
+    }
+}
+
 fn welcome(root: &Domain) -> bool {
     match root.pages().address() {
         Address::Welcome { .. } => true,
@@ -320,16 +441,9 @@ fn welcome(root: &Domain) -> bool {
         | Address::Adopt { .. } => false,
     }
 }
-fn muted(b: &mut Builder, words: &[u8]) {
-    b.open(Role::Paragraph);
-    b.style(crate::look::FLOW_MUTED);
-    b.name(words);
-    b.text(Run::Plain, words);
-    b.close();
-}
 fn description(b: &mut Builder, words: &[u8]) {
     b.open(Role::Paragraph);
-    b.style(crate::look::MODEL_DESCRIPTION);
+    b.style(look::MODEL_DESCRIPTION);
     b.name(words);
     b.text(Run::Plain, words);
     b.close();
@@ -339,26 +453,11 @@ pub(super) fn signing_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
     let (_, plan) = names(me, way);
     w.say(Word::ModelSigningIn, &[Hole::Name(crate::choice::shown(plan, w))])
 }
-fn ending_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
-    if model::model_way(way).kind == WayKind::SignIn {
-        if let Some(page) = root.pages().connect_model()
-            && let SignInState::Ended { source } = page.request.sign_in_state(root.client())
-            && let Some(doc) = accounts::document(root.client())
-            && let Some(last) = &doc.last_end
-            && last.source == source
-            && let c::AccountEnd::Made { account, declined: false } = last.end
-        {
-            return made_words(root, w, way, account, false);
-        }
-        return signing_heading(root, w, way);
-    }
-    say(w, W::Ready)
-}
 pub(super) fn key_field(b: &mut Builder, root: &Domain, bindings: &mut Bindings, busy: bool, word: &[u8]) {
     let Some(page) = root.pages().connect_model() else { return };
     let Some(to) = bindings.insert(Meaning::Key) else { return };
     b.open(Role::TextField);
-    b.style(crate::look::FLOW_FIELD);
+    b.style(if welcome(root) { look::FLOW_FIELD } else { look::SETTINGS_TEXT });
     b.name(word);
     b.entry(skein_ui::EntryKind::Secret);
     b.value(b"", page.request.key_written());
@@ -368,39 +467,65 @@ pub(super) fn key_field(b: &mut Builder, root: &Domain, bindings: &mut Bindings,
     }
     b.close();
 }
-fn standalone_choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+pub(super) fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let ways = accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
-    let busy = if let Some(p) = &page.request.pending { p.outcome.is_none() } else { false };
-    flow::card(b, &say(w, W::Choose));
-    if me.deployment_role == Some(c::HeldRole::Owner) {
-        for (holder, word) in
-            [(c::AskAccountHolder::Own, W::OwnChoice), (c::AskAccountHolder::Deployment, W::DeploymentChoice)]
-        {
+    cards(b, root, w, bindings, &ways);
+    if !welcome(root) {
+        b.open(Role::Slot);
+        b.style(look::CONNECT_MORE);
+        text(b, w, Role::Heading { level: 2 }, W::OrKey);
+        b.open(Role::Slot);
+        b.style(look::CONNECT_ROWS);
+        for way in &ways {
+            match way {
+                Way::SignIn { .. } | Way::Program { .. } => continue,
+                Way::Key { .. } => {}
+            }
+            let (brand, _) = names(me, *way);
+            b.open(Role::Slot);
+            b.style(look::CONNECT_ROW);
+            b.name(&named(w, W::ApiKeyBrand, brand));
+            b.open(Role::Slot);
+            b.open(Role::Text);
+            b.run(Run::Strong, &named(w, W::ApiKeyBrand, brand));
+            b.close();
+            b.open(Role::Text);
+            b.text(Run::Plain, &say(w, W::KeyBilling));
+            b.close();
+            b.close();
+            connect_control(
+                b,
+                root,
+                bindings,
+                &say(w, W::AddKey),
+                Role::Link,
+                Meaning::Go(model::address(root.pages().address(), Some(model::model_way(*way)))),
+                false,
+                false,
+            );
+            b.close();
+        }
+        b.close();
+        b.close();
+        if me.deployment_role == Some(c::HeldRole::Owner) {
+            let (holder, word) = if page.holder == c::AskAccountHolder::Own {
+                (c::AskAccountHolder::Deployment, W::DeploymentChoice)
+            } else {
+                (c::AskAccountHolder::Own, W::OwnChoice)
+            };
             if let Some(to) = bindings.insert(Meaning::Model(Act::Holder { holder })) {
-                b.open(Role::Button);
-                b.name(&say(w, word));
-                b.bind(to);
-                if holder == page.holder {
-                    b.state(State::Pressed);
-                }
-                if busy {
+                crate::link(b, &say(w, word), to);
+                b.style(look::CONNECT_QUIET);
+                b.text(Run::Plain, &say(w, word));
+                if page.request.busy(root.client()) {
                     b.state(State::Disabled);
                 }
                 b.close();
             }
         }
     }
-    choices(b, root, w, bindings, &ways);
-    super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
-    b.close();
-}
-pub(super) fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
-    let Some(page) = root.pages().connect_model() else { return };
-    let Some(me) = accounts::current_me(root.client()) else { return };
-    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
-    welcome_choices(b, root, w, bindings, &ways);
     super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
 }
 pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
@@ -414,14 +539,12 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         None => false,
     };
     let Some(way) = way else {
-        standalone_choose_body(b, root, w, bindings, text_per_node);
+        choose_body(b, root, w, bindings, text_per_node);
         return;
     };
-    if let Some(to) = bindings.insert(Meaning::Go(model::address(root.pages().address(), None))) {
-        flow::control(b, Control::Link { name: &say(w, W::AllWays), to });
-    }
     if ready(root, way) {
-        flow::details(b, &ending_heading(root, w, way));
+        b.open(Role::Slot);
+        b.style(look::CONNECT_PANEL);
         ready_body(b, root, w, bindings, way, &ways);
         b.close();
         return;
@@ -429,6 +552,8 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     if request_for_way(page, way)
         && let SignInState::Started { .. } | SignInState::Signing { .. } = page.request.sign_in_state(root.client())
     {
+        b.open(Role::Slot);
+        b.style(look::CONNECT_PANEL);
         super::sign_in_wait::waiting(
             b,
             root,
@@ -438,21 +563,19 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             super::sign_in_wait::tab_refused(page),
             text_per_node,
         );
+        b.close();
         return;
     }
+    b.open(Role::Slot);
+    b.style(look::CONNECT_PANEL);
     match way {
         Way::SignIn { .. } => {
-            flow::details(b, &signing_heading(root, w, way));
             if !request_for_way(page, way) || page.request.sign_in_state(root.client()) == SignInState::Unknown {
                 choice(b, root, w, bindings, way, &ways);
             }
         }
         Way::Key { .. } => key_details(b, root, w, bindings, way, busy),
-        Way::Program { .. } => {
-            let (_, plan) = names(me, way);
-            flow::details(b, &w.say(Word::ModelProgramTitle, &[Hole::Name(crate::choice::shown(plan, w))]));
-            program_body(b, root, w, bindings, way, busy);
-        }
+        Way::Program { .. } => program_body(b, root, w, bindings, way, busy),
     }
     if request_for_way(page, way) {
         super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
@@ -465,20 +588,45 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     }
     b.close();
 }
-pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, busy: bool) {
+pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, _way: Way, busy: bool) {
     let Some(page) = root.pages().connect_model() else { return };
-    let Some(me) = accounts::current_me(root.client()) else { return };
-    let (_, plan) = names(me, way);
-    description(b, &w.say(Word::ModelProgramDescription, &[]));
-    let name = page.program_name(root.client());
-    b.open(Role::Form);
-    b.name(&say(w, W::Details));
+    crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeClaudeBody, &[]));
+    b.open(Role::Slot);
+    b.style(look::CONNECT_CMD);
+    b.open(Role::Code);
+    b.text(Run::Plain, &printed_command(root, w, &page.program_name(root.client())));
+    b.close();
+    if w.shell == crate::words::Shell::Browser {
+        let word = match root.copy_label() {
+            temper_client_domain::copy::Label::Copy => Word::WelcomeCopy,
+            temper_client_domain::copy::Label::Copied => Word::WelcomeCopied,
+            temper_client_domain::copy::Label::NotCopied => Word::WelcomeNotCopied,
+        };
+        if let Some(to) =
+            bindings.insert(Meaning::Copy { words: printed_command(root, w, &page.program_name(root.client())) })
+        {
+            b.open(Role::Button);
+            b.name(&w.say(word, &[]));
+            b.bind(to);
+            b.close();
+        }
+    }
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(look::CONNECT_MUTED);
+    b.text(Run::Plain, &w.say(Word::WelcomeClaudeNote, &[]));
+    b.close();
+    b.open(Role::Disclosure);
+    b.name(&say(w, W::AnotherLogin));
+    b.open(Role::Slot);
+    b.open(Role::Slot);
     if let Some(to) = bindings.insert(Meaning::Program) {
         b.open(Role::TextField);
+        b.style(look::SETTINGS_TEXT);
         b.name(&w.say(Word::ModelProgramName, &[]));
-        b.value(&name, page.request.key_written());
+        b.value(&page.program_name(root.client()), page.request.key_written());
         b.bind(to);
-        if !c::valid_program_name(&name) {
+        if !c::valid_program_name(&page.program_name(root.client())) {
             b.state(State::Invalid);
         }
         if busy {
@@ -486,33 +634,50 @@ pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: 
         }
         b.close();
     }
-    command(b, root, w, &name, false);
-    muted(b, &say(w, W::ProgramNote));
-    button(
+    b.close();
+    b.close();
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::CONNECT_ACTS);
+    connect_control(
         b,
+        root,
         bindings,
-        &named(w, W::SubscriptionWay, plan),
-        Act::Submit { name: root.pages().account_name() },
-        busy || !c::valid_program_name(&name),
-        false,
+        &w.say(Word::WelcomeClaudeSignedIn, &[]),
+        Role::Button,
+        Meaning::Model(Act::Submit { name: root.pages().account_name() }),
+        true,
+        busy || !c::valid_program_name(&page.program_name(root.client())),
     );
+    other_ways(b, root, w, bindings);
     b.close();
 }
-/// Opens the key's details card; the shared body closes it after its outcome.
 fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, busy: bool) {
     let Some(me) = accounts::current_me(root.client()) else { return };
+    let Some(page) = root.pages().connect_model() else { return };
     let (brand, _) = names(me, way);
-    let title = match brand.first() {
-        Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyTitle,
-        _ => W::KeyTitleA,
-    };
-    flow::card(b, &named(w, title, brand));
-    b.style(crate::look::MODEL_KEY);
-    description(b, &w.say(Word::ModelKeyDescription, &[Hole::Name(crate::choice::shown(brand, w))]));
+    crate::cards::text(
+        b,
+        Role::Paragraph,
+        &w.say(Word::ModelKeyDescription, &[Hole::Name(crate::choice::shown(brand, w))]),
+    );
     b.open(Role::Form);
     b.name(&say(w, W::Details));
     key_field(b, root, bindings, busy, &w.say(Word::ModelKeyField, &[]));
-    button(b, bindings, &w.say(Word::ModelAddKey, &[]), Act::Submit { name: root.pages().account_name() }, busy, true);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::CONNECT_ACTS);
+    connect_control(
+        b,
+        root,
+        bindings,
+        &w.say(Word::ModelAddKey, &[]),
+        Role::Button,
+        Meaning::Model(Act::Submit { name: root.pages().account_name() }),
+        true,
+        busy || !page.request.has_key(),
+    );
+    other_ways(b, root, w, bindings);
     b.close();
 }
 /// The whole command for NAME (client/README.md, 4.6, *The printed command*).
@@ -549,7 +714,7 @@ pub(super) fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
 pub(crate) fn command(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], welcome: bool) {
     description(b, &command_prompt(root, w));
     b.open(Role::Code);
-    b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
+    b.style(if welcome { look::WELCOME_CMD } else { look::FLOW_CODE });
     b.text(Run::Plain, &printed_command(root, w, name));
     b.close();
 }
@@ -563,30 +728,9 @@ pub(super) fn ready_body(
 ) {
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let (brand, plan) = names(me, way);
+    let (_, plan) = names(me, way);
     match way {
-        Way::Key { .. } => {
-            crate::cards::text(b, Role::Status, &named(w, W::KeyAdded, brand));
-            text(b, w, Role::Paragraph, W::KeyRuns);
-        }
-        Way::Program { .. } => {
-            let Some(pending) = &page.request.pending else { return };
-            let name = match &pending.outcome {
-                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
-                    c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { name, .. }),
-                )))) => name.as_ref(),
-                _ => b"",
-            };
-            let label = words::say(
-                w,
-                W::ProgramDeclared,
-                &[Hole::Name(crate::choice::shown(plan, w)), Hole::Name(crate::choice::shown(name, w))],
-            );
-            crate::cards::text(b, Role::Status, &label);
-            text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, root, w, name, false);
-            text(b, w, Role::Paragraph, W::ProgramNote);
-        }
+        Way::Key { .. } | Way::Program { .. } => return,
         Way::SignIn { .. } => {
             let mut ending = None;
             if let SignInState::Ended { source } = page.request.sign_in_state(root.client())
@@ -632,7 +776,7 @@ pub(super) fn ready_body(
         facts(b, root, w, way);
     }
     b.open(Role::Slot);
-    b.style(crate::look::MODEL_ACTIONS);
+    b.style(look::MODEL_ACTIONS);
     ready_primary(b, root, w, bindings);
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {
@@ -681,10 +825,10 @@ pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &
     }
     let Some(way) = offered else { return };
     b.open(Role::Slot);
-    b.style(crate::look::MODEL_SIGN_IN);
+    b.style(look::MODEL_SIGN_IN);
     sign_in_end(b, root, w, way, &last.end);
     b.open(Role::Slot);
-    b.style(crate::look::MODEL_ACTIONS);
+    b.style(look::MODEL_ACTIONS);
     button(
         b,
         bindings,
@@ -743,12 +887,12 @@ fn pair(b: &mut Builder, w: &Words, name: W, value: &[u8]) {
     b.open(Role::Slot);
     b.name(&say(w, name));
     b.open(Role::Term);
-    b.style(crate::look::MODEL_FACT);
+    b.style(look::MODEL_FACT);
     b.name(&say(w, name));
     b.text(Run::Plain, &say(w, name));
     b.close();
     b.open(Role::Description);
-    b.style(crate::look::MODEL_FACT);
+    b.style(look::MODEL_FACT);
     b.name(value);
     b.text(Run::Plain, value);
     b.close();
@@ -803,7 +947,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         words::join(&[plan, if display.is_empty() { b"" } else { b" \xc2\xb7 " }, display])
     };
     b.open(Role::Slot);
-    b.style(crate::look::MODEL_FACTS);
+    b.style(look::MODEL_FACTS);
     pair(b, w, W::ReadyAccount, &name);
     // The pinned contract has no resolved-default preview. An explicit chat
     // template choice is known without making another read.
@@ -849,7 +993,7 @@ fn manage_usage(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         && skein_ui::markdown::safe_url(address)
     {
         b.open(Role::Link);
-        b.style(crate::look::FLOW_QUIET);
+        b.style(look::FLOW_QUIET);
         let name = w.say(Word::Usage, &[]);
         b.name(&name);
         b.text(Run::Plain, &name);

@@ -137,8 +137,18 @@ fn the_first_step_says_the_figure_until_it_is_fetched() {
                 f::forge_root(Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) }, rows);
             for root in [&welcome, &connect] {
                 for view in [f::browser_page_view(root), f::page_view(root)] {
-                    let list = subtree(view.tree(), Role::List, b"Each step");
-                    let first = list.iter().find(|n| n.role == Role::Text).unwrap();
+                    let list = if *root.pages().address() == Address::Forges {
+                        let nodes = view.tree().nodes();
+                        let (start, node) = nodes
+                            .iter()
+                            .enumerate()
+                            .find(|(_, n)| n.styles.as_slice().contains(&look::CONNECT_LIVE))
+                            .unwrap();
+                        &nodes[start..start + usize::try_from(node.size).unwrap()]
+                    } else {
+                        subtree(view.tree(), Role::List, b"Each step")
+                    };
+                    let first = list.iter().find(|n| !n.text.is_empty()).unwrap();
                     let verb = if step == w::SetUpStep::Fetch { "Fetching" } else { "Fetched" };
                     let versions = if pins { "Forgejo 17.0.1 and its runner 13.2.1" } else { "Forgejo and its runner" };
                     assert_eq!(

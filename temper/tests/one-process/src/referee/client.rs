@@ -71,6 +71,17 @@ impl Wire {
         }
     }
 }
+pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
+    use temper_client_protocol_wire::{self as forge, v1 as w};
+    if !matches!(owner, wire::Owner::Family(family) if family.number() == forge::FORGE) {
+        return false;
+    }
+    let Ok(envelope) = wire::FamilyRequest::decode(native_link_limits().wire(), &mut Reader::new(request)) else {
+        return false;
+    };
+    forge::decode_requesting(envelope.record(), &w::CEILINGS)
+        .is_some_and(|request| matches!(request.request(), w::Request::Reachable(_)))
+}
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {
         if self.sent_application.is_some() {
@@ -96,7 +107,7 @@ impl Connection {
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
         self.sent_application = Some(());
-        if matches!(keyed.owner(), wire::Owner::Family(_)) {
+        if matches!(keyed.owner(), wire::Owner::Family(_)) && !picker(keyed.owner(), keyed.request()) {
             received.push(Received::ApplicationSent { key: *keyed.key() });
         }
     }
@@ -158,6 +169,9 @@ impl Connection {
                 let keyed =
                     wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("request bytes");
                 let value = wire::KeyedAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("answer bytes");
+                if picker(keyed.owner(), keyed.request()) {
+                    return;
+                }
                 if matches!(&value, wire::KeyedAnswer::FinalAnswer(document) if document.owner() == &wire::Owner::Jig) {
                     let answer = translate::answers::answer(value, &limits).expect("jig answer document");
                     received.push(Received::Answer { key: *keyed.key(), answer });

@@ -129,7 +129,7 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
 fn near(tree: &Tree, edge: LogEdge) -> Command {
     for at in 0..tree.len() {
         let node = tree.get(at).expect("preorder node exists");
-        if node.role == Role::Log && node.binding.is_some() {
+        if node.binding.is_some() && skein_ui::takes(node.role, false, &Act::Near { edge }) {
             return Command::Act { node: node.id, first: Act::Near { edge }, submit: false };
         }
     }

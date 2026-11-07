@@ -10,6 +10,10 @@ through their changes, filtered by jig's handed tasks. A landing's zero
 stale-proof count draws nothing; a positive count remains (`browser.md`,
 8.3). Older public history remains deferred in section 10.
 
+- **Departs:** 5.1: GitHub's installation records carry no repository selection
+  mode, so the client cannot tell selected repositories from all repositories.
+  "Not listed" asks the person to check that the repository exists and grant it
+  to the App for either mode.
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person
@@ -25,10 +29,7 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   `forge/forges.rs`, `repository_line`); its load, the
   App's setup URL and the `Lacking` line on the row; Forget,
   with no request on the wire; the warning of no git on the
-  machine. 5.4: Forgejo on this machine's Details for a forge to make,
-  their words and notes, where the view draws "Show how", a link to the
-  deployment's help, and the fields alone (`forge/connect.rs` `body`,
-  `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
+  machine. 5.4, Elsewhere: the dot leaving out the playground's
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
@@ -38,16 +39,7 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   `setting_up` step, which says it is connecting, and `forge/admin.rs`,
   `send_target`, sends nothing on it, so `temper ctl`'s `forge connect
   forgejo-admin`, which the engine admits, is the way back.
-- **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
-  elsewhere's Details, the configuration's entries for a forge and a
-  restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the
-  muted line "Needs a change to temper’s configuration and a restart"
-  (`words.rs` `ForgeElsewhereTime`); and Setting up says "You may leave
-  this page: the steps go on, and the banner says where they are."
-  (`words.rs` `ForgeLeave`), where no banner says it: words for a forge
-  added to the configuration by hand, and for a banner's set up under
-  way, which the store's records and the playground's one line leave
-  without a place. 5.4, A managed Forgejo: a stop empties the admin's
+- **Departs:** 5.4, A managed Forgejo: a stop empties the admin’s
   token whatever connect it ends: with no admin connect sent, any
   stopped managed Forgejo's row empties it, and while the sent
   connect's forge stays stopped, each delivery of the forges watch

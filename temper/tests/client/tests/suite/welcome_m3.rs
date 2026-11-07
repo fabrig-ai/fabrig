@@ -36,7 +36,7 @@ fn act(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], action: Act)
         .map(|n| n.id)
         .collect::<Vec<_>>();
     assert_eq!(
-        if name == b"Adopt a repository" { matches.len().min(1) } else { matches.len() },
+        if name == b"Add repositories" { matches.len().min(1) } else { matches.len() },
         1,
         "unique {:?} {:?}\n{}",
         role,
@@ -105,12 +105,12 @@ fn setup_model_sentence_keeps_supported_plans_in_the_playground() {
 #[test]
 fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    assert!(has(&root, Role::Heading { level: 2 }, b"GitHub is connected"));
+    assert!(has(&root, Role::Paragraph, b"Connected GitHub."));
     assert!(front.reachable_reads.is_empty());
     assert!(!front.engine_adopted(1, 7));
     press(&mut front, &mut root, Role::Link, b"Settings");
     press(&mut front, &mut root, Role::Link, b"Repositories");
-    press(&mut front, &mut root, Role::Link, b"Adopt a repository");
+    press(&mut front, &mut root, Role::Link, b"Add repositories");
     assert!(has(&root, Role::TextField, b"Owner"));
     assert!(has(&root, Role::TextField, b"Name"));
 }

@@ -431,7 +431,13 @@ repository's "Adopt" sending its adoption and an adoption under way the
 session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
-bound on a migration, and its sheet, "Add repositories", is unbuilt;
+bound on a migration. Settings’ “Add repositories” sheet is built,
+with search, plural adoption, making, copying and failed-copy acts;
+Home’s own sheet and the two unmocked entry paths remain distinct
+(`draft/repository-copies.md`). Settings’ connection pages share the
+welcome’s cards and panels and finish on Accounts or Forges; the browser
+stories are compiled, with temper/ui’s render check after landing
+(`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a

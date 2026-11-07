@@ -6,6 +6,7 @@ use temper_client_domain::{Action, forge};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Meaning {
     Ways(forge::ways::Act),
+    Sheet(forge::sheet::Act),
     EndPlayground,
     Forges(forge::forges::Act),
     PlaceField(forge::admin::PlaceField),
@@ -14,6 +15,7 @@ pub enum Meaning {
     Home,
     Ci,
     Adopt,
+    AdminWay(forge::admin::Way),
     AdminToken,
     ForgejoToken(forge::tokens::Field),
     ConnectTokens(u16),
@@ -108,6 +110,10 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                     asked: forge::ways::Asked::Questions(route),
                 })))
             }
+            (Meaning::Sheet(forge::sheet::Act::NearEnd), Act::Near { edge: skein_ui::LogEdge::Foot }) => {
+                Some(Action::Forge(forge::Act::Sheet(forge::sheet::Act::NearEnd)))
+            }
+            (Meaning::Sheet(meaning), Act::Input { value }) => sheet_input(meaning, value),
             (Meaning::PlaceField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite { field, text: value })))
             }
@@ -130,6 +136,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Some(Action::Forge(forge::Act::Write { field, text: value, typed }))
             }
             (meaning, Act::Press | Act::Toggle) => Some(match meaning {
+                Meaning::Sheet(act) => Action::Forge(forge::Act::Sheet(act)),
                 Meaning::Ways(act) => Action::Forge(forge::Act::Ways(act)),
                 Meaning::EndPlayground => Action::Forge(forge::Act::EndPlayground),
                 Meaning::Forges(act) => Action::Forge(forge::Act::Forges(act)),
@@ -139,6 +146,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::SetUp(forge) => Action::Forge(forge::Act::SetUp { forge }),
                 Meaning::SetUpAtOnce(forge) => Action::Forge(forge::Act::SetUpAtOnce { forge }),
                 Meaning::ConnectTokens(forge) => Action::Forge(forge::Act::ConnectTokens { forge }),
+                Meaning::AdminWay(way) => Action::Forge(forge::Act::AdminWay(way)),
                 Meaning::ConnectAdmin(forge) => Action::Forge(forge::Act::ConnectAdmin { forge }),
                 Meaning::ConnectApp(forge) => Action::Forge(forge::Act::ConnectApp { forge }),
                 Meaning::ConnectManifest { forge, back } => Action::Forge(forge::Act::ConnectManifest {
@@ -164,6 +172,35 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
         };
     }
     None
+}
+fn sheet_input(meaning: forge::sheet::Act, value: Box<[u8]>) -> Option<Action> {
+    let act = match meaning {
+        forge::sheet::Act::Find(_) => forge::sheet::Act::Find(value),
+        forge::sheet::Act::NotListed { owner: Some(_), .. } => {
+            forge::sheet::Act::NotListed { owner: Some(value), name: None }
+        }
+        forge::sheet::Act::NotListed { name: Some(_), .. } => {
+            forge::sheet::Act::NotListed { owner: None, name: Some(value) }
+        }
+        forge::sheet::Act::Org(_) => forge::sheet::Act::Org(value),
+        forge::sheet::Act::Name(_) => forge::sheet::Act::Name(value),
+        forge::sheet::Act::Addresses(_) => forge::sheet::Act::Addresses(value),
+        forge::sheet::Act::Source(_)
+        | forge::sheet::Act::Forge(_)
+        | forge::sheet::Act::Installation(_)
+        | forge::sheet::Act::Pick { .. }
+        | forge::sheet::Act::NearEnd
+        | forge::sheet::Act::NotListed { owner: None, name: None }
+        | forge::sheet::Act::Target(_)
+        | forge::sheet::Act::UseIt { .. }
+        | forge::sheet::Act::AdoptIt { .. }
+        | forge::sheet::Act::CopyAgain { .. }
+        | forge::sheet::Act::AdoptAgain { .. }
+        | forge::sheet::Act::MakeAgain { .. }
+        | forge::sheet::Act::Dismiss { .. }
+        | forge::sheet::Act::Send => return None,
+    };
+    Some(Action::Forge(forge::Act::Sheet(act)))
 }
 #[must_use]
 pub fn forge_number(text: &[u8]) -> Option<u16> {
@@ -226,7 +263,8 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
                     forge::Event::AppKey { value }
                 }));
             }
-            Meaning::Ways(_)
+            Meaning::Sheet(_)
+            | Meaning::Ways(_)
             | Meaning::EndPlayground
             | Meaning::Forges(_)
             | Meaning::PlaceField(_)
@@ -235,6 +273,7 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             | Meaning::Home
             | Meaning::Ci
             | Meaning::Adopt
+            | Meaning::AdminWay(_)
             | Meaning::AdminField(_)
             | Meaning::ConnectAdmin(_)
             | Meaning::ConnectTokens(_)

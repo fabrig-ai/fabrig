@@ -38,6 +38,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             Some(into) => people::ApplicationScope::Project(into.project),
             None => people::ApplicationScope::Deployment,
         },
+        Application::Forge(forge::Ask::DismissMaking { into, .. }) => match into {
+            Some(project) => people::ApplicationScope::Project(*project),
+            None => people::ApplicationScope::Deployment,
+        },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
