@@ -191,7 +191,7 @@ pub(crate) fn start(
     if verb == "sign-in" {
         return super::forge_sign_in::run(directories, &bytes, &named, number).map_err(refused);
     }
-    let entry = entry(directories, &bytes, number).map_err(refused)?;
+    let entry = entry(directories, &named.machine, number).map_err(refused)?;
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
@@ -355,11 +355,10 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
 /// (temper/docs/design/protocol/setup.md, 7.1 and 7.4).
 pub(crate) fn entry(
     directories: &super::Directories,
-    bytes: &[u8],
+    machine: &temper_forge_setup::machine::Machine,
     number: u16,
 ) -> Result<temper_forge_setup::setup::Entry, String> {
     use temper_forge_setup::machine;
-    let machine = super::box_command::machine(bytes, directories)?;
     let path = super::path(&directories.data).join(super::path(&machine::group_path(number)));
     let kind = if let Some(kind) = read_group_kind(&path)? {
         kind
@@ -369,7 +368,7 @@ pub(crate) fn entry(
         }
         machine::BoxKind::Owned
     };
-    machine::entry(&machine, number, kind, &directories.jig()).ok_or("the machine has no entry for it".into())
+    machine::entry(machine, number, kind, &directories.jig()).ok_or("the machine has no entry for it".into())
 }
 
 fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_forge_setup::machine::BoxKind, String> {

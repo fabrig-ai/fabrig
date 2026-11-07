@@ -29,14 +29,18 @@ use super::Observed;
 const PROCESS: Token = Token::new(701);
 
 /// One activation's process at a time, and what crossed its channel.
+#[expect(clippy::struct_excessive_bools, reason = "the process fixture keeps independent channel and clock controls")]
 pub(crate) struct Process {
     pub(crate) charter: Box<[u8]>,
     seed: u64,
+    /// Let the composed clock reach each Smith deadline before driving it.
+    pub(super) clocked: bool,
+    clock_start: Option<Time>,
     /// The fake LLM's script, extended by each resumed activation.
-    script: Script,
+    pub(super) script: Script,
     /// The previous activation's concrete turns, which a resume restores.
     history: Option<smith::Transcript>,
-    fresh: Option<Script>,
+    pub(super) fresh: Option<Script>,
     pub(super) history_messages: Option<u32>,
     mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
@@ -113,6 +117,8 @@ impl Process {
         Process {
             charter: Box::default(),
             seed,
+            clocked: false,
+            clock_start: None,
             script,
             history: None,
             fresh: None,
@@ -160,7 +166,10 @@ impl Process {
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
         let mut history = self.history.clone();
-        if matches!(agent.answer(), run::Answer::Parked { .. }) {
+        if matches!(
+            agent.answer(),
+            run::Answer::Parked { .. } | run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }
+        ) {
             let mut current = crate::world::transcript(agent);
             if let Some(previous) = history {
                 let mut turns = previous.turns.to_vec();
@@ -180,10 +189,12 @@ impl Process {
         turns.extend(script.turns);
         let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
+        let clocked = self.clocked;
         *self = Process::new(self.seed, script);
         self.history = history;
         self.fresh = fresh;
         self.history_messages = history_messages;
+        self.clocked = clocked;
     }
 
     /// Whether the next activation is waiting to spawn its process.
@@ -414,6 +425,13 @@ impl Process {
         let Some(agent) = self.agent.as_mut() else { return };
         if self.settled || self.producer.as_ref().is_some_and(|producer| producer.holding) {
             return;
+        }
+        // A composed clock waits for the outer world before firing a lower deadline.
+        if self.clocked {
+            let start = *self.clock_start.get_or_insert(now);
+            if agent.now() > Time::ZERO.saturating_add(now.saturating_since(start)) {
+                return;
+            }
         }
         self.settled = agent.drive(1);
         if !self.admitted
@@ -667,16 +685,18 @@ fn receiving() -> run::Limits {
             option_bytes: 0,
             connect: Duration::from_secs(10),
             handshake: Duration::from_secs(10),
-            models: Box::new([Model {
-                name: b"fake-1".as_slice().into(),
-                efforts: Box::default(),
-                window: 1_048_576,
-                output: 8192,
-                reasoning_item: 65_536,
-                oversized_reasoning: profile::OversizedReasoning::Fail,
-                head: Duration::from_secs(60),
-                idle: Duration::from_secs(30),
-            }]),
+            models: [b"fake-1".as_slice(), b"fake-2".as_slice()]
+                .map(|name| Model {
+                    name: name.into(),
+                    efforts: Box::default(),
+                    window: 1_048_576,
+                    output: 8192,
+                    reasoning_item: 65_536,
+                    oversized_reasoning: profile::OversizedReasoning::Fail,
+                    head: Duration::from_secs(60),
+                    idle: Duration::from_secs(30),
+                })
+                .into(),
         }]),
     };
     let template: serde_json::Value =

@@ -23,7 +23,13 @@ fn fixture() -> (PathBuf, crate::CatalogueTask, Suite, ArmRef) {
 fn requests(root: &Path, entry: &crate::CatalogueTask, suite: &Suite, arm: &ArmRef) -> Vec<crate::run::Request> {
     let mut requests = Vec::new();
     task_requests(
-        root.parent().expect("repository"),
+        &RequestInputs {
+            repository: root.parent().expect("repository"),
+            shared_temporary: Path::new(crate::run::MACHINE_TEMPORARY),
+            logins: "/unexecuted-logins".into(),
+            host: "supplied-host".into(),
+            cpus: vec![0],
+        },
         entry,
         suite,
         (arm, &[]),
@@ -119,7 +125,13 @@ fn a_suite_gives_one_task_its_own_repetitions() {
     let mut prepared = Vec::new();
     let count = suite.task_repetitions(&entry.name, entry.task.repetitions, false).expect("count");
     task_requests(
-        root.parent().expect("repository"),
+        &RequestInputs {
+            repository: root.parent().expect("repository"),
+            shared_temporary: Path::new(crate::run::MACHINE_TEMPORARY),
+            logins: "/unexecuted-logins".into(),
+            host: "supplied-host".into(),
+            cpus: vec![0],
+        },
         &entry,
         &suite,
         (&arm, &[]),
@@ -213,7 +225,13 @@ fn binary_requests(root: &Path, suite: &Suite, binaries: &[(String, ArmRef)]) ->
         let entry =
             crate::CatalogueTask { name: name.clone(), task: crate::read_task(&manifest).expect("task"), manifest };
         task_requests(
-            root.parent().expect("repository"),
+            &RequestInputs {
+                repository: root.parent().expect("repository"),
+                shared_temporary: Path::new(crate::run::MACHINE_TEMPORARY),
+                logins: "/unexecuted-logins".into(),
+                host: "supplied-host".into(),
+                cpus: vec![0],
+            },
             &entry,
             suite,
             (&binaries[0].1, binaries),

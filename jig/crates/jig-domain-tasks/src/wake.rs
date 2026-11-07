@@ -249,7 +249,19 @@ pub(crate) fn after_message(
             activate(domain, number, out);
         }
         Phase::Active(Active::Claimed { attempt } | Active::Running { attempt }) => {
-            out.push(Request::Relay { task: number, attempt, previous, word });
+            // A run behind its choice hears nothing more: the message starts the next run
+            // (domain/tasks.md, section 7).
+            if row.llm_changed {
+                if !row.narrowing {
+                    let row = &mut task_mut(domain, number).expect("message task live").record;
+                    row.narrowing = true;
+                    row.due_reason = crate::Why::Message { message: word.number };
+                    publish(domain, env, number, out);
+                    out.push(Request::Stop { task: number, attempt });
+                }
+            } else {
+                out.push(Request::Relay { task: number, attempt, previous, word });
+            }
         }
         Phase::Waiting
         | Phase::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. })

@@ -54,6 +54,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         activity: 29,
         due_reason: task::Why::Message { message: 5 },
         narrowing: true,
+        llm_changed: true,
         result_position: 31,
         last_reply: 37,
         replies: reply_hints(),
