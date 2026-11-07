@@ -95,3 +95,89 @@ Options,
 - The builder asserts `Options` on a `Menu` alone; `outline::check` faults a menu with `Options` whose innermost form holds no text field or text area before it.
 - The web page keeps the active option (`Page`, beside `menu`), never the tree. An owner learns of it only through the item's `Press` or the field's `Input` that Tab's completion reports.
 - The text shell prints it as any menu; the worker's platform has nothing to do for it.
+
+## 4. The terminal's look (temper-client-domain, `temper/docs/design/client/README.md`, 3.5, *A chat's terminal*)
+
+Made by `terminal-frame`; later tasks add to the module, as 5 and 6 say, and change none of this.
+
+```rust
+// temper/crates/temper-client-domain/src/pages/terminal.rs
+//! A chat's terminal: the look a person chose, the same on every chat the browser opens
+//! (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Look {
+    pub terminal: bool,
+    pub theme: Theme,
+    pub font: Font,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Theme {
+    #[default]
+    Dark,
+    Light,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Font {
+    #[default]
+    DejaVu,
+    Plex,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Act {
+    /// ">_": the chat's pages in the terminal.
+    Enter,
+    /// "Exit", `/exit`: the browser's look again.
+    Leave,
+    /// `/theme`: the other theme.
+    Theme,
+    /// `/font`: the other font.
+    Font,
+}
+
+/// Whether the terminal draws the page at this address: a chat's, `NewChat` or `Configure`.
+#[must_use]
+pub fn draws(address: &crate::Address) -> bool;
+
+// temper/crates/temper-client-domain/src/pages.rs
+pub mod terminal;
+pub enum Act { /* … */ Terminal(terminal::Act) }
+impl Pages {
+    /// The look a person chose (README.md, 3.5, A chat's terminal).
+    #[must_use]
+    pub fn look(&self) -> terminal::Look;
+}
+```
+
+- `Pages` holds the `Look`, starting at its default; `Act::Terminal` sets it and changes nothing else in this part.
+- The view draws the terminal where `look().terminal && terminal::draws(address)` and its shell is the browser (`crate::words::Shell::Browser`); it decides the shell, the domain never does.
+
+## 5. The view's terminal (temper-client-view)
+
+Made by `terminal-frame`; `terminal-commands`, `terminal-draft` and `terminal-cards` draw into it.
+
+```rust
+// temper/crates/temper-client-view/src/pages/terminal.rs
+//! A chat's pages as a terminal (temper/docs/design/client/README.md, 3.5, A chat's terminal;
+//! client/browser.md, 2.5, A chat's terminal).
+mod words;   // the terminal's words, its own table, as `cards/words.rs` is
+
+/// Whether this view draws the terminal: the browser, the look's `terminal`, a page it draws.
+pub(crate) fn shown(root: &Domain, w: &Words) -> bool;
+/// The page's main's tokens: TERMINAL, and TERMINAL_LIGHT or TERMINAL_PLEX by the look.
+pub(crate) fn style(b: &mut Builder, look: Look);
+/// The top line: where, the heading, the number; "Draft" (or "+ Draft") and "Exit".
+pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, at: Top<'_>);
+pub(crate) struct Top<'a> { pub project: Option<u32>, pub heading: &'a [u8], pub name: &'a [u8], pub number: Option<u64>, pub draft: Draft }
+pub(crate) enum Draft { Shown, Hidden, Add, None }
+/// The running line above the box, while the chat works or waits (README.md, 3.5).
+pub(crate) fn running(b: &mut Builder, words: Option<&[u8]>);
+/// Below the box: its list where one is open (`terminal-commands`), else the quiet line.
+pub(crate) fn under(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings, hint: Hint);
+pub(crate) enum Hint { Commands, Paused }
+/// The terminal's notes after the conversation (`terminal-commands` fills them).
+pub(crate) fn notes(b: &mut Builder, root: &Domain, w: &Words);
+```
+
+- `pages::session::to_terminal(b, w, bindings)` draws ">_" in a browser's bar, bound to `Act::Terminal(terminal::Act::Enter)`; `chat.rs`, `new_chat.rs` and `configure.rs` call it where *Entered* says.
+- The look tokens are `browser.md`, 2.5, *A chat's terminal*'s, in `look.rs` under `TERMINAL`, `TERMINAL_LIGHT`, `TERMINAL_PLEX`, `TERMINAL_TOP`, `TERMINAL_WHERE`, `TERMINAL_STAR`, `TERMINAL_PLACE`, `TERMINAL_SEP`, `TERMINAL_TASK`, `TERMINAL_ACTS`, `TERMINAL_BTN`, `TERMINAL_RUN`, `TERMINAL_LINE`, `TERMINAL_HINT`, `TERMINAL_HEAD`, `TERMINAL_NOTE` and `TO_TERMINAL`, their names `temper-terminal`, `temper-terminal-light`, … and `temper-to-terminal`.

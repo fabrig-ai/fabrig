@@ -31,6 +31,13 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui.md, 3.2"
 
+[[part]]
+id = "terminal-frame"
+title = "A chat's pages as a terminal in the browser: the look on Pages, >_, the top line, the running and quiet lines, DejaVu Sans Mono"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
 [[slice]]
 id = 1
 story = "A draft's \"_Draft, with the user._\" shows as emphasis, and snake_case stays as written"
@@ -47,4 +54,10 @@ walk = false
 id = 3
 story = "In a form, a text area keeps the focus while its options under it move with the arrows, Enter presses the active one, Tab completes /mo to /model"
 parts = ["field-options"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A person presses >_ on a chat and reads it as a terminal: one top line with Draft and Exit, the conversation, a running line while it works, the box and the quiet line, in DejaVu Sans Mono on a dark ground; Exit returns"
+parts = ["terminal-frame"]
 walk = false

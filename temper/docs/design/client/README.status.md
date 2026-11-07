@@ -21,6 +21,14 @@ table checks each link paragraph in both shells, with and without a
 configured sign-in way. Cookie fallback and command refusals remain
 section 11's later work.
 
+- **Not yet:** 3.5, *A chat's terminal* (look-round-16): its look kept on `Pages`,
+  ">_", the top line, the conversation's look, the running line, the box and the
+  quiet line (`terminal-frame`); the commands, their lists and notes
+  (`terminal-commands`); full screen, Escape and the kept record `look`
+  (`terminal-browser`); the draft beside it, and a draft's first paragraph read as
+  Markdown in both looks (`terminal-draft`); a goal's question under the box and a
+  proposal's and a delegation's one line (`terminal-cards`). `terminal-close`
+  deletes this entry.
 - **Design departs:** 5.1, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: the engine remembers the
   last 8 used or expired links only until restart. A forgotten used link
