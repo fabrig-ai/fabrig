@@ -117,3 +117,14 @@ Acceptance:
 
 As the implementer's text says; give charter 11's non-brief bytes and brief room as
 `stock_brief.rs` measures them.
+
+## Rebase (2026-11-07, step merge, foreman ui-ask-m1/stock/foreman-1)
+
+resolve agent.status.md by preserving both adjacent status-bullet deletions
+Rebase onto the landing’s current integration tip.
+The sole reported conflict is `temper/docs/design/domain/agent.status.md`.
+Integration commit `666a36435d` (“Keep asking runs outside project workspaces”) deletes the **Not yet: 4.2** home-repository/workspace bullet.
+Stock commit `a95ea5365d` deletes the adjacent **Not yet: 8.4** “no charter 11, template 5 or `ask.txt`” bullet.
+Resolve by deleting both bullets. Preserve the following 8.4 receiving-bound test gap and all other status text.
+Keep the stock’s 13.4 gap deletion in `temper/docs/design/protocol/configuration.status.md`; that file merged automatically.
+The log reports no conflict in the automatically merged service tests.
