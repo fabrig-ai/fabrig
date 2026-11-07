@@ -1527,6 +1527,17 @@ proposed, what an action needs, and what an acceptance funds.
   is the change's decision, the accepter choosing whether running work
   moves; a revision made since its own withdraws it, as no longer
   applying.
+- **A run's fresh proposal of settings replaces its own.** A task holds
+  one pending proposal, and another is refused as busy, but for this: a
+  task whose pending proposal is of settings, proposing settings again,
+  withdraws its own in the commit that admits the new one. The new one's
+  every check runs first, so one refused leaves the pending one as it
+  was. Nothing else is replaced: a pending proposal of any other kind
+  still refuses the next, a proposal of settings refuses any other kind,
+  a party's stays one at a time, and no other proposer's is touched. The
+  one replaced ends as any task's withdrawn proposal does: its set goes,
+  and a decision asked of it after is refused, naming nothing, and changes
+  nothing. Its proposer hears no message of it, having asked.
 - **Their state.** A proposal: its proposer, a task or a party; the
   action, as the call, the step or the request asked for it; its reason,
   in words;
@@ -1600,7 +1611,8 @@ proposed, what an action needs, and what an acceptance funds.
   passes up to the next holder that covers it, and past the last, waits
   for the parties the policy names.
 - **Withdrawn** when the proposer withdraws it (a run's call, a
-  procedure's step, a party's `Withdraw`), when a proposing task closes,
+  procedure's step, a party's `Withdraw`), when its task's fresh proposal
+  of settings replaces it (above), when a proposing task closes,
   or when the state it was made against has changed so that it no longer
   applies (a batch naming a task since ended); an escalation ends with
   its hold. The

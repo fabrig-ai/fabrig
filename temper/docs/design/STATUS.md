@@ -39,9 +39,7 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, `temper help proposal` still says an
-owner's rejection under Needs you fails,
-and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
@@ -151,6 +149,12 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
+Publication help and ctl's completed answer say that chat words may show
+in titles; ctl has no preceding acknowledgement (`client/tools.md`). The
+configuring stock instructs a run to say the words when asked, with no
+real-model outcome supplied (`domain/agent.md`). Landings is underlined
+at a row's size, and a landing draws no zero stale-proof count
+(`client/browser.md`).
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
