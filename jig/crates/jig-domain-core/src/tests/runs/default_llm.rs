@@ -71,6 +71,7 @@ fn a_given_choice_keeps_low_despite_the_models_default() {
 
 fn chosen(effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: 0, effort: Some(effort) },
         subagents: Box::new([]),

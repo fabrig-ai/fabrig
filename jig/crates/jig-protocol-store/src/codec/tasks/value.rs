@@ -656,7 +656,7 @@ pub(super) fn llm(
     source: Option<&domain::LlmChoice>,
     limits: &wire::Limits,
 ) -> Result<Option<wire::LlmChoice>, wire::Problem> {
-    let Some(domain::LlmChoice { main, subagents, account }) = source else {
+    let Some(domain::LlmChoice { main, subagents, account, .. }) = source else {
         return Ok(None);
     };
     let mut chosen = List::with_capacity(limits.llm_choice_subagents);
@@ -681,7 +681,7 @@ pub(super) fn read_llm(source: Option<wire::LlmChoice>) -> Option<domain::LlmCho
     for subagent in subagents.into_boxed() {
         chosen.push(read_model_effort(subagent)).expect("same number of sub-agents");
     }
-    Some(domain::LlmChoice { main: read_model_effort(main), subagents: chosen.into_boxed(), account })
+    Some(domain::LlmChoice { later: None, main: read_model_effort(main), subagents: chosen.into_boxed(), account })
 }
 fn read_model_effort(source: wire::ModelEffort) -> domain::ModelEffort {
     let wire::ModelEffortParts { model, effort } = source.into_parts();

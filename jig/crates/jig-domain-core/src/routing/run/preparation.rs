@@ -699,7 +699,9 @@ pub(crate) fn route_claim_prepared(
     writes: Box<[tasks::Name]>,
 ) -> Queue<Request> {
     if core.claiming.get(&task) == Some(&attempt) {
+        let mut reasons = tasks::Reasons::FIRST;
         if let Some(context) = core.contexts.remove(&task) {
+            reasons = context.reasons;
             let valid = match core.tasks.run_context(task) {
                 Some(current) if current == context => match core.run_admission(&current, env.wall, Box::new([])) {
                     crate::RunAdmission::Allow(allowance) => {
@@ -732,6 +734,8 @@ pub(crate) fn route_claim_prepared(
         };
         let resumed = earlier_transcript && turned;
         work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons,
             account: match core.proofs.get(&task) {
                 Some(proof) => match proof.accounts.first() {
                     Some(binding) => Some(binding.account),

@@ -2809,11 +2809,13 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
     env.limits.tasks.parameters = GATE_PARAMETERS;
     env.limits.tasks.spec_bytes = SPEC_BYTES;
     let producing = tasks::LlmChoice {
+        later: None,
         main: tasks::ModelEffort { model: 3, effort: Some(1) },
         subagents: Box::new([]),
         account: None,
     };
     let review = tasks::LlmChoice {
+        later: None,
         main: tasks::ModelEffort { model: 2, effort: Some(0) },
         subagents: Box::new([]),
         account: None,
@@ -2851,6 +2853,7 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
 }
 fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
     super::tasks::LlmChoice {
+        later: None,
         account: None,
         main: super::tasks::ModelEffort { model, effort },
         subagents: Box::new([]),

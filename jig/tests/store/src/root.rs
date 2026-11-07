@@ -21,6 +21,7 @@ pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {
 };
 
 pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
+    charter_parts: 8,
     placed_holds: 1,
     project_placed_holds: 1,
     party_placed_holds: 1,
@@ -288,6 +289,8 @@ pub fn header(commits: u64) -> core::Record {
 #[must_use]
 pub fn live_task(number: u64) -> core::Record {
     core::Record::Tasks(tasks::Stored::Live(Box::new(tasks::TaskRecord {
+        offered: jig_domain_tasks::Reasons::ALL,
+        reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),
         asked_requester: false,
         placed: None,

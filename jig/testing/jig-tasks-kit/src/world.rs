@@ -17,6 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const RETRY: Retry = Retry { retries: 2, base: Duration::from_millis(10), max: Duration::from_secs(1) };
 
 pub const LIMITS: Limits = Limits {
+    charter_parts: 8,
     placed_holds: 16,
     project_placed_holds: 8,
     party_placed_holds: 4,
@@ -89,8 +90,8 @@ pub const EFFORTS: [u8; 4] = [2, 0, 1, 0];
 #[must_use]
 pub fn charters() -> Box<[CharterModels]> {
     Box::new([
-        CharterModels { number: 1, revision: 1, models: Some(Box::new([0, 1, 2])) },
-        CharterModels { number: 2, revision: 1, models: Some(Box::new([3])) },
+        CharterModels { resumes: false, number: 1, revision: 1, models: Some(Box::new([0, 1, 2])) },
+        CharterModels { resumes: false, number: 2, revision: 1, models: Some(Box::new([3])) },
     ])
 }
 
@@ -1200,7 +1201,17 @@ impl World {
         self.send(Event::Prepare { reply_to, task });
         let reply_to = self.to();
         let call = self.call;
-        self.send(Event::Claim { account: None, reply_to, task, attempt, resumed: false, budget, writes });
+        self.send(Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
+            account: None,
+            reply_to,
+            task,
+            attempt,
+            resumed: false,
+            budget,
+            writes,
+        });
         let reply = self.replies[&call].clone();
         if reply == Reply::Done {
             assert!(self.runs.insert(task, attempt).is_none());

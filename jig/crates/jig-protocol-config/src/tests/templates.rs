@@ -278,6 +278,7 @@ fn a_templates_llm_choice_names_configured_models_and_their_efforts() {
     assert_eq!(
         chat.llm,
         Some(LlmChoice {
+            later: None,
             account: None,
             main: ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::from([ModelEffort { model: 1, effort: None }]),
@@ -430,7 +431,12 @@ fn a_seeded_executor_override_keeps_a_compatible_choice() {
     assert_eq!(merged.first().expect("chat").executor, TemplateExecutor::Charter(CHAT));
     assert_eq!(
         merged.first().expect("chat").llm,
-        Some(LlmChoice { account: None, main: ModelEffort { model: 0, effort: Some(1) }, subagents: Box::new([]) })
+        Some(LlmChoice {
+            later: None,
+            account: None,
+            main: ModelEffort { model: 0, effort: Some(1) },
+            subagents: Box::new([])
+        })
     );
 }
 

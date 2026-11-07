@@ -446,7 +446,7 @@ pub(crate) fn people(
         };
         subagents.push(item).expect("same capacity");
     }
-    Ok(Some(p::LlmChoice { account: *value.account(), main, subagents: subagents.into_boxed() }))
+    Ok(Some(p::LlmChoice { later: None, account: *value.account(), main, subagents: subagents.into_boxed() }))
 }
 fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w::LlmWhy> {
     let mut found = None;

@@ -207,7 +207,7 @@ const UNKNOWN_EFFORT: u8 = 2;
 const UNKNOWN_MODEL: u8 = 2;
 
 fn choice(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> tasks::LlmChoice {
-    tasks::LlmChoice { account: None, main, subagents: subagents.into() }
+    tasks::LlmChoice { later: None, account: None, main, subagents: subagents.into() }
 }
 
 fn template_settings() -> Config {

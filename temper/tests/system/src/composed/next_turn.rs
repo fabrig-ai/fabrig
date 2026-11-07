@@ -73,6 +73,7 @@ impl World {
                     dependencies: None,
                     authority: None,
                     llm: Some(people::LlmChoice {
+                        later: None,
                         account: None,
                         main: people::ModelEffort { model, effort },
                         subagents: Box::default(),
