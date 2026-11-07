@@ -348,6 +348,12 @@ fn requires_reads_rules_that_do_not_enforce() {
 fn a_projects_kinds_are_judged() {
     use crate::settings::ProjectWays;
     use temper_engine_domain_forge_change::Route;
+    for (kind, expected) in [
+        (6, Value::Questions(Route::None)),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 })),
+    ] {
+        assert_eq!(crate::settings::project_stock(kind).unwrap().value, expected, "stock {kind}");
+    }
     let values = [
         (6, Value::Questions(Route::None)),
         (6, Value::Questions(Route::Foreman)),

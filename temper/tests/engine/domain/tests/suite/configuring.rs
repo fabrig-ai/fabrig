@@ -771,7 +771,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     let mut world = World::stock();
     let run = world.chat(CONFIGURING, world.owner, 20);
     for (completion, kind, value) in [
-        (1, "project-ways", r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
     ] {
         let input = json!({"setting":{"kind":kind,"project":PROJECT}});

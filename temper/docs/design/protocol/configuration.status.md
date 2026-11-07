@@ -2,9 +2,6 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.4: kind 7's stock has `drafts` false in `temper-engine-domain-forge`'s
-  `project_stock`, `temper-service`'s `stock/kinds.rs` and `temper-client-tools`' `settings.rs`.
-
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
 projectless task and the client's remaining trial gaps are

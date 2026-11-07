@@ -76,7 +76,7 @@ fn goal_shows_while_drafts_are_offered() {
     for ways in [
         None,
         Some(d::forge::ways::Ways::STOCK),
-        Some(d::forge::ways::Ways { drafts: true, ..d::forge::ways::Ways::STOCK }),
+        Some(d::forge::ways::Ways { drafts: false, ..d::forge::ways::Ways::STOCK }),
     ] {
         let root = f::root_with_ways(Address::Home { project: f::PROJECT }, ways);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -420,11 +420,11 @@ fn current_names(tree: &Tree, style: Style) -> Vec<&[u8]> {
 }
 
 #[test]
-fn goals_follows_kind_seven_or_keeps_its_open_page() {
+fn goals_keeps_its_work_or_its_open_page() {
     for (address, delivered, shown) in [
         (Address::Home { project: f::PROJECT }, None, false),
         (Address::Home { project: f::PROJECT }, Some(false), false),
-        (Address::Home { project: f::PROJECT }, Some(true), false),
+        (Address::Home { project: f::PROJECT }, Some(true), true),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::Ended }, None, true),
         (Address::Goals { project: f::PROJECT, filter: GoalsFilter::All }, Some(false), true),
     ] {
@@ -835,8 +835,9 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
         "[9] Chats",
         "[10] + New chat",
         "[11] Chat",
-        "[12] All ways to start work",
-        "[13] Settings",
+        "[12] Goal",
+        "[13] All ways to start work",
+        "[14] Settings",
     ] {
         assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
     }
@@ -904,7 +905,7 @@ fn the_rail_shows_what_kind_seven_shows() {
     use d::forge::ways::Ways;
     for ways in [
         Ways::STOCK,
-        Ways { drafts: true, ..Ways::STOCK },
+        Ways { drafts: false, ..Ways::STOCK },
         Ways { goals: true, ..Ways::STOCK },
         Ways { changes: true, ..Ways::STOCK },
         Ways { away: true, ..Ways::STOCK },
@@ -1001,9 +1002,9 @@ fn drafts_offered_reads_drafts() {
     use d::forge::ways::Ways;
     for (ways, offered) in [
         (None, false),
-        (Some(Ways::STOCK), false),
-        (Some(Ways { drafts: true, ..Ways::STOCK }), true),
-        (Some(Ways { goals: true, ..Ways::STOCK }), false),
+        (Some(Ways::STOCK), true),
+        (Some(Ways { drafts: false, ..Ways::STOCK }), false),
+        (Some(Ways { drafts: false, goals: true, ..Ways::STOCK }), false),
     ] {
         let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All }, ways);
         assert_eq!(crate::pages::chats::drafts_offered(&root, f::PROJECT), offered);
