@@ -18,3 +18,16 @@ id = 1
 story = "A due task whose charter grew past its admitted worker's turns reads Refused(Bounds) with the charter's turns and the worker's, through server bytes to the client's task"
 parts = ["bounds"]
 walk = false
+
+[[part]]
+id = "words"
+title = "The page, the terminal and ctl say which bound keeps a run out, in a person's words, and every command a waiting line names exists"
+mode = "direct"
+needs = ["bounds"]
+design = "temper/docs/design/client/README.md, 5.5"
+
+[[slice]]
+id = 2
+story = "A chat whose charter asks 100,000 turns against an 800-turn worker says \"No worker can take this: its charter asks 100,000 turns, and the largest worker takes 800.\" above its composer, ctl's task show says it under next run:, and every ctl command a waiting line names parses"
+parts = ["words"]
+walk = false

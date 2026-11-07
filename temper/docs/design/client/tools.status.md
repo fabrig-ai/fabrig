@@ -34,10 +34,12 @@ unknown-proposal explanation; the generated help states the same limit.
   reproduced cause on record; the settings-effort tests likewise guard an
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 14).
-- **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
-  (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
-  no such tool until area 3's is built (5.5), so that line names a command that
-  isn't there yet.
+- **Not yet:** 5.2, 6.1: `task show`'s text names commands that aren't ctl's:
+  `deployment show` for a host's wait, `settings help` for a checks shortfall, and
+  `account connect PROVIDER` without its key for a source that needs sign-in; and a
+  run no worker can ever take reads as a host's wait or a refused hello's, with no
+  bound's figures, and its shortfall of turns, time or waiting names no charter
+  (`temper-client-tools`' `render/document/llm.rs`).
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
