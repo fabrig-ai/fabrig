@@ -179,10 +179,10 @@ fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::L
     use c::{TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
     match wait {
         W::Credential => out.put(b"\n  it needs a credential from its forge: forge list"),
-        W::Host => out.put(b"\n  no host has room, or none is connected: deployment show"),
+        W::Host => out.put(b"\n  no host has room, or none is connected; it starts when one does"),
         W::Refused(why) => {
-            out.put(b"\n  its host refused this start: ");
-            refused_text(why, out);
+            out.put(b"\n  ");
+            refused_explanation(why, out);
         }
         W::Account { account, why, .. } => match why {
             R::Refreshing | R::Source(S::Asking | S::Granted) => {}
@@ -239,7 +239,7 @@ fn source_explanation(state: c::TaskSourceState, account: Option<u32>, out: &mut
             account_command(b"replace-key", account, out);
             out.put(b" FILE");
         }
-        S::NeedsSignIn => out.put(b"\n  its account needs sign-in: account connect PROVIDER"),
+        S::NeedsSignIn => out.put(b"\n  its account needs sign-in: account connect PROVIDER --key KEY"),
         S::Moving => out.put(b"\n  its account is moving out"),
         S::Later { .. } => out.put(b"\n  its account will be retried later"),
         S::Misconfigured => out.put(b"\n  its account's source is misconfigured"),
@@ -316,7 +316,20 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
     out.key(b"refused");
     out.object_start();
     match value {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { kind, why, figures: amounts } => {
+            out.key(b"bounds");
+            out.object_start();
+            out.key(b"kind");
+            out.string(host_kind(kind));
+            out.key(b"why");
+            match why {
+                Some(why) => agent_shortfall(why, out),
+                None => out.null(),
+            }
+            figures(amounts, out);
+            out.object_end();
+        }
+        c::TaskWaitRefused::Hello { kind, at, why, figures: amounts } => {
             out.key(b"hello");
             out.object_start();
             out.key(b"kind");
@@ -325,11 +338,26 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
             out.unsigned(at.as_nanos());
             out.key(b"why");
             hello_refusal(why, out);
+            figures(amounts, out);
             out.object_end();
         }
     }
     out.object_end();
     out.object_end();
+}
+fn figures(value: Option<c::Figures>, out: &mut Encoder) {
+    out.key(b"figures");
+    match value {
+        Some(value) => {
+            out.object_start();
+            out.key(b"required");
+            out.unsigned(value.required);
+            out.key(b"offered");
+            out.unsigned(value.offered);
+            out.object_end();
+        }
+        None => out.null(),
+    }
 }
 fn hello_refusal(value: c::HelloRefusal, out: &mut Encoder) {
     match value {
@@ -363,10 +391,10 @@ fn agent_shortfall(value: c::AgentShortfall, out: &mut Encoder) {
         c::AgentShortfall::Model { charter, model } => agent_numbers(b"model", charter, model, out),
         c::AgentShortfall::Window { charter, model } => agent_numbers(b"window", charter, model, out),
         c::AgentShortfall::Output { charter, model } => agent_numbers(b"output", charter, model, out),
-        c::AgentShortfall::Turns => out.string(b"turns"),
+        c::AgentShortfall::Turns { charter } => refusal_number(b"turns", b"charter", u64::from(charter), out),
         c::AgentShortfall::Spend => out.string(b"spend"),
-        c::AgentShortfall::Time => out.string(b"time"),
-        c::AgentShortfall::Waiting => out.string(b"waiting"),
+        c::AgentShortfall::Time { charter } => refusal_number(b"time", b"charter", u64::from(charter), out),
+        c::AgentShortfall::Waiting { charter } => refusal_number(b"waiting", b"charter", u64::from(charter), out),
         c::AgentShortfall::Checks { charter } => {
             out.object_start();
             out.key(b"checks");
@@ -397,7 +425,17 @@ fn agent_numbers(variant: &[u8], charter: u32, model: u32, out: &mut Encoder) {
 fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
     out.put(b"refused, ");
     match value {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { kind, why, .. } => {
+            out.put(match kind {
+                c::HostKind::Worker => b"no worker takes it",
+                c::HostKind::Engine => b"the engine's own host can't take it",
+            });
+            if let Some(why) = why {
+                out.put(b": ");
+                agent_shortfall_text(why, out);
+            }
+        }
+        c::TaskWaitRefused::Hello { kind, at, why, .. } => {
             out.put(host_kind(kind));
             out.put(b" refused at ");
             super::utc(at, out);
@@ -446,17 +484,208 @@ fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
             out.put(b", model position ");
             out.number(u64::from(model));
         }
-        c::AgentShortfall::Turns => out.put(b"agent turns too few"),
+        c::AgentShortfall::Turns { charter } => {
+            out.put(b"agent turns too few for charter ");
+            out.number(u64::from(charter));
+        }
         c::AgentShortfall::Spend => out.put(b"agent spend too small"),
-        c::AgentShortfall::Time => out.put(b"agent time too short"),
-        c::AgentShortfall::Waiting => out.put(b"agent waiting too short"),
+        c::AgentShortfall::Time { charter } => {
+            out.put(b"agent time too short for charter ");
+            out.number(u64::from(charter));
+        }
+        c::AgentShortfall::Waiting { charter } => {
+            out.put(b"agent waiting too short for charter ");
+            out.number(u64::from(charter));
+        }
         c::AgentShortfall::Checks { charter } => {
             out.put(b"agent check timeout exceeds charter ");
             out.number(u64::from(charter));
-            out.put(b" reserve_time; see settings help for held revisions");
+            out.put(b" reserve_time; see temper help settings for held revisions");
         }
         c::AgentShortfall::Message => out.put(b"agent message bound too small"),
         c::AgentShortfall::Inbox => out.put(b"agent inbox too small"),
         c::AgentShortfall::Unacknowledged => out.put(b"agent unacknowledged turns too few"),
+    }
+}
+
+/// The client's bound clauses in ctl's units (temper/docs/design/client/tools.md, 6.1).
+fn refused_explanation(value: c::TaskWaitRefused, out: &mut Text) {
+    match value {
+        c::TaskWaitRefused::Bounds { kind, why, figures } => bound_explanation(kind, why, figures, None, out),
+        c::TaskWaitRefused::Hello { kind, at, why, figures } => match why {
+            c::HelloRefusal::Agent { why } if figures.is_some() => {
+                bound_explanation(kind, Some(why), figures, Some(at), out);
+            }
+            c::HelloRefusal::Agent { .. }
+            | c::HelloRefusal::JobKinds
+            | c::HelloRefusal::ReservedChannel
+            | c::HelloRefusal::Position { .. }
+            | c::HelloRefusal::Workers { .. }
+            | c::HelloRefusal::StopBound { .. } => {
+                out.put(b"its host refused this start: ");
+                refused_text(value, out);
+            }
+        },
+    }
+}
+fn bound_explanation(
+    kind: c::HostKind,
+    why: Option<c::AgentShortfall>,
+    figures: Option<c::Figures>,
+    at: Option<skein_lib::Wall>,
+    out: &mut Text,
+) {
+    use c::AgentShortfall as S;
+    out.put(match kind {
+        c::HostKind::Worker => b"no worker can take this",
+        c::HostKind::Engine => b"the engine's own host can't take this",
+    });
+    let Some(why) = why else {
+        out.put(b": each falls short of another bound its charter asks");
+        return;
+    };
+    let Some(figures) = figures else {
+        out.put(b". ");
+        agent_shortfall_text(why, out);
+        return;
+    };
+    out.put(b": ");
+    bound_clause(why, figures.required, at, out);
+    out.put(b", ");
+    match kind {
+        c::HostKind::Engine => out.put(b"and it takes "),
+        c::HostKind::Worker => match at {
+            Some(at) => {
+                out.put(b"and the worker refused at ");
+                super::utc(at, out);
+                out.put(b" takes ");
+            }
+            None => out.put(match why {
+                S::Checks { .. } => b"and the quickest worker's checks take ",
+                S::Model { .. }
+                | S::Window { .. }
+                | S::Output { .. }
+                | S::Turns { .. }
+                | S::Spend
+                | S::Time { .. }
+                | S::Waiting { .. }
+                | S::Message
+                | S::Inbox
+                | S::Unacknowledged => b"and the largest worker takes ",
+            }),
+        },
+    }
+    bound_amount(why, figures.offered, out);
+}
+fn bound_clause(why: c::AgentShortfall, required: u64, at: Option<skein_lib::Wall>, out: &mut Text) {
+    use c::AgentShortfall as S;
+    match why {
+        S::Model { .. } => agent_shortfall_text(why, out),
+        S::Window { charter, model } | S::Output { charter, model } => {
+            bound_charter(charter, at, out);
+            out.put(b"'s model at position ");
+            out.number(u64::from(model));
+            out.put(match why {
+                S::Window { .. } => b" asks a window of ",
+                S::Output { .. } => b" asks ",
+                S::Model { .. }
+                | S::Turns { .. }
+                | S::Spend
+                | S::Time { .. }
+                | S::Waiting { .. }
+                | S::Checks { .. }
+                | S::Message
+                | S::Inbox
+                | S::Unacknowledged => unreachable!("window or output"),
+            });
+            out.number(required);
+            out.put(match why {
+                S::Output { .. } => b" output tokens",
+                S::Model { .. }
+                | S::Window { .. }
+                | S::Turns { .. }
+                | S::Spend
+                | S::Time { .. }
+                | S::Waiting { .. }
+                | S::Checks { .. }
+                | S::Message
+                | S::Inbox
+                | S::Unacknowledged => b" tokens",
+            });
+        }
+        S::Turns { charter } | S::Time { charter } | S::Waiting { charter } | S::Checks { charter } => {
+            bound_charter(charter, at, out);
+            out.put(match why {
+                S::Checks { .. } => b" keeps ",
+                S::Model { .. }
+                | S::Window { .. }
+                | S::Output { .. }
+                | S::Turns { .. }
+                | S::Spend
+                | S::Time { .. }
+                | S::Waiting { .. }
+                | S::Message
+                | S::Inbox
+                | S::Unacknowledged => b" asks ",
+            });
+            bound_amount(why, required, out);
+            out.put(match why {
+                S::Turns { .. } => b" turns",
+                S::Time { .. } => b" a run",
+                S::Waiting { .. } => b" of waiting",
+                S::Checks { .. } => b" for checks",
+                S::Model { .. }
+                | S::Window { .. }
+                | S::Output { .. }
+                | S::Spend
+                | S::Message
+                | S::Inbox
+                | S::Unacknowledged => unreachable!("charter bound"),
+            });
+        }
+        S::Spend => {
+            out.put(b"a run here may spend ");
+            out.number(required);
+        }
+        S::Message => {
+            out.put(b"a message here may be ");
+            out.number(required);
+            out.put(b" bytes");
+        }
+        S::Inbox => {
+            out.put(b"a start here sends ");
+            out.number(required);
+            out.put(b" messages");
+        }
+        S::Unacknowledged => {
+            out.put(b"a run here keeps ");
+            out.number(required);
+            out.put(b" turns unacknowledged");
+        }
+    }
+}
+fn bound_charter(charter: u32, at: Option<skein_lib::Wall>, out: &mut Text) {
+    match at {
+        None => out.put(b"its charter"),
+        Some(_) => {
+            out.put(b"charter ");
+            out.number(u64::from(charter));
+        }
+    }
+}
+fn bound_amount(why: c::AgentShortfall, value: u64, out: &mut Text) {
+    out.number(value);
+    match why {
+        c::AgentShortfall::Time { .. } | c::AgentShortfall::Waiting { .. } | c::AgentShortfall::Checks { .. } => {
+            out.put(b" ms");
+        }
+        c::AgentShortfall::Model { .. }
+        | c::AgentShortfall::Window { .. }
+        | c::AgentShortfall::Output { .. }
+        | c::AgentShortfall::Turns { .. }
+        | c::AgentShortfall::Spend
+        | c::AgentShortfall::Message
+        | c::AgentShortfall::Inbox
+        | c::AgentShortfall::Unacknowledged => {}
     }
 }

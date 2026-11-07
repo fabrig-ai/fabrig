@@ -11,6 +11,15 @@ pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> 
                 kind: super::documents::host_kind_fields(row.kind()),
                 at: skein_lib::Wall::from_nanos(row.at()),
                 why: super::documents::hello_refusal_fields(row.why()),
+                figures: shortfall_figures(row.figures().as_ref()),
+            },
+            w::TaskWaitRefused::Bounds(row) => c::TaskWaitRefused::Bounds {
+                kind: super::documents::host_kind_fields(row.kind()),
+                why: match row.why() {
+                    Some(why) => Some(super::documents::agent_shortfall_fields(why)),
+                    None => None,
+                },
+                figures: shortfall_figures(row.figures().as_ref()),
             },
         }),
         w::TaskRunWait::Account(row) => c::TaskRunWait::Account {
@@ -61,6 +70,13 @@ fn source_state(value: &w::TaskSourceState) -> c::TaskSourceState {
 fn wall(value: Option<u64>) -> Option<skein_lib::Wall> {
     match value {
         Some(value) => Some(skein_lib::Wall::from_nanos(value)),
+        None => None,
+    }
+}
+
+fn shortfall_figures(value: Option<&w::ShortfallFigures>) -> Option<c::Figures> {
+    match value {
+        Some(value) => Some(c::Figures { required: value.required(), offered: value.offered() }),
         None => None,
     }
 }

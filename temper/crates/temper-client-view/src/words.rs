@@ -821,6 +821,28 @@ pub enum Word {
     ChatClosed,
     CloseCannotReopen,
     RefusalSentences,
+    BoundWorker,
+    BoundEngine,
+    BoundNoWorker,
+    BoundNoEngine,
+    BoundDifferent,
+    BoundCharter,
+    BoundHelloCharter,
+    BoundTurns,
+    BoundTime,
+    BoundWaiting,
+    BoundChecks,
+    BoundWindow,
+    BoundOutput,
+    BoundSpend,
+    BoundMessage,
+    BoundInbox,
+    BoundUnacknowledged,
+    BoundLargest,
+    BoundQuickest,
+    BoundRefusedAt,
+    BoundTakes,
+
     HelloReservedChannel,
     HelloJobKinds,
     HelloStopBound,
@@ -1485,7 +1507,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2031;
+const PHRASES: u32 = 2052;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1512,10 +1534,10 @@ const PHRASES: u32 = 2031;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3550;
+const SEGMENTS: u32 = 3623;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 49875;
-const ALL: [Word; 1364] = [
+const ENGLISH_BYTES: u32 = 50466;
+const ALL: [Word; 1385] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2303,6 +2325,27 @@ const ALL: [Word; 1364] = [
     Word::ChatClosed,
     Word::CloseCannotReopen,
     Word::RefusalSentences,
+    Word::BoundWorker,
+    Word::BoundEngine,
+    Word::BoundNoWorker,
+    Word::BoundNoEngine,
+    Word::BoundDifferent,
+    Word::BoundCharter,
+    Word::BoundHelloCharter,
+    Word::BoundTurns,
+    Word::BoundTime,
+    Word::BoundWaiting,
+    Word::BoundChecks,
+    Word::BoundWindow,
+    Word::BoundOutput,
+    Word::BoundSpend,
+    Word::BoundMessage,
+    Word::BoundInbox,
+    Word::BoundUnacknowledged,
+    Word::BoundLargest,
+    Word::BoundQuickest,
+    Word::BoundRefusedAt,
+    Word::BoundTakes,
     Word::HelloReservedChannel,
     Word::HelloJobKinds,
     Word::HelloStopBound,
@@ -3678,6 +3721,28 @@ impl Word {
             Self::ChatClosed => 1261,
             Self::CloseCannotReopen => 1262,
             Self::RefusalSentences => 1263,
+            Self::BoundWorker => 4000,
+            Self::BoundEngine => 4001,
+            Self::BoundNoWorker => 4002,
+            Self::BoundNoEngine => 4003,
+            Self::BoundDifferent => 4004,
+            Self::BoundCharter => 4005,
+            Self::BoundHelloCharter => 4006,
+            Self::BoundTurns => 4007,
+            Self::BoundTime => 4008,
+            Self::BoundWaiting => 4009,
+            Self::BoundChecks => 4010,
+            Self::BoundWindow => 4011,
+            Self::BoundOutput => 4012,
+            Self::BoundSpend => 4013,
+            Self::BoundMessage => 4014,
+            Self::BoundInbox => 4015,
+            Self::BoundUnacknowledged => 4016,
+            Self::BoundLargest => 4017,
+            Self::BoundQuickest => 4018,
+            Self::BoundRefusedAt => 4019,
+            Self::BoundTakes => 4020,
+
             Self::HelloReservedChannel => 1268,
             Self::HelloJobKinds => 2154,
             Self::HelloStopBound => 1269,
@@ -4403,10 +4468,37 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(SET_UP_FAILURE_BYTES);
     }
+    // Bound clauses hold grouped u64 figures, charter names and a clock, independent of document text (5.5).
+    if kind == HoleKind::Name
+        && [
+            Word::BoundTurns,
+            Word::BoundTime,
+            Word::BoundWaiting,
+            Word::BoundChecks,
+            Word::BoundWindow,
+            Word::BoundOutput,
+            Word::BoundSpend,
+            Word::BoundMessage,
+            Word::BoundInbox,
+            Word::BoundUnacknowledged,
+            Word::BoundLargest,
+            Word::BoundQuickest,
+            Word::BoundRefusedAt,
+            Word::BoundTakes,
+        ]
+        .contains(&word)
+    {
+        return Ok(32);
+    }
     if word == Word::PlaygroundGroupFailed {
         return Ok(temper_client_domain::forge::PLAYGROUND_WHY_BYTES);
     }
-    if kind == HoleKind::Name && (word == Word::RefusalSentences || word == Word::WaitRefused) {
+    if kind == HoleKind::Name
+        && (word == Word::RefusalSentences
+            || word == Word::WaitRefused
+            || word == Word::BoundWorker
+            || word == Word::BoundEngine)
+    {
         return Ok(REFUSAL_BYTES);
     }
     if word == Word::PlaygroundRepository
@@ -5524,6 +5616,27 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatClosed | Word::ClosedChats => (&[b"Closed"], &[]),
         Word::CloseCannotReopen => (&[b"You can still read it, but it can\xe2\x80\x99t be reopened."], &[]),
         Word::RefusalSentences | Word::TimePair => (&[b"", b" ", b""], &[Name, Name]),
+        Word::BoundWorker => (&[b"No worker can take this: ", b""], &[Name]),
+        Word::BoundEngine => (&[b"The engine's own host can't take this: ", b""], &[Name]),
+        Word::BoundNoWorker => (&[b"No worker can take this."], &[]),
+        Word::BoundNoEngine => (&[b"The engine's own host can't take this."], &[]),
+        Word::BoundDifferent => (&[b"each falls short of another bound its charter asks."], &[]),
+        Word::BoundCharter => (&[b"its charter"], &[]),
+        Word::BoundHelloCharter => (&[b"charter ", b""], &[Number]),
+        Word::BoundTurns => (&[b"", b" asks ", b" turns,"], &[Name, Name]),
+        Word::BoundTime => (&[b"", b" asks ", b" a run,"], &[Name, Name]),
+        Word::BoundWaiting => (&[b"", b" asks ", b" of waiting,"], &[Name, Name]),
+        Word::BoundChecks => (&[b"", b" keeps ", b" for checks,"], &[Name, Name]),
+        Word::BoundWindow => (&[b"", b"'s model at position ", b" asks a window of ", b" tokens,"], &[Name, Number, Name]),
+        Word::BoundOutput => (&[b"", b"'s model at position ", b" asks ", b" output tokens,"], &[Name, Number, Name]),
+        Word::BoundSpend => (&[b"a run here may spend ", b","], &[Name]),
+        Word::BoundMessage => (&[b"a message here may be ", b" bytes,"], &[Name]),
+        Word::BoundInbox => (&[b"a start here sends ", b" messages,"], &[Name]),
+        Word::BoundUnacknowledged => (&[b"a run here keeps ", b" turns unacknowledged,"], &[Name]),
+        Word::BoundLargest => (&[b"and the largest worker takes ", b"."], &[Name]),
+        Word::BoundQuickest => (&[b"and the quickest worker's checks take ", b"."], &[Name]),
+        Word::BoundRefusedAt => (&[b"and the worker refused at ", b" takes ", b"."], &[Name, Name]),
+        Word::BoundTakes => (&[b"and it takes ", b"."], &[Name]),
         Word::HelloJobKinds => (&[b"Its job kinds are not ascending and distinct."], &[]),
         Word::HelloReservedChannel => (&[b"Channel zero belongs to the engine's own host."], &[]),
         Word::HelloStopBound => (&[b"It would not stop before the engine's grace ends."], &[]),
@@ -5531,7 +5644,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See temper help settings for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),
@@ -6205,7 +6318,7 @@ impl Words {
         let hours = minutes.checked_sub(remainder).expect("whole hours precede minutes");
         self.say(Word::PublicTimeParts, &[Hole::Name(self.looked_span(hours)), Hole::Name(self.looked_span(remainder))])
     }
-    fn time_span(&self, minutes: u64) -> Box<[u8]> {
+    pub(crate) fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {
             0 => self.say(Word::TimeUnderMinute, &[]),
             1..60 => self.say(Word::TimeMinutes, &[Hole::Number(minutes)]),
@@ -6352,4 +6465,19 @@ fn next_tick(
         }
     };
     Some(skein_lib::Wall::from_nanos(nanos))
+}
+
+/// Grouped counts and spend (temper/docs/design/client/README.md, 5.5).
+pub(crate) fn grouped(value: u64) -> Box<[u8]> {
+    let digits = skein_lib::Decimal::of(value);
+    let digits = digits.as_bytes();
+    let commas = digits.len().checked_sub(1).expect("decimal has digits").checked_div(3).expect("three is nonzero");
+    let mut number = skein_lib::Writer::new(digits.len().checked_add(commas).expect("grouped u64 fits"));
+    for (index, digit) in digits.iter().enumerate() {
+        if index != 0 && digits.len().checked_sub(index).expect("digit is in decimal").checked_rem(3) == Some(0) {
+            number.put(b",").expect("grouped length counted");
+        }
+        number.put(core::slice::from_ref(digit)).expect("grouped length counted");
+    }
+    number.finish()
 }

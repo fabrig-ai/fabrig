@@ -1984,6 +1984,17 @@ delegate's terminal wakes it to offer the landed result.
   the section; it does not retry the comparison or raise the client's limits.
   Other comparison read failures are the section's read failures (below). The
   same rule applies to the pull sections for reviews and repairs.
+  Likewise, if a page of the pull's files exceeds the forge client's answer
+  byte or row limit (a page carries each of its files whole on both sides,
+  skein's `forge.md`, 5.2, so one large document can pass it however small
+  its change), the section keeps its pull identity, its gathered content and
+  the pages before it, and appends a files-omitted notice within its byte
+  budget, naming that page and the tools that read its files
+  (`read_pull_files` from the next page, `read_file` for a path at the head
+  or the base). The section then goes on as after its last page, to its
+  comparison where it has one; it reads no later page of files and raises no
+  limit. This holds for every pull section, a review's included, so a
+  review of a small change to a large document starts.
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine.md`, 9.1):
 

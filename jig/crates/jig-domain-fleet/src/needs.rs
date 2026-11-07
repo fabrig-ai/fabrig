@@ -81,17 +81,32 @@ pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<Agent
         }
     }
     if applicable {
-        if bounds.spend < needs.spend {
-            return Some(AgentShortfall::Spend);
-        }
-        if bounds.message_bytes < needs.message_bytes {
-            return Some(AgentShortfall::Message);
-        }
-        if bounds.inbox < needs.start_messages {
-            return Some(AgentShortfall::Inbox);
-        }
-        if bounds.unacknowledged < needs.unacknowledged {
-            return Some(AgentShortfall::Unacknowledged);
+        return deployment_shortfall(needs, bounds);
+    }
+    None
+}
+
+fn deployment_shortfall(needs: &Needs, bounds: &Bounds) -> Option<AgentShortfall> {
+    if bounds.spend < needs.spend {
+        return Some(AgentShortfall::Spend);
+    }
+    if bounds.message_bytes < needs.message_bytes {
+        return Some(AgentShortfall::Message);
+    }
+    if bounds.inbox < needs.start_messages {
+        return Some(AgentShortfall::Inbox);
+    }
+    if bounds.unacknowledged < needs.unacknowledged {
+        return Some(AgentShortfall::Unacknowledged);
+    }
+    None
+}
+
+/// The first bound of `version`, then of the deployment, that `bounds` falls short of.
+pub(crate) fn version_shortfall(needs: &Needs, version: Version, bounds: &Bounds) -> Option<AgentShortfall> {
+    for charter in &needs.charters {
+        if charter.version == version {
+            return charter_shortfall(charter, bounds).or(deployment_shortfall(needs, bounds));
         }
     }
     None
@@ -116,6 +131,10 @@ fn charter_shortfall(charter: &CharterNeeds, bounds: &Bounds) -> Option<AgentSho
             return Some(AgentShortfall::Output { charter: charter.version.charter, model: number });
         }
     }
+    charter_limits_shortfall(charter, bounds)
+}
+
+fn charter_limits_shortfall(charter: &CharterNeeds, bounds: &Bounds) -> Option<AgentShortfall> {
     if bounds.turns < charter.turns {
         return Some(AgentShortfall::Turns { charter: charter.version.charter });
     }
@@ -137,26 +156,36 @@ fn charter_shortfall(charter: &CharterNeeds, bounds: &Bounds) -> Option<AgentSho
 /// for `Model`, which has none, or a `why` no version `kind` allows gives.
 #[must_use]
 pub fn figures(needs: &Needs, bounds: &Bounds, kind: HostKind, why: AgentShortfall) -> Option<Figures> {
+    figures_for(needs, bounds, why, charter_need(needs, bounds, kind, why))
+}
+
+pub(crate) fn version_figures(
+    needs: &Needs,
+    version: Version,
+    bounds: &Bounds,
+    why: AgentShortfall,
+) -> Option<Figures> {
+    for charter in &needs.charters {
+        if charter.version == version {
+            return figures_for(needs, bounds, why, Some(charter));
+        }
+    }
+    None
+}
+
+fn figures_for(needs: &Needs, bounds: &Bounds, why: AgentShortfall, charter: Option<&CharterNeeds>) -> Option<Figures> {
     let amounts = match why {
         AgentShortfall::Model { .. } => return None,
         AgentShortfall::Window { model, .. } => {
-            return model_figures(charter_need(needs, bounds, kind, why)?, bounds, model, false);
+            return model_figures(charter?, bounds, model, false);
         }
         AgentShortfall::Output { model, .. } => {
-            return model_figures(charter_need(needs, bounds, kind, why)?, bounds, model, true);
+            return model_figures(charter?, bounds, model, true);
         }
-        AgentShortfall::Turns { .. } => {
-            (u64::from(charter_need(needs, bounds, kind, why)?.turns), u64::from(bounds.turns))
-        }
-        AgentShortfall::Time { .. } => {
-            (charter_need(needs, bounds, kind, why)?.time.as_millis(), bounds.time.as_millis())
-        }
-        AgentShortfall::Waiting { .. } => {
-            (charter_need(needs, bounds, kind, why)?.waiting.as_millis(), bounds.waiting.as_millis())
-        }
-        AgentShortfall::Checks { .. } => {
-            (charter_need(needs, bounds, kind, why)?.change_reserve?.as_millis(), bounds.checks.as_millis())
-        }
+        AgentShortfall::Turns { .. } => (u64::from(charter?.turns), u64::from(bounds.turns)),
+        AgentShortfall::Time { .. } => (charter?.time.as_millis(), bounds.time.as_millis()),
+        AgentShortfall::Waiting { .. } => (charter?.waiting.as_millis(), bounds.waiting.as_millis()),
+        AgentShortfall::Checks { .. } => (charter?.change_reserve?.as_millis(), bounds.checks.as_millis()),
         AgentShortfall::Spend => (needs.spend, bounds.spend),
         AgentShortfall::Message => (u64::from(needs.message_bytes), u64::from(bounds.message_bytes)),
         AgentShortfall::Inbox => (u64::from(needs.start_messages), u64::from(bounds.inbox)),
@@ -309,24 +338,8 @@ pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs:
         channel.eligible = eligibility(&domain.needs, &channel.evidence.endpoints);
         channel.declarations = declarations(&domain.needs, &channel.evidence.endpoints);
         for (at, charter) in domain.needs.charters.iter().enumerate() {
-            let bounds = &channel.evidence;
-            let mut fits = bounds.turns >= charter.turns
-                && bounds.time >= charter.time
-                && bounds.waiting >= charter.waiting
-                && bounds.spend >= domain.needs.spend
-                && bounds.message_bytes >= domain.needs.message_bytes
-                && bounds.inbox >= domain.needs.start_messages
-                && bounds.unacknowledged >= domain.needs.unacknowledged;
-            if let Some(reserve) = charter.change_reserve {
-                fits &= bounds.checks <= reserve;
-            }
-            for need in &charter.models {
-                for model in &bounds.endpoints {
-                    if model.endpoint == need.endpoint {
-                        fits &= model.window >= need.window && model.output >= need.output;
-                    }
-                }
-            }
+            let fits = charter_shortfall(charter, &channel.evidence).is_none()
+                && deployment_shortfall(&domain.needs, &channel.evidence).is_none();
             let eligible = channel.eligible.get_mut(at).expect("one bit per charter");
             *eligible &= fits;
         }
@@ -344,18 +357,36 @@ pub(crate) fn fits(needs: &Needs, version: Version, bounds: &Bounds, kind: HostK
             continue;
         }
         return charter.kinds.allows(kind)
-            && bounds.turns >= charter.turns
-            && bounds.time >= charter.time
-            && bounds.waiting >= charter.waiting
-            && bounds.spend >= needs.spend
-            && bounds.message_bytes >= needs.message_bytes
-            && bounds.inbox >= needs.start_messages
-            && bounds.unacknowledged >= needs.unacknowledged
-            && match charter.change_reserve {
-                Some(reserve) => bounds.checks <= reserve,
-                None => true,
-            };
+            && charter_limits_shortfall(charter, bounds).is_none()
+            && deployment_shortfall(needs, bounds).is_none();
     }
     // The parent admits charter versions. An unconfigured charter has no needs.
     !known
+}
+
+/// The most offered by both hosts; undeclared endpoints cannot keep every host out.
+pub(crate) fn combine(most: &mut Bounds, other: &Bounds) {
+    most.turns = most.turns.max(other.turns);
+    most.spend = most.spend.max(other.spend);
+    most.time = most.time.max(other.time);
+    most.waiting = most.waiting.max(other.waiting);
+    most.checks = most.checks.min(other.checks);
+    most.message_bytes = most.message_bytes.max(other.message_bytes);
+    most.inbox = most.inbox.max(other.inbox);
+    most.unacknowledged = most.unacknowledged.max(other.unacknowledged);
+    for endpoint in &mut most.endpoints {
+        let mut declared = false;
+        for held in &other.endpoints {
+            if endpoint.endpoint == held.endpoint {
+                endpoint.window = endpoint.window.max(held.window);
+                endpoint.output = endpoint.output.max(held.output);
+                declared = true;
+                break;
+            }
+        }
+        if !declared {
+            endpoint.window = u32::MAX;
+            endpoint.output = u32::MAX;
+        }
+    }
 }

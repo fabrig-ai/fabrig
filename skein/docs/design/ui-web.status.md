@@ -2,6 +2,15 @@
 
 2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
+Section 6 has no known gap in mapping a node's hint to an escaped
+`title` attribute, including its replacement and removal by a patch.
+
+Section 14.2 has no known implementation gap in `Step::Pressed`: it
+finds the named target again at the face's poll interval and ends within
+the step's bound, including without a new event. The script table holds
+pressed at the first or a later look, unpressed until the bound, and
+absent until the bound, with the latter two failing for their reasons.
+
 Unlisted sections, including 7's requested focus bringing its node into
 view even when already focused, have no known gap. A bound continuing
 list reports its foot near through the page's scroll and apply paths,

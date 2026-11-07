@@ -1230,11 +1230,37 @@ The fleet child domain knows the hosts and the runs they host:
   host of any allowed kind exists. Busy slots and model eligibility do not
   weaken that suppression. The engine's construction placeholder is not an
   admitted hello. History eviction and fact drains do not affect this query;
-  a new fleet starts with neither fact.
+  a new fleet starts with neither fact. A fact keeps its refusal's figures,
+  the `HelloRefused` amounts: some for an agent's shortfall that has them,
+  none for every other reason.
   The core uses it only to refine an agent's Active Due or Preparing
   `RunWait::Host` into `TaskRunWait::Refused(TaskWaitRefused::Hello { kind,
-  at, why })`. Account and credential waits keep their precedence. No task
+  at, why, figures })`. Account and credential waits keep their precedence. No task
   state, placement decision, attempt, retry or stored record changes.
+- **A run its hosts are all too small for says which bound keeps it out.**
+  Hosts admitted before a charter grows stay admitted: `needs::replace`
+  only clears their eligibility for it, and no hello is refused, so the
+  standing refusal stays suppressed while the run can never be placed on
+  them. Where `standing_refusal` answers none, the core asks the fleet
+  `bounds_refusal(version, kinds)`, `version` the charter version the
+  task's run takes and `kinds` its hosts. It answers only while at least
+  one admitted, connected, non-draining host of an allowed kind exists and
+  every one of them falls short of a bound of that version, the bounds
+  `shortfall` checks for one charter (a declared endpoint's window and
+  output, turns, time, waiting, the checks timeout), then the
+  deployment-wide ones (spend, message, inbox, unacknowledged turns). Its
+  `kind` is the worker if any of those hosts is a worker, else the engine,
+  and it reads that kind's hosts alone: `why` is the first bound, in that
+  order, that every one of them falls short of, and `figures` the
+  version's need and the most any of them offers, the least for the checks
+  timeout, so that a client can say what the largest host takes. Where
+  each falls short of another bound, `why` and `figures` are none. The core
+  refines the wait into `TaskRunWait::Refused(TaskWaitRefused::Bounds {
+  kind, why, figures })`. Busy slots, a source's readiness, logins, model
+  declarations and the host rule never make this answer: those are waits
+  for room or readiness, and stay `Host`. It is derived as the standing
+  refusal is: nothing is stored, and no task state, placement, attempt or
+  retry changes.
 - **Grants follow their attempts:** each new generation of an LLM
   account's source or an application's credential goes to every live
   attempt that holds one (section 12), and each attempt the fleet keeps
@@ -2229,7 +2255,12 @@ section 17; the records are `../protocol/store.md`, 4.4.
     project's from one who is not that project's owner (people.md,
     section 4). A set touching both needs one party who is both;
   - *out of shape:* the settings it would leave fail 17.1's check,
-    which names the item and what fails;
+    which names the item and what fails. The refusal's `at` is that
+    item's position among the change's items as the request gave
+    them, counted from 0 as a batch's members are: the last item
+    naming the failing setting, so that a repeated setting names its
+    repeat, and 0 when no item names it (a setting the change leaves
+    as it was), which the fault's setting still names;
   - *judged:* a connector refuses an item of its kinds (17.5), saying
     why;
   - *full:* the revisions or the charter versions held once the
@@ -2946,6 +2977,7 @@ the release nor a first start. It moves no running work.
 - **What it marks.** A read marks the `accounts` document of whoever holds the
   account, and the deployment's, since its times moved. `me` is marked only when
   what it says moved: the decision changed the current settings, or the account's
-  `names` changed, which narrows its offer. A day's alarm alone marks nothing, nor
+  `names` changed, which narrows its offer, or its displayed `left_out` changed
+  (`../client/domain/contract.md`, 5.1). A day's alarm alone marks nothing, nor
   does a failed read, a repeat, a refused act or a read still held.
 - **A failed read** changes no setting and no name (accounts.md, 3.7).

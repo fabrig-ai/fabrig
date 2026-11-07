@@ -202,6 +202,7 @@ fn read_value_cases_first(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValu
         .unwrap();
 }
 fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue)>) {
+    cases.push(whole_call_turn_case()).unwrap();
     cases
         .push((
             w::ReadValue::EndedPage(read_wire_owner_ended_page()),
@@ -242,6 +243,52 @@ fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue
     cases
         .push((w::ReadValue::Deployment(deployment_record()), c::ReadValue::Deployment(Box::new(deployment()))))
         .unwrap();
+}
+
+fn whole_call_turn_case() -> (w::ReadValue, c::ReadValue) {
+    use smith_transcript::v6 as smith;
+    const INPUT: &[u8] = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefEND-OF-INPUT";
+    let mut source = smith::Turn::decode(&smith::CEILINGS, &mut Reader::new(FULL_TURN)).unwrap().into_parts();
+    let mut blocks = skein_lib::List::with_capacity(1);
+    blocks
+        .push(smith::Block::Call(
+            smith::Call::new(
+                &smith::CEILINGS,
+                smith::CallParts {
+                    id: Box::from(b"call".as_slice()),
+                    name: Box::from(b"tool".as_slice()),
+                    input: Box::from(INPUT),
+                    replay: None,
+                },
+            )
+            .unwrap(),
+        ))
+        .unwrap();
+    let mut message = source.messages.get(0).unwrap().clone().into_parts();
+    message.blocks = blocks;
+    *source.messages.get_mut(0).unwrap() = smith::Message::new(&smith::CEILINGS, message).unwrap();
+    let source = smith::Turn::new(&smith::CEILINGS, source).unwrap();
+    let mut writer = Writer::new(usize::try_from(source.measure()).unwrap());
+    source.encode(&mut writer).unwrap();
+    let wire = w::ReadValue::Turn(single_turn_record(&writer.finish()));
+
+    let mut expected = expected_single_turn();
+    let c::TurnRead::Decoded(turn) = &mut expected.turn else { unreachable!() };
+    let message = turn.messages.get_mut(0).unwrap();
+    message.blocks = skein_lib::List::with_capacity(1);
+    message
+        .blocks
+        .push(c::Block::Call(c::Call {
+            number: 1,
+            tool: text(b"tool"),
+            input: c::Text::new(Box::from(INPUT), u32::try_from(INPUT.len()).unwrap()).unwrap(),
+            outcome: None,
+            failed: false,
+            objects: skein_lib::List::with_capacity(0),
+            parts: skein_lib::List::with_capacity(0),
+        }))
+        .unwrap();
+    (wire, c::ReadValue::Turn(Box::new(expected)))
 }
 
 pub fn values_past_client_limits() -> [w::ReadValue; 1] {

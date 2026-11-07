@@ -3,6 +3,12 @@
 2026-11-07. Where jig's code lags or departs from [client.md](client.md).
 Unlisted sections have no known gap.
 
+Section 3's v19 run-wait records carry hello figures, bounds refusals
+and the turns, time and waiting shortfalls' charters in both directions.
+The server-bytes-to-client-task table covers figures present and absent,
+and a bounds refusal with no shared shortfall. No known gap remains in
+these records or their translations.
+
 Section 8's used, expired and unknown link answers are present, including
 the eight-digest history, constant-time digest comparison and preservation
 of a live or reserved link. The engine table covers empty and unknown

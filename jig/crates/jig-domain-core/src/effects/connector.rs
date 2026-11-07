@@ -41,6 +41,12 @@ pub struct PersonSeed {
 }
 
 impl PersonSeed {
+    /// The models its authority allows (jig/docs/design/domain/authority.md, 6.1).
+    #[must_use]
+    pub const fn models(&self) -> tasks::Models {
+        self.authority.models
+    }
+
     /// The allocated task number.
     #[must_use]
     pub const fn number(&self) -> u64 {

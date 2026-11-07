@@ -210,6 +210,7 @@ shell with no such behaviour, as the text shell, ignores it.
 | a level | heading | 1 and deeper |
 | a description | any node | words describing it beyond its name (a field's help, why it is invalid), counted in its text bytes |
 | a placeholder | text field, text area | words shown in it while it holds no value, a hint of what to write ("Message T6…"); never its name, which stays its label; counted in its text bytes |
+| a hint | any node | words a shell with a pointer shows on hover, as a scene's mark's hint (11.2), never needed to decide: the whole of words its text shows cut, a long title's; never its name, which stays its accessible name; counted in its text bytes |
 | an entry kind | text field | text (the default), number, email, telephone, url, date, time or secret (3.4) |
 | a value | text field, text area | its text, and its owner's count of writes (3.4) |
 | a focus request | any node | a count its owner moves when it asks the focus for this node; at most one per tree (section 7) |
@@ -224,7 +225,8 @@ shell with no such behaviour, as the text shell, ignores it.
 | a drawing | drawing | its kind and its data (3.5) |
 
 Each but completed and an order is found in the semantic or
-accessibility APIs of two platforms (4.1); section 16 maps each onto the
+accessibility APIs of two platforms (4.1), a hint as HTML's `title` and
+Android's tooltip text; section 16 maps each onto the
 web, iOS and Android. A log's *continues* and its end request say what a
 shell does with its view, as *folds away* does, and no platform has them.
 
@@ -376,7 +378,7 @@ how far a piece of work has gone toward its end.
 ## 5. Building
 
 - **The builder** owns the tree it builds: open, close, text and runs, a
-  name, a description, a placeholder, a state, a style token, a region name, a value
+  name, a description, a placeholder, a hint, a state, a style token, a region name, a value
   and its entry kind, a focus request, a count, an order, a position, spans, a
   sort, a fraction, an address, a key, a binding, a shortcut, a source,
   a drawing, a slot; one node a call, no macros. Each call changes the
@@ -525,7 +527,7 @@ how far a piece of work has gone toward its end.
   *remove* a node and its subtree; *move* a matched node whose order
   among its siblings changed; *text*, replacing a node's runs;
   *attribute*, replacing what a shell maps of a node (its role, name,
-  states, properties, a placeholder among them, tokens, region name, shortcut, whether it is bound
+  states, properties, a placeholder and a hint among them, tokens, region name, shortcut, whether it is bound
   and whether it links, a drawing's data); *value*, writing a field's
   value when its write count moved, or removing it. A patch carries no
   token, key or slot reference: they stay the view's, and a change to
@@ -1031,7 +1033,7 @@ builder asserts each before it allocates.
 |---|---|
 | `nodes` | a tree's nodes, fallbacks and spliced fragments included |
 | `depth` | its nesting, fragments included |
-| `text_per_node` | a node's name, description, placeholder, image address, runs, value and external target together |
+| `text_per_node` | a node's name, description, placeholder, hint, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
 | `drawing_bytes` | a drawing's data, an act on a drawing, and a flow's data, past which its block stays code (10.1) |
 | `styles_per_node` | a node's style tokens, and a mark's |
@@ -1139,6 +1141,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | to log end | `data-to-log-end` on the `<button>`, read by the page part (ui-web.md, section 7) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
+| a hint | `title` |
 | an entry kind | `type`: `text`, `number`, `email`, `tel`, `url`, `date`, `time`, `password` |
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
@@ -1190,6 +1193,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | an entry kind | `keyboardType` (`.numberPad`, `.emailAddress`, `.phonePad`, `.URL`), `textContentType`, `isSecureTextEntry`; `UIDatePicker` |
 | a value | `text`, `accessibilityValue` |
 | a placeholder | a text field's `placeholder`, a `TextField`'s prompt; a text view has none, and the shell lays a label over it, read as the hint |
+| a hint | with a pointer, `UIToolTipInteraction`'s text; `.help(_:)`; never `accessibilityHint`, which is the description's |
 | a focus request | `becomeFirstResponder()`; `UIAccessibility.post(notification: .layoutChanged, argument:)` naming the node's view; `@FocusState`, `@AccessibilityFocusState` |
 | a count, a position, spans | a data table's `accessibilityRowCount()`, `accessibilityRowRange()`, `accessibilityColumnRange()`; a list has none, and the shell may say it in `accessibilityValue` |
 | an order | no API: the shell draws each item's number before its words, and its `accessibilityLabel` says it |
@@ -1250,6 +1254,7 @@ semantics.
 | an entry kind | `setInputType`: `TYPE_CLASS_TEXT`, `TYPE_CLASS_NUMBER`, `TYPE_TEXT_VARIATION_EMAIL_ADDRESS`, `TYPE_CLASS_PHONE`, `TYPE_TEXT_VARIATION_URI`, `TYPE_DATETIME_VARIATION_DATE`, `TYPE_DATETIME_VARIATION_TIME`, `TYPE_TEXT_VARIATION_PASSWORD`; a secret `setPassword(true)`; read back by `getInputType`, `isPassword` | `KeyboardType.Text`, `Number`, `Email`, `Phone`, `Uri`, `Password`; `password()`; a date or a time through a picker |
 | a value | `setText` | `editableText` |
 | a placeholder | `setHint`, which TalkBack reads while the field is empty | `TextField`'s `placeholder` |
+| a hint | `setTooltipText`, never `setHintText`, which is the description's | a `TooltipBox`'s plain tooltip |
 | a focus request | `requestFocus()`; `ACTION_ACCESSIBILITY_FOCUS` | `FocusRequester.requestFocus()` |
 | a count, a position, spans | `CollectionInfo`'s rows; `CollectionItemInfo`'s row index (from 0: the position less one) and spans | `collectionInfo`, `collectionItemInfo` |
 | an order | no API: the shell draws each item's number before its words, and `setContentDescription` says it | the same, in `semantics`' `contentDescription` |

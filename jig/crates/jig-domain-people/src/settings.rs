@@ -6,7 +6,6 @@ pub enum Setting {
     Template(u32),
     Policy(u32),
     Rules,
-    Model(u32),
     /// Scope 0 is the deployment; otherwise it is a project number.
     Application {
         kind: u32,
@@ -17,6 +16,7 @@ pub enum Setting {
     ProjectPolicy {
         project: u32,
     },
+    Model(u32),
 }
 /// A check fault, including a connector's judgment (jig/docs/design/domain/engine.md, 17.1, 17.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

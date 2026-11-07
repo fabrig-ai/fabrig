@@ -392,15 +392,94 @@ fn the_playground_project_is_named_playground() {
 
 #[test]
 fn the_session_heading_keeps_its_name_and_shows_the_title_in_the_browser() {
-    let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
-    for (view, shown) in
-        [(fixtures::page_view(&root), "T9 · Ship the update"), (fixtures::browser_page_view(&root), "Ship the update")]
-    {
-        let heading =
-            named_position(view.tree().nodes(), Role::Heading { level: 1 }, Some("T9 · Ship the update".as_bytes()))
-                .expect("heading");
-        assert_eq!(fixtures::node_text(view.tree(), heading).as_ref(), shown.as_bytes());
-        assert!(fixtures::person_find(view.tree(), Role::Region, "T9 · Ship the update".as_bytes()).is_none());
+    const FULL_WORDS: u32 = 102;
+    // FULL_WORDS copies of "word " and the final "it" fill this title's bound.
+    const TITLE_BYTES: u32 = 512;
+    let mut domain = fixtures::domain_limits();
+    domain.client.domain.text = TITLE_BYTES;
+    domain.client.domain.long_text = TITLE_BYTES;
+    domain.client.domain.turn_text = TITLE_BYTES;
+    let mut title = skein_lib::Writer::new(usize::try_from(domain.client.domain.long_text).unwrap());
+    for _ in 0..FULL_WORDS {
+        title.put(b"word ").unwrap();
+    }
+    title.put(b"it").unwrap();
+    let bound_title = title.finish();
+    assert_eq!(bound_title.len(), usize::try_from(domain.client.domain.long_text).unwrap());
+    for (title, short, hint) in [
+        (b"Ship the update".as_slice(), "Ship the update", None),
+        (
+            b"okay let's design a small http server in python, using std lib. It should show a page with details about the moon cycle, where are we now in the cycle and when the next full moon will happen".as_slice(),
+            "okay let's design a small http server in python, using std lib.",
+            Some(b"okay let's design a small http server in python, using std lib. It should show a page with details about the moon cycle, where are we now in the cycle and when the next full moon will happen".as_slice()),
+        ),
+        (
+            bound_title.as_ref(),
+            "word word word word word word word word word word word word word word…",
+            Some(bound_title.as_ref()),
+        ),
+    ] {
+        let (mut root, _, watch) = fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &domain);
+        let mut task = configuring_task();
+        task.chip.title = c::DocumentText::complete(fixtures::first_run::text(title));
+        deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
+        let whole = crate::accounts::words::join(&["T9 · ".as_bytes(), title]);
+        let numbered = crate::accounts::words::join(&["T9 · ".as_bytes(), short.as_bytes()]);
+        for (shell, shown) in [
+            (crate::words::Shell::Terminal, numbered.as_ref()),
+            (crate::words::Shell::Browser, short.as_bytes()),
+        ] {
+            let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
+            let bounds = crate::Limits::of(&domain, &words).unwrap();
+            let mut view = crate::View::new(&bounds, &domain, words, fixtures::FORGE);
+            let tree = fixtures::build(&mut view, &root);
+            let heading = named_position(tree.nodes(), Role::Heading { level: 1 }, Some(&whole)).expect("heading");
+            assert_eq!(fixtures::node_text(tree, heading).as_ref(), shown);
+            assert_eq!(tree.nodes()[heading].hint.as_deref(), hint);
+            assert!(fixtures::person_find(tree, Role::Region, &whole).is_none());
+            if shell == crate::words::Shell::Terminal {
+                let mut print = skein_ui_text::Print::new(&bounds.tree).unwrap();
+                skein_ui_text::render(tree, b"temper", None, &mut print);
+                let line = crate::accounts::words::join(&[b"== ", &numbered, b" =="]);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), &line).is_some(), "terminal heading");
+            }
+        }
+        assert_eq!(root.pages().chat().unwrap().task(root.client()).unwrap().chip.title.bytes(), title);
+    }
+}
+
+#[test]
+fn a_chats_heading_is_its_first_sentence_or_line_cut_on_a_word() {
+    for (title, short) in [
+        ("Ship the update", "Ship the update"),
+        (
+            "okay let's design a small http server in python, using std lib. It should show a page with details about the moon cycle, where are we now in the cycle and when the next full moon will happen",
+            "okay let's design a small http server in python, using std lib.",
+        ),
+        ("Why does it fail? It ran yesterday.", "Why does it fail?"),
+        ("Ship it! Then rest.", "Ship it!"),
+        ("Fix the build\nthen the docs. And more", "Fix the build"),
+        ("Fix it\r\nthen", "Fix it"),
+        ("Read 3.5 in lib.rs first. Then", "Read 3.5 in lib.rs first."),
+        ("  \n\tIndented first line\nsecond", "Indented first line"),
+        (
+            "Show the moon cycle on one page, with where we are now and the next moon",
+            "Show the moon cycle on one page, with where we are now and the next moon",
+        ),
+        (
+            "Show the moon cycle on one page, with where we are now and the next one again soon",
+            "Show the moon cycle on one page, with where we are now and the next one…",
+        ),
+        (
+            "Please write a small http server in python for the moon cycle page, using the standard library",
+            "Please write a small http server in python for the moon cycle page…",
+        ),
+        (&"x".repeat(100), "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"),
+        (&"é".repeat(100), "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…"),
+        (&"é".repeat(72), "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"),
+        ("", ""),
+    ] {
+        assert_eq!(crate::pages::chat::short_title(title.as_bytes()).as_ref(), short.as_bytes(), "{title:?}");
     }
 }
 
@@ -3762,7 +3841,17 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
         (c::TaskRunWait::Credential, true, b"This work needs a credential from its forge."),
         (c::TaskRunWait::Host, true, b"Waiting for other work to finish. It starts by itself."),
         (c::TaskRunWait::Host, false, b"No host has room for this, or none is connected. It starts when one does."),
+        (
+            c::TaskRunWait::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 1 }),
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            }),
+            true,
+            b"No worker can take this: its charter asks 100,000 turns, and the largest worker takes 800.",
+        ),
     ] {
+        super::choice::wait_pointers(reason);
         for configuring in [false, true] {
             let mut task = configuring_task();
             task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
@@ -3775,6 +3864,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
             let root = configuring_task_root_owned(task, true, if configuring { 37 } else { 1 }, owned);
             for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
                 let tree = view.tree();
+                super::choice::wait_pointers(&fixtures::text(tree));
                 let feedback = named_position(tree.nodes(), Role::Paragraph, Some(reason)).expect("wait reason");
                 let composer = styled(tree, look::SESSION_COMPOSER);
                 assert!(feedback < composer);

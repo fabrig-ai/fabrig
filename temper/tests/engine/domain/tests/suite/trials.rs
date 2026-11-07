@@ -22,15 +22,26 @@ fn config() -> engine::Config {
     trial.policy.shell = false;
     trial.policy.agents = false;
     trial.policy.tools = tasks::Tools(0);
+    let mut second = trial.policy.model.clone();
+    second.provider = 2;
+    second.name = b"second".as_slice().into();
+    trial.policy.alternatives = Box::new([second.clone()]);
+    config.core.settings.models = Box::new([trial.policy.model.clone(), second]);
+    let mut providers = config.core.settings.llm_providers.providers.to_vec();
+    let mut provider = providers[0].clone();
+    provider.number = 2;
+    provider.name = b"Provider 2".as_slice().into();
+    providers.push(provider);
+    config.core.settings.llm_providers.providers = providers.into();
     config.core.defaults.charters = Box::new([walking::charter(), trial]);
     config
 }
 
 fn driver() -> Driver {
-    configured(config())
+    configured(config(), 1)
 }
 
-fn configured(config: engine::Config) -> Driver {
+fn configured(config: engine::Config, provider: u32) -> Driver {
     let mut limits = walking::limits();
     limits.tasks.charters = 2;
     limits.people.sign_in_lifetime = Duration::from_secs(180);
@@ -52,7 +63,7 @@ fn configured(config: engine::Config) -> Driver {
         key: [95; 16],
         ask: Box::new(people::Ask::AccountChange {
             holder: people::AccountHolder::Own,
-            change: people::AccountChange::AddKey { provider: 1, join: None, digest: [8; 32] },
+            change: people::AccountChange::AddKey { provider, join: None, digest: [8; 32] },
         }),
         carried: core::Carried { number: 1_u64 << 63, digest: [8; 32] },
     }));
@@ -354,37 +365,45 @@ fn a_minute_fails_it() {
 
 #[test]
 fn removing_the_account_cancels_it() {
-    for took in [false, true] {
+    for later in [false, true] {
         let (mut driver, mut run) = watched();
         let first = account(&driver);
-        if took {
+        let mut removed = first;
+        if later {
             end_by_turn(&mut driver, &run);
-            // The next trial still selects the first account.
-            add_account(&mut driver, 98);
+            add_account(&mut driver, 1, 98);
             let second = own_accounts(&driver).into_iter().find(|account| *account != first).unwrap();
             acknowledge(&mut driver);
+            removed = second;
             ask(&mut driver, second, false, 99);
             assert_eq!(rows(&driver).len(), 2);
             run = driver.last_assignment();
             acknowledge(&mut driver);
-            assert_eq!(rows(&driver).iter().find(|row| row.task == Some(run.task)).unwrap().took, Some(first));
+            assert_eq!(rows(&driver).iter().find(|row| row.task == Some(run.task)).unwrap().took, Some(second));
         }
         acknowledge(&mut driver);
-        change(&mut driver, people::AccountChange::Remove { account: first }, 100);
-        assert!(rows(&driver).is_empty(), "both the named account and any took rows go");
+        change(&mut driver, people::AccountChange::Remove { account: removed }, 100);
+        acknowledge(&mut driver);
+        if later {
+            assert_eq!(rows(&driver).len(), 1, "removal leaves the first account's ended row");
+            assert_eq!(row(&driver).account, first);
+            assert_eq!(row(&driver).state, trials::State::Answered { seconds: 1 });
+        } else {
+            assert!(rows(&driver).is_empty(), "the removed account's row goes");
+        }
         assert!(cancelled(&driver, run.task));
         end_cancelled(&mut driver, &run);
     }
 }
 
-fn add_account(driver: &mut Driver, key: u8) {
+fn add_account(driver: &mut Driver, provider: u32, key: u8) {
     driver.send(engine::Event::Party(engine::PartyInput::Key {
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         sign_in: driver.session(),
         key: [key; 16],
         ask: Box::new(people::Ask::AccountChange {
             holder: people::AccountHolder::Own,
-            change: people::AccountChange::AddKey { provider: 1, join: None, digest: [key; 32] },
+            change: people::AccountChange::AddKey { provider, join: None, digest: [key; 32] },
         }),
         carried: core::Carried { number: (1_u64 << 63) + u64::from(key), digest: [key; 32] },
     }));
@@ -594,19 +613,53 @@ fn past_starting_moves_its_step() {
 }
 
 #[test]
-fn took_is_the_account_the_run_keeps() {
-    let mut driver = driver();
-    let first = account(&driver);
-    add_account(&mut driver, 97);
-    let second = own_accounts(&driver).into_iter().find(|account| *account != first).unwrap();
-    let session = driver.session();
-    watch(&mut driver, WATCHER, session);
-    acknowledge(&mut driver);
-    ask(&mut driver, second, false, 96);
+fn a_later_account_is_the_one_tried() {
+    // The first account's provider, the later one's, and the model the later trial runs.
+    for (first_provider, later_provider, model) in [
+        (1, 2, b"second".as_slice()),   // Claude, then ChatGPT.
+        (2, 1, b"scripted".as_slice()), // ChatGPT, then Claude.
+        (1, 1, b"scripted".as_slice()), // A second account of one provider.
+    ] {
+        let mut driver = configured(config(), first_provider);
+        let first = account(&driver);
+        let session = driver.session();
+        watch(&mut driver, WATCHER, session);
+        acknowledge(&mut driver);
+        ask(&mut driver, first, false, 96);
+        let run = driver.last_assignment();
+        assert!(driver.task(run.task).unwrap().llm.is_none());
+        assert_eq!(row(&driver).took, Some(first));
+        end_by_turn(&mut driver, &run);
+        add_account(&mut driver, later_provider, 97);
+        let later = own_accounts(&driver).into_iter().find(|account| *account != first).unwrap();
+        acknowledge(&mut driver);
+        ask(&mut driver, later, false, 98);
+        let run = held_trial(&driver, later, model);
+        end_by_turn(&mut driver, &run);
+        acknowledge(&mut driver);
+        ask(&mut driver, later, true, 99);
+        let run = held_trial(&driver, later, model);
+        assert_eq!(claims(&driver), 3);
+        if first_provider == 1 && later_provider == 2 {
+            end_by_turn(&mut driver, &run);
+            acknowledge(&mut driver);
+            ask(&mut driver, first, true, 100);
+            held_trial(&driver, first, b"scripted");
+            assert_eq!(claims(&driver), 4, "retry judges the first account again");
+        }
+    }
+}
+
+fn held_trial(driver: &Driver, account: u32, model: &[u8]) -> engine::Assignment {
     let run = driver.last_assignment();
-    assert_eq!(row(&driver).account, second);
-    assert_eq!(row(&driver).took, Some(first));
-    assert_eq!(driver.task(run.task).unwrap().kept_account, row(&driver).took);
+    let row = rows(driver).iter().find(|row| row.account == account).expect("the tried account has a row");
+    assert_eq!(row.took, Some(account));
+    assert_eq!(row.task, Some(run.task));
+    assert_eq!(run.run.policy.model.name.as_ref(), model);
+    let task = driver.task(run.task).expect("the trial task is live");
+    assert_eq!(task.llm.as_ref().expect("creator holds the account").account, Some(account));
+    assert_eq!(task.kept_account, Some(account));
+    run
 }
 
 #[test]
@@ -638,7 +691,7 @@ fn each_person_reads_their_own_rows() {
     let first_session = driver.session();
     let first_account = account(&driver);
     end_by_turn(&mut driver, &run);
-    add_account(&mut driver, 97);
+    add_account(&mut driver, 1, 97);
     let second_account = own_accounts(&driver).into_iter().find(|account| *account != first_account).unwrap();
     driver.fire_at(Duration::from_secs(2));
     driver.settle();
@@ -646,7 +699,7 @@ fn each_person_reads_their_own_rows() {
     ask(&mut driver, second_account, false, 98);
     assert_eq!(rows(&driver).iter().map(|row| row.account).collect::<Vec<_>>(), [second_account, first_account]);
     sign_in_second(&mut driver);
-    add_account(&mut driver, 99);
+    add_account(&mut driver, 1, 99);
     let second_session = driver.session();
     watch(&mut driver, Token::new(402), second_session);
     let second_account = own_accounts(&driver)
@@ -707,7 +760,7 @@ fn it_is_in_no_list() {
     let project = walking::config(106).core;
     config.core.seed_projects = project.seed_projects;
     config.core.owners = project.owners;
-    let mut driver = configured(config);
+    let mut driver = configured(config, 1);
     driver.period();
     driver.settle();
     let account = account(&driver);

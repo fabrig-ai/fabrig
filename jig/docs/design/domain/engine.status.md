@@ -2,6 +2,12 @@
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 8 has no known gap in derived next-run refusals: standing hello
+facts retain their figures, and admitted hosts too small for the run's
+charter version give the first shared shortfall and their best offer,
+or no named bound when their shortfalls differ. Account and credential
+waits keep precedence; a fitting host leaves the ordinary host wait.
+
 Sections 17.1, 17.7, 17.8 and 17.11 have no known implementation gap in
 numbered model settings, release-default overlays, resolved charter versions,
 withdrawal, catalogue notifications or the owner's newest-revision act.
@@ -15,6 +21,22 @@ counting that set as room is deferred in section 16.
 Section 11.1's account-driven marks preserve time-expiring offers: a
 not-due account timer skips account work and leaves its alarm scheduled;
 a due expiry marks and delivers the changed offer.
+
+Section 17.12's held worker reads, filtered catalogue changes decided by
+the provider's list, atomic account and settings commits, and retention
+of running work have no known implementation gap. The mark table covers
+failures, repeats, first empty reads and catalogue changes; account times
+alone mark no Frame. The omitted-count mark below remains unimplemented.
+Later pages, later changes to a known name's figures
+and catalogue-number reuse remain section 16's open questions.
+
+- **Not yet:** 17.12: a read changing only the displayed omitted count
+  does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
+  presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
+  adds the visible accounts' largest `left_out` to each project's count.
+  Settings can therefore keep the old count until another Frame mark.
+  The mark table has no row for this case; this finding is by reading,
+  with no runtime result supplied. No reason for the omission is recorded.
 
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
@@ -100,11 +122,7 @@ a due expiry marks and delivers the changed offer.
   decide it; a row names the lowest 32, the bound of that list on the client's wire.
 
 - **Departs:** 6: `Core::new` without a start is ready, because the
-  core's unit fixtures need no start; every root starts it. 8: the
-  client wire drops the failing charter's number of a
-  shortfall's turns, time and waiting
-  (`jig-protocol-engine-clients/src/translate/deployment.rs`), because its
-  shortfall arms carry no charter; a client wire version adds it.
+  core's unit fixtures need no start; every root starts it.
   4.2: the core's answers to parties cross the engine's client translation
   with optional refusal and ending facts always empty; the fields and
   the choice to fill them or drop them in a client wire version are in

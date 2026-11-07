@@ -1,6 +1,14 @@
 # tools: status
 
 2026-11-07. Remaining gaps between temper's code and [tools.md](tools.md).
+
+Sections 5.2 and 6.1 have no known gap in next-run bounds explanations,
+hello figures, charter-bearing shortfalls or their JSON. The waiting
+tables check each named ctl call through the parser, each help page by
+lookup and the program-login command against its configured prefix.
+Host waits name no command. The settings reference's non-waiting help
+pointer remains deferred in section 14.
+
 Unlisted sections have no known gap, including 6.3's watch-capacity
 diagnostic and deadline words, and 8.2's retry spans. Sections 7's key
 refusals, 6.1's unpinned account wait and failure-log directions, 5.5's
@@ -34,10 +42,6 @@ unknown-proposal explanation; the generated help states the same limit.
   reproduced cause on record; the settings-effort tests likewise guard an
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 14).
-- **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
-  (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
-  no such tool until area 3's is built (5.5), so that line names a command that
-  isn't there yet.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
