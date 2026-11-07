@@ -1,5 +1,6 @@
 //! Exhaustive child routing and synchronous handoffs (jig's domain/root.md, 5).
 mod applications;
+pub(crate) mod approvals;
 mod asks;
 pub(crate) mod calendar;
 mod diagnostics;

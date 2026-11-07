@@ -8,8 +8,6 @@ and user pair; reviews use the pull request's forge, and eligibility uses
 that same lookup. The step tables cover equal
 user numbers on different forges, unknown accounts and each forge's writer.
 
-- **Not yet:** 8.12: the root answers no document of the subject `approvals`,
-  and the read of a proposal's items says nothing of an approval on an owned Forgejo.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
