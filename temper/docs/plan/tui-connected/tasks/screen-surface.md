@@ -50,8 +50,9 @@ Acceptance:
    `Paint::over` (a colour over none, none over a colour, attributes
    or'ed); `Theme::valid` (a valid theme, two looks for one region, two
    for one style, a wide focus glyph, a control mask glyph); `width` (ASCII,
-   `é`, U+0301, `中`, `가`, U+FF01, `●`, `─`, U+1F600); `Frame::new` at a
-   `most` whose cells pass a u32 is `None`; `Frame::print` of a 3 by 6
+   `é`, U+0301, `中`, `가`, U+FF01, `●`, `─`, U+1F600); the frame's bounds (a new
+   frame 0 by 0; `clear` cut to `most` on each side; `row` and `put`
+   refused past the size; the cursor none after `clear`); `Frame::print` of a 3 by 6
    frame with two paints, a wide glyph and the cursor, compared with a
    golden kept in `src/tests/golden/print.txt`, written by hand from
    section 4.
@@ -111,3 +112,15 @@ else names the crate yet.
 
 As the implementer's text says, and: the cells' storage, how `width`'s
 table is searched and its size in ranges.
+
+## Answers
+
+2026-11-07. *Two u16 sides never make a cell count past a u32, so
+`Frame::new`'s refusal and its test cannot be: keep u16, or widen?* Keep
+`Size { rows: u16, columns: u16 }`. `Frame::new(most: Size) -> Frame`: it
+never refuses (contracts.md, section 2, now says so; an always-`Some`
+`Option` would trip pedantic `unnecessary_wraps`). The refusal's test is
+gone from acceptance 4; in its place a table of the frame's bounds: a new
+frame 0 by 0, `clear` cut to `most` on each side, `row` and `put` refused
+past the size, the cursor none after `clear`. Keep it small: no frame of
+65,535 by 65,535 is made in a test.
