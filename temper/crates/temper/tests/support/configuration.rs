@@ -94,16 +94,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
-    let llm = &mut value["engine"]["llm"];
-    if let Some(models) = llm.as_object_mut().expect("llm").remove("models") {
-        for provider in llm["providers"].as_array_mut().expect("providers") {
-            let name = provider["models"][0].clone();
-            let model =
-                models.as_array().expect("models").iter().find(|model| model["name"] == name).expect("provider model");
-            provider["endpoint"] = model["endpoint"].clone();
-            provider.as_object_mut().expect("provider").remove("models");
-        }
-    }
+    temper_playground::documents::settings::strip_models(value);
     value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
     value["engine"]["limits"]["overrides"]["core.run_bytes"] = 8192.into();
 }

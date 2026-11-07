@@ -131,18 +131,6 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
-    value["engine"]["llm"]["providers"][0]["models"] = json!(["gpt-6.1-sol"]);
-    value["engine"]["llm"]["models"]
-        .as_array_mut()
-        .expect("models")
-        .retain(|model| model["name"] == "gpt-6.1-sol" || model["name"] == "demo");
-    let sol = value["engine"]["llm"]["models"]
-        .as_array_mut()
-        .expect("models")
-        .iter_mut()
-        .find(|model| model["name"] == "gpt-6.1-sol")
-        .expect("Sol");
-    sol["output"] = 32_000.into();
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
     worker["endpoints"][0]["limits"]["output"] = 32_000.into();
     worker["endpoints"][0]["limits"]["reasoning_item"] = 32_768.into();
@@ -153,8 +141,6 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
-    assert_eq!(value["engine"]["llm"]["models"][0]["effort"], "high");
-    assert_eq!(value["engine"]["llm"]["models"][0]["output"], 32_000);
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
     assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
@@ -855,6 +841,7 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
 /// All ordinary ctl setup before importing the held account, shared by the
 /// live walk and the process proof with the existing fake model.
 fn setup_tools(driver: &mut Driver) -> Result<(), String> {
+    configure_model(driver)?;
     driver.ctl(&["forge", "setup", "--playground", "--key", "rung-forge"], None)?;
     driver.wait(&["forge", "list"], "settled")?;
     let forges = driver.ctl(&["forge", "list"], None)?;
@@ -871,6 +858,32 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     driver.ctl(&["project", "fund", &project, "928512", "--role", "0", "--key", "rung-role-funds"], None)?;
     let charter = driver.ctl(&["settings", "show", "charter", "1"], None)?;
     require(charter["value"]["model"]["name"] == "gpt-6.1-sol", "QA charter uses sol")?;
+    Ok(())
+}
+
+/// Change the stock row after startup, through the signed-in owner's settings act.
+fn configure_model(driver: &mut Driver) -> Result<(), String> {
+    let inventory = driver.ctl(&["settings", "show"], None)?;
+    let revision = inventory["newest"].as_u64().ok_or("settings revision")?.to_string();
+    let setting = driver.ctl(&["settings", "show", "model", "4"], None)?;
+    let mut value = setting["value"].clone();
+    require(value["model"]["name"] == "gpt-6.1-sol", "stock row 4 is sol")?;
+    value["model"]["window"] = 1_048_576.into();
+    value["model"]["output"] = 32_000.into();
+    let file = driver.store.join("model-settings.json");
+    write_json(&file, &json!({"items":[{"setting":setting["setting"], "set":value}]}));
+    driver.ctl(
+        &[
+            "settings",
+            "apply",
+            file.to_str().ok_or("settings FILE path")?,
+            "--against",
+            &revision,
+            "--key",
+            "rung-model",
+        ],
+        None,
+    )?;
     Ok(())
 }
 
