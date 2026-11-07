@@ -1,4 +1,4 @@
-//! The page follows kept forge records (temper/docs/design/protocol/sign-in.md, 9.7 and 9.8).
+//! Forge sign-in and its page follow kept records (temper/docs/design/protocol/sign-in.md, 9.7, 9.8 and 9.9).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -345,15 +345,31 @@ fn a_page_reply_on_its_way_ends_with_the_page_it_began() {
 }
 
 #[test]
-fn machine_owned_sign_in_must_name_a_provider_client_at_its_path() {
-    let input = super::stock::generated();
-    let input = fixtures::with(&input, b"application.machine.owned", br#"{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","person":{"login":"ada","email":"ada@localhost"},"forgejo":"fetched","runner":null,"sign_in":"unknown"}"#);
-    let problems = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert!(
-        core::str::from_utf8(&crate::startup::lines(&problems))
-            .unwrap()
-            .contains("application.machine.owned.sign_in: unknown reference")
-    );
+fn machine_owned_sign_in_is_refused_at_its_path() {
+    for (owned_sign_in, sign_in, expected) in [
+        ("unknown", "null", "application.machine.owned.sign_in: unknown reference\n"),
+        (
+            "forgejo",
+            r#"{"google":{"provider":3,"client":"client","secret":"google.secret","endpoints":null},"members":[{"address":"ada@localhost","login":"ada"}]}"#,
+            "application.machine.owned.sign_in: a box's sign-in takes application.sign_in null\n",
+        ),
+    ] {
+        let input = super::stock::generated();
+        let input = fixtures::with(
+            &input,
+            b"engine.providers",
+            br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#,
+        );
+        let input = fixtures::with(&input, b"engine.owners", br#"[{"provider":3,"subject":"ada@localhost"}]"#);
+        let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
+        let owned = format!(
+            r#"{{"listen":{{"socket":"127.0.0.1:8368"}},"remote":"http://127.0.0.1:8368","person":{{"login":"ada","email":"ada@localhost"}},"forgejo":"fetched","runner":null,"sign_in":"{owned_sign_in}"}}"#
+        );
+        let input = fixtures::with(&input, b"application.machine.owned", owned.as_bytes());
+        let input = fixtures::with(&input, b"application.sign_in", sign_in.as_bytes());
+        let problems = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
+        assert_eq!(core::str::from_utf8(&crate::startup::lines(&problems)).unwrap(), expected);
+    }
 }
 
 #[test]

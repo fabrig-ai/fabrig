@@ -1157,6 +1157,7 @@ impl World {
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
+                | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
                 | top::Request::BoxGroup { .. }
@@ -1503,6 +1504,7 @@ mod records {
         let mut expected = Vec::new();
         for number in [3, 2] {
             let record = top::ForgeRecord {
+                person: None,
                 git_program: None,
                 number,
                 kind: top::Kind::Forgejo,

@@ -228,6 +228,9 @@ skein-io socket
     before the repository is made makes it at the next connect; `Copies`'
     addresses, kept for the client to ask them at Ready and after a restart;
     or `Nothing`;
+  - its link to a box's person, or none: the forge's user who is the box's
+    one person, and that person's party, `{ user, person }`, each never 0
+    (`../domain/forge.md`, 4.6);
   - its state: kept, or ended, with whether its secrets are erased and
     its box group removed (2.3).
 
@@ -1312,11 +1315,6 @@ temper's part:
 
 ## 14. Open questions
 
-- **A box owner's link to a forge user** (`../draft/forge-identity.md`,
-  sections 3, 4 and 9): the forge record's link, an owned Forgejo's
-  `Reconcile` login, GitHub's `GET /app` owner and `AppMade` evidence,
-  and clearing the link outside a box's sole-owner scope are separate
-  work. Default: no link; the person lookup answers adoption's seeds alone.
 - **The kit's own** are skein's: `forge.md`, sections 9 and 12;
   `forge-connection.md`, section 11; `forge-client.md`, section 11. They
   hold every question and every unrecorded fact about the vocabulary, a

@@ -67,7 +67,7 @@ impl View {
         self.forge_sign_in = forges;
     }
     fn task_main(&mut self, b: &mut Builder, root: &Domain, times: &mut crate::words::Times) {
-        crate::pages::task::main(b, root, &self.forge_words, &mut self.pages, self.rows, times);
+        crate::pages::task::main(b, root, &self.forge_words, &mut self.pages, self.rows, times, &self.forge_sign_in);
     }
     /// Earliest change among the time words drawn by the last build.
     #[must_use]
@@ -216,7 +216,15 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
         );
     } else if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
-        crate::pages::inbox::main(&mut builder, root, &view.forge_words, &mut view.pages, view.rows, &mut times);
+        crate::pages::inbox::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            view.rows,
+            &mut times,
+            &view.forge_sign_in,
+        );
     } else if let temper_client_domain::Address::NewChat { .. } = root.pages().address() {
         crate::pages::new_chat::main(
             &mut builder,
@@ -250,6 +258,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             *project,
             &mut times,
             view.rows,
+            &view.forge_sign_in,
         );
     } else if let temper_client_domain::Address::Goals { project, .. } = root.pages().address() {
         crate::pages::goals::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);

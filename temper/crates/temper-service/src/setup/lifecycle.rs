@@ -356,6 +356,25 @@ fn manifest_back(engine: &crate::engine::Engine, token: Token) -> Option<&[u8]> 
         _ => None,
     }
 }
+/// The App's kept mark and account identify the person (temper/docs/design/protocol/setup.md, 17.2).
+fn app_answer(
+    engine: &crate::engine::Engine,
+    forge: u16,
+    owner: Option<&skein_forge::github::document::AppOwner>,
+) -> domain::PersonAnswer {
+    let Some(rows) = engine.forge_records.rows.forge(forge) else { return domain::PersonAnswer::NotTheirs };
+    let Ok(id) = rows.get(Item::AppId) else { return domain::PersonAnswer::NotTheirs };
+    let Ok(made) = rows.get(Item::AppMade) else { return domain::PersonAnswer::NotTheirs };
+    if skein_forge_setup::item::app_id(id).is_none() || skein_forge_setup::item::app_made(made).is_none() || made != id
+    {
+        return domain::PersonAnswer::NotTheirs;
+    }
+    let Some(owner) = owner else { return domain::PersonAnswer::NotTheirs };
+    match owner.kind {
+        skein_forge::github::document::Account::User => domain::PersonAnswer::Is(owner.id),
+        skein_forge::github::document::Account::Organization => domain::PersonAnswer::NotTheirs,
+    }
+}
 #[expect(clippy::too_many_lines, reason = "each setup plan completes through its own durable writes")]
 pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: reconcile::Outcome) {
     let Some(run) = engine.setup.runs.get(&token) else { return };
@@ -380,6 +399,42 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
     if kind == Kind::Reachable {
         reached(engine, token, outcome);
         return;
+    }
+    let answer = match &outcome {
+        reconcile::Outcome::Person { id } => {
+            if kind == Kind::LocalReconcile {
+                Some(match id {
+                    Some(id) => domain::PersonAnswer::Is(id.get()),
+                    None => domain::PersonAnswer::Gone,
+                })
+            } else {
+                None
+            }
+        }
+        reconcile::Outcome::Made { owner } => {
+            if kind == Kind::Convert {
+                Some(app_answer(engine, forge, owner.as_ref()))
+            } else {
+                None
+            }
+        }
+        reconcile::Outcome::Lacking { owner, .. } => {
+            if kind == Kind::Paste || kind == Kind::Reconcile {
+                Some(app_answer(engine, forge, owner.as_ref()))
+            } else {
+                None
+            }
+        }
+        reconcile::Outcome::Nothing
+        | reconcile::Outcome::Manifest { .. }
+        | reconcile::Outcome::Install { .. }
+        | reconcile::Outcome::Identity { .. }
+        | reconcile::Outcome::Reachable { .. }
+        | reconcile::Outcome::Copied { .. }
+        | reconcile::Outcome::Created { .. } => None,
+    };
+    if let Some(answer) = answer {
+        engine.events.push(root::Event::Forge(Box::new(domain::Event::PersonOf { forge, answer })));
     }
     if kind == Kind::LocalTakeOver {
         engine.setup.runs.get_mut(&token).expect("takeover done").kind = Kind::LocalRemoval;

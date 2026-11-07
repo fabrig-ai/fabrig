@@ -584,3 +584,80 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
         );
     }
 }
+
+#[test]
+fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_panel() {
+    use crate::settings::{Asked, Edit, RuleApproval, SizedValue, Value};
+    use jig_domain_people::ApplicationScope;
+    use skein_forge::api::Write;
+    for (turn, merge) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut d = landing_fixture();
+        if turn {
+            member_landing(&mut d);
+        }
+        let repository = adopted();
+        let rule = crate::settings::LandingRule {
+            pattern: GatePattern {
+                segments: Box::new([
+                    b"forge".as_slice().into(),
+                    repository.host,
+                    repository.owner,
+                    repository.name,
+                    b"branch".as_slice().into(),
+                ]),
+                last: GateLast::Exact(b"main".as_slice().into()),
+            },
+            enforce: true,
+            ci: false,
+            up_to_date: false,
+            gates: Box::new([]),
+            approvals: Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]),
+        };
+        d.keep_settings(
+            &env(),
+            2,
+            None,
+            &[Asked {
+                kind: 1,
+                scope: 0,
+                number: 1,
+                edit: Edit::Set(SizedValue { value: Value::Rule(rule), size: 128 }),
+            }],
+            &mut Queue::uncapped(),
+        );
+        let facts = ReviewFacts {
+            head: Some(fixtures::HEAD),
+            reviews_complete: true,
+            reviewers: Box::new([]),
+            unmapped: Box::new([]),
+        };
+        assert!(d.keep_review_facts(env().wall, fixtures::CHANGE, facts.clone()));
+        let mut other = fixtures::opening_row();
+        other.task = 52;
+        other.change.task = 52;
+        d.changes.insert(52, other).expect("unrelated change");
+        assert!(d.keep_review_facts(env().wall, 52, facts.clone()));
+        let panel = d.panel(fixtures::CHANGE, ApplicationScope::Project(5), env().wall, &LIMITS).expect("panel");
+        assert_eq!(panel.approvals[0].read, ReviewRead::Complete);
+        let mut entry = held_issue();
+        entry.number = 91;
+        entry.task = if turn { 61 } else { fixtures::CHANGE };
+        entry.start = None;
+        entry.attempt = None;
+        if merge {
+            entry.effect.write =
+                Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style };
+        }
+        outputs(&mut d, Event::Enqueue { entry });
+        let requests = outputs(&mut d, Event::Committed { entry: 91 });
+        let mark = Request::Marked { tasks: Box::new([APPROVALS_SUBJECT, fixtures::CHANGE]) };
+        assert_eq!(requests.contains(&mark), merge, "turn={turn}, merge={merge}: {requests:?}");
+        assert_eq!(d.review_facts.get(&fixtures::CHANGE), if merge { None } else { Some(&facts) });
+        assert_eq!(d.review_since.get(&fixtures::CHANGE).copied(), if merge { None } else { Some(env().wall) });
+        let panel = d.panel(fixtures::CHANGE, ApplicationScope::Project(5), env().wall, &LIMITS).expect("panel");
+        assert_eq!(panel.approvals[0].read, if merge { ReviewRead::Unread } else { ReviewRead::Complete });
+        assert_eq!(d.review_facts.get(&52), Some(&facts), "another change keeps its facts");
+        assert_eq!(d.review_since.get(&52), Some(&env().wall));
+        assert!(!outputs(&mut d, Event::Committed { entry: 91 }).contains(&mark), "no repeated drop mark");
+    }
+}

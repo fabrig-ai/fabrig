@@ -22,13 +22,26 @@ fn root() -> d::Domain {
         acts: offers,
         ending: None,
     };
-    f::inbox_with_document(
-        d::address::Filter::ALL,
-        Some((
-            c::Read::Question { task: f::INBOX_TASK, message: f::INBOX_QUESTION },
-            c::ReadValue::Question(Box::new(page)),
-        )),
-    )
+    let mut source = f::ReadPage::new(Address::Inbox { filter: d::address::Filter::ALL });
+    let rows = List::from_boxed(Box::new([super::documents::entry(OBJECT, f::PROJECT, 1, Wall::EPOCH, None)]));
+    source.up(jig_client::Up::Watched {
+        watch: source.inbox.unwrap(),
+        event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+            rows,
+            1,
+            c::Count { value: 0, limited: false },
+            0,
+            false,
+        )))),
+    });
+    source.collect();
+    let reads = source.reads.clone();
+    for (read, what) in &reads {
+        if *what == (c::Read::Question { task: f::INBOX_TASK, message: f::INBOX_QUESTION }) {
+            source.answer(*read, c::ReadResult::Value(c::ReadValue::Question(Box::new(page.clone()))));
+        }
+    }
+    source.root
 }
 fn toast_at(tree: &skein_ui::Tree) -> Option<usize> {
     for (at, node) in tree.nodes().iter().enumerate() {

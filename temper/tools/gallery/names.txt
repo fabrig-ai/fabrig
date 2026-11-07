@@ -208,6 +208,8 @@ models-off
 models-one-account
 models-read
 models-read-failed
+needs-approval
+needs-approval-no-account
 needs-done
 needs-funds
 needs-held

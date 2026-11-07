@@ -47,8 +47,8 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
-/// Six delegates keep the chat opening its watch set beside Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 6;
+/// Five delegates fill the chat's watch set beside its session approvals and Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 5;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]

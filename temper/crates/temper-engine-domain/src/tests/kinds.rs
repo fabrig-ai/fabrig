@@ -764,7 +764,10 @@ fn forge_proposal_reads_use_the_deployment_unique_key_and_preserve_edits() {
             ApplicationScope::Deployment,
             crate::ForgeRead::ProposalItems { key: PROPOSAL }
         ),
-        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProposalItems(expected) }
+        Delivery::ForgeRead {
+            reply: READ_REPLY,
+            answer: crate::ForgeReadAnswer::ProposalItems { items: expected, owned_approval: false }
+        }
     );
     assert_eq!(
         read_forge(
@@ -774,9 +777,105 @@ fn forge_proposal_reads_use_the_deployment_unique_key_and_preserve_edits() {
             ApplicationScope::Deployment,
             crate::ForgeRead::ProposalItems { key: PROPOSAL + 10 }
         ),
-        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProposalItems(Box::new([])) }
+        Delivery::ForgeRead {
+            reply: READ_REPLY,
+            answer: crate::ForgeReadAnswer::ProposalItems { items: Box::new([]), owned_approval: false }
+        }
     );
 }
+#[test]
+fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
+    use forge::Mode::{Connected, Owned};
+    use jig_domain_people::{ApplicationScope, Role};
+    // Kind, scope, mode, enforcing, approval, coverage, set, writable, expected.
+    for (kind, scope, mode, enforce, approval, covers, set, writable, expected) in [
+        (2, PROJECT, Owned, true, true, true, true, true, true),
+        (2, PROJECT, Connected, true, true, true, true, true, false),
+        (2, PROJECT, Owned, false, true, true, true, true, false),
+        (2, PROJECT, Owned, true, false, true, true, true, false),
+        (2, PROJECT, Owned, true, true, false, true, true, false),
+        (2, PROJECT, Owned, true, true, true, false, true, false),
+        (2, PROJECT, Owned, true, true, true, true, false, false),
+        (2, PROJECT + 1, Owned, true, true, true, true, true, false),
+        (1, 0, Owned, true, true, true, true, true, true),
+    ] {
+        let (reader, _) = reader(Some(Role::Member));
+        let mut config = resume_fixture::config(7);
+        config.forges.first_mut().unwrap().mode = mode;
+        let repository = forge::Repository {
+            project: PROJECT,
+            home: true,
+            provider: skein_forge::api::Repository { forge: 1, repository: 1 },
+            host: b"forge.example".as_slice().into(),
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            prefix: Box::new([]),
+            role: forge::Role::Owned,
+            ci: false,
+            checks: Box::new([]),
+            kinds: forge::Kinds {
+                read: true,
+                push: writable,
+                open: true,
+                land: true,
+                review: true,
+                status: true,
+                comment: true,
+                issue: true,
+                branch: true,
+            },
+            protection: forge::Protection::Absent,
+            settings: skein_forge::api::Settings {
+                default_branch: b"main".as_slice().into(),
+                merge: true,
+                squash: false,
+                rebase: false,
+            },
+        };
+        let (mut domain, env) = resume_fixture::root_with_config(config);
+        domain.core.people = reader.core.people;
+        domain.forge.restore_begin(env.wall);
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore { record: forge::Stored::Repository(repository) },
+            &mut Queue::uncapped(),
+        );
+        let mut value = rule(false);
+        let settings::Value::Rule(rule) = &mut value.value else { panic!("landing rule") };
+        rule.enforce = enforce;
+        if approval {
+            rule.approvals =
+                Box::new([settings::RuleApproval { role: 1, people: 1, freshness: forge::JudgeFreshness::Exact }]);
+        }
+        if !covers {
+            rule.pattern.segments = Box::new([Box::from(b"elsewhere".as_slice())]);
+        }
+        let edit = if set { settings::Edit::Set(value) } else { settings::Edit::Remove };
+        domain.forge.keep_proposal_settings(
+            PROPOSAL,
+            &[settings::Asked { kind, scope, number: RULE, edit }],
+            &mut Queue::uncapped(),
+        );
+        let Delivery::ForgeRead { answer: crate::ForgeReadAnswer::ProposalItems { items, owned_approval }, .. } =
+            read_forge(
+                &mut domain,
+                &env,
+                READ_SIGN_IN,
+                ApplicationScope::Deployment,
+                crate::ForgeRead::ProposalItems { key: PROPOSAL },
+            )
+        else {
+            panic!("proposal items answer")
+        };
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            owned_approval, expected,
+            "kind {kind}, scope {scope}, mode {mode:?}, enforce {enforce}, approval {approval}, covers {covers}, set {set}, writable {writable}"
+        );
+    }
+}
+
 #[test]
 fn forge_reads_refuse_the_same_missing_membership_and_sign_in_as_settings() {
     use jig_domain_core::reads::{Answer, Why};

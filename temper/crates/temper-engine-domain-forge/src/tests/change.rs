@@ -402,7 +402,7 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
     else {
         panic!("one saved decision")
     };
-    assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5)]);
+    assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5), APPROVALS_SUBJECT]);
     assert_eq!((*task, decision, entry, evidence), (fixtures::CHANGE, &change::Decision::Ready, &None, &None));
     assert_eq!(ready(&mut d).as_ref(), &[]);
 }
@@ -429,10 +429,10 @@ fn an_unwoken_chain_finishes_with_its_single_decision() {
 }
 
 fn merging_change(protection: Protection, pull_ci: skein_forge::api::Ci) -> Domain {
-    first_change(protection, pull_ci, true)
+    first_change(protection, pull_ci, true, false)
 }
 
-fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable: bool) -> Domain {
+fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable: bool, queued: bool) -> Domain {
     use skein_forge::api::Answer;
     use temper_engine_domain_forge_change as change;
     let mut d = domain();
@@ -446,8 +446,12 @@ fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable
     row.pending = None;
     row.effect = change::EffectResult::None;
     row.pull = Some(1);
-    row.change.state = change::State::First { head: fixtures::HEAD, ready_since: env().wall };
-    row.change.owns_turn = true;
+    row.change.state = if queued {
+        change::State::Queued { head: fixtures::HEAD, ready_since: env().wall }
+    } else {
+        change::State::First { head: fixtures::HEAD, ready_since: env().wall }
+    };
+    row.change.owns_turn = !queued;
     outputs(&mut d, Event::Change { row });
     fixtures::step_change(&mut d);
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
@@ -482,11 +486,44 @@ fn merge_after_base_reads(d: &mut Domain) {
 
 #[test]
 fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
-    let mut d = merging_change(Protection::Absent, skein_forge::api::Ci::Passed);
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
-    fixtures::answer(&mut d, call, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-    merge_after_base_reads(&mut d);
+    use skein_forge::api::{Answer, Check, Ci, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    for queued in [false, true] {
+        let mut d = first_change(Protection::Absent, Ci::Passed, true, queued);
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::HEAD }));
+        fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::BASE }));
+        fixtures::answer(&mut d, call, Ok(fixtures::checks(Check::Passed)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let mut proposed = None;
+        for request in &finished {
+            if let Request::ChangeDecision {
+                decision: change::Decision::Effect(change::Effect::Merge { head, .. }),
+                entry: Some(entry),
+                evidence: Some(evidence),
+                ..
+            } = request
+            {
+                assert_eq!(*head, fixtures::HEAD);
+                proposed = Some((*entry, evidence.prior.clone()));
+            }
+        }
+        let (entry, prior) = proposed.expect("merge at the checked head");
+        outputs(&mut d, Event::VetoChange { task: fixtures::CHANGE, entry, prior });
+        let row = d.change(fixtures::CHANGE).expect("change waiting for approval");
+        assert_eq!(
+            row.change.state,
+            change::State::First { head: fixtures::HEAD, ready_since: env().wall },
+            "an approval-vetoed merge keeps its proposed state, queued: {queued}"
+        );
+        assert!(row.change.owns_turn, "the approval wait keeps its turn, queued: {queued}");
+        assert_eq!(row.pending, None);
+        assert_eq!(row.effect, change::EffectResult::None);
+        assert!(!d.entries.contains_key(&entry), "a veto removes the uncommitted merge");
+    }
 }
 
 #[test]
@@ -618,7 +655,7 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
         (Some(2), true, LIMITS.client.hinted),
         (None, true, LIMITS.client.hinted),
     ] {
-        let mut d = first_change(Protection::Absent, Ci::Passed, false);
+        let mut d = first_change(Protection::Absent, Ci::Passed, false, false);
         fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
         fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
         fixtures::answer_next(
