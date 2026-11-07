@@ -5,11 +5,12 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 55] = [
+const SHAPES: [Shape; 57] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
+    Shape::CharterPart,
     Shape::Document,
     Shape::Model,
     Shape::Catalogue,
@@ -34,6 +35,7 @@ const SHAPES: [Shape; 55] = [
     Shape::Deadline,
     Shape::Flags,
     Shape::Llm,
+    Shape::LlmLater,
     Shape::ModelEffort,
     Shape::Policy,
     Shape::Role,
@@ -296,7 +298,13 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             unreachable!("word field");
                         };
                         *changed = true;
+                        if field.list.is_some() {
+                            out.array_start();
+                        }
                         out.string(words[at].word);
+                        if field.list.is_some() {
+                            out.array_end();
+                        }
                         continue;
                     }
                     Edit::Base | Edit::Alternative(..) | Edit::Null(_) | Edit::Word(..) | Edit::Omit(_) => {}
@@ -379,6 +387,12 @@ fn every_generated_file_decodes() {
         if field.null {
             decodes(Edit::Null(field));
         }
+        if (field.shape == Shape::Charter && field.name == b"parts")
+            || (field.shape == Shape::Llm && field.name == b"later")
+            || (field.shape == Shape::LlmLater && field.name == b"subagents")
+        {
+            decodes(Edit::Omit(field));
+        }
         if let Value::Words(words) = field.value {
             // The kinds are already generated together; each set's shape
             // must agree with its selector. Edits select the edit-only form.
@@ -397,7 +411,10 @@ fn a_member_left_out_is_refused_naming_it() {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
-            || (field.shape == Shape::Charter && [b"wake".as_slice(), b"tools", b"rest"].contains(&field.name))
+            || (field.shape == Shape::Charter
+                && [b"wake".as_slice(), b"tools", b"rest", b"parts"].contains(&field.name))
+            || (field.shape == Shape::Llm && field.name == b"later")
+            || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
         {
@@ -424,6 +441,10 @@ fn a_member_left_out_is_refused_naming_it() {
 fn a_path_resolves_through_its_shapes() {
     for (path, shape, name) in [
         (b"charter.model.name".as_slice(), Shape::Model, b"name".as_slice()),
+        (b"charter.parts[].on", Shape::CharterPart, b"on"),
+        (b"charter.parts[].instructions", Shape::CharterPart, b"instructions"),
+        (b"template.llm.later.main.model", Shape::ModelEffort, b"model"),
+        (b"template.llm.later.subagents[].effort", Shape::ModelEffort, b"effort"),
         (b"model.name", Shape::Model, b"name"),
         (b"template.resources[].connector", Shape::Symbol, b"connector"),
         (b"template.resources[].symbol", Shape::Symbol, b"symbol"),

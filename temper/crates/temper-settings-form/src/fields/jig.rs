@@ -1,9 +1,10 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 55] = [
+pub static FORMS: [Form; 57] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
+    Form { shape: Shape::CharterPart, name: b"charter-part", choice: Choice::Every, line: b"Instructions a run reads after the charter's shared text when its reasons meet this part's on." },
     Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run." },
     Form { shape: Shape::Catalogue, name: b"catalogue", choice: Choice::Every, line: b"A whole numbered model setting: its runtime model, display facts, availability and origin." },
     Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"A runtime model. In a charter, every member but `effort` must match its configured row, else refused as `reference`; a model setting supplies the row whole." },
@@ -43,6 +44,7 @@ pub static FORMS: [Form; 55] = [
     },
     Form { shape: Shape::Flags, name: b"flags", choice: Choice::Every, line: b"How a task behaves and is kept." },
     Form { shape: Shape::Llm, name: b"llm", choice: Choice::Every, line: b"The models a task asks for." },
+    Form { shape: Shape::LlmLater, name: b"llm-later", choice: Choice::Every, line: b"The choice every run after the task's first activation takes." },
     Form { shape: Shape::ModelEffort, name: b"model_effort", choice: Choice::Every, line: b"A model, by name, and its effort." },
     Form { shape: Shape::Policy, name: b"policy", choice: Choice::Every, line: b"What a project made from it starts with, as a copy it keeps. A change reaches the projects made after it, never an existing project's own policy." },
     Form { shape: Shape::Role, name: b"role", choice: Choice::Every, line: b"A role in a project." },
@@ -85,7 +87,7 @@ pub static FORMS: [Form; 55] = [
         Word { word: b"up", line: b"A change's questions go up to its parent." },
     ] }, line: b"The route a project's change takes when its maker names none." },
 ];
-pub static FIELDS: [Field; 207] = [
+pub static FIELDS: [Field; 213] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -234,6 +236,9 @@ pub static FIELDS: [Field; 207] = [
     },
     Field { shape: Shape::Charter, name: b"wake", value: Value::Shape(Shape::Wake), list: None, null: true, line: b"Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `\"immediate\"`, `results` `\"last_or_failure\"`, and questions, answers and timers waking." },
     Field { shape: Shape::Charter, name: b"documents", value: Value::Shape(Shape::Document), list: Some(Bound::Limit(Limit::CharterDocuments)), null: false, line: b"The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`." },
+    Field { shape: Shape::Charter, name: b"parts", value: Value::Shape(Shape::CharterPart), list: Some(Bound::Limit(Limit::CharterParts)), null: false, line: b"Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. A charter that resumes takes no parts." },
+    Field { shape: Shape::CharterPart, name: b"on", value: Value::Words(&[Word { word: b"first", line: b"" }, Word { word: b"question", line: b"" }, Word { word: b"question_answered", line: b"" }, Word { word: b"question_ended", line: b"" }, Word { word: b"question_owed", line: b"" }, Word { word: b"escalation", line: b"" }, Word { word: b"proposal", line: b"" }, Word { word: b"person_stalled", line: b"" }, Word { word: b"result", line: b"" }, Word { word: b"notice", line: b"" }, Word { word: b"nothing_awaited", line: b"" }, Word { word: b"news", line: b"" }, Word { word: b"timer", line: b"" }, Word { word: b"words", line: b"" }]), list: Some(Bound::Most(14)), null: false, line: b"Nonempty, each name once. Names offered to every run choose no part and are refused." },
+    Field { shape: Shape::CharterPart, name: b"instructions", value: Value::Text(Bound::Limit(Limit::CharterPartInstructions)), list: None, null: false, line: b"Text appended after the shared instructions when this part is chosen." },
     Field { shape: Shape::Document, name: b"forge", value: Value::Text(Bound::Limit(Limit::DocumentSegment)), list: None, null: false, line: b"The canonical `host` in the configuring chat's `settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address." },
     Field { shape: Shape::Document, name: b"repository", value: Value::Text(Bound::Limit(Limit::DocumentRepository)), list: None, null: false, line: b"The repository as OWNER/NAME; one adopted in no project gives a section saying so." },
     Field { shape: Shape::Document, name: b"branch", value: Value::Text(Bound::Limit(Limit::DocumentBranch)), list: None, null: false, line: b"The branch whose head is read, its segments joined by `/`." },
@@ -703,6 +708,9 @@ pub static FIELDS: [Field; 207] = [
         null: false,
         line: b"The models its runs' sub-agents may use, each named once.",
     },
+    Field { shape: Shape::Llm, name: b"later", value: Value::Shape(Shape::LlmLater), list: None, null: false, line: b"Optional, left out none: the choice after the task's first activation." },
+    Field { shape: Shape::LlmLater, name: b"main", value: Value::Shape(Shape::ModelEffort), list: None, null: false, line: b"The later main model and its effort." },
+    Field { shape: Shape::LlmLater, name: b"subagents", value: Value::Shape(Shape::ModelEffort), list: Some(Bound::Limit(Limit::LlmChoiceSubagents)), null: false, line: b"Optional, left out []: the models later runs' sub-agents may use, each named once." },
     Field {
         shape: Shape::ModelEffort,
         name: b"model",
