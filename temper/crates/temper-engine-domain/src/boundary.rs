@@ -1049,6 +1049,7 @@ pub(crate) enum Read {
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
+    Document(Box<crate::route::document::DocumentRead>),
 }
 
 #[derive(Hash, Debug)]

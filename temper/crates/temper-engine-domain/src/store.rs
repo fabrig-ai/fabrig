@@ -136,8 +136,60 @@ pub enum CallAnswer {
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
     /// A note request changed nothing.
     NoteRefused(jig_domain_notes::Refusal),
+    /// The document call joined with its note write (domain/agent.md, 8.4.3).
+    Document(Box<Documented>),
     /// The named tool is deferred to a later engine route.
     Unavailable,
+}
+
+/// A document call's answer joined at its host flight (temper/docs/design/domain/agent.md, 8.4.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Documented {
+    pub action: crate::DocumentAction,
+    pub heading: Box<[u8]>,
+    pub outcome: DocumentOutcome,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DocumentOutcome {
+    Written { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
+    Refused(DocumentRefusal),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DocumentRefusal {
+    NoTitle,
+    TitlePastBound {
+        bytes: u32,
+        bound: u32,
+    },
+    NotOneSection,
+    NoDocument,
+    /// Heading bytes and separators fit 1,024 bytes, in document order.
+    NoSection {
+        headings: Box<[Box<[u8]>]>,
+        more: bool,
+    },
+    SectionThere,
+    PastBound {
+        bytes: u32,
+        bound: u32,
+    },
+    Moved,
+    Busy,
+    Unread,
+    Denied {
+        family: NoteFamily,
+        answer: jig_domain_authority::Answer,
+        findings: Box<[jig_domain_authority::Finding]>,
+    },
+    Note(jig_domain_notes::Refusal),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum NoteFamily {
+    Note,
+    Recall,
 }
 
 impl CallAnswer {
@@ -239,6 +291,7 @@ impl CallAnswer {
                 jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
             }
             CallAnswer::NoteRefused(why) => jig_domain_core::CallPart::NoteRefused(*why),
+            CallAnswer::Document(_) => unreachable!("document feedback is joined after the core part is recorded"),
             CallAnswer::Unavailable => jig_domain_core::CallPart::Unavailable,
         }
     }
@@ -949,6 +1002,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             Some(words) => skein_lib::len_u64(words.len()),
             None => 0,
         }),
+        CallAnswer::Document(documented) => documented_bytes(documented),
         CallAnswer::TaskRead(result) => {
             let carrier = u64::try_from(size_of_val(result.as_ref())).ok()?;
             carrier.checked_add(match result.as_ref() {
@@ -1115,6 +1169,42 @@ fn adoption_bytes(adoption: &jig_domain_people::Adoption) -> Option<u64> {
     }
     for option in &adoption.options {
         bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
+    }
+    Some(bytes)
+}
+
+fn documented_bytes(documented: &Documented) -> Option<u64> {
+    let mut bytes =
+        u64::try_from(size_of_val(documented)).ok()?.checked_add(skein_lib::len_u64(documented.heading.len()))?;
+    let refusal = match &documented.outcome {
+        DocumentOutcome::Written { .. } => return Some(bytes),
+        DocumentOutcome::Refused(refusal) => refusal,
+    };
+    match refusal {
+        DocumentRefusal::NoSection { headings, .. } => {
+            bytes = bytes.checked_add(
+                skein_lib::len_u64(headings.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+            )?;
+            for heading in headings {
+                bytes = bytes.checked_add(skein_lib::len_u64(heading.len()))?;
+            }
+        }
+        DocumentRefusal::Denied { findings, .. } => {
+            bytes = bytes.checked_add(
+                skein_lib::len_u64(findings.len())
+                    .checked_mul(u64::try_from(size_of::<jig_domain_authority::Finding>()).ok()?)?,
+            )?;
+        }
+        DocumentRefusal::NoTitle
+        | DocumentRefusal::TitlePastBound { .. }
+        | DocumentRefusal::NotOneSection
+        | DocumentRefusal::NoDocument
+        | DocumentRefusal::SectionThere
+        | DocumentRefusal::PastBound { .. }
+        | DocumentRefusal::Moved
+        | DocumentRefusal::Busy
+        | DocumentRefusal::Unread
+        | DocumentRefusal::Note(_) => {}
     }
     Some(bytes)
 }

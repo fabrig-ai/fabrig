@@ -1259,6 +1259,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::Document(_)
         | Read::SettingsNote { .. }
         | Read::Notes { .. }
         | Read::Proposal(_)

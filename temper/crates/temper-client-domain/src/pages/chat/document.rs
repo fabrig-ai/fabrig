@@ -35,6 +35,25 @@ pub struct NoteWrite {
     pub change: NoteChange,
 }
 
+/// Whether the tool writes the chat's document (client/README.md, 3.5).
+#[must_use]
+pub fn writes(tool: &[u8]) -> bool {
+    tool == b"note" || tool == b"document"
+}
+
+/// Parse a note's whole answer, or a document answer's first line.
+#[must_use]
+pub fn tool_write(tool: &[u8], outcome: &[u8]) -> Option<NoteWrite> {
+    match tool {
+        b"note" => note_write(outcome),
+        b"document" => {
+            let end = skein_lib::bytes::find(outcome, b"\n").unwrap_or(outcome.len());
+            note_write(outcome.get(..end).expect("first answer line"))
+        }
+        _ => None,
+    }
+}
+
 #[must_use]
 pub fn note_write(outcome: &[u8]) -> Option<NoteWrite> {
     let words = outcome.strip_prefix(b"Note ")?;

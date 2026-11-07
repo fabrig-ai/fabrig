@@ -14,7 +14,7 @@ pub use host_route::{
     ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
 mod decided;
-mod document;
+pub(crate) mod document;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
