@@ -26,6 +26,11 @@ fn configuration() -> engine::Config {
     };
     config.core.defaults = temper_service::stock::defaults(&llm, stock_limits().tasks.result_bytes);
 
+    config.core.settings.endpoints = Box::new([core::EndpointFacts {
+        number: model.endpoint,
+        dialect: model.dialect,
+        program: model.program.clone(),
+    }]);
     config.core.settings.models = Box::new([model]);
     config.core.seed_projects = walking::config(SEED).core.seed_projects;
     config.core.seed_projects[0].policy =

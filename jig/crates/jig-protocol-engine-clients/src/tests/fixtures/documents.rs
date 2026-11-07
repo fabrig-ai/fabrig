@@ -14,6 +14,7 @@ pub fn frame_two_projects() -> d::Frame {
     for (project, role) in [(3, jig_domain_people::Role::Owner), (5, jig_domain_people::Role::Observer)] {
         projects
             .push(d::FrameProjectRole {
+                left_out: 0,
                 public: false,
                 project,
                 role,

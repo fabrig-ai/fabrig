@@ -62,6 +62,7 @@ impl Core {
             },
             Phase::Link => {
                 let before = out.len();
+                let catalogue_before = self.catalogue_told();
                 if let Some(failure) = self.start_application_seed(env, out) {
                     return Action::Refused(failure);
                 }
@@ -75,7 +76,9 @@ impl Core {
                 }
                 self.people.start_sweep();
                 self.restoring_proofs = skein_lib::Map::with_capacity(self.restoring_proofs.capacity());
-                if out.len() != before {
+                let added = out.len().checked_sub(before).expect("link only appends requests");
+                let catalogue = u32::from(!catalogue_before && self.catalogue_told());
+                if added != catalogue {
                     return self.start_commit(Phase::Sweep);
                 }
                 Phase::Sweep

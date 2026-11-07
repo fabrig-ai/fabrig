@@ -18,6 +18,10 @@ enum DefaultsPosition {
 }
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "restore tracks independent row families and its one catalogue notification"
+)]
 pub(crate) struct Restore {
     pending: Map<Setting, bool>,
     // Stored defaults until settings_restored swaps them with the supplied
@@ -26,6 +30,7 @@ pub(crate) struct Restore {
     held: bool,
     extent: bool,
     ready: bool,
+    catalogue_told: bool,
     release: Option<u32>,
     position: DefaultsPosition,
     pub(crate) applications: super::application::Starting,
@@ -39,6 +44,7 @@ impl Restore {
             held: false,
             extent: false,
             ready: false,
+            catalogue_told: false,
             release: None,
             position: DefaultsPosition::Given,
             applications: super::application::Starting::new(limits.connectors),
@@ -271,6 +277,8 @@ impl Core {
             self.settings_restore.position = DefaultsPosition::Stored;
         }
         self.settings_restore.ready = true;
+        self.settings.models = super::catalogue::table(&self.current);
+        super::charters::rebuild(&mut self.current, &env.limits);
         self.tell_settings(env);
         true
     }
@@ -292,6 +300,23 @@ impl Core {
             self.restore_failure = Some(request);
         }
         self.start_collect_failure();
+    }
+
+    pub(crate) fn catalogue_told(&self) -> bool {
+        self.settings_restore.catalogue_told
+    }
+
+    pub(crate) fn tell_catalogue(&self, out: &mut Queue<Request>) {
+        out.push(Request::Ask {
+            connector: 0,
+            ask: crate::Ask::Catalogue { models: super::catalogue::entries(&self.current) },
+        });
+    }
+    fn tell_start_catalogue(&mut self, out: &mut Queue<Request>) {
+        if !self.settings_restore.catalogue_told && self.restore_failure.is_none() {
+            self.tell_catalogue(out);
+            self.settings_restore.catalogue_told = true;
+        }
     }
 
     pub(crate) fn tell_settings(&mut self, env: &Env<Limits>) {
@@ -411,6 +436,9 @@ impl Core {
     pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         let mut out = Queue::uncapped();
         if !self.prepare_application_release(&mut out) {
+            if self.settings_restore.held {
+                self.tell_start_catalogue(&mut out);
+            }
             return out;
         }
         let oldest_before = self.current.oldest;
@@ -437,7 +465,8 @@ impl Core {
         if keep_previous {
             after.insert(previous, ()).expect("previous newest name");
         }
-        let plan = self.held.plan_release(&self.current, items.as_slice(), newest, &after, &env.limits);
+        let version_items = super::charters::version_items(&self.current, items.as_slice(), &env.limits);
+        let plan = self.held.plan_release(&self.current, &version_items, newest, &after, &env.limits);
         if after.len() > env.limits.settings.revisions {
             self.refuse_held(HeldLimit::Revisions, after.len(), env.limits.settings.revisions);
             return out;
@@ -478,6 +507,18 @@ impl Core {
             };
             defaults.push(write).expect("default differences");
         }
+        let mut implicit = List::with_capacity(env.limits.tasks.charters);
+        for item in version_items {
+            if super::check::edit(items.as_slice(), item.setting).is_none() {
+                implicit.push(item).expect("implicit release charter count");
+            }
+        }
+        for write in super::charters::stamp(&mut self.current, implicit.as_slice(), newest).into_boxed() {
+            out.push(Request::Write(write));
+        }
+        self.settings.models = super::catalogue::table(&self.current);
+        super::charters::rebuild(&mut self.current, &env.limits);
+        self.tell_start_catalogue(&mut out);
         let saved_revision = if release { Some(newest) } else { None };
         let applications = super::application::save_start(self, saved_revision, &mut out);
         let revision = if release {
@@ -520,6 +561,7 @@ impl Core {
         }
         self.settings_restore = Restore::new(&env.limits);
         self.settings_restore.ready = true;
+        self.settings_restore.catalogue_told = true;
         self.settings_restore.applications = super::application::Starting::Saved;
         out
     }
@@ -606,6 +648,7 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
     core.settings_restore.pending = Map::with_capacity(core.settings_restore.pending.capacity());
     core.settings_restore.release = None;
     core.current.head.at = env.wall;
+    core.tell_start_catalogue(out);
     for (&setting, default) in &core.current.defaults {
         out.push(Request::Write(save(Record::Default { setting, default: default.clone() })));
     }

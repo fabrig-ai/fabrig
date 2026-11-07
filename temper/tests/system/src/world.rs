@@ -65,8 +65,13 @@ pub const CHECKS: Duration = Duration::from_secs(60);
 pub fn config(seed: u64) -> engine::Config {
     let mut config = walking::config(seed);
     let charter = charter();
-    // The charter's model is a configured one, as jig's core world sets it (tests/core charters.rs).
+    // The charter's model is in the catalogue, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
+    config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        number: charter.policy.model.endpoint,
+        dialect: charter.policy.model.dialect,
+        program: charter.policy.model.program.clone(),
+    }]);
 
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 8192;

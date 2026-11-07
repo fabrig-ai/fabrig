@@ -683,7 +683,7 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
         Action::Commit(token) => {
             while let Some(request) = out.pop() {
                 match request {
-                    Request::Write(_) => {}
+                    Request::Write(_) | Request::Ask { ask: crate::Ask::Catalogue { .. }, .. } => {}
                     Request::Now(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
                         panic!("seed commit contains only writes")
                     }

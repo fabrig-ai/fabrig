@@ -395,6 +395,7 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
         model.name = name.as_bytes().into();
         model.provider = if name.starts_with("claude") { 2 } else { 3 };
         model.program = Some(b"claude_code".as_slice().into());
+        model.endpoint = 2;
         model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
         model.effort = Some(b"high".as_slice().into());
         models.push(model);
@@ -420,6 +421,14 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     for charter in &mut config.core.defaults.charters {
         charter.policy.alternatives = models[1..].into();
     }
+    config.core.settings.endpoints = Box::new([
+        jig_domain_core::EndpointFacts { number: 1, dialect: models[0].dialect, program: None },
+        jig_domain_core::EndpointFacts {
+            number: 2,
+            dialect: models[0].dialect,
+            program: Some(b"claude_code".as_slice().into()),
+        },
+    ]);
     config.core.settings.models = models.into();
     config.core.settings.llm_providers.providers = providers.into();
     (config, bounds)
@@ -428,7 +437,7 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
 fn claude_offer_world() -> World {
     use temper_engine_domain_world::protocol;
     let (config, bounds) = claude_offer_setup();
-    let capabilities = config
+    let mut capabilities: Vec<_> = config
         .core
         .settings
         .models
@@ -439,6 +448,8 @@ fn claude_offer_world() -> World {
             output: model.output,
         })
         .collect();
+    capabilities.sort_by_key(|endpoint| endpoint.endpoint);
+    capabilities.dedup_by_key(|endpoint| endpoint.endpoint);
     let mut world = World::with_limits(config, &bounds);
     world.ask(
         world.owner,
@@ -463,8 +474,8 @@ fn claude_offer_world() -> World {
     let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
         panic!("hello")
     };
-    hello.bounds.endpoints = capabilities;
-    hello.bounds.program_endpoints = Box::new([1]);
+    hello.bounds.endpoints = capabilities.into_boxed_slice();
+    hello.bounds.program_endpoints = Box::new([2]);
     hello.bounds.time = skein_lib::Duration::from_secs(28_800);
     hello.bounds.turns = 800;
     hello.bounds.message_bytes = bounds.tasks.message_bytes;

@@ -105,8 +105,14 @@ pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
 }
 /// Apply only a checked, nonempty set. Both persisted and held changes get the same stamp.
 pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> List<Write> {
-    let mut writes =
-        List::with_capacity(u32::try_from(items.len()).expect("bounded items").checked_mul(2).expect("reset writes"));
+    let mut writes = List::with_capacity(
+        u32::try_from(items.len())
+            .expect("bounded items")
+            .checked_mul(2)
+            .expect("reset writes")
+            .checked_add(current.resolved.capacity())
+            .expect("resolution stamps"),
+    );
     // Erases precede puts in memory so replacing a whole bounded kind needs no spare slot.
     for item in items {
         if super::is_project_policy(item.setting) {

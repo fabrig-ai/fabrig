@@ -152,6 +152,7 @@ mod tests {
     }
     fn line(current: &Current) -> SettingLine {
         let mut copied = Current {
+            resolved: Map::with_capacity(0),
             keys: current.keys,
             applications: Map::with_capacity(0),
             defaults: Map::with_capacity(current.defaults.capacity()),

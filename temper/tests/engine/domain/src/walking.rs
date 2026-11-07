@@ -330,7 +330,7 @@ pub fn config(seed: u64) -> engine::Config {
                 policies: skein_lib::Map::with_capacity(authority_limits().projects),
             },
             settings: jig_domain_core::Settings {
-                endpoints: Box::default(),
+                endpoints: Box::new([jig_domain_core::EndpointFacts { number: 1, dialect: 1, program: None }]),
                 key_bytes: 256,
                 redirect_bytes: 256,
                 deployment_provider: 1,

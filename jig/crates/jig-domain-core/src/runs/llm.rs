@@ -120,7 +120,8 @@ impl Core {
         let mut usable = None;
         let mut serving = None;
         for candidate in &candidates {
-            let model = self.settings.models.get(usize::from(candidate.model))?;
+            let name = &self.settings.models.get(usize::from(candidate.model))?.name;
+            let model = charter_model(policy, name)?;
             let Some(provider) = self.provider(model) else { continue };
             if kept_provider == Some(provider) {
                 kept = Some(*candidate);
@@ -194,8 +195,7 @@ impl Core {
 
     /// The policy a run of `task` uses: its charter's, running its LLM choice's models, each the
     /// charter's model of that configured name with its chosen effort's name (domain/engine.md,
-    /// 7.1). A choice that configuration no longer holds after model reordering or removal
-    /// from the charter falls back to the charter's own.
+    /// 7.1). A choice the catalogue or charter no longer holds falls back to the charter's own.
     pub(crate) fn chosen_policy(&self, task: u64) -> RunPolicy {
         let policy = &self.charter_of(task).policy;
         let chosen = match self.next_llm(self.tasks.task(task).expect("live agent task")) {
@@ -237,7 +237,7 @@ fn defaults(
     choice
 }
 
-/// A party's LLM choice as tasks keeps it, models and efforts by index in configuration's order
+/// A party's LLM choice as tasks keeps it, models and efforts by position in the catalogue
 /// both: tasks checks it when it makes or amends the task (domain/tasks.md, section 3).
 pub(crate) fn choice(value: Option<&people::LlmChoice>) -> Option<tasks::LlmChoice> {
     let value = value?;
@@ -319,7 +319,7 @@ fn default_effort(settings: &Settings, policy: &RunPolicy, choice: &mut tasks::M
     let Some(configured) = settings.models.get(usize::from(choice.model)) else { return };
     let Some(model) = charter_model(policy, &configured.name) else { return };
     if let Some(effort) = &model.effort {
-        for (at, offered) in configured.efforts.iter().enumerate() {
+        for (at, offered) in model.efforts.iter().enumerate() {
             if offered == effort {
                 choice.effort = Some(u8::try_from(at).expect("bounded efforts"));
                 break;

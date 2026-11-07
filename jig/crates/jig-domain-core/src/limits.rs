@@ -241,7 +241,7 @@ fn checked_valid(limits: &Limits) -> Option<()> {
     limits.settings.versions.checked_add(crate::settings::capacity(limits)?.checked_mul(4)?)?;
     limits.tasks.charters.checked_mul(2)?.checked_add(limits.settings.versions)?;
     crate::documents::document_with_context_bound(limits, &[])?;
-    crate::settings::set_bound(limits)?;
+    crate::settings::current_bound(limits)?;
     crate::settings::revision_bound(limits)?;
     crate::reads::query_bound(limits)?;
     crate::reads::answer_bound(limits, &[])?;

@@ -253,9 +253,11 @@ impl Proposal {
     }
 }
 
-/// Only defaults and changes own current values. Revision history stays in the store.
+/// Defaults and changes own set values; resolved charters cache the catalogue.
+/// Revision history stays in the store.
 #[derive(Debug)]
 pub struct Current {
+    pub(crate) resolved: Map<u32, Charter>,
     pub(crate) defaults: Map<Setting, Default>,
     pub(crate) changes: Map<Setting, Changed>,
     pub(crate) applications: Map<Setting, application::State>,
@@ -303,6 +305,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            resolved: Map::with_capacity(limits.tasks.charters),
             applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
             head: Head {
@@ -358,6 +361,12 @@ impl Current {
     #[must_use]
     pub fn charter(&self, number: u32) -> Option<&Charter> {
         self.value(Setting::Charter(number))?.as_charter()
+    }
+    pub(crate) fn resolved_charter(&self, number: u32) -> Option<&Charter> {
+        match self.resolved.get(&number) {
+            Some(charter) => Some(charter),
+            None => self.charter(number),
+        }
     }
     #[must_use]
     pub fn template(&self, number: u32) -> Option<&Template> {
@@ -526,6 +535,30 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
         .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)
 }
+/// Current settings own two set overlays and one resolved charter set (engine.md, 17.8).
+#[must_use]
+pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
+    let resolved = Map::<u32, Charter>::price(limits.tasks.charters)?.checked_add(
+        u64::from(limits.tasks.charters).checked_mul(
+            u64::from(limits.run_bytes).checked_add(
+                u64::from(limits.tasks.charter_documents).checked_mul(
+                    u64::try_from(size_of::<crate::Document>())
+                        .ok()?
+                        .checked_add(
+                            u64::from(limits.authority.segments).checked_mul(
+                                u64::from(limits.authority.segment_bytes)
+                                    .checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                            )?,
+                        )?
+                        .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
+                        .checked_add(u64::from(crate::DOCUMENT_HEADING_BYTES))?,
+                )?,
+            )?,
+        )?,
+    )?;
+    set_bound(limits)?.checked_mul(2)?.checked_add(resolved)
+}
+
 /// One record's items and a whole set of replaced values, priced independently of the held heads
 /// (jig/docs/design/domain/engine.md, 17.10).
 #[must_use]
@@ -539,6 +572,7 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
 #[cfg(test)]
 impl Current {
     pub(crate) fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
+        drop(self.resolved.remove(&number));
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
             Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
