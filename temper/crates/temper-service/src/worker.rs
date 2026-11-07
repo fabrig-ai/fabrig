@@ -225,6 +225,11 @@ impl Worker {
             self.events.push(root::Event::Shutdown);
         }
     }
+    /// Whether every agent process the worker spawned has closed, one still
+    /// spawning among them (protocol/README.md, section 8).
+    pub(crate) fn agents_ended(&self) -> bool {
+        self.processes.is_empty()
+    }
     /// End immediately, dropping domain work and aborting every owned IO entity.
     pub fn abort(&mut self) {
         if self.aborted.is_some() {
