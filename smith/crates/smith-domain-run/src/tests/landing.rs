@@ -83,7 +83,18 @@ fn a_change_that_fails_its_checks_or_its_delivery_goes_back_to_the_llm() {
     let failing = Ran { exit: Exit::Code { code: 1 }, output: bytes(b"test parse ... FAILED"), cut: 12 };
     let requests = harness.step(Event::Checked { owner, ran: failing });
     let failing = Ran { exit: Exit::Code { code: 1 }, output: bytes(b"test parse ... FAILED"), cut: 12 };
-    assert_eq!(&*requests, &[returned(7, Returned::ChecksFailed { repository: bytes(b"temper"), ran: failing })]);
+    assert_eq!(
+        &*requests,
+        &[returned(
+            7,
+            Returned::ChecksFailed {
+                repository: bytes(b"temper"),
+                check: bytes(b".temper/pre-pr"),
+                given: LIMITS.check_timeout,
+                ran: failing,
+            }
+        )]
+    );
     let owner = harness.land(conversation, 8);
     drop(harness.step(pass_checks(owner)));
     drop(harness.step(pass_checks(owner)));
@@ -448,18 +459,47 @@ fn unknown_extra_field_ownership_is_checked_before_shape_judgement() {
 
 #[test]
 fn a_mid_run_delivery_without_a_change_contract_needs_passing_checks() {
-    let mut harness = Harness::new(LIMITS);
-    let (_, conversation) = mid_running(&mut harness);
-    let requests = harness.step(mid_ask(conversation, 3));
-    let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
-        panic!("discovered check runs: {requests:?}");
-    };
-    let owner = *owner;
-    let failing = ran(1, b"draft failed");
-    assert_eq!(
-        harness.step(Event::Checked { owner, ran: ran(1, b"draft failed") }).as_ref(),
-        [returned(50, Returned::ChecksFailed { repository: bytes(b"temper"), ran: failing })]
-    );
+    for (exit, output, cut, custom, call_time) in [
+        (Exit::Code { code: 1 }, b"draft failed".as_slice(), 0, true, LIMITS.budget.time),
+        (Exit::TimedOut, b"tail".as_slice(), 3, false, LIMITS.budget.time),
+        (Exit::TimedOut, b"tail".as_slice(), 3, true, LIMITS.budget.time),
+        (Exit::TimedOut, b"tail".as_slice(), 3, true, Duration::from_secs(1)),
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let mut policy = mid_report();
+        if !custom {
+            policy.conventions = None;
+        }
+        let (_, conversation) = mid_running_policy(&mut harness, policy);
+        harness.after(Duration::from_secs(1));
+        let Event::Delegated { conversation, call, name, ask, .. } = mid_ask(conversation, 3) else {
+            panic!("delivery call");
+        };
+        let deadline = harness.env.now.saturating_add(call_time).min(EXPIRY);
+        let given = LIMITS.check_timeout.min(deadline.saturating_since(harness.env.now));
+        let check = if custom { b".temper/pre-pr".as_slice() } else { b".smith/check".as_slice() };
+        let requests = harness.step(Event::Delegated { conversation, call, name, ask, deadline });
+        let [Request::Check { owner, program, deadline, .. }, Request::Checking { .. }] = requests.as_ref() else {
+            panic!("discovered check runs: {requests:?}");
+        };
+        assert_eq!(program.path.as_ref(), check);
+        assert_eq!(*deadline, harness.env.now.saturating_add(given));
+        let owner = *owner;
+        harness.after(Duration::from_millis(1));
+        assert_eq!(
+            harness.step(Event::Checked { owner, ran: Ran { exit, output: bytes(output), cut } }).as_ref(),
+            [returned(
+                50,
+                Returned::ChecksFailed {
+                    repository: bytes(b"temper"),
+                    check: bytes(check),
+                    given,
+                    ran: Ran { exit, output: bytes(output), cut },
+                }
+            )],
+            "exit={exit:?}, custom={custom}, call_time={call_time:?}"
+        );
+    }
 }
 
 #[test]
