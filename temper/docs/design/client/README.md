@@ -6753,6 +6753,12 @@ own tests:
 
 ## 11. Open questions
 
+- **Settings, Models after landing** (3.5): temper/ui compares page 07 of
+  `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
+  including the named states and screenshots (`../draft/look-requests.md`,
+  section 4). Default: the client world's switch and add-by-name stories
+  across reloads; browser and real-provider checks remain after landing.
+
 - **A document's drawing after landing** (3.5): temper/ui looks at a flow
   in a chat and in its document, including both layouts and the narrow
   fallback (`browser.md`, section 5). Default: skein's acceptance cases
