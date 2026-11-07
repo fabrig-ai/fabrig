@@ -125,9 +125,28 @@ fn fault_case(fault: Fault) {
         }
         Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
+    let detail = if fault == Fault::Shape {
+        let charter = current.charter(1).unwrap();
+        Some(people::SettingDetail {
+            member: people::SettingMember::StoredPolicy,
+            document: 0,
+            segment: 0,
+            rule: people::SettingRule::Maximum,
+            supplied: u32::try_from(
+                crate::limits::policy_owned_bytes(&charter.policy)
+                    .unwrap()
+                    .checked_add(crate::limits::parts_owned_bytes(&charter.parts).unwrap())
+                    .unwrap(),
+            )
+            .unwrap(),
+            bound: limits.run_bytes,
+        })
+    } else {
+        None
+    };
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits),
-        Err(Failure { setting, fault, detail: None }),
+        Err(Failure { setting, fault, detail }),
         "{fault:?}"
     );
 }

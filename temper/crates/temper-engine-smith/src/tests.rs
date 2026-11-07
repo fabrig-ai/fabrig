@@ -1290,102 +1290,112 @@ fn amend_and_release_calls_name_their_revision() {
     }
 }
 
-const ANSWER_CASES: &[(engine::CallAnswer, &[u8], bool)] = &[
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Placed { hold: u64::MAX } },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, because a placed hold holds it",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Circle },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, for a circle of waits",
-        true,
-    ),
-    (
-        engine::CallAnswer::Again { task: CALL_TASK, required: true },
-        b"Refused: task 23 holds an effect whose outcome is uncertain; say again: true or false",
-        true,
-    ),
-    (
-        engine::CallAnswer::Again { task: CALL_TASK, required: false },
-        b"Refused: task 23 holds no uncertain effect; leave again out",
-        true,
-    ),
-    (
-        engine::CallAnswer::PassedUp { task: CALL_TASK },
-        b"Beyond your authority: task 23's escalation was passed up",
-        false,
-    ),
-    (engine::CallAnswer::Revised { task: CALL_TASK, revision: 2 }, b"Done: task 23 is at spec revision 2", false),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed { tracked: None, fields: 0 } },
-        b"Done: task 3 is at spec revision 1",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed {
-            tracked: None, fields: engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS,
-        } },
-        b"Done: task 3 is at spec revision 1; changed: authority, instructions",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 0, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Tracked { priority: 8 }), fields: 0,
-        } },
-        b"Done: task 3 is at spec revision 0; changed: priority 8",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Untracked), fields: engine::Changed::SPEC,
-        } },
-        b"Done: task 3 is at spec revision 2; changed: untracked, spec",
-        false,
-    ),
-    (
-        engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
-            tracked: Some(tasks::Tracking::Tracked { priority: u32::MAX }),
-            fields: engine::Changed::SPEC | engine::Changed::WAKE | engine::Changed::DEPENDENCIES
-                | engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS | engine::Changed::LLM,
-        } },
-        b"Done: task 3 is at spec revision 2; changed: priority 4294967295, spec, wake, dependencies, authority, instructions, llm",
-        false,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Spec { revision: 2 } },
-        b"Moved: task 23 is at spec revision 2 now",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved {
-            task: CALL_TASK,
-            now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Stopped },
-        },
-        b"Moved: task 23 is held at hold revision 2 now, because it was stopped",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Person { revision: 2 } },
-        b"Moved: task 23 is at person revision 2 now",
-        true,
-    ),
-    (
-        engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Note { revision: 2 } },
-        b"Moved: task 23 is at note revision 2 now",
-        true,
-    ),
-];
-
 #[test]
+#[expect(clippy::too_many_lines, reason = "the answer table allocates boxed task-read cases at runtime")]
 fn each_of_jigs_new_call_answers_renders_its_task_and_value() {
-    for (value, words, error) in ANSWER_CASES {
+    let answer_cases: &[(engine::CallAnswer, &[u8], bool)] = &[
+        (
+            engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Unknown))),
+            b"Task read refused: unknown: no such task, no result yet, or no text at that offset. A task has a result only once it has ended, and its requester hears it then as a result message; while it runs, read its specification (leave out field) for its state, holds and questions.",
+            true,
+        ),
+        (
+            engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Reference))),
+            b"Task read refused: no reference",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Placed { hold: u64::MAX } },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, because a placed hold holds it",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Circle },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, for a circle of waits",
+            true,
+        ),
+        (
+            engine::CallAnswer::Again { task: CALL_TASK, required: true },
+            b"Refused: task 23 holds an effect whose outcome is uncertain; say again: true or false",
+            true,
+        ),
+        (
+            engine::CallAnswer::Again { task: CALL_TASK, required: false },
+            b"Refused: task 23 holds no uncertain effect; leave again out",
+            true,
+        ),
+        (
+            engine::CallAnswer::PassedUp { task: CALL_TASK },
+            b"Beyond your authority: task 23's escalation was passed up",
+            false,
+        ),
+        (engine::CallAnswer::Revised { task: CALL_TASK, revision: 2 }, b"Done: task 23 is at spec revision 2", false),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed { tracked: None, fields: 0 } },
+            b"Done: task 3 is at spec revision 1",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 1, changed: engine::Changed {
+                tracked: None, fields: engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS,
+            } },
+            b"Done: task 3 is at spec revision 1; changed: authority, instructions",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 0, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Tracked { priority: 8 }), fields: 0,
+            } },
+            b"Done: task 3 is at spec revision 0; changed: priority 8",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Untracked), fields: engine::Changed::SPEC,
+            } },
+            b"Done: task 3 is at spec revision 2; changed: untracked, spec",
+            false,
+        ),
+        (
+            engine::CallAnswer::Amended { task: 3, revision: 2, changed: engine::Changed {
+                tracked: Some(tasks::Tracking::Tracked { priority: u32::MAX }),
+                fields: engine::Changed::SPEC | engine::Changed::WAKE | engine::Changed::DEPENDENCIES
+                    | engine::Changed::AUTHORITY | engine::Changed::INSTRUCTIONS | engine::Changed::LLM,
+            } },
+            b"Done: task 3 is at spec revision 2; changed: priority 4294967295, spec, wake, dependencies, authority, instructions, llm",
+            false,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Spec { revision: 2 } },
+            b"Moved: task 23 is at spec revision 2 now",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved {
+                task: CALL_TASK,
+                now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Stopped },
+            },
+            b"Moved: task 23 is held at hold revision 2 now, because it was stopped",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Person { revision: 2 } },
+            b"Moved: task 23 is at person revision 2 now",
+            true,
+        ),
+        (
+            engine::CallAnswer::Moved { task: CALL_TASK, now: jig_domain_people::Moved::Note { revision: 2 } },
+            b"Moved: task 23 is at note revision 2 now",
+            true,
+        ),
+    ];
+    for (value, words, error) in answer_cases {
         let rendered = answer(value);
         assert_eq!(rendered.text(), *words, "{value:?}");
         assert_eq!(rendered.error(), *error, "{value:?}");

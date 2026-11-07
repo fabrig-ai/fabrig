@@ -1,5 +1,8 @@
 //! The TUI on one kernel and clock (temper/docs/design/client/README.md, 6.16).
-use crate::{host, limits};
+use crate::{
+    host, limits,
+    opener::{self, Opener},
+};
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, Submit},
@@ -12,6 +15,7 @@ use temper_client_tui::Scheme;
 
 const TAG: u64 = 1 << 61;
 const ROOM: u32 = 64;
+const OPENER: Token = Token::new(u64::MAX);
 
 pub struct Settings {
     pub engine: io::Addr,
@@ -21,6 +25,7 @@ pub struct Settings {
     pub depth: Depth,
     pub size: Size,
     pub limits: limits::Limits,
+    pub opener: Option<Opener>,
 }
 
 pub struct Run {
@@ -30,6 +35,12 @@ pub struct Run {
     io: io::Io,
     env: Env<io::Limits>,
     signals: Option<Token>,
+    root: Fd,
+    opener: Option<Opener>,
+    opens: Queue<Box<[u8]>>,
+    opening: bool,
+    child: Option<Token>,
+    opened: Option<bool>,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
     raw: Queue<Submit>,
@@ -67,7 +78,7 @@ impl Run {
         terminal.adopt(input, output)?;
         let read = temper_client_shell_terminal::limits::terminal().read;
         let limits = io::Limits {
-            sockets: 1,
+            sockets: 2,
             names: 0,
             refusals: 1,
             intake: read,
@@ -94,6 +105,12 @@ impl Run {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             signals: Some(signals),
+            root,
+            opener: settings.opener,
+            opens: Queue::uncapped(),
+            opening: false,
+            child: None,
+            opened: None,
             complete: Queue::with_capacity(capacity),
             submit: Queue::with_capacity(capacity),
             raw: Queue::with_capacity(ROOM),
@@ -135,10 +152,36 @@ impl Run {
 
     fn event(&mut self, event: &io::Event) {
         match event {
-            io::Event::Shutdown { .. } | io::Event::Failed { .. } => self.close(),
+            io::Event::Shutdown { .. } => self.close(),
+            io::Event::Failed { owner, .. } => {
+                if *owner == OPENER {
+                    self.opened = Some(false);
+                    if let Some(entity) = self.child {
+                        self.down(io::Request::Abort { entity });
+                    }
+                } else {
+                    self.close();
+                }
+            }
+            io::Event::Spawned { owner, child, pipes } => {
+                assert_eq!(*owner, OPENER);
+                assert!(pipes.is_empty(), "the opener has null descriptors");
+                self.child = Some(*child);
+                if self.closing || !self.opens.is_empty() {
+                    self.down(io::Request::Abort { entity: *child });
+                }
+            }
+            io::Event::Exited { owner, exit } => {
+                assert_eq!(*owner, OPENER);
+                self.opened = Some(*exit == Exit::Code(0));
+                self.down(io::Request::Abort { entity: self.child.expect("spawned opener") });
+            }
             io::Event::Closed { owner } => {
                 if self.signals == Some(*owner) {
                     self.signals = None;
+                } else if self.child == Some(*owner) || *owner == OPENER {
+                    self.child = None;
+                    self.opening = false;
                 }
             }
             io::Event::Resized => self.terminal.resized(),
@@ -148,10 +191,8 @@ impl Run {
             | io::Event::Accepted { .. }
             | io::Event::Connecting { .. }
             | io::Event::Connected { .. }
-            | io::Event::Spawned { .. }
-            | io::Event::Exited { .. }
             | io::Event::Usage { .. }
-            | io::Event::Window { .. } => unreachable!("the run's io owns only signals"),
+            | io::Event::Window { .. } => unreachable!("the run's io owns signals and an opener"),
         }
     }
 
@@ -162,9 +203,12 @@ impl Run {
         self.closing = true;
         self.terminal.close();
         self.shell.close();
+        self.opens.clear();
+        if let Some(entity) = self.child {
+            self.down(io::Request::Abort { entity });
+        }
         if let Some(entity) = self.signals.take() {
-            assert!(self.io.takes() && self.raw.room() >= io::MAX_OUT_DOWN.submissions, "signal abort room");
-            io::down(&mut self.io, &self.env, io::Request::Abort { entity }, &mut self.raw);
+            self.down(io::Request::Abort { entity });
         }
     }
 
@@ -179,9 +223,34 @@ impl Run {
         if let Some(address) = duties.address {
             self.signed_in = Some(address);
         }
-        debug_assert!(duties.open.is_none(), "the TUI asks for no browser");
+        if let Some(address) = duties.open.filter(|_| !self.closing) {
+            if self.opener.is_some() {
+                self.opens.push(address);
+                if let Some(entity) = self.child {
+                    self.down(io::Request::Abort { entity });
+                }
+            } else {
+                self.report(host::Report::Opened { opened: false });
+            }
+        }
         if duties.close {
             self.close();
+        }
+    }
+
+    fn down(&mut self, request: io::Request) {
+        assert!(self.io.takes() && self.raw.room() >= io::MAX_OUT_DOWN.submissions, "run io request room");
+        io::down(&mut self.io, &self.env, request, &mut self.raw);
+    }
+
+    fn open(&mut self) {
+        if self.closing || self.opening || !self.io.takes() || self.raw.room() < io::MAX_OUT_DOWN.submissions {
+            return;
+        }
+        if let Some(address) = self.opens.pop() {
+            let spawn = opener::spawn(self.opener.as_ref().expect("configured opener"), &address, self.root);
+            self.opening = true;
+            self.down(io::Request::SpawnAlone { owner: OPENER, spawn });
         }
     }
 
@@ -196,6 +265,10 @@ impl Run {
             reported = true;
         }
         if self.size.is_some() {
+            if let Some(opened) = self.opened.take() {
+                self.report(host::Report::Opened { opened });
+                reported = true;
+            }
             if let Some(written) = self.shell.kept() {
                 self.report(host::Report::Kept { written });
                 reported = true;
@@ -279,8 +352,9 @@ impl Host for Run {
             self.close();
         }
         self.reports();
-        self.publish();
         self.io.reclaim();
+        self.open();
+        self.publish();
     }
 
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -294,6 +368,7 @@ impl Host for Run {
             || !self.raw.is_empty()
             || !self.submit.is_empty()
             || !self.told.is_empty()
+            || (!self.opens.is_empty() && !self.opening)
             || self.io.is_ready()
             || self.io.is_due(now)
             || self.shell.work_pending(now)

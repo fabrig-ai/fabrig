@@ -794,8 +794,10 @@ sign-in at once. The load goes on for the account.
   `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; with none,
   the small fixed page above. It answers every redirect it takes so,
   whatever the redirect says: the provider's error ends the sign-in, which
-  the page gone back to reads from its owner, as it reads a success. The listener's answer never says how the
-  sign-in ended. A return is the owner's alone: the listener sends the
+  the page gone back to reads from its owner, as it reads a success. For a
+  redirect it takes, the listener's answer never says how the sign-in
+  ended. Its own over-long redirect instead gets the long-answer page
+  below, with no return. A return is the owner's alone: the listener sends the
   browser only where its owner said, never to an address of the request's
   (its Host, its query), and a request it refuses gets no return.
   - **Its bounds:** an absolute `http` or `https` address of at most
@@ -1054,6 +1056,11 @@ accounts component nor its listener requires a sum of heap prices.
 
 ## 7. Open questions
 
+- **Long-answer figures on the owner's page** (6.3, 6.5): the driver
+  reports the address's length and bound at its terminal. Carrying them
+  through an owner's domain and client wire to its sign-in page is
+  separate work in that owner's contract
+  (`jig/docs/design/protocol/configuration.md`, section 9).
 - **The accounts world's scenarios as data** (6.8): fixture, private-file
   fault, owner-script and expectation rows wait while higher-priority work
   holds the round. `PasteThenListener` waits for `Fact::Taken` in the

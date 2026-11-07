@@ -2824,7 +2824,11 @@ A count overflow names `documents`, its supplied count and
 `tasks.charter_documents` with its configured value. Name failures name
 `authority.segments` or `authority.segment_bytes`; path and heading failures
 name their minimum or maximum byte bound; a connector failure names the
-unregistered connector. These facts cross proposal answers, stored answers
+unregistered connector. A charter whose stored policy, its parts with it,
+passes `run_bytes` (17.1) is refused with the same fault and facts naming
+`stored_policy`, a member that is no document's: the policy's stored bytes
+as supplied, the largest `u32` where they pass it, and `run_bytes` as its
+maximum. These facts cross proposal answers, stored answers
 and the client wire unchanged; a renderer words them without validating
 the charter again.
 
@@ -2951,7 +2955,8 @@ models and a charter name.
 - **A charter's models are names, resolved.** A charter names its first
   choices, in order, and whether **the rest** follow
   (`../protocol/configuration.md`, section 3). Its resolution is each
-  name's record in the catalogue, withdrawn ones dropped, the main the
+  name's record in the catalogue, at the effort the charter selects for
+  it where it selects one (`tasks.md`, section 3), withdrawn ones dropped, the main the
   first left; then, with the rest, every other model in number order,
   while it stays within `settings.alternatives` and `run_bytes`. A
   resolution with no model is a *reference* fault. What a run reads, what

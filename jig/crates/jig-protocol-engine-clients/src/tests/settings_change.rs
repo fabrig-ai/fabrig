@@ -522,6 +522,7 @@ fn document_refusal_details_cross_the_client_wire() {
         (p::SettingMember::Path, c::SettingMember::Path),
         (p::SettingMember::Heading, c::SettingMember::Heading),
         (p::SettingMember::Connector, c::SettingMember::Connector),
+        (p::SettingMember::StoredPolicy, c::SettingMember::StoredPolicy),
     ] {
         for (rule, expected_rule) in [
             (p::SettingRule::Maximum, c::SettingRule::Maximum),
