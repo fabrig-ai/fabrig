@@ -123,6 +123,7 @@ pub const WORKER_DOCUMENT: &[u8] = channel::WORKER_DOCUMENT;
 pub fn document() -> Vec<u8> {
     let mut value = world_document();
     value.as_object_mut().expect("deployment").remove("world_settings");
+    settings::strip_models(&mut value);
     serde_json::to_vec(&value).expect("deployment JSON")
 }
 /// The deployment value before harness edits: the chat stories' policy.
@@ -409,7 +410,8 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         document["world_settings"] = world_document()["world_settings"].clone();
     }
     let engine = settings::configuration(&document);
-    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults =
+        temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     // The playground's scripted model plays the stock chat; the configuring agent needs a real one (configuration.md, 13.4).
     defaults.charters = defaults.charters.into_vec().into_iter().filter(|charter| charter.number != 3).collect();
     defaults.templates = defaults.templates.into_vec().into_iter().filter(|template| template.number != 3).collect();

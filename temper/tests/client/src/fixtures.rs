@@ -1612,8 +1612,10 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
 
         providers: Box::new([]),
     };
-    let stock =
-        temper_service::stock::defaults(&llm, temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes);
+    let stock = temper_service::stock::with_models(
+        llm.models.clone(),
+        temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
+    );
     let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
     config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
     let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();

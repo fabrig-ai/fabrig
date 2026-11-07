@@ -389,13 +389,11 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         value["engine"]["llm"],
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
-                "manage_usage":"https://claude.ai/settings/usage", "models":["claude-haiku-5-5"],
+                "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
                 "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
-                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
-            "models":[{"name":"claude-haiku-5-5", "endpoint":"claude", "window":1_048_576, "output":8192,
-                "prices":{"input":2000, "cached":2000, "output":10000, "unit":1_000_000}}, before["engine"]["llm"]["models"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
         })
     );
     assert_eq!(value["application"], before["application"], "including init's demo");
@@ -423,15 +421,20 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("engine");
     let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
         .expect("engine schema");
-    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(
             (charter.policy.model.name.as_ref(), charter.policy.model.endpoint),
-            (b"claude-haiku-5-5".as_slice(), 2)
+            (b"claude-opus-5-5".as_slice(), 2)
         );
+        let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
+            .expect("stock charter");
         let alternatives: Vec<_> =
-            charter.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
-        assert_eq!(alternatives, [(b"demo".as_slice(), 3)]);
+            resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
+        assert_eq!(
+            alternatives,
+            [(b"claude-sonnet-5-5".as_slice(), 2), (b"claude-fable-5-1".as_slice(), 2), (b"demo".as_slice(), 3)]
+        );
     }
     scratch.remove();
 }

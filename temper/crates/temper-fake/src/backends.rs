@@ -31,7 +31,7 @@ pub struct Peers {
 pub const SEED: u64 = 7;
 
 /// The fake program's model, alongside the credential-backed `OpenAI` model.
-pub const PROGRAM_MODEL: &str = "fake-claude";
+pub const PROGRAM_MODEL: &str = "claude-opus-5-5";
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
@@ -69,10 +69,10 @@ pub struct Documents {
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
 // Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
-// Anthropic provider/endpoint/model replacements (3), bundle (1), worker (2),
-// capacity overrides (3), two surplus Anthropic models. Sign-in and the OpenAI endpoint may remove four TLS members each.
+// Anthropic endpoint and provider endpoint (2), bundle (1), worker (2),
+// capacity overrides (3). Sign-in and OpenAI may remove four TLS members each.
 // The agent's OpenAI endpoint (6), Anthropic endpoint (1) and adapter (1) fit too.
-const EDITS: u32 = 1 + 6 + 2 + 3 + 1 + 2 + 3 + 2 + 2 * 4;
+const EDITS: u32 = 1 + 6 + 2 + 2 + 1 + 2 + 3 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
@@ -299,17 +299,6 @@ fn endpoint(d: &Document, at: u32, socket: &[u8], agent: bool, edits: &mut Edits
     tls(d, at, edits, p)
 }
 
-fn program_model(agent: bool) -> Result<Box<[u8]>, Refusal> {
-    // Match the shipped direct model's window, output and positive fixture prices.
-    Ok(read::joined(&[
-        b"{\"name\":",
-        &text(PROGRAM_MODEL.as_bytes())?,
-        br#", "window":1048576,"output":8192,"prices":{"input":1,"cached":1,"output":1,"unit":1000000},"#,
-        if agent { br#""reasoning_item":65536,"head":60000,"idle":30000"# } else { br#""endpoint":"fake-claude""# },
-        b"}",
-    ]))
-}
-
 fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
     let tail = if agent {
         bytes::copy_of(br#""connect":10000,"handshake":10000,"limits":{"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":30000}"#)
@@ -326,37 +315,15 @@ fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
 }
 
 fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    for (member_name, key, wanted, value) in [
-        (b"endpoints".as_slice(), b"name".as_slice(), b"anthropic".as_slice(), program_endpoint(socket, false)?),
-        (b"providers", b"name", b"anthropic", read::joined(&[
-            br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["#,
-            &text(PROGRAM_MODEL.as_bytes())?,
-            br#"],"sources":{"programs":["claude_code"]}}"#,
-        ])),
-    ] {
-        let target_path = p.member(member_name);
-        let list = member(d, llm, member_name, p)?;
-        let target = selected(d, list, key, wanted, false, &target_path)?;
-        edits.set(d, target, &value, &target_path)?;
-    }
-    let target_path = p.member(b"models");
-    let models = member(d, llm, b"models", p)?;
-    let mut replaced = false;
-    for (index, at) in read::list(d, models, 1, &target_path)?.iter().enumerate() {
-        let row = read::index(&target_path, index);
-        let endpoint = member(d, *at, b"endpoint", &row)?;
-        if read::text(d, endpoint, 128, &row.member(b"endpoint"))?.as_ref() == b"anthropic" {
-            if replaced {
-                edits.remove(d, *at, &row)?;
-            } else {
-                edits.set(d, *at, &program_model(false)?, &row)?;
-                replaced = true;
-            }
-        }
-    }
-    if !replaced {
-        return Err(read::why(&target_path, b"target missing"));
-    }
+    let endpoints = member(d, llm, b"endpoints", p)?;
+    let endpoint_path = p.member(b"endpoints");
+    let endpoint = selected(d, endpoints, b"name", b"anthropic", false, &endpoint_path)?;
+    edits.set(d, endpoint, &program_endpoint(socket, false)?, &endpoint_path)?;
+    let providers = member(d, llm, b"providers", p)?;
+    let provider_path = p.member(b"providers");
+    let provider = selected(d, providers, b"name", b"anthropic", false, &provider_path)?;
+    let endpoint = member(d, provider, b"endpoint", &provider_path)?;
+    edits.text(d, endpoint, b"fake-claude", &provider_path.member(b"endpoint"))?;
     Ok(())
 }
 

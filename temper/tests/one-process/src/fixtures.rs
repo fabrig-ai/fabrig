@@ -65,6 +65,7 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
 }
 pub(crate) fn document() -> Vec<u8> {
     let mut value = world_document();
+    documents::settings::strip_models(&mut value);
     value.as_object_mut().expect("deployment").remove("world_settings");
     serde_json::to_vec(&value).expect("deployment JSON")
 }

@@ -7,6 +7,9 @@ use skein_fake_llm_domain::api;
 use skein_json::Document as Json;
 use skein_lib::{List, bytes};
 
+pub(crate) const SCRIPTED_WINDOW: u32 = 1_048_576;
+pub(crate) const SCRIPTED_OUTPUT: u32 = 8192;
+
 /// The key file's read bound: the largest account key and its newline.
 /// jig's client-v11 Keyed.value ceiling is 4096 bytes; account keys are raw bytes.
 pub const KEY_FILE_BYTES: u32 = 4097;
@@ -139,18 +142,12 @@ fn models(number: u32, listen: SocketAddr, llm: &config::Llm, p: &Path) -> Resul
     if !provider.keys || provider.sign_in.is_some() || !provider.programs.is_empty() || provider.signed_in_plan {
         return Err(read::why(p, b"must offer a key alone"));
     }
-    if provider.models.is_empty() {
-        return Err(read::why(p, b"names a provider with no models"));
-    }
-    let mut models = List::with_capacity(u32::try_from(provider.models.len()).expect("checked provider models"));
-    for name in &provider.models {
-        let mut found = None;
-        for model in &llm.models {
-            if model.model.name == *name {
-                found = Some(&model.model);
-            }
+    let mut models = List::with_capacity(u32::try_from(llm.models.len()).expect("catalogue model count"));
+    for entry in &llm.models {
+        let model = &entry.model;
+        if model.provider != number {
+            continue;
         }
-        let model = found.expect("checked provider's model");
         let mut found = None;
         for endpoint in &llm.endpoints {
             if endpoint.number == model.endpoint {
@@ -173,9 +170,15 @@ fn models(number: u32, listen: SocketAddr, llm: &config::Llm, p: &Path) -> Resul
         if endpoint.dialect != 3 {
             return Err(read::why(p, b"names an endpoint not in OpenAI's dialect"));
         }
-        models
-            .push(llm::Model { name: bytes::copy_of(&model.name), window: model.window, output: model.output })
-            .expect("provider model count");
+        let (window, output) = if entry.number == 8 && model.provider == 3 && model.name.as_ref() == b"demo" {
+            (SCRIPTED_WINDOW, SCRIPTED_OUTPUT)
+        } else {
+            (model.window, model.output)
+        };
+        models.push(llm::Model { name: bytes::copy_of(&model.name), window, output }).expect("catalogue model count");
+    }
+    if models.is_empty() {
+        return Err(read::why(p, b"names a provider with no models"));
     }
     llm::check_models(models.as_slice(), p, false)?;
     Ok(models.into_boxed())

@@ -100,7 +100,14 @@ fn no_models_need_no_providers() {
     for value in [br#"{"endpoints":[],"models":[]}"#.as_slice(), br#"{"providers":[],"endpoints":[],"models":[]}"#] {
         let doc = fixtures::document(value);
         let mut problems = crate::Problems::empty();
-        let llm = crate::llm::parse(&doc, 0, &Path::root(), &crate::Directories::working(), &mut problems);
+        let llm = crate::llm::parse(
+            &doc,
+            0,
+            &Path::root(),
+            &crate::Directories::working(),
+            crate::Defaults::Document,
+            &mut problems,
+        );
         assert!(llm.unwrap().providers.is_empty());
         assert!(problems.problems.is_empty());
     }

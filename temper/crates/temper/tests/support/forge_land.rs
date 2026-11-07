@@ -1367,18 +1367,6 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut declared = value["engine"]["llm"]["models"]
-        .as_array()
-        .expect("engine models")
-        .iter()
-        .find(|model| model["endpoint"] == "openai")
-        .expect("init OpenAI model")
-        .clone();
-    declared["name"] = model.name().into();
-    for member in ["efforts", "effort", "shown"] {
-        declared.as_object_mut().expect("engine model").remove(member);
-    }
-    declared["endpoint"] = "claude".into();
     let mut route = value["engine"]["llm"]["endpoints"]
         .as_array()
         .expect("engine endpoints")
@@ -1391,12 +1379,10 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     }
     route["address"] = serde_json::json!({"host":"api.anthropic.com", "port":443});
     let provider = serde_json::json!({"name":"anthropic", "number":2, "signed_in_plan":false,
-        "manage_usage":"https://claude.ai/settings/usage", "models":[model.name()],
+        "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
         "sources":{"programs":["claude_code"]}
     });
-    for (table, field, replacement) in
-        [("providers", "name", provider), ("endpoints", "name", route), ("models", "endpoint", declared)]
-    {
+    for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
         let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
         entries.retain(|entry| entry[field] != "openai" && entry[field] != "anthropic");
         entries.insert(0, replacement);

@@ -6,7 +6,7 @@ use crate::{documents, fakes};
 #[test]
 fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
-    let value = serde_json::from_slice(&bytes).expect("deployment JSON");
+    let value = documents::world_document();
     let result = temper_service::startup::with_setup_given(
         &bytes,
         &jig_protocol_config::Directories::working(),

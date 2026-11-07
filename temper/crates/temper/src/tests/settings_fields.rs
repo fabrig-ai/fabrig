@@ -211,15 +211,19 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has seven charters, three templates, one policy and the rules.
-    const STOCK_VALUES: usize = 12;
+    // The fixture has one model, seven charters, three templates, one policy and the rules.
+    const STOCK_VALUES: usize = 13;
     let llm = llm();
     let models = models(&llm);
-    let stock = temper_service::stock::defaults(
-        &llm,
+    let stock = temper_service::stock::with_models(
+        llm.models.clone(),
         jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Standard).core.tasks.result_bytes,
     );
     let mut checked = 0;
+    for value in stock.models {
+        walk(Shape::Catalogue, printed(&StockValue::Model(Box::new(value)), &models));
+        checked += 1;
+    }
     for value in stock.charters {
         walk(Shape::Charter, printed(&StockValue::Charter(Box::new(value)), &models));
         checked += 1;

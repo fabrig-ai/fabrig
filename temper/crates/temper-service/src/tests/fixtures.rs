@@ -10,7 +10,7 @@ pub const DIALECT: u32 = 3;
 pub const ENGINE: &[u8] = br#"{
 "limits": {"profile": "small", "overrides": {"tasks.charters":7,"core.templates":3,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":9,"tasks.executor_kinds":9,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
-"providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
+"providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
 "name": "fake",
 "number": 1,
@@ -21,13 +21,6 @@ pub const ENGINE: &[u8] = br#"{
 "headers": [],
 "connect_ms": 10000,
 "handshake_ms": 10000
-}],
-"models": [{
-"name": "small",
-"endpoint": "fake",
-"window": 8192,
-"output": 1024,
-"prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}
 }]
 },
 "hosts": {
@@ -88,6 +81,34 @@ pub fn engine() -> settings::Engine {
     }
 }
 
+pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
+    jig_domain_core::settings::CatalogueModel {
+        number: 1,
+        model: jig_domain_core::Model {
+            provider: 1,
+            dialect: DIALECT,
+            endpoint: 1,
+            program: None,
+            name: b"small".as_slice().into(),
+            window: 8192,
+            output: 1024,
+            input_price: 1,
+            cached_price: 1,
+            cache_write_price: None,
+            output_price: 1,
+            price_unit: 1000,
+            effort: None,
+            efforts: Box::default(),
+        },
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: jig_domain_core::settings::ModelSource::Stock,
+        estimated: false,
+    }
+}
+
 /// A parsed engine passed the stock, before any component is made.
 pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     let document = jig_protocol_config::document(
@@ -102,7 +123,15 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
         jig_protocol_config::Defaults::Passed,
     )
     .unwrap();
-    let defaults = crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes);
+    let own = match jig.llm.endpoints.first() {
+        Some(endpoint) => endpoint.name.as_ref() == b"fake",
+        None => false,
+    };
+    let defaults = if own {
+        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap()
+    } else {
+        crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes)
+    };
     jig_protocol_config::pass(&mut jig, defaults).unwrap();
     jig
 }
@@ -1040,8 +1069,8 @@ pub fn clients() -> crate::clients::Clients {
 mod startup;
 pub use startup::{
     APPLICATION, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
-    owned_worker_alone_document, parsed, startup_agent, value, webhook_document, with, without, worker_alone_document,
-    worker_runtime,
+    owned_worker_alone_document, parsed, start, startup_agent, value, webhook_document, with, without,
+    worker_alone_document, worker_runtime,
 };
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);

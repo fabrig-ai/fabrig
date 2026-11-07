@@ -99,7 +99,7 @@ pub fn engine(
     }
     let mut llm = None;
     if let Some(at) = object.required(document, b"llm", &path, &mut problems) {
-        llm = llm::parse(document, at, &path.member(b"llm"), directories, &mut problems);
+        llm = llm::parse(document, at, &path.member(b"llm"), directories, defaults, &mut problems);
     }
     let mut hosts = None;
     if let Some(at) = object.required(document, b"hosts", &path, &mut problems) {
