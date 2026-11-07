@@ -1340,6 +1340,11 @@ host:
 
 ## 10. Open questions
 
+- **Proposal-form diagnostics** (8.1): `settings` reads name the kind
+  and its missing member; `propose_settings` keeps the shared settings-file
+  parser's errors. Default: those words, until a proposal needs the same
+  kind-specific guidance. Both tools' schemas name the numbered kinds.
+
 - **A real model revising a proposal** (8.1; the request `ui-proposal-2`
   of 2026-11-06): after landing, check that a request from "Change
   something" leads to a fresh proposal without a trip to Needs you, and

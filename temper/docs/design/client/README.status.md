@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 5.5 has no known gap in the box's capacity-wait words on either
+chat surface. The deployment's `owned` read selects them; before that read
+answers, or when false, the multi-host words remain. A box without an
+`owned` part is deferred in section 11.
+
 Sections 3.5 and 5.13 have no known implementation gap in replacing a
 proposal through "Change something", drawing live application rows from
 the review under its key, naming templates and proposal activity in the

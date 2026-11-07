@@ -3909,6 +3909,16 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **Four agents on a laptop** (8.1, 8.3): measure their combined resident
+  memory, including any program an agent launches, after landing. The
+  box-and-serve figures in `setup.status.md` exclude agent processes and
+  do not size four of them. Each agent declares 2 GiB, carried unenforced;
+  the start checks slots and their related limits, without comparing that
+  declaration with laptop memory. The default is four slots, reversible
+  by the person; workspace disk use depends on the repositories cached
+  in the four workspaces. The process, browser and live checks follow
+  landing (`../domain/testing.md`, section 11).
+
 - **The fake box's retained ports under concurrent stories** (7.5):
   prove the story-supplied ports across a stopped box's restart in the
   after-landing tiers (`../domain/testing.md`, 11), beside other test
