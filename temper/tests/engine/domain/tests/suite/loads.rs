@@ -662,29 +662,87 @@ fn a_census_missing_owner_is_a_typed_link_on_open_and_after_crash() {
 }
 
 #[test]
-fn sweep_repeats_the_paged_people_walk_on_open_and_after_crash() {
+fn paged_walks_repeat_on_open_and_after_crash() {
     use jig_domain_core as core;
+    use jig_domain_core::settings as s;
     use jig_domain_people as people;
-    let mut store = Store::new();
-    let records = Box::new([
-        Record::Core(core::Record::People(people::Stored::ReadResults { party: 1, through: 2 })),
-        Record::Core(core::Record::People(people::Stored::ReadResults { party: 2, through: 3 })),
-    ]);
-    store.seed(records.clone(), Box::new([]));
-    for crash in [false, true] {
-        if crash {
-            store.crash(91);
-        }
-        for range in [Range::Core(root::CoreRange::People), Range::Core(root::CoreRange::Sweep)] {
-            let (first, next) = store.page(&range, None, 1);
-            assert_eq!(first.as_ref(), &records[..1]);
-            assert_eq!(next, Some(records[0].key()));
-            assert_eq!(temper_engine_domain_world::store::page_rules(&range, None, &first, next.as_ref()), Ok(()));
-            let (second, end) = store.page(&range, next.as_ref(), 1);
-            assert_eq!(second.as_ref(), &records[1..]);
-            assert_eq!(end, None);
-            assert_eq!(temper_engine_domain_world::store::page_rules(&range, next.as_ref(), &second, None), Ok(()));
-            assert!(store.take_missing(Token::new(1)).is_empty());
+    let model = s::CatalogueModel {
+        number: 1,
+        model: temper_engine_domain_world::walking::charter().policy.model,
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: s::ModelSource::Stock,
+        estimated: false,
+    };
+    let settings = [
+        s::Record::Application {
+            setting: s::Setting::Application { kind: 1, scope: 0, number: 1 },
+            state: s::application::State { follows: s::application::Follows::Default, size: 0, charters: Box::new([]) },
+        },
+        s::Record::Changed {
+            setting: s::Setting::Model(1),
+            changed: s::Changed { value: Some(s::Value::Model(Box::new(model))), revision: 1 },
+        },
+        // Keep the model page nonterminal so startup checks its continuation against the application's.
+        s::Record::Extent { oldest: 1, keys: 2 },
+    ]
+    .map(|record| Record::Core(core::Record::Core(core::CoreRecord::Settings(record))));
+    let cases = [
+        (
+            vec![
+                Record::Core(core::Record::People(people::Stored::ReadResults { party: 1, through: 2 })),
+                Record::Core(core::Record::People(people::Stored::ReadResults { party: 2, through: 3 })),
+            ],
+            vec![Range::Core(root::CoreRange::People), Range::Core(root::CoreRange::Sweep)],
+        ),
+        (settings.into(), vec![Range::Core(root::CoreRange::Settings)]),
+    ];
+    let limits = Limits { bytes: 16_384, reply_bytes: 16_384, transcript_bytes: 16_384, ..LIMITS };
+    for (records, ranges) in cases {
+        let mut store = Store::new();
+        store.seed(records.clone().into_boxed_slice(), Box::new([]));
+        for crash in [false, true] {
+            if crash {
+                store.crash(91);
+            }
+            for range in &ranges {
+                let mut loads = Loads::new(&limits);
+                let mut out = Queue::with_capacity(1);
+                let mut after = None;
+                for (index, record) in records.iter().enumerate() {
+                    let owner = loads::begin(&mut loads, STARTUP, range.clone(), after.clone(), 1, &mut out)
+                        .expect("startup page admitted");
+                    assert_eq!(
+                        out.pop(),
+                        Some(Request::Load {
+                            owner,
+                            range: range.clone(),
+                            after: after.clone(),
+                            most: 1,
+                            bytes: limits.reply_bytes,
+                        })
+                    );
+                    let (rows, next) = store.page(range, after.as_ref(), 1);
+                    assert_eq!(rows.as_ref(), std::slice::from_ref(record));
+                    assert_eq!(next, if index + 1 == records.len() { None } else { Some(record.key()) });
+                    loads::loaded(&mut loads, owner, rows.clone(), next.clone(), &mut out);
+                    assert_eq!(
+                        temper_engine_domain_world::store::page_rules(range, after.as_ref(), &rows, next.as_ref()),
+                        Ok(())
+                    );
+                    assert_eq!(
+                        out.pop(),
+                        Some(Request::Loaded { waiter: STARTUP, rows, next: next.clone(), cut: None })
+                    );
+                    assert!(out.is_empty());
+                    assert!(store.take_missing(owner).is_empty());
+                    loads::reclaim(&mut loads);
+                    after = next;
+                }
+                assert_eq!(after, None);
+            }
         }
     }
 }
