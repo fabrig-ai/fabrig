@@ -275,7 +275,13 @@ fn a_project_policy_removed_reset_or_twice_is_refused_its_shape() {
     let (mut core, limits) = fixture();
     let item = item(replacement(&core));
     let output = change(&mut core, &limits, Box::new([item.clone(), item.clone()]));
-    assert_eq!(outcome(&output), malformed(item.setting, s::Fault::Shape));
+    assert_eq!(
+        outcome(&output),
+        people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings { setting: item.setting, fault: s::Fault::Shape, detail: None },
+        })
+    );
 }
 
 #[test]
@@ -497,7 +503,17 @@ fn a_whole_policy_pool_raise_past_open_room_is_refused_atomically() {
             item(value),
         ]),
     );
-    assert_eq!(outcome(&output), malformed(s::Setting::ProjectPolicy { project: PROJECT }, s::Fault::Budget));
+    assert_eq!(
+        outcome(&output),
+        people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 1,
+            why: people::Malformed::Settings {
+                setting: s::Setting::ProjectPolicy { project: PROJECT },
+                fault: s::Fault::Budget,
+                detail: None,
+            },
+        })
+    );
     assert_eq!(core.configured_policy(PROJECT), Some(before));
     assert!(core.current.changes.is_empty());
     assert_eq!(core.current.newest(), 1);
