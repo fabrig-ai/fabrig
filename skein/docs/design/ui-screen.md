@@ -111,8 +111,8 @@ host chose (its own design says how).
   drawn as nothing. The frame also holds the cursor's position, when a
   field has the focus (5.4).
 - **Bounded at its making:** `Frame::new(most)` holds at most `most`'s
-  cells, and the renderer lays a window larger than that in its top-left
-  `most` alone. `None` for a `most` whose cells pass a u32.
+  cells, which a u32 always counts (two u16 sides), and the renderer lays
+  a window larger than that in its top-left `most` alone.
 - **Its text,** `Frame::text`: each row as UTF-8, a line per row, a wide
   glyph written once, the row's trailing spaces removed.
 - **Its print,** `Frame::print`, a frame as text with its paints, for a
@@ -128,7 +128,8 @@ host chose (its own design says how).
 `skein_ui_screen::render(tree, theme, size, focus, frame)`: from the
 view's tree, a valid theme, the window's size and the shell's focus, the
 frame. A pure function, step code under the subset, with no io and no
-clock, writing into the frame it is given and allocating nothing past it.
+clock, writing into the frame it is given, its working storage bounded by
+the tree's nodes and the frame's cells.
 
 ### 5.1 The text
 
@@ -177,13 +178,17 @@ clock, writing into the frame it is given and allocating nothing past it.
     shell numbers, ui-text.md, section 6) keeps two columns before it,
     which hold the theme's focus mark and a space while it has the focus,
     so the focus moving shifts no text;
+  - *a status* is laid as its text, without the text shell's `* `: its
+    region and its paint set it apart;
   - *paints:* each cell takes the base, its region's paint, its tokens'
     looks, and the focus's paint while its node has the focus; a code
     run keeps its backticks.
-- **A spread region** lays each child's text on one row, the first child
-  from the row's start and the others from its end, two spaces between
-  them, each child's paint its own; what does not fit is cut from the
-  first child's end. It takes one row, whatever its children.
+- **A spread region** lays each child's first line on one row, the first
+  child from the row's start and the others from its end, two spaces
+  between them, each child's paint its own; what does not fit is cut from
+  the first child's end. It takes one row, whatever its children, and
+  keeps no focus columns: a focused node there takes the focus's paint
+  alone.
 - **Not laid:** what the text shell does not print (ui-text.md, section
   5), but the placeholder, which the full-screen shell draws (5.4); a
   shortcut is the node's own words' to say.
