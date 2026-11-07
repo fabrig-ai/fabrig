@@ -79,8 +79,25 @@ keeps it; publication is not a cutoff on a handed change's commit.
   where the request says only with a queue: the plan's `public-page`
   contract asks for either, and records no reason for widening that rule.
 
-- **Not yet:** 2.5, *A chat's terminal* (look-round-16): its rules, tokens and
-  fonts; 7.2: the `chat-terminal-*` states. `terminal-close` deletes this entry.
+Section 2.5's terminal rules, tokens and bundled fonts and 7.2's nine
+`chat-terminal-*` gallery states are built (look-round-16). The shared
+shell document and flow rules win over the request's restated strong,
+code, marker and figure-margin rules, as section 2.5 requires. Temper/ui's
+render comparison follows landing (section 5;
+`../draft/look-requests.md`, 4 and 5). Compilation and print checks
+establish no rendered equality.
+
+- **Departs:** 2.5, *A chat's terminal*: at 760 px or less, DejaVu is 13px,
+  but Plex stays 14px because `.temper-terminal-plex` has greater specificity
+  than the phone's `.temper-terminal` rule. The cascade retains the desktop
+  Plex size instead of the requested single phone size; temper/ui owns it.
+- **Departs:** 2.5, *A chat's terminal*: adjacent local notes share the
+  `.temper-terminal-note + .temper-terminal-note` margin, including help's
+  code block, where `chat-terminal-font` narrows its mock selector to
+  paragraphs. One note token retains uniform spacing. The shared options
+  menu also has no mousemove selection handler, so hovering an option
+  leaves the active keyboard choice where it is, unlike the request's
+  handler. Temper/ui owns these differences from the request.
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
