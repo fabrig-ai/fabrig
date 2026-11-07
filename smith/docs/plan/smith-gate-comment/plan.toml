@@ -1,0 +1,22 @@
+draft = "smith-gate-comment"
+repo = "fabrig"
+sources = ["smith/docs/plan/smith-gate-comment/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "comment"
+title = "Smith's gate entries' comment carries the user's word of 11-07"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "budgets.toml's comment on Smith's focused and fuzzy entries says 30 and 120 CPU seconds by the user's word of 11-07, and the file still validates"
+parts = ["comment"]
+walk = false
