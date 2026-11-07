@@ -105,6 +105,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **Cost and risk:** a settings revision that's wrong for anything else, and these charters assume this one repository's plan format. The tick is still a model's run where the pipeline's is code, so its minutes are reported apart; writing it as a program would be a feature, not a hack. A planner with a shell reaches what 2.4 says the worker reaches. Ten targets could reach the machine's disk budget, but a workspace fills only when used, so a small plan fills few.
 - **The pipeline:** its cutter and foreman have a shell, and its tick is code. Its run ends after asking a question, where temper's parks, so the coding charter's two lines on that say `wait`: the one place these words can't match.
 - **A real design:** a question: whether a planner writes through a change at all, and how stock charters take what the comparison shows.
+- **Per wake:** once `per-wake.md` is built, the comparison's goal charter is generated in its parts, the pipeline's cut as the cut and its answerer as the questions, each charter holding only the rules its role acts on (`per-wake.md`, sections 6 and 7).
 
 ### 2.11 Briefs on the worker's disk
 

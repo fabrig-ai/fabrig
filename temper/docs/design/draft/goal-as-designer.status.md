@@ -22,7 +22,7 @@ section 11). The stock's figures stay as they are.
 - **Design lags:**
   - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, the close-out lands before the landing, and each delegate's result wakes the goal. `reference-code-production.md` is read by tests and by stage one's judge (`temper/tools/stage-one/`), so folding this in changes their inputs.
   - 2, 7: `../protocol/configuration.md`, 13.9: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell, the close-out on a designer's charter.
-  - 8: settled: a survey of the pipeline's answers read tight, so a goal's later runs try high, by an amendment after the first run, and the choice is looked at again after a first comparison. `../protocol/configuration.md`, 13.9 says nothing of a goal's later effort yet.
+  - 8: settled: a survey of the pipeline's answers read tight, so a goal's later runs try high, by an amendment after the first run until `per-wake.md`, section 5's later choice is built, and the choice is looked at again after a first comparison. `../protocol/configuration.md`, 13.9 says nothing of a goal's later effort yet.
   - 9: `../protocol/configuration.md`, 13.4: stock instructions are held in `temper-service`'s source.
 - **Design departs:**
   - 4: a run resuming saved work starts from that saved tree, rather than
