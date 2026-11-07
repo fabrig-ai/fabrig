@@ -105,7 +105,9 @@ impl Tui {
         if let Some(address) = duties.address {
             self.address = Some(address);
         }
-        assert!(duties.open.is_none(), "the TUI's first screen opens no browser");
+        if duties.open.is_some() {
+            self.report(world, Report::Opened { opened: true });
+        }
         self.closed |= duties.close;
     }
 }

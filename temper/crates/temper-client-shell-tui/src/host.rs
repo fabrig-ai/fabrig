@@ -209,9 +209,7 @@ impl Host {
         if self.closed {
             return;
         }
-        if self.root.client().link().state == Link::SignedOut
-            && self.asked_opening != Some(self.state().openings())
-        {
+        if self.root.client().link().state == Link::SignedOut && self.asked_opening != Some(self.state().openings()) {
             self.ask();
             self.route(duties);
         }

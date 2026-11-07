@@ -124,16 +124,33 @@ fn an_opener_needs_a_local_display_and_an_executable_in_an_absolute_path_directo
         (vec![("DISPLAY", ":0"), ("PATH", "/bin")], true, vec!["/bin/xdg-open"], Some("/bin/xdg-open")),
         (vec![("WAYLAND_DISPLAY", "wayland-0"), ("PATH", "/bin")], true, vec!["/bin/xdg-open"], Some("/bin/xdg-open")),
         (vec![("PATH", "/bin")], false, vec!["/bin/open"], Some("/bin/open")),
-        (vec![("DISPLAY", ":0"), ("PATH", "relative:/bin")], true, vec!["relative/xdg-open", "/bin/xdg-open"], Some("/bin/xdg-open")),
+        (
+            vec![("DISPLAY", ":0"), ("PATH", "relative:/bin")],
+            true,
+            vec!["relative/xdg-open", "/bin/xdg-open"],
+            Some("/bin/xdg-open"),
+        ),
         (vec![("DISPLAY", ":0"), ("PATH", "relative:/empty")], true, vec!["relative/xdg-open"], None),
-        (vec![("DISPLAY", ":0"), ("PATH", "/empty:/found:/later")], true, vec!["/found/xdg-open", "/later/xdg-open"], Some("/found/xdg-open")),
+        (
+            vec![("DISPLAY", ":0"), ("PATH", "/empty:/found:/later")],
+            true,
+            vec!["/found/xdg-open", "/later/xdg-open"],
+            Some("/found/xdg-open"),
+        ),
         (vec![("DISPLAY", ":0")], true, vec!["/bin/xdg-open"], None),
     ] {
         let env = environment(&entries);
         let opener = tui::opener(&env, linux, &|path| found.iter().any(|found| path == std::path::Path::new(found)));
-        assert_eq!(opener.as_ref().map(|opener| opener.program.as_ref()), expected.map(str::as_bytes), "{entries:?} {linux}");
+        assert_eq!(
+            opener.as_ref().map(|opener| opener.program.as_ref()),
+            expected.map(str::as_bytes),
+            "{entries:?} {linux}"
+        );
         if let Some(opener) = opener {
-            let expected = entries.iter().map(|(name, value)| format!("{name}={value}").into_bytes().into_boxed_slice()).collect::<Vec<_>>();
+            let expected = entries
+                .iter()
+                .map(|(name, value)| format!("{name}={value}").into_bytes().into_boxed_slice())
+                .collect::<Vec<_>>();
             assert_eq!(opener.env.as_ref(), expected.as_slice());
         }
     }

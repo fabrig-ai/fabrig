@@ -7,7 +7,11 @@ use skein_io::{
 use skein_lib::Duration;
 use skein_shell::{Clock, Config, Host, Input, Kernel, Keys, Watch};
 use skein_ui_screen_terminal::{Depth, LEAVE};
-use std::{net::SocketAddr, path::PathBuf};
+use std::{
+    net::SocketAddr,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt},
+    path::{Path, PathBuf},
+};
 use temper_client_shell_tui::{
     limits,
     run::{Run, Settings},
@@ -72,6 +76,40 @@ pub fn kept(bytes: &[u8]) -> Option<SocketAddr> {
 
 fn lookup<'a>(environment: &'a [EnvironmentEntry], name: &[u8]) -> Option<&'a [u8]> {
     environment.iter().find(|(key, _)| key.as_ref() == name).map(|(_, value)| value.as_ref())
+}
+
+#[must_use]
+pub fn opener(
+    environment: &[EnvironmentEntry],
+    linux: bool,
+    executable: &dyn Fn(&Path) -> bool,
+) -> Option<temper_client_shell_tui::opener::Opener> {
+    if lookup(environment, b"SSH_CONNECTION").is_some()
+        || lookup(environment, b"SSH_TTY").is_some()
+        || (linux && lookup(environment, b"DISPLAY").is_none() && lookup(environment, b"WAYLAND_DISPLAY").is_none())
+    {
+        return None;
+    }
+    let program = if linux { "xdg-open" } else { "open" };
+    for directory in lookup(environment, b"PATH")?.split(|byte| *byte == b':') {
+        if !directory.starts_with(b"/") {
+            continue;
+        }
+        let path = crate::path(directory).join(program);
+        if executable(&path) {
+            let env = environment
+                .iter()
+                .map(|(name, value)| {
+                    let mut entry = name.to_vec();
+                    entry.push(b'=');
+                    entry.extend_from_slice(value);
+                    entry.into_boxed_slice()
+                })
+                .collect();
+            return Some(temper_client_shell_tui::opener::Opener { program: path.as_os_str().as_bytes().into(), env });
+        }
+    }
+    None
 }
 
 #[must_use]
@@ -140,6 +178,10 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             depth,
             size: skein_ui_screen::Size { rows: size.rows, columns: size.columns },
             limits: limits::tui(),
+            opener: opener(&environment, cfg!(target_os = "linux"), &|path| {
+                std::fs::metadata(path)
+                    .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+            }),
         };
         let seed = skein_shell::seed().expect("kernel seed");
         let mut run = Run::new(settings, root, user, seed, Fd::new(0), Fd::new(1), signals).expect("TUI descriptors");

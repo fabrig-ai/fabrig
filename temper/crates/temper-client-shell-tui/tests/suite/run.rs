@@ -1,5 +1,8 @@
 use skein_fake_machine::{Item, Machine};
-use skein_io::{self as io, kernel::{Complete, Exit, Fd, Op, ServiceSignal, Submit}};
+use skein_io::{
+    self as io,
+    kernel::{Complete, Exit, Fd, Op, ServiceSignal, Submit},
+};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, stream};
 use skein_shell::Host;
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Program, Reply, Sim};
@@ -59,7 +62,21 @@ impl World {
             opener: opener.then(|| Opener { program: Box::from(b"/bin/browser".as_slice()), env: Box::new([]) }),
         };
         let run = Run::new(settings, root, USER, SEED, input, output, signals).expect("adopt descriptors");
-        Self { sim, files, pid, input, output, signals, run, now: Time::ZERO, bytes: Vec::new(), engine, outcome, spawns: 0, draining: false }
+        Self {
+            sim,
+            files,
+            pid,
+            input,
+            output,
+            signals,
+            run,
+            now: Time::ZERO,
+            bytes: Vec::new(),
+            engine,
+            outcome,
+            spawns: 0,
+            draining: false,
+        }
     }
 
     fn settle(&mut self) {
@@ -79,12 +96,17 @@ impl World {
             self.sim.submit(self.pid, self.run.submissions());
             self.serve();
             if let Some(engine) = &mut self.engine {
-                if self.run.is_empty() { engine.close(); }
+                if self.run.is_empty() {
+                    engine.close();
+                }
                 engine.iterate(&mut self.sim, self.now);
             }
             self.bytes.extend(self.sim.peer_drain(self.pid, self.output, ROOM));
-            if self.sim.ready(self.pid) > 0 || self.sim.deferred(self.pid) || self.run.work_pending(self.now)
-                || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim)) {
+            if self.sim.ready(self.pid) > 0
+                || self.sim.deferred(self.pid)
+                || self.run.work_pending(self.now)
+                || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim))
+            {
                 continue;
             }
             let next = [self.sim.next_due(), self.run.next_mechanism_deadline(), self.run.next_policy_deadline()]
@@ -93,7 +115,10 @@ impl World {
                 .min();
             if let Some(next) = next {
                 assert!(next > self.now, "idle deadline is in the future");
-                if self.engine.is_some() && !self.draining && next > Time::ZERO.saturating_add(Duration::from_millis(40)) {
+                if self.engine.is_some()
+                    && !self.draining
+                    && next > Time::ZERO.saturating_add(Duration::from_millis(40))
+                {
                     return;
                 }
                 self.now = next;
@@ -102,7 +127,16 @@ impl World {
                 return;
             }
         }
-        panic!("the run did not settle: run={} ready={} deferred={} engine={} policy={:?} mech={:?}: {}", self.run.work_pending(self.now), self.sim.ready(self.pid), self.sim.deferred(self.pid), self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim)), self.run.next_policy_deadline(), self.run.next_mechanism_deadline(), self.sim.render_trace());
+        panic!(
+            "the run did not settle: run={} ready={} deferred={} engine={} policy={:?} mech={:?}: {}",
+            self.run.work_pending(self.now),
+            self.sim.ready(self.pid),
+            self.sim.deferred(self.pid),
+            self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim)),
+            self.run.next_policy_deadline(),
+            self.run.next_mechanism_deadline(),
+            self.sim.render_trace()
+        );
     }
 
     fn serve(&mut self) {
@@ -191,7 +225,12 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
 const APPROVAL: &[u8] = b"http://127.0.0.1:8367/terminal?code=WDJB-MJHT";
 
 #[derive(Clone, Copy, Debug)]
-enum Outcome { Success, Failure, Refused, Running }
+enum Outcome {
+    Success,
+    Failure,
+    Refused,
+    Running,
+}
 
 struct Engine {
     pid: Pid,
@@ -208,13 +247,23 @@ impl Engine {
     fn new(sim: &mut Sim) -> Self {
         let limits = io::Limits { sockets: 4, ..io::Limits::TEST };
         let mut engine = Self {
-            pid: sim.spawn_process(), io: io::Io::new(&limits),
+            pid: sim.spawn_process(),
+            io: io::Io::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            complete: Queue::with_capacity(256), submit: Queue::with_capacity(256), told: Queue::uncapped(),
-            entities: std::collections::BTreeSet::new(), responses: std::collections::BTreeMap::new(), closing: false,
+            complete: Queue::with_capacity(256),
+            submit: Queue::with_capacity(256),
+            told: Queue::uncapped(),
+            entities: std::collections::BTreeSet::new(),
+            responses: std::collections::BTreeMap::new(),
+            closing: false,
         };
-        engine.down(io::Request::Listen { owner: Token::new(1), addr: io::Addr::Ip("127.0.0.1:8367".parse().expect("engine")) });
-        for _ in 0..8 { engine.iterate(sim, Time::ZERO); }
+        engine.down(io::Request::Listen {
+            owner: Token::new(1),
+            addr: io::Addr::Ip("127.0.0.1:8367".parse().expect("engine")),
+        });
+        for _ in 0..8 {
+            engine.iterate(sim, Time::ZERO);
+        }
         assert_eq!(engine.entities.len(), 1, "engine listens before the client starts");
         engine
     }
@@ -228,22 +277,34 @@ impl Engine {
         io::stage::up(&mut self.io, &self.env, &mut self.complete, &mut self.told, &mut self.submit, now);
         while let Some(event) = self.told.pop() {
             match event {
-                io::Event::Listening { listener, .. } => { self.entities.insert(listener); }
+                io::Event::Listening { listener, .. } => {
+                    self.entities.insert(listener);
+                }
                 io::Event::Accepted { socket, .. } => {
                     self.entities.insert(socket);
                     self.down(io::Request::Bind { socket, owner: socket });
-                    self.down(io::Request::Stream { stream: socket, down: stream::Down::Demand {
-                        read: stream::Read::Scan { until: stream::Delimiter::CRLF_CRLF, max: 1024 }, room: 0,
-                    }});
+                    self.down(io::Request::Stream {
+                        stream: socket,
+                        down: stream::Down::Demand {
+                            read: stream::Read::Scan { until: stream::Delimiter::CRLF_CRLF, max: 1024 },
+                            room: 0,
+                        },
+                    });
                 }
                 io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
                     if bytes.starts_with(b"POST /jig/v1/approval/ask ") {
                         let response = approval_response();
                         let room = u32::try_from(response.len()).expect("short response");
                         self.responses.insert(owner, response);
-                        self.down(io::Request::Stream { stream: owner, down: stream::Down::Demand { read: stream::Read::Nothing, room } });
+                        self.down(io::Request::Stream {
+                            stream: owner,
+                            down: stream::Down::Demand { read: stream::Read::Nothing, room },
+                        });
                     } else {
-                        assert!(bytes.starts_with(b"POST /jig/v1/sign-in/approval "), "only the ask and take reach the engine");
+                        assert!(
+                            bytes.starts_with(b"POST /jig/v1/sign-in/approval "),
+                            "only the ask and take reach the engine"
+                        );
                     }
                 }
                 io::Event::Stream { owner, up: stream::Up::Room } => {
@@ -252,11 +313,21 @@ impl Engine {
                     self.down(io::Request::Stream { stream: owner, down: stream::Down::Finish });
                     self.down(io::Request::Close { entity: owner });
                 }
-                io::Event::Stream { owner, up: stream::Up::End | stream::Up::Failed(_) } => self.down(io::Request::Abort { entity: owner }),
-                io::Event::Closed { owner } => { self.entities.remove(&owner); }
-                io::Event::Output { .. } | io::Event::Connecting { .. } | io::Event::Connected { .. }
-                | io::Event::Spawned { .. } | io::Event::Exited { .. } | io::Event::Usage { .. }
-                | io::Event::Window { .. } | io::Event::Resized | io::Event::Shutdown { .. }
+                io::Event::Stream { owner, up: stream::Up::End | stream::Up::Failed(_) } => {
+                    self.down(io::Request::Abort { entity: owner });
+                }
+                io::Event::Closed { owner } => {
+                    self.entities.remove(&owner);
+                }
+                io::Event::Output { .. }
+                | io::Event::Connecting { .. }
+                | io::Event::Connected { .. }
+                | io::Event::Spawned { .. }
+                | io::Event::Exited { .. }
+                | io::Event::Usage { .. }
+                | io::Event::Window { .. }
+                | io::Event::Resized
+                | io::Event::Shutdown { .. }
                 | io::Event::Failed { .. } => panic!("unexpected engine event: {event:?}"),
             }
         }
@@ -264,24 +335,41 @@ impl Engine {
         sim.submit(self.pid, &mut self.submit);
     }
     fn pending(&self, sim: &Sim) -> bool {
-        self.io.is_ready() || !self.complete.is_empty() || !self.submit.is_empty() || sim.ready(self.pid) > 0 || sim.deferred(self.pid)
+        self.io.is_ready()
+            || !self.complete.is_empty()
+            || !self.submit.is_empty()
+            || sim.ready(self.pid) > 0
+            || sim.deferred(self.pid)
     }
     fn close(&mut self) {
-        if self.closing { return; }
+        if self.closing {
+            return;
+        }
         self.closing = true;
         let entities = self.entities.iter().copied().collect::<Vec<_>>();
-        for entity in entities { self.down(io::Request::Abort { entity }); }
+        for entity in entities {
+            self.down(io::Request::Abort { entity });
+        }
     }
 }
 fn approval_response() -> Box<[u8]> {
     use jig_client_protocol_wire::v19 as w;
-    let answer = w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS, w::ApprovalAskedParts {
-        secret: skein_lib::Secret::new(Box::new([7; 32])), code: *b"WDJBMJHT", expires: 600_000_000_000,
-    }).expect("approval"));
+    let answer = w::ApprovalAskAnswer::Asked(
+        w::ApprovalAsked::new(
+            &w::CEILINGS,
+            w::ApprovalAskedParts {
+                secret: skein_lib::Secret::new(Box::new([7; 32])),
+                code: *b"WDJBMJHT",
+                expires: 600_000_000_000,
+            },
+        )
+        .expect("approval"),
+    );
     let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("short answer"));
     answer.encode(&mut writer).expect("answer");
     let body = writer.finish();
-    let mut response = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
+    let mut response =
+        format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
     response.extend_from_slice(&body);
     response.into_boxed_slice()
 }
@@ -289,14 +377,27 @@ fn approval_response() -> Box<[u8]> {
 #[test]
 fn approval_open_is_carried_and_closing_waits_for_no_opener() {
     const FALLBACK: &[u8] = b"Open this address in a browser";
-    for (opener, outcome, fallback) in [(false, Outcome::Success, true), (true, Outcome::Success, false),
-        (true, Outcome::Failure, true), (true, Outcome::Refused, true), (true, Outcome::Running, false)] {
+    for (opener, outcome, fallback) in [
+        (false, Outcome::Success, true),
+        (true, Outcome::Success, false),
+        (true, Outcome::Failure, true),
+        (true, Outcome::Refused, true),
+        (true, Outcome::Running, false),
+    ] {
         let mut world = World::configured(false, true, opener, outcome);
         world.settle();
         assert_eq!(world.spawns, usize::from(opener), "{opener} {outcome:?}");
-        assert_eq!(world.bytes.windows(FALLBACK.len()).any(|part| part == FALLBACK), fallback, "{opener} {outcome:?}: {}", String::from_utf8_lossy(&world.bytes));
+        assert_eq!(
+            world.bytes.windows(FALLBACK.len()).any(|part| part == FALLBACK),
+            fallback,
+            "{opener} {outcome:?}: {}",
+            String::from_utf8_lossy(&world.bytes)
+        );
         if !opener {
-            assert!(!world.bytes.windows(b"A tab opened".len()).any(|part| part == b"A tab opened"), "no transient opened frame before the same-iteration refusal");
+            assert!(
+                !world.bytes.windows(b"A tab opened".len()).any(|part| part == b"A tab opened"),
+                "no transient opened frame before the same-iteration refusal"
+            );
         }
         world.draining = true;
         world.sim.peer_feed(world.pid, world.input, b"\x03");

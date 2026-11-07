@@ -162,13 +162,17 @@ fn the_run_is_made_from_the_shipped_limits() {
 }
 
 fn ask(duties: &Duties) -> skein_lib::Token {
-    let exchanges = duties.asked.iter().filter_map(|request| {
-        if let Request::Exchange { exchange, message: Message::ApprovalAsk(_), credential: None } = request {
-            Some(*exchange)
-        } else {
-            None
-        }
-    }).collect::<Vec<_>>();
+    let exchanges = duties
+        .asked
+        .iter()
+        .filter_map(|request| {
+            if let Request::Exchange { exchange, message: Message::ApprovalAsk(_), credential: None } = request {
+                Some(*exchange)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
     assert_eq!(exchanges.len(), 1, "one approval ask");
     exchanges[0]
 }
@@ -179,9 +183,17 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
     use jig_client_protocol_wire::v19 as w;
-    let record = w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS,
-        w::ApprovalAskedParts { secret: Secret::new(Box::new([7; 32])), code: *b"WDJBMJHT", expires: 600_000_000_000 }
-    ).expect("test approval"));
+    let record = w::ApprovalAskAnswer::Asked(
+        w::ApprovalAsked::new(
+            &w::CEILINGS,
+            w::ApprovalAskedParts {
+                secret: Secret::new(Box::new([7; 32])),
+                code: *b"WDJBMJHT",
+                expires: 600_000_000_000,
+            },
+        )
+        .expect("test approval"),
+    );
     let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("test length"));
     record.encode(&mut writer).expect("test record");
     let mut bytes = writer.finish().into_vec();
@@ -196,16 +208,30 @@ fn approval_is_asked_once_per_opening() {
     for held in [false, true] {
         let mut host = host();
         let duties = start(&mut host, held.then(|| Secret::new(Box::new([7; 40]))));
-        if held {
-            assert!(!duties.asked.iter().any(|request| matches!(request,
-                Request::Exchange { message: Message::ApprovalAsk(_), .. })));
-            let duties = host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::SignedOut }));
-            ask(&duties);
+        let exchange = if held {
+            assert!(
+                !duties
+                    .asked
+                    .iter()
+                    .any(|request| matches!(request, Request::Exchange { message: Message::ApprovalAsk(_), .. }))
+            );
+            let duties =
+                host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::SignedOut }));
+            ask(&duties)
         } else {
-            ask(&duties);
-        }
+            ask(&duties)
+        };
         assert!(host.report(Report::Resize(Size { columns: 80, rows: 24 })).asked.is_empty());
+        host.frame();
+        assert!(host.report(Report::Key(Key::Enter)).asked.is_empty(), "no second ask while asking");
+        reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+        host.tell(temper_client_tui::Told::Link { link: jig_client::Link::Live });
+        // A fresh screen replaces an ask the root still holds from the earlier opening.
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::SignedOut }));
+        let exchange = ask(&duties);
         assert!(host.report(Report::Key(Key::Control(b'c'))).close);
+        assert!(reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b"")).open.is_none());
         assert!(host.report(Report::Due).asked.is_empty());
     }
 }
@@ -222,12 +248,16 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
     ] {
         let mut host = host();
         let duties = host.report(Report::Start(Start {
-            size: Size { columns: 80, rows: 24 }, scheme: Scheme::Dark,
-            address: address.as_bytes().into(), kept: Vec::new(), credential: None,
+            size: Size { columns: 80, rows: 24 },
+            scheme: Scheme::Dark,
+            address: address.as_bytes().into(),
+            kept: Vec::new(),
+            credential: None,
         }));
         let exchange = ask(&duties);
         let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
-        let expected = opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
+        let expected =
+            opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
         let repeated = host.report(Report::Resize(Size { columns: 80, rows: 24 }));
         assert!(repeated.open.is_none());
@@ -238,19 +268,32 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
     use jig_client_protocol_wire::v19 as w;
-    for answer in [w::ApprovalSignInAnswer::Refused, w::ApprovalSignInAnswer::Expired,
-        w::ApprovalSignInAnswer::Used, w::ApprovalSignInAnswer::Unknown,
-        w::ApprovalSignInAnswer::Full(w::ApprovalFull::new(&w::CEILINGS,
-            w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).expect("full")),
-        w::ApprovalSignInAnswer::Waiting] {
+    for answer in [
+        w::ApprovalSignInAnswer::Refused,
+        w::ApprovalSignInAnswer::Expired,
+        w::ApprovalSignInAnswer::Used,
+        w::ApprovalSignInAnswer::Unknown,
+        w::ApprovalSignInAnswer::Full(
+            w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 })
+                .expect("full"),
+        ),
+        w::ApprovalSignInAnswer::Waiting,
+    ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
         let mut host = host();
         let exchange = ask(&start(&mut host, None));
         let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
-        let take = duties.asked.iter().find_map(|request| match request {
-            Request::Exchange { exchange, message: Message::SignInApproval(_), .. } => Some(*exchange),
-            _ => None,
-        }).expect("approval take");
+        let take = duties
+            .asked
+            .iter()
+            .find_map(|request| {
+                if let Request::Exchange { exchange, message: Message::SignInApproval(_), .. } = request {
+                    Some(*exchange)
+                } else {
+                    None
+                }
+            })
+            .expect("approval take");
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("test length"));
         answer.encode(&mut writer).expect("take answer");
         reply(&mut host, take, writer.finish());
@@ -258,8 +301,13 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
             assert!(duties.asked.is_empty());
-            assert_eq!(host.state().signing(), &temper_client_tui::Signing::Refused(temper_client_tui::Refusal::NotALink));
-            for key in link("127.0.0.1:8367") { host.report(Report::Key(key)); }
+            assert_eq!(
+                host.state().signing(),
+                &temper_client_tui::Signing::Refused(temper_client_tui::Refusal::NotALink)
+            );
+            for key in link("127.0.0.1:8367") {
+                host.report(Report::Key(key));
+            }
             assert!(host.state().pasted());
             ask(&host.report(Report::Key(Key::Enter)));
         } else {
@@ -269,12 +317,21 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             assert!(!host.state().pasted());
         }
     }
-    for answer in [w::ApprovalAskAnswer::Refused, w::ApprovalAskAnswer::NotReady, w::ApprovalAskAnswer::Busy] {
+    for answer in [
+        Some(w::ApprovalAskAnswer::Refused),
+        Some(w::ApprovalAskAnswer::NotReady),
+        Some(w::ApprovalAskAnswer::Busy),
+        None,
+    ] {
         let mut host = host();
         let exchange = ask(&start(&mut host, None));
-        let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
-        answer.encode(&mut writer).expect("answer");
-        reply(&mut host, exchange, writer.finish());
+        if let Some(answer) = answer {
+            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
+            answer.encode(&mut writer).expect("answer");
+            reply(&mut host, exchange, writer.finish());
+        } else {
+            host.report(Report::Heard(jig_client::Event::Lost { exchange }));
+        }
         host.frame();
         ask(&host.report(Report::Key(Key::Enter)));
     }
@@ -282,15 +339,22 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
+    use jig_client_protocol_wire::v19 as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
-    let take = duties.asked.iter().find_map(|request| match request {
-        Request::Exchange { exchange, message: Message::SignInApproval(_), .. } => Some(*exchange),
-        _ => None,
-    }).expect("take");
+    let take = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            if let Request::Exchange { exchange, message: Message::SignInApproval(_), .. } = request {
+                Some(*exchange)
+            } else {
+                None
+            }
+        })
+        .expect("take");
     host.clocks(Time::from_nanos(11), Wall::from_nanos(59_999_999_999));
-    use jig_client_protocol_wire::v19 as w;
     let answer = w::ApprovalSignInAnswer::Waiting;
     let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
     answer.encode(&mut writer).expect("answer");
@@ -310,7 +374,10 @@ fn approval_opened_reports_reach_the_tui() {
     assert_eq!(host.state().browser(), Some(temper_client_tui::Browser::Opening));
     for opened in [false, true] {
         empty(&host.report(Report::Opened { opened }));
-        assert_eq!(host.state().browser(), Some(if opened { temper_client_tui::Browser::Opened } else { temper_client_tui::Browser::None }));
+        assert_eq!(
+            host.state().browser(),
+            Some(if opened { temper_client_tui::Browser::Opened } else { temper_client_tui::Browser::None })
+        );
     }
 }
 
@@ -322,7 +389,10 @@ fn the_opener_gets_one_argument_and_no_terminal_descriptors() {
         ("/usr/bin/xdg-open", "http://127.0.0.1:8367/terminal?code=WDJB-MJHT", vec!["DISPLAY=:1", "PATH=/usr/bin"]),
         ("/usr/bin/open", "http://127.0.0.1:9000/terminal?code=BCDF-GHJK", vec!["HOME=/person"]),
     ] {
-        let opener = Opener { program: program.as_bytes().into(), env: env.iter().map(|value| Box::from(value.as_bytes())).collect() };
+        let opener = Opener {
+            program: program.as_bytes().into(),
+            env: env.iter().map(|value| Box::from(value.as_bytes())).collect(),
+        };
         let root = Fd::new(91);
         let spawn = opener::spawn(&opener, address.as_bytes(), root);
         assert_eq!(spawn.program, opener.program);
@@ -330,10 +400,13 @@ fn the_opener_gets_one_argument_and_no_terminal_descriptors() {
         assert_eq!(spawn.env, opener.env);
         assert_eq!(spawn.root, root);
         assert_eq!(spawn.dir.as_ref(), b".");
-        assert_eq!(spawn.pipes.as_ref(), &[
-            Pipe { child: 0, way: Way::Null, parent: None },
-            Pipe { child: 1, way: Way::Null, parent: None },
-            Pipe { child: 2, way: Way::Null, parent: None },
-        ]);
+        assert_eq!(
+            spawn.pipes.as_ref(),
+            &[
+                Pipe { child: 0, way: Way::Null, parent: None },
+                Pipe { child: 1, way: Way::Null, parent: None },
+                Pipe { child: 2, way: Way::Null, parent: None },
+            ]
+        );
     }
 }
