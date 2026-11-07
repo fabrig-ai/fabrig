@@ -2,7 +2,11 @@
 
 2026-11-07. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
-- **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
+- **Not yet:** 10: the App's account from `GET /app` has no live
+  observation of `app-owner-id-login-type` (`forge-github.md`, section
+  13). The plan leaves that observation until after landing; its fake
+  conformance does not establish the live answer.
+  8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
   reading `.forgejo/workflows` alone, which a copy's starter workflow

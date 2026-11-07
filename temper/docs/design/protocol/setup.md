@@ -3919,6 +3919,16 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **Using the setup's identity answers** (5.3, 17.2): the box's
+  person link, its record and its consumers follow
+  `../draft/forge-identity.md`, sections 3, 4 and 9. An owned Forgejo's
+  login needs the box's sole owner before it can be given to reconcile;
+  a GitHub account needs `AppMade` compared with `AppId` and its type
+  checked. Both need the connector's link decision, including a failed
+  read preserving the link, and clearing it when the box's one-person
+  scope no longer holds. The setup kit answers facts and writes the
+  mark; it makes no identity decision.
+
 - **Repeated admission during fake-box preparation** (7.5): share a
   checked protocol document and typed deployment between preparation,
   step assembly and peer validation, preserving admission of every

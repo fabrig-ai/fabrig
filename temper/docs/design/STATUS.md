@@ -109,7 +109,10 @@ resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`).
 Forge account subjects and review lookups name both forge and user, and the
-configuring inventory names each forge's known or unknown account. The box
+configuring inventory names each forge's known or unknown account. The
+secrets' store keeps and erases the manifest's `AppMade` mark, but setup
+passes no person's login and ignores the new identity answers
+(`protocol/credentials.md`, `protocol/setup.md`). The box
 owner's link, per-repository forge eligibility and the approval card remain
 separate work (`draft/forge-identity.md`, `domain/forge.md`,
 `domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The

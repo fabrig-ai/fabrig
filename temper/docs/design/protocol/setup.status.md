@@ -20,8 +20,11 @@ choice. Its running-box restart proof remains after landing (15).
 - **Not yet:** 5.2, 5.3, 17.2: temper gives `Reconcile` no person's
   login and keeps no link: `temper-forge-setup`'s `values` gives none, and
   the setup host's `done` ignores `Person` and `Made` and the account in
-  `Lacking`. `../draft/forge-identity.status.md`'s section 3 holds the
-  link's record.
+  `Lacking` (`temper-service/src/setup/lifecycle.rs`). Keeping `AppMade`
+  supplies evidence alone: no caller compares it with `AppId` to decide
+  a link. The consuming work is a separate plan (15), requiring the
+  box's sole-owner scope and the link's record
+  (`../draft/forge-identity.status.md`, sections 3 and 9).
 - **Departs:** 7.5: a malformed `TEMPER_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever
   the variable says. `crates/temper/src/fake_backends.rs`, `run`, parses
