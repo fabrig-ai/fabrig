@@ -8,9 +8,18 @@ use std::collections::BTreeMap;
 use temper_engine_domain as root;
 use temper_fake_git_hosted::Remote;
 use temper_playground::documents;
-pub(crate) use temper_playground::documents::settings_file;
 pub(crate) use temper_playground::fakes::forge_table;
 pub mod playground;
+
+/// The stock settings file is independent of the story, seed and phase.
+pub(crate) fn settings_file() -> &'static [u8] {
+    static FILE: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+    FILE.get_or_init(documents::settings_file)
+}
+
+pub(crate) fn adoption() -> bool {
+    STORY.with(|slot| matches!(slot.get(), Story::Adoption))
+}
 
 pub(crate) fn playground() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::PlaygroundA))

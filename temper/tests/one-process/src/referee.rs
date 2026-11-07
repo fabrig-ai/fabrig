@@ -51,9 +51,12 @@ pub(crate) struct Referee {
     uncertain: Option<restart::Records>,
     applied: u64,
     settled_at: Option<u64>,
+    adopted: u32,
     committed: Store,
     agent_seen: usize,
     client_seen: usize,
+    saved_seen: Option<usize>,
+    window_at: Option<u64>,
     client_life: u32,
     party: Option<u64>,
     handed: bool,
@@ -129,6 +132,7 @@ impl Referee {
         };
         let rules = run.borrow().rules.clone().unwrap_or_else(|| Rc::new(RefCell::new(rules::Referee::new(policy))));
         let applied = run.borrow().applied;
+        let adopted = crate::stories::adopted(&store.borrow().rows);
         let mut committed = Store::new();
         committed.rows = run.borrow().rows.clone();
         run.borrow_mut().rules = Some(rules.clone());
@@ -144,9 +148,12 @@ impl Referee {
             uncertain: None,
             applied,
             settled_at: None,
+            adopted,
             committed,
             agent_seen: 0,
             client_seen: 0,
+            saved_seen: None,
+            window_at: None,
             client_life: 0,
             party: None,
             handed: false,
@@ -165,18 +172,30 @@ impl Referee {
             .expect("one-process conformance over bytes and durable rows");
     }
     fn adoption_window(&mut self, service: &crate::world::ServiceHost) {
-        let saved = crate::world::saved_adoptions();
-        if !saved.is_empty() && self.run.borrow().window_start.is_none() {
-            self.run.borrow_mut().window_start = Some(service.observer.submitted);
+        if let Some(saved) = crate::world::saved_adoptions(&mut self.saved_seen) {
+            let mut run = self.run.borrow_mut();
+            if !saved.is_empty() && run.window_start.is_none() {
+                run.window_start = Some(service.observer.submitted);
+            }
+            run.saved = saved;
         }
-        self.run.borrow_mut().saved = saved;
-        let start = self.run.borrow().window_start;
-        if let Some(start) = start
-            && self.run.borrow().window.is_none()
-            && self.store.borrow().rows.values().any(|row| matches!(row,
-                root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Application { .. })
-            ))
-        {
+        let start = {
+            let run = self.run.borrow();
+            if run.window.is_some() {
+                return;
+            }
+            run.window_start
+        };
+        let Some(start) = start else { return };
+        let store = self.store.borrow();
+        // Only a durable commit changes the application rows that close the window.
+        if self.window_at == Some(store.applied) {
+            return;
+        }
+        self.window_at = Some(store.applied);
+        if store.rows.values().any(|row| matches!(row,
+            root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Application { .. })
+        )) {
             self.run.borrow_mut().window = Some((start, service.observer.before_iteration));
         }
     }
@@ -251,9 +270,7 @@ impl Referee {
             }
             crate::world::Phase::Restart => self.run.borrow().settled > 0 && self.cold.is_none(),
             crate::world::Phase::Fault { .. } => {
-                self.run.borrow().restarts > 0
-                    && self.cold.is_none()
-                    && crate::stories::adopted(&self.store.borrow().rows) > 0
+                self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
             }
             crate::world::Phase::Story => match self.story {
                 crate::world::Story::NoWelcome => other
@@ -261,7 +278,7 @@ impl Referee {
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
                 crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
                 crate::world::Story::ChatReadThenWait { .. } => chat_waited(&self.store.borrow()),
-                crate::world::Story::Adoption => crate::stories::adopted(&self.store.borrow().rows) > 0,
+                crate::world::Story::Adoption => self.adopted > 0,
                 crate::world::Story::Adopt => {
                     let forge = self.forge.borrow();
                     forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
@@ -298,6 +315,7 @@ impl skein_world::Referee<Proc> for Referee {
                 self.say(now, rules::Observed::Restart);
                 self.store.borrow_mut().recovering();
                 self.settled_at = None;
+                self.adopted = 0;
                 self.cold = Some(());
                 self.handed = false;
                 self.agent_seen = 0;
@@ -333,7 +351,7 @@ impl skein_world::Referee<Proc> for Referee {
             | Proc::Visitor(_)
             | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => true,
         });
-        if crate::stories::adopted(&self.store.borrow().rows) > 0 {
+        if self.adopted > 0 {
             self.forge.borrow_mut().adopted();
         }
         if matches!(self.phase, crate::world::Phase::Refused) {
@@ -406,6 +424,7 @@ impl skein_world::Referee<Proc> for Referee {
         let store = self.store.borrow();
         if self.settled_at != Some(store.applied) {
             self.run.borrow_mut().settled = settled(&store);
+            self.adopted = crate::stories::adopted(&store.rows);
             self.settled_at = Some(store.applied);
         }
         drop(store);
