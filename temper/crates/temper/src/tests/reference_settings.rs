@@ -78,42 +78,9 @@ fn the_reference_settings_file_decodes() {
         Some(b"1. In one page"),
         b"skein/docs/foundation/programming-model.md",
     );
-    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 7").is_some());
-    assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
-    assert!(
-        std::str::from_utf8(coordinator.instructions.bytes())
-            .expect("coordinator instructions are UTF-8")
-            .contains(r#""branch": "mine""#)
-    );
-    let instructions =
-        std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
-    assert!(instructions.contains(r#""branch": "mine""#));
-    assert!(instructions.contains(r#""questions": "foreman""#));
-    assert!(instructions.contains(r#""questions": "up""#));
-    assert!(instructions.contains("delegate its triage to charter 8"));
-    assert!(instructions.contains("decide"));
-    assert!(instructions.contains(r#""repairs""#));
-    assert!(instructions.contains("a red of your goal branch's tier"));
-    assert!(instructions.contains("a live repair owning its failing tests"));
-    assert!(instructions.contains("then the draft it was built from, by path,"));
-    assert!(instructions.contains("with `note`"));
-    for phrase in ["report: ", "Left: ", "Risk: ", "Decided: ", "your goal's scope", "Revise it in place"] {
-        assert!(instructions.contains(phrase), "{phrase}");
-    }
-    assert!(coordinator.instructions.bytes().ends_with(
-        b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
-    ));
+    coordinator_rules(coordinator);
     assert!(!coordinator.resume());
     assert_eq!(coordinator.waiting, Duration::ZERO);
-    assert!(core::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions").contains(
-        "When main moves under your goal, you hear a landing into main that touches your goal's \
-         open work as news, at most once in 30 minutes. Catch up with one `change`: `\"landing\": \
-         \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your \
-         goal needs it now. Keep one catch-up live at a time: a later landing's commit carries the \
-         earlier ones, so on news while one is live, wait for its result. On your first run, once \
-         your first batch is made, subscribe with `subscribe_forge` to the landings on main in your \
-         repository."
-    ));
     assert_eq!(
         coordinator.wake,
         WakePolicy {
@@ -196,6 +163,98 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+    let later = llm.later.as_ref().expect("goal later choice");
+    assert_eq!(later.main.model.bytes(), b"claude-opus-5-5");
+    assert_eq!(later.main.effort.as_ref().expect("later coordinator effort").bytes(), b"high");
+    assert_eq!(later.subagents, llm.subagents);
+}
+
+// Every pinned rule belongs to exactly one text, selected by its part's on names.
+fn coordinator_rules(coordinator: &settings_form::view::Charter) {
+    let shared = "shared";
+    let cut = "first";
+    let questions = "question question_answered question_ended question_owed";
+    let results = "escalation proposal person_stalled result notice nothing_awaited";
+    let news = "news timer";
+    let mut texts = vec![(shared.to_owned(), std::str::from_utf8(coordinator.instructions.bytes()).expect("shared"))];
+    for part in &coordinator.parts {
+        let on = settings_form::view::REASON_NAMES
+            .iter()
+            .enumerate()
+            .filter(|(bit, _)| part.on & (1 << bit) != 0)
+            .map(|(_, name)| std::str::from_utf8(name).expect("reason name"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        texts.push((on, std::str::from_utf8(part.instructions.bytes()).expect("part")));
+    }
+    assert_eq!(texts.iter().map(|(on, _)| on.as_str()).collect::<Vec<_>>(), [shared, cut, questions, results, news]);
+    for (phrase, place) in [
+        (r#""producer": 7"#, shared),
+        (r#""questions": "foreman""#, shared),
+        (r#""questions": "up""#, shared),
+        ("Make a larger batch in several calls", shared),
+        ("report: ", shared),
+        ("Left: ", shared),
+        ("Risk: ", shared),
+        ("Decided: ", shared),
+        ("your goal's scope", shared),
+        ("Revise it in place", shared),
+        ("Read your report note and the tree first at every wake", shared),
+        ("park with `wait` once your decisions are made", shared),
+        ("an answer", shared),
+        ("a decision on your proposal or settings", shared),
+        ("an effect not made", shared),
+        ("a `met`", shared),
+        ("an amendment changes what you are to do", shared),
+        ("a request to finish", shared),
+        ("a person's words", shared),
+        ("leave it undecided for the run whose part it is", shared),
+        ("the lints and the focused tests of the packages it changes", shared),
+        ("as charter 2 runs them", shared),
+        ("never for a slow tier or a walk, which run after landing", shared),
+        ("Where a request settles its changes with no shape for the code to follow", cut),
+        ("write no design, say so in your report note, and make its changes", cut),
+        (
+            "On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository.",
+            cut,
+        ),
+        ("On a designer's question, answer from the draft", questions),
+        ("On a question a change relays", questions),
+        ("Never answer what you have not settled.", questions),
+        ("On a person task's result, answer the change that waited for it", results),
+        ("close-out", results),
+        (r#""branch": "mine""#, results),
+        ("with decide, saying why", results),
+        ("a live repair owning its failing tests", results),
+        ("then the draft it was built from, by path,", results),
+        (
+            "If you finish without a landing, say why in your report; your goal branch is kept for a person to read.",
+            results,
+        ),
+        ("delegate its triage to charter 8", news),
+        (r#""repairs""#, news),
+        ("a red of your goal branch's tier", news),
+        ("with `note`", shared),
+        (
+            "When main moves under your goal, you hear a landing into main that touches your goal's open work as news.",
+            news,
+        ),
+        (
+            "Catch up with one `change`: `\"landing\": \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your goal needs it now.",
+            news,
+        ),
+        (
+            "Keep one catch-up live at a time: a later landing's commit carries the earlier ones, so on news while one is live, wait for its result.",
+            news,
+        ),
+    ] {
+        for (on, text) in &texts {
+            assert_eq!(text.contains(phrase), on == place, "{phrase:?}: expected only in {place}, checked {on}");
+        }
+    }
+    assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
+        "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
 }
 
 #[test]
@@ -245,14 +304,6 @@ fn the_reference_settings_fit_the_reference_profile() {
     assert!(words <= limits.result_bytes);
     assert_eq!(goal.resources.len(), 1);
     assert_eq!(goal.resources.iter().next(), Some(&Symbol { connector: 1, symbol: 1 }));
-    let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
-    else {
-        panic!("coordinator charter")
-    };
-    assert!(
-        bytes::find(coordinator.instructions.bytes(), b"A `change` call carries what one call's payload holds")
-            .is_some()
-    );
 }
 
 #[test]
