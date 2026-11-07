@@ -162,7 +162,7 @@ fn configured_driver(
     entropy: [u8; 32],
 ) -> Result<oauth::Component, crate::Error> {
     let crypto = CryptoRng::new(&Secret::new(Box::from(entropy)), 0).ok_or(crate::Error::Memory)?;
-    match oauth::Component::new(accounts, limits, crypto) {
+    match oauth::Component::new(accounts, limits, crypto, b"smith") {
         Ok(driver) => Ok(driver),
         Err(_) => Err(crate::Error::Process),
     }

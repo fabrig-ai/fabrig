@@ -491,6 +491,26 @@ impl Client {
         }
     }
 
+    /// Whether a sign-in waits for its redirect before its deadline and `state` is
+    /// its own, compared in constant time (skein/docs/design/oauth.md, 3 and 6.5).
+    #[must_use]
+    pub fn awaits_state(&self, state: &[u8], now: Time) -> bool {
+        match &self.phase {
+            Phase::AwaitRedirect { exchange } => {
+                if now >= exchange.deadline {
+                    return false;
+                }
+                match &exchange.grant {
+                    Grant::SignIn { state: expected, .. } => skein_lib::sha256::equal(state, expected.expose()),
+                    Grant::Refresh { .. } | Grant::Revoke { .. } => false,
+                }
+            }
+            Phase::Idle | Phase::AwaitKeys { .. } | Phase::AwaitHttp { .. } | Phase::Backoff { .. } | Phase::Done => {
+                false
+            }
+        }
+    }
+
     fn check_redirect(exchange: &Exchange, redirect: &Redirect, now: Time) -> Result<(), (Inadmissible, Failure)> {
         if now >= exchange.deadline {
             return Err((Inadmissible::NotWaiting, Failure::InvalidRedirect));

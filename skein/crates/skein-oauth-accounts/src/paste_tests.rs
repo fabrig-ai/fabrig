@@ -161,9 +161,12 @@ fn answer_waiting() -> (Owner, Token, Box<[u8]>) {
 }
 
 fn browser_answer(owner: &mut Owner, listener: Token, answer: &[u8]) -> Box<[u8]> {
+    callback_response(owner, listener, &browser_request(answer))
+}
+
+fn callback_response(owner: &mut Owner, listener: Token, request: &[u8]) -> Box<[u8]> {
     let callback = owner.callback(listener);
-    let request = browser_request(answer);
-    let mut remaining = request.as_ref();
+    let mut remaining = request;
     let mut response = List::with_capacity(4096);
     for _ in 0_u32..256 {
         owner.fire();
@@ -271,27 +274,79 @@ fn a_long_issuer_answer_is_taken_from_the_listener_and_pasted() {
 
 #[test]
 fn the_listener_bounds_the_whole_redirect_address() {
-    skein_rows::check([("at redirect_bytes", (0, true)), ("past redirect_bytes", (1, false))], |(extra, accepted)| {
+    let (mut owner, listener, visit) = answer_waiting();
+    let code = synthetic(b"ac_", 1900);
+    let answer = issuer_answer(Owner::query(&visit, b"state").expect("state"), &code);
+    let length = usize::try_from(owner.env.limits.redirect_bytes).expect("redirect bound");
+    let pad = synthetic(b"", length - answer.len() - 5);
+    let padded = concat(&[&answer, b"&pad=", &pad]);
+    assert_eq!(padded.len(), length);
+    let response = browser_answer(&mut owner, listener, &padded);
+    assert!(response.starts_with(b"HTTP/1.1 200"), "the address at redirect_bytes is taken");
+    assert!(bytes::find(&response, b"Sign-in received.").is_some());
+    signs_in_with_code(&mut owner, &code);
+}
+
+#[test]
+fn an_over_long_listener_redirect_ends_only_its_own_sign_in() {
+    skein_rows::check([("own state", 0_u8), ("another state", 1), ("another path", 2), ("state twice", 3)], |kind| {
         let (mut owner, listener, visit) = answer_waiting();
+        let now = owner.env.now;
+        let bound = owner.env.limits.redirect_bytes;
+        let state = Owner::query(&visit, b"state").expect("state");
         let code = synthetic(b"ac_", 1900);
-        let answer = issuer_answer(Owner::query(&visit, b"state").expect("state"), &code);
-        let length = usize::try_from(owner.env.limits.redirect_bytes).expect("redirect bound") + extra;
-        let pad = synthetic(b"", length - answer.len() - 5);
-        let padded = concat(&[&answer, b"&pad=", &pad]);
+        let answer = issuer_answer(state, &code);
+        let wrong = match kind {
+            0 => answer.clone(),
+            1 => issuer_answer(b"another-state", &code),
+            2 => concat(&[b"http://127.0.0.1:41000/other", answer.strip_prefix(BOUND).expect("query")]),
+            3 => concat(&[&answer, b"&state=", state]),
+            _ => unreachable!("redirect row"),
+        };
+        let length = usize::try_from(bound).expect("redirect bound") + 1;
+        let pad = synthetic(b"", length - wrong.len() - 5);
+        let padded = concat(&[&wrong, b"&pad=", &pad]);
         assert_eq!(padded.len(), length);
-        let response = browser_answer(&mut owner, listener, &padded);
-        if accepted {
-            assert!(response.starts_with(b"HTTP/1.1 200"), "the address at redirect_bytes is taken");
-            assert!(bytes::find(&response, b"Sign-in received.").is_some());
+        owner.ask(Request::Return { account: 0, location: bytes::copy_of(b"https://app.example/back") });
+        let response = if kind == 0 {
+            let callback = owner.callback_read(listener, &browser_request(&padded));
+            assert!(owner.above.is_empty(), "the listener has not judged the state");
+            owner.fire();
+            let terminal = owner.above.pop();
+            assert_event(
+                terminal,
+                Event::Failed {
+                    account: 0,
+                    ends: Ends::SignIn,
+                    failure: Failure::LongRedirect { length: bound + 1, bound },
+                },
+            );
+            owner.callback_answer(listener, callback)
         } else {
-            assert!(response.starts_with(b"HTTP/1.1 404"), "the address past redirect_bytes is refused");
-            assert!(bytes::find(&response, b"This is not the registered redirect.").is_some());
-            assert!(owner.above.is_empty(), "the sign-in still waits");
-            owner.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(answer) });
-            taken(&mut owner);
-            settle_listener(&mut owner, listener);
+            browser_answer(&mut owner, listener, &padded)
+        };
+        assert_eq!(owner.env.now, now, "no clock advance to the sign-in deadline");
+        if kind == 0 {
+            assert!(response.starts_with(b"HTTP/1.1 414"), "own redirect: {response:?}");
+            let body = bytes::find(&response, b"\r\n\r\n").expect("response head") + 4;
+            assert_eq!(response.get(body..).expect("response body"), b"This sign-in's answer is longer than accounts-test accepts. Go back to accounts-test and start the sign-in again.\n");
+            assert!(bytes::find(&response, b"content-type: text/plain; charset=utf-8\r\n").is_some());
+            assert!(bytes::find(&response, b"location:").is_none());
+            assert!(owner.above.is_empty());
+            for _ in 0_u32..8 {
+                owner.fire();
+            }
+            assert!(owner.io.is_empty() && owner.above.is_empty());
+            assert!(!owner.component.has_work());
+        } else {
+            assert!(response.starts_with(b"HTTP/1.1 404"));
+            assert!(bytes::find(&response, b"This is not the registered redirect.\n").is_some());
+            assert!(bytes::find(&response, b"location:").is_none());
+            assert!(owner.above.is_empty(), "another redirect leaves the sign-in waiting");
+            let response = browser_answer(&mut owner, listener, &answer);
+            assert!(response.starts_with(b"HTTP/1.1 303"));
+            signs_in_with_code(&mut owner, &code);
         }
-        signs_in_with_code(&mut owner, &code);
     });
 }
 
@@ -515,7 +570,11 @@ fn a_state_bound_under_32_is_unusable() {
         profile.client.state_bytes = bound;
         let mut configured = List::with_capacity(1);
         configured.push(account(true, false)).expect("account room");
-        assert_eq!(Component::new(configured, &profile, crypto(17)).err(), expected, "state bound {bound}");
+        assert_eq!(
+            Component::new(configured, &profile, crypto(17), b"accounts-test").err(),
+            expected,
+            "state bound {bound}"
+        );
         if bound == 32 {
             let mut owner = Owner::configured([account(true, false)], &profile);
             owner.ask(Request::SignIn { account: 0, subject: None });
@@ -576,6 +635,15 @@ fn an_owner_cancel_or_abort_stops_a_callback_waiting_for_judgement() {
 fn a_refused_listener_redirect_keeps_the_return_for_the_redirect_taken() {
     let (mut owner, listener, visit) = waiting(false);
     owner.ask(Request::Return { account: 0, location: bytes::copy_of(b"https://app.example/back") });
+    let request = concat(&[
+        b"GET /other?state=",
+        Owner::query(&visit, b"state").expect("state"),
+        b"&code=code HTTP/1.1\r\nHost: 127.0.0.1:41000\r\n\r\n",
+    ]);
+    let answer = callback_response(&mut owner, listener, &request);
+    assert!(answer.starts_with(b"HTTP/1.1 404"));
+    assert!(bytes::find(&answer, b"This is not the registered redirect.\n").is_some());
+    assert!(owner.above.is_empty());
     let callback = owner.callback_read(listener, &head(b"another-state", b"&code=code"));
     let answer = owner.callback_answer(listener, callback);
     assert!(answer.starts_with(b"HTTP/1.1 404"));

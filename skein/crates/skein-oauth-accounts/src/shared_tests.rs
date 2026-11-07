@@ -219,7 +219,7 @@ fn the_lock_is_released_once_the_write_settles() {
 fn a_lock_wait_of_zero_is_unusable() {
     let mut profile = limits();
     profile.lock_wait = Duration::ZERO;
-    let result = Component::new(List::with_capacity(0), &profile, crypto(17));
+    let result = Component::new(List::with_capacity(0), &profile, crypto(17), b"accounts-test");
     assert_eq!(result.err(), Some(Unusable::Limits));
 }
 

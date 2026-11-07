@@ -144,7 +144,7 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     let mut configured = List::with_capacity(2);
     configured.push(refresh_account(0, address)).expect("configured account room");
     configured.push(refresh_account(1, address)).expect("configured account room");
-    let mut component = Component::new(configured, &profile, crypto(17)).expect("component");
+    let mut component = Component::new(configured, &profile, crypto(17), b"accounts-test").expect("component");
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
@@ -155,7 +155,7 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     let mut configured = List::with_capacity(2);
     configured.push(refresh_account(0, address)).expect("configured account room");
     configured.push(refresh_account(1, address)).expect("configured account room");
-    component = Component::new(configured, &env.limits, crypto(17)).expect("one listener component");
+    component = Component::new(configured, &env.limits, crypto(17), b"accounts-test").expect("one listener component");
     component.down(&env, Request::SignIn { account: 0, subject: None }, &mut above, &mut below, &mut Queue::uncapped());
     assert!(above.is_empty());
     assert!(below.pop().is_some());

@@ -21,7 +21,8 @@ impl Owner {
             configured.push(account).expect("configured account room");
         }
         let mut owner = Owner::new();
-        owner.component = Component::new(configured, profile, crypto(17)).expect("valid registrations");
+        owner.component =
+            Component::new(configured, profile, crypto(17), b"accounts-test").expect("valid registrations");
         owner.env.limits = *profile;
         owner
     }
@@ -113,7 +114,7 @@ impl Owner {
             Err(_) => unreachable!("account slot"),
         }
         Owner {
-            component: Component::new(configured, &limits, crypto(7)).expect("private account"),
+            component: Component::new(configured, &limits, crypto(7), b"accounts-test").expect("private account"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
             io: Queue::uncapped(),

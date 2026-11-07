@@ -17,10 +17,29 @@ use skein_http::{Header, server as http};
 use skein_io::{Event, Request};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Id, Queue, Token, bytes, usize_of};
-use skein_oauth::Redirect;
 
 const PAGE: &[u8] = b"Sign-in received. You can close this tab.\n";
 const REFUSAL: &[u8] = b"This is not the registered redirect.\n";
+
+/// Built once from the owner's validated name (skein/docs/design/oauth.md, 6.5 and 6.7).
+pub(crate) fn long_page(application: &[u8]) -> Box<[u8]> {
+    let parts: [&[u8]; 5] = [
+        b"This sign-in's answer is longer than ",
+        application,
+        b" accepts. Go back to ",
+        application,
+        b" and start the sign-in again.\n",
+    ];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded application name");
+    }
+    let mut page = skein_lib::Writer::new(length);
+    for part in parts {
+        page.put(part).expect("long page length");
+    }
+    page.finish()
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Phase {
@@ -58,7 +77,7 @@ pub(crate) struct Listener {
     close_sent: bool,
     phase: Phase,
     callback: Option<Callback>,
-    pub(crate) read: Option<Redirect>,
+    pub(crate) read: Option<redirect::Read>,
     pub(crate) failure: Option<skein_oauth::Failure>,
 }
 
@@ -68,7 +87,7 @@ struct Callback {
     events: Queue<http::Event>,
     requests: Queue<http::Request>,
     below: Queue<Down>,
-    page: &'static [u8],
+    page: Box<[u8]>,
     send: u32,
     offset: usize,
     phase: Head,
@@ -233,7 +252,16 @@ impl Listener {
         if let Some(callback) = &mut self.callback
             && callback.phase == Head::Judging
         {
-            callback.answer(taken, location);
+            callback.answer(taken, location, None);
+        }
+    }
+
+    pub(crate) fn answer_long(&mut self, page: &[u8]) {
+        self.return_location = None;
+        if let Some(callback) = &mut self.callback
+            && callback.phase == Head::Judging
+        {
+            callback.answer(false, None, Some(page));
         }
     }
 
@@ -268,6 +296,8 @@ impl Listener {
             Phase::Closing | Phase::Aborting | Phase::Closed => {}
         }
         self.end_listener(io);
+        // A responding callback settles after its page, even when the sign-in's
+        // terminal closes its listener (skein/docs/design/oauth.md, 6.5).
         match &mut self.callback {
             Some(callback) if abort || callback.phase == Head::Reading || callback.phase == Head::Judging => {
                 callback.stop(env, abort, io);
@@ -305,7 +335,7 @@ impl Listener {
                     if self.phase == Phase::Listening && redirect.is_some() {
                         self.read = redirect;
                     } else {
-                        callback.answer(false, None);
+                        callback.answer(false, None, None);
                     }
                 }
                 http::Event::Reply(Up::Room) => {
@@ -368,15 +398,15 @@ impl Callback {
             events: Queue::uncapped(),
             requests,
             below: Queue::uncapped(),
-            page: PAGE,
+            page: Box::new([]),
             send: limits.server.send,
             offset: 0,
             phase: Head::Reading,
         }
     }
-    fn answer(&mut self, taken: bool, location: Option<Box<[u8]>>) {
+    fn answer(&mut self, taken: bool, location: Option<Box<[u8]>>, long: Option<&[u8]>) {
         self.phase = Head::Responding;
-        self.page = if taken { PAGE } else { REFUSAL };
+        self.page = bytes::copy_of(long.unwrap_or(if taken { PAGE } else { REFUSAL }));
         self.requests.push(http::Request::Discard);
         let content_type =
             Header { name: bytes::copy_of(b"content-type"), value: bytes::copy_of(b"text/plain; charset=utf-8") };
@@ -390,7 +420,16 @@ impl Callback {
                     content_type,
                 ]),
             ),
-            None => (if taken { 200 } else { 404 }, Box::new([content_type])),
+            None => (
+                if long.is_some() {
+                    414
+                } else if taken {
+                    200
+                } else {
+                    404
+                },
+                Box::new([content_type]),
+            ),
         };
         self.requests.push(http::Request::Respond(http::Response {
             status,
