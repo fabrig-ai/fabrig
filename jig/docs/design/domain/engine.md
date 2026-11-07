@@ -1146,11 +1146,11 @@ The fleet child domain knows the hosts and the runs they host:
   (hosts.md, section 6), its agent `smith-inline-agent` with no
   workspace, present from construction. A charter says which kinds may
   run it. A run goes to a host with a free slot of a kind its charter
-  allows, that declares its models, where its sources are usable and
-  that the host rule allows (below), preferring a worker that holds its
+  allows, whose endpoint bounds hold its models, where its sources are
+  usable and that the host rule allows (below), preferring a worker that holds its
   workstream. A refusal as busy is no failure.
-- **Models at the hello, program logins after it.** A host's hello
-  states the models its agent declares (hosts.md, section 2). A worker's
+- **Endpoints at the hello, program logins after it.** A host's hello
+  states its agent's endpoint bounds (hosts.md, section 2). A worker's
   logins follow its hello: the engine sends it, by name, every program
   source it may be given, and places no run on it until the first
   `logins` that answers them (`../protocol/channel.md`, 4.3). Its host's
@@ -1194,8 +1194,8 @@ The fleet child domain knows the hosts and the runs they host:
 - **A host's agent must run the engine's charters.** The fleet refuses
   a hello, as not admitted and naming why, whose agent's bounds
   (hosts.md, section 2) do not hold every run the engine may place there:
-  a model it declares held with a smaller window or output than the
-  configuration's for it, never a model it does not declare, which only
+  an endpoint it serves held with a smaller window or output than a
+  charter's model needs, never an endpoint it does not declare, which only
   narrows what is placed there (above); turns, spend, time or waiting per
   run smaller than the deployment's most for a run, or a charter's; a checks' timeout longer
   than the reserve's time of a charter that allows a change; a largest
@@ -2096,14 +2096,13 @@ section 5).
   come and go (11.2 and 11.3).
 - **Scaling out:** one engine per deployment until it binds; the store
   being the engine's alone is what would change first.
-- **A catalogue kept as settings, and provider lists** (sections 9 and
-  17): models can leave configuration once a model setting holds their
-  bounds, prices, efforts, default effort and origin. A provider list is
-  kept per account and narrows its part of the offer; a failed or absent
-  list keeps stock and personally added names. New names need conservative
-  bounds and prices before a run can budget them. Default: configured models
-  alone, with no provider-list read or per-account list narrowing.
-- **What a model is good at:** a description in configuration, or
+- **Provider lists** (11.1, 17.7 and 17.11): reading a provider's models
+  and keeping the result per account, narrowing its part of the offer,
+  needs a worker request and a provider-list decider. A failed or absent
+  list keeps stock and personally added names. Default: the numbered model
+  settings, with conservative figures for added names, no provider-list
+  read and no per-account list narrowing.
+- **What a model is good at:** a description in its setting, or
   structured capabilities a planning agent could filter on. Default: a
   description (section 9).
 - **A release's removed default that a change names** (a template
@@ -2853,11 +2852,11 @@ models and a charter name.
   numbers and keep them; a model a person or a provider's list adds takes
   the highest free number, so a release's new default never meets one.
 - **A number keeps its name.** A set naming another name than its
-  default's or its stored change's is out of shape; so is a provider or
-  endpoint the document doesn't configure, a dialect or program its
-  endpoint doesn't have, and a name out of `valid_name`. Its window and
-  output take any value; one no agent's bounds hold makes a run wait, as a
-  charter's does (section 8).
+  default's or its stored change's is out of shape; so are a dialect or
+  program its endpoint doesn't have, a name out of `valid_name`, and a
+  zero window, output or price unit. An unknown provider or endpoint is a
+  reference fault. Nonzero window and output values no agent's bounds
+  hold make a run wait, as a charter's does (section 8).
 - **A model stays for the tasks that hold it.** A *removed* item keeps the
   setting, *withdrawn*: out of the offer (11.1) and of every charter's
   resolution, with its number and name. A *reset* returns one with a

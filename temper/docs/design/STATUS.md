@@ -113,11 +113,18 @@ separate work (`draft/forge-identity.md`, `domain/forge.md`,
 `domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
-(`domain/agent.md`, `draft/model-catalogue.md`). Model settings live in the
-store; Settings has Models, with picker switches,
+(`domain/agent.md`, `draft/model-catalogue.md`). Numbered model settings live
+in the store, with binary stock defaults and endpoint limits in place of
+worker model lists; Settings has Models, with picker switches,
 adding by name, estimated prices and the omitted count. All models links to
 that project's Models tab. Provider-list reads remain `model-catalogue-3`'s
-work; page 07's render check follows landing, owned by temper/ui. The watch
+work. Settings' select chevrons, sheet controls, connect actions and paths,
+and Models' single-row add form have their requested rules and words.
+Copy public uses a 107 px minimum height instead of the requested
+`rows=4`, since the UI kit carries no rows attribute. Comparison of the
+request-owned parts of `connect-flows` and page 07 follows landing, owned
+by temper/ui (`client/README.md`, 11; `client/browser.md`, 5;
+`client/forge.md`, 10). The watch
 rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
 refused busy at its deadline. Ctl's deadline names the link, stream, read or

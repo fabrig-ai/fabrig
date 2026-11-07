@@ -741,7 +741,7 @@ fn forges_list_kept_unstarted_rows_and_omit_fakes() {
         &mut world,
         client,
         vec![
-            see(Role::Link, b"+ Add a forge"),
+            see(Role::Link, b"+ Connect a forge"),
             see(Role::Disclosure, b"Forgejo on this machine"),
             gone(Role::Disclosure, b"GitHub"),
             gone(Role::Disclosure, b"Playground forge"),
