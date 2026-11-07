@@ -52,3 +52,15 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, with any **Departs** you wrote.
+
+## Rebase (2026-11-07, step merge, foreman diagrams/flows-close/foreman-1)
+
+Resolve the client status conflict by retaining main’s Goals departure and the flow after-landing entry.
+The merge conflicts in `temper/docs/design/client/README.status.md` at its final entries.
+Main’s `504dfaa946` adds the **Design departs** entry for Goals and 5.8, describing “N of M tasks done.”
+Task commit `2e9fc6cb28` replaces the obsolete flow implementation gap at the same location.
+Keep both main’s Goals departure and this exact task entry:
+`- **Not yet:** 3.5, a chat's document: temper/ui's after-landing look at a flow, in a chat and in its document.`
+Preserve main’s other status changes and the task’s remaining four status-file edits.
+Update the five date lines to the UTC day of the rebase run.
+Run `python3 -I -B tools/citations/citations.py --base origin/main`; resolve any newly broken citations. No builds.
