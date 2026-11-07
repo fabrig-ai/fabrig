@@ -81,7 +81,7 @@ fn a_switch_on_the_tab_changes_the_rail_and_a_member_is_refused() {
         held: None,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::from(ROSTER))),
         identity: jig_domain_people::Identity {
-            key: jig_domain_people::IdentityKey { provider: 0, subject: OTHER_OWNER.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, OTHER_OWNER),
             login: b"other-owner".as_slice().into(),
             name: b"Other owner".as_slice().into(),
         },

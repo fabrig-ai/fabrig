@@ -86,7 +86,7 @@ impl Joint {
         self.client_limits.insert(who, self.limits);
         self.component.receiving(who, self.limits.client.domain);
         let identity = people::Identity {
-            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, subject),
             login: b"other".as_slice().into(),
             name: b"Other".as_slice().into(),
         };
