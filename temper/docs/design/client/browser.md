@@ -3,10 +3,10 @@
 Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
-`forge.md`). What temper draws is the source of truth, recorded and
-printed as journeys (`journeys.md`); the mockups (`mockups/`) are the
-design of what is not built yet, reconciled to temper where they
-differ (the user, 10-26). How a view runs in a browser is
+`forge.md`). The greenfield mock (`greenfield/README.md`) is the look's
+target, with later look requests, and takes precedence over `mockups/`
+(the user, 2026-11-05). Journeys record and print what temper draws
+(`journeys.md`). How a view runs in a browser is
 skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 (jig's `protocol/browser.md`). What is still open is section 5.
 
@@ -1322,9 +1322,27 @@ Not in the tier, each in the lowest world that shows it:
   but leave the 1,048,576-byte window's manual reading check separate. Default:
   keep the person's bound and check opening, position, both ends, Latest and
   sending there by hand.
-- **A public page's text in one query** (8.4): the public walk reads each page's text
-  a node at a time, about 0.8 CPU s over its seven pages. Default: so, until that
+- **A public page's plain text in one query** (8.4): the page-text walk,
+  apart from geometry measurement, reads a node at a time, about 0.8 CPU s
+  over its seven pages. Default: so, until that
   passes 1 CPU s, when the browser kit would read a page's text at once.
+- **Every wrapped text fragment** (8.4): checking all of a title's wrapped
+  fragments needs a browser testing interface decision (skein's
+  `browser.md`, 11). Default: keep `Seen` and its first content quad;
+  missing rectangles remain failures, with the text and measurement stage.
+- **A public page changing during measurement** (8.2, 8.4): one terminal
+  boxed query avoids repeating every rectangle request for each text node,
+  but is no atomic snapshot of the page. Default: keep the field, gutter,
+  wrapping, navigation and overlap assertions and read a missing box's text
+  and stage from its failure. A node gone between requests refuses the
+  query, which fails the page assertions; that alone does not explain an
+  answered query with a missing rectangle. A timer-driven read remains an
+  unproved explanation.
+- **Expected browser errors scoped to an act** (8.4): the public walk's
+  sign-out permits an expired stream's 401 console message. Expectations
+  match text for the whole walk, so the same words from a later public
+  read are accepted too. Default: keep that expectation; distinguishing
+  the act or resource needs a harness interface decision.
 - **A compile cache across the tier's tests** (4.3): each test's fresh profile
   compiles the bundle's wasm again, where a second load in one profile hits
   Chromium's own cache. Default: none, since a shared profile would change what each
