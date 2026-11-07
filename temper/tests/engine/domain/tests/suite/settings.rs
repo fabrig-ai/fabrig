@@ -18,9 +18,9 @@ const HISTORY: u32 = 2;
 const PRUNED_HISTORY: u32 = 1;
 const OWNER_PERSON: u64 = 1;
 const OTHER: u64 = 8;
-// Stock charter 1's 7,060-byte assignment bound plus 25% headroom,
+// Stock charter 1's 8,938-byte assignment bound plus 25% headroom,
 // rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
-const STOCK_RUN_BYTES: u32 = 8_900;
+const STOCK_RUN_BYTES: u32 = 12_000;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
@@ -272,12 +272,12 @@ fn stock_config() -> engine::Config {
 
 fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // Stock policy 1 holds fourteen grants and nine executor kinds.
+    // Stock policy 1 holds fourteen grants and twelve executor kinds.
     limits.authority.grants = 16;
-    limits.authority.executors = 9;
+    limits.authority.executors = 12;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 9;
+    limits.documents.executors = 12;
     limits.notes.scopes = 32;
     // Seven slots hold the stock charters.
     limits.tasks.charters = 7;

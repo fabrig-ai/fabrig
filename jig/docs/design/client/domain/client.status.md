@@ -5,6 +5,12 @@
 Unlisted sections have no known gap, including 8.2's `watches_full`
 fact for `me` and application watches through retries and recovery.
 
+Section 10's decoded model and effort, their window weight, `latest_llm`
+and `caught_up` are present. The decoder keeps the names outside the text
+budget; the thread's table covers unread activity, older pages and passing
+over undecodable or nameless turns. Section 18 defers latest-run metadata
+independent of readable turns.
+
 - **Not yet:** 10: a committed turn's calls carry no objects or parts:
   `jig-protocol-transcript` decodes them empty.
 - **Not yet:** 12: no story relays a person's decision with their own credential.

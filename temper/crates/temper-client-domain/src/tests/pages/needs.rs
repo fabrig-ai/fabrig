@@ -38,6 +38,15 @@ fn add(pages: &mut Pages, object: ObjectKey, project: u32) {
     card.words = None;
     pages.inbox.as_mut().unwrap().cards.push(card).unwrap();
 }
+fn answer_fixtures() -> [(Box<Pages>, ObjectKey); 2] {
+    let mut person = fixture();
+    let object = ObjectKey::PersonTask(f::TASK);
+    add(&mut person, object, fixtures::PROJECT);
+    let card = person.inbox.as_mut().unwrap().cards.get_mut(1).unwrap();
+    card.page = Some(f::person(c::ActKind::Answer));
+    card.group = c::InboxGroup::PersonTasks;
+    [(Box::new(fixture()), FIRST), (Box::new(person), object)]
+}
 fn event(pages: &mut Pages, millis: u64, event: pages::Event) -> Queue<Request> {
     let limits = fixtures::limits();
     let mut env = fixtures::env(&limits);
@@ -81,15 +90,19 @@ fn sent(out: &mut Queue<Request>) -> (Key, c::Ask) {
     (key, *ask)
 }
 fn expected(object: ObjectKey, words: &[u8], project: u32) -> c::Ask {
-    let ObjectKey::Question { task, message } = object else { panic!("question fixture") };
-    c::Ask::Answer {
-        project,
-        on: c::AnswerOn::Question {
-            task,
-            message,
-            words: c::Text::new(Box::from(words), temper_client_protocol_wire::CUE_BYTES).unwrap(),
-        },
-    }
+    let words = c::Text::new(Box::from(words), temper_client_protocol_wire::CUE_BYTES).unwrap();
+    let on = match object {
+        ObjectKey::Question { task, message } => c::AnswerOn::Question { task, message, words },
+        ObjectKey::PersonTask(task) => {
+            c::AnswerOn::Person { task, revision: f::REVISION, answer: c::PersonAnswer::Words(words) }
+        }
+        ObjectKey::Task(_)
+        | ObjectKey::Proposal(_)
+        | ObjectKey::Escalation(_)
+        | ObjectKey::Result(_)
+        | ObjectKey::Note { .. } => panic!("answer fixture"),
+    };
+    c::Ask::Answer { project, on }
 }
 fn repeated(count: u32, suffix: &[u8]) -> Box<[u8]> {
     let mut words = List::with_capacity(count.checked_add(u32::try_from(suffix.len()).unwrap()).unwrap());
@@ -102,6 +115,9 @@ fn repeated(count: u32, suffix: &[u8]) -> Box<[u8]> {
     words.into_boxed()
 }
 fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
+    reply_to(pages, FIRST, words)
+}
+fn reply_to(pages: &mut Pages, object: ObjectKey, words: &[u8]) -> Queue<Request> {
     let mut limits = fixtures::limits();
     limits.client.domain.text = temper_client_protocol_wire::CUE_BYTES;
     limits.client.domain.long_text = temper_client_protocol_wire::CUE_BYTES;
@@ -110,9 +126,9 @@ fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
     let client = super::composer::root(&limits);
     let mut out = Queue::uncapped();
     for act in [
-        pages::Act::Needs(Act::OpenReply { object: FIRST }),
-        pages::Act::CardWords { object: FIRST, words: Box::from(words) },
-        pages::Act::Needs(Act::SendReply { object: FIRST }),
+        pages::Act::Needs(Act::OpenReply { object }),
+        pages::Act::CardWords { object, words: Box::from(words) },
+        pages::Act::Needs(Act::SendReply { object }),
     ] {
         pages::step(pages, &env, client.client(), pages::Event::Act { act }, &mut out);
     }
@@ -168,24 +184,35 @@ fn choice_is_held_until_five_seconds_toast_until_four_and_half() {
 }
 #[test]
 fn held_send_survives_navigation_without_an_inbox() {
-    let mut pages = fixture();
-    choose(&mut pages, 0, FIRST);
-    went(&mut pages, chats());
-    assert!(pages.inbox().is_none());
-    assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
+    for (mut pages, object) in answer_fixtures() {
+        choose(&mut pages, 0, object);
+        for card in pages.inbox.as_mut().unwrap().cards.iter_mut() {
+            if let Some(c::ReadValue::PersonTask(task)) = &mut card.page {
+                task.revision = f::NEW_REVISION;
+            }
+        }
+        went(&mut pages, chats());
+        assert!(pages.inbox().is_none());
+        assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(object, CHOICE, fixtures::PROJECT));
+    }
 }
+
 #[test]
 fn undo_restores_the_card_in_place_and_never_sends() {
-    let mut pages = fixture();
-    add(&mut pages, SECOND, fixtures::PROJECT);
-    choose(&mut pages, 0, FIRST);
-    act(&mut pages, BEFORE_HOLD, Act::Undo { object: FIRST });
-    assert_eq!(open(&pages).as_ref(), [FIRST, SECOND]);
-    assert!(lines(&pages).is_empty());
-    assert_eq!(pages.needs().toast(), None);
-    assert!(fire(&mut pages, HOLD_DUE).is_empty());
-    assert!(fire(&mut pages, SECOND_HOLD).is_empty());
+    for (mut pages, object) in answer_fixtures() {
+        add(&mut pages, SECOND, fixtures::PROJECT);
+        choose(&mut pages, 0, object);
+        assert!(pages.needs().held(object));
+        act(&mut pages, BEFORE_HOLD, Act::Undo { object });
+        assert!(open(&pages).contains(&object));
+        assert!(open(&pages).contains(&SECOND));
+        assert!(lines(&pages).is_empty());
+        assert_eq!(pages.needs().toast(), None);
+        assert!(fire(&mut pages, HOLD_DUE).is_empty());
+        assert!(fire(&mut pages, SECOND_HOLD).is_empty());
+    }
 }
+
 #[test]
 fn undo_at_the_deadline_cannot_retract_the_answer() {
     let mut pages = fixture();
@@ -197,13 +224,26 @@ fn undo_at_the_deadline_cannot_retract_the_answer() {
 }
 #[test]
 fn reply_trims_words_and_sends_the_full_answer() {
-    let mut pages = fixture();
-    assert!(reply(&mut pages, b" \tFull reply\r\n").is_empty());
-    assert!(!pages.needs().replying(FIRST));
-    assert_eq!(pages.inbox().unwrap().cards.get(0).unwrap().words, None);
-    assert_eq!(lines(&pages)[0].label, Label::Reply(Box::from(*b"Full reply")));
-    assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, b"Full reply", fixtures::PROJECT));
+    for (mut pages, object) in answer_fixtures() {
+        assert!(reply_to(&mut pages, object, b" \tFull reply\r\n").is_empty());
+        assert!(!pages.needs().replying(object));
+        assert_eq!(pages.inbox().unwrap().cards.get(u32::from(object != FIRST)).unwrap().words, None);
+        assert_eq!(lines(&pages)[0].title.as_ref(), f::chip().title.bytes());
+        assert_eq!(lines(&pages)[0].label, Label::Reply(Box::from(*b"Full reply")));
+        assert_eq!(
+            pages.needs().toast(),
+            Some(&Toasted::Answered { object, label: Label::Reply(Box::from(*b"Full reply")) })
+        );
+        for card in pages.inbox.as_mut().unwrap().cards.iter_mut() {
+            if let Some(c::ReadValue::PersonTask(task)) = &mut card.page {
+                task.revision = f::NEW_REVISION;
+            }
+        }
+        went(&mut pages, chats());
+        assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(object, b"Full reply", fixtures::PROJECT));
+    }
 }
+
 #[test]
 fn reply_labels_cut_only_past_sixty_whole_characters() {
     // README 3.5: 60 whole characters, or the first 57 and an ellipsis.
@@ -279,17 +319,19 @@ fn unsuccessful_outcomes_reopen_the_card_until_a_second_answer() {
         Outcome::Lost,
         Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None })),
     ] {
-        let mut pages = fixture();
-        choose(&mut pages, 0, FIRST);
-        let key = sent(&mut fire(&mut pages, HOLD_DUE)).0;
-        outcome(&mut pages, key, refused.clone());
-        assert!(lines(&pages).is_empty());
-        assert_eq!(open(&pages).as_ref(), [FIRST]);
-        assert_eq!(pages.needs().refused(FIRST), Some(&refused));
-        choose(&mut pages, SECOND_HOLD, FIRST);
-        assert_eq!(pages.needs().refused(FIRST), None);
+        for (mut pages, object) in answer_fixtures() {
+            choose(&mut pages, 0, object);
+            let key = sent(&mut fire(&mut pages, HOLD_DUE)).0;
+            outcome(&mut pages, key, refused.clone());
+            assert!(lines(&pages).is_empty());
+            assert!(open(&pages).contains(&object));
+            assert_eq!(pages.needs().refused(object), Some(&refused));
+            choose(&mut pages, SECOND_HOLD, object);
+            assert_eq!(pages.needs().refused(object), None);
+        }
     }
 }
+
 #[test]
 fn done_keeps_the_answered_line_and_does_not_reopen() {
     let mut pages = fixture();
@@ -426,7 +468,12 @@ fn invalid_or_unoffered_cards_cannot_be_chosen() {
         question.acts = f::offered(c::ActKind::Answer, c::Admission::Refused(c::Refusal::NotOffered));
     }
     refused.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().page = Some(question);
+    let mut role = f::person(c::ActKind::Answer);
+    if let c::ReadValue::PersonTask(task) = &mut role {
+        task.address = c::PersonAddress::Role(0);
+    }
     for mut pages in [
+        Box::new(f::pages(ObjectKey::PersonTask(f::TASK), role)),
         Box::new(missing_project),
         Box::new(pending),
         Box::new(task_page),
