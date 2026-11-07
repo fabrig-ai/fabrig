@@ -1052,7 +1052,11 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     for _index in 0..reads.len() {
         match reads.pop().expect("bounded read queue") {
             Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Show { .. } | Request::Replace { .. } | Request::OpenTab { .. } => {
+            Request::Screen { .. }
+            | Request::KeepLook { .. }
+            | Request::Show { .. }
+            | Request::Replace { .. }
+            | Request::OpenTab { .. } => {
                 unreachable!("Home reconciles client reads")
             }
         }

@@ -105,7 +105,7 @@ fn opening_draws_the_stock_reference_in_both_shells() {
         let right = styled(tree, look::SESSION_RIGHT)[0];
         assert_eq!(
             children(subtree(tree, right)).iter().map(|n| n.styles.as_slice()).collect::<Vec<_>>(),
-            [vec![look::SEG]]
+            if terminal { vec![vec![look::SEG]] } else { vec![vec![look::SEG], vec![look::TO_TERMINAL]] }
         );
         let group = named(tree, Role::Group, GROUP);
         assert_eq!(group.styles.as_slice(), [look::SEG]);

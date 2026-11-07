@@ -2811,6 +2811,15 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **The box's approval story on GitHub** (6.4): extend the configuring
+  and change-wait stories to a manifest-made personal App on the fake
+  GitHub. An owned-Forgejo story does not prove that composition.
+  A real human review counted on GitHub (`../draft/forge-identity.md`,
+  section 10) needs a user's authorized sign-in and review credential.
+  Default: after-landing QA supplies that evidence. The joint world's
+  Forgejo card and files-page link (6.3) replace the browser step by the
+  plan's decision; render checks and a real owned-Forgejo walk follow
+  landing too.
 - **Deployment-world costs and surviving stories** (2.4, 5.2, 5.3, 6.1):
   the measurements and retained causes are in
   `temper/docs/development/limits-worlds.md`. Decide the named survivors'

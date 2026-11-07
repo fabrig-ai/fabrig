@@ -1315,6 +1315,10 @@ temper's part:
 
 ## 14. Open questions
 
+- **Links beyond a box's sole owner** (2.1): several members require
+  separate account evidence and a family of links; a pasted App's key
+  alone identifies no person. Default: adoption's seeds there
+  (`setup.md`, section 15; `../draft/forge-identity.md`, section 12).
 - **The kit's own** are skein's: `forge.md`, sections 9 and 12;
   `forge-connection.md`, section 11; `forge-client.md`, section 11. They
   hold every question and every unrecorded fact about the vocabulary, a

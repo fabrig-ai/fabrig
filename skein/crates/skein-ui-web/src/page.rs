@@ -42,6 +42,7 @@ pub enum Op {
     Text { node: NodeId, element: Element },
     Value { node: NodeId, value: Box<[u8]> },
     Choice { node: NodeId, checked: bool },
+    Options { field: NodeId, menu: Option<NodeId>, active: Option<NodeId> },
     Href { node: NodeId, path: Box<[u8]> },
     Focus { node: NodeId },
     Reveal { node: NodeId },
@@ -67,6 +68,13 @@ struct Held {
     measured: Option<(i32, i32, i32)>,
     near_head: Option<(i32, i32)>,
     near_foot: Option<(i32, i32)>,
+    input: Box<[u8]>,
+}
+
+#[derive(Clone, Copy)]
+struct Options {
+    field: NodeId,
+    active: Option<NodeId>,
 }
 
 /// The semantic nodes and their document model, sharing the view's limits.
@@ -84,6 +92,8 @@ pub struct Page<'a> {
     limit: u32,
     act_bytes: u32,
     menu: Option<NodeId>,
+    options: BTreeMap<NodeId, Options>,
+    option_enter: Option<NodeId>,
     composition_end: Option<(NodeId, Box<[u8]>)>,
 }
 
@@ -104,6 +114,8 @@ impl<'a> Page<'a> {
             limit: limits.nodes,
             act_bytes: limits.drawing_bytes,
             menu: None,
+            options: BTreeMap::new(),
+            option_enter: None,
             composition_end: None,
         }
     }
@@ -189,7 +201,9 @@ impl<'a> Page<'a> {
                 }
                 Patch::Value { node, value } => {
                     self.held(*node);
-                    self.nodes.get_mut(node).expect("held node").made.value.clone_from(value);
+                    let held = self.nodes.get_mut(node).expect("held node");
+                    held.made.value.clone_from(value);
+                    held.input = value.as_ref().map_or_else(Box::<[u8]>::default, |value| value.text.clone());
                     self.remap(*node);
                     let value = value.as_ref().map_or_else(|| Vec::new().into_boxed_slice(), |v| v.text.clone());
                     ops.push(Op::Value { node: *node, value });
@@ -203,6 +217,7 @@ impl<'a> Page<'a> {
                 Patch::Insert { .. } | Patch::Remove { .. } => {}
             }
         }
+        self.sync_options(ops);
         self.collection_sizes(ops);
         self.links.clear();
         let mut order = Vec::new();
@@ -372,6 +387,7 @@ impl<'a> Page<'a> {
                 measured: None,
                 near_head: None,
                 near_foot: None,
+                input: made.value.as_ref().map_or_else(Box::<[u8]>::default, |value| value.text.clone()),
             };
             assert!(self.nodes.insert(made.id, held).is_none(), "inserted node has a fresh identity");
             self.attach(made.id, node_parent, if index == 0 { before } else { None });
@@ -436,7 +452,7 @@ impl<'a> Page<'a> {
     fn remap(&mut self, node: NodeId) {
         let held = self.nodes.get_mut(&node).expect("held node");
         held.element = components::element(&held.made, &self.look, self.prefix, self.primary, &self.words);
-        if held.made.attribute.role == Role::Menu {
+        if held.made.attribute.role == Role::Menu && !held.made.attribute.states.as_slice().contains(&State::Options) {
             menu_element(&mut held.element, self.menu == Some(node));
         }
         if held.made.attribute.linked
@@ -595,19 +611,65 @@ pub(crate) fn semantic_mut(element: &mut Element) -> &mut Element {
 /// For an unmapped press, `focus_taken` preserves an outside control's focus.
 #[derive(Clone, Debug)]
 pub enum Event {
-    Click { node: NodeId, modifier: bool },
-    PressOutside { focus_taken: bool },
-    Input { node: NodeId, value: Box<[u8]>, composing: bool },
-    CompositionEnd { node: NodeId, value: Box<[u8]> },
-    Enter { node: NodeId, shift: bool, composing: bool },
-    Change { node: NodeId },
-    Choose { select: NodeId, option: NodeId },
-    Cancel { dialog: NodeId },
-    Closed { dialog: NodeId },
-    Focused { node: NodeId },
-    Scrolled { node: NodeId, top: i32, height: i32, viewport: i32 },
-    Drawing { node: NodeId, under: Box<[u32]>, x: u16, y: u16 },
-    Key { key: Box<[u8]>, code: Box<[u8]>, control: bool, meta: bool, alt: bool, shift: bool, in_field: bool },
+    Click {
+        node: NodeId,
+        modifier: bool,
+    },
+    PressOutside {
+        focus_taken: bool,
+    },
+    Input {
+        node: NodeId,
+        value: Box<[u8]>,
+        composing: bool,
+    },
+    CompositionEnd {
+        node: NodeId,
+        value: Box<[u8]>,
+    },
+    Enter {
+        node: NodeId,
+        shift: bool,
+        composing: bool,
+    },
+    Change {
+        node: NodeId,
+    },
+    Choose {
+        select: NodeId,
+        option: NodeId,
+    },
+    Cancel {
+        dialog: NodeId,
+    },
+    Closed {
+        dialog: NodeId,
+    },
+    Focused {
+        node: NodeId,
+    },
+    Scrolled {
+        node: NodeId,
+        top: i32,
+        height: i32,
+        viewport: i32,
+    },
+    Drawing {
+        node: NodeId,
+        under: Box<[u32]>,
+        x: u16,
+        y: u16,
+    },
+    Key {
+        key: Box<[u8]>,
+        code: Box<[u8]>,
+        control: bool,
+        meta: bool,
+        alt: bool,
+        shift: bool,
+        in_field: bool,
+        composing: bool,
+    },
 }
 
 impl Page<'_> {
@@ -622,7 +684,9 @@ impl Page<'_> {
     /// A pointer's press on this node leaves the focus where it was (ui-web.md, 7).
     #[must_use]
     pub fn press_keeps_focus(&self, node: NodeId) -> bool {
+        let node = self.pressed(node);
         self.held(node).made.attribute.states.as_slice().contains(&State::ToLogEnd)
+            || self.options.keys().any(|menu| self.option_items(*menu).contains(&node))
     }
 
     fn press(&mut self, node: NodeId, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
@@ -651,6 +715,8 @@ impl Page<'_> {
                 None
             }
             Event::Input { node, value, composing } => {
+                let held = self.nodes.get_mut(&node).expect("input names a held node");
+                held.input.clone_from(&value);
                 if self.composition_end.take().is_some_and(|(ended, text)| ended == node && text == value) {
                     return None;
                 }
@@ -662,12 +728,17 @@ impl Page<'_> {
                 }
             }
             Event::CompositionEnd { node, value } => {
+                let held = self.nodes.get_mut(&node).expect("composition names a held node");
+                held.input.clone_from(&value);
                 self.composition_end = Some((node, value.clone()));
                 let a = &self.held(node).made.attribute;
                 if enabled(a) && a.bound && a.role.is_text_field() { Some((node, Act::Input { value })) } else { None }
             }
             Event::Enter { node, shift, composing } => {
                 self.composition_end = None;
+                if self.option_enter.take() == Some(node) {
+                    return None;
+                }
                 let a = &self.held(node).made.attribute;
                 if !composing
                     && enabled(a)
@@ -834,6 +905,9 @@ impl Page<'_> {
         if !enabled(a) {
             return None;
         }
+        if a.role == Role::Menu && a.states.as_slice().contains(&State::Options) {
+            return None;
+        }
         if a.role == Role::Menu {
             let open = self.menu != Some(node);
             self.close_menu(true, ops);
@@ -861,7 +935,10 @@ impl Page<'_> {
     }
 
     fn key(&mut self, event: Event, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
-        let Event::Key { key, code, control, meta, alt, shift, in_field } = event else { unreachable!("key event") };
+        let Event::Key { key, code, control, meta, alt, shift, in_field, composing } = event else {
+            unreachable!("key event")
+        };
+        self.option_enter = None;
         if shift {
             return None;
         }
@@ -898,6 +975,12 @@ impl Page<'_> {
                 }
             }
             return None;
+        }
+        if in_field && modifier == Modifier::Plain && !composing {
+            let (taken, act) = self.options_key(&key, ops);
+            if taken {
+                return act;
+            }
         }
         if modifier == Modifier::Plain && self.menu_key(&key, ops) {
             return None;
@@ -941,6 +1024,157 @@ impl Page<'_> {
             let a = &self.held(node).made.attribute;
             (enabled(a) && a.bound && a.shortcut == Some(skein_ui::Shortcut::ESCAPE)).then_some((node, Act::Press))
         })
+    }
+
+    fn options_key(&mut self, key: &[u8], ops: &mut Vec<Op>) -> (bool, Option<(NodeId, Act)>) {
+        let Some((menu, options)) = self.focused_options() else {
+            return (false, None);
+        };
+        let Some(active) = options.active else {
+            return (false, None);
+        };
+        if key == b"ArrowDown" || key == b"ArrowUp" {
+            let items = self.menu_items(menu);
+            let current = items.iter().position(|node| *node == active).expect("active option is enabled");
+            let index = if key == b"ArrowDown" {
+                (current + 1) % items.len()
+            } else {
+                (current + items.len() - 1) % items.len()
+            };
+            self.options.get_mut(&menu).expect("held options").active = Some(items[index]);
+            self.options_op(menu, ops);
+            return (true, None);
+        }
+        if key == b"Enter" {
+            self.option_enter = Some(options.field);
+            return (true, Some((active, Act::Press)));
+        }
+        if key == b"Tab" {
+            let field = self.held(options.field);
+            if let Some(name) = self.held(active).made.attribute.name.as_deref()
+                && enabled(&field.made.attribute)
+                && field.made.attribute.bound
+                && !field.input.is_empty()
+                && field.input.as_ref() != name
+                && name.starts_with(&field.input)
+            {
+                let value: Box<[u8]> = name.into();
+                self.nodes.get_mut(&options.field).expect("held field").input.clone_from(&value);
+                ops.push(Op::Value { node: options.field, value: value.clone() });
+                return (true, Some((options.field, Act::Input { value })));
+            }
+            return (true, None);
+        }
+        (false, None)
+    }
+
+    fn form_of(&self, node: NodeId) -> Option<NodeId> {
+        let mut at = self.held(node).parent;
+        while at != NodeId(0) {
+            let held = self.held(at);
+            if held.made.attribute.role == Role::Form {
+                return Some(at);
+            }
+            at = held.parent;
+        }
+        None
+    }
+
+    fn option_items(&self, menu: NodeId) -> Vec<NodeId> {
+        let mut order = Vec::new();
+        self.preorder(menu, &mut order);
+        order.into_iter().filter(|node| self.held(*node).made.attribute.role == Role::MenuItem).collect()
+    }
+
+    fn focused_options(&self) -> Option<(NodeId, Options)> {
+        self.options.iter().find_map(|(menu, options)| {
+            (Some(options.field) == self.focused
+                && enabled(&self.held(options.field).made.attribute)
+                && enabled(&self.held(*menu).made.attribute))
+            .then_some((*menu, *options))
+        })
+    }
+
+    fn sync_options(&mut self, ops: &mut Vec<Op>) {
+        let previous = std::mem::take(&mut self.options);
+        let mut fields = BTreeMap::new();
+        let mut order = Vec::new();
+        for root in &self.roots {
+            self.preorder(*root, &mut order);
+        }
+        for node in &order {
+            let a = &self.held(*node).made.attribute;
+            if let Some(form) = self.form_of(*node) {
+                if a.role.is_text_field() {
+                    fields.insert(form, *node);
+                }
+                if a.role == Role::Menu
+                    && a.states.as_slice().contains(&State::Options)
+                    && let Some(field) = fields.get(&form).copied()
+                {
+                    let items = self.menu_items(*node);
+                    let active = previous
+                        .get(node)
+                        .filter(|old| old.field == field)
+                        .and_then(|old| old.active)
+                        .filter(|active| items.contains(active))
+                        .or_else(|| {
+                            items.iter().copied().find(|item| {
+                                self.held(*item).made.attribute.states.as_slice().contains(&State::Selected)
+                            })
+                        })
+                        .or_else(|| items.first().copied());
+                    self.options.insert(*node, Options { field, active });
+                }
+            }
+        }
+        for node in order {
+            if self.held(node).made.attribute.role != Role::MenuItem {
+                continue;
+            }
+            let option = self.options.keys().any(|menu| self.option_items(*menu).contains(&node));
+            let before = self.held(node).element.clone();
+            if option {
+                crate::mapping::option_element(&mut self.nodes.get_mut(&node).expect("held option").element, node);
+            } else if semantic(&before).attribute("role") == Some("option") {
+                self.remap(node);
+            }
+            if self.held(node).element != before {
+                ops.push(Op::Attributes { node, element: self.own_element(node) });
+            }
+        }
+        let menus: Vec<_> = self.options.keys().copied().collect();
+        for menu in menus {
+            self.options_op(menu, ops);
+        }
+        for old in previous.values() {
+            if self.nodes.contains_key(&old.field) && !self.options.values().any(|now| now.field == old.field) {
+                options_field(
+                    semantic_mut(&mut self.nodes.get_mut(&old.field).expect("remaining field").element),
+                    None,
+                    None,
+                );
+                ops.push(Op::Options { field: old.field, menu: None, active: None });
+            }
+        }
+    }
+
+    fn options_op(&mut self, menu: NodeId, ops: &mut Vec<Op>) {
+        let options = *self.options.get(&menu).expect("held options");
+        options_field(
+            semantic_mut(&mut self.nodes.get_mut(&options.field).expect("held field").element),
+            Some(menu),
+            options.active,
+        );
+        for item in self.option_items(menu) {
+            let element = semantic_mut(&mut self.nodes.get_mut(&item).expect("held option").element);
+            if Some(item) == options.active {
+                element.set("aria-selected", "true");
+            } else {
+                element.remove("aria-selected");
+            }
+        }
+        ops.push(Op::Options { field: options.field, menu: Some(menu), active: options.active });
     }
 
     fn menu_items(&self, node: NodeId) -> Vec<NodeId> {
@@ -1047,5 +1281,20 @@ fn menu_element(element: &mut Element, open: bool) {
         menu.remove("hidden");
     } else {
         menu.set("hidden", "");
+    }
+}
+
+fn options_field(element: &mut Element, menu: Option<NodeId>, active: Option<NodeId>) {
+    if let Some(menu) = menu {
+        element.set("aria-autocomplete", "list");
+        element.set("aria-controls", &format!("skein-ui-options-{}", menu.0));
+    } else {
+        element.remove("aria-autocomplete");
+        element.remove("aria-controls");
+    }
+    if let Some(active) = active {
+        element.set("aria-activedescendant", &format!("skein-ui-option-{}", active.0));
+    } else {
+        element.remove("aria-activedescendant");
     }
 }

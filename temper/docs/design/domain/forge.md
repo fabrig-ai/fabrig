@@ -949,6 +949,18 @@ call slab limit and background reserve (skein's `forge-client.md`, 5–6).
 An admitted answer or any other terminal forge error follows the normal
 read-answer path once.
 
+**Each answer reaches the read that asked.** The client answers a read
+under the owner it was asked with, and two reads under one owner cannot
+be told apart. The root's fresh reads take their owners from a range
+that is the root's alone (`temper_engine_domain_forge::root_read`): bit
+61 set, bits 59, 60, 62 and 63 clear, and the root's serial below
+2^59. The connector names none of its own reads there: its change
+steps, landings and every other read it makes take owners outside it,
+from its own sequence. It routes a client answer to its own pending
+read first and passes an answer in the root's range to the root, so a
+refused `Busy`, an answer or a failure reaches the one read that asked
+for it, never a read of another kind or another party's.
+
 - **Containment needs only ancestry.** The landing decision reads
   `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
   the head and base tip this step observed. A complete empty reverse
@@ -3453,6 +3465,17 @@ whole.
 
 ## 20. Open questions
 
+- **Links beyond a box's one person** (4.6): several members need a
+  family of links and evidence of the connecting owner; a pasted App or
+  a second account needs user authorization or a verified claim on a
+  review (`../draft/forge-identity.md`, section 12). Default: adoption's
+  seeds there. Containing agents and CI is required before an owned
+  Forgejo's approval can resist an agent trying to bypass it
+  (`../protocol/setup.md`, section 15).
+- **The approval story on GitHub** (4.6, 8.12): the complete box story
+  belongs beside the owned-Forgejo domain story, then a real person's
+  review in the live tier (`testing.md`, section 11). Default: lower
+  setup, link and review checks establish those separate pieces alone.
 - **A forge read past its bound** (8.4): distinguishing
   `forge.client.rows` from `forge.client.answer_bytes`, with the measured
   size, needs skein's bare `TooLarge` to carry the bound and an exact or

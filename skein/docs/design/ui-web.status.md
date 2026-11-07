@@ -2,6 +2,15 @@
 
 2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
+Sections 6 and 7 have no known gap in a field's options: listbox and
+option mapping, retained active selection, arrows, Enter without a
+paired Submit, prefix completion on Tab and pointer presses retaining
+the field's focus. Section 10's kept store is separate from the small
+store, with the same encoding and bounds and refusal where local
+storage is unavailable. Section 11's full-screen reports, Escape-only
+lock and unlock are present. Real-key checks remain section 15's
+after-landing work; no browser result is established here.
+
 Section 6 has no known gap in mapping a node's hint to an escaped
 `title` attribute, including its replacement and removal by a patch.
 

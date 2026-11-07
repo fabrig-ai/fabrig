@@ -1,6 +1,12 @@
 # people: status
 
 2026-11-07. Where jig's code lags or departs from [people.md](people.md).
+
+Section 4's `Domain::sole_owner` is present: it reads the deployment's
+roster without allocation or mutation, including during restore, and
+answers none with no owner, several owners or an unreadable roster.
+The project-members table covers those cases.
+
 Unlisted sections, including public reading (13) and 5.1's refusal of a
 live task's move to its current requester as not offered, have no known gap.
 Loading goals ended before publication or across a restart remains

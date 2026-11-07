@@ -124,7 +124,8 @@ fn an_apply_measures_only_bound_lists_without_following_or_page_scrolling() {
                     meta: false,
                     alt: false,
                     shift: false,
-                    in_field: false
+                    in_field: false,
+                    composing: false
                 },
                 &mut ops
             ),

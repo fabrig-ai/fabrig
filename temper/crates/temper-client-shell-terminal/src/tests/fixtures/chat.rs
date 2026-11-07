@@ -262,6 +262,8 @@ fn first_run_words(
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
