@@ -5,6 +5,10 @@
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.
 
+Sections 3.2, 5, 7 and 15 have no known gap in a node's hint: the
+builder charges its bytes, including replacements, against the text
+bounds, and a changed hint travels in an attribute patch.
+
 Sections 3.3, 3.5, 10.1, 11.2, 11.5, 15 and 17 have no known gap in
 the flow's owner, reader, bounds and layout, the scene's own height, or
 the acceptance cases and text golden. Further flow syntax is deferred
