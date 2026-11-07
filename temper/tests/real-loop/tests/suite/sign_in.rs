@@ -28,7 +28,7 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
             terminal::see(b"Open the sign-in page <http://"),
             Step::Authorize,
             Step::Return,
-            terminal::see(b"Signed in to ChatGPT"),
+            terminal::see(b"Signed in to ChatGPT as owner@example.com"),
             call(D1, argv!["account", "list", "--json"]),
             terminal::close(),
         ]
@@ -47,6 +47,7 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
     assert_eq!(rows.len(), ONE_ACCOUNT, "one account for the person");
     let account = &rows[0];
     assert_eq!(account["provider"], 1);
+    assert_eq!(account["email"], "owner@example.com");
     assert_eq!(account["plan"], true);
     assert_eq!(account["holder"]["party"], person);
     let sources = account["sources"].as_array().expect("account's sources");
