@@ -13,6 +13,9 @@ stock worker's bounds and the stored-policy run bound, including parts.
   (`temper-service/src/stock.rs`, `checked_with`); the rules' and policy 1's
   tools are 1,927, without the asking family, and their delegation names no
   charter 11 (`ceiling`).
+- **Not yet:** 13.2: an asking charter's proposal is judged for its approvals at
+  acceptance alone, not at its call (`temper-engine-domain/src/route/tools.rs`,
+  `propose_settings`; `route/kinds.rs`, `approval_refusal`).
 - **Not yet:** 13.9: the combined cut-and-answer domain story,
   `the_reference_goal_reads_its_cut_then_its_questions_part` in
   `temper/tests/engine/domain/tests/suite/forge_routes/per_wake.rs`, is

@@ -21,11 +21,11 @@ standing rules `notes/common.md`. The design each batch cites is pushed with it.
 | stock | `bound` | stock, mechanics | the step test holding what temper gives charter 11's first request to 16,384 bytes on both shapes |
 | proposal-read | `proposal-read` | | jig's core: a run's read of one proposal of settings, a task's of its project or a party's, decided by the settings family |
 | see | `see` | declare, stock, document | `see`'s parser and routing; the settings addresses, `revisions`, `revision N`, `help`, `more`; the bound, `see:` lines, not-yet and unknown; the skeleton for the forge's and the proposal's addresses |
+| propose | `propose` | declare, see | `propose_settings`' asking mechanics: a document's repository as `OWNER/NAME`, a large set in parts held by the engine, approvals judged at the call for the chat's project, the answer saying where the card waits and whose decision it is (both forms) |
 | document | `document` | declare | `document` writes the chat's one note by section (write, append, replace), the root splicing it and writing through jig's note family; the client reads a `document` call as a `note` call |
 
-Further batches (being written by two designers): `see-forge` (`file`, `settings
-landing`, `settings gates`), `see-proposal`, and `propose` (`propose_settings`' asking
-mechanics, after `see`).
+Further batches (being written by the `see` designer): `see-forge` (`file`, `settings
+landing`, `settings gates`) and `see-proposal`.
 
 ## Critical path, as it stands
 
@@ -78,6 +78,16 @@ mechanics, after `see`).
 - No draft beside this one lists `smith/**`.
 
 ## Decisions
+
+- **A large set's parts are held in the engine's memory,** by task, not in a `work:`
+  note: a proposing call then consumes them whatever comes of it, and no party can
+  correct them; a restart loses them, and a run live across it is refused its next
+  proposing call once (`agent.md`, 8.4.2 and section 10).
+- **Approvals at the call for the chat's own project alone,** another project's left to
+  acceptance, so that nothing of another project reaches this chat (a departure the
+  draft's status records, decided by this cut).
+- **The answer's words change for charter 3 too:** one decoder and one answer serve both
+  forms of `propose_settings`.
 
 - **One writer per file in the engine's crates:** `document`, then `see`, then
   `propose`, since each writes `route/host_route.rs` or `temper-engine-smith/src/settings.rs`

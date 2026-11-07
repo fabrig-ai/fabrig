@@ -111,3 +111,16 @@ id = 8
 story = "An Ask temper chat reads settings charter 3, revision 2 and help settings with see, each in parts of at most 6,144 bytes ending with what to read next; me answers not yet"
 parts = ["see"]
 walk = false
+
+[[part]]
+id = "propose"
+title = "propose_settings does what charter 3's instructions teach: OWNER/NAME, a large set in parts, approvals at the call, an answer saying where the card waits"
+mode = "direct"
+needs = ["declare", "see"]
+design = "temper/docs/design/domain/agent.md, 8.4.2"
+
+[[slice]]
+id = 9
+story = "An Ask temper run proposes a charter document named OWNER/NAME and gets its forge's host written, gives a large set in parts that become one proposal, is refused an unsatisfiable approval at the call, and is told where the card waits and who decides; charter 3's proposals work as before"
+parts = ["propose"]
+walk = false

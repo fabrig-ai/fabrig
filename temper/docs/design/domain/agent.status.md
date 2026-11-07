@@ -95,6 +95,12 @@ person's next words, whether the previous run still listens or has parked.
 - **Not yet:** 8.4.1: `proposal tN/K` and `pN/K` read nothing: no proposal read
   reaches the root, and `temper-settings-form` has no proposal text
   (`temper-engine-domain/src/route/see/proposal.rs`).
+- **Not yet:** 8.4.2: `propose_settings` takes no parts (`"more": true` is answered
+  that it is not taken yet), a charter document must name its `forge`, an asking
+  charter's approvals are judged at acceptance alone, and the answer says only
+  `proposed as tN/K to the deployment's owners` (`temper-engine-smith/src/settings.rs`,
+  `proposal`; `temper-engine-domain/src/route/tools.rs`, `propose_settings`;
+  `temper-engine-smith/src/answers.rs`, `proposed`).
 - **Not yet:** 8.4.3: no `document` call writes the chat's document: the root has
   no flow over jig's notes for it (`temper-engine-domain/src/route/document.rs`),
   and its answer and refusals have no words of their own
