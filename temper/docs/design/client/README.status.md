@@ -693,4 +693,4 @@ work; no new real-model or phone press outcome is supplied.
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
 
-- **Not yet:** 3.5, a chat's document: a flow is not drawn. `host::page` draws nothing and names only temper's tokens, and `temper-client-view`'s limits leave `drawing_bytes`, `scene_marks` and `scene_bytes` at nothing, so every fence reads as code.
+- **Not yet:** 3.5, a chat's document: temper/ui's after-landing look at a flow, in a chat and in its document.

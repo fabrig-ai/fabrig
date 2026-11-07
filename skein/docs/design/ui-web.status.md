@@ -6,7 +6,6 @@ Unlisted sections, including 7's requested focus bringing its node into
 view even when already focused, have no known gap.
 
 
-- **Not yet:** 8: a scene that says its height and `data-scene-height`; the page part makes its scene when it starts. 12: `skein-ui.css` has no rule for `data-scene-height` and none for a flow's tokens.
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and

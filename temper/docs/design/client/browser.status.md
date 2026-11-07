@@ -202,5 +202,3 @@ keeps it; publication is not a cutoff on a handed change's commit.
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`tools/gallery/names.txt`,
   `tools/gallery/src/samples.rs`) that the table does not list.
-
-- **Not yet:** 2.5: a flow's look: `temper.css` has no rule for skein-ui's flow tokens.
