@@ -6,8 +6,8 @@ use temper_client_domain::{Action, Address, Domain, Event, Request, address::Fil
 use temper_client_domain::{ChatsFilter, GoalsFilter};
 
 use Then::{
-    AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
-    Shown, SignInReady, SignInRefused, SignedOut, SigningIn,
+    AccountRefused, Closing, Declined, Filled, Held, OutOfDate, Refused, Rejecting, Releasing, Renewed, Shown,
+    SignInReady, SignInRefused, SignedOut, SigningIn,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,7 +56,6 @@ pub enum Then {
     SigningIn,
     Paste(PasteFrame),
     AccountRefused,
-    KeyReady,
     SignInReady,
     Declined,
     Renewed,
@@ -105,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 284;
+pub const N: usize = 283;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -891,10 +890,9 @@ pub fn samples() -> [Sample; N] {
         model_sample("connect-model-key-details", temper_client_domain::WayKind::Key, Shown),
         model_sample("connect-model-program-details", temper_client_domain::WayKind::Program, Shown),
         model_sample("connect-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
-        model_sample("connect-model-key-ready", temper_client_domain::WayKind::Key, KeyReady),
-        model_sample("connect-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
+        model_sample("accounts-added", temper_client_domain::WayKind::SignIn, SignInReady),
         model_sample("connect-model-declined", temper_client_domain::WayKind::SignIn, Declined),
-        model_sample("connect-model-renewed", temper_client_domain::WayKind::SignIn, Renewed),
+        model_sample("accounts-renewed", temper_client_domain::WayKind::SignIn, Renewed),
         model_sample("connect-model-refused", temper_client_domain::WayKind::SignIn, SignInRefused),
         model_sample("connect-model-key-lost", temper_client_domain::WayKind::Key, AccountRefused),
         Sample { name: "task-reference-T28", world: Reference, address: task(28), then: Shown },
@@ -984,6 +982,7 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
         "settings-away" => return Some("../greenfield/settings.html#away".to_owned()),
         "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
@@ -1104,8 +1103,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
-            | Then::AccountRefused
-            | Then::KeyReady => return None,
+            | Then::AccountRefused => return None,
         };
         return Some(format!("connect-model.html?world=first-run&step=5&way=chatgpt&bare{anchor}"));
     }
@@ -1509,7 +1507,6 @@ pub fn domain(sample: &Sample) -> Domain {
         Then::SigningIn
         | Then::Paste(_)
         | Then::AccountRefused
-        | Then::KeyReady
         | Then::SignInReady
         | Then::Declined
         | Then::Renewed
@@ -1863,7 +1860,7 @@ fn adoption(root: &mut Domain, refused: bool, out: &mut Queue<Request>) {
 fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
     use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};
     let refused = then == Then::AccountRefused;
-    let key = refused || then == Then::KeyReady;
+    let key = refused;
     let way = if key { Way::Key { provider: 18 } } else { Way::SignIn { provider: 18, plan: true } };
     step(
         root,

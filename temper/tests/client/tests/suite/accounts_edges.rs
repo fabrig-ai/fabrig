@@ -69,7 +69,7 @@ fn accounts_connect_link_opens_choose() {
         &mut world,
         client,
         vec![
-            press(Role::Link, b"+ Connect a model"),
+            press(Role::Link, b"Connect a model"),
             see(Role::Heading { level: 1 }, b"Connect a model"),
             see(Role::Link, b"Add key"),
         ],

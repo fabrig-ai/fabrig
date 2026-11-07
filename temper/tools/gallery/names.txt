@@ -1,3 +1,4 @@
+accounts-added
 accounts-empty
 accounts-first-run-1
 accounts-in-settings
@@ -5,6 +6,7 @@ accounts-key
 accounts-program-needs-sign-in
 accounts-reference
 accounts-removing
+accounts-renewed
 accounts-signing-in
 accounts-solo
 accounts-states
@@ -100,11 +102,8 @@ connect-model-connected
 connect-model-declined
 connect-model-key-details
 connect-model-key-lost
-connect-model-key-ready
 connect-model-program-details
 connect-model-refused
-connect-model-renewed
-connect-model-signin-ready
 connect-model-signing-in
 forge-admin-details
 forge-details

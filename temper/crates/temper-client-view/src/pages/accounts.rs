@@ -369,16 +369,22 @@ pub(crate) fn main(
     };
     settings::section_head(b, &title);
     b.style(look::ACCOUNTS_PAGE);
-    if doc.is_some() && root.forge().playground().is_none() {
+    if doc.is_some() && count != 0 && root.forge().playground().is_none() {
         connect(b, w, bindings, W::ConnectAdd);
     }
     b.close();
+    added(b, root, w, bindings);
     if let Some(doc) = doc {
         if count == 0 {
-            settings::quiet_band(b, &words::say(w, W::NoOwnTag, &[]), &words::say(w, W::NoOwn, &[]));
+            b.open(Role::Slot);
+            b.style(look::SETTINGS_LINES);
+            b.open(Role::Slot);
+            b.style(look::CONNECT_EMPTY);
+            text(b, w, Role::Paragraph, W::NoOwn);
             if root.forge().playground().is_none() {
                 connect(b, w, bindings, W::Connect);
             }
+            b.close();
             b.close();
         } else {
             b.open(Role::Slot);
@@ -438,6 +444,37 @@ pub(crate) fn main(
     b.close();
     b.close();
 }
+fn added(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    let Some(page) = root.pages().accounts() else { return };
+    let Some(added) = page.added else { return };
+    let Some(me) = accounts::current_me(root.client()) else { return };
+    for offer in &me.providers {
+        if offer.provider != added.provider {
+            continue;
+        }
+        let (brand, plan) = words::provider_words(offer.name.bytes());
+        let (word, name) = match added.kind {
+            temper_client_domain::WayKind::Key => (W::KeyAdded, brand),
+            temper_client_domain::WayKind::Program => (W::ProgramAdded, plan),
+            temper_client_domain::WayKind::SignIn => {
+                (if offer.signed_in_plan { W::PlanAdded } else { W::AccountAdded }, plan)
+            }
+        };
+        b.open(Role::Paragraph);
+        b.style(look::CONNECT_CONFIRM);
+        b.text(Run::Plain, &named(w, word, name));
+        if let Some(to) = bindings.insert(Meaning::Go(temper_client_domain::Address::NewChat { draft: false })) {
+            b.open(Role::Link);
+            b.style(look::CONNECT_QUIET);
+            b.name(&words::say(w, W::StartChat, &[]));
+            b.text(Run::Plain, &words::say(w, W::StartChat, &[]));
+            b.link(to);
+            b.close();
+        }
+        b.close();
+        break;
+    }
+}
 fn signings_without_rows(
     b: &mut Builder,
     root: &Domain,
@@ -483,7 +520,16 @@ fn signings_without_rows(
 fn connect(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: W) {
     if let Some(to) = bindings.insert(Meaning::Go(temper_client_domain::Address::ConnectModel { way: None })) {
         let name = words::say(w, word, &[]);
-        settings::button_to(b, &name, to, word == W::Connect);
+        if word == W::Connect {
+            b.open(Role::Link);
+            b.style(look::CONNECT_PRIMARY);
+            b.name(&name);
+            b.link(to);
+            b.text(Run::Plain, &name);
+            b.close();
+        } else {
+            settings::button_to(b, &name, to, false);
+        }
     }
 }
 pub(super) fn key_field(

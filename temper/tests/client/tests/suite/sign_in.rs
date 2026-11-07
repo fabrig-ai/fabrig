@@ -140,6 +140,17 @@ fn terminal_sign_in_never_requests_a_tab_departure() {
     );
 }
 
+fn start_another(front: &mut Joint, root: &mut Root) {
+    h::event(front, root, Temper::went(Address::ConnectModel { way: None }));
+    press(front, root, b"Add another plan");
+}
+fn added_ending(front: &mut Joint, root: &mut Root, source: u32) {
+    has(root, "Added your ChatGPT plan");
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    h::reopen(front, root, returned(source));
+    has(root, "Added your ChatGPT plan");
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+}
 fn connect_ending(front: &mut Joint, root: &mut Root, source: u32, expected: &str) {
     has(root, expected);
     assert!(button(root, b"Continue with ChatGPT"));
@@ -154,23 +165,18 @@ fn made_sign_in_reaches_ready_live_and_after_return() {
     let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, false);
-    connect_ending(&mut front, &mut root, source, "Signed in to ChatGPT");
+    added_ending(&mut front, &mut root, source);
 }
 
 // client/README.md 5.5 A sign-in: Renewed names the same account and offers sign-in again.
 #[test]
-fn renewed_sign_in_explains_the_same_account_on_connect_model() {
+fn renewed_sign_in_lands_on_the_accounts_page() {
     let (mut front, mut root, _) = established();
-    press(&mut front, &mut root, b"Continue with ChatGPT");
+    start_another(&mut front, &mut root);
     let source = h::signing(&front);
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, false);
-    connect_ending(
-        &mut front,
-        &mut root,
-        source,
-        "That’s your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
-    );
+    added_ending(&mut front, &mut root, source);
 }
 
 // client/README.md 5.5 A sign-in: Made with declined consent has the plan-declined words.
@@ -187,7 +193,7 @@ fn made_without_plan_usage_offers_sign_in_and_a_key() {
 #[test]
 fn renewed_without_plan_usage_offers_sign_in_and_a_key() {
     let (mut front, mut root, _) = established();
-    press(&mut front, &mut root, b"Continue with ChatGPT");
+    start_another(&mut front, &mut root);
     let source = h::signing(&front);
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, true);
@@ -199,7 +205,7 @@ fn renewed_without_plan_usage_offers_sign_in_and_a_key() {
 #[test]
 fn superseded_return_source_offers_the_way_again() {
     let (mut front, mut root, old_source) = established();
-    press(&mut front, &mut root, b"Continue with ChatGPT");
+    start_another(&mut front, &mut root);
     let new_source = h::signing(&front);
     started(&mut front, &mut root, new_source);
     made(&mut front, &mut root, new_source, false);
@@ -259,7 +265,7 @@ fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
     started(&mut front, &mut root, source);
     h::reopen(&mut front, &mut root, returned(source));
     made(&mut front, &mut root, source, false);
-    has(&root, "Signed in to ChatGPT");
+    has(&root, "Added your ChatGPT plan");
     let view = shown(&root);
     assert!(
         Temper::tree(&view)
@@ -337,18 +343,15 @@ fn accounts_made_sign_in_names_the_plan_and_offers_retry() {
             declined: false,
         },
     );
-    account_ending(&root, "Signed in to ChatGPT");
+    account_ending(&root, "Added your ChatGPT plan");
 }
 
 // client/README.md 3.5 Accounts and 5.5 A sign-in: Renewed explains adding another account.
 #[test]
-fn accounts_renewed_sign_in_explains_adding_another_account() {
+fn accounts_renewed_sign_in_keeps_the_same_added_line() {
     let (mut front, mut root, source) = row_sign_in();
     made(&mut front, &mut root, source, false);
-    account_ending(
-        &root,
-        "That’s your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
-    );
+    has(&root, "Added your ChatGPT plan");
 }
 
 // client/README.md 5.5 A sign-in: a row's Made with declined consent offers sign-in and a key.

@@ -63,7 +63,10 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::connect_model::Act::Holder { .. },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("connect-model-"));
+                assert!(
+                    (sample.name.starts_with("connect-model-")
+                        || matches!(sample.name, "accounts-added" | "accounts-renewed"))
+                );
             } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
                 temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
@@ -2269,7 +2272,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+            Part::Named { role: Role::Disclosure, name: "Claude subscription" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
             Part::Named { role: Role::Item, name: "API key · Ready" },
             Part::Named { role: Role::Paragraph, name: "laptop" },
@@ -2469,7 +2472,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
-            Part::Named { role: Role::Text, name: "No account yet" },
+            Part::Text { text: "No model of yours yet." },
             Part::Named { role: Role::Link, name: "Connect a model" },
         ],
     },
@@ -2478,7 +2481,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+            Part::Named { role: Role::Disclosure, name: "Claude subscription" },
         ],
     },
     Holds {
@@ -2571,31 +2574,23 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::TextField, name: "Name" }],
     },
     Holds {
-        name: "connect-model-key-ready",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Status, name: "Added your OpenAI API key" }],
-    },
-    Holds {
-        name: "connect-model-signin-ready",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signed in to ChatGPT as pat@example.com" }],
+        name: "accounts-added",
+        heading: "What agents run on.",
+        parts: &[Part::Text { text: "Added your ChatGPT plan. temper’s agents now run on it." }],
     },
     Holds {
         name: "connect-model-declined",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[Part::Named { role: Role::Alert, name: "You signed in without plan usage." }],
     },
     Holds {
-        name: "connect-model-renewed",
-        heading: "Connect a model",
-        parts: &[Part::Named {
-            role: Role::Status,
-            name: "That’s pat@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
-        }],
+        name: "accounts-renewed",
+        heading: "What agents run on.",
+        parts: &[Part::Text { text: "Added your ChatGPT plan. temper’s agents now run on it." }],
     },
     Holds {
         name: "connect-model-refused",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[Part::Named {
             role: Role::Alert,
             name: "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
@@ -3111,16 +3106,12 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
         ("connect-model-signing-in", None),
-        ("connect-model-key-ready", None),
-        ("connect-model-signin-ready", Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare")),
+        ("accounts-added", Some("accounts.html?world=reference&bare")),
         (
             "connect-model-declined",
             Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-declined"),
         ),
-        (
-            "connect-model-renewed",
-            Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-renewed"),
-        ),
+        ("accounts-renewed", Some("accounts.html?world=reference&bare")),
         (
             "connect-model-refused",
             Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-refused"),
@@ -3128,8 +3119,12 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ("connect-model-key-lost", None),
     ];
     rows.sort_by_key(|row| row.0);
-    let models: Vec<_> =
-        samples::samples().into_iter().filter(|sample| sample.name.starts_with("connect-model-")).collect();
+    let models: Vec<_> = samples::samples()
+        .into_iter()
+        .filter(|sample| {
+            sample.name.starts_with("connect-model-") || matches!(sample.name, "accounts-added" | "accounts-renewed")
+        })
+        .collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");
     for (sample, (name, expected)) in models.iter().zip(rows) {
         assert_eq!(sample.name, name);
