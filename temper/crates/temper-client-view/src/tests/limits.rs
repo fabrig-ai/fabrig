@@ -6,10 +6,14 @@ use skein_lib::{List, Writer};
 #[test]
 fn a_window_full_of_markdown_builds() {
     // Empty three-cell table rows stress nodes; plain text is copied into
-    // names and runs, and links retain labels and targets.
-    for (prefix, pattern) in
-        [(b"|||\n|-|-|\n".as_slice(), b"||||\n".as_slice()), (b"", b"x"), (b"", b"[x](https://x) ")]
-    {
+    // names and runs, links retain labels and targets, and flows retain data
+    // beside their fallback words.
+    for (prefix, pattern) in [
+        (b"|||\n|-|-|\n".as_slice(), b"||||\n".as_slice()),
+        (b"", b"x"),
+        (b"", b"[x](https://x) "),
+        (b"", b"```mermaid\nflowchart LR\na-->b\n```\n"),
+    ] {
         full_window(prefix, pattern, 4096);
     }
 }

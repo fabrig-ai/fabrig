@@ -846,10 +846,10 @@ component instead (6.1).
   drawing's kind, data and box's size in whole CSS pixels, as it
   measured it; false, for a kind or data it does not draw, leaves the
   fallback shown.
-- **Drawn as inline SVG:** an `<svg aria-hidden="true">` of the box's
-  size, first in the drawing's `<figure>` and at its top left, so a
-  point in the scene is the same point in the figure's box; one element
-  per mark:
+- **Drawn as inline SVG:** an `<svg aria-hidden="true">` of the scene's
+  size (ui.md, 11.2), first in the drawing's `<figure>` and at its top
+  left, so a point in the scene is the same point in the figure's box; one
+  element per mark:
 
   | Mark | SVG |
   |---|---|
@@ -859,12 +859,21 @@ component instead (6.1).
   | rectangle, circle | `<rect>` with its corner radius, `<circle>` |
   | text | `<text>`, anchored at its start, middle or end |
 
+- **A scene that says its height** (ui.md, 11.2) has an SVG of the box's
+  width and that height, and the page part sets `data-scene-height` on the
+  figure, beside `data-drawn`, so that `skein-ui.css` puts the SVG in the
+  figure's flow and the figure is as high as its scene. The figure is
+  observed as any is, and measured again at that height it draws the same
+  SVG. The SVG itself says nothing of it, so a flow's bytes are its case's.
 - **A mark's tokens are classes,** by their names; its hint, never
   needed to decide, is a `<title>` in it, shown on hover. Colours,
   widths and fonts are the stylesheets' (section 12): a scene says none.
 - **Refused, never cut:** a scene past skein-ui's limits (marks and
   bytes per scene, a node's tokens per mark: ui.md, section 15) draws as
   its fallback.
+- **No cost for no drawing:** the page part makes its one scene, whose
+  storage is all reserved at once, the first time it draws, so a page with
+  no drawing reserves none of it.
 - **Drawn again** when the drawing's data changes (one patch), or when
   its box's size changes, which is the page part's alone: reported, it
   calls the drawing code again, with no step (ui.md, 11.4).
@@ -1036,12 +1045,18 @@ share sheet, a clipboard write, a file picked).
   that prints pages beside it without a bundle copies (temper's
   journeys). It:
   - hides a drawn drawing's fallback (`data-drawn`) from sight only,
-    taking no space, and places a scene's SVG at its figure's top left
-    (section 8);
+    taking no space, and places a scene's SVG at its figure's top left, or
+    in its flow where the scene says its height (`data-scene-height`,
+    section 8);
   - hides a completed item's word (`skein-ui-state-`) from sight only,
     in the same way (section 6);
   - gives every mark of a scene a default, strokes in the text's colour
     and no fill, and acting marks (`data-act`) `pointer-events: all`;
+  - gives a flow's tokens (ui.md, 11.5) a plain default, each rule under
+    `[data-drawn] > svg` so that it outweighs the marks' own: boxes outlined
+    in the text's colour on no fill, names at the body's size, captions
+    smaller and muted, arrows thin, a strong box filled with the text's
+    colour and its name the background's;
   - sets `--skein-ui-progress` from `data-progress` (section 6), one rule
     per whole percent, `[data-progress="42"] { --skein-ui-progress: 42%; }`,
     101 rules: the page sets no style inline, and CSS's typed `attr()`
@@ -1054,8 +1069,9 @@ share sheet, a clipboard write, a file picked).
     a region; section 7). A menu's item, which the arrow keys reach,
     keeps its outline;
   - follows the platform's light or dark preference, and reduced motion.
-- **It styles no token and places no region:** skein-ui reserves no
-  token names, and layout is never the tree's; it sets no palette. **No
+- **It styles no owner's token and places no region:** the flow's are
+  the only token names skein-ui reserves, and layout is never the tree's;
+  it sets no palette. **No
   style is a fact:** nothing a person must know is said by a class alone
   (ui.md, section 8).
 - **An owner's stylesheet** loads after it: its tokens, as classes by

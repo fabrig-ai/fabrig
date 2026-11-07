@@ -548,7 +548,7 @@ impl Typist {
     }
 }
 fn contains(bytes: &[u8], needle: &[u8]) -> bool {
-    needle.is_empty() || bytes.windows(needle.len()).any(|part| part == needle)
+    skein_lib::bytes::find(bytes, needle).is_some()
 }
 fn control<'a>(page: &'a [u8], label: &[u8]) -> Option<&'a [u8]> {
     page.split(|byte| *byte == b'\n').rev().find_map(|line| {

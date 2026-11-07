@@ -19,6 +19,17 @@ is bounded by the requester's role, with instructions alone naming that
 requester; a chat-called goal keeps asking its chat. The requester-only
 permission, agreed-goal shape and after-landing observations remain deferred
 (`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+Person-task questions read whole through `TaskText`, with context and
+choice buttons; short reads and cut message questions say so and link on.
+Goals opens the Draft-path sheet, which blocks an unfunded start and
+names open chats holding the pool. A goal's task bar counts landed change
+results; its row and headline say tasks done. More whole question bands,
+row landing counts and browser, walk and render checks remain later work
+(`client/README.md`, 3.5, 5.8, 5.14 and 11; `client/browser.md`, 5).
+Ctl distinguishes a retained decision from an unknown proposal, saying
+the latter may have been decided or replaced; returning decided first
+for an automatically replaced task proposal needs jig's decision history
+(`client/tools.md`, 7 and 14).
 Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
@@ -451,8 +462,11 @@ bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
 Home’s own sheet and the two unmocked entry paths remain distinct
 (`draft/repository-copies.md`). Settings’ connection pages share the
-welcome’s cards and panels and finish on Accounts or Forges; the browser
-stories are compiled, with temper/ui’s render check after landing
+welcome’s cards and panels and finish on Accounts or Forges. Failed
+making rows can be dismissed through their project's keyed request;
+absent rows are kept and running rows refused. The browser stories keep
+twelve tests by sharing setups, with no supplied passing result for the
+repaired stories; temper/ui’s render check follows landing
 (`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;

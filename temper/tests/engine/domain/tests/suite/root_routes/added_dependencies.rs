@@ -1,4 +1,4 @@
-//! A parent adds waits to its live delegate (jig's domain/tasks.md, 5.7 and 7).
+//! Batch dependencies and kept delegates (jig/docs/design/domain/tasks.md, 5.7 and 7).
 use super::*;
 
 fn finish_report(driver: &mut Driver, run: &engine::Assignment, words: &[u8]) {
@@ -21,28 +21,87 @@ fn assignments(driver: &Driver, task: u64) -> usize {
         .count()
 }
 
+fn four_delegate_settings() -> ([engine::Config; 2], engine::Limits) {
+    const PLAN_WRITES: u32 = 6_200;
+    let (mut configuration, mut bounds) = batch_settings(5, 1, 500, false, false, false);
+    for config in &mut configuration {
+        config.core.defaults.rules.ceiling.delegation.tasks = 5;
+        let policy = &mut config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.tasks = 5;
+        policy.roles[0].authority.delegation.tasks = 5;
+    }
+    bounds.tasks.tasks = 5;
+    bounds.tasks.project_tasks = 5;
+    bounds.tasks.tree_tasks = 5;
+    bounds.tasks.delegates = 4;
+    bounds.forge.tasks = 5;
+    bounds.people.inbox_tasks = 10;
+    bounds.tasks.inbox_messages = 12;
+    bounds.tasks.inbox_bytes = 768;
+    bounds.people.inbox_recipients = 29;
+    bounds.journal.writes = PLAN_WRITES;
+    (configuration, bounds)
+}
+
+#[test]
+fn one_batch_of_four_resolves_its_local_references_and_gates_only_the_fourth() {
+    let (configuration, mut bounds) = four_delegate_settings();
+    bounds.tasks.batch = 4;
+    bounds.authority.batch = 4;
+    // The durable call record holds the whole four-member batch.
+    let mut store_bounds = temper_engine_domain_world::store::widest();
+    store_bounds.tasks.batch = 4;
+    store_bounds.authority.batch = 4;
+    let mut driver = Driver::configured(Store::with_limits(&store_bounds), configuration, &bounds);
+    driver.send(hello_with(Token::new(7), 5, Duration::from_secs(1), Box::new([])));
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    chat(&mut driver, 12);
+    driver.settle();
+    let parent = assigned(&driver);
+    let children = call_batch(
+        &mut driver,
+        &parent,
+        922,
+        Box::new([
+            report_delegate(b"first prerequisite", Box::new([])),
+            report_delegate(b"second prerequisite", Box::new([])),
+            report_delegate(b"unrelated third work", Box::new([])),
+            report_delegate(b"fourth delegate", Box::new([engine::Dependency::Batch(0), engine::Dependency::Batch(1)])),
+        ]),
+    );
+    let [first, second, third, fourth] = *children else { panic!("one batch of four delegates") };
+    let runs = [assigned_task(&driver, first), assigned_task(&driver, second), assigned_task(&driver, third)];
+    assert_eq!(live(&driver, fourth).dependencies.as_ref(), [first, second]);
+    assert_eq!(live(&driver, fourth).waiting_on.as_ref(), [first, second]);
+    assert_eq!(assignments(&driver, fourth), 0);
+    for run in &runs {
+        assert_eq!(assignments(&driver, run.task), 1);
+        assert_eq!(
+            live(&driver, run.task).phase,
+            tasks::Phase::Active(tasks::Active::Running { attempt: run.attempt })
+        );
+    }
+    finish_report(&mut driver, &runs[0], b"first completion");
+    assert_eq!(assignments(&driver, fourth), 0);
+    assert_eq!(live(&driver, fourth).waiting_on.as_ref(), [second]);
+    finish_report(&mut driver, &runs[1], b"second completion");
+    assert_eq!(assignments(&driver, fourth), 1);
+    assert!(live(&driver, fourth).waiting_on.is_empty());
+    let fourth_run = assigned_task(&driver, fourth);
+    assert_eq!(
+        live(&driver, fourth).phase,
+        tasks::Phase::Active(tasks::Active::Running { attempt: fourth_run.attempt })
+    );
+    assert_eq!(live(&driver, third).phase, tasks::Phase::Active(tasks::Active::Running { attempt: runs[2].attempt }));
+}
+
 #[test]
 fn both_prerequisite_orders_and_completion_orders_gate_only_the_fourth_delegate() {
     // Five tasks: the director, two prerequisites, unrelated work and their waiter.
-    const PLAN_WRITES: u32 = 6_200;
     for (prerequisites, completions) in [([0, 1], [0, 1]), ([1, 0], [0, 1]), ([0, 1], [1, 0]), ([1, 0], [1, 0])] {
-        let (mut configuration, mut bounds) = batch_settings(5, 1, 500, false, false, false);
-        for config in &mut configuration {
-            config.core.defaults.rules.ceiling.delegation.tasks = 5;
-            let policy = &mut config.core.seed_projects[0].policy.policy;
-            policy.ceiling.delegation.tasks = 5;
-            policy.roles[0].authority.delegation.tasks = 5;
-        }
-        bounds.tasks.tasks = 5;
-        bounds.tasks.project_tasks = 5;
-        bounds.tasks.tree_tasks = 5;
-        bounds.tasks.delegates = 4;
-        bounds.forge.tasks = 5;
-        bounds.people.inbox_tasks = 10;
-        bounds.tasks.inbox_messages = 12;
-        bounds.tasks.inbox_bytes = 768;
-        bounds.people.inbox_recipients = 29;
-        bounds.journal.writes = PLAN_WRITES;
+        let (configuration, bounds) = four_delegate_settings();
         let mut driver = Driver::configured(Store::new(), configuration, &bounds);
         driver.send(hello_with(Token::new(7), 5, Duration::from_secs(1), Box::new([])));
         driver.settle();
@@ -168,6 +227,89 @@ fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
         .expect("dependency results in the resumed brief");
     let results = std::str::from_utf8(results).expect("brief text");
     assert!(results.contains("e1 landed") && results.contains("app repinned"), "{results}");
+}
+
+#[test]
+fn a_kept_delegate_resumes_with_its_committed_turns_and_its_journal_whole() {
+    const COMMITTED: &[u8] = b"kept report: the sibling must finish before I go on";
+    let (mut configuration, bounds) = batch_settings(3, 1, 500, false, false, false);
+    for config in &mut configuration {
+        config.core.defaults.charters[0].policy.resume = true;
+    }
+    let mut driver = Driver::configured(Store::new(), configuration, &bounds);
+    driver.send(hello_with(Token::new(7), 3, Duration::from_secs(1), Box::new([])));
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    chat(&mut driver, 12);
+    driver.settle();
+    let parent = assigned(&driver);
+    let children = call_batch(
+        &mut driver,
+        &parent,
+        923,
+        Box::new([report_delegate(b"kept delegate", Box::new([])), report_delegate(b"sibling", Box::new([]))]),
+    );
+    let [kept, sibling] = *children else { panic!("two delegates") };
+    let first = assigned_task(&driver, kept);
+    let sibling_run = assigned_task(&driver, sibling);
+    let mut amendment = task_amendment(None, None, b"wait for the sibling");
+    amendment.dependencies = Some(Box::new([sibling]));
+    let revision = live(&driver, kept).revisions.spec;
+    tool_call(
+        &mut driver,
+        &parent,
+        924,
+        engine::Tool::Amend { keep_parameters: false, target: kept, revision, amendment },
+    );
+    assert_eq!(live(&driver, kept).dependencies.as_ref(), [sibling]);
+    let read = live(&driver, kept).inbox.last().map(|word| word.number);
+    driver.send(protocol::turn(Token::new(7), kept, first.attempt, 1, 1, read, COMMITTED));
+    driver.settle();
+    driver.answer(
+        Token::new(7),
+        kept,
+        first.attempt,
+        1,
+        tasks::End::Finished { result: tasks::TaskResult::Report { words: COMMITTED.into() }, cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    driver.settle();
+    assert_eq!(live(&driver, kept).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(live(&driver, kept).waiting_on.as_ref(), [sibling]);
+    assert_eq!(assignments(&driver, kept), 1);
+    let milestones = |driver: &Driver| -> Vec<tasks::Milestone> {
+        driver
+            .store
+            .rows
+            .values()
+            .filter_map(|row| match row {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Milestone(row))) if row.task == kept => {
+                    Some(row.clone())
+                }
+                _ => None,
+            })
+            .collect()
+    };
+    let before = milestones(&driver);
+    assert_eq!(before.last().expect("kept lifecycle journal").phase, tasks::Phase::Active(tasks::Active::Idle));
+    finish_report(&mut driver, &sibling_run, b"sibling done");
+    assert_eq!(assignments(&driver, kept), 2);
+    let resumed = driver.last_assignment();
+    assert_eq!(resumed.task, kept);
+    assert!(resumed.attempt > first.attempt);
+    assert_eq!(resumed.transcript.as_ref(), [Box::<[u8]>::from(COMMITTED)]);
+    assert_eq!(
+        resumed
+            .messages
+            .iter()
+            .filter(|word| word.kind == tasks::MessageKind::Met { dependency: sibling, removed: false })
+            .count(),
+        1
+    );
+    let after = milestones(&driver);
+    assert!(after.len() > before.len(), "the next attempt adds lifecycle milestones");
+    assert!(after.starts_with(&before), "the kept journal remains an unchanged prefix: {before:?} -> {after:?}");
 }
 
 #[test]

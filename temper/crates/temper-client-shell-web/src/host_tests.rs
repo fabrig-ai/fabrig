@@ -466,6 +466,40 @@ fn the_patch_queue_is_reserved_once_at_start() {
 }
 
 #[test]
+fn a_flow_draws_on_temper_page_as_its_case() {
+    const CASE: &[u8] = include_bytes!("../../../../skein/docs/design/draft/diagrams/how-hello-works.md");
+    const SVG: &str = include_str!("../../../../skein/docs/design/draft/diagrams/how-hello-works.640.svg");
+    const FALLBACK: &str = "Design draft, you write it; then Goal, you start it; then Checked changes, CI and a review; then main, the merge queue.";
+    let bounds = fixture().bounds.tree;
+    let mut view = skein_ui::View::new(&bounds);
+    let mut builder = view.builder();
+    builder.open(Role::Page);
+    builder.open(Role::Main);
+    skein_ui::markdown::read(CASE, 1, &mut builder);
+    builder.close();
+    builder.close();
+    let mut out = Queue::with_capacity(bounds.patches);
+    view.finish(builder, 0, &mut out);
+    let mut patches = Vec::new();
+    while let Some(patch) = out.pop() {
+        patches.push(patch);
+    }
+    let drawing = view.tree().nodes().iter().find(|node| node.role == Role::Drawing).expect("flow drawing").id;
+    let mut page = page(&bounds, Primary::Control);
+    let mut ops = Vec::new();
+    page.apply(&patches, &mut ops);
+    for (width, expected) in [(640, Some(SVG.strip_suffix('\n').expect("case's final newline"))), (240, None)] {
+        page.resized(drawing, width, 0, &mut ops);
+        let html = page.html();
+        assert_eq!(html.contains("<svg"), expected.is_some(), "width {width}");
+        if let Some(svg) = expected {
+            assert!(html.contains(svg), "flow draws its exact case at width {width}: {html}");
+        }
+        assert!(html.contains(FALLBACK), "flow keeps its fallback at width {width}: {html}");
+    }
+}
+
+#[test]
 fn the_github_rows_external_web_link_has_its_address_and_noopener() {
     use temper_client_protocol_wire::v1 as w;
     for web in [None, Some(b"https://github.test/base/?a=1&b=2".as_slice())] {

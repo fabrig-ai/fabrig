@@ -29,6 +29,40 @@ fn a_goal_issue_follows_its_milestone_and_closes() {
 fn lost_issue_creation_answer_recovers_without_a_second_issue() {
     stories::run(Story::IssueCreation, Cut::None, 71).expect("issue creation uncertainty");
 }
+
+#[test]
+fn a_forked_cut_ends_as_a_fresh_cut_does() {
+    // PersonWords has the fewest native baseline commits: 17, versus IssueCreation's 21.
+    let story = Story::PersonWords;
+    let seed = 101;
+    let first_live = Temper::store(&Config::for_story(seed, story)).applied + 1;
+    let baseline = stories::run(story, Cut::None, seed).expect("baseline");
+    // Compare complete outcomes at the first, middle and last live cut. The
+    // forked sweep still runs every cut and checks every story and referee rule.
+    let compared = [first_live, first_live + (baseline.commits - first_live) / 2, baseline.commits];
+    let fresh = compared
+        .into_iter()
+        .map(|cut| {
+            let outcome = stories::run(story, Cut::AfterCommit(cut), seed).expect("fresh cut");
+            assert!(outcome.crashes.contains(&cut), "fresh cut {cut} fired");
+            (cut, outcome)
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let outcome = stories::run(story, Cut::EachCommitFrom(first_live), seed).expect("forked cuts");
+    if outcome.forked.is_empty() || outcome.crashes != baseline.crashes {
+        assert!(outcome.forked.is_empty(), "a child starts without the parent's completed cuts");
+        assert_eq!(outcome.crashes.len(), baseline.crashes.len() + 1, "one additional cold cut");
+        // The story also restarts itself; the complete crash list identifies its added cut.
+        let mut cuts = fresh.iter().filter(|(_, expected)| expected.crashes == outcome.crashes);
+        if let Some((cut, expected)) = cuts.next() {
+            assert!(cuts.next().is_none(), "crashes identify one cut");
+            assert_eq!(outcome, *expected, "cut {cut}");
+        }
+    }
+    jig_conformance::cut_passed();
+    assert_eq!(outcome.forked, (first_live..=baseline.commits).collect::<Vec<_>>(), "every live cut completed");
+}
+
 /// Crash one native story at its configured receipt cuts, including writer
 /// restoration, an already deleted branch, a lost milestone comment and a
 /// retained live-run word; its baseline runs above and in the fuzzy sweep.
