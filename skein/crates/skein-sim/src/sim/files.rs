@@ -286,6 +286,7 @@ impl Sim {
                 (Ask::List { dir: self.handle(pid, *fd), most, room }, 0)
             }
             Op::Close { fd } => {
+                self.process_mut(pid).windows.remove(fd);
                 let file = self.process_mut(pid).files.remove(fd).expect("checked a file's descriptor");
                 (Ask::Close { file: file.handle }, 0)
             }

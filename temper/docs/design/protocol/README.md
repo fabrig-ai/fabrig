@@ -175,7 +175,8 @@ deployment     temper init [DIRECTORIES] [--box]
                temper program-login [DIRECTORIES] NAME
                temper forge fetch|prepare|sign-in|remove [DIRECTORIES] FORGE
                temper forge run [DIRECTORIES] FORGE forgejo|runner
-clients        temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+clients        temper [ADDRESS]
+               temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
                temper ctl DIRECTORY --call FILE [--json]
                temper ctl help [GROUP [VERB]]
                temper open DIRECTORY LINK_OR_ADDRESS
@@ -263,6 +264,15 @@ default; the document is `temper.json` in the configuration directory
   temper reads it, a `"fetched"` program naming its launcher
   (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
   one process per run; a person never does.
+- **`temper [ADDRESS]`:** a person's full-screen terminal client, the
+  TUI (`../client/README.md`, 6.11). Bare `temper`, with stdin and
+  stdout both terminals, runs it at the address it last signed in to,
+  else at `http://127.0.0.1:8367`; with either not a terminal, it prints
+  `temper: no command; temper --help lists them` and exits 1, as before
+  the TUI. ADDRESS is the engine's clients' listener on loopback; the
+  sign-in link is pasted on the TUI's screen, never given. Its
+  directory is its own, under the person's state directory
+  (`../client/README.md`, 6.12). It reads no configuration file.
 - **`temper open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/README.md`, 6.1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per

@@ -1,0 +1,17 @@
+[package]
+name = "skein-ui-screen-terminal"
+description = "Full-screen terminal keys and frame drawing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-ui-screen.workspace = true
+skein-ui.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+
+[lints]
+workspace = true

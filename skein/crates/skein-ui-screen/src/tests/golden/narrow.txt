@@ -1,0 +1,11 @@
++
++
+R
+--
+a
+a
+b
+--
+a: bold
+b: fore #0000FF italic
+no cursor

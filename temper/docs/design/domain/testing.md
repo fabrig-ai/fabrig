@@ -2389,6 +2389,11 @@ world of temper's on a scripted engine (../client/README.md, section 10).
   engine root alone.
 - **The agents' tools** run there too: their root, as a scripted agent
   beside the fake person (../client/tools.md, 11.2).
+- **The TUI's host** runs there too (../client/README.md, 6.13): its
+  shipped host with its root linked, as a native shell holds it, whose
+  exchanges and stream the world's front carries to the engine's
+  clients' component as the transport would, signed in by the printed
+  link the component makes; its stories read the host's frames as text.
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
   the first (jig's `protocol/channel.md`, 6.4), and the fake person

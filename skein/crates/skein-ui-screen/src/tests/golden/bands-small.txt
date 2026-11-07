@@ -1,0 +1,16 @@
++- Title ----------+
+|First paragraph in|
+|the top.          |
+|Second paragraph. |
+Quit           Ready
+--
+aaa.....aaaaaaaaaaaa
+a..................a
+a..................a
+a..................a
+bbbb...........ccccc
+--
+a: bold
+b: fore #FF0000 bold
+c: fore #0000FF italic
+no cursor
