@@ -24,7 +24,7 @@ This departs from the implementer's text in two ways: its first commit is a fail
 
 Acceptance:
 
-1. `goal`'s declared description is, byte for byte, `agent.md`, 4.3.2's: "Have one goal in your words tracked and reported; it may plan, ask you and call change. Call it only for work your person wants agreed first (set agree) or a survey that changes nothing; with advisor set, it reads and reports and changes nothing. For a change to a repository, call change." Its schema is unchanged.
+1. `goal`'s declared description is, byte for byte, `agent.md`, 4.3.2's: "Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change." (156 bytes, within the 160-byte bound). Its schema is unchanged.
 2. `read_branches`'s `prefix` member is described "A nonempty prefix of the names, as temper/." (`BRANCHES_SCHEMA`), the rest of that schema unchanged.
 3. `answer_for_tool` renders `read_branches` with `Err(Empty)` and `read_branch` with `Err(Missing)` as `agent.md`, 4.3, *A refused branch read says what to read instead* has them: the first line, a full stop, a space, then the bullet's words exactly. Each is marked an error and cut to fit the bound as the compare's guidance is. Every other tool's `Missing` and `Empty`, and these two tools' other errors, keep their one line. `read_compare`'s `Forge read failed: missing` row in `read_compare_too_large_names_bounds_and_paged_fallback` stays as it is.
 4. The tests of Steps 1 pass and bite. `temper/docs/help/reference/host-tools.md` is regenerated (Steps 3), and `the_page_host_tools_is_what_the_declarations_render` passes.
@@ -98,3 +98,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the byte growth of the `goal` and `read_branches` declarations and the smallest stock brief room after it (as the start's check computes it), and the host-tools page's size against `PAGE_BYTES`.
+
+## Answers
+
+2026-11-07. **Q:** the 289-byte `goal` description that `agent.md`, 4.3.2 bound fails `every_description_is_within_its_bound` (160 bytes): raise the bound for `goal`, or change the words? **A:** change the words; the bound stays. The two design documents disagreed, and the 160-byte bound (`protocol/documentation.md`, 8) is the general rule every declaration, the help page and the stock briefs' room rest on, where the long text was this plan's own wording. `agent.md`, 4.3.2 now binds 156 bytes: "Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change." It keeps the when and the pointer to `change`; what `advisor` does stays in that member's description, unchanged. Acceptance 1 says so. Put these words in `calls.rs` and in the declaration test's expected text, keep the rest of the pushed work (the refusals, the prefix, the bounded refusal path), and carry on from Steps 3. Bite once more with the last sentence dropped. Report the stock brief room as the Report section asks.
