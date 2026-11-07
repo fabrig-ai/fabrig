@@ -186,8 +186,10 @@ at a row's size, and a landing draws no zero stale-proof count
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story measures each
-page and width from one boxed query, checks a wrapped text by its first
+change is handed from a live goal. The public landings check accepts a queued
+member or none before empty landings or a stock merge, with all four forms
+and malformed lines held by a focused table. The public geometry story measures
+each page and width from one boxed query, checks a wrapped text by its first
 quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk

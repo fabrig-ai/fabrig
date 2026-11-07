@@ -1359,7 +1359,7 @@ fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
                 main_find(
                     view.tree(),
                     Role::Paragraph,
-                    b"Nothing needs you. Work carries on, and this page tells you what changed when you come back.",
+                    b"Work carries on, and this page tells you what changed when you come back.",
                 );
                 let heading = main_find(view.tree(), Role::Heading { level: 2 }, b"Needs you");
                 assert!(!subtree(view.tree(), heading)[0].styles.as_slice().contains(&crate::look::HOME_SIGNAL));
@@ -3670,7 +3670,7 @@ fn answered_home(closed: &[jig_client::contract::TaskLine]) -> f::ReadPage {
 fn home_empty(root: &d::Domain, expected: bool) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
         let main = f::main_text(view.tree());
-        for word in [b"Nothing needs you. Work carries on".as_slice(), b"No chats yet."] {
+        for word in [b"Work carries on".as_slice(), b"No chats yet."] {
             assert_eq!(
                 skein_lib::bytes::find(&main, word).is_some(),
                 expected,
