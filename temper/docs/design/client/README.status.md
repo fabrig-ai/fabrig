@@ -47,8 +47,10 @@ configured sign-in way. Cookie fallback and command refusals remain
 section 11's later work.
 
 Section 3.5's terminal frame, commands, kept look, full screen, document,
-questions and compact cards are built (look-round-16). The four request
-accounts are the terminal-close commits carrying their respective trailers;
+questions and compact cards have no known implementation gap beyond
+the departures below. The four request accounts are `2f653fffa3`
+(`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
+(`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
 render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
 section 11).

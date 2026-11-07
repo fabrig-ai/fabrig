@@ -5,6 +5,12 @@
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.
 
+Sections 3.2, 4.2 and 14 have no known gap in a field's options: the
+builder restricts the state to a menu, and the outline requires a
+preceding text field in its innermost form. Section 10 has no known gap
+in underscore emphasis and strong, matching delimiter bytes and keeping
+underscores within words literal. Neither leaves deferred work here.
+
 Sections 3.2, 5, 7 and 15 have no known gap in a node's hint: the
 builder charges its bytes, including replacements, against the text
 bounds, and a changed hint travels in an attribute patch.

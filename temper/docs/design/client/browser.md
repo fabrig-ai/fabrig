@@ -1367,6 +1367,20 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
+  3.5): temper/ui compares the four `chat-terminal` requests' pages,
+  rules and named states with the nine gallery states and live page
+  after landing, at 1440, 1000 and 420 px, with menus and disclosures
+  open (`../draft/look-requests.md`, sections 4 and 5). Include dark
+  and light, both fonts, phone Split, a draft being written, tables,
+  changed-section flash, the figure, questions, proposals, delegations
+  and failures. Real keys check the full-screen behaviours named in
+  `README.md`, section 11. Default: the shared document rules and
+  focused tables and prints; these establish no rendered equality or
+  real-key result. Temper/ui retains the departures in
+  `browser.status.md`, 2.5: Plex's phone size, adjacent-note spacing and
+  options unchanged on hover.
+
 - **A filter row while its project's ways arrive** (2.3, 4.6): Drafts
   appears before Closed once the ways offer drafts, moving Closed under
   a person's pointer. Default: keep the conditional Drafts button; a

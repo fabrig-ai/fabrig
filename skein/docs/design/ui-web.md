@@ -1502,6 +1502,12 @@ parts carry, so that its tier tests each once.
 Each adds without changing what sections 3 to 14 settle, and waits for
 the application that needs it.
 
+- **Full screen with real keys** (section 11): the consuming application's
+  after-landing check exercises a short and a long Escape with the lock
+  granted, leaving through its own control, desktop shortcuts, and the
+  unavailable or refused lock. Default: the browser's full-screen and
+  keyboard-lock handling; host checks of reports and feature detection
+  do not establish what a real key does in each browser.
 - **The file picker,** an effect's part: asked in the turn of a person's
   act (section 11), it opens the platform's picker through an
   `<input type="file">` of its own, within the act's event, and reports

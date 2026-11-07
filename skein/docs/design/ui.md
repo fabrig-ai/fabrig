@@ -364,11 +364,11 @@ how far a piece of work has gone toward its end.
 ### 4.2 What is in, and what waits
 
 - **In:** the roles of 3.1, the states and properties of 3.2, the acts
-  of section 6.
+  of section 6. A text field with suggested options is a field and a
+  menu with *options* (3.2), not a role of its own.
 - **What waits,** each when an application needs it, by the criterion,
-  through the light path where it maps one to one (4.3): a combo
-  box (a text field with suggested options); a slider and a meter (a
-  value in a range); a switch; media, audio and video, with a source as
+  through the light path where it maps one to one (4.3): a slider and a
+  meter (a value in a range); a switch; media, audio and video, with a source as
   an image's; a feed and its act for an end reached (a windowed list
   asking for more when its last items come into view, a "more" button
   staying beside it); a list box choosing several; a tree grid;
@@ -1370,7 +1370,7 @@ a world's loop and the browser tier's run it.
 Each waits for what is named, and adds without changing what sections 3
 to 7 and 11 settle.
 
-- **The vocabulary of 4.2:** a combo box, a slider and a meter, a switch,
+- **The vocabulary of 4.2:** a slider and a meter, a switch,
   media, a feed and its act for an end reached, a list box choosing
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.

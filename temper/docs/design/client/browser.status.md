@@ -80,8 +80,9 @@ keeps it; publication is not a cutoff on a handed change's commit.
   contract asks for either, and records no reason for widening that rule.
 
 Section 2.5's terminal rules, tokens and bundled fonts and 7.2's nine
-`chat-terminal-*` gallery states are built (look-round-16). The shared
-shell document and flow rules win over the request's restated strong,
+`chat-terminal-*` gallery states have no known implementation gap beyond
+the departures below. The shared shell document and flow rules win over
+the request's restated strong,
 code, marker and figure-margin rules, as section 2.5 requires. Temper/ui's
 render comparison follows landing (section 5;
 `../draft/look-requests.md`, 4 and 5). Compilation and print checks

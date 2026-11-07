@@ -7063,6 +7063,21 @@ own tests:
 
 ## 11. Open questions
 
+- **The chat terminal after landing** (3.5): temper/ui compares
+  `chat-terminal`, `chat-terminal-font`, `chat-terminal-draft` and
+  `chat-terminal-esc` with the shipped view at 1440, 1000 and 420 px,
+  with menus and disclosures open and every state their messages name
+  (`../draft/look-requests.md`, sections 4 and 5). Include both themes
+  and fonts, the draft and its figure, questions, compact cards and
+  closed chats. Real keys check Chromium's short and long Escape,
+  Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,
+  and unavailable or refused keyboard lock, including insecure contexts.
+  Default: the shared page's acts, bounded notes, kept look, focused
+  tables and gallery states; compilation and print checks establish no
+  rendered equality or real-key result. The departures in
+  `README.status.md`, 3.5 remain temper/ui's: budget words, settings
+  proposal controls, case-sensitive commands and background focus.
+
 - **The approval flow after landing** (3.5, 4.6, 5.13): check the card's
   rendered look, the owned-Forgejo review link's sign-in, and a real human
   review on each forge. The joint-world Forgejo story holds the card and
