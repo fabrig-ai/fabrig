@@ -40,7 +40,7 @@ milestone that meets a question the draft leaves open takes its section
 
 | | Milestone | Executes (`tui.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | Connected | 4.1, 4.3, 4.4 | | not started |
+| M1 | Connected | 4.1, 4.3, 4.4 | | designed, building in `tui-connected` |
 | M2 | Approved | 4.2 | M1, for the TUI's flow alone | not started |
 | M3 | Recorded | 5 | M1, M2 | not started |
 

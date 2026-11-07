@@ -126,3 +126,13 @@ Acceptance:
 
 As the implementer's text says, and: how `PageUp` learns its rows, the
 cursor moves chosen, and the tests' time.
+
+## Answers
+
+### 2026-11-07: Resume after screen-surface pushes skein-ui-screen (recommended), or supply another approved dependency commit? The required crate is absent, so this task cannot compile or verify its acceptance. (tui-connected/screen-keys-1, foreman tui-connected/screen-keys/foreman-1)
+
+Resume after screen-surface supplies skein-ui-screen.
+The spec declares `needs = ["screen-surface"]`.
+Acceptance 1 requires “depending on `skein-ui-screen`, `skein-ui`, `skein-lib` and `skein-io`.”
+The next run merges the completed dependency, repairs against its binding contracts, and completes the required checks and mutation bites before committing and pushing.
+The partial implementation is not acceptance-complete.

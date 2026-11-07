@@ -124,3 +124,14 @@ gone from acceptance 4; in its place a table of the frame's bounds: a new
 frame 0 by 0, `clear` cut to `most` on each side, `row` and `put` refused
 past the size, the cursor none after `clear`. Keep it small: no frame of
 65,535 by 65,535 is made in a test.
+
+## Rebase (2026-11-07, step merge, foreman tui-connected/screen-surface/foreman-2)
+
+combine both status updates when rebasing screen-surface
+The merge conflicts only in `skein/docs/design/ui-screen.status.md`.
+Landing commit `c62e9ba4edcdfc87a74050ade38ce7319d7641ac` removes the completed panic-restoration hooks from section 8’s outstanding work.
+Resolve the shared **Not yet** paragraph by retaining both changes:
+- Keep section 2 as “2: `skein-ui-screen-terminal` and `tests/ui-screen`.”
+- Remove “3, 4: the theme, the frame and its print.”
+- Keep section 8 as “8: the terminal.”, preserving the landing’s removal of `Kept::on_abort` and skein-fail-stop’s `before_report`.
+Leave the remaining status text unchanged. No crate-code change is needed for this conflict.

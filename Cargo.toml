@@ -50,6 +50,7 @@ members = [
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
     "skein/crates/skein-ui-text",
+    "skein/crates/skein-ui-screen",
     "skein/crates/skein-ui-screen-terminal",
     "skein/crates/skein-ui-web",
     "skein/examples/ui/view",
@@ -367,6 +368,7 @@ web-sys = { version = "=0.3.103" }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
+skein-ui-screen = { path = "skein/crates/skein-ui-screen" }
 skein-ui-screen-terminal = { path = "skein/crates/skein-ui-screen-terminal" }
 skein-ui = { path = "skein/crates/skein-ui" }
 skein-ui-bundle = { path = "skein/crates/skein-ui-bundle" }

@@ -159,7 +159,7 @@ impl Decoder {
     pub fn read(&mut self, bytes: &[u8], keys: &mut skein_lib::Queue<Key>);
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]   // no Clone: skein_ui::Act has none, and no hand-written impl (programming-model.md, 10.3)
 pub enum Command {
     Act { node: skein_ui::NodeId, act: skein_ui::Act },
     Moved,    // the focus, its caret or the scroll moved: draw again
