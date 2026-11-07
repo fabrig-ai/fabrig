@@ -23,6 +23,8 @@ pub enum Kind {
     Grant,
     Sources,
     Check,
+    ReadList,
+    ListRead,
     SignOut,
     Logins,
     SignedOut,
@@ -63,6 +65,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0107, direction: Direction::FromInitiator, body: Kind::AccountRefused },
     KindRule { kind: 0x0108, direction: Direction::FromInitiator, body: Kind::Logins },
     KindRule { kind: 0x0109, direction: Direction::FromInitiator, body: Kind::SignedOut },
+    KindRule { kind: 0x010a, direction: Direction::FromInitiator, body: Kind::ListRead },
     KindRule { kind: 0x0180, direction: Direction::FromResponder, body: Kind::Assignment },
     KindRule { kind: 0x0181, direction: Direction::FromResponder, body: Kind::Message },
     KindRule { kind: 0x0182, direction: Direction::FromResponder, body: Kind::Relayed },
@@ -76,6 +79,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x018a, direction: Direction::FromResponder, body: Kind::SignOut },
     KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
     KindRule { kind: 0x018c, direction: Direction::FromInitiator, body: Kind::JobAnswer },
+    KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::ReadList },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -104,6 +108,8 @@ pub fn schema(limits: &v9::Limits) -> Result<Schema, Overflow> {
             Kind::Acknowledge => v9::Acknowledge::encoded_bound(limits),
             Kind::Cancel => v9::Cancel::encoded_bound(limits),
             Kind::Sources => v9::Sources::encoded_bound(limits),
+            Kind::ReadList => v9::ReadList::encoded_bound(limits),
+            Kind::ListRead => v9::ListRead::encoded_bound(limits),
             Kind::Check => v9::Check::encoded_bound(limits),
             Kind::SignOut => v9::SignOut::encoded_bound(limits),
             Kind::Logins => v9::Logins::encoded_bound(limits),

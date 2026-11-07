@@ -107,6 +107,7 @@ pub enum WorkerEvent {
 
 #[derive(Debug)]
 pub enum LinkEvent {
+    ReadList,
     Sources,
     Check,
     SignOut,

@@ -24,6 +24,14 @@ impl World {
 impl World {
     pub(super) fn account_request(&mut self, request: accounts::ToComponent) {
         let response = match request {
+            accounts::ToComponent::Want { account } if !self.hold_accounts && self.kept_llm_keys.contains(&account) => {
+                Some(accounts::FromComponent::Granted {
+                    form: Form::Credential(Scheme::Key),
+                    account,
+                    generation: self.next_account_generation(account),
+                    valid: accounts::KEY_VALID,
+                })
+            }
             accounts::ToComponent::Want { account: 1 } if !self.hold_accounts => {
                 Some(accounts::FromComponent::Granted {
                     form: Form::Credential(Scheme::Bearer),
@@ -121,6 +129,7 @@ impl World {
                 let response = if let Some(why) = self.fail_llm_key_keep.take() {
                     accounts::FromComponent::KeepFailed { account: source, why }
                 } else {
+                    self.kept_llm_keys.insert(source);
                     let generation = self.next_account_generation(source);
                     accounts::FromComponent::Granted {
                         form: Form::Credential(Scheme::Key),
@@ -134,6 +143,7 @@ impl World {
             accounts::Signing::Forget { source } => {
                 self.moved.remove(&source);
                 self.account_generations.remove(&source);
+                self.kept_llm_keys.remove(&source);
                 return;
             }
             accounts::Signing::Replaced { .. } | accounts::Signing::Restore { .. } | accounts::Signing::Restored => {

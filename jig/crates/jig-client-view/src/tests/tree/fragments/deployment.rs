@@ -120,6 +120,7 @@ fn waiting_account(until: Option<Wall>) -> Deployment {
     value
         .accounts
         .push(Account {
+            list: None,
             facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
@@ -196,6 +197,7 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
         value
             .accounts
             .push(Account {
+                list: None,
                 facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,
@@ -378,6 +380,7 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
         value
             .accounts
             .push(Account {
+                list: None,
                 facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,

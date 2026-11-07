@@ -24,6 +24,7 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
             return people::Outcome::AccountMovedIn { account, renewed };
         }
         accounts::Answer::Finishing { source } => return people::Outcome::AccountFinishing { source },
+        accounts::Answer::Reading { count } => return people::Outcome::AccountReading { count },
         accounts::Answer::Done => return people::Outcome::AccountChanged,
         accounts::Answer::Started { source, address } => {
             return people::Outcome::AccountSignInStarted { source, address };
@@ -91,6 +92,7 @@ pub(crate) fn change(
     change: people::AccountChange,
 ) -> Result<accounts::Change, people::Refusal> {
     Ok(match change {
+        people::AccountChange::ReadLists { provider } => accounts::Change::ReadLists { provider },
         people::AccountChange::DeclareProgram { provider, join, name } => {
             if let Some(number) = join {
                 let row = core.accounts.account(number).ok_or(people::Refusal::Unknown)?;

@@ -38,6 +38,7 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,
@@ -57,6 +58,7 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,

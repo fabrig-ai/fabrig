@@ -144,6 +144,7 @@ pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::Acc
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            list: None,
             facts: List::with_capacity(0),
             number: 1,
             place: 1,
@@ -314,6 +315,7 @@ pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::Deployment {
         document
             .accounts
             .push(c::Account {
+                list: None,
                 facts: List::with_capacity(0),
                 number: if *provider == Some(PROVIDER) { 42 } else { 43 },
                 place: 0,

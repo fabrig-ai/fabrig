@@ -4,7 +4,7 @@ use crate::{
     accounts::words::{join, provider_words},
     frame::Bindings,
     look,
-    words::{Shell, Word, Words},
+    words::{Shell, TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -15,7 +15,14 @@ use temper_client_domain::{
     pages::{Act, accounts, choice, models},
 };
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    times: &mut Times,
+) {
     settings::main(b);
     settings::open(b, root, w, bindings, project, Tab::Models);
     if !settings::missing(b, root, w, bindings, project)
@@ -41,7 +48,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
                     offered.push(model).expect("uncapped offered models");
                 }
             }
-            section(b, root, w, bindings, provider, offered.as_slice(), default);
+            section(b, root, w, bindings, provider, offered.as_slice(), default, times);
         }
         for member in &me.projects {
             if member.project == project && member.left_out != 0 {
@@ -59,6 +66,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.close();
 }
 
+#[expect(clippy::too_many_arguments, reason = "provider section carries its offer, default and clock together")]
 fn section(
     b: &mut Builder,
     root: &Domain,
@@ -67,6 +75,7 @@ fn section(
     provider: &c::ProviderOffer,
     models: &[&c::MeModel],
     default: Option<&[u8]>,
+    times: &mut Times,
 ) {
     if models.is_empty() {
         b.open(Role::Slot);
@@ -86,19 +95,74 @@ fn section(
         b.open(Role::Slot);
         b.style(look::MODELS_SOURCE);
         let paid = pays(root, provider.provider, w);
-        let stock = w.say(Word::ModelsStock, &[]);
+        let stock = source(root, provider.provider, name, w, times);
         let line = if paid.is_empty() { stock } else { join(&[&paid, b" ", &stock]) };
         b.open(Role::Text);
         b.style(look::SETTINGS_DETAIL);
         b.name(&line);
         b.text(Run::Plain, &line);
         b.close();
+        let page = root.pages().models();
+        if models::readable(root.client(), provider.provider) {
+            b.open(Role::Button);
+            b.style(look::SETTINGS_SMALL);
+            b.name(
+                &w.say(if page.reading(provider.provider) { Word::ModelsReading } else { Word::ModelsReadAgain }, &[]),
+            );
+            b.bind(bindings.insert(Act::Models(models::Act::Read(provider.provider))));
+            if page.reading(provider.provider) {
+                b.state(State::Disabled);
+            }
+            b.close();
+        }
         b.close();
+        if let Some(outcome) = page.read_refused(provider.provider) {
+            b.open(Role::Slot);
+            b.style(look::SETTINGS_REFUSAL);
+            crate::confirm::outcome_words(b, w, outcome);
+            b.close();
+        }
         for model in models {
-            row(b, root, w, bindings, model, default == Some(model.name.bytes()));
+            row(b, root, w, bindings, model, default == Some(model.name.bytes()), times);
         }
     }
     b.close();
+}
+
+fn source(root: &Domain, provider: u32, name: &[u8], w: &Words, times: &mut Times) -> Box<[u8]> {
+    let mut read = None;
+    let mut failed = None;
+    if let Some(me) = root.pages().me(root.client())
+        && let Some(document) = accounts::document(root.client())
+    {
+        for account in &document.accounts {
+            if account.provider != Some(provider) || account.holder != c::AccountHolder::Party(me.party.number) {
+                continue;
+            }
+            let mut usable = false;
+            for source in &account.sources {
+                usable |= source.usable;
+            }
+            if !usable {
+                continue;
+            }
+            if let Some(list) = &account.list {
+                read = read.max(list.read);
+                if list.failure.is_some() {
+                    failed = failed.max(list.tried);
+                }
+            }
+        }
+    }
+    let (word, at) = if let Some(at) = failed {
+        (Word::ModelsReadFailed, at)
+    } else if let Some(at) = read {
+        (Word::ModelsReadFrom, at)
+    } else {
+        return w.say(Word::ModelsStock, &[]);
+    };
+    let age = times.public_time(w, TimeForm::Ago, at);
+    w.say(word, &[Hole::Name(name.into()), Hole::Name(age)])
 }
 
 fn pays(root: &Domain, provider: u32, w: &Words) -> Box<[u8]> {
@@ -134,7 +198,15 @@ fn pays(root: &Domain, provider: u32, w: &Words) -> Box<[u8]> {
     clauses
 }
 
-fn row(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, model: &c::MeModel, is_default: bool) {
+fn row(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    model: &c::MeModel,
+    is_default: bool,
+    times: &mut Times,
+) {
     let terminal = w.shell == Shell::Terminal;
     b.open(if terminal { Role::Paragraph } else { Role::Slot });
     b.style(look::SETTINGS_SETTING);
@@ -162,6 +234,9 @@ fn row(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, model
     }
     if model.estimated {
         detail = join(&[&detail, &w.say(Word::ModelsEstimated, &[])]);
+    }
+    if times.model_new(model) {
+        detail = join(&[&detail, " · ".as_bytes(), &w.say(Word::ModelsNew, &[])]);
     }
     b.open(Role::Text);
     b.style(look::SETTINGS_DETAIL);

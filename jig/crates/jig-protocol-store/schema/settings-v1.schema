@@ -15,7 +15,7 @@ record Segment { bytes: bytes 4096 }
 record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
 record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
 enum ModelSource { stock, list, person }
-record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool }
+record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool first_read: option u64 }
 record ModelNumber { number: u32 }
 record CharterNumber { number: u32 }
 record TemplateNumber { number: u32 }
@@ -77,7 +77,8 @@ record Symbol { connector: u16 symbol: u16 }
 record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel }
 record Party { number: u64 }
-enum Decider { first_start, release, party: Party }
+record ListDecider { provider: u32 }
+enum Decider { first_start, release, party: Party, list: ListDecider }
 enum Proposer { task: Party, party: Party }
 record ProposalId { proposer: Proposer number: u32 }
 record Head { number: u32 against: u32 at: u64 by: Decider proposal: option ProposalId moved: bool }

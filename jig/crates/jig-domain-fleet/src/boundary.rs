@@ -133,6 +133,16 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    ReadList {
+        read: u64,
+        endpoint: u32,
+        grant: Grant,
+    },
+    ListRead {
+        channel: Token,
+        read: u64,
+        outcome: jig_domain_link::ListOutcome,
+    },
     /// Replace needs, retaining channels and their running attempts (engine.md, 17.2).
     Needs(crate::Needs),
     /// Desired absence for issued names; names remain in Sources for reconnect checks.
@@ -344,6 +354,16 @@ pub enum Event {
 /// fleet -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    ReadList {
+        channel: Token,
+        read: u64,
+        endpoint: u32,
+        grant: Grant,
+    },
+    ListRead {
+        read: u64,
+        outcome: jig_domain_link::ListOutcome,
+    },
     /// A usable login reports its account email (accounts.md, 3.7).
     ProgramEmail {
         name: Box<[u8]>,

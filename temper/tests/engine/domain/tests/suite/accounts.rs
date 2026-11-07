@@ -17,6 +17,7 @@ fn driver() -> Driver {
         }
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {
+                list: None,
                 number: 3,
                 name: Box::from(b"Issuer".as_slice()),
                 signed_in_plan: false,

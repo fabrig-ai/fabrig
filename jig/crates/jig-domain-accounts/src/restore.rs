@@ -25,7 +25,7 @@ fn hold(entry: &mut Source, env: &Env<Limits>, kept: Option<Held>) {
 }
 
 /// The time from now to a later wall time; none once it has passed.
-fn left(now: Wall, reset: Wall) -> Option<Duration> {
+pub(crate) fn left(now: Wall, reset: Wall) -> Option<Duration> {
     match reset.as_nanos().checked_sub(now.as_nanos()) {
         Some(0) | None => None,
         Some(nanos) => Some(Duration::from_nanos(nanos)),
@@ -86,13 +86,14 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
             }
             assert!(domain.said.insert(account, facts).is_ok(), "loaded facts fit {key:?}");
         }
-        Stored::Account { number, provider, holder, place, uses, subject, display } => {
+        Stored::Account { number, provider, holder, place, uses, subject, display, list } => {
             assert!(!domain.accounts.contains_key(&number), "duplicate account record {key:?}");
             if domain.accounts.len() >= env.limits.accounts.min(domain.accounts.capacity()) {
                 refuse(domain, key, RestoreSet::Accounts, env.limits.accounts.min(domain.accounts.capacity()));
                 return;
             }
             let entry = Account {
+                list,
                 provider,
                 holder,
                 place,

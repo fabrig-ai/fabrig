@@ -1103,3 +1103,26 @@ fn cancellation_before_a_starting_fault_keeps_the_cancellation() {
         }
     );
 }
+
+#[test]
+fn a_list_read_without_a_machine_answers_agent_immediately() {
+    let mut h = Harness::new();
+    let requests = h.step(Event::Down(LinkDown::ReadList {
+        read: 7,
+        endpoint: 3,
+        grant: crate::Grant {
+            form: crate::Form::Credential(crate::Scheme::Key),
+            account: 1,
+            generation: 2,
+            valid: skein_lib::Duration::ZERO,
+        },
+    }));
+    assert_eq!(
+        &*requests,
+        &[Request::Up(LinkUp::ListRead {
+            read: 7,
+            outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+        })]
+    );
+    assert_eq!(h.domain.hosted(), 0);
+}

@@ -7,6 +7,9 @@ pub(super) fn encode(
     limits: &wire::Limits,
 ) -> Result<wire::AccountChange, wire::Problem> {
     Ok(match value {
+        domain::AccountChange::ReadLists { provider } => wire::AccountChange::ReadLists(
+            wire::AccountChangeReadLists::new(limits, wire::AccountChangeReadListsParts { provider: *provider })?,
+        ),
         domain::AccountChange::MoveOut { account } => wire::AccountChange::MoveOut(wire::AccountChangeMoveOut::new(
             limits,
             wire::AccountChangeMoveOutParts { account: *account },
@@ -101,6 +104,7 @@ pub(super) fn decode(value: wire::AccountChange) -> Result<domain::AccountChange
             }
             domain::AccountChange::DeclareProgram { provider: value.provider, join: value.join, name: value.name }
         }
+        wire::AccountChange::ReadLists(value) => domain::AccountChange::ReadLists { provider: value.provider() },
         wire::AccountChange::CheckProgram(value) => domain::AccountChange::CheckProgram { source: value.source() },
         wire::AccountChange::AddKey(value) => {
             let value = value.into_parts();

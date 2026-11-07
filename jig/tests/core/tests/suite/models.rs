@@ -25,6 +25,7 @@ fn configured(count: u32) -> (root::Config, root::Limits) {
                 model.name = format!("stock-{number}").into_bytes().into_boxed_slice();
             }
             s::CatalogueModel {
+                first_read: None,
                 number,
                 model,
                 shown: None,
@@ -221,13 +222,26 @@ fn a_prices_change_makes_a_charter_version() {
 
 #[test]
 fn a_withdrawn_model_leaves_the_offer_and_the_resolution() {
-    let (mut config, limits) = configured(2);
-    config.core.defaults.charters[0].policy.alternatives = Box::new([config.core.defaults.models[1].model.clone()]);
-    let (mut world, signed) = start_with(config, &limits);
-    apply(&mut world, signed, s::Item { setting: s::Setting::Model(1), edit: s::Edit::Removed });
-    assert!(entry(&world, 1).withdrawn);
-    assert_eq!(world.domain.core_mut().charter(1).expect("next named model").policy.model.name.as_ref(), b"stock-2");
-    assert!(!frame(&mut world, signed).projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 0));
+    for (source, withdrawn, expected) in [
+        (s::ModelSource::Stock, false, s::ModelSource::Stock),
+        (s::ModelSource::List, false, s::ModelSource::Person),
+        (s::ModelSource::List, true, s::ModelSource::Person),
+        (s::ModelSource::Person, false, s::ModelSource::Person),
+    ] {
+        let (mut config, limits) = configured(2);
+        config.core.defaults.charters[0].policy.alternatives = Box::new([config.core.defaults.models[1].model.clone()]);
+        config.core.defaults.models[0].source = source;
+        config.core.defaults.models[0].withdrawn = withdrawn;
+        let (mut world, signed) = start_with(config, &limits);
+        apply(&mut world, signed, s::Item { setting: s::Setting::Model(1), edit: s::Edit::Removed });
+        assert!(entry(&world, 1).withdrawn);
+        assert_eq!(entry(&world, 1).source, expected);
+        assert_eq!(
+            world.domain.core_mut().charter(1).expect("next named model").policy.model.name.as_ref(),
+            b"stock-2"
+        );
+        assert!(!frame(&mut world, signed).projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 0));
+    }
 }
 
 #[test]

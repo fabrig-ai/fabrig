@@ -85,7 +85,7 @@ pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
                     Some(value) => value.as_model(),
                     None => None,
                 } {
-                    if !model.withdrawn {
+                    if !model.withdrawn || model.source == super::ModelSource::List {
                         return true;
                     }
                     continue;
@@ -146,6 +146,9 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
                     Some(super::Value::Model(value)) => {
                         let mut value = value.clone();
                         value.withdrawn = true;
+                        if value.source == super::ModelSource::List {
+                            value.source = super::ModelSource::Person;
+                        }
                         Some(Some(super::Value::Model(value)))
                     }
                     Some(

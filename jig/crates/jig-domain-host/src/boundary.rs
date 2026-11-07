@@ -22,6 +22,10 @@ pub enum Undecoded {
 /// parent -> host
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    ListRead {
+        read: u64,
+        outcome: jig_domain_link::ListOutcome,
+    },
     Agent(FromAgent),
     Job(FromJob),
     SourceAnswered {
@@ -78,6 +82,14 @@ pub enum Event {
 /// host -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    ReadList {
+        read: u64,
+        endpoint: u32,
+        grant: Grant,
+    },
+    CancelRead {
+        read: u64,
+    },
     Agent(ToAgent),
     Job(ToJob),
     DeliverJob {
@@ -553,7 +565,8 @@ impl Event {
             Event::Agent(event) => event.new_work(),
             Event::Opened { .. } => true,
             Event::Down(event) => match event {
-                crate::LinkDown::Sources { .. }
+                crate::LinkDown::ReadList { .. }
+                | crate::LinkDown::Sources { .. }
                 | crate::LinkDown::Check { .. }
                 | crate::LinkDown::SignOut { .. }
                 | crate::LinkDown::AssignJob { .. }
@@ -565,7 +578,8 @@ impl Event {
                 | crate::LinkDown::Cancel { .. }
                 | crate::LinkDown::Grant { .. } => false,
             },
-            Event::Job(_)
+            Event::ListRead { .. }
+            | Event::Job(_)
             | Event::SourceAnswered { .. }
             | Event::SourceLost
             | Event::RelayCancelled { .. }

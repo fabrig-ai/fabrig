@@ -560,7 +560,7 @@ impl Rules {
     }
 }
 
-struct Roots<'a>(&'a jig_test_service::Service);
+pub(crate) struct Roots<'a>(pub(crate) &'a jig_test_service::Service);
 impl std::fmt::Debug for Roots<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt_roots(formatter)
