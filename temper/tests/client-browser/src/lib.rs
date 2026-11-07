@@ -269,6 +269,7 @@ impl Tier {
             "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
         });
         account_provider(&mut value, &sign_in);
+        welcome_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         let mut peer = issuer::peer(address, &sign_in);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held issuer listener");
@@ -384,6 +385,18 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     }]);
 }
 
+/// The welcome's own provider on the same issuer, whose one subject would renew on the first
+/// provider (temper/docs/design/client/browser.md, 4.2). A provider claims its models alone.
+fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
+    let mut model = value["engine"]["llm"]["models"][0].clone();
+    model["name"] = "welcome-fake".into();
+    value["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
+    value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
+        "name":"Welcome provider", "number":18, "signed_in_plan":false, "models":["welcome-fake"],
+        "sources":{"keys":true,"sign_in":sign_in}
+    }));
+}
+
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
 fn copy_bundle(from: &Path, to: &Path) {
     fs::create_dir(to).expect("private bundle directory");
@@ -413,6 +426,25 @@ mod tests {
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
         let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
             .expect("browser deployment admits stock settings");
+        assert_eq!(shape, temper_service::startup::Shape::Standalone);
+    }
+    #[test]
+    fn the_sign_in_tiers_two_providers_pass_startup_validation() {
+        let (_, mut value) = tier_configuration();
+        let origin = "http://127.0.0.1:9";
+        let sign_in = serde_json::json!({
+            "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
+            "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
+            "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
+            "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
+        });
+        super::account_provider(&mut value, &sign_in);
+        super::welcome_provider(&mut value, &sign_in);
+        let shape = temper_service::startup::shape(
+            &serde_json::to_vec(&value).expect("two-provider deployment JSON"),
+            &jig_protocol_config::Directories::working(),
+        )
+        .expect("browser deployment admits two sign-in providers");
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
     }
     #[test]
