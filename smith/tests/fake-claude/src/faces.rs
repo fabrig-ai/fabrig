@@ -42,16 +42,15 @@ pub(crate) fn file_arguments(arguments: &[Box<[u8]>], directory: &Path) -> Optio
     let paths: Vec<_> = arguments
         .windows(2)
         .enumerate()
-        .filter(|(_, pair)| matches!(pair[0].as_ref(), b"--mcp-config" | b"--append-system-prompt-file"))
+        .filter(|(_, pair)| {
+            matches!(pair[0].as_ref(), b"--mcp-config" | b"--append-system-prompt-file" | b"--system-prompt-file")
+        })
         .map(|(index, pair)| (index + 1, directory.join(std::ffi::OsStr::from_bytes(&pair[1]))))
         .collect();
-    let rooted = paths.iter().any(|(_, path)| path.is_absolute());
+    let rooted = directory.is_absolute() || paths.iter().any(|(_, path)| path.is_absolute());
     let mut relative = arguments.to_vec();
     for (index, path) in &paths {
         relative[*index] = path.strip_prefix("/").unwrap_or(path).as_os_str().as_bytes().into();
-    }
-    if paths.is_empty() {
-        return None;
     }
     // `/.' also maps to the simulated machine's root through its startup hook.
     let root = if rooted { b"/.".to_vec() } else { b".".to_vec() };

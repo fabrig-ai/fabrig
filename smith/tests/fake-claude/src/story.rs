@@ -108,6 +108,10 @@ impl Story {
 pub struct Observation {
     /// The invocation's arguments, excluding the program name.
     pub arguments: Vec<String>,
+    /// The working directory supplied at startup.
+    pub directory: String,
+    /// Whether the working directory contained an entry at startup.
+    pub directory_has_entries: bool,
     /// The invocation's environment variable names, without their values.
     pub environment: Vec<String>,
 }

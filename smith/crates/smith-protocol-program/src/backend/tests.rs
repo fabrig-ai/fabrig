@@ -75,6 +75,7 @@ fn command_keeps_the_inline_schema_in_one_argument() {
         9,
         b"9213b8f4-a680-416e-a34c-6718a9575807",
         b"",
+        false,
     )
     .expect("bounded command");
     let flag = arguments.iter().position(|argument| argument.as_ref() == b"--json-schema").expect("schema flag");
@@ -204,4 +205,86 @@ fn invalid_limits_are_refused() {
     settings.prompt_bytes = u64::MAX;
     settings.receiving.max_completion_bytes = u64::MAX;
     assert!(super::backend_valid(&settings));
+}
+
+#[test]
+fn launch_uses_the_workspace_policy() {
+    use super::Root;
+    use skein_io::kernel;
+    use skein_lib::Token;
+    use smith_domain::llm;
+    use smith_protocol_llm::FromDomain;
+
+    const EMPTY_INIT: &[u8] =
+        br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":[]}"#;
+    const INSPECT_INIT: &[u8] = br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["Read","Glob","Grep"]}"#;
+    const SUMMARY_INIT: &[u8] = br#"{"type":"system","subtype":"init","mcp_servers":[],"tools":[]}"#;
+    for (label, workspace, summary, prompt_flag, tools, disabled, directory, init) in [
+        (
+            "no workspace",
+            None,
+            false,
+            b"--system-prompt-file".as_slice(),
+            b"".as_slice(),
+            true,
+            b"work".as_slice(),
+            EMPTY_INIT,
+        ),
+        (
+            "a workspace",
+            Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) }),
+            false,
+            b"--append-system-prompt-file",
+            b"Read,Glob,Grep",
+            false,
+            b"",
+            INSPECT_INIT,
+        ),
+        ("no workspace summary", None, true, b"--system-prompt-file", b"", true, b"work", SUMMARY_INIT),
+        (
+            "a workspace summary",
+            Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) }),
+            true,
+            b"--append-system-prompt-file",
+            b"",
+            false,
+            b"",
+            SUMMARY_INIT,
+        ),
+    ] {
+        let mut backend = fixtures::resumable();
+        backend.settings.workspace = workspace;
+        fixtures::new_window([0; 16], &mut backend);
+        let mut request = fixtures::request(&backend);
+        let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
+        prompt.tools.inspect = true;
+        if summary {
+            prompt.purpose = llm::Purpose::Compaction { room: 1000 };
+        }
+        fixtures::claim_completion(fixtures::COMPLETION, &mut backend);
+        fixtures::retain_request(request, &mut backend);
+        let spawn = backend.launch_spec().expect("launch");
+        let value = |flag: &[u8]| {
+            let index = spawn.args.iter().position(|argument| argument.as_ref() == flag).expect("flag");
+            spawn.args[index + 1].as_ref()
+        };
+        assert_eq!(value(prompt_flag), backend.run_path(b"instructions.md").as_ref(), "{label}: prompt flag");
+        assert_eq!(value(b"--tools"), tools, "{label}: built-ins");
+        assert_eq!(
+            spawn.args.iter().any(|arg| arg.as_ref() == b"--disable-slash-commands"),
+            disabled,
+            "{label}: slash commands"
+        );
+        let expected = if directory.is_empty() {
+            Box::default()
+        } else {
+            skein_lib::bytes::concat(&[&backend.run_relative(), b"/", directory])
+        };
+        assert_eq!(spawn.dir, expected, "{label}: working directory");
+        assert_eq!(spawn.root, workspace.or(backend.settings.directory).expect("root").descriptor);
+        let mut up = skein_lib::Queue::uncapped();
+        let mut below = skein_lib::Queue::uncapped();
+        backend.later_init(&fixtures::env(0), init, &mut up, &mut below);
+        assert!(up.is_empty(), "{label}: the init agrees with the launch: {up:?}");
+    }
 }

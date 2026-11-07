@@ -259,6 +259,9 @@ fn refused_flags_exit_2() {
         }
         cases.push(invalid);
     }
+    let mut both = args.clone();
+    both.extend(["--system-prompt-file".into(), "unread".into()]);
+    cases.push(both);
     for invalid in cases {
         let run = print::run(
             Story::default(),
@@ -324,19 +327,32 @@ fn an_invalid_configuration_exits_one() {
 
 #[test]
 fn optional_flags_accept_values_in_any_order() {
-    let mut args = print::arguments();
-    let tool = args.iter().position(|argument| argument == "--tools").expect("tools");
-    args[tool + 1].clear();
-    let print = args.remove(0);
-    args.extend(["--effort".into(), "opaque-level".into(), "--max-turns".into(), "1".into(), print]);
-    let run = print::run(
-        Story::default(),
-        print::invocation(2).arguments(&args.iter().map(String::as_str).collect::<Vec<_>>()),
-        None,
-        Some(MCP),
-    );
-    assert_eq!(messages(&run)[0]["tools"], json!([]));
-    assert_eq!(results(&run).len(), 2);
+    for (prompt, extra) in
+        [("--append-system-prompt-file", Vec::new()), ("--system-prompt-file", vec!["--disable-slash-commands".into()])]
+    {
+        let mut args = print::arguments();
+        let tool = args.iter().position(|argument| argument == "--tools").expect("tools");
+        args[tool + 1].clear();
+        *args.iter_mut().find(|argument| *argument == "--append-system-prompt-file").expect("prompt flag") =
+            prompt.into();
+        let print = args.remove(0);
+        args.extend(["--effort".into(), "opaque-level".into(), "--max-turns".into(), "1".into(), print]);
+        args.extend(extra);
+        let run = print::run(
+            Story::default(),
+            print::invocation(2).arguments(&args.iter().map(String::as_str).collect::<Vec<_>>()),
+            None,
+            Some(MCP),
+        );
+        assert_eq!(
+            run.records[0].exit,
+            Some(Exit::Code(0)),
+            "{prompt}: {}",
+            String::from_utf8_lossy(&run.records[0].stderr)
+        );
+        assert_eq!(messages(&run)[0]["tools"], json!([]));
+        assert_eq!(results(&run).len(), 2);
+    }
 }
 
 #[test]
