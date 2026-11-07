@@ -12,8 +12,6 @@ Sections 8 and 12 have no known gap in the lazy scene, its stated
 height, the SVG in its figure's flow, or the flow tokens' default look.
 The host table reads the Markdown cases and compares their SVG bytes.
 
-- **Not yet:** 14.2: no step awaits a control pressed; a story reads a
-  toggle's state only by a selector's `aria-pressed`, read once.
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and
