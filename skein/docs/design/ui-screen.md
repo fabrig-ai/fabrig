@@ -143,7 +143,8 @@ the tree's nodes and the frame's cells.
   line at the same indentation.
 - **Wrapped at its room:** a line longer than its region's inner width
   breaks at its last space within it, else at the width, and goes on at
-  the same indentation.
+  the same indentation. A code block keeps each line's first columns,
+  cut at the room instead of wrapped, so a wrap invents no code line.
 
 ### 5.2 The bands
 
@@ -182,7 +183,12 @@ the tree's nodes and the frame's cells.
     region and its paint set it apart;
   - *paints:* each cell takes the base, its region's paint, its tokens'
     looks, and the focus's paint while its node has the focus; a code
-    run keeps its backticks.
+    run keeps its backticks;
+  - *a log:* its entries are laid whole, oldest first, without the text
+    shell's `(up, down: more lines)` command hint; reporting an edge in
+    view is deferred to section 10;
+  - *a code block:* its lines are indented four spaces and cut rather
+    than wrapped (5.1).
 - **A spread region** lays each child's first line on one row, the first
   child from the row's start and the others from its end, two spaces
   between them, each child's paint its own; what does not fit is cut from
@@ -354,7 +360,8 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
   only by hand, built from fixture trees through skein-ui's builder and a
   fixture theme, with no application's view:
   - a tree with every role, every state and every property, as the text
-    shell's golden has it (ui-text.md, section 8), at 80 by 24;
+    shell's golden has it (ui-text.md, section 8), at 80 by 24, and at
+    80 by 144 to hold the whole tree;
   - regions placed at the top, framed with a title, and at the bottom,
     spread, around a body; the same in a frame too small for them;
   - wrapping, a wide glyph at a row's end, control characters and bytes
@@ -384,6 +391,8 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
 
 ## 10. Later
 
+- **Aligned table columns:** rows now join their cells with ` | ` and
+  wrap as any line (5.3); column widths shared across rows are later.
 - **Grapheme clusters:** a combining mark joined to the cell before it,
   and an emoji sequence as one glyph, in place of marks not drawn.
 - **A log's edge near** (ui.md, section 6): the renderer measures which

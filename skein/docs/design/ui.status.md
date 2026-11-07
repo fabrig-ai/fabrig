@@ -5,6 +5,10 @@
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.
 
+Sections 2 and 16 include the full-screen shell's two crates; its own
+remaining departure and deferred work are in `ui-screen.status.md` and
+`ui-screen.md`, section 10.
+
 Sections 3.2, 4.2 and 14 have no known gap in a field's options: the
 builder restricts the state to a menu, and the outline requires a
 preceding text field in its innermost form. Section 10 has no known gap

@@ -971,6 +971,9 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 
 Each document keeps its own; these cross them:
 
+- **The TUI's later passes** (section 4): the browser's approval,
+  recording and post-landing terminal walk stay with the client's
+  design (`../client/README.md`, section 11).
 - **Names while running.** io connects to addresses, resolved at
   startup, while a forge's address may move behind its CDN, and a name
   that does not resolve at the start leaves its forge unreachable for
