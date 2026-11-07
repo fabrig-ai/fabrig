@@ -53,3 +53,23 @@ id = 3
 story = "A run reads its charter's shared instructions and the parts its reasons meet, and a message no part of it covers waits in the inbox for the run after"
 parts = ["offering", "parts"]
 walk = false
+
+[[part]]
+id = "later"
+title = "A task's later choice, checked as the first is and taken by every run after its first activation"
+mode = "direct"
+needs = ["offering", "parts"]
+design = "jig/docs/design/domain/tasks.md, 3"
+
+[[part]]
+id = "story"
+title = "The per-wake story in the core world"
+mode = "direct"
+needs = ["offering", "parts", "later"]
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[slice]]
+id = 4
+story = "In the core world, a task's first run reads its shared text and first part at its first choice; a question arriving then waits and wakes the next run, which reads the question part at its later choice"
+parts = ["later", "story"]
+walk = false
