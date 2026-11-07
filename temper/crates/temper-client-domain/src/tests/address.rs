@@ -30,9 +30,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Builders { project: u32::MAX }, b"/projects/4294967295/settings/builders"),
         (Address::Repositories { project: 3 }, b"/projects/3/settings/repositories"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
-        (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
-        (Address::Configure { project: u32::MAX }, b"/projects/4294967295/settings/configure"),
-        (Address::Configure { project: 3 }, b"/projects/3/settings/configure"),
+        (Address::Ask { project: 0 }, b"/projects/0/ask"),
+        (Address::Ask { project: u32::MAX }, b"/projects/4294967295/ask"),
+        (Address::Ask { project: 3 }, b"/projects/3/ask"),
     ];
     for (address, path) in pages {
         assert_eq!(&*print(&address), path, "{address:?}");
@@ -75,7 +75,7 @@ fn the_inbox_prints_its_set_fields_in_one_order() {
 #[test]
 fn another_pages_query_is_dropped() {
     assert_eq!(parse(b"/chats/7?x=1"), Place::Address(Address::Chat { task: 7 }));
-    assert_eq!(parse(b"/projects/3/settings/configure?x=1"), Place::Address(Address::Configure { project: 3 }));
+    assert_eq!(parse(b"/projects/3/ask?x=1"), Place::Address(Address::Ask { project: 3 }));
 }
 
 #[test]
@@ -112,8 +112,8 @@ fn one_trailing_slash_is_ignored() {
         (&b"/chats/7/"[..], Place::Address(Address::Chat { task: 7 })),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
-        (b"/projects/3/settings/configure/", Place::Address(Address::Configure { project: 3 })),
-        (b"/projects/3/settings/configure//", Place::Missing),
+        (b"/projects/3/ask/", Place::Address(Address::Ask { project: 3 })),
+        (b"/projects/3/ask//", Place::Missing),
     ] {
         assert_eq!(parse(path), expected, "{path:?}");
     }
@@ -141,13 +141,14 @@ fn a_path_that_is_no_page_is_missing() {
         b"/projects/x/goals",
         b"/projects/3/goals/extra",
         b"/projects/99999999999/settings",
-        b"/projects/4294967296/settings/configure",
-        b"/projects/01/settings/configure",
-        b"/projects/x/settings/configure",
-        b"/projects//settings/configure",
-        b"/projects/-1/settings/configure",
-        b"/projects/+1/settings/configure",
-        b"/projects/3/settings/configure/extra",
+        b"/projects/4294967296/ask",
+        b"/projects/01/ask",
+        b"/projects/x/ask",
+        b"/projects//ask",
+        b"/projects/-1/ask",
+        b"/projects/+1/ask",
+        b"/projects/3/ask/extra",
+        b"/projects/3/settings/configure",
         b"/projects/1/board",
         b"/projects/3/adopt/x",
         b"//",

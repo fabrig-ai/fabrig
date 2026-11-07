@@ -53,7 +53,7 @@ impl Case {
         }
         member.templates = templates;
         if self.configuring {
-            let mut template = super::goals::template(3, b"Configure", false);
+            let mut template = super::goals::template(5, b"Ask temper", false);
             template.executor = c::TemplateExecutor::Charter(1);
             member.templates.push(template).unwrap();
         }

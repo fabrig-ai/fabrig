@@ -11,8 +11,8 @@ use jig_client::contract as c;
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 
-const TITLE: &[u8] = b"Configure temper";
-const ENTRY: &[u8] = b"Describe how you work, or what to change";
+const TITLE: &[u8] = b"Ask temper";
+const ENTRY: &[u8] = b"Ask temper, or tell it how you work";
 const STARTERS: [&[u8]; 4] = [
     b"Not sure yet. What can temper do?",
     b"I work alone on small changes: one chat per change, landed once CI passes.",
@@ -36,7 +36,7 @@ const DRAFT: &[u8] = b"My way of working";
 const UNKNOWN: u32 = 99;
 
 fn root() -> d::Domain {
-    f::playground_root(Address::Configure { project: f::PROJECT }, f::PROJECT, true)
+    f::playground_root(Address::Ask { project: f::PROJECT }, f::PROJECT, true)
 }
 fn input(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
@@ -109,7 +109,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
                     (Role::Heading { level: 1 }, vec![]),
                 ],
             ),
-            (look::TRAIL, vec![(Role::Link, vec![]), (Role::Link, vec![])]),
+            (look::TRAIL, vec![(Role::Link, vec![])]),
             (look::CONVO, vec![(Role::Slot, vec![look::THREAD]), (Role::Form, vec![look::SESSION_FOOT])]),
             (look::THREAD, vec![(Role::Slot, vec![look::STARTER])]),
             (
@@ -201,6 +201,20 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
         assert_eq!(named(tree, Role::Button, UNSURE.as_bytes()).styles.as_slice(), [look::STARTER_UNSURE]);
         assert!(f::find(tree, Role::Disclosure, b"Model").is_some());
     }
+    let (mut absent, watch, _) = f::root_at(Address::Ask { project: f::PROJECT }, &f::domain_limits());
+    let mut me = absent.pages().me(absent.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates = skein_lib::List::from_boxed(
+        project.templates.iter().filter(|template| template.number != 5).cloned().collect(),
+    );
+    f::deliver_me(&mut absent, watch, me);
+    input(&mut absent, pages::Act::ChatWords { words: b"How does temper work?".as_slice().into() });
+    for view in [f::page_view(&absent), f::browser_page_view(&absent)] {
+        let tree = view.tree();
+        assert!(disabled(named(tree, Role::Button, b"Send")));
+        assert!(disabled(named(tree, Role::TextArea, ENTRY)));
+        assert!(String::from_utf8_lossy(&f::text(tree)).contains("Ask temper isn't set up in this project."));
+    }
 }
 
 #[test]
@@ -225,11 +239,9 @@ fn starters_composer_and_path_emit_the_requested_acts() {
         assert_eq!(crate::act(&mut view, send, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
         let links: Vec<_> = children(styled(view.tree(), look::TRAIL)).into_iter().map(|n| n.id).collect();
         let back = styled(view.tree(), look::BACK)[0].id;
-        for (node, address) in [
-            (back, Address::Settings { project: f::PROJECT }),
-            (links[0], Address::Home { project: f::PROJECT }),
-            (links[1], Address::Settings { project: f::PROJECT }),
-        ] {
+        for (node, address) in
+            [(back, Address::Home { project: f::PROJECT }), (links[0], Address::Home { project: f::PROJECT })]
+        {
             assert_eq!(crate::href(&mut view, node).as_deref(), Some(d::address::print(&address).as_ref()));
             assert_eq!(crate::act(&mut view, node, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
         }
@@ -365,7 +377,7 @@ fn browser_pairs_are_two_leaves_and_terminal_pairs_are_one_line() {
 #[test]
 fn question_uses_the_project_name() {
     for name in [b"Hello".as_slice(), b"Another project"] {
-        let (root, _, _, _, _) = f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), name);
+        let (root, _, _, _, _) = f::root_at_full(Address::Ask { project: f::PROJECT }, &f::domain_limits(), name);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let name = String::from_utf8_lossy(name);
             let question = format!("How should temper run {name}?");
@@ -391,7 +403,7 @@ fn terminal_prints_the_path_opening_starters_and_composer_in_order() {
         format!("[{number}] {words}")
     };
     // skein-ui-text prints the level-1 heading as the page title.
-    let mut expected = vec!["== Configure temper ==".to_owned(), "Where:".to_owned()];
+    let mut expected = vec!["== Ask temper ==".to_owned(), "Where:".to_owned()];
     for node in children(styled(view.tree(), look::TRAIL)) {
         expected.push(numbered(node, &String::from_utf8_lossy(node.name.as_deref().unwrap())));
     }
@@ -434,7 +446,17 @@ fn settings_is_current_in_the_rail_and_phone_tabs() {
                     .filter(|n| n.states.as_slice().contains(&State::Current))
                     .map(|n| n.name.as_deref())
                     .collect();
-                assert_eq!(current, [Some(b"Settings".as_slice())]);
+                assert_eq!(current, [Some(b"Ask temper".as_slice())]);
+                if style == look::TABBAR {
+                    let tabs = styled(view.tree(), style);
+                    assert_eq!(tabs.iter().filter(|node| node.role == Role::Link).count(), 5);
+                    let ask = tabs
+                        .iter()
+                        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Ask temper"))
+                        .unwrap();
+                    let at = view.tree().nodes().iter().position(|node| node.id == ask.id).unwrap();
+                    assert_eq!(f::node_text(view.tree(), at).as_ref(), b"Ask");
+                }
             }
         }
     }
@@ -442,7 +464,7 @@ fn settings_is_current_in_the_rail_and_phone_tabs() {
 
 #[test]
 fn unlisted_project_says_what_home_says_in_both_shells() {
-    let (root, _, _) = f::root_at(Address::Configure { project: UNKNOWN }, &f::domain_limits());
+    let (root, _, _) = f::root_at(Address::Ask { project: UNKNOWN }, &f::domain_limits());
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("Project 99 is not one of yours."));
         let node = named(view.tree(), Role::Link, b"Chats").id;
@@ -510,7 +532,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
             },
         },
         c::MeDefault {
-            template: 3,
+            template: 5,
             choice: c::LlmChoice {
                 later: None,
                 account: None,
@@ -520,7 +542,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
         },
     ]));
     let (mut root, me_watch, _, _, accounts_watch) =
-        f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), b"Shop");
+        f::root_at_full(Address::Ask { project: f::PROJECT }, &f::domain_limits(), b"Shop");
     f::deliver_me(&mut root, me_watch, me);
     f::root_event(
         &mut root,
@@ -673,7 +695,7 @@ fn configuring_chat_picker_applies_to_its_next_run() {
 
 #[test]
 fn the_own_way_card_offers_its_two_acts() {
-    let stock = f::root_with_ways(Address::Configure { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    let stock = f::root_with_ways(Address::Ask { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
     let populated = root();
     for root in [&populated, &stock] {
         for mut view in [f::page_view(root), f::browser_page_view(root)] {
