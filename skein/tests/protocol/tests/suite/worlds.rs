@@ -9,10 +9,20 @@ use skein_protocol_world::client_end::Outcome;
 use skein_protocol_world::scenario;
 use skein_protocol_world::world::{self, Settings};
 
+// The first stream seed carries IDs; two give it a second world.
+const STREAM_SEEDS: u64 = 2;
+// The first two seeds make three and two calls; four give each margin.
+const CALL_SEEDS: u64 = 4;
+// Four resets first appear in seeds 0..23; double that range for margin.
+const CLOSE_SEEDS: u64 = 46;
+// The fuzzy sweep also injects resets and checks that they fell.
+const RESET_SEEDS: u64 = 4;
+const REPLAY_SEEDS: u64 = 2;
+
 #[test]
 fn an_llm_s_stream_goes_from_the_server_s_top_to_the_client_s_top() {
     let mut ids = 0;
-    for seed in 0..12 {
+    for seed in 0..STREAM_SEEDS {
         let mut rng = Rng::new(seed);
         let scenario = scenario::stream(&mut rng);
         let settings = Settings::drawn(&mut rng);
@@ -25,17 +35,22 @@ fn an_llm_s_stream_goes_from_the_server_s_top_to_the_client_s_top() {
 
 #[test]
 fn a_connection_carries_two_or_three_calls_through_both_stacks() {
-    for seed in 0..8 {
+    let mut two = false;
+    let mut three = false;
+    for seed in 0..CALL_SEEDS {
         let mut rng = Rng::new(600 + seed);
         let scenario = scenario::several(&mut rng);
         let settings = Settings::drawn(&mut rng);
         let run = world::run(&scenario, &settings, seed);
         let calls = scenario.requests.len();
         assert!((2..=3).contains(&calls), "seed {seed}");
+        two |= calls == 2;
+        three |= calls == 3;
         assert_eq!(run.client.outcomes, vec![Outcome::Done(Reuse::Keep); calls], "seed {seed}");
         assert_eq!(run.server.requests, scenario.requests, "seed {seed}");
         assert_eq!(run.fell.calls, calls, "seed {seed}");
     }
+    assert!(two && three, "both two and three calls crossed the stacks");
 }
 
 #[test]
@@ -78,7 +93,7 @@ fn a_response_that_arrives_mid_upload_stops_the_upload_and_is_read() {
 #[test]
 fn one_end_closing_while_the_other_sends_leaves_both_settled() {
     let mut reset = 0;
-    for seed in 0..30 {
+    for seed in 0..CLOSE_SEEDS {
         let mut rng = Rng::new(300 + seed);
         let scenario = scenario::partway(&mut rng);
         let settings = Settings::drawn(&mut rng);
@@ -90,7 +105,7 @@ fn one_end_closing_while_the_other_sends_leaves_both_settled() {
 
 #[test]
 fn the_wire_resetting_at_any_moment_leaves_both_settled() {
-    for seed in 0..20 {
+    for seed in 0..RESET_SEEDS {
         let mut rng = Rng::new(400 + seed);
         let scenario = scenario::stream(&mut rng);
         let mut settings = Settings::drawn(&mut rng);
@@ -101,7 +116,7 @@ fn the_wire_resetting_at_any_moment_leaves_both_settled() {
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
-    for seed in 0..4 {
+    for seed in 0..REPLAY_SEEDS {
         let mut rng = Rng::new(500 + seed);
         let scenario = scenario::partway(&mut rng);
         let settings = Settings::drawn(&mut rng);

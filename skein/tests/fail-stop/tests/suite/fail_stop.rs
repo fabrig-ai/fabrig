@@ -10,18 +10,20 @@ const SIGABRT: i32 = 6;
 
 #[test]
 fn a_panic_on_a_second_thread_aborts_the_process_after_its_report() {
-    for backtrace in [None, Some("1"), Some("full")] {
-        let output = panic_report(backtrace, "str", None);
-        let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
-        assert!(report.contains("the fixture's thread panics"), "the hook reported first: {report}");
-        assert_report(&output, "<unnamed>", "the fixture's thread panics");
-    }
+    // A borrowed payload and an unnamed thread, with the full backtrace setting.
+    let output = panic_report(Some("full"), "str", None);
+    let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
+    assert!(report.contains("the fixture's thread panics"), "the hook reported first: {report}");
+    assert_report(&output, "<unnamed>", "the fixture's thread panics");
 }
 
 #[test]
 fn owned_and_non_string_payloads_follow_the_default_report() {
-    for (payload, message) in [("string", "the fixture's owned message"), ("any", "Box<dyn Any>")] {
-        let output = panic_report(None, payload, Some("fixture-worker"));
+    // Named threads add owned and opaque payloads, with the other backtrace settings.
+    for (backtrace, payload, message) in
+        [(None, "string", "the fixture's owned message"), (Some("1"), "any", "Box<dyn Any>")]
+    {
+        let output = panic_report(backtrace, payload, Some("fixture-worker"));
         assert_report(&output, "fixture-worker", message);
     }
 }

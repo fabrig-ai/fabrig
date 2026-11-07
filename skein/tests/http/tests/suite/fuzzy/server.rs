@@ -5,6 +5,9 @@
 //! the test's own writer. This stands in for the fuzz target, which waits
 //! for a nightly toolchain.
 //!
+//! Prefix sweeps also compare each request transcript cut short with the reference.
+//! Their cuts are injected directly, so they fall without a fault tally.
+//!
 //! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
 //! way a request can end, each rejection and each refusal, each way a
 //! stream can end or fail below, each fault failing the exchange and each
@@ -13,6 +16,8 @@
 //! response to `HEAD`, a reply in chunks to HTTP/1.0 run to the end of the
 //! stream, a body given up, a head that waited for a discard, pipelining,
 //! and reuse.
+
+use super::super::requests::{serve, settings};
 
 use skein_http::server::{Body, Error};
 use skein_http::{Method, Version};
@@ -237,4 +242,17 @@ fn request_transcripts_cut_mutated_and_failed_are_served_as_the_reference_reads_
             .map(|what| (*what).to_string())
             .collect();
     tally.assert_fell(&every);
+}
+
+#[test]
+fn a_request_transcript_cut_short_anywhere_comes_to_what_the_reference_reads_of_its_prefix() {
+    for transcript in request_transcript::all() {
+        let len = transcript.bytes.len();
+        let step = (len / 40).max(1);
+        for cut in (0..=len).step_by(step) {
+            let seed = cut as u64;
+            let settings = Settings { cut: Some(cut), ..settings(&transcript, seed) };
+            let _ = serve(&transcript, &settings, seed);
+        }
+    }
 }

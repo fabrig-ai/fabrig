@@ -209,13 +209,13 @@ fn minted_json(
 // Writer is exact-sized. Pad the scratch writer, then retain only the encoded
 // prefix; both allocations fit the response byte limit.
 pub(crate) fn finish(mut out: Writer) -> Option<Box<[u8]>> {
+    const PADDING: [u8; 8192] = [0; 8192];
     let length = out.written();
-    let padding = [0; 128];
-    for _chunk in 0..out.room().div_euclid(padding.len()) {
-        out.put(&padding).ok()?;
+    for _chunk in 0..out.room().div_euclid(PADDING.len()) {
+        out.put(&PADDING).ok()?;
     }
     let tail = out.room();
-    out.put(padding.get(..tail)?).ok()?;
+    out.put(PADDING.get(..tail)?).ok()?;
     let bytes = out.finish();
     Some(bytes::copy_of(bytes.get(..length)?))
 }

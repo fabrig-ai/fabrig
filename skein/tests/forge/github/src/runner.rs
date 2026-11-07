@@ -48,11 +48,11 @@ pub(crate) struct Runner<'a> {
     #[cfg(test)]
     pub phase: &'static str,
     #[cfg(test)]
-    pub plan_refusal: Option<(&'static str, &'static str, usize)>,
+    pub plan_refusals: Vec<(&'static str, &'static str, usize)>,
     #[cfg(test)]
     pub enqueue_refusal: Option<&'static str>,
     #[cfg(test)]
-    pub response_override: Option<(&'static str, &'static str, Vec<u8>)>,
+    pub response_overrides: Vec<(&'static str, &'static str, Vec<u8>)>,
     pub wire: Option<String>,
     pub target: Target,
     pub fixtures: Fixtures,
@@ -105,11 +105,11 @@ impl<'a> Runner<'a> {
             #[cfg(test)]
             phase: "cases",
             #[cfg(test)]
-            plan_refusal: None,
+            plan_refusals: vec![],
             #[cfg(test)]
             enqueue_refusal: None,
             #[cfg(test)]
-            response_override: None,
+            response_overrides: vec![],
             wire: None,
             target,
             fixtures,
@@ -258,10 +258,12 @@ impl<'a> Runner<'a> {
     }
     fn exchange(&mut self, request: &Request) -> Result<(Vec<u8>, Response)> {
         #[cfg(test)]
-        if self.response_override.as_ref().map(|(case, target, _)| (*case, *target))
-            == Some((self.case, request.target.as_str()))
+        if let Some(at) = self
+            .response_overrides
+            .iter()
+            .position(|(case, target, _)| (*case, *target) == (self.case, request.target.as_str()))
         {
-            let (_, _, received) = self.response_override.take().ok_or("response override absent")?;
+            let (_, _, received) = self.response_overrides.remove(at);
             let wire = request.wire("127.0.0.1")?;
             let response = crate::wire::read(&wire, &received, true)?.ok_or("injected answer incomplete")?;
             return Ok((wire, response));
@@ -681,7 +683,7 @@ impl<'a> Runner<'a> {
             },
         };
         #[cfg(test)]
-        if let Some((case, kind, skip)) = &mut self.plan_refusal {
+        {
             let operation = match &op {
                 api::Op::Write(api::Write::Review { .. }) => "approval",
                 api::Op::Write(api::Write::Merge { .. }) => "enqueue",
@@ -691,9 +693,12 @@ impl<'a> Runner<'a> {
                 api::Op::Read(api::Read::Pull { .. }) => "pull",
                 api::Op::Read(_) | api::Op::Write(_) => "other",
             };
-            if *case == self.case && *kind == operation {
+            if let Some(at) =
+                self.plan_refusals.iter().position(|(case, kind, _)| *case == self.case && *kind == operation)
+            {
+                let (_, _, skip) = &mut self.plan_refusals[at];
                 if *skip == 0 {
-                    self.plan_refusal = None;
+                    self.plan_refusals.remove(at);
                     return Ok(Err(api::Error::Forbidden));
                 }
                 *skip -= 1;
