@@ -612,8 +612,8 @@ impl Joint {
         engine_limits.tasks.message_bytes = 512;
         engine_limits.tasks.inbox_bytes = 1024;
         engine_limits.journal.result_bytes = 512;
-        // Stock charter 3's instructions and framed run policy need 8,747 bytes.
-        engine_limits.journal.run_bytes = 8_747;
+        // Stock charter 3's instructions and framed run policy need 9,019 bytes.
+        engine_limits.journal.run_bytes = 9_019;
         engine_limits.documents.text_bytes = 4096;
         let mut config = fixtures::configuring_configuration(seed, member);
         let policy = config.core.seed_projects[0].policy.clone();

@@ -209,7 +209,7 @@ this shell's text (ui.md, 17.1).
   | separator | `--` |
   | slot | its children: the nodes spliced into it (ui.md, section 5) |
   | group | its children, as a slot's |
-  | drawing | `NAME:` and its fallback indented (ui.md, 3.5): never drawn (ui.md, 11.4) |
+  | drawing | `NAME:` where it has a name, and its fallback indented (ui.md, 3.5): never drawn (ui.md, 11.4) |
   | image | its name, whatever its source: one of its owner's pictures or an address (ui.md, 3.5) |
 
   A disclosure prints unfolded and a menu prints its items: the text

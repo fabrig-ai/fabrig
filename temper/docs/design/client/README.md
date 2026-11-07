@@ -785,7 +785,10 @@ keeps (`../protocol/configuration.md`, section 2).
     by its heading and its place among its namesakes, so that a change keeps the others'
     nodes. `#`, level 2, is drawn as the mock's `.doc-inner h1`, and `##`, level 3, as its `h2`; the first section's first
     paragraph as `.doc-muted`. Tables as `configure-chat-draft`'s. A fenced block
-    reads as code: nothing is drawn from it.
+    reads as code, but for a flow (`skein/docs/design/ui.md`, 10.1), which is drawn.
+    temper's page routes skein-ui's owner to its drawing code and gives its names
+    beside temper's, so a flow draws in any Markdown a person reads here, a turn's as
+    a document's. Its look is `browser.md`, 2.5's.
   - *The tint,* `.temper-doc-changed`: the section holding the newest `note` call's
     `first`, or for a first write the first `##` section; under it `.temper-doc-note`
     "Added by T4 3 min ago" or "Changed by T4 just now".
@@ -6757,11 +6760,21 @@ own tests:
   Default: no fallback; reload to use the cookie.
 
 - **The person-started question flow after landing** (3.5, 5.8; the
-  request `ui-goal-asks`): the focused client world starts a goal from
-  the sheet, supplies its person-task question, answers under Needs you
-  and checks the answer in the resumed goal's report-result message.
-  Browser, walk and render checks of this flow follow landing. Default:
-  the focused story and shared view tables, with no new browser test.
+  requests `ui-goal-asks` and `ui-goal-asks-2`): check a question past the
+  document's text bound, its context, evidence and choice buttons under
+  Needs you and on the goal's band; starting from Goals by a typed Draft
+  path; the empty-pool and open-chat funding explanations; and person and
+  advisor tasks finishing without a landing. Browser, walk and render
+  checks follow landing. Default: focused sheet-to-answer stories from a
+  chat and Goals, and shared domain and view tables, with no new browser test.
+- **More than one whole question on a goal** (3.5, 5.4, 5.8): the page's
+  price includes one `long_text` question. Default: the first whole,
+  later bands' bounded first line and Answer to Needs you; extending the
+  price or drawing a question's whole words on demand is later work.
+- **A message question read whole** (3.5, *Whole*, *Cut*): a message has
+  no `TaskText` read for its words. Default: the document's bounded words,
+  an explicit cut notice and a link to its task's conversation. Reading
+  that question whole needs a read of its own or carrying its whole words.
 
 - **A closed page's latest-run model** (3.5, 5.9; the request
   `ui-model-line`): a run with no committed turn, a tail page with no turn,
@@ -6851,13 +6864,10 @@ own tests:
   `shapes::set_agreed_goal_from`, which stands built with nothing sending it; and a
   proposed goal's line above the composer. Default: 5.14's one sheet, its budget the
   creating bound's, its ways the project's templates, a proposal its toast.
-- **A document's drawing** (3.5; the look request `configure-chat-draft`): its flow
-  and figure wait on `skein/docs/design/draft/diagrams.md`. Default: a fenced block
-  reads as code, and the agent isn't told to draw.
 - **The reference's picture as a flow** (3.5, *temper's own way, beside the page*;
-  `../draft/own-way.md`, 3): skein's flows are neither built nor planned
-  (`skein/docs/design/draft/diagrams.md`), and a flow is one path, its parts in
-  parallel a caption until they branch. Default: the numbered list.
+  `../draft/own-way.md`, 3): the reference shows no figures, the user's word of
+  2026-11-06, and a flow is one path, its parts in parallel a caption until they
+  branch. Default: the numbered list.
 - **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
   `../draft/own-way.md`, 3, has a question about it be the configuring chat's,
   beside it. Default: a chat started there closes it, and a question about it

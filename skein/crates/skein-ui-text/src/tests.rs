@@ -253,6 +253,19 @@ fn a_markdown_table_prints_each_row_with_its_cells() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "acceptance cases and hand-checked fallback text are shared fixtures")]
+fn a_markdown_flow_prints_its_name_and_fallback() {
+    const READER_LEVELS: u32 = 3; // ui.md, 10.1: drawing, fallback paragraph, text.
+    let input = skein_lib::bytes::concat(&[
+        include_bytes!("../../../docs/design/draft/diagrams/how-hello-works.md"),
+        b"\n",
+        include_bytes!("../../../docs/design/draft/diagrams/review.md"),
+    ]);
+    let print = markdown_print(&input, 0, READER_LEVELS);
+    assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-flow.txt"));
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "the reader's report and hand-checked text golden are shared fixtures")]
 fn numbered_markdown_prints_its_numbers_as_written() {
     const READER_LEVELS: u32 = 6; // ui.md, 10: two list/item pairs, link, text.
@@ -268,6 +281,7 @@ fn markdown_print(input: &[u8], nesting: u32, reader_levels: u32) -> Print {
         text_per_node: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
         text_bytes: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
         markdown_depth: nesting,
+        drawing_bytes: bytes,
         ..fixtures::LIMITS
     };
     let mut builder = skein_ui::Builder::new(&limits);
