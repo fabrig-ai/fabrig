@@ -53,12 +53,6 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let projects: Vec<_> = configuration
-            .core
-            .seed_projects
-            .iter()
-            .map(|project| (project.number, project.policy.policy.period_spend))
-            .collect();
         let mut world = Self::empty(configuration, &limits, patch_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
@@ -92,6 +86,8 @@ impl World {
                 },
             ))));
         } else if boot == Boot::Caller {
+            let projects: Vec<_> = world.restart_config.0.core.seed_projects.iter()
+                .map(|project| (project.number, project.policy.policy.period_spend)).collect();
             world.hello_engine();
             for (project, budget) in projects {
                 world.send(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
