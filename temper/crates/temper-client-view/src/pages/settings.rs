@@ -43,6 +43,40 @@ pub(crate) fn path(
     tab: FlowTab,
     here: Word,
 ) {
+    flow_path(b, root, w, bindings, project, tab, &w.say(here, &[]), None);
+}
+
+/// A way under a flow's choices (README.md, 3.5, The flows' paths): the back link
+/// and the trail go through the choices, and the way's name is last.
+pub(crate) struct FlowWay<'a> {
+    pub(crate) choices: Word,
+    pub(crate) address: Address,
+    pub(crate) name: &'a [u8],
+}
+
+pub(crate) fn way_path(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+    tab: FlowTab,
+    way: &FlowWay<'_>,
+) {
+    flow_path(b, root, w, bindings, project, tab, way.name, Some(way));
+}
+
+#[expect(clippy::too_many_arguments, reason = "choices and ways share one path drawing")]
+fn flow_path(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: Option<u32>,
+    tab: FlowTab,
+    here: &[u8],
+    way: Option<&FlowWay<'_>>,
+) {
     if w.shell == crate::words::Shell::Terminal {
         return;
     }
@@ -56,9 +90,13 @@ pub(crate) fn path(
     b.open(Role::Navigation);
     b.name(&w.say(Word::ConfigureWhere, &[]));
     b.style(look::CRUMBS);
-    crate::link(b, &w.say(word, &[]), bindings.insert(Act::Go { address: address.clone() }));
+    let (back, to) = match way {
+        Some(way) => (way.choices, way.address.clone()),
+        None => (word, address.clone()),
+    };
+    crate::link(b, &w.say(back, &[]), bindings.insert(Act::Go { address: to }));
     b.style(look::BACK);
-    b.text(Run::Plain, &w.say(word, &[]));
+    b.text(Run::Plain, &w.say(back, &[]));
     b.close();
     b.open(Role::Slot);
     b.style(look::TRAIL);
@@ -71,7 +109,13 @@ pub(crate) fn path(
         b.text(Run::Plain, &name);
         b.close();
     }
-    text(b, Role::Text, &w.say(here, &[]), look::SETTINGS_DETAIL);
+    if let Some(way) = way {
+        let name = w.say(way.choices, &[]);
+        crate::link(b, &name, bindings.insert(Act::Go { address: way.address.clone() }));
+        b.text(Run::Plain, &name);
+        b.close();
+    }
+    text(b, Role::Text, here, look::SETTINGS_DETAIL);
     b.close();
     b.close();
     b.close();
