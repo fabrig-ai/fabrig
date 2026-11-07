@@ -108,7 +108,7 @@ fn a_forge_row_opened_offers_its_action() {
             .unwrap(),
     );
     let root = root(Address::Forges, failed);
-    assert_eq!(action(&root, Role::Button, b"Set up again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
+    assert_eq!(action(&root, Role::Button, b"Try again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
     let view = f::page_view(&root);
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::FLOW_PRIMARY)));
     let row = view
@@ -119,10 +119,8 @@ fn a_forge_row_opened_offers_its_action() {
         .unwrap();
     assert_eq!(row.description.as_deref(), Some("Forge 3 · Forgejo · Set up failed: fetch failed".as_bytes()));
     let root = self::root(Address::Forges, w::Connection::Connecting);
-    assert_eq!(
-        action(&root, Role::Link, "Open its set-up ›".as_bytes()),
-        go(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) })
-    );
+    let view = f::page_view(&root);
+    assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_LIVE)));
     let root = self::root(Address::Forges, cf::connected());
     assert_eq!(action(&root, Role::Link, b"Adopt a repository"), go(Address::Adopt { project: f::PROJECT }));
     let root = self::root(
@@ -195,7 +193,7 @@ fn set_up_again_waits_for_an_offer() {
             .unwrap(),
     );
     let root = f::forge_root(Address::Forges, cf::rows(failed, w::Offer::NotOffered));
-    assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Set up again").is_none());
+    assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Try again").is_none());
 }
 
 #[test]
@@ -1018,4 +1016,64 @@ fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
     let text = core::str::from_utf8(&text).unwrap();
     assert!(text.contains("Connecting sign-in through temper"));
     assert!(!text.contains("Starting Forgejo and its runner"));
+}
+
+#[test]
+fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
+    let mut parts = cf::first_rows(cf::connected(), w::FirstState::Making).get(0).unwrap().clone().into_parts();
+    parts.number = 2;
+    parts.mode = w::Mode::Managed;
+    parts.admin = true;
+    let mut rows = List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts.clone()).unwrap()).unwrap();
+    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(2)) }, rows);
+    assert_eq!(root.pages().address(), &Address::Forges);
+    for view in [f::browser_page_view(&root), f::page_view(&root)] {
+        let row = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Your Forgejo"))
+            .unwrap();
+        assert!(row.states.as_slice().contains(&State::Expanded));
+        assert_eq!(row.description.as_deref(), Some("Forge 2 · Forgejo · Setting up · work/hello".as_bytes()));
+        let live = styled(view.tree(), look::CONNECT_LIVE);
+        let items: Vec<_> = live.iter().filter(|n| n.role == Role::Item).collect();
+        assert_eq!(items.len(), 4);
+        assert_eq!(
+            f::nodes_text(live).as_ref(),
+            "Checked its address and your tokenMade temper’s botMaking work/helloGiving the bot access".as_bytes()
+        );
+        assert!(items[0].styles.is_empty());
+        assert!(items[2].states.as_slice().contains(&State::Current));
+        assert!(items[3].styles.as_slice().contains(&look::CONNECT_LATER));
+        assert!(!live.iter().any(|n| n.role == Role::Status));
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_CONFIRM)));
+    }
+    let mut first = parts.first.take().unwrap().into_parts();
+    first.state = cf::made();
+    parts.first = Some(w::FirstRepository::new(&w::CEILINGS, first).unwrap());
+    let mut rows = List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    let connected = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(2)) }, rows.clone());
+    let view = f::browser_page_view(&connected);
+    let confirm = styled(view.tree(), look::CONNECT_CONFIRM);
+    assert!(f::nodes_text(confirm).starts_with(b"Connected Your Forgejo."));
+    assert!(confirm.iter().any(|n| n.role == Role::Link
+        && n.name.as_deref() == Some(b"Adopt a repository")
+        && n.styles.as_slice().contains(&look::CONNECT_QUIET)));
+    assert!(styled(view.tree(), look::SETTINGS_ROW)[0].states.as_slice().contains(&State::Expanded));
+    let reload = f::forge_root(Address::Forges, rows);
+    let view = f::browser_page_view(&reload);
+    assert!(!styled(view.tree(), look::SETTINGS_ROW)[0].states.as_slice().contains(&State::Expanded));
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_CONFIRM)));
+    let github = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(2)) }, cf::github_rows(false));
+    assert_eq!(github.pages().address(), &Address::Forges);
+    let mut view = f::browser_page_view(&github);
+    assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_LIVE)));
+    let install = f::find(view.tree(), Role::Button, b"Install on GitHub").unwrap();
+    assert_eq!(
+        crate::act(&mut view, install, Act::Press),
+        Some(d::Action::Forge(d::forge::Act::Install { forge: 2, back: b"/forges".as_slice().into() }))
+    );
 }

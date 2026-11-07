@@ -642,7 +642,6 @@ pub enum Word {
     ForgeAccessConnected,
     ForgeRunsLabel,
     ForgePasswordLabel,
-    ForgeOpenSetup,
     ForgeRestartBox,
     ForgePlaygroundSummary,
     ForgePlaygroundHeading,
@@ -663,14 +662,14 @@ pub enum Word {
     WelcomeMakingDefault,
     WelcomeDefaultRefused,
     WelcomeDefaultUnknown,
-    ForgeMadeRepository,
     NoRepositoryYet,
     SetupOpen,
     SetupMade,
-    ForgeConnectedTitle,
-    ForgeConnectedAs,
-    ForgeOnForges,
-    ForgeOnForgesTail,
+    ForgeRowSettingUp,
+    ForgeConnectedConfirm,
+    ForgeCheckedAddress,
+    ForgeMadeBot,
+    ForgeGiveAccess,
     ForgeStatus,
     WelcomeForgeConnected,
     WelcomeForgeLine,
@@ -1417,7 +1416,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
-const PHRASES: u32 = 1904;
+const PHRASES: u32 = 1903;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1444,10 +1443,10 @@ const PHRASES: u32 = 1904;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3309;
+const SEGMENTS: u32 = 3302;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46604;
-const ALL: [Word; 1297] = [
+const ENGLISH_BYTES: u32 = 46612;
+const ALL: [Word; 1296] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2061,7 +2060,6 @@ const ALL: [Word; 1297] = [
     Word::ForgeAccessConnected,
     Word::ForgeRunsLabel,
     Word::ForgePasswordLabel,
-    Word::ForgeOpenSetup,
     Word::ForgeRestartBox,
     Word::ForgePlaygroundSummary,
     Word::ForgePlaygroundHeading,
@@ -2081,14 +2079,14 @@ const ALL: [Word; 1297] = [
     Word::WelcomeMakingDefault,
     Word::WelcomeDefaultRefused,
     Word::WelcomeDefaultUnknown,
-    Word::ForgeMadeRepository,
     Word::NoRepositoryYet,
     Word::SetupOpen,
     Word::SetupMade,
-    Word::ForgeConnectedTitle,
-    Word::ForgeConnectedAs,
-    Word::ForgeOnForges,
-    Word::ForgeOnForgesTail,
+    Word::ForgeRowSettingUp,
+    Word::ForgeConnectedConfirm,
+    Word::ForgeCheckedAddress,
+    Word::ForgeMadeBot,
+    Word::ForgeGiveAccess,
     Word::ForgeStatus,
     Word::WelcomeForgeConnected,
     Word::WelcomeForgeLine,
@@ -3293,7 +3291,6 @@ impl Word {
             Self::ForgeAccessConnected => 1842,
             Self::ForgeRunsLabel => 1851,
             Self::ForgePasswordLabel => 1852,
-            Self::ForgeOpenSetup => 1807,
             Self::ForgeRestartBox => 1808,
             Self::ForgePlaygroundSummary => 1809,
             Self::ForgePlaygroundHeading => 1810,
@@ -3359,14 +3356,14 @@ impl Word {
             Self::WelcomeMakingDefault => 2190,
             Self::WelcomeDefaultRefused => 2191,
             Self::WelcomeDefaultUnknown => 2180,
-            Self::ForgeMadeRepository => 2181,
             Self::NoRepositoryYet => 2182,
             Self::SetupOpen => 1830,
             Self::SetupMade => 1831,
-            Self::ForgeConnectedTitle => 1703,
-            Self::ForgeConnectedAs => 1704,
-            Self::ForgeOnForges => 1705,
-            Self::ForgeOnForgesTail => 1706,
+            Self::ForgeRowSettingUp => 3945,
+            Self::ForgeConnectedConfirm => 3941,
+            Self::ForgeCheckedAddress => 3942,
+            Self::ForgeMadeBot => 3943,
+            Self::ForgeGiveAccess => 3944,
             Self::ForgeStatus => 1707,
             Self::WelcomeForgeConnected => 1708,
             Self::WelcomeForgeLine => 1835,
@@ -4944,7 +4941,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeAccessConnected => (&[b"Its bot's tokens, which you gave"], &[]),
         Word::ForgeRunsLabel => (&[b"Runs"], &[]),
         Word::ForgePasswordLabel => (&[b"First password"], &[]),
-        Word::ForgeOpenSetup => (&[b"Open its set-up \xe2\x80\xba"], &[]),
         Word::ForgeRestartBox => (&[b"Restart temper box: its preparation mends it"], &[]),
         Word::ForgePlaygroundSummary => (&[b"Playground forge \xc2\xb7 the playground\xe2\x80\x99s, until a forge of yours connects \xc2\xb7 ", b"/", b""], &[Name, Name]),
         Word::ForgePlaygroundHeading => (&[b"The playground"], &[]),
@@ -5003,13 +4999,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeDefaultRefused => (&[b"Your project was not made: "], &[]),
         Word::WelcomeDefaultUnknown => (&[b"It is not known whether your project was made."], &[]),
         Word::NoRepositoryYet => (&[b"No repository yet"], &[]),
-        Word::ForgeMadeRepository => (&[b"Made ", b"."], &[Name]),
         Word::SetupOpen => (&[b"Open ", b""], &[Name]),
         Word::SetupMade => (&[b"", b""], &[Name]),
-        Word::ForgeConnectedTitle => (&[b"", b" is connected"], &[Name]),
-        Word::ForgeConnectedAs => (&[b"Connected as ", b"."], &[Name]),
-        Word::ForgeOnForges => (&[b"", b" is on the "], &[Name]),
-        Word::ForgeOnForgesTail => (&[b" page, with its details."], &[]),
+        Word::ForgeRowSettingUp => (&[b"Setting up"], &[]),
+        Word::ForgeConnectedConfirm => (&[b"Connected ", b"."], &[Name]),
+        Word::ForgeCheckedAddress => (&[b"Checked its address and your token"], &[]),
+        Word::ForgeMadeBot => (&[b"Made temper\xe2\x80\x99s bot"], &[]),
+        Word::ForgeGiveAccess => (&[b"Giving the bot access"], &[]),
         Word::ForgeStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),

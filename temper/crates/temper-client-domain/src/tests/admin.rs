@@ -286,10 +286,17 @@ fn an_admin_connection_advances_only_the_named_welcome_forge() {
         token(&mut root, TOKEN);
         send(&mut root);
         let out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
-        let mut moves = 0;
+        let mut moves = 0_u32;
         for request in &out {
             if let Request::Show { address, replace } = request {
-                assert_eq!(address, &crate::Address::Welcome { step: crate::Step::Model { way: None } });
+                assert_eq!(
+                    address,
+                    &if welcome {
+                        crate::Address::Welcome { step: crate::Step::Model { way: None } }
+                    } else {
+                        crate::Address::Forges
+                    }
+                );
                 assert!(*replace);
                 moves += 1;
             }
@@ -299,7 +306,7 @@ fn an_admin_connection_advances_only_the_named_welcome_forge() {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
-        assert_eq!(moves, u32::from(welcome));
+        assert_eq!(moves, 1);
     }
 }
 #[test]

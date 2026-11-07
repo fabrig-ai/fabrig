@@ -168,3 +168,21 @@ pub(crate) fn command(
         b.close();
     }
 }
+
+/// Settings' row carries progress without repeating the state after each line.
+pub(crate) fn live(b: &mut Builder, lines: &[(&[u8], Mark)]) {
+    b.open(Role::List);
+    b.style(look::CONNECT_LIVE);
+    for (line, mark) in lines {
+        b.open(Role::Item);
+        match mark {
+            Mark::Done => {}
+            Mark::UnderWay => b.state(State::Current),
+            Mark::ToCome => b.style(look::CONNECT_LATER),
+            Mark::Failed | Mark::Stopped => b.style(look::CONNECT_FAILED),
+        }
+        b.text(Run::Plain, line);
+        b.close();
+    }
+    b.close();
+}

@@ -556,7 +556,6 @@ pub(crate) fn bind_new(side: &mut super::Side, out: &mut skein_lib::Queue<super:
                 && making.mode == Mode::Connected
             {
                 pending.forge = row.number;
-                out.push(super::Request::ConnectForge { forge: row.number });
             }
             if let Some(pending) = &mut side.app
                 && pending.forge == 0
@@ -565,6 +564,7 @@ pub(crate) fn bind_new(side: &mut super::Side, out: &mut skein_lib::Queue<super:
                 pending.forge = row.number;
             }
             side.setup_form.making = None;
+            out.push(super::Request::ConnectForge { forge: row.number });
             return;
         }
     }

@@ -173,9 +173,9 @@ pub(crate) fn route_forge(
             forge::Request::ConnectForge { forge } => {
                 let choice = Some(crate::Choice::Forge(forge));
                 let address = match root.pages.address() {
-                    Address::ConnectForge { forge: Some(crate::Choice::Managed) } => {
-                        Address::ConnectForge { forge: choice }
-                    }
+                    Address::ConnectForge {
+                        forge: Some(crate::Choice::Managed | crate::Choice::Owned | crate::Choice::GitHub),
+                    } => Address::ConnectForge { forge: choice },
                     Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Managed) } } => {
                         Address::Welcome { step: crate::Step::Forge { forge: choice } }
                     }
@@ -466,8 +466,9 @@ pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mu
     playground_facts(root);
 }
 
-/// Advance a named connected forge to Model (temper/docs/design/client/README.md, 3.5).
-pub(crate) fn welcome_progress(root: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
+/// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::pages::forge_progress(root, env, out);
     if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
         root.pages.address()
         && let forge::forges::State::Rows(rows) = root.forges()

@@ -829,10 +829,13 @@ fn a_connected_github_advances_only_the_named_welcome_forge() {
         };
         event(&mut root, Event::Went { place: Place::Address(address) });
         let out = deliver_picker(&mut root, watch, false);
-        let mut moves = 0;
+        let mut moves = 0_u32;
         for request in &out {
             if let Request::Show { address, replace } = request {
-                assert_eq!(address, &Address::Welcome { step: Step::Model { way: None } });
+                assert_eq!(
+                    address,
+                    &if welcome { Address::Welcome { step: Step::Model { way: None } } } else { Address::Forges }
+                );
                 assert!(*replace);
                 moves += 1;
             }
@@ -840,7 +843,7 @@ fn a_connected_github_advances_only_the_named_welcome_forge() {
                 panic!("connecting a forge sends no adoption or project request");
             }
         }
-        assert_eq!(moves, u32::from(welcome));
+        assert_eq!(moves, 1);
     }
 }
 #[test]
