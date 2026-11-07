@@ -55,7 +55,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
     let approval = [7; 32];
     let credential = credential();
     let bearer = [9; 40];
-    let link = vec![b'A'; 43];
+    let link = vec![0; 32];
     let given = b"fake&given";
     let sources = [
         ("approval take", Kind::Approval, approval.as_slice(), vec![send(Sent::SignInApproval(body(&approval)), None)], vec![]),
@@ -108,6 +108,27 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             failures.push("form's framing".to_owned());
         }
     }
+    // The host decodes the pasted URL's base64 into the wire's 32-byte secret.
+    // Its recorded Typed event is the Debug print of the URL's byte vector.
+    let mut world = World::new();
+    let link = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43));
+    world.report(Report::Key(Key::Paste(link.into_bytes().into())));
+    world.report(Report::Key(Key::Enter));
+    let file = world.save();
+    assert!(prove(&file).is_ok(), "pasted link's live proof");
+    let redacted = redact(&file, &[]).expect("redact pasted link");
+    let original = lines(&file).expect("pasted lines");
+    let after = lines(&redacted.recording).expect("redacted pasted lines");
+    for (before, after) in original.iter().zip(&after) {
+        if let (Line::Key { key: Key::Paste(before), event: before_event }, Line::Key { key: Key::Paste(after), event: after_event }) = (before, after) {
+            if before == after { failures.push("native pasted link: base64 secret unchanged".to_owned()); }
+            if before_event == after_event { failures.push("native pasted link: decimal-byte event unchanged".to_owned()); }
+            if scan_bytes(before, &[], &redacted.originals) != Some(crate::journey::What::Original) {
+                failures.push("native pasted link: base64 secret not scanned".to_owned());
+            }
+        }
+    }
+    if prove(&redacted.recording).is_err() { failures.push("native pasted link: redaction is stale".to_owned()); }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -124,9 +145,12 @@ pub(in crate::journey) struct World {
 }
 impl World {
     pub fn new() -> Self {
+        Self::at_address(b"127.0.0.1:8367")
+    }
+    pub fn at_address(address: &[u8]) -> Self {
         let facts = Facts { seed: 7, now: Time::ZERO, wall: Wall::EPOCH,
             size: Size { rows: 16, columns: 100 }, scheme: Scheme::Dark,
-            address: b"127.0.0.1:8367".as_slice().into(), kept: Vec::new(), credential: None };
+            address: address.into(), kept: Vec::new(), credential: None };
         let (host, start) = facts.start();
         let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
         world.report(start);

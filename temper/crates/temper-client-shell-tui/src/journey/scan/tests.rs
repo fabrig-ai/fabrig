@@ -1,6 +1,6 @@
 use super::*;
 use crate::{host::Report, journey::{Sent, redact::tests::{World, written}}};
-use skein_ui_screen_terminal::Key;
+use skein_ui_screen::Size;
 use temper_client_shell_web::journey::{Kind, Shape};
 
 #[test]
@@ -30,9 +30,11 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
                 failures.push(format!("{name}: field"));
             }
         }
-        // No key, event or live print contains the whole shape. It exists only
-        // in the frame assembled from characters, then disappears before end.
-        let mut world = World::new();
+        // The renderer drops a zero-width character. No recorded field holds
+        // the whole shape, but the first turn's frame does. A resize clears
+        // that frame before the end, and there are no intermediate marks.
+        let address = [&bytes[..3], "\u{200b}".as_bytes(), &bytes[3..], b"&"].concat();
+        let mut world = World::at_address(&address);
         let exchange = world.exchange(false);
         let mut asked = vec![0];
         asked.extend_from_slice(&32_u32.to_be_bytes());
@@ -41,8 +43,7 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
         world.report(Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() }));
         world.report(Report::Opened { opened: true });
-        world.reports(bytes.iter().map(|byte| Report::Key(Key::Char(char::from(*byte)))).collect());
-        world.reports(bytes.iter().map(|_| Report::Key(Key::Backspace)).collect());
+        world.report(Report::Resize(Size { rows: 0, columns: 0 }));
         let mut records = crate::journey::lines(&world.save()).expect("world lines");
         for record in &mut records {
             if let Line::Mark(print) | Line::End(print) = record { *print = None; }
@@ -52,9 +53,9 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
             Ok(found) => {
                 if found.map(|found| found.what) != expected { failures.push(format!("{name}: frame result")); }
                 if let Some(found) = found {
-                    let turn = 4;
+                    let turn = 1;
                     let at = records.iter().enumerate().filter(|(_, line)| matches!(line, Line::Deadline(_))).nth(usize::try_from(turn - 1).expect("turn index")).expect("deadline").0;
-                    if found != (Found { line: u32::try_from(at + 1).expect("line"), record: "deadline", place: Place::Frame { turn }, what: expected.expect("shape") }) {
+                    if found != (Found { line: u32::try_from(at + 1).expect("line"), record: "deadline", place: Place::Frame { turn }, what: found.what }) {
                         failures.push(format!("{name}: frame location"));
                     }
                 }
