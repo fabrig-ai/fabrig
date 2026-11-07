@@ -21,6 +21,8 @@ fn the_document_names_the_files_its_caller_reads() {
 
 #[test]
 fn both_jig_profiles_have_usable_store_edges() {
+    // Small's settings bound adds two sets of four 16-byte parts slices and
+    // eight templates with 24-byte later choices in both Template and New.
     for (label, name, value, commit, ops) in [
         ("small", jig_protocol_config::Profile::Small, 2_410_020, 355_308_810, 41_606),
         ("standard", jig_protocol_config::Profile::Standard, 100_881_496, 901_830_282, 303_350),

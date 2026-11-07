@@ -150,3 +150,19 @@ with its old and new value; anything of the contract you had to add.
   it; `Reasons::EMPTY` is the empty value. `notes/contracts.md`, section 1 now derives
   `Clone, Copy, PartialEq, Eq, Hash, Debug` only. Drop `Default` from `reasons.rs`.
 - Resume from the pushed branch; the three changes above are the only additions to scope.
+
+2026-11-07, to run `per-wake/surface-2`.
+
+- **`large_enum_variant` on temper's `WorkerInput`:** yes, one scoped expectation on
+  `WorkerInput` in `temper/crates/temper-engine-domain/src/boundary.rs`. It is a forced
+  consequence of `LlmChoice.later` reaching the decoded call, and the task can't meet its
+  clippy acceptance without it. Write it the way the same file's `ProposedAction` does,
+  under `cfg_attr(not(target_arch = "wasm32"), expect(clippy::large_enum_variant,
+  reason = "the worker boundary carries the decoded call whole, its later choice with
+  it"))`, because the variants' sizes differ on wasm32 and a bare `expect` could go
+  unfulfilled there. No boxing, and no change to its fields.
+- A further `large_enum_variant` that clippy names on a temper or jig enum, if it grows
+  only because it carries `LlmChoice`, `CharterPart` or the claim's fields, is covered by
+  the same rule. Put the expectation on that enum, written the same way, and list it in
+  the report. Anything else is a question.
+- Resume from `e9cd8f27dd`, then finish the verification the run lists as not run.
