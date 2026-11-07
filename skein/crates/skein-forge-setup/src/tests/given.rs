@@ -180,8 +180,15 @@ fn refused(given: &Given, place: Place, other: Option<Place>) {
     assert_eq!(Reconcile::new(given).err(), Some(expected), "constructor {place:?}");
 }
 #[test]
-fn no_org_is_admitted() {
-    accepted(&org_count(0), "no orgs and no owner");
+fn organization_counts_through_the_configured_maximum_are_admitted() {
+    skein_rows::check(
+        [
+            ("no_org_is_admitted", 0),
+            ("orgs_with_an_owner_are_accepted", 1),
+            ("an_org_count_at_the_bound_is_accepted", fixtures::PROFILE_ORGS),
+        ],
+        |count| accepted(&org_count(count), "organization count"),
+    );
 }
 #[test]
 fn orgs_without_an_owner_are_refused_naming_the_pair() {
@@ -190,16 +197,17 @@ fn orgs_without_an_owner_are_refused_naming_the_pair() {
     refused(&given, Place::Orgs, Some(Place::OrgOwner));
 }
 #[test]
-fn orgs_with_an_owner_are_accepted() {
-    accepted(&org_count(1), "orgs and their owner");
-}
-#[test]
-fn an_org_count_at_the_bound_is_accepted() {
-    accepted(&org_count(fixtures::PROFILE_ORGS), "org bound");
-}
-#[test]
-fn an_org_count_past_the_bound_is_refused() {
-    refused(&org_count(fixtures::PROFILE_ORGS + 1), Place::Orgs, None);
+fn excess_profile_collection_counts_name_their_place() {
+    skein_rows::check(
+        [
+            ("an_org_count_past_the_bound_is_refused", (org_count(fixtures::PROFILE_ORGS + 1), Place::Orgs)),
+            (
+                "an_adopted_count_past_the_bound_is_refused",
+                (adopted_count(fixtures::PROFILE_REPOSITORIES + 1), Place::Repositories),
+            ),
+        ],
+        |(given, place)| refused(&given, place, None),
+    );
 }
 #[test]
 fn a_zero_limit_names_its_place() {
@@ -270,16 +278,14 @@ fn adopted_repositories_are_accepted_in_the_order_given() {
     assert_eq!(given.adopted.as_ref(), &ids);
 }
 #[test]
-fn no_repository_is_admitted() {
-    accepted(&adopted(&[]), "no repositories");
-}
-#[test]
-fn an_adopted_count_at_the_bound_is_accepted() {
-    accepted(&adopted_count(fixtures::PROFILE_REPOSITORIES), "repository bound");
-}
-#[test]
-fn an_adopted_count_past_the_bound_is_refused() {
-    refused(&adopted_count(fixtures::PROFILE_REPOSITORIES + 1), Place::Repositories, None);
+fn adopted_repository_counts_through_the_maximum_are_admitted() {
+    skein_rows::check(
+        [
+            ("no_repository_is_admitted", 0),
+            ("an_adopted_count_at_the_bound_is_accepted", fixtures::PROFILE_REPOSITORIES),
+        ],
+        |count| accepted(&adopted_count(count), "repository count"),
+    );
 }
 #[test]
 fn an_adopted_id_of_zero_names_its_index() {

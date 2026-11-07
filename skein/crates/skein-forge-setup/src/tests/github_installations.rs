@@ -349,29 +349,248 @@ fn a_sweep_without_uninstall_permission_leaves_strays_and_ends_crowded() {
     }
 }
 
+struct DeleteFailure {
+    given: Given,
+    accepted: &'static [u64],
+    prefix: Box<[(Event, Progress)]>,
+    reply: Reply,
+    expected: Progress,
+}
 #[test]
-fn a_failed_delete_at_the_bound_names_its_installation() {
-    for (reply, expected) in [
-        (Reply::Status(403), failure(Stage::Installation, b"12345", Why::Refused(403))),
-        (Reply::Down, failure(Stage::Installation, b"12345", Why::Down)),
-        (Reply::GitHubRows(Box::new([])), failure(Stage::Installation, b"12345", Why::Unexpected)),
-        (Reply::Unsigned, failure(Stage::App, b"key", Why::KeyForm)),
-    ] {
-        let mut given = given();
-        given.limits.pages = 1;
-        let mut machine = new(&given, &[1, 9]);
-        assert_eq!(go(&mut machine, Event::Begin), page(1));
-        assert_eq!(
-            go(
-                &mut machine,
-                rows(&[row(12346, Wall::EPOCH, false), row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)])
+#[expect(clippy::too_many_lines, reason = "the labelled cases keep every input and expectation of one rule together")]
+fn sweep_deletion_failures_preserve_their_diagnostic_subject() {
+    skein_rows::check(
+        [
+            (
+                "a_failed_delete_at_the_bound_names_its_installation: refused",
+                DeleteFailure {
+                    given: {
+                        let mut given = given();
+                        given.limits.pages = 1;
+                        given
+                    },
+                    accepted: &[1, 9],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (
+                            rows(&[
+                                row(12346, Wall::EPOCH, false),
+                                row(3, Wall::EPOCH, false),
+                                row(12345, Wall::EPOCH, false),
+                            ]),
+                            send(Request::Uninstall { id: 3 }),
+                        ),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Status(403),
+                    expected: failure(Stage::Installation, b"12345", Why::Refused(403)),
+                },
             ),
-            send(Request::Uninstall { id: 3 })
-        );
-        assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 12345 }));
-        assert_eq!(go(&mut machine, Event::Reply(reply)), expected);
-        silent(&mut machine);
-    }
+            (
+                "a_failed_delete_at_the_bound_names_its_installation: down",
+                DeleteFailure {
+                    given: {
+                        let mut given = given();
+                        given.limits.pages = 1;
+                        given
+                    },
+                    accepted: &[1, 9],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (
+                            rows(&[
+                                row(12346, Wall::EPOCH, false),
+                                row(3, Wall::EPOCH, false),
+                                row(12345, Wall::EPOCH, false),
+                            ]),
+                            send(Request::Uninstall { id: 3 }),
+                        ),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Down,
+                    expected: failure(Stage::Installation, b"12345", Why::Down),
+                },
+            ),
+            (
+                "a_failed_delete_at_the_bound_names_its_installation: wrong reply",
+                DeleteFailure {
+                    given: {
+                        let mut given = given();
+                        given.limits.pages = 1;
+                        given
+                    },
+                    accepted: &[1, 9],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (
+                            rows(&[
+                                row(12346, Wall::EPOCH, false),
+                                row(3, Wall::EPOCH, false),
+                                row(12345, Wall::EPOCH, false),
+                            ]),
+                            send(Request::Uninstall { id: 3 }),
+                        ),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::GitHubRows(Box::new([])),
+                    expected: failure(Stage::Installation, b"12345", Why::Unexpected),
+                },
+            ),
+            (
+                "a_failed_delete_at_the_bound_names_its_installation: unsigned",
+                DeleteFailure {
+                    given: {
+                        let mut given = given();
+                        given.limits.pages = 1;
+                        given
+                    },
+                    accepted: &[1, 9],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (
+                            rows(&[
+                                row(12346, Wall::EPOCH, false),
+                                row(3, Wall::EPOCH, false),
+                                row(12345, Wall::EPOCH, false),
+                            ]),
+                            send(Request::Uninstall { id: 3 }),
+                        ),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Unsigned,
+                    expected: failure(Stage::App, b"key", Why::KeyForm),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: 200",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Status(200),
+                    expected: failure(Stage::Installation, b"12345", Why::Refused(200)),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: 401",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Status(401),
+                    expected: failure(Stage::Installation, b"12345", Why::Refused(401)),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: 403",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Status(403),
+                    expected: failure(Stage::Installation, b"12345", Why::Refused(403)),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: 500",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Status(500),
+                    expected: failure(Stage::Installation, b"12345", Why::Refused(500)),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: down",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Down,
+                    expected: failure(Stage::Installation, b"12345", Why::Down),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: document",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::GitHubDocument(Document::Done),
+                    expected: failure(Stage::Installation, b"12345", Why::Unexpected),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: github rows",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::GitHubRows(Box::new([])),
+                    expected: failure(Stage::Installation, b"12345", Why::Unexpected),
+                },
+            ),
+            (
+                "a_sweep_names_the_installation_whose_delete_failed: forgejo rows",
+                DeleteFailure {
+                    given: given(),
+                    accepted: &[],
+                    prefix: Box::new([
+                        (Event::Begin, page(1)),
+                        (rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]), page(2)),
+                        (rows(&[]), send(Request::Uninstall { id: 3 })),
+                        (Event::Reply(Reply::Empty), send(Request::Uninstall { id: 12345 })),
+                    ]),
+                    reply: Reply::Rows(Box::new([])),
+                    expected: failure(Stage::Installation, b"12345", Why::Unexpected),
+                },
+            ),
+        ],
+        |case| {
+            let mut machine = new(&case.given, case.accepted);
+            for (event, expected) in case.prefix {
+                assert_eq!(go(&mut machine, event), expected);
+            }
+            assert_eq!(go(&mut machine, Event::Reply(case.reply)), case.expected);
+            silent(&mut machine);
+        },
+    );
 }
 
 #[test]
@@ -409,27 +628,6 @@ fn a_page_at_the_row_cap_is_followed() {
     assert_eq!(go(&mut machine, Event::Reply(Reply::GitHubRows(full_page(PAGE_CAP)))), page(2));
     assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
     silent(&mut machine);
-}
-
-#[test]
-fn a_sweep_names_the_installation_whose_delete_failed() {
-    for (reply, why) in [
-        (Reply::Status(200), Why::Refused(200)),
-        (Reply::Status(401), Why::Refused(401)),
-        (Reply::Status(403), Why::Refused(403)),
-        (Reply::Status(500), Why::Refused(500)),
-        (Reply::Down, Why::Down),
-        (Reply::GitHubDocument(Document::Done), Why::Unexpected),
-        (Reply::GitHubRows(Box::new([])), Why::Unexpected),
-        (Reply::Rows(Box::new([])), Why::Unexpected),
-    ] {
-        let mut machine = begun(&[]);
-        go(&mut machine, rows(&[row(3, Wall::EPOCH, false), row(12345, Wall::EPOCH, false)]));
-        go(&mut machine, rows(&[]));
-        assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 12345 }));
-        assert_eq!(go(&mut machine, Event::Reply(reply)), failure(Stage::Installation, b"12345", why));
-        silent(&mut machine);
-    }
 }
 
 #[test]

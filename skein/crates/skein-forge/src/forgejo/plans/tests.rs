@@ -51,24 +51,28 @@ fn github_rate_and_validator_are_none_in_forgejo_plans() {
 }
 
 #[test]
-fn page_cap_start_returns_positive_cap() {
-    let mut plan = start::Plan::new(start::Read::ApiSettings);
-    let sent = plan.begin();
-    let ended = plan.heard(Heard::Done(Body::Document(fixtures::api_settings(fixtures::PAGE_CAP))));
-    assert_eq!(
-        (sent, ended),
-        (
-            start::Step::Send(Exchange { request: Request::ApiSettings, range: None }),
-            Some(start::Step::Done(start::Heard::ApiSettings { max_response_items: fixtures::PAGE_CAP }))
-        )
+fn api_page_cap_discovery_requires_a_positive_cap() {
+    skein_rows::check(
+        [
+            (
+                "page_cap_start_returns_positive_cap",
+                (fixtures::PAGE_CAP, start::Heard::ApiSettings { max_response_items: fixtures::PAGE_CAP }),
+            ),
+            ("zero_page_cap_is_unanswered", (0, start::Heard::Unanswered)),
+        ],
+        |(cap, expected)| {
+            let mut plan = start::Plan::new(start::Read::ApiSettings);
+            let sent = plan.begin();
+            let ended = plan.heard(Heard::Done(Body::Document(fixtures::api_settings(cap))));
+            assert_eq!(
+                (sent, ended),
+                (
+                    start::Step::Send(Exchange { request: Request::ApiSettings, range: None }),
+                    Some(start::Step::Done(expected))
+                )
+            );
+        },
     );
-}
-
-#[test]
-fn zero_page_cap_is_unanswered() {
-    let mut plan = begun(start::Read::ApiSettings);
-    let ended = plan.heard(Heard::Done(Body::Document(fixtures::api_settings(0))));
-    assert_eq!(ended, Some(start::Step::Done(start::Heard::Unanswered)));
 }
 
 #[test]

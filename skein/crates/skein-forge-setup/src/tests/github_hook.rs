@@ -157,50 +157,48 @@ fn a_hook_patch_must_answer_before_the_parent_continues() {
 }
 
 #[test]
-fn a_hook_names_refused() {
-    for phase in [1, 2] {
-        for status in [200, 204, 401, 403, 404, 429, 500] {
-            let mut machine = at(phase);
-            assert_eq!(go(&mut machine, Event::Reply(Reply::Status(status))), failure(SLUG, Why::Refused(status)));
-            silent(&mut machine);
-        }
-    }
-}
-
-#[test]
-fn a_hook_names_down() {
-    for phase in [1, 2] {
-        let mut machine = at(phase);
-        assert_eq!(go(&mut machine, Event::Reply(Reply::Down)), failure(SLUG, Why::Down));
-        silent(&mut machine);
-    }
-}
-
-#[test]
-fn a_hook_names_unsigned() {
-    for phase in [1, 2] {
-        let mut machine = at(phase);
-        assert_eq!(go(&mut machine, Event::Reply(Reply::Unsigned)), failure(b"key", Why::KeyForm));
-        silent(&mut machine);
-    }
-}
-
-#[test]
-fn a_hook_names_wrong_document() {
-    for phase in [1, 2] {
-        for reply in [
-            Reply::Empty,
-            Reply::GitHubDocument(Document::Done),
-            Reply::GitHubDocument(Document::App(fixtures::app())),
-            Reply::GitHubRows(Box::new([])),
-            Reply::Rows(Box::new([])),
-            Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
-        ] {
-            let mut machine = at(phase);
-            assert_eq!(go(&mut machine, Event::Reply(reply)), failure(SLUG, Why::Unexpected));
-            silent(&mut machine);
-        }
-    }
+fn hook_request_failures_name_their_cause_and_end_once() {
+    skein_rows::check(
+        [
+            ("a_hook_names_refused: 200", (Reply::Status(200), failure(SLUG, Why::Refused(200)))),
+            ("a_hook_names_refused: 204", (Reply::Status(204), failure(SLUG, Why::Refused(204)))),
+            ("a_hook_names_refused: 401", (Reply::Status(401), failure(SLUG, Why::Refused(401)))),
+            ("a_hook_names_refused: 403", (Reply::Status(403), failure(SLUG, Why::Refused(403)))),
+            ("a_hook_names_refused: 404", (Reply::Status(404), failure(SLUG, Why::Refused(404)))),
+            ("a_hook_names_refused: 429", (Reply::Status(429), failure(SLUG, Why::Refused(429)))),
+            ("a_hook_names_refused: 500", (Reply::Status(500), failure(SLUG, Why::Refused(500)))),
+            ("a_hook_names_down", (Reply::Down, failure(SLUG, Why::Down))),
+            ("a_hook_names_unsigned", (Reply::Unsigned, failure(b"key", Why::KeyForm))),
+            ("a_hook_names_wrong_document: empty", (Reply::Empty, failure(SLUG, Why::Unexpected))),
+            (
+                "a_hook_names_wrong_document: done",
+                (Reply::GitHubDocument(Document::Done), failure(SLUG, Why::Unexpected)),
+            ),
+            (
+                "a_hook_names_wrong_document: app",
+                (Reply::GitHubDocument(Document::App(fixtures::app())), failure(SLUG, Why::Unexpected)),
+            ),
+            (
+                "a_hook_names_wrong_document: github rows",
+                (Reply::GitHubRows(Box::new([])), failure(SLUG, Why::Unexpected)),
+            ),
+            ("a_hook_names_wrong_document: forgejo rows", (Reply::Rows(Box::new([])), failure(SLUG, Why::Unexpected))),
+            (
+                "a_hook_names_wrong_document: forgejo document",
+                (
+                    Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
+                    failure(SLUG, Why::Unexpected),
+                ),
+            ),
+        ],
+        |(reply, expected)| {
+            for phase in [1, 2] {
+                let mut machine = at(phase);
+                assert_eq!(go(&mut machine, Event::Reply(reply.clone())), expected);
+                silent(&mut machine);
+            }
+        },
+    );
 }
 
 #[test]

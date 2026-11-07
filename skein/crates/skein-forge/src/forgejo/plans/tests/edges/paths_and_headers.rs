@@ -123,36 +123,55 @@ fn pull_files_page(body: &[u8], paths: &[&[u8]], has_more: Option<bool>) -> Step
     step
 }
 
-#[test]
-fn short_pull_files_without_has_more_is_last() {
-    let short_rows = usize::try_from(PAGE_SIZE.saturating_sub(1)).unwrap();
-    assert_eq!(
-        pull_files_page(SHORT_FILES, &FULL_PATHS[..short_rows], None),
-        Step::Done(Ok(Answer::PullFiles { head: HEAD, files: Box::new([added_file(b"x")]), more: false }))
-    );
+struct PullFilesPage {
+    body: &'static [u8],
+    paths: &'static [&'static [u8]],
+    has_more: Option<bool>,
+    expected: Step,
 }
-
 #[test]
-fn full_pull_files_without_has_more_has_more() {
-    assert_eq!(
-        pull_files_page(FULL_FILES, &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()], None),
-        Step::Done(Ok(Answer::PullFiles {
-            head: HEAD,
-            files: Box::new([added_file(b"x"), added_file(b"y")]),
-            more: true
-        }))
-    );
-}
-
-#[test]
-fn explicit_last_pull_files_page_has_no_more() {
-    assert_eq!(
-        pull_files_page(FULL_FILES, &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()], Some(false)),
-        Step::Done(Ok(Answer::PullFiles {
-            head: HEAD,
-            files: Box::new([added_file(b"x"), added_file(b"y")]),
-            more: false
-        }))
+fn pull_file_pagination_uses_headers_or_page_fullness() {
+    skein_rows::check(
+        [
+            ("short_pull_files_without_has_more_is_last", {
+                let short_rows = usize::try_from(PAGE_SIZE.saturating_sub(1)).unwrap();
+                PullFilesPage {
+                    body: SHORT_FILES,
+                    paths: &FULL_PATHS[..short_rows],
+                    has_more: None,
+                    expected: Step::Done(Ok(Answer::PullFiles {
+                        head: HEAD,
+                        files: Box::new([added_file(b"x")]),
+                        more: false,
+                    })),
+                }
+            }),
+            ("full_pull_files_without_has_more_has_more", {
+                PullFilesPage {
+                    body: FULL_FILES,
+                    paths: &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()],
+                    has_more: None,
+                    expected: Step::Done(Ok(Answer::PullFiles {
+                        head: HEAD,
+                        files: Box::new([added_file(b"x"), added_file(b"y")]),
+                        more: true,
+                    })),
+                }
+            }),
+            ("explicit_last_pull_files_page_has_no_more", {
+                PullFilesPage {
+                    body: FULL_FILES,
+                    paths: &FULL_PATHS[..usize::try_from(PAGE_SIZE).unwrap()],
+                    has_more: Some(false),
+                    expected: Step::Done(Ok(Answer::PullFiles {
+                        head: HEAD,
+                        files: Box::new([added_file(b"x"), added_file(b"y")]),
+                        more: false,
+                    })),
+                }
+            }),
+        ],
+        |case| assert_eq!(pull_files_page(case.body, case.paths, case.has_more), case.expected),
     );
 }
 
