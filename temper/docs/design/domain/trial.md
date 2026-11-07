@@ -24,8 +24,9 @@ words, is `../client/README.md`, 3.5, *The try*.
   inputs.
 - **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`,
   4.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
-  0 (jig's `domain/engine.md`, 11.1), for the trial's charter and its seed's models, holds no account but the one tried:
-  then what a new chat takes is that account.
+  0 (jig's `domain/engine.md`, 11.1), within the deployment ceiling's models, holds no account but the one tried.
+  Those are the models a person's seed allows (jig's `domain/authority.md`, 6.1); the offer is not narrowed to
+  the trial's charter for this decision. Then what a new chat takes is that account.
 - **A later account's names it.** Where that offer holds any other account, the person's own or the deployment's, the
   trial's `llm` is jig's `Core::account_llm` for the account tried: that account, and the charter's first model offered
   with it, else the first it serves, at its default effort (jig's `domain/accounts.md`, 4.3). Its run takes that
@@ -100,10 +101,11 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
 - **`Application::Try { account, again }`,** admitted with its person, whose answer is `Tried` or, where the person
   doesn't hold that account, `NotTheirs`. `route/applications.rs` keeps that answer in memory for its key's retention, as
   it keeps a return's, so a replayed key spends nothing.
-- **`Make`:** `Core::person_seed`, then the trial's choice (2): `Core::offer` for `Payer::Party(person)` in project 0
-  with the seed's `models()`; where it holds an account other than the row's, `Core::account_llm` for the row's account,
-  and none is `Refused`; otherwise no choice. Then `Event::PersonTask` with `Executor::Agent { charter: TRIAL_CHARTER }`
-  and that `llm`, and `Made` with the seed's number; no seed, `Refused`.
+- **`Make`:** the trial's choice (2), before allocating a seed: `Core::offer` for `Payer::Party(person)` in project 0
+  with the deployment ceiling's models; where it holds an account other than the row's, `Core::account_llm` for
+  charter 10 and the row's account, and none is `Refused`; otherwise no choice. An unserved later account is refused
+  before `Core::person_seed`, so no unused seed opens funding. Then `Core::person_seed` and `Event::PersonTask` with
+  `Executor::Agent { charter: TRIAL_CHARTER }` and that `llm`, and `Made` with the seed's number; no seed, `Refused`.
 - **Lines:** what `route_core_requests` sees saved for a task a row holds: `Line::Turn` is `Turn`, `Line::RunEnded`
   with `Finished` is `Finished`, with `Failed { class }` or `Refused` is `RunFailed`. An account's erase is
   `AccountGone`.
@@ -200,6 +202,9 @@ the pane, on the account's row and on Home, and "Try again".
 
 ## 8. Later
 
+- **Real-account verification** (2, 6.2): after landing, connect Claude then ChatGPT, ChatGPT then Claude, and
+  two accounts of one provider on a real box. Check that the later account's own row shows its trial and that
+  "Try again" retries it; the first usable account's trial still names no `llm`.
 - **A deployment's accounts** are the owner's, on a document only the accounts page watches, and aren't tried.
 - **Settings:** whether the accounts page offers "Try it" on an account (the draft's 5).
 - **A key whose `uses` name a project alone** isn't covered in no project, so its trial waits saying there's no
