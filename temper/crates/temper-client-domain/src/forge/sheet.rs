@@ -420,11 +420,14 @@ pub fn button(sheet: &Sheet, form: &super::Form, rows: &State) -> (Button, bool)
             let full = bytes::concat(&[&sheet.org.text, b"/", &sheet.name.text]);
             let valid =
                 super::making::ask(sheet.target.unwrap_or(0), &sheet.org.text, &sheet.name.text, None, None).is_ok();
-            (Button::Make { full }, idle && sheet.target.is_some() && valid)
+            (
+                Button::Make { full },
+                idle && sheet.target.is_some() && valid && sheet.org.broken.is_none() && sheet.name.broken.is_none(),
+            )
         }
         Source::Copy => {
             let lines = lines(sheet, rows);
-            let mut valid = !lines.is_empty();
+            let mut valid = !lines.is_empty() && sheet.addresses.broken.is_none();
             let mut first: Box<[u8]> = Box::from(b"".as_slice());
             for line in &lines {
                 match line {
@@ -433,9 +436,18 @@ pub fn button(sheet: &Sheet, form: &super::Form, rows: &State) -> (Button, bool)
                             first = bytes::concat(&[org, b"/", name]);
                         }
                     }
-                    super::making::Line::Bad { .. }
-                    | super::making::Line::NotAHost { .. }
-                    | super::making::Line::Taken { .. } => valid = false,
+                    super::making::Line::Bad { raw } | super::making::Line::NotAHost { raw, .. } => {
+                        if first.is_empty() {
+                            first = super::words::lossy(raw);
+                        }
+                        valid = false;
+                    }
+                    super::making::Line::Taken { org, name, .. } => {
+                        if first.is_empty() {
+                            first = bytes::concat(&[org, b"/", name]);
+                        }
+                        valid = false;
+                    }
                 }
             }
             (Button::Copy { count: lines.len(), first }, idle && sheet.target.is_some() && valid)

@@ -526,3 +526,32 @@ fn empty_making_has_the_name_and_existing_projects_get_no_home() {
             && make.from() == &w::MakeFrom::Empty
     });
 }
+
+#[test]
+fn making_buttons_hold_back_an_edit_past_the_fields_bound() {
+    let (mut side, _) = opened();
+    act(&mut side, Act::Source(Source::Empty));
+    act(&mut side, Act::Name(b"new".as_slice().into()));
+    assert!(button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
+    let too_long = b"x".repeat(usize::try_from(env().limits.field_bytes).unwrap() + 1);
+    for edit in [Act::Org(too_long.clone().into()), Act::Name(too_long.clone().into())] {
+        act(&mut side, edit);
+        assert!(!button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
+        assert!(act(&mut side, Act::Send).is_empty());
+        act(&mut side, Act::Org(b"work".as_slice().into()));
+        act(&mut side, Act::Name(b"new".as_slice().into()));
+    }
+    act(&mut side, Act::Source(Source::Copy));
+    answer(&mut side, page(1, 0, false));
+    act(&mut side, Act::Addresses(b"acme/one".as_slice().into()));
+    assert!(button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
+    act(&mut side, Act::Addresses(too_long.into()));
+    assert_eq!(side.sheet().unwrap().addresses.text.as_ref(), b"acme/one");
+    assert!(!button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
+    assert!(act(&mut side, Act::Send).is_empty());
+    act(&mut side, Act::Addresses(b"github/acme/one".as_slice().into()));
+    assert_eq!(
+        button(side.sheet().unwrap(), side.form().unwrap(), &side.forges),
+        (Button::Copy { count: 1, first: b"github/acme/one".as_slice().into() }, false)
+    );
+}

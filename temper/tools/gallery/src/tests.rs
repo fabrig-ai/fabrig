@@ -2331,6 +2331,36 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds { name: "sheet-empty", heading: "What factory works on.", parts: &[Part::Text { text: "None reachable." }] },
     Holds {
+        name: "sheet-copy",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Value {
+                role: Role::TextArea,
+                name: "Their addresses, one per line",
+                value: "github.com/octo/vsr\ncodeberg.org/forgejo/runner",
+            },
+            Part::Named { role: Role::Button, name: "Copy 2 repositories" },
+        ],
+    },
+    Holds {
+        name: "sheet-copy-lines",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Use it" },
+            Part::Named { role: Role::Button, name: "Adopt it" },
+            Part::Text { text: "github isn’t a host. Did you mean github.com/octo/vsr?" },
+            Part::Text { text: "octo/raft is already on this forge." },
+        ],
+    },
+    Holds {
+        name: "sheet-empty-source",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Value { role: Role::TextField, name: "Organization", value: "work" },
+            Part::Named { role: Role::Button, name: "Make it" },
+        ],
+    },
+    Holds {
         name: "chats-reference",
         heading: "Talk to an agent",
         parts: &[
