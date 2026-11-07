@@ -375,10 +375,10 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
 | `Adopt { project }` | none: 4.4 | under its path (*Settings,* below), the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
 | `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
-| `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
+| `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: the shared choice cards or a way’s panel, then the open row on Forges, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its trial's line under the head and before the sources (`../domain/trial.md`, 6.2), its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
-| `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
+| `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (5.5, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -993,8 +993,9 @@ keeps (`../protocol/configuration.md`, section 2).
   task keeps its account: while the account is limited, the task waits for
   it."; with no project it follows the page's heading. Each folded row
   shows its name, holder, deciding source’s tag and summary. Opened, its state
-  precedes "Its sources in order: a run takes the first usable one.", its
-  numbered sources, the rule and labelled model and use facts, then its acts.
+  adds only what the summary does not say: its source order and source acts,
+  the rule and use facts, then its account acts. Its name, models, Ready
+  and Pays for are not repeated in the opened body.
   "Deployment accounts" appears only when the owner’s document holds accounts.
 - **`ConnectModel`** (the request `connect-flows`) connects one more LLM
   account: the welcome's cards, panels and words, under Settings' path
@@ -1022,7 +1023,7 @@ keeps (`../protocol/configuration.md`, section 2).
     opens a new tab and sends the sign-in, whose answer is the address
     the tab goes to. The provider sends that tab to the engine's
     listener, and the page, which stayed, shows the sign-in's end, read
-    on the `accounts` watch: Ready, or the ending's words and acts (5.5,
+    on the `accounts` watch: Accounts with its confirmation, or the ending’s words and acts (5.5,
     A sign-in). The terminal prints the address and opens no browser
     (6.5). temper detects no browser elsewhere (section 11, A browser on another
     machine): the page offers the paste to everyone, below.
@@ -1052,8 +1053,8 @@ keeps (`../protocol/configuration.md`, section 2).
     disabled while empty or past the bytes `me` states. While the
     request is out, the button reads "Finishing…"; answered
     *finishing*, the field goes and the card reads "Finishing your
-    sign-in…" until the `accounts` watch shows the end, Ready or the
-    ending's words (5.5, A sign-in). Refused, the field stays empty
+    sign-in…" until the `accounts` watch shows the end, Accounts or the
+    ending’s words (5.5, A sign-in). Refused, the field stays empty
     with the refusal's words above it (5.5, The paste), and the sign-in
     still waits; refused *not waiting*, the card follows the watch: an
     end it shows, or, with the sign-in gone, "This sign-in has ended.",
@@ -1105,7 +1106,8 @@ keeps (`../protocol/configuration.md`, section 2).
     ending has replaced) is no sign-in of the page's: the way's card
     shows again, with its button, and the address drops the source.
   - *Details* is the way's field: a key's secret field and "Add key"; a
-    program's name field and "Declare". Declaring a program's login
+    program’s panel, its command and Copy, the folded “Use another login
+    name” field and “I’ve signed in”. Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
     the command to run on each host, as *The printed command* (4.6) has it,
@@ -2201,17 +2203,19 @@ keeps (`../protocol/configuration.md`, section 2).
     owners.", and no section. Until the document is read, the title "Builders"
     alone, claiming nothing. There is no capacity graph. The word on the page
     is "builder"; the code's stays host.
-  - *The flows' paths:* `ConnectForge`, `ConnectModel` and `Adopt` stay pages of
-    their own, the first two in the welcome's look as built, `Adopt` in the
-    rows' `.col`, `.text` and `.btn`. With a project open, each draws at its
-    head, in the browser, a path as `Configure`'s: PROJECT / Settings / Forges /
-    Add a forge; PROJECT / Settings / Accounts / Connect an account; PROJECT /
-    Settings / Repositories / Adopt a repository. Its links go to the project's
-    `Home`, to `Settings { project }` and to the tab, and its last part is no
-    link. On a phone it is "‹" alone, a link to the tab. With no project it has
-    no path, and the terminal draws none: its rail holds "Settings". A flow's
-    ending with no page of its own returns to its tab: "Start over" on a forge
-    cut short, from `ConnectForge`, to `Forges`.
+  - *The flows' paths:* `ConnectForge` and `ConnectModel` share the
+    welcome’s cards and panels in Settings’ column. With a project open,
+    the browser draws PROJECT / Settings / Forges / Connect a forge, or
+    PROJECT / Settings / Accounts / Connect a model. Links go to the
+    project’s Home, Settings and the tab; the last part is plain. Inside
+    a way, the path also links back to the choices, with the way’s name
+    last. The quiet Other ways or Other forges stays beside the main act.
+    On a phone the path’s “‹” links back to the choices inside a way, or
+    to the tab at the choices. With no project there is no path, and the
+    terminal uses its rail’s Settings. `Adopt` draws the Add repositories
+    sheet over Repositories, whose path remains the tab’s (4.4).
+    A flow’s completion returns to its tab; Start over on a forge cut
+    short returns to Forges.
   - "Settings" is current on every tab, on `ConnectForge`, `ConnectModel`,
     `Adopt` and `Configure`, and on a configuring chat. A project's Delete,
     when it is built, is on How work runs (section 10).
@@ -2881,12 +2885,13 @@ is loading, unknown or cannot be shown (5.10).
 
 ### 4.3 Where the form is
 
-The form is a page of temper's, `Adopt { project }`, reached from
-`Settings`' "Adopt a repository" (3.5), Home's second step (3.5) and
-the banner's navigation (5.3); its place among a project's settings is
-open (section 11). The outcome's sentence (4.7) is what
-tells the person a repository is adopted: no page of temper's lists a
-project's resources (section 11).
+`Adopt { project }` draws the “Add repositories” dialog over Settings’
+Repositories (4.4). Settings’ button and links to adoption open it; Cancel
+or Escape returns to Repositories. A project with no repository retains
+its Chats band’s entry, which reaches this same address. Home’s second
+step can adopt the offered first repository directly, open its own
+empty-or-copy sheet, or link to adoption (3.5). Those entry points are
+unmocked by `connect-flows`; the request changes the Settings destination.
 
 ### 4.4 The sheet "Add repositories" and its adoption form
 
@@ -2948,13 +2953,14 @@ picker, below). In order:
 | owner | text field "Owner" | empty, or a first repository's organization (below) | required |
 | name | text field "Name" | empty, or a first repository's name (below) | required |
 | role | choice group "Role": "Owned: temper pushes, opens pull requests and lands", "Fork: temper contributes through a fork", "Context: temper only reads" | owned | one of the three |
-| home | check "Make it the project's home" | checked | a context repository cannot be the home |
+| home | check "Make it the project's home", for a single pick | checked only if the project has no home | a context repository cannot be the home; hidden for plural picks |
 | prefix | text field "Branch prefix" | `temper/` | required |
 | landing | text field "Landing branch" | empty, or `main` for a first repository (below) | required: the forge connector refuses an adoption without one |
 | ci | check "It runs CI" | checked | without CI, at least one check |
 | checks | text field "Checks: gate numbers, separated by spaces or commas" | empty: none | numbers from 1, each once, at most the client's limit on checks |
 
-Then a button "Adopt", and below it the request's state or outcome.
+The foot’s primary names the selected repository or counts the picks;
+request state and refusals remain above the foot.
 
 **From a project with no repository** (3.5; `../draft/first-run-projects.md`,
 4 and 5): the chats page's "Adopt a repository" opens this form into
@@ -2969,21 +2975,19 @@ organization as the owner, its name, and `main`, the branch its
 defaults. With several, the one on the forge numbered lowest. The person may
 change any field, and "Adopt" sends `Adopt` alone.
 
-**The picker,** between "Forge number" and "Owner": the repositories
-temper can reach on that forge (`forge.md`, 5.1), the project's own
-among them (section 11), a page at a time by number, each page the
-answer to a `Reachable` request (section 8) the form sends when the
-forge's number is written and at each of the picker's buttons, beside
-the forge's deployment part, read as the forges' page reads it (3.5),
-for its kind, its user's login and its installations. Its nodes:
-
-| Node, named | Shows | Acts |
-|---|---|---|
-| choice group "Account", GitHub alone | a choice per accepted installation the forge's read names, its account's login, followed by ", selected repositories" where its installation selects them and ", suspended" where GitHub suspends it; the first is chosen when the forge's number is written | a choice reads that installation's first page, the request's `installation` its id |
-| list "Repositories" | an item per row holding a button named "OWNER/NAME", or "OWNER/NAME, private" where the forge says it is private; at most the answer's rows, `picker.page` (`../protocol/configuration.md`, its limits) clipped to the forge's own page cap, within the client's limit on a page's rows | a row fills "Owner" and "Name" and keeps the row's ids for the request (4.6) |
-| buttons "Next" and "First page" | "Next" while the answer says more follow (`more`, set when the page is full); "First page" past the first | the page after the one shown, by its number, or page 1 again |
-| a status under the list | "Reading forge F's repositories…" while the request is pending; "None reachable." for an empty first page; a refusal, below | — |
-| "Not listed" | under "Owner" and "Name" typed by hand, of no row read, what would make the repository reachable, from the forge's read and its installations, in `forge.md`, 5.1's words: on GitHub "Grant OWNER/NAME to temper's App on GitHub's installation page." linked to that installation's page, or "temper's App is not installed on OWNER." with "Install on another account"; on a connected Forgejo "Make LOGIN a collaborator with write on OWNER/NAME."; on a managed or owned Forgejo, nothing | "Install on another account" goes to the forges' page (3.5) |
+**The picker** is below the optional Forge and Account fields. It reads
+`Reachable` pages from 1, retains rows in forge order up to `picker.rows`,
+and reads on when the list nears its end or a search needs more rows
+(`forge.md`, 5.1). More than eight rows, or more still to read, gives it
+“Find by name”, its own height and a count; a small completed list has
+none of those extras. A row is a checkbox named OWNER/NAME, marked private
+where supplied. “In PROJECT” and “Copying…” rows are disabled. Picks
+survive search, but a change of forge or installation clears them. No
+Next or First page button is drawn. “Not listed” holds Owner and Name
+and the forge-specific remedy; a completed search with no matches opens
+it with the typed name. GitHub’s account field appears only for several
+installations; the wire carries no selected/all mode, so its remedy asks
+the person to check existence and grant the repository to the App.
 
 - **The ids ride, never shown.** A row carries the forge's id for the
   repository and its owner's id, besides the owner's login, the name and
@@ -2991,7 +2995,7 @@ for its kind, its user's login and its installations. Its nodes:
   request while "Owner" and "Name" are the row's, and drops them when
   either is edited by hand (4.6).
 - **Refused, in words.** A forge not connected (`NotConnected`):
-  "Forge F is not connected.", linked to the forges' page, and "Adopt"
+  "Forge F is not connected.", linked to the forges' page, and the primary
   disabled for that forge until a later page lists its repositories. A
   forge the store does not keep: "No forge F is configured." Refused for the
   person's role, which does not hold the deployment's connectors:
@@ -3864,48 +3868,33 @@ client removes no account and closes no chat of its own.
   link an external link (6.5), and a connect's or an action's status
   under its button. While the `forges` watch is refused, the page says
   so in jig's words; until it has delivered, its headings alone.
-- **`ConnectForge`:** its level-1 heading, "Connect a forge"; its steps
-  as a list, the current one marked; the step's card, under its level-2
-  heading: Choose's cards as a list of links, each with its words;
-  Details' fields, as the forges' page's; Setting up's steps as a list,
-  each with its state in words; Ready's link to the project.
-- **The accounts page:** a level-1 heading, "Accounts", then "Your
-  accounts" with their count and "+ Connect a model", then a
-  disclosure per account, folded, named by its card's heading (5.5, An
-  account), its summary its deciding source's state and the account's
-  line, holding its state's words and acts, its sources as a list in
-  order, each its kind and its state in words, "Pays for", "Used by"
-  and "Waiting for it" as name and value, and its acts as buttons;
-  "Deployment accounts" the same way; the playground's in a section of
-  its own (3.5). A secret field is the row's (3.6), a sign-in's
-  address an external link (6.5), and an act's status under its row.
-  While the `accounts` document is refused, the page says so in jig's
-  words; until it has delivered, its headings alone.
-- **`ConnectModel`:** its level-1 heading, "Connect a model"; its
-  steps (below); the step's card, under its level-2 heading: Choose's
-  cards, a choice for each way (5.5, The ways); Details' field and its
-  button, and a program's command as code; Signing in's sign-in, its
-  address as an external link (6.5), then its end; Ready's words, its
-  account's name and model and what it pays for as name and value,
-  "Start a chat" and a plan's "Manage usage".
+- **`ConnectForge`:** its Settings path and level-1 heading, “Connect a
+  forge”; the shared choice cards or the selected way’s panel, with its
+  fields and acts. No Steps list or outer Choose card. A running or
+  connected forge opens its row on Forges, where progress and installation
+  acts live (`forge.md`, 5.4).
+- **The accounts page:** its level-1 heading, “Accounts”, its lede and
+  account groups, each row a folded disclosure. Its summary names the
+  account, holder, deciding source’s tag and line (5.5). Opening adds
+  source order, source acts, rule, use facts and account acts, without
+  repeating the summary’s name, models, Ready or Pays for. A secret field
+  is the row’s (3.6), and an act’s status stays under its row. Refused
+  reads say why; undelivered reads draw only the headings.
+- **`ConnectModel`:** its Settings path and level-1 heading, “Connect a
+  model”; shared plan cards, then API key rows, or the selected way’s
+  panel and acts. A sign-in’s address is an external link (6.5). Success
+  lands on Accounts with its confirmation and Start a chat, without a
+  Ready page. The holder switch is one quiet link at the foot.
 - **A flow's parts,** shared by `ConnectForge`, `ConnectModel` and the
-  welcome, are the view's `flow` module, each drawing one part from
-  words already said and the bindings it is given, so that each flow
-  keeps its own state and words:
-  - *its steps,* the list along the top, named "Steps", each item a
-    step's name, the current one `State::Current`, those before it
-    styled done;
-  - *a choice,* one of Choose's cards: a region named by its level-2
-    heading, its words, its muted line and its link or button;
-  - *a progress,* a list of lines, each with its state in words
-    ("done", "under way", "failed", or none for one to come);
-  - *a card,* the step's one card, holding the rest.
-  A flow's page builds its main from them; the welcome's steps are its
-  own links, in its frame (3.5, The welcome).
-- **Bindings:** writing a field, choosing a role, toggling home or ci,
-  choosing a picker's installation or row, its "Next" and "First page",
-  pressing Adopt, each of the forges' page's actions, and going to
-  either page from its navigation entry.
+  welcome, are the view's `flow` module. Choice cards, panels and controls
+  use the shared connection tokens (`browser.md`, 2.5); progress is a list
+  whose lines retain their state in words. Forges rows use the compact
+  live list. The welcome alone keeps its frame’s Steps links (3.5).
+  Settings flows have no steps bar, outer Choose card or Ready card.
+- **Bindings:** writing a field, choosing a role, toggling home or CI,
+  choosing the picker’s forge or installation, checking repository rows,
+  searching and nearing the list’s end, sending its plural adoption,
+  making or copying, each forge action and navigation entry.
   Typed input is made here: the forge number's digits become a number,
   the checks' words a list, or nothing when they are not one, which the
   form marks invalid.
@@ -4202,25 +4191,25 @@ The words for each offered source are:
   sends what the account form's act for it would: a sign-in is jig's
   `SignIn` for that provider, held by the person (`Own`); a key's,
   `AddKey` joining no account; a program's, its declaration. On
-  Choose, each way is a card: a plan's sign-in, the plan's name,
-  "Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s
-  agents use your plan’s included usage." and "In a browser · about a
-  minute"; a key, "An OpenAI API key", "A
-  key from OpenAI’s platform. What temper’s agents use is billed to the
-  key’s organization." and "Pasted here · at once"; then the way's
-  button.
+  the choices, the welcome and Settings use the same plan cards, with
+  ChatGPT first, then Claude where offered. “✓ Connected” replaces a
+  connected way’s note; “Add another plan” replaces its button, and the
+  first unconnected way becomes primary. API keys are rows under “Or an
+  API key”, each with “Add key”; the scripted model is never offered.
 
 - **Details:** a key's heading is "An OpenAI API key", then "From
   OpenAI’s platform, under API keys. What temper’s agents use is billed
   to the key’s organization.", the secret "Key (pasted once)" field and
-  the primary "Add key". A program's Details says "Your Claude subscription",
-  "temper runs Claude Code, signed in to your Claude subscription on each
-  host its agents run on. Name the login, then sign in on each host, in a
-  terminal there:", the existing program-name input labeled "Name", the
-  command, and "If this machine has no Claude Code, this fetches it
-  first. Claude Code asks you to sign in. temper never reads its login."
-  (`../protocol/setup.md`, 6.6, which fetches it and says so in that
-  terminal). Its neutral act is "Use your Claude subscription".
+  the primary “Add key”. A program’s panel is “Your Claude subscription”,
+  with “temper sets Claude Code up on this machine in an environment of its
+  own: its settings, sessions and sign-in stay apart from your own Claude
+  Code. In a terminal here:”, the command with Copy, then “It makes that
+  environment, then Claude Code asks you to sign in to your subscription
+  there. temper never reads its login.” (`../protocol/setup.md`, 6.6).
+  “Use another login name” folds the Name field, defaulting to `claude-`
+  and the person’s first name. “I’ve signed in” declares and checks the
+  login; the command stays while the check is out. Each panel keeps
+  “Other ways” beside its main act.
 - **The banner:** "Agents need an LLM account to run." and "Continue
   with ChatGPT", "Use your Claude subscription", "Use an API key", one
   for each way the configured providers offer (The ways, above), each
@@ -4228,27 +4217,13 @@ The words for each offered source are:
   playground is read (4.8), the composer says "No model yet · Connect
   a model", offers no picker and keeps its draft editable; its button and
   Enter cannot send. Unknown usability keeps the existing behaviour.
-- **Ready,** for a key: "Added your OpenAI API key", PROVIDER's
-  configured name ("Added your PROVIDER API key"), and "temper’s
-  agents now run on it."; for a program's login: "Declared your Claude
-  subscription · claude-alice", then "Run this on each host temper’s
-  agents run on, in a terminal there:", the command (4.6, *The printed
-  command*), after the words of `program_environment` (4.6) where it has any,
-  and "If this machine has no Claude Code,
-  this fetches it first. Claude Code asks you to sign in. temper never
-  reads its login."; for a sign-in, A sign-in's (below).
-  The tools' declaration act names the box's three directories as
-  placeholders and skips a directory already signed in (`tools.md`,
-  5.5, area 5).
-  Sign-in cards are headed "Signing in to ChatGPT" until a successful
-  Made end supplies "Signed in to ChatGPT as ADDRESS". The welcome's
-  successful end adds "ChatGPT · ADDRESS is on the Accounts page, with
-  its details.", using the supplied account display.
-  Then, for a key and a sign-in, its account, the model a new chat's
-  first run takes and what it pays for, as rows in a facts list ("Account",
-  "Model", "Pays for"), with muted labels and right-aligned values.
-  For a sign-in, Start a chat, Manage usage when available, and Continue
-  with ChatGPT share a wrapping actions row.
+- **Completion:** Settings returns to Accounts, with “Added your OpenAI
+  API key”, “Added your ChatGPT plan” or, once the host check succeeds,
+  “Added your Claude subscription”, and its follow-up words, plus the quiet “Start a chat”. The
+  line clears on leaving or acting. Manage usage stays in the account’s
+  row. The program’s command, Copy and host checks stay in its way’s
+  panel and account row, not a separate Ready card. The welcome keeps
+  its Model completion and its own Ready step (3.5).
 - **An account** is its provider and display name, "ChatGPT ·
   alice@example.com"; a key-only account, "OpenAI API key"; a program's,
   "Claude subscription · claude-alice". Its card's heading follows with
@@ -5817,31 +5792,14 @@ lines, each starting `temper: `.
 As skein's text shell prints (skein's `ui-text.md`, section 5). The
 first line is `== TITLE == STATUS`: TITLE the page's level-1 heading,
 STATUS the link's state (5.1), with "Behind" after it while the page
-is behind. For example, the adoption page, its rail left out:
+is behind. With the repository sheet open, the underlying page is
+Repositories and the dialog is named “Add repositories to PROJECT”. Its
+source choices, repository checkboxes, fields and foot actions receive the
+same numbered terminal controls as the other pages. Private, already in
+the project and copying marks remain words; the terminal prints refusals
+and request state beside the affected controls. The sheet has no Next
+button: list demand and search read subsequent pages (4.4).
 
-```
-== Adopt a repository into shop == Live
-…
-[9] Forge number: 1
-Account:
-  [10] (*) acme, selected repositories
-  [11] ( ) acme-labs
-Repositories:
-  - [12] acme/shop, private
-  - [13] acme/docs
-[14] Next
-[15] Owner: acme
-[16] Name: (empty) (invalid)
-* Required.
-Role:
-  [17] (*) Owned: temper pushes, opens pull requests and lands
-  [18] ( ) Fork: temper contributes through a fork
-  [19] ( ) Context: temper only reads
-[20] [x] Make it the project's home
-```
-
-and so on to `[25] Adopt`. `acme` is an example account on the fake
-forge of the tests (section 10), as every name here is.
 
 ### 6.5 Numbers and commands
 
@@ -6169,10 +6127,11 @@ does for the client:
   id. `installation` is an accepted installation's id, GitHub alone: one
   the forge has not accepted, or one given for a Forgejo, stops the plan
   (`Installation`, `Missing` or `Unexpected`); `page` a page's
-  number, from 1, and the picker's "Next" asks for the shown page's
-  number plus one; after a last page that came back full, it answers no
-  rows. The plan's `reachable` limit is given from `picker.page`. The
-  request names no project (section 11).
+  number, from 1, and the picker reads the next page when its list nears
+  the end or a search still needs rows; a full last page may be followed
+  by an empty answer. No Next or First page control is drawn. The plan’s
+  `reachable` limit is given from `picker.page`. The request names no
+  project (section 11).
   The forge's kind, mode, user and installations are the deployment
   part's, never the page's; an installation's page there is built by the
   engine from the forge's `web` address, as its record keeps it (`forge.md`, 5.5).
@@ -6376,9 +6335,9 @@ own tests:
   nothing, a card read for its own task once held, and the log's earlier
   and later acts as the chat's reads (5.15)); the forge side's steps
   (the form's rules, its request, every outcome, the version check; the
-  picker's pages by number, "Next" asking the shown page's number plus
-  one, a full last page's "Next" and a page past the last answering no
-  rows, its ids kept and dropped, a page answered late dropped, busy
+  picker’s pages by number, scroll and search demanding the next page,
+  a full last page followed by an empty answer, its ids kept and dropped,
+  a page answered late dropped, busy
   and the admin's token's refusals in words, "Not listed"'s words from
   each forge's read and installations; each FORGE request
   and outcome of section 8, a carried value's fields emptied as it
@@ -6468,8 +6427,8 @@ own tests:
   on the same state. In the view, the accounts page in each state of
   5.5's table, folded and opened, with each act and its outcome under
   its row, the deployment's and the playground's sections, and none of
-  the person's own; `ConnectModel` at each step for each way, Ready's
-  words for each, and each ending's words and acts; the welcome's Model
+  the person's own; `ConnectModel` at each way, its completion line on
+  Accounts, and each ending’s words and acts; the welcome’s Model
   step with no forge's line, and with each (3.5, The welcome): under
   way with its steps and named indeterminate bar, ticked, none adopted
   and failed without a bar, GitHub's waits without a bar, the repository
@@ -6549,12 +6508,12 @@ own tests:
   tasks" listing its ended tasks with their endings; a task that is no
   change watched as unknown, its part saying so; the banner with no
   account, its key way followed to `ConnectModel`'s Details, a key
-  added there, Ready, and the banner gone, and the key in no record of
-  the small store; a key's request lost and sent again by the person,
+  added there, Accounts with its confirmation, the banner gone, and the
+  key in no record of the small store; a key's request lost and sent again by the person,
   making one account; a person on `ConnectModel`'s Choose pressing
   "Continue with ChatGPT", Signing in showing its address, the
-  watched sign-in made, and Ready; the press's `Tab::Open` in the
-  press's own turn, before any answer, then one `Tab::Point` for the
+  watched sign-in made, and Accounts with its confirmation; the press’s
+  `Tab::Open` in the press’s own turn, before any answer, then one `Tab::Point` for the
   address from the answer, with no `Leave`, the page's
   address naming the source in place of its entry; a refused or lost
   answer's `Tab::Close`, and an answer the page has left; a tab refused,
@@ -6566,7 +6525,7 @@ own tests:
   Ready drawing no model line until the
   `accounts` document is delivered, then "Model: ChatGPT · signing
   in" while the sign-in is under way, then the account made; a program's login declared from
-  Details and its command shown on Ready; the accounts page's rows
+  its panel, with its command and Copy; the accounts page's rows
   folded, one opened and a key added to its account from the row; a
   limited account's words, "Use the API key first" moving its key
   up, and its task waiting; on the fake forge's GitHub, the picker's pages by
