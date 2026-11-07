@@ -48,7 +48,7 @@ fn fixed_zero() -> Account {
 fn new_refuses(account: Account) -> Option<Unusable> {
     let mut configured = List::with_capacity(1);
     configured.push(account).expect("one account");
-    Component::new(configured, &limits(), crypto(17)).err()
+    Component::new(configured, &limits(), crypto(17), b"accounts-test").err()
 }
 fn add_refuses(account: Account) -> Option<Unusable> {
     let mut owner = Owner::configured([], &limits());

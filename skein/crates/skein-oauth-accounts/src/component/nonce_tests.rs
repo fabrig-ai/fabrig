@@ -23,7 +23,7 @@ fn openid() -> (Component, Limits) {
     }
     let mut accounts = List::with_capacity(1);
     accounts.push(account).expect("one account");
-    (Component::new(accounts, &profile, crypto(17)).expect("OpenID account"), profile)
+    (Component::new(accounts, &profile, crypto(17), b"accounts-test").expect("OpenID account"), profile)
 }
 
 #[test]

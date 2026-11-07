@@ -6,11 +6,6 @@ Sections 2.2 and 6.3 have no known gap in caller-selected profile claims,
 their bounds and verification flags, or delivery beside the kept record
 on sign-in and refresh, except for the nonce requirement below.
 
-- **Not yet:** 6.3, 6.5, 6.7, 6.8: an over-long redirect:
-  the listener answers it with its one refusal page and the sign-in waits
-  until its deadline; `Failure` has no `LongRedirect`, `Component::new`
-  takes no application name, and `skein-oauth`'s client has no
-  `awaits_state`.
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request
