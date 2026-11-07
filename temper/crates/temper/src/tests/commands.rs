@@ -20,6 +20,7 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
+        Command::Tui { .. } => vec![],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Help { .. } => vec!["help"],
@@ -55,6 +56,8 @@ fn every_row_parses_from_an_example() {
         (&["forge", "source"], &["forge", "source", "1"]),
         (&["ctl"], &["ctl", "DIR", "task", "show", "1"]),
         (&["ctl"], &["ctl", "DIR", "me"]),
+        (&[], &[]),
+        (&[], &["http://127.0.0.1:8367"]),
         (&["ctl"], &["ctl", "DIR", "--call", "FILE"]),
         (&["ctl"], &["ctl", "help", "task", "show"]),
         (&["open"], &["open", "/client", "http://127.0.0.1:7000"]),
@@ -79,7 +82,7 @@ fn every_row_parses_from_an_example() {
     for row in &COMMANDS {
         assert_eq!(
             examples.iter().filter(|(words, _)| *words == row.words).count(),
-            row.forms.len(),
+            row.forms.len() + usize::from(row.words.is_empty()),
             "{:?}: an example per form",
             row.words
         );
@@ -92,6 +95,11 @@ fn every_row_parses_from_an_example() {
 #[test]
 fn each_row_answers_its_help() {
     for row in &COMMANDS {
+        if row.words.is_empty() {
+            assert!(commands::help().contains("  temper [ADDRESS]\n"));
+            assert!(commands::row(row).starts_with("usage: temper [ADDRESS]\n"));
+            continue;
+        }
         let mut words = row.words.to_vec();
         words.push("--help");
         assert_eq!(configure_with(&bytes(&words), &[], b"/unused"), Ok(Command::Usage(row)));
@@ -130,7 +138,8 @@ fn temper_help_lists_rows_by_who() {
         let group = &text[start..end];
         for row in COMMANDS.iter().filter(|row| row.who == who) {
             for form in row.forms {
-                let form = format!("  temper {} {form}\n", row.words.join(" "));
+                let words = if row.words.is_empty() { String::new() } else { format!("{} ", row.words.join(" ")) };
+                let form = format!("  temper {words}{form}\n");
                 assert_eq!(text.matches(&form).count(), 1, "each form once");
                 assert!(group.contains(form.trim_end()), "form under its group");
             }
@@ -184,7 +193,10 @@ fn spawned_commands_answer_only_under_internal() {
 #[test]
 fn refusals_name_the_command_and_its_forms() {
     for (words, error) in [
-        (vec![], "temper: no command; temper --help lists them\n"),
+        (
+            vec!["http://127.0.0.1:8367", "http://127.0.0.1:9000"],
+            "temper: invalid arguments\nusage: temper [ADDRESS]\n",
+        ),
         (vec!["bogus"], "temper: no command bogus; temper --help lists them\n"),
         (vec!["forge", "bogus", "1"], "temper: no command forge bogus; temper --help lists them\n"),
         (
