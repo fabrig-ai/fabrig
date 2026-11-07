@@ -1568,7 +1568,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
             turn: 1,
             read: Some(60),
             offered: Some(60),
-            outstanding: Box::new([]),
+            outstanding: Box::new([60]),
             cumulative: 0,
         },
     );
