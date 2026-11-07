@@ -2,6 +2,20 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5, 5.1 and 5.10 have no known implementation gap in Home's
+single "Nothing needs you.", the three failed-link paragraphs or the
+semantic-repair line "Repairing: CI failed at its updated head." The view
+table checks each link paragraph in both shells, with and without a
+configured sign-in way. Cookie fallback and command refusals remain
+section 11's later work.
+
+- **Design departs:** 5.1, from the request `ui-small-1` of 2026-11-06,
+  item 1's unconditional used-link explanation: the engine remembers the
+  last 8 used or expired links only until restart. A forgotten used link
+  reads "This link isn't from this temper. Use the one its terminal
+  printed." The plan chose bounded memory rather than stored history
+  (jig's `protocol/client.md`, section 8).
+
 Sections 3.5 and 5.8 have no known implementation gap in a person-addressed
 report task reading as a question under Needs you, on Home or in a goal's
 band. View tables cover its context, choices, recommendation, fallback and

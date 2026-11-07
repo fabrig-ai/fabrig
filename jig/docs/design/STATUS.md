@@ -65,6 +65,11 @@ delivery still departs (`domain/hosts.md`).
 The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).
+Printed-link sign-ins carry used, expired and unknown reasons through the
+client; malformed browser secrets take that same exchange. The history of
+eight digests is memory-only, so forgotten links are unknown; longer history and
+fallback to a live cookie remain deferred (`protocol/client.md`, sections
+8 and 15; `client/domain/client.md`, sections 12 and 18).
 Decoded turns retain model and effort outside the text budget, and a
 thread retains its last named completion and says whether announced
 activity has been read. A run with no readable named turn can leave an

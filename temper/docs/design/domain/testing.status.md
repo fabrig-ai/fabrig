@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Section 2.6's two one-link assertions count complete link lines and carry
+the box's stderr with every `secret=` line removed. The focused helper
+table covers two or no links, non-link and unfinished lines, filtered
+diagnostics and absence of secret bytes from the panic. The original
+second link's cause is unproved; investigation of a new red is deferred
+in section 11. This retirement supplies no process-tier runtime result.
+
 Sections 2.1, 2.3 and 6.1 have the cheaper service fixtures, consuming
 bootstrap-store transfer, restart configuration construction, phrasebook
 loading and lookup, root-only client setups, setup settling and checked

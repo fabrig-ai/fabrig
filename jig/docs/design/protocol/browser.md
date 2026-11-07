@@ -911,6 +911,10 @@ tested in skein, and in a browser on skein's UI example (skein's
 
 ## 17. Open questions
 
+- **A failed printed link with a live cookie** (11): the link's reason
+  remains the client's sign-in outcome even when the cookie can still
+  sign in on a reload. A fallback is the client's question
+  (`../client/domain/client.md`, section 18). Default: no fallback.
 - **Right-to-left languages:** what they ask of `jig.css` and the
   reference UI's phrasebook, beyond `<html lang>`
   (`../client/domain/view.md`, section 14); what they ask of the

@@ -5,6 +5,11 @@
 Unlisted sections have no known gap, including 8.2's `watches_full`
 fact for `me` and application watches through retries and recovery.
 
+Section 12 has no known gap in carrying `link_used`, `link_expired` and
+`link_unknown` as `not_signed_in`, telling the application, stopping retries
+and clearing the reason on the next sign-in. Falling back to a live
+transport sign-in after such an answer remains deferred in section 18.
+
 Section 10's decoded model and effort, their window weight, `latest_llm`
 and `caught_up` are present. The decoder keeps the names outside the text
 budget; the thread's table covers unread activity, older pages and passing
