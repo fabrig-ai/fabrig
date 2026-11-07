@@ -52,3 +52,22 @@ As the implementer's text has it, with the differences from the request's pages 
 ## Answers
 
 2026-11-06 (temper/ui). The user's rule, 2026-11-06: a plan executed by fab runs focused and fuzzy alone, and is complete when it lands. Walks and render checks follow landing, and file findings back to fab. So drop this task's throwaway-driver comparison and screenshots: don't start a browser to compare. temper/ui runs the render check after the plan lands.
+
+## Rebase (2026-11-07, step merge, foreman look-round-13/sheet-view/foreman-1)
+
+merge the sheet vocabulary counts and gallery changes with integration’s model, forge and account changes
+The merge failed in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+Rebase onto the landing trunk; the inspected integration tip is `e7a6504afb`.
+Relevant incoming commits are `50e7171ce1` (composer picker), `ce16672eec` (forge rows), `64f1d4af60` (Accounts completion), and their merge resolutions `3221fbbb41` and `0aaea51072`.
+
+In `words.rs`, retain integration’s vocabulary and recalculate `PHRASES`, `SEGMENTS` and `ENGLISH_BYTES` for the combined code.
+The sheet commit changes only those three constants in this file; choosing either side’s totals drops the other side’s accounting.
+
+In `samples.rs`, combine the `Then` imports: remove `Filled`, `Refused` and `KeyReady`, matching their combined enum removals.
+Keep `"sheet-few" => Some(b"More")` alongside integration’s model-picker disclosure arms.
+Keep all five `sheet-*` samples and `adoption_sheet`; retain integration’s picker samples, forge sample and Accounts completion changes.
+Recount `N` from the combined table; the inspected tips imply 295 entries.
+Keep `names.txt` sorted and consistent with the table; regenerate any stale prints, goldens and counted baselines using their tools.
+
+Validate the combined vocabulary through focused `temper-client-view` tests and the gallery’s `names_are_the_promised_ones` and `each_state_holds_what_its_name_says` tests, through `heavy`.
+Run only focused and fuzzy suites; retain the task’s prohibition on browser comparisons and walks.
