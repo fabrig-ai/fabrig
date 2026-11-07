@@ -17,7 +17,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 pub use jig_client_domain::contract::TurnLimits;
-use jig_client_domain::contract::{Block, Call, Message, Speaker, Text, Turn, Usage};
+use jig_client_domain::contract::{Block, Call, Message, ModelEffort, Speaker, Text, Turn, Usage};
 use skein_lib::{Decimal, List, Reader, length::len_u64};
 use smith_transcript::v6 as smith;
 
@@ -137,8 +137,27 @@ fn translate(limits: TurnLimits, source: &smith::Turn) -> Turn {
         },
         spent: source.spent(),
         read_through: None,
+        llm: llm(source),
         cut: budget.cut,
     }
+}
+
+/// The turn's model and effort, outside the text budget as its usage is (client/domain/client.md, 10).
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+fn llm(source: &smith::Turn) -> Option<ModelEffort> {
+    if source.model().is_empty() {
+        return None;
+    }
+    let model = Text::new(Box::from(source.model()), smith::CEILINGS.turn_model)
+        .expect("decoded model fits its transcript bound");
+    let effort = match source.effort() {
+        Some(effort) => Some(
+            Text::new(Box::from(effort.as_ref()), smith::CEILINGS.turn_effort_some)
+                .expect("decoded effort fits its transcript bound"),
+        ),
+        None => None,
+    };
+    Some(ModelEffort { model, effort })
 }
 
 fn empty_text() -> Text {

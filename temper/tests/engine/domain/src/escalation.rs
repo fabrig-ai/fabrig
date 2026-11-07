@@ -167,14 +167,8 @@ pub struct World {
 fn config(seed: u64) -> engine::Config {
     let mut config = walking::config(seed);
     config.core.owners = Box::new([
-        people::InitialOwner {
-            project: 1,
-            identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-        },
-        people::InitialOwner {
-            project: 1,
-            identity: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-        },
+        people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 7_u64) },
+        people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 8_u64) },
     ]);
     let mut policy = config.core.seed_projects[0].policy.policy.clone();
     policy.roles[0].requests = authority::Requests(1 | 4);
@@ -265,10 +259,7 @@ impl World {
                 held: None,
                 reply_to: ReplyTo::new(Token::new(101 + u64::try_from(index).expect("two people"))),
                 identity: people::Identity {
-                    key: people::IdentityKey {
-                        provider: 0,
-                        subject: (7 + u64::try_from(index).expect("two people")).to_be_bytes().into(),
-                    },
+                    key: temper_engine_domain_forge::user_key(1, 7 + u64::try_from(index).expect("two people")),
                     login: format!("owner{index}").into_bytes().into(),
                     name: format!("Owner {index}").into_bytes().into(),
                 },

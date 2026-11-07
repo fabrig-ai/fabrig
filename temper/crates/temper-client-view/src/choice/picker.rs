@@ -4,6 +4,7 @@ use super::{
     changeable, choice, control, line, model_shown, provider_shown, shown,
 };
 use crate::look;
+use jig_client::thread::Thread;
 use skein_ui::Run;
 use temper_client_domain::pages::choice::Act as C;
 
@@ -134,14 +135,38 @@ pub(crate) fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> B
             }
         }
     }
-    let mut name = match selected {
+    let effort = choice.main.effort.as_ref().or(match selected {
+        Some(model) => model.effort.as_ref(),
+        None => None,
+    });
+    shown_line(root, selected, choice.main.model.bytes(), effort, w)
+}
+#[expect(clippy::manual_find, reason = "the programming model uses bounded loops, not closures")]
+fn offered_model<'a>(models: Option<&'a skein_lib::List<c::MeModel>>, name: &c::Text) -> Option<&'a c::MeModel> {
+    for model in models? {
+        if model.name == *name {
+            return Some(model);
+        }
+    }
+    None
+}
+/// One model and effort in the picker's shown names (client/README.md, 3.5): the offered
+/// name, "Claude " before an `anthropic` model's, and no effort for the playground's.
+fn shown_line(
+    root: &Domain,
+    offered: Option<&c::MeModel>,
+    model: &[u8],
+    effort: Option<&c::Text>,
+    w: &Words,
+) -> Box<[u8]> {
+    let mut name = match offered {
         Some(model) => model_shown(model, w),
-        None => shown(&w.model_name(choice.main.model.bytes()), w),
+        None => shown(&w.model_name(model), w),
     };
     let mut playground = false;
-    if let Some(model) = selected {
+    if let Some(model) = offered {
         playground = model.provider.is_some() && model.provider == root.forge().playground_provider();
-        if let Some(me) = me {
+        if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
             for provider in &me.providers {
                 if model.provider == Some(provider.provider) && provider.name.bytes() == b"anthropic" {
                     name = crate::accounts::words::join(&[b"Claude ", &name]);
@@ -149,11 +174,40 @@ pub(crate) fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> B
             }
         }
     }
-    if !playground && let Some(effort) = &choice.main.effort {
+    if !playground && let Some(effort) = effort {
         name = w.say(W::ModelEffort, &[Hole::Name(name), Hole::Name(shown(effort.bytes(), w))]);
     }
     name
 }
+/// What a page with no composer says it ran on (client/README.md, 3.5); none until its
+/// conversation is read to its end.
+pub(crate) fn ran_line(root: &Domain, task: &c::Task, thread: &Thread, w: &Words) -> Option<Box<[u8]>> {
+    if !thread.caught_up() {
+        return None;
+    }
+    let me = temper_client_domain::pages::accounts::current_me(root.client());
+    let models = match me {
+        Some(me) => choice::offer(me, task.project),
+        None => None,
+    };
+    if let Some(llm) = &thread.latest_llm {
+        return Some(shown_line(root, offered_model(models, &llm.model), llm.model.bytes(), llm.effort.as_ref(), w));
+    }
+    let mut chosen = task.llm.as_ref();
+    if chosen.is_none()
+        && let Some(me) = me
+    {
+        chosen = root.pages().choice().chosen(me);
+    }
+    let Some(chosen) = chosen else { return Some(w.say(W::UsingDefault, &[])) };
+    let offered = offered_model(models, &chosen.main.model);
+    let effort = chosen.main.effort.as_ref().or(match offered {
+        Some(model) => model.effort.as_ref(),
+        None => None,
+    });
+    Some(shown_line(root, offered, chosen.main.model.bytes(), effort, w))
+}
+
 fn menu(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
     let draft = root.pages().choice();
     if task.is_some() || draft.outcome.is_some() {

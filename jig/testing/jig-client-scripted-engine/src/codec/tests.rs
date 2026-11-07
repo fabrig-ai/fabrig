@@ -99,6 +99,10 @@ fn committed_turns_use_the_transcript_and_client_codecs() {
             used: c::Usage { input: 1, output: 2, cached: 3, cache_written: 4 },
             spent: 5,
             read_through: None,
+            llm: Some(c::ModelEffort {
+                model: c::Text::new(Box::from(b"named-model".as_slice()), 128).unwrap(),
+                effort: Some(c::Text::new(Box::from(b"high".as_slice()), 32).unwrap()),
+            }),
             cut: false,
         }),
     }));
@@ -135,6 +139,7 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
                 used: c::Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
                 spent: 5,
                 read_through: None,
+                llm: None,
                 cut: false,
             }),
         };

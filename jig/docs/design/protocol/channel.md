@@ -895,9 +895,13 @@ ones in the fuzzy suite.
   usable, no run is placed on a worker before its first `logins` after
   its hello, no run is placed on a host that keeps a person's logins
   unless that person's accounts pay for it, and no credential grant's
-  value appears in any domain's state. The focused suite looks for a
-  grant's value where one can newly arrive and at the story's end; the
-  fuzzy suite looks at each step of a root.
+  value appears in any domain's state. Once a grant exists, the focused
+  suite looks for its value when the wire's grant count changes and at
+  each host's next root step. It also checks before the referee replaces
+  a drained engine's service and checks every surviving host at the story's
+  end. The fuzzy stories check at each root step: drawn `Chat`, `Progress`,
+  `Call`, `HeldCommit`, `MidFrame` and `Restart`, and the replaced-key and
+  application-generation stories. Other stories keep the focused checks.
 - **The application's worlds** keep running its hosts without bytes
   (`../domain/testing.md`), on the domain's vocabulary.
 - **Fuzzing,** in the fuzzy suite: each record's decoder and the
@@ -960,6 +964,13 @@ ones in the fuzzy suite.
 
 ## 14. Open questions
 
+- **Transient grant values in the other stories** (12): whether to extend
+  every-root-step checking to stories outside the fuzzy set, including
+  `Facts` and the refusals. Their grants use the same `Assignment` and
+  `Granted` frames as the fuzzy stories. Default: arrival, next-step,
+  pre-replacement and surviving-host end checks. These can miss a value
+  taken up after the next-step check and discarded before the end, or held
+  by a host killed before another check; a kill itself is no check.
 - **A worker's name in views:** the fleet knows workers by channel; the
   deployment's document may want their names, which would cross in the
   hello and be carried by the fleet.

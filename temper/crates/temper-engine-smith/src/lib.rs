@@ -77,6 +77,11 @@ pub enum Problem {
     Malformed,
     TooLarge,
     Missing(&'static [u8]),
+    /// A setting's kind that needs a member its read left out (domain/agent.md, 8.1).
+    Needs {
+        kind: &'static [u8],
+        member: &'static [u8],
+    },
     Type(&'static [u8]),
     Range(&'static [u8]),
     UnknownTool,

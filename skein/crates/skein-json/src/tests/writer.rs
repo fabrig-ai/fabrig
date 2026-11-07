@@ -3,9 +3,11 @@
 //! assertions on what its code gets wrong.
 
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 use super::{key, number, string, tokens};
 use crate::Token;
+use crate::utf8::Utf8;
 use crate::writer::{self, Encoder, Limits, Refusal};
 
 const WRITER: Limits = Limits { depth: 4, length: 256 };
@@ -24,6 +26,97 @@ fn encoded(limits: Limits, encode: fn(&mut Encoder)) -> Result<Box<[u8]>, Refusa
 
 fn written(encode: fn(&mut Encoder)) -> Box<[u8]> {
     encoded(WRITER, encode).unwrap()
+}
+
+/// The measuring reference: every byte goes through UTF-8 and its own escape match.
+fn per_byte_len(text: &[u8]) -> Option<u64> {
+    let mut utf8 = Utf8::Between;
+    let mut length = 2_u64;
+    for &byte in text {
+        utf8 = utf8.next(byte)?;
+        let width = match byte {
+            b'"' | b'\\' | 0x08 | 0x0C | b'\n' | b'\r' | b'\t' => 2,
+            0x00..=0x1F => 6,
+            _ => 1,
+        };
+        length = length.saturating_add(width);
+    }
+    match utf8 {
+        Utf8::Between => Some(length),
+        Utf8::Within { .. } => None,
+    }
+}
+
+#[expect(clippy::disallowed_macros, reason = "the test's independent reference formats control-byte escapes")]
+fn per_byte_spelling(text: &[u8]) -> Vec<u8> {
+    let mut spelling = Vec::from(b"\"".as_slice());
+    for &byte in text {
+        match byte {
+            b'"' => spelling.extend_from_slice(br#"\""#),
+            b'\\' => spelling.extend_from_slice(br"\\"),
+            0x08 => spelling.extend_from_slice(br"\b"),
+            0x0C => spelling.extend_from_slice(br"\f"),
+            b'\n' => spelling.extend_from_slice(br"\n"),
+            b'\r' => spelling.extend_from_slice(br"\r"),
+            b'\t' => spelling.extend_from_slice(br"\t"),
+            0x00..=0x1F => spelling.extend_from_slice(format!("\\u{byte:04x}").as_bytes()),
+            _ => spelling.push(byte),
+        }
+    }
+    spelling.push(b'"');
+    spelling
+}
+
+#[test]
+fn every_byte_at_a_runs_edge_is_measured_and_written_as_a_byte_at_a_time() {
+    for byte in 0..=u8::MAX {
+        for text in [
+            &[byte][..],
+            &[b'a', byte],
+            &[byte, b'a'],
+            &[b'a', b'a', byte, b'a', b'a'],
+            &[0xC3, 0xA9, byte],
+            &[byte, 0xC3, 0xA9],
+        ] {
+            let mut measure = Encoder::measure(&WRITER);
+            measure.string(text);
+            match per_byte_len(text) {
+                None => assert_eq!(measure.measured(), Err(Refusal::Text), "{text:?}"),
+                Some(length) => {
+                    let length = u32::try_from(length).unwrap();
+                    assert_eq!(measure.measured(), Ok(length), "{text:?}");
+                    let mut write = Encoder::write(length, &WRITER);
+                    write.string(text);
+                    assert_eq!(write.finish().as_ref(), per_byte_spelling(text), "{text:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn string_parts_measures_its_parts_as_one_string() {
+    for (parts, expected) in [
+        (&[b"".as_slice()][..], Ok(b"\"\"".as_slice())),
+        (&[b"", b"plain ", b"run", b""], Ok(b"\"plain run\"".as_slice())),
+        (&[b"plain", b"\n", "é".as_bytes()], Ok("\"plain\\né\"".as_bytes())),
+        (&[b"plain", b"\x80"], Err(Refusal::Text)),
+        (&[b"\xC3", b"\xA9"], Err(Refusal::Text)),
+    ] {
+        let mut measure = Encoder::measure(&WRITER);
+        measure.string_parts(parts);
+        let measured = match expected {
+            Ok(spelling) => Ok(u32::try_from(spelling.len()).unwrap()),
+            Err(refusal) => Err(refusal),
+        };
+        assert_eq!(measure.measured(), measured, "{parts:?}");
+        if let Ok(spelling) = expected {
+            let length = measured.unwrap();
+            let mut write = Encoder::write(length, &WRITER);
+            write.string_parts(parts);
+            assert_eq!(write.finish().as_ref(), spelling, "{parts:?}");
+        }
+    }
 }
 
 #[test]
@@ -108,9 +201,16 @@ fn adjacent_escapes_fit_exactly_at_their_compact_length() {
 
 #[test]
 #[should_panic(expected = "a document measured first is never refused")]
-fn a_writing_pass_with_invalid_utf8_is_a_bug() {
+fn a_writing_pass_with_a_bad_number_is_a_bug() {
+    let mut json = Encoder::write(1, &WRITER);
+    json.number(b"x");
+}
+
+#[test]
+fn a_writing_pass_writes_its_text_unchecked() {
     let mut json = Encoder::write(4, &WRITER);
     json.string(b"\xC0\x80");
+    assert_eq!(json.finish().as_ref(), b"\"\xC0\x80\"");
 }
 
 #[test]

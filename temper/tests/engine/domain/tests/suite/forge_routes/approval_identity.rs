@@ -217,7 +217,7 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
         (1, 0, 1, 1, false),
         (2, 1, 1, 1, false),
     ] {
-        let mut world = world_with_owner(people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() });
+        let mut world = world_with_owner(temper_engine_domain_forge::user_key(1, 7_u64));
         let before = kinds::revision(&world.store.rows);
         world.send(kinds::change(
             world.signed_in.expect("owner session"),
@@ -516,8 +516,9 @@ fn collaborator_roles(world: &World) -> std::collections::BTreeMap<u64, people::
             Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))
                 if identity.key.provider == 0 =>
             {
-                let subject = identity.key.subject.as_ref().try_into().expect("forge user number");
-                identities.insert(*number, u64::from_be_bytes(subject));
+                let (forge, user) = temper_engine_domain_forge::key_user(&identity.key).expect("forge user key");
+                assert_eq!(forge, 1);
+                identities.insert(*number, user);
             }
             Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: 1, holdings: rows })) => {
                 holdings = rows.to_vec();
@@ -618,7 +619,7 @@ fn stock_approval_lands(world: &mut World) {
 }
 
 fn writer_identity_is_ineligible() {
-    let mut world = world_with_owner(people::IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() });
+    let mut world = world_with_owner(temper_engine_domain_forge::user_key(1, 1_u64));
     let before = kinds::revision(&world.store.rows);
     world.send(kinds::change(
         world.signed_in.expect("session"),
@@ -665,7 +666,7 @@ fn give_writer_legacy_membership(world: &mut World) {
         held: None,
         reply_to: ReplyTo::new(Token::new(150)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 1_u64),
             login: Box::new([]),
             name: Box::new([]),
         },
@@ -677,7 +678,7 @@ fn give_writer_legacy_membership(world: &mut World) {
     for row in world.store.rows.values() {
         match row {
             Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))
-                if identity.key.provider == 0 && identity.key.subject.as_ref() == 1_u64.to_be_bytes() =>
+                if identity.key == temper_engine_domain_forge::user_key(1, 1_u64) =>
             {
                 person = Some(*number);
             }
