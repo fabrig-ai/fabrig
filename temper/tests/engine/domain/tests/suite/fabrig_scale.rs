@@ -309,15 +309,16 @@ fn a_goal_tree_takes_384_tasks() {
     };
     assert_eq!(goal, last);
     let mut run = assignment(&mut world, goal, 0);
+    // Each coordinator is funded for batches of four, independent of the profile's batch bound.
     let batch_size =
-        world.env.limits.authority.batch.min(world.env.limits.tasks.batch).min(world.env.limits.tasks.delegates);
+        world.env.limits.authority.batch.min(world.env.limits.tasks.batch).min(world.env.limits.tasks.delegates).min(4);
     let mut call = 1000;
     for leaves in LEAVES {
         let mut member = delegate(&world, goal);
         member.authority.tools = tasks::Tools(core::ToolFamilies::JIG.delegate.0);
         member.authority.delegation =
             tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(CHAT)]), tasks: leaves, depth: 1 };
-        // One K run plus four K reports fit the stock authority batch of four.
+        // One K run plus four K reports fund a batch of four.
         member.authority.budget.spend = 5 * K;
         let answer = world.scripted_call(&run, call, engine::Tool::Delegate { batch: Box::new([member]) });
         let engine::CallAnswer::Delegated(coordinators) = answer else {

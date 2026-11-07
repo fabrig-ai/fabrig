@@ -469,47 +469,79 @@ fn producer_refusal(
 #[test]
 fn task_report_selectors_render_complete_retained_continuations() {
     const REPORT: &[u8] = b"Left: document retained reports; disposition: accepted.";
-    let (mut driver, run) = coordinator();
-    let child = coordinator_delegates(&mut driver, &run, 10, &[b"specification is not a report"], None)[0];
-    let producer = super::added_deps::assignment(&driver, child);
-    driver.answer(
-        Token::new(7),
-        child,
-        producer.attempt,
-        0,
-        tasks::End::Finished { result: tasks::TaskResult::Report { words: REPORT.into() }, cancel_delegates: false },
-        engine::Parts::none(),
-    );
-    driver.settle();
-    let applied = driver.store.applied;
-    let mut report = String::new();
-    let mut from = 0;
-    for call in 20..40 {
-        let input = format!("{{\"task\":{child},\"field\":\"result\",\"from\":{from}}}");
-        let answer = decoded_task_call(&mut driver, &run, call, b"read_task", input.as_bytes());
-        let engine::CallAnswer::TaskRead(read) = &answer else { panic!("task read") };
-        assert_eq!(
-            read.as_ref().as_ref().expect("retained report").words.field,
-            jig_domain_core::reads::TaskTextField::Result
+    const PAGE_BYTES: u32 = 65_536; // walking's read room holds three result texts, an inbox and their carrier.
+    // Both continuation rows measured 44 ms CPU together.
+    // The larger report exceeds 3,584 bytes and this world's message room.
+    for (report_bytes, answer_bytes) in [(REPORT.len(), 100), (3_585, 512)] {
+        let mut expected = REPORT.to_vec();
+        expected.resize(report_bytes, b'r');
+        let mut bounds = super::added_deps::limits();
+        bounds.tasks.result_bytes = bounds.tasks.result_bytes.max(u32::try_from(report_bytes).expect("bounded report"));
+        bounds.tasks.inbox_bytes = bounds.tasks.inbox_bytes.max(bounds.tasks.result_bytes);
+        bounds.forge.client.op_bytes = bounds.forge.client.op_bytes.max(bounds.tasks.result_bytes);
+        // The retained result and its inbox copy fit the paged task row at restart and read.
+        bounds.journal.result_bytes = bounds.journal.result_bytes.max(bounds.tasks.result_bytes);
+        bounds.journal.transcript_bytes = PAGE_BYTES;
+        bounds.loads.transcript_bytes = PAGE_BYTES;
+        bounds.loads.bytes = PAGE_BYTES;
+        bounds.loads.reply_bytes = PAGE_BYTES;
+        let (mut driver, run) = coordinator_within(bounds);
+        let mut member =
+            temper_engine_domain_world::fixtures::report_delegate(b"specification is not a report", Box::new([]));
+        member.authority.tools = tasks::Tools(519);
+        member.contract = tasks::Contract::Report { words: bounds.tasks.result_bytes };
+        temper_engine_domain_world::fixtures::tool_call(
+            &mut driver,
+            &run,
+            10,
+            engine::Tool::Delegate { batch: Box::new([member]) },
         );
-        let rendered = temper_engine_smith::answer_bounded(&answer, 100);
-        assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
-        assert!(rendered.text().len() <= 100);
-        let text = String::from_utf8(rendered.text().to_vec()).expect("report text");
-        let (_, body) = text.split_once(&format!("Result from {from}:\n")).expect("selected report label");
-        if let Some((words, next)) = body.rsplit_once("\nnext: ") {
-            report.push_str(words);
-            let next = next.parse().expect("byte offset");
-            assert!(next > from);
-            from = next;
-        } else {
-            report.push_str(body);
-            break;
+        let Some(engine::CallAnswer::Delegated(children)) = driver.answered(10) else { panic!("report delegate") };
+        let child = children[0].task;
+        let producer = super::added_deps::assignment(&driver, child);
+        driver.answer(
+            Token::new(7),
+            child,
+            producer.attempt,
+            0,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Report { words: expected.clone().into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        driver.settle();
+        let applied = driver.store.applied;
+        let mut report = String::new();
+        let mut from = 0;
+        // Each continuation advances at least one byte.
+        for call in 20..20 + u64::try_from(report_bytes).expect("bounded report") {
+            let input = format!("{{\"task\":{child},\"field\":\"result\",\"from\":{from}}}");
+            let answer = decoded_task_call(&mut driver, &run, call, b"read_task", input.as_bytes());
+            let engine::CallAnswer::TaskRead(read) = &answer else { panic!("task read") };
+            assert_eq!(
+                read.as_ref().as_ref().expect("retained report").words.field,
+                jig_domain_core::reads::TaskTextField::Result
+            );
+            let rendered = temper_engine_smith::answer_bounded(&answer, answer_bytes);
+            assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
+            assert!(rendered.text().len() <= usize::try_from(answer_bytes).expect("answer room"));
+            let text = String::from_utf8(rendered.text().to_vec()).expect("report text");
+            let (_, body) = text.split_once(&format!("Result from {from}:\n")).expect("selected report label");
+            if let Some((words, next)) = body.rsplit_once("\nnext: ") {
+                report.push_str(words);
+                let next = next.parse().expect("byte offset");
+                assert!(next > from);
+                from = next;
+            } else {
+                report.push_str(body);
+                break;
+            }
         }
+        assert_eq!(report.as_bytes(), expected, "complete report rather than specification words");
+        assert_eq!(driver.store.applied, applied, "reading records no calls");
+        assert!(from > 0, "host answer bound forced a continuation");
     }
-    assert_eq!(report.as_bytes(), REPORT, "complete report rather than specification words");
-    assert_eq!(driver.store.applied, applied, "reading records no calls");
-    assert!(from > 0, "host answer bound forced a continuation");
 }
 
 // temper/docs/design/draft/reference-code-production.md, 8;
@@ -540,6 +572,8 @@ fn reference_person_settings() -> Vec<jig_domain_core::settings::Item> {
     for item in entries {
         if item["setting"]["kind"] == "template" {
             item["set"]["llm"] = serde_json::Value::Null;
+            item["set"]["contract"]["report"]["words"] =
+                temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes.into();
         }
     }
     let items =

@@ -13,10 +13,6 @@ use skein_lib::{Decimal, List};
 /// Maximum contract text and field bytes other than a change's `body`
 /// (jig/docs/design/domain/hosts.md, 8).
 pub const CONTRACT_TEXT_MAX: u32 = 1024;
-/// Maximum bytes of a change's `body`, the producer's report: its title and
-/// framing keep room within the agent's outcome
-/// (jig/docs/design/domain/hosts.md, 8).
-pub const CHANGE_BODY_MAX: u32 = 3584;
 /// Delivery requires passing checks (jig/docs/design/domain/hosts.md, 8).
 pub const CONTRACT_CHECKS_MUST_PASS: bool = true;
 /// Every run can wait (jig/docs/design/domain/hosts.md, 8.1).
@@ -35,6 +31,10 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
     for (index, candidate) in policy.alternatives.into_iter().enumerate() {
         models.push(Llm { model: model(candidate), grant: *run.sources.get(index.checked_add(1)?)? }).ok()?;
     }
+    let words = match &run.contract {
+        tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words,
+        tasks::Contract::Approval { .. } | tasks::Contract::Job { .. } | tasks::Contract::Verdict { .. } => 0,
+    };
     Some(Charter {
         mode: match run.ended_by {
             tasks::EndedBy::Result => Mode::Finite,
@@ -48,6 +48,7 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
         workspace: WorkspaceTools { inspect: policy.inspect, modify: policy.modify, shell: policy.shell },
         delivers: false,
         conventions: None,
+        words,
         contract: contract(run.contract)?,
         budget: Budget {
             turns: policy.turns,
@@ -124,7 +125,7 @@ fn contract(value: tasks::Contract) -> Option<Contract> {
                 checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([
                     FieldRule { name: Box::from(&b"title"[..]), max: words.min(CONTRACT_TEXT_MAX) },
-                    FieldRule { name: Box::from(&b"body"[..]), max: words.min(CHANGE_BODY_MAX) },
+                    FieldRule { name: Box::from(&b"body"[..]), max: words },
                 ]),
             }),
         },

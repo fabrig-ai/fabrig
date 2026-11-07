@@ -1328,6 +1328,9 @@ Not in the tier, each in the lowest world that shows it:
   screenshots at 1440, 1280, 1000 and 420 px after landing
   (`../draft/look-requests.md`, section 4). Default: host view and client
   world checks; compilation alone establishes no rendered equality.
+  Include Provider's select chevron, the add form's single row and the
+  Provider and Add headings. The shared Settings H1 and open project
+  menu row keep their frame's design, as the repair request leaves them.
 
 - **A flow in a chat and its document** (2.5; `README.md`, 3.5): temper/ui
   compares both against `skein/docs/design/draft/diagrams/preview.html`
@@ -1342,7 +1345,11 @@ Not in the tier, each in the lowest world that shows it:
   Accounts return/history and sheet scroll, search, adoption and phone
   geometry; they do not compare all request pages. Default: findings
   after landing, with a passing repaired-story run and the unchanged
-  whole-tier budget established by the after-landing tier.
+  whole-tier budget established by the after-landing tier. Compare the
+  request-owned parts, including select chevrons, the source chooser,
+  Copy public's caption and four-line box, list margins, empty search,
+  More, control captions, connection actions and model-way paths. The
+  shared Settings H1 and open project menu row keep their frame's design.
 
 - **Whole questions and starting from Goals** (2.5, 7.2; `README.md`,
   3.5, 5.8, 5.14): the long question's context, evidence and choices, the

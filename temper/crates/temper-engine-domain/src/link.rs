@@ -443,7 +443,7 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
         tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) => {
             return verdict_words(word, code);
         }
-        tasks::MessageKind::Result(_) => (b"Result from task ".as_slice(), source_number(word.from)),
+        tasks::MessageKind::Result(_) => (RESULT_TASK_LABEL, source_number(word.from)),
         tasks::MessageKind::ProposalDecision { proposal, accepted } => {
             (if accepted { b"Proposal accepted ".as_slice() } else { b"Proposal rejected ".as_slice() }, proposal)
         }
@@ -465,6 +465,15 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
     };
     numbered_words(label, number, &word.words)
 }
+
+const RESULT_TASK_LABEL: &[u8] = b"Result from task ";
+/// A landing result's live message adds its label, separator and sender
+/// (temper/docs/design/domain/agent.md, 4.4). Both numbers can be `u64::MAX`.
+pub(crate) const CHANGE_RESULT_ENVELOPE_BYTES: usize = RESULT_TASK_LABEL
+    .len()
+    .saturating_add(b"18446744073709551615".len())
+    .saturating_add(b":\n".len())
+    .saturating_add(b"18446744073709551615".len());
 
 fn numbered_words(label: &[u8], number: u64, words: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(number);
@@ -865,6 +874,30 @@ mod tests {
                 panic!("live message");
             };
             assert_eq!(live.as_ref(), *expected);
+        }
+    }
+
+    #[test]
+    fn a_landing_result_fits_its_live_label_and_sender_at_the_longest_task_number() {
+        const RESULT_BYTES: usize = 10_660; // The stock's result and hub event bound.
+        const RESULT_WORDS: usize = 10_601; // 59 bytes for the label, two u64s and separator.
+        // Both envelope rows measured 3.8 ms CPU together.
+        for (source, bytes) in [(1, 10_622), (u64::MAX, RESULT_BYTES)] {
+            let word = tasks::Word {
+                number: 7,
+                from: tasks::Party::Task(source),
+                kind: tasks::MessageKind::Result(tasks::ResultKind::Change { connector: 0, kind: 1, resource: 1 }),
+                words: Box::new([b'r'; RESULT_WORDS]),
+                at: skein_lib::Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            };
+            let host::LinkDown::Message { words, sender, .. } = message(Token::new(2), Token::new(1), &word) else {
+                panic!("live message")
+            };
+            assert_eq!(words.len() + sender.len(), bytes);
+            assert!(bytes <= RESULT_BYTES);
+            assert_eq!(RESULT_WORDS + CHANGE_RESULT_ENVELOPE_BYTES, RESULT_BYTES);
         }
     }
 

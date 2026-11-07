@@ -539,10 +539,6 @@ pub(crate) fn engine_message_document() -> Vec<u8> {
     engine_document()
 }
 
-fn engine_configuration() -> jig_protocol_config::Engine {
-    configuration(ENGINE)
-}
-
 fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
     let bounds = jig_protocol_config::DocumentLimits {
         bytes: u32::try_from(text.len()).expect("fixture document size"),
@@ -559,20 +555,32 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
     .expect("fixture engine")
 }
 
+/// What the kit reads of the fixture's engine, parsed once per test process.
+struct Admitted {
+    limits: jig_test_service::limits::Limits,
+    names: Box<[jig_domain_core::settings::ModelName]>,
+}
+fn admitted() -> &'static Admitted {
+    static ADMITTED: std::sync::OnceLock<Admitted> = std::sync::OnceLock::new();
+    ADMITTED.get_or_init(|| {
+        let engine = configuration(ENGINE);
+        Admitted {
+            limits: jig_test_service::limits::for_profile(jig_protocol_config::Profile::Small, &engine.limits),
+            names: jig_protocol_store::codec::names(&engine.llm.models()),
+        }
+    })
+}
+
 /// Match the fixture's final admitted core bounds, parsed once per test process.
 #[must_use]
 pub fn store_limits() -> jig_test_service::limits::Limits {
-    static LIMITS: std::sync::OnceLock<jig_test_service::limits::Limits> = std::sync::OnceLock::new();
-    *LIMITS.get_or_init(|| {
-        jig_test_service::limits::for_profile(jig_protocol_config::Profile::Small, &engine_configuration().limits)
-    })
+    admitted().limits
 }
 
 /// The fixture's configured model names, by which the store keeps a role's models.
 #[must_use]
 pub fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
-    static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine_configuration().llm.models()))
+    &admitted().names
 }
 
 #[must_use]

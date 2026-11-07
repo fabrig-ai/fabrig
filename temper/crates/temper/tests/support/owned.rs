@@ -781,7 +781,7 @@ pub fn bounded_records(directory: &Path) -> Bounded {
 /// Init's own document and agent, with the same counted paths at their bounds.
 #[must_use]
 pub fn bounded_template(directory: &Path) -> Bounded {
-    bounded_template_profile(directory, &[])
+    bounded_template_profile(directory, &[], None)
 }
 
 /// The reference overlays init's document (temper/docs/design/protocol/configuration.md, 13.9).
@@ -790,6 +790,7 @@ pub fn bounded_reference(directory: &Path) -> Bounded {
     bounded_template_profile(
         directory,
         &[("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json"))],
+        Some(include_bytes!("../../../../docs/examples/reference/room.json")),
     )
 }
 
@@ -804,7 +805,7 @@ fn merge_profile(value: &mut serde_json::Value, overlay: serde_json::Value) {
     }
 }
 
-fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bounded {
+fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: Option<&[u8]>) -> Bounded {
     use std::num::NonZeroU16;
     use temper_init::{Content, Directories, Facts, Ports};
     let answer = temper_init::files(
@@ -842,6 +843,24 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bou
         let mut value = serde_json::from_slice(&fs::read(&path).expect("init file")).expect("init JSON");
         merge_profile(&mut value, serde_json::from_slice(overlay).expect("reference overlay"));
         super::write_private(&path, &serde_json::to_vec(&value).expect("merged profile JSON"));
+    }
+    if let Some(room) = room {
+        let room: serde_json::Value = serde_json::from_slice(room).expect("reference room");
+        let agent_path = directory.join("agent.json");
+        let mut agent: serde_json::Value =
+            serde_json::from_slice(&fs::read(&agent_path).expect("init agent")).expect("init agent JSON");
+        agent["profile"]["declared"]["tool_payload"] = room["agent"]["tool_payload"].clone();
+        for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
+            endpoint["limits"]["output"] = room["agent"]["output"].clone();
+        }
+        super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("reference agent JSON"));
+        let document_path = directory.join("temper.json");
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&fs::read(&document_path).expect("init document")).expect("init document JSON");
+        for worker in document["workers"].as_array_mut().expect("init workers") {
+            merge_profile(worker, room["worker"].clone());
+        }
+        super::write_private(&document_path, &serde_json::to_vec(&document).expect("reference document JSON"));
     }
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));
     let value =

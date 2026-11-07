@@ -131,6 +131,80 @@ fn ready(none: bool) -> (Core, Limits) {
 }
 
 #[test]
+fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
+    #[derive(Clone, Copy, Debug)]
+    enum State {
+        Usable,
+        NoHost,
+        Limited,
+        Credential,
+        BudgetWithoutHost,
+        DeadlineWithCredential,
+    }
+    for (state, expected, is_ready) in [
+        (State::Usable, None, true),
+        (State::NoHost, Some(RunAdmission::Wait(RunWait::Host)), false),
+        (
+            State::Limited,
+            Some(RunAdmission::Wait(RunWait::Account {
+                account: Some(0),
+                source: Some(1),
+                why: accounts::WaitWhy::Source(accounts::State::Limited { until: None }),
+            })),
+            false,
+        ),
+        (State::Credential, Some(RunAdmission::Wait(RunWait::Credential)), false),
+        (State::BudgetWithoutHost, Some(RunAdmission::Hold(tasks::Hold::Budget)), true),
+        (State::DeadlineWithCredential, Some(RunAdmission::Hold(tasks::Hold::Deadline)), true),
+    ] {
+        let (mut core, limits) = ready(false);
+        match state {
+            State::NoHost | State::BudgetWithoutHost => core.fleet = placement_fleet(&core, &limits),
+            State::Limited => account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None }),
+            State::Usable | State::Credential | State::DeadlineWithCredential => {}
+        }
+        let credential = match state {
+            State::Credential | State::DeadlineWithCredential => true,
+            State::Usable | State::NoHost | State::Limited | State::BudgetWithoutHost => false,
+        };
+        if credential {
+            assert_eq!(core.workspace_credentials.insert(TASK, Box::new([7])), Ok(None));
+            assert!(!core.credentials_ready(TASK, core.run_now));
+        }
+        let mut row = core.tasks.task(TASK).unwrap().clone();
+        let changed = match state {
+            State::BudgetWithoutHost => {
+                row.numbers.spent = row.numbers.budget;
+                true
+            }
+            State::DeadlineWithCredential => {
+                row.authority.budget.deadline = Some(Wall::EPOCH);
+                core.run_wall = Wall::from_nanos(1);
+                true
+            }
+            State::Usable | State::NoHost | State::Limited | State::Credential => false,
+        };
+        if changed {
+            let ledger = *core.tasks.funding(row.funder).unwrap();
+            fixtures::restore(&mut core, &limits, Box::new([row]));
+            send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+            send_task(&mut core, &limits, tasks::Event::Check);
+            send_task(&mut core, &limits, tasks::Event::Restored);
+        }
+        let expected = expected.unwrap_or_else(|| {
+            RunAdmission::Allow(Box::new(RunAllowance { choice: core.run_choice(TASK).unwrap(), spend: 100 }))
+        });
+        let context = core.tasks.run_context(TASK).unwrap();
+        assert_eq!(core.tasks.task(TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due), "{state:?}");
+        assert_eq!(core.run_admission(&context, core.run_wall, Box::new([])), expected, "{state:?}");
+        assert_eq!(core.agent_ready(TASK), is_ready, "{state:?}");
+        core.due.push(context);
+        assert_eq!(core.due_ready(), is_ready, "{state:?}");
+        assert_eq!(core.take_due().is_some(), is_ready, "{state:?}");
+    }
+}
+
+#[test]
 fn a_lower_numbered_goals_waiting_run_starts_first() {
     // One occupied host slot is freed for the two waiting runs.
     const SLOTS: u32 = 1;

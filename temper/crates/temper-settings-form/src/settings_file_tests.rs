@@ -1,5 +1,4 @@
 //! Charter settings in the file's forms (temper/docs/design/client/tools.md, 5.3).
-//! Retained charters follow temper/docs/design/protocol/configuration.md, 13.7.
 use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};

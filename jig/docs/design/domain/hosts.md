@@ -844,12 +844,12 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
 
-Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most 3584, which leaves its title and framing room within the agent's 4096-byte outcome, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
+Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most the contract's words, so a report is a setting of the application's, with the agent's outcome, which holds its title, its body and their framing together (smith's `protocol/limits.md`, 3.10), and the hub's `outcome_bytes` beside it, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
 A Finite run takes `deliver` in one of two ways; an Open run never does (8.1):
 
 - **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change` and a failure.
-- **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most 3584, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run.md`, 8.4).
+- **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most the contract's words or 1024 bytes, whichever is larger, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run.md`, 8.4).
 
 Every other run has no `deliver`: a verdict's run, and a report's run whose policy withholds `modify` or whose root doesn't say its workspace delivers.
 
@@ -1092,12 +1092,6 @@ agent for ever.
 
 ## 12. Open questions
 
-- **A change's body past 3,584 bytes** (section 8). A larger report needs
-  smith's outcome allowance, the hub's outcome bound and the charter's
-  body maximum to move together, with room for title and framing checked
-  again through the result codec. Default: the present maximum;
-  temper's report instructions and its larger-report question are in
-  `temper/docs/design/domain/agent.md`, sections 4.4 and 10.
 - **A delegated task's text.** A task a conversation delegates streams no
   text for now (6.5). Later the conversation's run could ask for it from
   its parent, so the person sees the delegate write; whether that asks

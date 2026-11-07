@@ -34,6 +34,9 @@ fn reference_template() -> jig_domain_core::Template {
         panic!("reference template value")
     };
     template.llm = None; // The scripted worker uses the fixture's model.
+    template.contract = c::TaskContractDocument::Report {
+        words: temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
+    };
     let mut items = skein_lib::List::with_capacity(1);
     items.push(item).expect("one template");
     let ask = c::Ask::ChangeSettings(c::ChangeSettings { against: 1, items, running: c::Running::Stays });

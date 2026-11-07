@@ -9,7 +9,7 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Previous complete applied image, used to distinguish changes from redelivery.
+/// Applied answer rows and projected facts, used to distinguish changes from redelivery.
 #[derive(Default)]
 pub struct Truth {
     rows: BTreeMap<root::Key, root::Record>,
@@ -20,13 +20,25 @@ pub struct Truth {
 impl Truth {
     /// Seed the already-applied bootstrap image without reporting a new commit.
     #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "the owned bootstrap constructor keeps its public signature")]
     pub fn after(rows: BTreeMap<root::Key, root::Record>) -> Self {
-        let (waiting, words, ended) = facts(&rows);
+        Self::seen(&rows)
+    }
+
+    /// Seed facts and answer comparisons from a borrowed already-applied image.
+    #[must_use]
+    pub fn seen(rows: &BTreeMap<root::Key, root::Record>) -> Self {
+        let (waiting, words, ended) = facts(rows);
+        let rows = rows
+            .iter()
+            .filter(|(_, record)| answer_record(record))
+            .map(|(key, record)| (key.clone(), record.clone()))
+            .collect();
         Self { rows, waiting, words, ended }
     }
 
     /// Consume one actual applied image; its durable fact precedes every consequence.
-    pub fn applied(&mut self, snapshot: DurableSnapshot) -> Vec<Observed> {
+    pub fn applied(&mut self, mut snapshot: DurableSnapshot) -> Vec<Observed> {
         let commit = snapshot.commit;
         let mut observed = vec![Observed::Durable { commit, at: snapshot.at }];
         for (key, record) in &snapshot.rows {
@@ -58,12 +70,17 @@ impl Truth {
                 commit,
             });
         }
+        snapshot.rows.retain(|_, record| answer_record(record));
         self.rows = snapshot.rows;
         self.waiting = waiting;
         self.words = words;
         self.ended = ended;
         observed
     }
+}
+
+fn answer_record(record: &root::Record) -> bool {
+    matches!(record, root::Record::Core(core::Record::People(jig_domain_people::Stored::Answer { .. })))
 }
 
 type WordImages = BTreeMap<u64, BTreeMap<u64, Vec<u8>>>;
@@ -232,6 +249,33 @@ mod tests {
             key: [9; 16],
             commit: 4
         }));
+    }
+    #[test]
+    fn an_answer_rewritten_after_seen_is_made_again_and_one_unchanged_is_not() {
+        let rows = image(0, vec![answer(1), answer(2)]).rows;
+        let mut truth = Truth::seen(&rows);
+        assert_eq!(
+            truth.applied(image(1, vec![answer(1), answer(2)])),
+            vec![Observed::Durable { commit: 1, at: Time::from_nanos(17) }]
+        );
+        let mut rewritten = answer(1);
+        let root::Record::Core(core::Record::People(jig_domain_people::Stored::Answer { outcome, .. })) =
+            &mut rewritten
+        else {
+            unreachable!("answer fixture")
+        };
+        *outcome = jig_domain_people::Outcome::Said { task: 7, message: 5 };
+        assert_eq!(
+            truth.applied(image(2, vec![rewritten.clone(), answer(2)])),
+            vec![
+                Observed::Durable { commit: 2, at: Time::from_nanos(17) },
+                Observed::Made { party: 1, key: [9; 16], commit: 2 }
+            ]
+        );
+        assert_eq!(
+            truth.applied(image(3, vec![rewritten, answer(2)])),
+            vec![Observed::Durable { commit: 3, at: Time::from_nanos(17) }]
+        );
     }
     #[test]
     fn complete_applied_activity_images_keep_whole_words_and_report_actual_retention_loss() {
