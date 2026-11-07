@@ -1319,12 +1319,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   7's flow. Init's `approval` enables the loopback flow beside the
   printed link; it grants no approval on a listener beyond loopback.
 
-- **The reference story's catalogue** (13.9): retaining the configured
-  model catalogue across the forge world's crash and restart is test
-  harness follow-up. `the_reference_goal_reads_its_cut_then_its_questions_part`
-  must check the cut, withheld question and later answer without an
-  amendment, with its restart oracle. Settings and worker-bound tables
-  alone do not establish that combined result.
 - **The reference's later runs** (13.9; `../draft/per-wake.md`,
   sections 10 and 11): compare high with medium after observing runs
   that read their selected parts, and decide whether the cut should

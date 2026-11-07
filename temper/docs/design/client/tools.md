@@ -458,10 +458,14 @@ agent must name.
   parts than `tasks.charter_parts`; and parts on a charter whose runs
   resume, `charter.parts: a charter that resumes takes no parts`. jig's
   refusal of a change names the charter and no part
-  (`../draft/per-wake.status.md`, 3), so what the engine refuses of a
-  charter's parts, its stored policy past `root.journal.run_bytes`
-  among it, prints as any refusal of a charter does, `settings apply:
-  out of shape; item 1; charter 5: shape`. In text, `settings show charter N` prints,
+  (`../draft/per-wake.status.md`, 3), so a malformed part prints as
+  `settings apply: out of shape; item 1; charter 5: shape`.
+  A charter's stored policy, its parts with it, past
+  `root.journal.run_bytes` also names its measured bytes and the bound:
+  `settings apply: out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536`.
+  The run's settings tool uses the same words; JSON names the member
+  `stored_policy` (`../domain/root.md`, section 10).
+  In text, `settings show charter N` prints,
   after the value, a line per part, by its path, with its `on` and its
   instructions' bytes, `parts[0]: on first; 4210 bytes`,
   and `settings show template N` a line for a later choice, `later:
@@ -2394,17 +2398,6 @@ contract's reads, watches and requests, they take:
   `client/domain/client.md`, section 20).
 
 ## 14. Later
-
-- **A charter's stored-policy size refusal** (5.3;
-  `../draft/per-wake.md`, section 8): name the charter, its stored
-  bytes and `root.journal.run_bytes`, for example `charter 5: stored
-  policy: supplied 70112; maximum root.journal.run_bytes 65536`.
-  The user approved adding the refusal-detail member in place across
-  client wire 19 and the people store on 2026-11-07, keeping the refusal
-  kinds and adding no version bump or migration before v0.1.0.
-  This remains separate work across jig and the clients rendering that
-  detail. Until then the engine's refusal is the charter's `shape`, as
-  5.3 states; the local decoder's part paths remain available.
 
 - **The settings reference's help pointer** (5.3): `settings-fields`'s
   `reserve_time` description says "See settings help". The field table

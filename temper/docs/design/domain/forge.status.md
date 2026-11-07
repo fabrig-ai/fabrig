@@ -9,6 +9,10 @@ The engine-domain regression sweeps 64 Busy attempts while holding a
 change step's `Commits`, then checks that the step continues and the run
 gets its own `File`. The live stories' outcomes remain unestablished;
 that observation is deferred in section 20.
+The run's host-call retry uses smith's growing, capped backoff.
+The connector's own brief and lost-read retries still wait for client
+room without a timed backoff; section 20 keeps that separate follow-up
+and the forge read's bound-and-measure interface decision.
 
 Sections 4, 4.6 and 8.9 have the stored person link, link-first lookup,
 adoption skipping the linked user, shadowed seeds excluded from eligibility,
