@@ -1,12 +1,13 @@
 # shell: status
 
-2026-11-06. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-07. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6.3 has no known gap in requested hangup handling or preserving a
 hangup ignored at startup. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
-- **Not yet:** 6: the configured peer names resolved at startup (step 5).
+- **Not yet:** 6.3: the restoration at a panic, `Kept::on_abort`, and
+  skein-fail-stop's `before_report`. 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and

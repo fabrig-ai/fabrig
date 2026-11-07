@@ -304,6 +304,8 @@ STOP and CONT by the keeper. Neither signal counts as cleanup.
 crates/*/src/tests.rs           step tests; lib's, io's, JSON's, HTTP's and TLS's in a module per area, under src/tests/
 crates/skein-ui                 the UI kit (ui.md): its step tests, and its golden scenes beside them
 crates/skein-ui-text            the text shell (ui-text.md): its step tests, and its golden text beside them in src/tests/golden/
+crates/skein-ui-screen          the full-screen shell's renderer (ui-screen.md): its step tests, and its golden frames beside them in src/tests/golden/
+crates/skein-ui-screen-terminal the full-screen shell's keys, drawing and terminal (ui-screen.md): their step tests
 crates/skein-ui-web             the browser parts (ui-web.md): each part's pure half tested on the host in its step tests
 crates/skein-ui-bundle          the bundler, a tool built optimized (ui-web.md, 4.2)
 crates/skein-fake-llm-*         the scripted LLM peer: its domain and its byte peer (fake-llm.md), a product the worlds and the real loop use
@@ -377,6 +379,7 @@ tests/tls/fixtures              its certificates and key, and the script that ma
 tests/link                      a link's close rule against a rustls server in memory, skein-link-world (link.md, 4)
 tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (ui.md, 17)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (ui-text.md, 8)
+tests/ui-screen                 the full-screen shell's terminal on the simulated machine, skein-ui-screen-tests (ui-screen.md, 9)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (ui-web.md, 14)
 tests/**/tests/suite/*.rs             a crate's focused tests
 tests/**/tests/suite/fuzzy/*.rs       its fuzzy tests: sweeps over many seeds
