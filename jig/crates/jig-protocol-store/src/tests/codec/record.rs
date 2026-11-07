@@ -37,8 +37,20 @@ fn a_task_records_label_flags_and_last_activity_read_back() {
     }
 }
 fn a_live_task_record_reads_back_whole() {
-    let row = domain::Stored::Live(Box::new(fixtures::task_record()));
-    assert_eq!(saved_tasks(&row), Ok(row));
+    for (reasons, offered) in [
+        (domain::Reasons::QUESTION.union(domain::Reasons::TIMER), domain::Reasons::WORDS),
+        (domain::Reasons::EMPTY, domain::Reasons::EMPTY),
+    ] {
+        let mut record = fixtures::task_record();
+        record.reasons = reasons;
+        record.offered = offered;
+        record.llm.as_mut().expect("fixture choice").later = Some(domain::LlmLater {
+            main: domain::ModelEffort { model: 7, effort: Some(1) },
+            subagents: Box::new([domain::ModelEffort { model: 0, effort: None }]),
+        });
+        let row = domain::Stored::Live(Box::new(record));
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
 }
 #[test]
 fn a_task_record_with_started_from_dependencies_reads_back() {
@@ -388,6 +400,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 #[test]
 fn task_records_read_back_as_written() {
     table([
+        ("run_reason_bits_refuse_unknown_kinds", run_reason_bits_refuse_unknown_kinds),
         (
             "a_task_records_label_flags_and_last_activity_read_back",
             a_task_records_label_flags_and_last_activity_read_back,
@@ -534,5 +547,19 @@ fn a_task_outcome_with_or_without_a_room_wait_reads_back() {
         record.room_wait = room_wait;
         let row = live_record(record);
         assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
+fn run_reason_bits_refuse_unknown_kinds() {
+    // Bit 14 is the first bit outside the fourteen stored reasons.
+    const UNKNOWN: domain::Reasons = domain::Reasons(1 << 14);
+    for (reasons, offered, path) in [
+        (UNKNOWN, domain::Reasons::ALL, wire::Path::TaskRunReasons),
+        (domain::Reasons::FIRST, UNKNOWN, wire::Path::TaskRunOffered),
+    ] {
+        let mut record = current_record();
+        record.reasons = reasons;
+        record.offered = offered;
+        assert_eq!(saved_tasks(&live_record(record)), Err(bound_problem(path)));
     }
 }

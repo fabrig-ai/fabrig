@@ -1365,7 +1365,10 @@ fn a_people_choice_keeps_its_explicit_account() {
     use jig_domain_people as p;
     let mut member = fixtures::people_member();
     member.llm = Some(p::LlmChoice {
-        later: None,
+        later: Some(p::LlmLater {
+            main: p::ModelEffort { model: 1, effort: Some(0) },
+            subagents: Box::new([p::ModelEffort { model: 0, effort: None }]),
+        }),
         account: Some(42),
         main: p::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),
@@ -1785,5 +1788,60 @@ fn a_visibility_set_outcome_round_trips_as_kept() {
             project: u32::MAX,
             public,
         }));
+    }
+}
+
+/// The three choices bound later sub-agents by MODELS (jig/docs/design/protocol/store.md, 5).
+fn later_subagents_obey_the_models_bound_in_every_family() {
+    use skein_lib::{Reader, Writer};
+    // ModelEffort is one model byte and one absent-effort tag; a list adds a u32 count.
+    const MODEL_BYTES: usize = 2;
+    const COUNT_BYTES: usize = 4;
+    let settings = crate::codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
+    let tasks = tasks_limits();
+    let people = people_limits();
+    for (count, expected) in
+        [(jig_domain_tasks::MODELS, Ok(())), (jig_domain_tasks::MODELS + 1, Err(skein_codec::Reason::Bound))]
+    {
+        let capacity = usize::try_from(count)
+            .unwrap()
+            .checked_mul(MODEL_BYTES)
+            .unwrap()
+            .checked_add(MODEL_BYTES)
+            .unwrap()
+            .checked_add(COUNT_BYTES)
+            .unwrap();
+        let mut writer = Writer::new(capacity);
+        writer.put(&[0, 0]).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            writer.put(&[0, 0]).unwrap();
+        }
+        let bytes = writer.finish();
+        for (family, decoded) in [
+            (
+                "settings",
+                match crate::settings_v1::LlmLater::decode(&settings, &mut Reader::new(&bytes)) {
+                    Ok(_) => Ok(()),
+                    Err(problem) => Err(problem.reason),
+                },
+            ),
+            (
+                "tasks",
+                match crate::tasks_v9::LlmLater::decode(&tasks, &mut Reader::new(&bytes)) {
+                    Ok(_) => Ok(()),
+                    Err(problem) => Err(problem.reason),
+                },
+            ),
+            (
+                "people",
+                match crate::people_v14::LlmLater::decode(&people, &mut Reader::new(&bytes)) {
+                    Ok(_) => Ok(()),
+                    Err(problem) => Err(problem.reason),
+                },
+            ),
+        ] {
+            assert_eq!(decoded, expected, "{family}: {count}");
+        }
     }
 }

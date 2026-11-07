@@ -30,6 +30,8 @@ const EMPTY: wire::Limits = wire::Limits {
     document_path: 0,
     document_heading_some: 0,
     charter_documents: 0,
+    charter_parts: 0,
+    charter_part_instructions: 0,
     last_exact_bytes: 0,
     last_open_bytes: 0,
     pattern_segments: 0,
@@ -49,6 +51,7 @@ const EMPTY: wire::Limits = wire::Limits {
     approval_state: 0,
     verdict_choices_choices: 0,
     llm_choice_subagents: 0,
+    llm_later_subagents: 0,
     template_name: 0,
     template_resources: 0,
     application_state_charters: 0,
@@ -714,6 +717,16 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
             return Err(bound());
         }
     }
+    let mut parts = List::with_capacity(limits.charter_parts);
+    for part in &value.parts {
+        let part = wire::CharterPart::new(
+            limits,
+            wire::CharterPartParts { on: part.on.0, instructions: part.instructions.clone() },
+        )?;
+        if parts.push(part).is_err() {
+            return Err(bound());
+        }
+    }
     wire::Charter::new(
         limits,
         wire::CharterParts {
@@ -724,11 +737,12 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
             spend: field_spend,
             wake: encode_wake(&value.wake, limits)?,
             documents,
+            parts,
         },
     )
 }
 fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::Charter, wire::Problem> {
-    let wire::CharterParts { rest, number, policy, hosts, spend, wake, documents } = value.into_parts();
+    let wire::CharterParts { rest, number, policy, hosts, spend, wake, documents, parts } = value.into_parts();
     let mut decoded = List::with_capacity(documents.len());
     for document in documents.into_boxed() {
         let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
@@ -749,8 +763,17 @@ fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::C
             })
             .expect("decoded documents bound");
     }
+    let mut decoded_parts = List::with_capacity(parts.len());
+    for part in parts.into_boxed() {
+        let wire::CharterPartParts { on, instructions } = part.into_parts();
+        let on = tasks::Reasons(on);
+        if !on.is_known() || on.is_empty() {
+            return Err(bound());
+        }
+        decoded_parts.push(core::CharterPart { on, instructions }).expect("decoded parts bound");
+    }
     Ok(core::Charter {
-        parts: Box::new([]),
+        parts: decoded_parts.into_boxed(),
         rest,
         number,
         policy: decode_run_policy(policy),
@@ -1414,13 +1437,28 @@ fn encode_llm_choice(value: &tasks::LlmChoice, limits: &wire::Limits) -> Result<
         }
     }
     let field_subagents = list_33;
+    let later = match &value.later {
+        None => None,
+        Some(later) => {
+            let mut subagents = List::with_capacity(limits.llm_later_subagents);
+            for entry in &later.subagents {
+                if subagents.push(encode_model_effort(entry, limits)?).is_err() {
+                    return Err(bound());
+                }
+            }
+            Some(wire::LlmLater::new(
+                limits,
+                wire::LlmLaterParts { main: encode_model_effort(&later.main, limits)?, subagents },
+            )?)
+        }
+    };
     wire::LlmChoice::new(
         limits,
-        wire::LlmChoiceParts { account: field_account, main: field_main, subagents: field_subagents },
+        wire::LlmChoiceParts { account: field_account, main: field_main, subagents: field_subagents, later },
     )
 }
 fn decode_llm_choice(value: wire::LlmChoice) -> tasks::LlmChoice {
-    let wire::LlmChoiceParts { account, main, subagents } = value.into_parts();
+    let wire::LlmChoiceParts { account, main, subagents, later } = value.into_parts();
     let field_account = account;
     let field_main = decode_model_effort(main);
     let mut list_34 = List::with_capacity((subagents).len());
@@ -1429,7 +1467,18 @@ fn decode_llm_choice(value: wire::LlmChoice) -> tasks::LlmChoice {
         list_34.push(element).expect("decoded list bound");
     }
     let field_subagents = list_34.into_boxed();
-    tasks::LlmChoice { later: None, account: field_account, main: field_main, subagents: field_subagents }
+    let later = match later {
+        None => None,
+        Some(later) => {
+            let wire::LlmLaterParts { main, subagents } = later.into_parts();
+            let mut chosen = List::with_capacity(subagents.len());
+            for entry in subagents.into_boxed() {
+                chosen.push(decode_model_effort(entry)).expect("decoded later sub-agents bound");
+            }
+            Some(tasks::LlmLater { main: decode_model_effort(main), subagents: chosen.into_boxed() })
+        }
+    };
+    tasks::LlmChoice { later, account: field_account, main: field_main, subagents: field_subagents }
 }
 fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire::Template, wire::Problem> {
     let field_number = value.number;
@@ -1973,6 +2022,9 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.last_open_bytes = domain.authority.segment_bytes;
     limits.pattern_segments = domain.authority.segments;
     limits.charter_documents = domain.tasks.charter_documents;
+    limits.charter_parts = domain.tasks.charter_parts;
+    limits.charter_part_instructions = domain.run_bytes;
+    limits.llm_later_subagents = tasks::MODELS;
     limits.document_name = domain.authority.segments;
     limits.document_path = core::DOCUMENT_PATH_BYTES;
     limits.document_heading_some = core::DOCUMENT_HEADING_BYTES;

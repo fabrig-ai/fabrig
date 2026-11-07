@@ -148,6 +148,10 @@ fn encoding_refuses_aggregate_bounds() {
 fn decoding_refuses_aggregate_bounds() {
     table([
         (
+            "later_subagents_obey_the_models_bound_in_every_family",
+            later_subagents_obey_the_models_bound_in_every_family,
+        ),
+        (
             "a_decoded_pattern_past_its_aggregate_limit_is_refused",
             a_decoded_pattern_past_its_aggregate_limit_is_refused,
         ),
