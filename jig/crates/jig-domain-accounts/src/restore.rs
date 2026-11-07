@@ -25,7 +25,7 @@ fn hold(entry: &mut Source, env: &Env<Limits>, kept: Option<Held>) {
 }
 
 /// The time from now to a later wall time; none once it has passed.
-fn left(now: Wall, reset: Wall) -> Option<Duration> {
+pub(crate) fn left(now: Wall, reset: Wall) -> Option<Duration> {
     match reset.as_nanos().checked_sub(now.as_nanos()) {
         Some(0) | None => None,
         Some(nanos) => Some(Duration::from_nanos(nanos)),

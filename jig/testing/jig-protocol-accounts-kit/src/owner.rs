@@ -664,6 +664,7 @@ impl Owner {
                     self.answers.push(answer);
                 }
                 child::Request::Programs { .. }
+                | child::Request::ReadList { .. }
                 | child::Request::CheckProgram { .. }
                 | child::Request::SignOutProgram { .. }
                 | child::Request::Granted { grant: _ }

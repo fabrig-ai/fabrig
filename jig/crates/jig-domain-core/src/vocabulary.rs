@@ -1300,6 +1300,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::Listed { .. }
+        | accounts::Event::ListFailed { .. }
         | accounts::Event::Close => false,
     }
 }

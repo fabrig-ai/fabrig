@@ -13,6 +13,7 @@ mod checks;
 mod domain;
 mod keys;
 mod limits;
+mod lists;
 mod ordering;
 pub mod programs;
 mod providers;
@@ -25,7 +26,7 @@ pub use boundary::{
     Program, ProgramFailure, ProgramHost, ProgramResult, Request, Signing, State, ToComponent, Turned, Unread,
 };
 pub use checks::{Bound, Refusal, SignIn, SignInRedirectWhy, room_for_sign_in};
-pub use domain::{Account, Domain, fire, step};
+pub use domain::{Account, Domain, ModelKind, fire, step};
 pub use keys::{KEY_VALID, PROGRAM_VALID};
 pub use limits::{Limits, valid};
 pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};

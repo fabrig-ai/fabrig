@@ -236,6 +236,7 @@ impl Component {
                 | domain::Request::Erase { .. }
                 | domain::Request::Answer { .. }
                 | domain::Request::Programs { .. }
+                | domain::Request::ReadList { .. }
                 | domain::Request::CheckProgram { .. }
                 | domain::Request::SignOutProgram { .. }
                 | domain::Request::Closed => (),
@@ -309,6 +310,7 @@ impl Component {
             | domain::Request::Erase { .. }
             | domain::Request::Answer { .. }
             | domain::Request::Programs { .. }
+            | domain::Request::ReadList { .. }
             | domain::Request::CheckProgram { .. }
             | domain::Request::SignOutProgram { .. }
             | domain::Request::Closed => (),
@@ -342,6 +344,7 @@ impl Component {
             | domain::Request::Erase { .. }
             | domain::Request::Answer { .. }
             | domain::Request::Programs { .. }
+            | domain::Request::ReadList { .. }
             | domain::Request::CheckProgram { .. }
             | domain::Request::SignOutProgram { .. }
             | domain::Request::Closed => (),

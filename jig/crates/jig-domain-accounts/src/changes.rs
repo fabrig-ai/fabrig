@@ -112,6 +112,11 @@ pub(crate) fn change(
             crate::signing::move_in(domain, env, request, holder, carried, out);
             return;
         }
+        Change::ReadLists { provider } => {
+            let count = crate::lists::again(domain, holder, provider, out);
+            out.push(Request::Answer { request, answer: Answer::Reading { count } });
+            return;
+        }
         Change::CheckProgram { source } => crate::programs::check(domain, holder, source, out),
         Change::AddKey { provider, join, carried } => {
             let keeping = crate::keys::Keeping { request, holder, provider, join, replacing: false };
@@ -194,6 +199,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
     if entry.sources.is_empty() {
         let holder = entry.holder;
         drop(domain.accounts.remove(&account).expect("a kept account"));
+        crate::lists::removed(domain, account);
         out.push(Request::Erase { key: Key::Account { number: account } });
         let order = crate::ordering::accounts(domain, holder);
         crate::ordering::save_accounts(domain, &order, out);
@@ -209,6 +215,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
         entry.plan = plan;
         let order = crate::ordering::sources(domain, account);
         crate::ordering::save_sources(domain, account, &order, out);
+        crate::lists::settled(domain, account, out);
     }
 }
 
@@ -276,6 +283,7 @@ fn remove(
     let sources = crate::ordering::sources(domain, number);
     // Remove the account once, then its rows; no transient renumbering of sources being erased.
     drop(domain.accounts.remove(&number).expect("checked account"));
+    crate::lists::removed(domain, number);
     out.push(Request::Erase { key: Key::Account { number } });
     for source in &sources {
         let entry = domain.sources.remove(source).expect("an account's source");
@@ -400,6 +408,7 @@ fn move_source(
     let order = crate::ordering::sources(domain, number);
     let order = moved(&order, source, place);
     crate::ordering::save_sources(domain, number, &order, out);
+    crate::lists::settled(domain, number, out);
     Ok(())
 }
 pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>) {

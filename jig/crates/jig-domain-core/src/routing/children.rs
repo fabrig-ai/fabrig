@@ -482,6 +482,7 @@ pub(crate) fn tag_account(
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
+            accounts::Request::ReadList { .. } => {}
             accounts::Request::Programs { names } => {
                 let mut sources = skein_lib::List::with_capacity(env.limits.accounts.program_names);
                 let mut cleanup = skein_lib::List::with_capacity(env.limits.accounts.program_names);
@@ -571,7 +572,9 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
             }
             None
         }
-        accounts::Event::Withdrawn { .. }
+        accounts::Event::Listed { .. }
+        | accounts::Event::ListFailed { .. }
+        | accounts::Event::Withdrawn { .. }
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
