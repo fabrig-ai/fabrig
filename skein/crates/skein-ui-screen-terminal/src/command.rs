@@ -161,7 +161,7 @@ fn scroll(focus: &mut Focus, to: u32) -> Command {
 }
 fn shortcut(tree: &Tree, ch: char, modifier: Modifier) -> Command {
     let Ok(key) = u8::try_from(ch) else { return Command::Nothing };
-    if !key.is_ascii_lowercase() && !key.is_ascii_digit() && !(key == b'\\' && modifier == Modifier::Primary) {
+    if !(key.is_ascii_lowercase() || key.is_ascii_digit() || key == b'\\' && modifier == Modifier::Primary) {
         return Command::Nothing;
     }
     for node in tree.nodes() {
@@ -187,12 +187,12 @@ fn escape(tree: &Tree, focused: Option<NodeId>) -> Command {
         if node.role == Role::Dialog {
             dialog = Some((index, node));
         }
-        if node.role == Role::Form {
-            if let Some(at) = at {
-                let end = index.saturating_add(usize_of(node.size));
-                if index <= at && at < end {
-                    form = Some((index, node));
-                }
+        if node.role == Role::Form
+            && let Some(at) = at
+        {
+            let end = index.saturating_add(usize_of(node.size));
+            if index <= at && at < end {
+                form = Some((index, node));
             }
         }
     }
@@ -226,7 +226,7 @@ fn boundary(text: &[u8], at: usize) -> bool {
 fn offset(node: &Node, caret: u32) -> usize {
     let text = value(node);
     let mut at = usize_of(caret).min(text.len());
-    for _ in 0..4 {
+    for _ in 0_u8..4 {
         if at == 0 || boundary(text, at) {
             break;
         }

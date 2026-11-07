@@ -102,15 +102,18 @@ fn fields_edit_whole_values_and_move_by_characters() {
 #[test]
 fn field_pastes_flatten_breaks_and_drop_trailing_breaks() {
     for (role, text, expected) in [
-        (Role::TextField, b"x\r\ny\nz\r\n\n".as_slice(), "aéx y zz".as_bytes()),
-        (Role::TextField, b"\r\n", "aéz".as_bytes()),
-        (Role::TextField, b"x \n", "aéx z".as_bytes()),
-        (Role::TextArea, b"x\r\ny\n", "aéx\r\ny\nz".as_bytes()),
+        (Role::TextField, b"x\r\ny\nz\r\n\n".as_slice(), Some("aéx y zz".as_bytes())),
+        (Role::TextField, b"\r\n", None),
+        (Role::TextField, b"x \n", Some("aéx z".as_bytes())),
+        (Role::TextArea, b"x\r\ny\n", Some("aéx\r\ny\nz".as_bytes())),
     ] {
         let tree = single(role, false, false);
         let mut focus = focus(&tree, 1);
         let node = focus.node.expect("field focus");
-        let wanted = if text == b"\r\n" { Command::Nothing } else { input(expected, node) };
+        let wanted = match expected {
+            Some(value) => input(value, node),
+            None => Command::Nothing,
+        };
         assert_eq!(
             command(&Key::Paste(bytes::copy_of(text)), &tree, &mut focus, &LIMITS),
             wanted,

@@ -177,10 +177,10 @@ impl Decoder {
         if PASTE_END.get(self.ending) == Some(&byte) {
             self.ending = self.ending.saturating_add(1);
             if self.ending == PASTE_END.len() {
-                if let Err(error) = core::str::from_utf8(self.paste.as_slice()) {
-                    if error.error_len().is_none() {
-                        self.paste.truncate(u32::try_from(error.valid_up_to()).expect("paste length fits u32"));
-                    }
+                if let Err(error) = core::str::from_utf8(self.paste.as_slice())
+                    && error.error_len().is_none()
+                {
+                    self.paste.truncate(u32::try_from(error.valid_up_to()).expect("paste length fits u32"));
                 }
                 keys.push(Key::Paste(bytes::copy_of(self.paste.as_slice())));
                 self.paste.clear();
