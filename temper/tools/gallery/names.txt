@@ -60,6 +60,8 @@ chat-start-goal-refused
 chat-started-model-changing
 chat-started-model-open
 chat-started-model-refused
+chat-terminal
+chat-terminal-working
 chat-work-done
 chat-work-empty
 chat-work-failed

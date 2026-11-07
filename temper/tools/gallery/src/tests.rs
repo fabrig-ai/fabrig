@@ -131,6 +131,23 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-terminal",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "/ for commands" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-working",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "/ for commands" },
+            Part::Named { role: Role::Status, name: "Working" },
+        ],
+    },
+    Holds {
         name: "agent-work",
         heading: "T1 · please describe how temper works",
         parts: &[
@@ -2857,7 +2874,9 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 46] = [
+const SPENDS: [(&str, Role, &str); 48] = [
+    ("chat-terminal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-model-fixed", Role::Paragraph, "70 spent · of 101472"),
     ("chat-started-model-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-started-model-changing", Role::Paragraph, "70 spent · of 101472"),
@@ -3209,6 +3228,13 @@ fn print_writes_every_page_and_the_bundle() {
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
             assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
+        } else if sample.name.starts_with("chat-terminal") {
+            let (_, main) = page.split_once("<main ").expect("terminal main element");
+            let (main, _) = main.split_once('>').expect("terminal main attributes");
+            assert!(main.contains("class=\"temper-terminal "), "{}: terminal main", sample.name);
+            for class in ["temper-rail", "temper-tabbar", "temper-menu"] {
+                assert!(!page.contains(&format!("class=\"{class}\"")), "{}: no {class}", sample.name);
+            }
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {

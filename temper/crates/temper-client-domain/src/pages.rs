@@ -47,6 +47,7 @@ pub mod report;
 pub mod start_goal;
 pub mod switcher;
 pub mod task;
+pub mod terminal;
 pub mod welcome;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,6 +59,7 @@ pub(crate) enum PlaygroundChoice {
 #[expect(clippy::struct_excessive_bools, reason = "independent session and page-open flags")]
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
+    look: terminal::Look,
     needs: needs::Session,
     away: Option<away::Pending>,
     overturns: away::Overturns,
@@ -102,6 +104,7 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Terminal(terminal::Act),
     OpenStart {
         draft: Option<Box<[u8]>>,
         chat: Option<u64>,
@@ -282,9 +285,15 @@ impl Default for Pages {
     }
 }
 impl Pages {
+    /// The look a person chose (client/README.md, 3.5, A chat's terminal).
+    #[must_use]
+    pub const fn look(&self) -> terminal::Look {
+        self.look
+    }
     #[must_use]
     pub fn new() -> Self {
         Self {
+            look: terminal::Look::default(),
             needs: needs::Session::default(),
             away: None,
             overturns: away::Overturns::new(),
@@ -596,6 +605,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::Terminal(act) } => pages.look.act(act),
         Event::Act { act: Act::Models(act) } => {
             if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -679,7 +689,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
         Event::Act { act: Act::Mode { mode } } => {
-            if let Some(chats) = &mut pages.chats {
+            if pages.address == (Address::NewChat { draft: true })
+                || pages.address == (Address::NewChat { draft: false })
+            {
+                pages.address = Address::NewChat { draft: mode != chat::document::Mode::Chat };
+                out.push(Request::Replace { address: pages.address.clone() });
+            } else if let Some(chats) = &mut pages.chats {
                 if chats.reference.is_some() {
                     chats.reference = Some(mode);
                 }
@@ -1651,6 +1666,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AmendAgain
         | Act::Switcher(_)
         | Act::Away(_)
+        | Act::Terminal(_)
         | Act::Models(_)
         | Act::Needs(_)
         | Act::Choice(_)
