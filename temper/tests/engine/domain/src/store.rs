@@ -140,18 +140,25 @@ impl Store {
             stores,
         );
         assert!(component.wires(&temper_service::store::WIRES));
-        let mut store = Store {
+        let mut store = Self::empty(limits, &component_limits, models);
+        store.component = Some(component);
+        store.open();
+        store
+    }
+
+    fn empty(limits: &engine::Limits, component_limits: &Limits, models: Box<[engine::Model]>) -> Store {
+        Store {
             applied: 0,
             pending_generation: false,
             rows: BTreeMap::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
             delays: BTreeMap::new(),
-            component: Some(component),
+            component: None,
             files: Files::new(),
             routes: routes(limits),
             limits: *limits,
-            component_limits,
+            component_limits: *component_limits,
             models,
             inflight: BTreeMap::new(),
             durable: Vec::new(),
@@ -163,10 +170,15 @@ impl Store {
             fail_at: None,
             page_delay: 0,
             failed: false,
-        };
-        store.open();
-        store
+        }
     }
+
+    /// Transfer the store to a consuming driver; its broken oracle never uses the empty shell.
+    pub(crate) fn take_for_drop(&mut self) -> Store {
+        let empty = Self::empty(&self.limits, &self.component_limits, Box::new([]));
+        std::mem::replace(self, empty)
+    }
+
     pub fn fault(&mut self, fault: Fault) {
         match fault {
             Fault::Hold { commits } => self.hold_next = commits,

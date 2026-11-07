@@ -77,6 +77,59 @@ fn a_language_with_a_foreign_phrase_is_refused_naming_it() {
 }
 
 #[test]
+fn duplicate_ids_are_refused_before_conflicting_holes_or_forms() {
+    let smaller = PhraseId { owner: Owner { number: 3 }, number: 1 };
+    let invalid = PhraseShape { id: smaller, holes: Box::new([]), plural: Some(9) };
+    let shapes = Box::new([
+        shape()[0].clone(),
+        PhraseShape { id: ID, holes: Box::new([]), plural: Some(9) },
+        invalid.clone(),
+        invalid,
+    ]);
+    let limits = PhraseLimits { phrases: 4, ..LIMITS };
+    assert_eq!(
+        Phrasebook::load(shapes, Box::new([language(false)]), &limits).unwrap_err(),
+        Invalid::Duplicate { id: smaller }
+    );
+    let mut words = language(false);
+    words.phrases = Box::new([words.phrases[0].clone(), Phrase { id: ID, forms: Box::new([]) }]);
+    assert_eq!(Phrasebook::load(shape(), Box::new([words]), &LIMITS).unwrap_err(), Invalid::Duplicate { id: ID });
+}
+
+#[test]
+fn shared_declaration_order_and_independent_order_keep_every_id_bit() {
+    let rows: [(PhraseId, &[u8]); 3] = [
+        (PhraseId { owner: Owner { number: u32::MAX }, number: u16::MAX }, b"last"),
+        (PhraseId { owner: Owner { number: 0 }, number: u16::MAX }, b"low"),
+        (PhraseId { owner: Owner { number: u32::MAX }, number: 0 }, b"high"),
+    ];
+    let shapes = Box::new(rows.map(|(id, _)| PhraseShape { id, holes: Box::new([]), plural: None }));
+    let phrases = rows.map(|(id, text)| Phrase {
+        id,
+        forms: Box::new([Form { class: PluralClass::Other, segments: Box::new([Segment::Text(text.into())]) }]),
+    });
+    let mut independent = phrases.clone();
+    independent.rotate_left(1);
+    let languages = [phrases, independent].map(|phrases| Language {
+        plural: PluralRule::English,
+        span_unit: SpanUnit::Seconds,
+        wall: WallFormat::Seconds,
+        phrases: Box::new(phrases),
+    });
+    let limits = PhraseLimits { phrases: 3, ..LIMITS };
+    let book = Phrasebook::load(shapes, Box::new(languages), &limits).unwrap();
+    for (id, text) in rows {
+        assert_eq!(book.capacity(id), Some(u32::try_from(text.len()).unwrap()));
+        for language in 0..2 {
+            assert_eq!(book.say(language, id, &[]).unwrap().text.as_ref(), text);
+        }
+    }
+    let absent = PhraseId { owner: Owner { number: u32::MAX }, number: 1 };
+    assert_eq!(book.capacity(absent), None);
+    assert_eq!(book.say(0, absent, &[]), Err(Invalid::Unknown { id: absent }));
+}
+
+#[test]
 fn plural_selection_hole_values_and_longest_language_capacity_are_checked() {
     let book = Phrasebook::load(shape(), Box::new([language(false), language(true)]), &LIMITS).unwrap();
     let mut values = [
