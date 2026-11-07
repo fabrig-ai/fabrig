@@ -682,8 +682,12 @@ impl Domain {
 
 fn human_collaborators(d: &Domain, forge: u16, collaborators: List<api::Collaborator>) -> Box<[api::Collaborator]> {
     let mut humans = List::with_capacity(collaborators.len());
+    let linked = match d.link(forge) {
+        Some(link) => Some(link.user),
+        None => None,
+    };
     for collaborator in &collaborators {
-        if !d.is_writer(forge, collaborator.user) {
+        if !d.is_writer(forge, collaborator.user) && linked != Some(collaborator.user) {
             humans.push(collaborator.clone()).expect("bounded adoption collaborators");
         }
     }
