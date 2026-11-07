@@ -1,6 +1,10 @@
 # root: status
 
-2026-11-06. Where temper's code lags or departs from [root.md](root.md).
+2026-11-07. Where temper's code lags or departs from [root.md](root.md).
+
+Section 5.2's host-answer room is shared across the box's runs, as
+`fleet.calls` bounds the fleet rather than each run. No concurrency gap is
+known in that room; the settings-answer bound gap remains below.
 
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.

@@ -1475,6 +1475,38 @@ fn the_taskbar_says_number_title_state_executor_and_own_spend() {
     }
 }
 #[test]
+fn a_closed_agents_task_says_what_it_ran_on_after_its_spend() {
+    for latest in [None, Some(super::chat::model_effort("recorded-model", Some("low")))] {
+        let mut task = f::delegate();
+        task.activity = 1;
+        task.llm = Some(super::chat::model_choice("next-model", Some("high")));
+        task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(
+            f::document_words(b"Done"),
+        )))));
+        let expected = if latest.is_some() { "recorded-model · low" } else { "next-model · high" };
+        let root = f::agent_root_with_page(task, None, super::chat::model_line_page(latest));
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            let bar = subtree(tree, styled(tree, look::TASKBAR));
+            let mut spent = None;
+            for (index, node) in bar.iter().enumerate() {
+                if node.name.as_deref() == Some(b"7 spent") {
+                    spent = Some(index);
+                    break;
+                }
+            }
+            let spent = spent.unwrap();
+            let line = &bar[spent + usize::try_from(bar[spent].size).unwrap()];
+            assert_eq!(line.role, Role::Paragraph);
+            assert_eq!(line.name.as_deref(), Some(expected.as_bytes()));
+            assert!(fixtures::find(tree, Role::Disclosure, b"Model").is_none());
+            for node in tree.nodes() {
+                assert!(!node.styles.as_slice().contains(&look::ACCOUNT_LINE));
+            }
+        }
+    }
+}
+#[test]
 fn the_brief_says_its_spec_who_asked_and_its_dependencies() {
     for dependencies in [false, true] {
         let mut task = f::delegate();

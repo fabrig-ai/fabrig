@@ -232,6 +232,103 @@ fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
     numbered_question();
 }
 
+// temper/docs/design/domain/agent.md, 8.2; temper/docs/plan/ui-goal-asks/notes/contracts.md.
+#[test]
+fn a_person_started_goal_asks_its_person_and_no_stranger() {
+    // start_goal creates one root task; a refusal adds no live or ended child.
+    const ROOT_TASKS: usize = 1;
+    const NO_ROLE: u64 = fixtures::PARTY + 1;
+    const COMPLETION: u32 = 28;
+    const REPORT_WORDS: u32 = 4096;
+    const QUESTION: &[u8] = b"Which colour?\n\nChoose the colour.\nSaw: Both fit.\nChoice: Blue (recommended)";
+    const ANSWER: &[u8] = b"Use blue";
+    for (address, refusal) in [
+        (tasks::PersonAddress::Person(fixtures::PARTY), None),
+        (tasks::PersonAddress::Role(1), Some("missing executor permission")),
+        (tasks::PersonAddress::Person(NO_ROLE), Some("Refused: executor")),
+    ] {
+        let (mut ctl, goal) = start_goal(b"Ask me a colour");
+        let driver = &mut ctl.front.engine;
+        let attempt = driver.task(goal).expect("running goal").attempt;
+        let mut child = temper_engine_domain_world::fixtures::report_delegate(QUESTION, Box::new([]));
+        child.executor = tasks::Executor::Person(address);
+        child.contract = tasks::Contract::Report { words: REPORT_WORDS };
+        child.authority.tools = tasks::Tools(0);
+        child.authority.budget.spend = 0;
+        child.wake = None;
+        driver.call(
+            WORKER,
+            goal,
+            attempt,
+            u64::from(COMPLETION),
+            engine::Call {
+                completion: COMPLETION,
+                position: 1,
+                tool: engine::Tool::Delegate { batch: Box::new([child]) },
+            },
+        );
+        driver.settle();
+        let answer = driver.answered(u64::from(COMPLETION)).expect("delegation answered");
+        if let Some(refusal) = refusal {
+            let rendered = temper_engine_smith::answer_for_tool(answer, b"delegate", REPORT_WORDS);
+            assert!(rendered.error());
+            assert!(String::from_utf8_lossy(rendered.text()).contains(refusal), "{address:?}: {rendered:?}");
+            assert!(driver.task(goal).expect("goal").delegates.is_empty(), "refusal makes no task");
+            assert_eq!(
+                driver
+                    .store
+                    .rows
+                    .values()
+                    .filter(|record| matches!(
+                        record,
+                        engine::Record::Core(jig_domain_core::Record::Tasks(
+                            tasks::Stored::Live(_) | tasks::Stored::Ended(_)
+                        ))
+                    ))
+                    .count(),
+                ROOT_TASKS
+            );
+            continue;
+        }
+        let engine::CallAnswer::Delegated(children) = answer else { panic!("person delegation: {answer:?}") };
+        let child = children[0].task;
+        assert_eq!(driver.task(child).expect("person task").requester, tasks::Party::Task(goal));
+        driver.answer(WORKER, goal, attempt, 0, tasks::End::Parked, engine::Parts::none());
+        driver.settle();
+        let revision = driver.task(child).expect("person task").revisions.person.to_string();
+        ctl.text(&[
+            b"task",
+            b"answer",
+            child.to_string().as_bytes(),
+            b"--rev",
+            revision.as_bytes(),
+            ANSWER,
+            b"--key",
+            b"colour",
+        ]);
+        let stored =
+            ctl.front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+        let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+            panic!("completed person task: {stored:?}");
+        };
+        assert!(
+            matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == ANSWER)
+        );
+        let resumed = ctl.front.assignments.last().expect("goal resumed");
+        assert_eq!(resumed.task, goal);
+        assert!(resumed.attempt > attempt);
+        assert!(
+            resumed.messages.iter().any(|entry| matches!(
+                entry.kind,
+                tasks::MessageKind::Result(tasks::ResultKind::Report)
+            ) && entry.words.as_ref() == ANSWER
+                && entry.from == tasks::Party::Task(child)),
+            "goal wake: {:?}",
+            resumed.messages
+        );
+    }
+}
+
 #[test]
 fn a_reason_past_its_choice_names_the_bound() {
     let (mut ctl, goal) = start_goal(b"Ask me a colour");

@@ -1302,6 +1302,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Four agents' resident memory** (13.4): the slot, workspace and git
+  operation fit checks admit four; they do not establish the memory used
+  by four agent processes and their programs on a laptop. Default: four
+  slots, with the after-landing measurement in `setup.md`, section 15;
+  a person's existing document keeps its configured concurrency.
 - **The model catalogue's store and list steps** (13.4): model settings,
   additions by name and per-account provider lists replace the model tables
   in `temper.json` and `agent.json` together
@@ -1720,9 +1725,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../client/README.md`, 5.13):
   `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
-  can write drafts and whether the rail shows Goals, Changes and the
-  Away switch; and `way`, a template's number, the way a goal starts by,
-  0 for the first the project offers with `tracked` set. Its bound, the
+  offer drafts and whether the rail offers Goals, Changes and the
+  Away switch. A configuring chat offers a draft regardless, and Goals
+  stays shown for a current Goals or goal page or a project holding a goal
+  (`../client/README.md`, 3.5 and 5.3). The `way` is a template's number,
+  the way a goal starts by, 0 for the first the project offers with
+  `tracked` set. Its bound, the
   kind's, is its encoding; the engine decides nothing by it. A value of
   a project's questions is its route alone, a `ProjectQuestions` record.
 - **A landing rule's value** is a `LandingRule` record in temper's

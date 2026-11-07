@@ -94,7 +94,7 @@ fn decided_refuses_a_took_outside_its_options() {
 fn its_answers_read_as_the_design_says() {
     for (took, words) in [
         (Some(Box::from(b"A".as_slice())), b"Decided: carry on with A.".as_slice()),
-        (None, b"Ask: your person is here or this kind waits for them. Ask with message, as a question."),
+        (None, b"Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."),
     ] {
         let answer = crate::answer(&engine::CallAnswer::Decided { took });
         assert_eq!(answer.text(), words);
