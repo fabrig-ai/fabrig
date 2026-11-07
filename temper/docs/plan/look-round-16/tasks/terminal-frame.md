@@ -134,3 +134,17 @@ The implementer's report, and, for the account `terminal-close` writes:
 - each rule broken and the failure seen;
 - each reader file you edited beyond the header's, and each print regenerated;
 - where the terminal's words live, and why if not in their own table.
+
+## Rebase (2026-11-07, step merge, foreman look-round-16/terminal-frame/foreman-1)
+
+Rebase onto the landing trunk, combine phrase and gallery counts, and regenerate journey prints.
+The merge conflicts are the branch’s: `words.rs`, gallery `samples.rs`, and `chat-draft/19.html` and `20.html`.
+Main’s `a9ef0e974e` adds model-list phrases and four gallery samples; `9781e892a3` refreshes the conflicting prints. These changes reached the landing trunk through `255838cd83`.
+In `temper/crates/temper-client-view/src/words.rs`, preserve main’s model vocabulary and the terminal phrase-table extension.
+Combine their bounds: `PHRASES = 2013`, `SEGMENTS = 3500`, `ENGLISH_BYTES = 49200`; retain main’s `ALL` length of 1338.
+Keep terminal words in `pages/terminal/words.rs`; their 5000-range IDs do not overlap main’s new model IDs.
+In `temper/tools/gallery/src/samples.rs`, preserve all model additions and both terminal samples and their setup; combine `N` to 311.
+Retain both sets of rows in the automatically merged gallery `names.txt`, `tests.rs` and `worlds.rs`.
+Regenerate journey prints from the combined code with `heavy cargo run -p temper-client-journeys`, without arguments; resolve `19.html` and `20.html` from that output.
+Report every regenerated print.
+Verify `tests::accounts::english_phrase_declarations_match_the_vocabulary`, gallery `names_are_the_promised_ones` and `each_state_holds_what_its_name_says`, and the terminal tests through heavy, then complete the spec’s permitted checks.
