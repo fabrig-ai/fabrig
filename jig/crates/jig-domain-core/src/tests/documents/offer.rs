@@ -194,6 +194,7 @@ fn template(number: u32, executor: people::TemplateExecutor, llm: Option<tasks::
 
 fn choice(model: u8, effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model, effort: Some(effort) },
         subagents: Box::new([]),

@@ -1416,6 +1416,7 @@ fn a_delegate_keeps_its_llm_preference() {
     assert_eq!(
         batch[0].llm,
         Some(tasks::LlmChoice {
+            later: None,
             account: Some(43),
             main: tasks::ModelEffort { model: 2, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
@@ -1436,6 +1437,7 @@ fn an_amendment_keeps_its_llm_preference() {
     assert_eq!(
         amendment.llm,
         Some(tasks::LlmChoice {
+            later: None,
             account: Some(43),
             main: tasks::ModelEffort { model: 2, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 3, effort: None }]),
@@ -1869,11 +1871,13 @@ fn change_decodes_a_producer_and_llm_by_role() {
         producer: Some(6),
         llm: engine::ChangeLlm {
             producer: Some(tasks::LlmChoice {
+                later: None,
                 account: None,
                 main: tasks::ModelEffort { model: 0, effort: Some(1) },
                 subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
             }),
             review: Some(tasks::LlmChoice {
+                later: None,
                 account: None,
                 main: tasks::ModelEffort { model: 0, effort: Some(0) },
                 subagents: Box::new([]),
@@ -1900,6 +1904,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
                 llm: engine::ChangeLlm {
                     producer: None,
                     review: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 1, effort: None },
                         subagents: Box::new([]),
@@ -1911,6 +1916,7 @@ fn change_decodes_a_producer_and_llm_by_role() {
             engine::ChangeCall {
                 llm: engine::ChangeLlm {
                     producer: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 0, effort: None },
                         subagents: Box::new([]),

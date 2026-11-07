@@ -50,6 +50,16 @@ pub struct LlmChoice {
     /// The models its runs' sub-agents may use, each named once, at most `MODELS`, among which
     /// smith chooses within a run.
     pub subagents: Box<[ModelEffort]>,
+    pub later: Option<LlmLater>,
+}
+
+/// The choice every run whose reasons hold no `first` takes
+/// (jig/docs/design/domain/tasks.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LlmLater {
+    pub main: ModelEffort,
+    /// Each named once, at most `MODELS`.
+    pub subagents: Box<[ModelEffort]>,
 }
 
 /// Why an LLM choice is refused (domain/tasks.md, sections 4 and 7).
@@ -75,6 +85,7 @@ pub enum LlmFault {
 pub struct CharterModels {
     /// The charter's number.
     pub number: u32,
+    pub resumes: bool,
     /// The revision that set this charter value.
     pub revision: u32,
     /// Its configured model indices, at most `MODELS`; none marks a removal.
@@ -224,7 +235,7 @@ impl Domain {
                 Some(_) => subagents.push(chosen).expect("one per charter model"),
             }
         }
-        Some(LlmChoice { account: None, main: main?, subagents: subagents.into_boxed() })
+        Some(LlmChoice { later: None, account: None, main: main?, subagents: subagents.into_boxed() })
     }
 }
 
