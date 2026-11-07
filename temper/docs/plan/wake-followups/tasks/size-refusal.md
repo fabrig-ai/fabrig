@@ -3,7 +3,7 @@ id = "size-refusal"
 part = "size-refusal"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-people/src/settings.rs", "jig/crates/jig-domain-core/src/settings/check.rs", "jig/crates/jig-domain-core/src/tests/settings/parts.rs", "jig/crates/jig-domain-core/src/settings/tests.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings_change.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-protocol-store/src/codec/people/outcomes/facts.rs", "jig/crates/jig-protocol-store/src/tests/codec/people_outcomes.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19-part1.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "temper/crates/temper-settings-form/src/view.rs", "temper/crates/temper-settings-form/src/render.rs", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/crates/temper-client-tools/src/jig/render/document/me.rs", "temper/crates/temper-client-tools/src/tests/jig/settings.rs"]
+files = ["jig/crates/jig-domain-people/src/settings.rs", "jig/crates/jig-domain-core/src/settings/check.rs", "jig/crates/jig-domain-core/src/tests/settings/parts.rs", "jig/crates/jig-domain-core/src/settings/tests.rs", "jig/crates/jig-domain-core/src/tests/start/settings.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings_change.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-protocol-store/src/codec/people/outcomes/facts.rs", "jig/crates/jig-protocol-store/src/tests/codec/people_outcomes.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19-part1.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "temper/crates/temper-settings-form/src/view.rs", "temper/crates/temper-settings-form/src/render.rs", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/crates/temper-client-tools/src/jig/render/document/me.rs", "temper/crates/temper-client-tools/src/tests/jig/settings.rs"]
 effort = "high"
 minutes = 200
 +++
@@ -117,3 +117,14 @@ Acceptance:
 
 As the implementer's text says, and also: where the facts are made and which paths carry
 them, what the regeneration moved, and the full ctl line the row prints.
+
+## Answers
+
+2026-11-07. Restore carries the facts, so may `setting_values_keep_their_byte_bound_at_the_row_entrance`
+(`jig-domain-core/src/tests/start/settings.rs`) follow them? Yes: `restore_fit` sharing the size
+check and carrying the facts is pre-approved, and that test's expected failure follows from it.
+Change only that assertion's `detail` to `Some(SettingDetail { member: StoredPolicy, document: 0,
+segment: 0, rule: Maximum, supplied: <the measured charter bytes>, bound: <the lowered run_bytes> })`,
+computed from the test's own `bytes` and `env.limits.run_bytes`, not literals; nothing else in that
+file. Don't split restore from the change and start checks. The file joins the header's `files`.
+Then finish the focused runs and the dependent `heavy cargo check --tests` the first run left.
