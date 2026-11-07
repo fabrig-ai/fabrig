@@ -47,6 +47,7 @@ fn make(world: &mut World) -> u64 {
     world.send(root::Event::Core(core::Event::PersonTask {
         seed: Box::new(seed),
         executor: tasks::Executor::Agent { charter: 1 },
+        llm: None,
         spec: tasks::Spec {
             job: None,
             asks: false,

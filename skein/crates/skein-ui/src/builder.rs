@@ -200,6 +200,16 @@ impl Builder {
         let placeholder = copy_of(bytes);
         self.node_mut().placeholder = Some(placeholder);
     }
+    /// Give the open node words a shell with a pointer shows on hover, within its text bound.
+    pub fn hint(&mut self, bytes: &[u8]) {
+        let old = match &self.node().hint {
+            Some(hint) => length(hint),
+            None => 0,
+        };
+        self.charge(old, length(bytes));
+        let hint = copy_of(bytes);
+        self.node_mut().hint = Some(hint);
+    }
     /// Offer the keyboard or control for a text field.
     pub fn entry(&mut self, kind: EntryKind) {
         assert!(self.node().role == Role::TextField, "entry kinds belong to text fields");

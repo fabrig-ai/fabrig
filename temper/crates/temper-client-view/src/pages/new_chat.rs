@@ -68,7 +68,7 @@ pub(crate) fn main(
             root,
             w,
             bindings,
-            super::terminal::Top { project, heading: &heading, name: &heading, number: None, draft },
+            super::terminal::Top { project, heading: &heading, name: &heading, hint: None, number: None, draft },
         );
     } else {
         super::session::top(

@@ -42,6 +42,8 @@ pub enum JigPhrase {
     NameDigits,
     EngineLimitProjects,
 
+    BoundsWorker,
+    BoundsEngine,
     RefusedWorkerAt,
     RefusedEngineAt,
     MalformedEndedBy,
@@ -1108,6 +1110,8 @@ impl JigPhrase {
             Self::NameSpace => 7834,
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
+            Self::BoundsWorker => 7840,
+            Self::BoundsEngine => 7841,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
             Self::MalformedEndedBy => 7823,
@@ -1750,7 +1754,9 @@ impl JigPhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::MalformedRunning
+            Self::BoundsWorker
+            | Self::BoundsEngine
+            | Self::MalformedRunning
             | Self::SettingsUnchanged
             | Self::SettingRules
             | Self::SettingFaultShape
@@ -2418,7 +2424,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 648] = [
+pub const ALL: [JigPhrase; 650] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2453,6 +2459,8 @@ pub const ALL: [JigPhrase; 648] = [
     JigPhrase::NameSpace,
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
+    JigPhrase::BoundsWorker,
+    JigPhrase::BoundsEngine,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,
     JigPhrase::MalformedEndedBy,

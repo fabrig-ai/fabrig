@@ -8,6 +8,9 @@ Section 4's agent configuration declares endpoint limits, without models.
 Section 3's provider-list keep and drop patterns and their bounds have no
 known implementation gap.
 
+Section 3's list configuration is optional: no keep means no read, and
+keep requires an endpoint. Invalid patterns are refused at their path.
+
 Section 6 has no known gap in standard's `authority.batch` of 32,
 `hub.charter_bytes` of 262,144 and `hub.outcome_bytes` of 131,072.
 Small keeps its charter and outcome figures. The larger batch sizes

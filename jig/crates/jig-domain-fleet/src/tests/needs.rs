@@ -294,7 +294,7 @@ fn ambiguous_or_oversized_endpoint_metadata_is_never_retained() {
         let mut bounds = bounds_window(8192);
         bounds.program_endpoints = endpoints;
         assert_eq!(
-            &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
+            &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds.clone()) }),
             &[Request::Refuse { channel: C1, hello: None }]
         );
         assert_eq!(h.domain.program_endpoint(C1, 7), None);
@@ -524,7 +524,7 @@ fn a_refused_hello_says_why_and_what_each_side_holds() {
         }
         let mut h = Harness::with_needs(LIMITS, needs.clone());
         assert_eq!(
-            &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
+            &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds.clone()) }),
             &[Request::Refuse {
                 channel: C1,
                 hello: Some(crate::HelloRefused {
@@ -532,6 +532,15 @@ fn a_refused_hello_says_why_and_what_each_side_holds() {
                     figures: Some(crate::Figures { required, offered }),
                 })
             }],
+            "{why:?}"
+        );
+        assert_eq!(h.domain.standing_refusal(Kinds::Workers).unwrap().1.figures, Some(figures));
+        let mut admitted = Harness::with_needs(LIMITS, Needs { charters: Box::new([]), ..needs.clone() });
+        admitted.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) });
+        admitted.step(Event::Needs(needs.clone()));
+        assert_eq!(
+            admitted.domain.bounds_refusal(needs.charters[0].version, Kinds::Workers),
+            Some(crate::BoundsRefusal { kind: HostKind::Worker, why: Some(why), figures: Some(figures) }),
             "{why:?}"
         );
     }
@@ -651,7 +660,7 @@ fn a_refused_hello_uses_the_applicable_charter_versions_figures() {
         assert_eq!(crate::shortfall(&needs, &bounds, kind), Some(why));
         let mut h = Harness::with_needs(LIMITS, needs.clone());
         assert_eq!(
-            &*h.step(Event::Hello { worker: 0, channel, hello: hello(bounds) }),
+            &*h.step(Event::Hello { worker: 0, channel, hello: hello(bounds.clone()) }),
             &[Request::Refuse {
                 channel,
                 hello: Some(crate::HelloRefused {
@@ -710,4 +719,144 @@ fn endpoint_bounds(count: u32) -> Box<[EndpointBound]> {
         endpoints.push(EndpointBound { endpoint, window: 8192, output: 1024 }).expect("bounded test endpoints");
     }
     endpoints.into_boxed()
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the multi-host rules share one table and harness")]
+fn bounds_refusals_read_every_allowed_hosts_best_offer() {
+    const NEED_TURNS: u32 = 100_000;
+    const SMALL_TURNS: u32 = 800;
+    const LARGER_TURNS: u32 = 1_000;
+    const RESERVE: Duration = Duration::from_secs(5 * 60);
+    let small = Bounds { turns: SMALL_TURNS, ..bounds_window(8192) };
+    let larger = Bounds { turns: LARGER_TURNS, ..small.clone() };
+    let fitting = Bounds { turns: NEED_TURNS, ..small.clone() };
+    let mut turns = needs_window(8192);
+    turns.charters[0].turns = NEED_TURNS;
+    let mut checks = needs_window(8192);
+    checks.charters[0].change_reserve = Some(RESERVE);
+    let mut mixed = turns.clone();
+    mixed.charters[0].time = Duration::from_secs(120);
+    let turn_refusal = |offered| {
+        Some(crate::BoundsRefusal {
+            kind: HostKind::Worker,
+            why: Some(AgentShortfall::Turns { charter: 1 }),
+            figures: Some(crate::Figures { required: u64::from(NEED_TURNS), offered }),
+        })
+    };
+    for (name, hosts, needs, kinds, version, expected) in [
+        (
+            "one short worker",
+            Box::<[_]>::from([(C1, small.clone(), false)]),
+            turns.clone(),
+            Kinds::Workers,
+            1,
+            turn_refusal(800),
+        ),
+        (
+            "largest offer",
+            Box::<[_]>::from([(C1, small.clone(), false), (C2, larger, false)]),
+            turns.clone(),
+            Kinds::Workers,
+            1,
+            turn_refusal(1000),
+        ),
+        (
+            "one fits",
+            Box::<[_]>::from([(C1, small.clone(), false), (C2, fitting.clone(), false)]),
+            turns.clone(),
+            Kinds::Workers,
+            1,
+            None,
+        ),
+        (
+            "draining fits",
+            Box::<[_]>::from([(C1, small.clone(), false), (C2, fitting.clone(), true)]),
+            turns.clone(),
+            Kinds::Workers,
+            1,
+            turn_refusal(800),
+        ),
+        (
+            "least checks timeout",
+            Box::<[_]>::from([
+                (C1, Bounds { checks: Duration::from_secs(10 * 60), ..small.clone() }, false),
+                (C2, Bounds { checks: Duration::from_secs(8 * 60), ..small.clone() }, false),
+            ]),
+            checks,
+            Kinds::Workers,
+            1,
+            Some(crate::BoundsRefusal {
+                kind: HostKind::Worker,
+                why: Some(AgentShortfall::Checks { charter: 1 }),
+                figures: Some(crate::Figures { required: 300_000, offered: 480_000 }),
+            }),
+        ),
+        (
+            "different short bounds",
+            Box::<[_]>::from([
+                (C1, Bounds { time: Duration::from_secs(120), ..small.clone() }, false),
+                (C2, fitting.clone(), false),
+            ]),
+            mixed,
+            Kinds::Workers,
+            1,
+            Some(crate::BoundsRefusal { kind: HostKind::Worker, why: None, figures: None }),
+        ),
+        ("no host", Box::<[_]>::from([]), turns.clone(), Kinds::Workers, 1, None),
+        (
+            "disallowed engine",
+            Box::<[_]>::from([(C1, small.clone(), false), (Token::new(0), fitting.clone(), false)]),
+            turns.clone(),
+            Kinds::Workers,
+            1,
+            turn_refusal(800),
+        ),
+        (
+            "allowed fitting engine",
+            Box::<[_]>::from([(C1, small.clone(), false), (Token::new(0), fitting.clone(), false)]),
+            turns.clone(),
+            Kinds::Both,
+            1,
+            None,
+        ),
+        (
+            "engine alone",
+            Box::<[_]>::from([(Token::new(0), small.clone(), false)]),
+            turns.clone(),
+            Kinds::Engine,
+            1,
+            Some(crate::BoundsRefusal {
+                kind: HostKind::Engine,
+                why: Some(AgentShortfall::Turns { charter: 1 }),
+                figures: Some(crate::Figures { required: 100_000, offered: 800 }),
+            }),
+        ),
+        (
+            "worker preferred",
+            Box::<[_]>::from([(C1, small.clone(), false), (Token::new(0), small.clone(), false)]),
+            turns.clone(),
+            Kinds::Both,
+            1,
+            turn_refusal(800),
+        ),
+        ("unconfigured version", Box::<[_]>::from([(C1, small, false)]), turns.clone(), Kinds::Workers, 2, None),
+    ] {
+        let limits = Limits { engine_slots: 1, ..LIMITS };
+        let mut h = Harness::with_needs(limits, Needs { charters: Box::new([]), ..needs.clone() });
+        for (channel, bounds, draining) in hosts {
+            let worker = u32::from(channel == C2);
+            h.step(Event::Hello { worker, channel, hello: hello(bounds) });
+            if draining {
+                let id = *h.domain.tokens.get(&channel).unwrap();
+                h.domain.channels.get_mut(id).unwrap().draining = true;
+            }
+        }
+        h.step(Event::Needs(needs));
+        assert_eq!(
+            h.domain.bounds_refusal(crate::Version { charter: 1, revision: version }, kinds),
+            expected,
+            "{name}"
+        );
+    }
 }

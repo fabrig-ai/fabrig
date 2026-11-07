@@ -5,6 +5,10 @@
 Section 4 has no known gap in endpoint `limits`, refusing endpoint model
 lists or taking model and effort names from the charter within their bounds.
 
+Section 6.1 has no known implementation gap in `--list`, its bounded
+stdin/stdout records, endpoint request or typed failure, without a run.
+The fake-provider child stories establish no real-provider result.
+
 - **Not yet:**
   - 1, 3, 6, 8: the view. Commands, searches and checks run as plain
     children in process groups (`smith-protocol-machine/src/process.rs`),

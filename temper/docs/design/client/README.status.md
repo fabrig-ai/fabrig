@@ -134,7 +134,8 @@ geometry, with no passing runtime result supplied here (`browser.status.md`,
 
 Section 3.5's Models tab, switches, add-by-name form, source, estimated
 prices, omitted count and All models' link to the project's Models tab
-have no known implementation gap. Provider, the name and Add share one
+have no known implementation gap apart from the count's delivery below.
+Provider, the name and Add share one
 unwrapped row with the field's label visually hidden; its accessible name
 remains. The Provider and Add section headings have 6 px bottom margins.
 The client world holds switches and adding across reloads. Page 07's
@@ -146,6 +147,16 @@ refusals, and the expiring new labels on Settings and All models have no
 known implementation gap. View tables and gallery states cover these
 words and expiry; the client world carries reads, failures, retries and
 retained names through the engine. They establish no rendered equality.
+The one-process world's ModelsList row carries the key read through a
+worker and hosted agent and checks one request, the new name in `me`,
+and unchanged accounting. No real-provider result is supplied;
+section 11 keeps that observation and the page comparison after landing.
+
+- **Not yet:** 3.5, *The `Models` tab*: the omitted count can stay stale
+  when a provider read changes that count alone, because jig does not
+  mark `me` for it (`jig/docs/design/domain/engine.status.md`, 17.12).
+  A fresh Frame supplies the count; the view draws what it receives.
+
 - **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
   now and on purpose: an address under the project, `/projects/<project>/settings/models`, as
   `me`'s offer is a project's, where 07 draws `/models`; and "the default" on one row, as `me`

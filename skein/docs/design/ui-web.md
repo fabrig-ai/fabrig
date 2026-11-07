@@ -592,6 +592,10 @@ the host tests (section 14).
     browser exposes the placeholder only while the field holds no
     value, and a screen reader reads it after the name, as a hint
     ("Message, edit text, Message T6…");
+  - *a hint* is `title` on the node's element, which a browser shows on
+    hover (ui.md, 3.2). The name stays `aria-label`'s or the element's
+    text. Where the node has no description, a browser reads the hint
+    as one, after the name;
   - *a focus request* is no attribute: the page part moves the focus
     (section 7);
   - *a collection's count and an item's position:* a list's or a tree's

@@ -34,6 +34,7 @@ pub(crate) struct Top<'a> {
     pub project: Option<u32>,
     pub heading: &'a [u8],
     pub name: &'a [u8],
+    pub hint: Option<&'a [u8]>,
     pub number: Option<u64>,
     pub draft: Draft,
 }
@@ -60,6 +61,9 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     }
     b.open(Role::Heading { level: 1 });
     b.name(at.name);
+    if let Some(hint) = at.hint {
+        b.hint(hint);
+    }
     b.text(Run::Plain, at.heading);
     b.close();
     if let Some(number) = at.number {

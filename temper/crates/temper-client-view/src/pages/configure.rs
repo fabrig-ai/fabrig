@@ -47,6 +47,7 @@ pub(crate) fn main(
                 project: Some(project),
                 heading: &heading,
                 name: &heading,
+                hint: None,
                 number: None,
                 draft: super::terminal::Draft::None,
             },

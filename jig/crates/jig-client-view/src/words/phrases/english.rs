@@ -98,6 +98,10 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
             }
+            JigPhrase::BoundsWorker => Box::new([Segment::Text(copy_of(b"No worker can take this run."))]),
+            JigPhrase::BoundsEngine => {
+                Box::new([Segment::Text(copy_of(b"The engine's own host can't take this run."))])
+            }
             JigPhrase::RefusedWorkerAt => Box::new([
                 Segment::Text(copy_of(b"A worker was refused at ")),
                 Segment::Hole { index: 0, kind: HoleKind::Wall },
