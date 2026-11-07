@@ -119,6 +119,7 @@ pub fn source_rows(sources: &[u32]) -> Vec<Stored> {
 #[must_use]
 pub fn provider(number: u32, sign_in: bool, key: bool) -> Provider {
     Provider {
+        list: None,
         name: b"Fake".as_slice().into(),
         signed_in_plan: true,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -132,7 +133,16 @@ pub fn providers(list: Vec<Provider>) -> Providers {
 }
 #[must_use]
 pub fn account(number: u32, provider: u32, holder: Holder, subject: &[u8]) -> Stored {
-    Stored::Account { place: 0, uses: None, number, provider, holder, subject: subject.into(), display: Box::new([]) }
+    Stored::Account {
+        list: None,
+        place: 0,
+        uses: None,
+        number,
+        provider,
+        holder,
+        subject: subject.into(),
+        display: Box::new([]),
+    }
 }
 /// An account of the world's holder with its configured provider.
 #[must_use]
@@ -192,6 +202,7 @@ pub fn commit(store: &mut BTreeMap<Key, Stored>, requests: &[Request]) {
             Request::Save { record } => drop(store.insert(record.key(), record.clone())),
             Request::Erase { key } => drop(store.remove(key)),
             Request::Programs { .. }
+            | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }
             | Request::Component(_)

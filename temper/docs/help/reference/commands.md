@@ -178,6 +178,14 @@ Run one agent for a worker's run, on smith's agent configuration. Spawned by tem
 
 - `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
 
+## temper internal agent-list
+
+`temper internal agent-list AGENT.json`
+
+Read one endpoint's model list, on smith's agent configuration. Spawned by temper; never run by hand.
+
+- `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it.
+
 ## temper internal serve
 
 `temper internal serve [DIRECTORIES] --box`

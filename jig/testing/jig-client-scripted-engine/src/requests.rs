@@ -100,9 +100,11 @@ impl<A: crate::Application> Engine<A> {
         ask: &Ask,
         wall: Wall,
     ) -> core::result::Result<(Answer, Vec<crate::Change>), Invalid> {
-        if let Ask::ChangeSettings(_) | Ask::MoveToNewest(_) | Ask::Restore { .. } = ask {
+        if let Ask::ReadLists { .. } | Ask::ChangeSettings(_) | Ask::MoveToNewest(_) | Ask::Restore { .. } = ask {
             let held = self.truth.frames.get(&party).and_then(|me| me.deployment_role);
-            if !matches!(ask, Ask::Restore { .. }) && held != Some(jig_client_domain::contract::HeldRole::Owner) {
+            if !matches!(ask, Ask::Restore { .. } | Ask::ReadLists { .. })
+                && held != Some(jig_client_domain::contract::HeldRole::Owner)
+            {
                 return Ok((Answer::Refused { refusal: Refusal::Role { held }, at: None }, Vec::new()));
             }
             if let Some(rule) = self
@@ -354,6 +356,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
+            | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -417,6 +420,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::RemoveProject { .. }
                 | Ask::SetVisibility { .. }
                 | Ask::Rename { .. }
+                | Ask::ReadLists { .. }
                 | Ask::ChangeModel(_)
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
@@ -510,6 +514,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
+            | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -652,6 +657,7 @@ fn target(ask: &Ask) -> Option<Target> {
     Some(match ask {
         Ask::SetVisibility { .. }
         | Ask::Lift { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

@@ -166,6 +166,33 @@ pub fn configuration(document: &Document, key: &[u8], seed: u64) -> Configuratio
         limits: document.limits(),
     }
 }
+/// A plan's model rows, escaped by the JSON writer (skein/docs/design/fake-llm.md, 3.2).
+pub(crate) fn list(models: &[Model]) -> Box<[u8]> {
+    let limits = skein_json::writer::Limits { depth: 3, length: crate::DOCUMENT_BYTES };
+    let mut out = skein_json::writer::Encoder::measure(&limits);
+    list_body(models, &mut out);
+    let size = out.measured().expect("sixteen bounded model names and their wrappers fit the document");
+    let mut out = skein_json::writer::Encoder::write(size, &limits);
+    list_body(models, &mut out);
+    out.finish()
+}
+fn list_body(models: &[Model], out: &mut skein_json::writer::Encoder) {
+    out.object_start();
+    out.key(b"models");
+    out.array_start();
+    for model in models {
+        out.object_start();
+        out.key(b"slug");
+        out.string(&model.name);
+        out.key(b"display_name");
+        out.string(&model.name);
+        out.key(b"visibility");
+        out.string(b"list");
+        out.object_end();
+    }
+    out.array_end();
+    out.object_end();
+}
 fn empty_menu() -> api::Menu {
     api::Menu { arguments: Box::new([]), invalid: Box::new([]) }
 }

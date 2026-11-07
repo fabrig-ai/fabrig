@@ -81,6 +81,7 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v9::Limits) -> Option<Frame> {
 
 pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v9::Limits) -> Option<Frame> {
     match up {
+        host::LinkUp::ListRead { read, outcome } => list_read_frame(read, outcome, limits),
         host::LinkUp::JobAnswer { run, attempt, answer } => job_answer_frame(run, attempt, answer, parts, limits),
 
         host::LinkUp::Piece { run, attempt, piece } => {
@@ -495,6 +496,7 @@ fn count_kind(value: CountKind) -> wire::CountKind {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the worker's down records")]
 pub(crate) fn down(
     kind: u16,
     body: &[u8],
@@ -512,6 +514,18 @@ pub(crate) fn down(
         }
     }
     let down = match known? {
+        wire::Kind::ReadList => {
+            let record = wire::ReadList::decode(limits, &mut reader).ok()?.into_parts();
+            match record.grant.value() {
+                wire::GrantValue::Credential(_) => {}
+                wire::GrantValue::Application(_) | wire::GrantValue::Program(_) => return None,
+            }
+            host::LinkDown::ReadList {
+                read: record.read,
+                endpoint: record.endpoint,
+                grant: grant(record.grant, now, out)?,
+            }
+        }
         wire::Kind::Sources => {
             let record = wire::Sources::decode(limits, &mut reader).ok()?.into_parts();
             let mut names = List::with_capacity(record.sources.len());
@@ -587,7 +601,8 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::JobAnswer
+        wire::Kind::ListRead
+        | wire::Kind::JobAnswer
         | wire::Kind::Logins
         | wire::Kind::SignedOut
         | wire::Kind::TurnBusy
@@ -828,4 +843,51 @@ fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v9::
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
     record.encode(&mut body).ok()?;
     frame(wire::Kind::SignedOut.number(), body.finish())
+}
+
+fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v9::Limits) -> Option<Frame> {
+    use jig_domain_link::{ListFailure, ListOutcome};
+    let outcome = match outcome {
+        ListOutcome::Listed(rows) => {
+            let mut listed = List::with_capacity(limits.listed_rows_rows);
+            for row in rows {
+                let mut efforts = List::with_capacity(limits.list_row_efforts);
+                for effort in row.efforts {
+                    efforts.push(effort).ok()?;
+                }
+                listed
+                    .push(
+                        wire::ListRow::new(
+                            limits,
+                            wire::ListRowParts {
+                                name: row.name,
+                                shown: row.shown,
+                                window: row.window,
+                                output: row.output,
+                                efforts,
+                            },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            wire::ListOutcome::Listed(wire::ListedRows::new(limits, wire::ListedRowsParts { rows: listed }).ok()?)
+        }
+        ListOutcome::Failed(failure) => {
+            let value = match failure {
+                ListFailure::Refused { status } => {
+                    wire::ListFailed::Refused(wire::ListRefused::new(limits, wire::ListRefusedParts { status }).ok()?)
+                }
+                ListFailure::Unreachable => wire::ListFailed::Unreachable,
+                ListFailure::Unreadable => wire::ListFailed::Unreadable,
+                ListFailure::Deadline => wire::ListFailed::Deadline,
+                ListFailure::Agent => wire::ListFailed::Agent,
+            };
+            wire::ListOutcome::Failed(wire::ListFailureValue::new(limits, wire::ListFailureValueParts { value }).ok()?)
+        }
+    };
+    let record = wire::ListRead::new(limits, wire::ListReadParts { read, outcome }).ok()?;
+    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
+    record.encode(&mut body).ok()?;
+    frame(wire::Kind::ListRead.number(), body.finish())
 }

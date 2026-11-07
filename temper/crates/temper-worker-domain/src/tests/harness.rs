@@ -126,6 +126,8 @@ impl Harness {
                 return self.owed.push(Event::Done { owner: *owner, done: Done::Failed { fault: Fault::Unreachable } });
             }
             Request::Source { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
             | Request::SourceFault
             | Request::Hello(_)
             | Request::Link(_)

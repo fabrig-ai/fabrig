@@ -49,6 +49,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -241,6 +242,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -295,6 +297,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
+            | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -355,6 +358,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

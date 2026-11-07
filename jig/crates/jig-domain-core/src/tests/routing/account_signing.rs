@@ -17,6 +17,7 @@ fn signing_core() -> (Core, Env<Limits>) {
     let offers = accounts::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
+            list: None,
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -251,6 +252,7 @@ fn program_sign_out_routes_the_offline_member_result() {
     for record in [
         accounts::Stored::Issued { number: 21, holder: PARTY, name: b"personal".as_slice().into(), signed_out: false },
         accounts::Stored::Account {
+            list: None,
             number: 20,
             provider: 3,
             holder: PARTY,

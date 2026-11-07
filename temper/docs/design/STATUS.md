@@ -123,8 +123,12 @@ outside the offer and only instructions restrict proposals to it
 in the store, with binary stock defaults and endpoint limits in place of
 worker model lists; Settings has Models, with picker switches,
 adding by name, estimated prices and the omitted count. All models links to
-that project's Models tab. Provider-list reads remain `model-catalogue-3`'s
-work. Settings' select chevrons, sheet controls, connect actions and paths,
+that project's Models tab. Worker reads retain each account's list and
+narrow the offer; Settings shows read ages, failures and Read again, and
+Settings and All models mark newly read models for a week. Page 07 keeps
+one resolved default, the stock subscription clause, a lede about the offer
+and picker and a provider-neutral placeholder (`client/README.md`). Settings'
+select chevrons, sheet controls, connect actions and paths,
 and Models' single-row add form have their requested rules and words.
 Copy public uses a 107 px minimum height instead of the requested
 `rows=4`, since the UI kit carries no rows attribute. Comparison of the
@@ -565,6 +569,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)

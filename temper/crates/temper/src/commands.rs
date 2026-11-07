@@ -54,7 +54,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 21] = [
+pub const COMMANDS: [Row; 22] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -237,6 +237,18 @@ Refused, changing nothing, when the configuration directory already holds temper
         who: Who::Spawned,
         forms: &["AGENT.json"],
         line: "Run one agent for a worker's run, on smith's agent configuration.",
+        arguments: &[Argument {
+            shown: "AGENT.json",
+            line: "The agent's configuration, as the worker's agent.configuration names it.",
+        }],
+        settings: &[],
+        notes: "",
+    },
+    Row {
+        words: &["internal", "agent-list"],
+        who: Who::Spawned,
+        forms: &["AGENT.json"],
+        line: "Read one endpoint's model list, on smith's agent configuration.",
         arguments: &[Argument {
             shown: "AGENT.json",
             line: "The agent's configuration, as the worker's agent.configuration names it.",

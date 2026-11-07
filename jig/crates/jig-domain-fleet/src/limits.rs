@@ -33,6 +33,8 @@ pub struct Limits {
     pub attempts: u32,
     /// Credential names held by each attempt, across both protocol tables.
     pub grants: u32,
+    /// Reads queued or in flight, sized from the accounts bound.
+    pub reads: u32,
     /// Relayed calls the parent serves at once. A call beyond them is
     /// dropped, and its run withdraws it past its own deadline.
     pub calls: u32,

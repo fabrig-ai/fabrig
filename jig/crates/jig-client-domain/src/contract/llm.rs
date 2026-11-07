@@ -24,6 +24,7 @@ pub struct LlmChoice {
 /// A model the party may choose in a project, with what configuration gives it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeModel {
+    pub new_until: Option<skein_lib::Wall>,
     pub number: u32,
     pub source: super::ModelSource,
     pub estimated: bool,

@@ -114,6 +114,7 @@ pub struct HostRun {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent account flags and owner list loss")]
 pub struct Account {
+    pub list: Option<super::AccountList>,
     pub number: u32,
     pub place: u32,
     pub uses: Option<List<super::AccountUse>>,

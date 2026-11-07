@@ -165,6 +165,25 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
 }
 
 impl Core {
+    /// An account's current list narrows catalogue models; held names without a row stay usable
+    /// (jig/docs/design/domain/accounts.md, 3.7 and 4.3).
+    pub(crate) fn account_allows(&self, account: u32, model: &crate::Model) -> bool {
+        for number in 1..=tasks::MODELS {
+            let Some(value) = self.current.value(crate::settings::Setting::Model(number)) else { continue };
+            let Some(row) = value.as_model() else { continue };
+            if row.model.name != model.name {
+                continue;
+            }
+            let kind = match row.source {
+                crate::settings::ModelSource::Stock => accounts::ModelKind::Stock,
+                crate::settings::ModelSource::List => accounts::ModelKind::List,
+                crate::settings::ModelSource::Person => accounts::ModelKind::Person,
+            };
+            return self.accounts.allows(account, row.number, kind);
+        }
+        true
+    }
+
     /// The offer for `payer` in `project`, in catalogue number order
     /// (jig/docs/design/domain/engine.md, 11.1).
     #[must_use]
@@ -207,6 +226,9 @@ impl Core {
         let hosts = self.fleet.host_views();
         let mut facts = List::with_capacity(self.host_fact_capacity());
         for account in &candidates {
+            if !self.account_allows(*account, model) {
+                continue;
+            }
             if model.program.is_none() {
                 match self.accounts.select(payer, provider, None, Some(*account), None, coverage, &[], self.run_now) {
                     accounts::Selection::Chosen { .. } => {
@@ -271,7 +293,11 @@ impl Core {
             None,
             coverage,
         );
-        if candidates.is_empty() {
+        let mut allowed = false;
+        for account in &candidates {
+            allowed |= self.account_allows(*account, model);
+        }
+        if !allowed {
             return (Readiness::Unavailable, false);
         }
         let mut facts = List::with_capacity(self.host_fact_capacity());
@@ -289,6 +315,9 @@ impl Core {
             }
             self.host_facts(placement, self.host_rule(placement), &mut facts);
             for account in &candidates {
+                if !self.account_allows(*account, model) {
+                    continue;
+                }
                 match self.accounts.select(
                     crate::runs::coverage::payer(payer),
                     provider,

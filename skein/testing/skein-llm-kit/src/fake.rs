@@ -347,6 +347,8 @@ impl Exchange {
         };
         let peer_limits = limits(&bounds);
         let peer_config = provider::Config {
+            list: None,
+            list_status: None,
             without_credential: credential.is_none(),
             usage_fields: options.usage_fields,
             echo: options.echo,
@@ -391,6 +393,93 @@ impl Exchange {
             ticks: 0,
             observations: None,
         }
+    }
+
+    /// Sends caller-owned HTTP bytes over a fresh connection to this peer service.
+    /// The request asks for connection close. List and refusal replies stay
+    /// outside the script domain; inference goes through the Client instead.
+    /// Returns the wire reply and list observations.
+    pub fn raw(&mut self, request: &[u8]) -> (Vec<u8>, Vec<provider::Presented>) {
+        let mut server = provider::Server::new(Token::new(2), &self.peer_env.limits).expect("raw peer connection");
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let capacity = u32::try_from(request.len())
+            .expect("bounded raw request")
+            .max(self.peer_env.limits.http.head)
+            .max(self.peer_env.limits.http.read);
+        let mut intake = Intake::with_capacity(capacity);
+        intake.append(request).expect("raw request intake");
+        let mut response = Vec::new();
+        let mut lists = Vec::new();
+        let mut demand = None;
+        let mut grant = None;
+        let mut closing = false;
+        provider::start(&mut server, &mut self.service, &self.credentials, &self.peer_env, &mut above, &mut below);
+        for _ in 0..40_000 {
+            while let Some(event) = above.pop() {
+                match event {
+                    provider::Event::List { presented } => lists.push(presented),
+                    provider::Event::Head { .. } | provider::Event::Closed => {}
+                    provider::Event::Domain(_) => panic!("raw list exchange never calls the script domain"),
+                    provider::Event::Close => closing = true,
+                }
+            }
+            if let Some(down) = below.pop() {
+                match down {
+                    Down::Demand { read: Read::Nothing, room: 0 } => demand = None,
+                    Down::Demand { read, room } => {
+                        assert!(demand.is_none(), "one raw peer demand");
+                        demand = Some((read, room));
+                    }
+                    Down::Send(bytes) => {
+                        assert!(bytes.len() <= index(grant.take().expect("raw writer room")));
+                        response.extend_from_slice(&bytes);
+                    }
+                    Down::Finish => {}
+                }
+            }
+            if let Some((read, room)) = demand {
+                let event = match intake.meet(read) {
+                    Some(bytes) => Some(Up::Bytes(bytes)),
+                    None if room > 0 => {
+                        grant = Some(room);
+                        Some(Up::Room)
+                    }
+                    None => None,
+                };
+                if let Some(event) = event {
+                    demand = None;
+                    provider::up(
+                        &mut server,
+                        &mut self.service,
+                        &self.credentials,
+                        &self.peer_env,
+                        event,
+                        &mut above,
+                        &mut below,
+                    );
+                }
+            }
+            if server.has_work() {
+                provider::resume(
+                    &mut server,
+                    &mut self.service,
+                    &self.credentials,
+                    &self.peer_env,
+                    &mut above,
+                    &mut below,
+                );
+            }
+            if closing && below.is_empty() {
+                provider::closed(&mut server, &mut self.service, &self.peer_env, &mut above, &mut below);
+                self.service.reclaim();
+                return (response, lists);
+            }
+        }
+        panic!(
+            "raw peer exchange did not settle: {} response bytes, demand {demand:?}, closing {closing}",
+            response.len()
+        );
     }
 
     /// Adds a credential before any request reaches the peer.
@@ -563,6 +652,7 @@ impl Exchange {
         self.presented.push(presented);
     }
 
+    #[expect(clippy::too_many_lines, reason = "one drain checks both stream directions and peer observations")]
     fn take(&mut self) {
         self.reserve_observations();
         while let Some(event) = self.client_above.pop() {
@@ -578,6 +668,7 @@ impl Exchange {
         while let Some(event) = self.peer_above.pop() {
             match event {
                 provider::Event::Head { headers, presented } => self.observe_head(headers, presented),
+                provider::Event::List { .. } => panic!("the inference Client sends no list request"),
                 provider::Event::Domain(event) => {
                     match &event {
                         fake::Event::Release { .. } => unreachable!("the wire never releases a hold"),

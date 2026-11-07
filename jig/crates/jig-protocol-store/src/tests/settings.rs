@@ -193,6 +193,7 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         (
             s::Setting::Model(9),
             s::Value::Model(Box::new(s::CatalogueModel {
+                first_read: Some(Wall::from_nanos(u64::MAX)),
                 number: 9,
                 model: model(),
                 shown: Some(b"Shown".as_slice().into()),
@@ -204,6 +205,11 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
             })),
         ),
     ] {
+        let head = if setting == s::Setting::Model(9) {
+            s::Head { by: s::Decider::List { provider: u32::MAX }, ..head.clone() }
+        } else {
+            head.clone()
+        };
         rows.push(s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } })
             .expect("settings fixture count");
         rows.push(s::Record::Changed { setting, changed: s::Changed { value: Some(value.clone()), revision: 3 } })

@@ -37,6 +37,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         b"brief" => set_brief(&mut core.brief, field, value),
         b"accounts" => {
             set_accounts(&mut core.accounts, field, value)?;
+            core.fleet.reads = core.accounts.accounts;
             driver.listeners = core.accounts.sign_ins.checked_mul(2).ok_or(What::Override)?;
             driver.accounts = profile::driver_places(&core.accounts).ok_or(What::Override)?;
             Ok(())
@@ -294,6 +295,7 @@ fn set_people(limits: &mut jig_domain_people::Limits, name: &[u8], value: u64) -
 
 fn set_fleet(limits: &mut jig_domain_fleet::Limits, name: &[u8], value: u64) -> Result<(), What> {
     let jig_domain_fleet::Limits {
+        reads: _,
         configured_workers,
         worker_name_bytes,
         program_sources,

@@ -175,6 +175,7 @@ pub enum Decider {
     FirstStart,
     Release,
     Party(u64),
+    List { provider: u32 },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Head {
@@ -608,7 +609,7 @@ impl Current {
 }
 
 /// The first start or a revision's largest write set, including its deployment
-/// header and one steady-state history erase (engine.md, 17.7).
+/// header, one steady-state history erase and a list's account record (engine.md, 17.7, 17.12).
 #[must_use]
 pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     let count = capacity(limits)?;
@@ -620,7 +621,8 @@ pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
         .max(count.checked_mul(4)?.checked_add(8)?.checked_add(limits.settings.versions.checked_mul(2)?)?)
         .checked_add(withdrawal_writes(limits)?)?
         .checked_add(move_writes(limits)?)?
-        .checked_add(limits.people.holdings.checked_mul(2)?.checked_add(2)?)
+        .checked_add(limits.people.holdings.checked_mul(2)?.checked_add(2)?)?
+        .checked_add(1)
 }
 
 /// A party withdrawal takes five writes. A task withdrawal takes two activity

@@ -239,6 +239,7 @@ answer, and a **notice** is not answered.
 | unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
 | logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/hosts.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
+| list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../domain/hosts.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 
 - **Every login notice is whole:** the current `sources` list, each name
   once, including an empty list. An explicit check publishes it even when
@@ -305,6 +306,7 @@ tags stay fixed (`README.md`, 7).
 | sources | the program sources this worker may be given, each by its name, the whole list: a source not in it is none of the worker's | notice, after each hello and on each change |
 | check | a program source's name: check its login now, at its holder's asking | notice; `logins` follows |
 | sign out | a program source's name: run the program's own sign-out in the source's configuration directory (smith's `protocol/hosts.md`, section 2) | call, answered by `signed out` |
+| read list | a read's number; an endpoint; a grant, as `grant`'s form and value, a credential alone (section 8): read this account's list once (`../domain/hosts.md`, 5.1) | call, answered by `list read` |
 
 - **The fleet's refusals travel as the records above:** a turn answered
   busy, a relayed call answered busy or as an error, and an answer
@@ -661,8 +663,9 @@ holds, and neither of its components reads them.
   process,** as the worker's secret does (section 1).
 - **An entry goes** when its token has expired on the holder's clock, or a
   newer generation pushes it out; a key's, which does not lapse, also
-  when no attempt the worker hosts holds a grant of it. Nothing else
-  tells a table to forget.
+  when no attempt the worker hosts holds a grant of it and no read of it is
+  under way, so a read's key goes when its read does. Nothing else tells a
+  table to forget.
 
 ## 9. Liveness and flow control
 

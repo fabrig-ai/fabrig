@@ -47,6 +47,11 @@ impl Wire {
                 for entry in &spawn.env {
                     super::secrets::require(entry, "agent environment");
                 }
+                // A list uses one unframed codec record in each direction, not run frames
+                // (smith/docs/design/protocol/agent.md, 6.1).
+                if spawn.args.iter().any(|arg| arg.as_ref() == b"--list") {
+                    return;
+                }
                 let identity = spawn
                     .pipes
                     .iter()
