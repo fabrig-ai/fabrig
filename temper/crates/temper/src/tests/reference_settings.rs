@@ -214,10 +214,7 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
         ("never for a slow tier or a walk, which run after landing", shared),
         ("Where a request settles its changes with no shape for the code to follow", cut),
         ("write no design, say so in your report note, and make its changes", cut),
-        (
-            "On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository.",
-            cut,
-        ),
+        ("The core subscribes you to the landings on each branch your changes target", cut),
         ("On a designer's question, answer from the draft", questions),
         ("On a question a change relays", questions),
         ("Never answer what you have not settled.", questions),
@@ -251,6 +248,12 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
         for (on, text) in &texts {
             assert_eq!(text.contains(phrase), on == place, "{phrase:?}: expected only in {place}, checked {on}");
         }
+    }
+    for (on, text) in &texts {
+        assert!(
+            !text.contains("On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository."),
+            "{on}: the core already subscribes the goal to its changes' landings"
+        );
     }
     assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
         "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."

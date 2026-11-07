@@ -8,18 +8,16 @@ at Opus 5.5 xhigh first and high later with the same sub-agents.
 Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
+The cut names the core's subscription to its changes' landing branches
+and asks for no duplicate `subscribe_forge`; the paths bound stays 4.
+The combined cut, withheld-question and later-answer domain story is
+unignored. Its store keeps the latest configured catalogue for both
+crash reopening and forks, so the restart oracle reads the same model
+names.
 
 - **Not yet:** 13.2: an asking charter's proposal is judged for its approvals at
   acceptance alone, not at its call (`temper-engine-domain/src/route/tools.rs`,
   `propose_settings`; `route/kinds.rs`, `approval_refusal`).
-- **Not yet:** 13.9: the combined cut-and-answer domain story,
-  `the_reference_goal_reads_its_cut_then_its_questions_part` in
-  `temper/tests/engine/domain/tests/suite/forge_routes/per_wake.rs`, is
-  ignored: the forge world's `Store::crash` reopens its scripted
-  catalogue, losing template 4's configured model and efforts. Its
-  assertions cover the instructions, withheld question, xhigh/high
-  choices and absence of amendment, but no passing combined story with
-  its restart oracle is established. Section 11 keeps that repair.
 
 Section 13.2 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its

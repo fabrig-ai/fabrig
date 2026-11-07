@@ -12,6 +12,10 @@ known in that room; the settings-answer bound gap remains below.
 
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
+The charter's stored-policy size refusal carries supplied bytes and the
+`root.journal.run_bytes` maximum from jig through ctl, a run's settings
+tool and JSON. The policy's parts count toward that size; the refusal
+kind remains shape.
 
 - **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
   counted its `read_task` calls since the room landed, where the request

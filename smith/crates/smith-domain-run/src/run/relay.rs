@@ -13,6 +13,8 @@ use crate::{
     AskRefusal, CallName, Domain, HostEffect, HostInput, HostProblem, HostReply, Limits, RelayName, Request, Returned,
 };
 
+const HOST_BACKOFF_GROWTH: u64 = 64;
+
 #[derive(Debug)]
 pub(crate) struct Relay {
     pub(crate) name: CallName,
@@ -277,7 +279,8 @@ fn host_recover(
     env: &Env<Limits>,
     exhausted: Returned,
 ) -> Option<Returned> {
-    let at = env.now.saturating_add(env.limits.host_backoff);
+    let growth = 2_u64.saturating_pow(attempt.saturating_sub(1)).min(HOST_BACKOFF_GROWTH);
+    let at = env.now.saturating_add(env.limits.host_backoff.saturating_mul(growth));
     if !active || relay.stopped.is_some() || at >= relay.caller_deadline {
         return Some(exhausted);
     }

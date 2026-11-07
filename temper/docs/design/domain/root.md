@@ -992,6 +992,13 @@ configured bound plus its owned row carrier fits the journal. Transcript
 capacity never enlarges the configured policy budget. Restore refuses an
 over-bound stored settings policy by setting number and source, and an
 over-bound project policy by project number.
+A change of settings whose charter's stored policy, its parts with it,
+passes `root.journal.run_bytes` is refused as that charter's item out of
+shape, with the facts jig's refusal carries for it (jig's
+`domain/engine.md`, 17.9): the policy's stored bytes and the bound. ctl
+and a run's settings tool word them alike, as
+`out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536`,
+and the client's JSON names the member `stored_policy`.
 Startup also checks the seed policy after enforced landing requirements are joined, before constructing the core.
 
 - **The restart's workspace** holds a cold restore page, which holds

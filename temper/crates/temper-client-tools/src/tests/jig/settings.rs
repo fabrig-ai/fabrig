@@ -848,6 +848,24 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             c::Refusal::Full(c::RefusalFull { revision: 2, tasks: list([41, 42]), more: 3 }),
             "full; oldest held revision 2; live tasks: 41 42; 3 more",
         ),
+        (
+            c::Refusal::Malformed {
+                at: 1,
+                why: c::Malformed::Settings(c::MalformedSettings {
+                    setting: c::Setting::Charter(c::SettingNumber { number: 5 }),
+                    fault: c::SettingFault::Shape,
+                    detail: Some(c::SettingDetail {
+                        member: c::SettingMember::StoredPolicy,
+                        document: 0,
+                        segment: 0,
+                        rule: c::SettingRule::Maximum,
+                        supplied: 70112,
+                        bound: 65536,
+                    }),
+                }),
+            },
+            "out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536",
+        ),
         (c::Refusal::Role { held: None }, "role"),
     ] {
         for json in [false, true] {
@@ -855,8 +873,16 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
             root.answered(call, c::Answer::Refused { refusal: refusal.clone(), at: None });
             let answer = root.answer(call).expect("refused");
             assert_eq!(answer.status, 2);
+            if json
+                && let c::Refusal::Malformed { why: c::Malformed::Settings(value), .. } = &refusal
+                && value.detail.is_some()
+            {
+                let text = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
+                assert!(text.contains(r#""detail":{"member":"stored_policy","rule":"maximum","document":0,"segment":0,"supplied":70112,"bound":65536}"#), "{text}");
+            }
             if !json && expected != "role" {
-                assert!(core::str::from_utf8(&answer.stderr).expect("text").contains(expected));
+                let text = core::str::from_utf8(&answer.stderr).expect("text");
+                assert!(text.contains(expected), "expected {expected:?}, got {text:?}");
             }
         }
     }

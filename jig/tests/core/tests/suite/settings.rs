@@ -419,7 +419,7 @@ fn changed_charter_instructions_and_catalogue_effort_prepare_the_next_new_task()
     assert!(matches!(ask(&mut world, signed, 42, chat), people::Reply::Outcome(people::Outcome::Created { .. })));
     let assigned = world.assigned.as_ref().expect("next run");
     assert_eq!(assigned.run.policy.instructions.as_ref(), b"Changed instructions.");
-    assert_eq!(assigned.run.policy.model.effort.as_deref(), Some(b"high".as_slice()));
+    assert_eq!(assigned.run.policy.model.effort.as_deref(), Some(b"low".as_slice()));
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }

@@ -64,7 +64,12 @@ per wake kind remain deferred (`domain/tasks.md`, section 13), as do
 tool access to `later` and client refusal paths within parts
 (`domain/engine.md`, section 16; `client/domain/contract.md`, section 11).
 Settings refusals name the last matching request item's position from 0;
-settings key order agrees with the store, with Model after Application
+charter-size refusals carry stored-policy bytes and the run bound through
+client wire 19 and people store 14 (`domain/engine.md`, 17.9).
+A task given no LLM choice takes its charter's selected effort when
+supported, otherwise its model's default (`domain/tasks.md`, section 3;
+`domain/engine.md`, 17.11).
+Settings key order agrees with the store, with Model after Application
 and ProjectPolicy. A turn read alone retains call input past `turn_text`
 within its archive bound (`domain/engine.md`, 17.2;
 `protocol/store.md`, 4.1; `client/domain/client.md`, section 10).

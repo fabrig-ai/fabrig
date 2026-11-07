@@ -2,6 +2,13 @@
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 
+Sections 17.9 and 17.11 have no known gap in the stored-policy size
+refusal or a charter's selected effort. Size facts include parts and
+cross proposal answers, client wire 19 and people store 14 unchanged,
+with `StoredPolicy` appended after the existing members. Charter
+resolution retains a supported selected effort; models admitted by
+`rest` retain their catalogue defaults. No wire or store version changes.
+
 Sections 6 and 6.1 have no known gap in interrupting agent claims on
 hosts in the engine's process at an orderly stop. The core commits
 `End::Recheck` before reporting drained; the fleet forgets each attempt
@@ -52,6 +59,7 @@ failures, repeats, first empty reads and catalogue changes; account times
 alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
+
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
