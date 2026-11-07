@@ -1,3 +1,20 @@
 draft = "ui-forge-reviewer"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-forge-reviewer/inputs/request.md", "temper/docs/design/draft/forge-identity.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "reviewer"
+title = "A review counts only from the forge it was made on, and every reader goes through one lookup by forge and user"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 4"
+
+[[slice]]
+id = 1
+story = "In a project on two forges with one user number on each, a stranger's approval doesn't count and the same person's on their own forge does; the inventory says which forge each account is on"
+parts = ["reviewer"]
+walk = false

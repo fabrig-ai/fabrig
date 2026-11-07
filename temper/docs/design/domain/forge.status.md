@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial
@@ -182,6 +182,11 @@
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
   - 12: the issue's milestones but its lifecycle and revisions: the plan
     accepted, a change landed or held, a report kept.
+  - 4, 8.7, 8.9: a party's key names no forge: provider 0's subject is the user's
+    number alone, and `landing_reviewers`
+    (`temper-engine-domain/src/route/forge_route.rs`) finds the party whichever
+    forge the review is on, so a stranger on one forge is taken for a party seeded
+    from another. No `forge_person`, `person_forge_user`, `user_key` or `key_user`.
   - 12.1: questions on the forge.
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
