@@ -7072,7 +7072,10 @@ own tests:
   with menus and disclosures open and every state their messages name
   (`../draft/look-requests.md`, sections 4 and 5). Include both themes
   and fonts, the draft and its figure, questions, compact cards and
-  closed chats. Real keys check Chromium's short and long Escape,
+  closed chats. Check that pressing `>_` draws the terminal before any
+  further input, including when full screen is refused, and that Exit
+  and closing a list redraw at once with no command words in the box.
+  Real keys check Chromium's short and long Escape,
   Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,
   and unavailable or refused keyboard lock, including insecure contexts.
   Default: the shared page's acts, bounded notes, kept look, focused

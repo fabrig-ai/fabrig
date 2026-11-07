@@ -2,6 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Section 5.3 has no known implementation gap in read ownership: the root
+mints through `root_read`, the router recognizes `is_root_read`, and the
+connector's change steps and landings use its separate sequence range.
+The engine-domain regression sweeps 64 Busy attempts while holding a
+change step's `Commits`, then checks that the step continues and the run
+gets its own `File`. The live stories' outcomes remain unestablished;
+that observation is deferred in section 20.
+
 Sections 4, 4.6 and 8.9 have the stored person link, link-first lookup,
 adoption skipping the linked user, shadowed seeds excluded from eligibility,
 and per-repository forge counts and refusal words, including the playground's.
