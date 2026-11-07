@@ -403,10 +403,10 @@ fn asking_declarations() {
             }
         );
         let original = driver.store.rows.clone();
-        let (answer, error) = host_tool(&mut driver, &run, 1, b"see", br#"{"address":"help"}"#);
+        let (answer, error) = host_tool(&mut driver, &run, 1, b"see", br#"{"address":"me"}"#);
         assert!(error);
         if allowed {
-            assert_eq!(answer.as_ref(), b"see: not there yet.");
+            assert_eq!(answer.as_ref(), b"see me: not there yet.");
             assert_eq!(driver.store.rows, original, "see keeps no call record");
             let (answer, error) =
                 host_tool(&mut driver, &run, 2, b"document", br##"{"action":"write","body":"# Title"}"##);

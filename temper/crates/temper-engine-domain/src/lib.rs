@@ -48,7 +48,8 @@ pub use limits::{
 pub use link::{inbox_sender, inbox_words};
 pub use route::{
     Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
-    ProjectPerson, RepositoryIdentity, adopt_repository_ask,
+    ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeProposal, SeeRepository, SeeSettings,
+    adopt_repository_ask,
 };
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{

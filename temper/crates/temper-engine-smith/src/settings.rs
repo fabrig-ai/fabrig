@@ -391,6 +391,37 @@ fn settings_page(
     offer: &[engine::OfferedModel],
     maximum: u32,
 ) -> Result<run::HostAnswer, &'static [u8]> {
+    match settings_whole(answer, requested, models, application, repositories, people, forge_people, offer) {
+        Ok(text) => match settings_form::page::page_bounded(&text, from, maximum) {
+            Ok(body) => {
+                let error = match answer {
+                    SettingsAnswer::Unknown => true,
+                    SettingsAnswer::Inventory(_)
+                    | SettingsAnswer::Setting(_)
+                    | SettingsAnswer::Revision(_)
+                    | SettingsAnswer::Revisions(_) => false,
+                };
+                Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
+            }
+            Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
+            Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
+        },
+        Err(message) => Err(message),
+    }
+}
+
+/// The whole settings text, including an inventory's read context, before its page.
+#[expect(clippy::too_many_arguments, reason = "inventory context travels beside the settings read")]
+pub(crate) fn settings_whole(
+    answer: &SettingsAnswer,
+    requested: Option<u64>,
+    models: &[s::CatalogueModel],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
+) -> Result<Box<[u8]>, &'static [u8]> {
     let enriched;
     let answer = if let (SettingsAnswer::Setting(document), Some(value)) = (answer, application) {
         let mut document = document.clone();
@@ -401,26 +432,7 @@ fn settings_page(
         answer
     };
     match settings_text(answer, requested, models) {
-        Ok(text) => {
-            match settings_form::page::page_bounded(
-                &repository_text(answer, text, repositories, people, forge_people, offer),
-                from,
-                maximum,
-            ) {
-                Ok(body) => {
-                    let error = match answer {
-                        SettingsAnswer::Unknown => true,
-                        SettingsAnswer::Inventory(_)
-                        | SettingsAnswer::Setting(_)
-                        | SettingsAnswer::Revision(_)
-                        | SettingsAnswer::Revisions(_) => false,
-                    };
-                    Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
-                }
-                Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
-                Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
-            }
-        }
+        Ok(text) => Ok(repository_text(answer, text, repositories, people, forge_people, offer)),
         Err(_) => Err(b"settings: document limit"),
     }
 }

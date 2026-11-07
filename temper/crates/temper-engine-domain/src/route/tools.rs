@@ -121,7 +121,7 @@ pub(crate) fn relay_payload(
                 body.tool
             };
             match tool {
-                Tool::See { .. } => super::see::call(domain, reply_to),
+                Tool::See { line, from } => super::see::call(domain, env, decision, reply_to, key, line, from),
                 Tool::Document { action, body } => {
                     super::document::call(domain, env, decision, reply_to, key, action, body);
                 }

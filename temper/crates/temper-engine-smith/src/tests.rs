@@ -3490,3 +3490,6 @@ fn file_prefixes_fit_escaping_metadata_and_report_every_cut() {
 
 #[path = "tests/decided.rs"]
 mod decided_tool;
+
+#[path = "tests/see.rs"]
+mod see;

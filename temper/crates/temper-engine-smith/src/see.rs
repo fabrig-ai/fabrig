@@ -1,8 +1,11 @@
 //! Decode an address read (temper/docs/design/domain/agent.md, 8.4.1).
 
 use crate::{Problem, json::Value};
+use alloc::boxed::Box;
+use skein_lib::{Decimal, List, Writer, bytes};
 use smith_domain_run::HostAnswer;
 use temper_engine_domain::Tool;
+use temper_engine_domain::{self as engine, SeeAnswer};
 
 pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem> {
     let Value::Object(fields) = value else { return Err(Problem::Type(b"see")) };
@@ -17,5 +20,349 @@ pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem>
         return Ok(Err(HostAnswer::new(b"see: address takes 1 to 512 bytes, trimmed.".as_slice().into(), true)
             .ok_or(Problem::TooLarge)?));
     }
+    if let Some(encoded) = line.strip_prefix(b"more")
+        && let Some(first) = encoded.first()
+        && first.is_ascii_whitespace()
+        && let Some((line, from)) = untoken(encoded.trim_ascii())
+    {
+        return Ok(Ok(Tool::See { line, from }));
+    }
     Ok(Ok(Tool::See { line: line.into(), from: 0 }))
+}
+
+/// The most an answer's body holds (domain/agent.md, 8.4.1).
+pub const SEE_PART: u32 = 6_144;
+/// The line of addresses an unknown address answers with, as `ask.txt` gives it.
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+
+const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
+const SETTING: &[u8] = "settings · revisions · help settings-fields".as_bytes();
+const LANDING_RULE: &[u8] = "settings landing · settings · help landing-rule".as_bytes();
+const FILE: &[u8] = "file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME".as_bytes();
+
+/// Render a `see` read's answer in its outer form, within the call and host allowances.
+#[must_use]
+pub fn see_answer(
+    line: &[u8],
+    from: u32,
+    answer: &SeeAnswer,
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
+    max_bytes: u32,
+) -> HostAnswer {
+    let text = match answer {
+        SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::Unknown => {
+            return error(&join(&[b"see: no address ", line, b"; addresses: ", ADDRESSES.as_bytes()]), max_bytes);
+        }
+        SeeAnswer::Settings(settings) => {
+            if let jig_domain_core::SettingsAnswer::Unknown = &settings.answer {
+                return refused(
+                    line,
+                    b"not read: no such setting. This says nothing about the settings: see settings lists them.",
+                    max_bytes,
+                );
+            }
+            crate::settings::settings_whole(
+                &settings.answer,
+                settings.requested,
+                catalogue,
+                settings.application.as_ref(),
+                &settings.repositories,
+                &settings.people,
+                &settings.forge_people,
+                &settings.offer,
+            )
+        }
+        SeeAnswer::Call { tool, answer } => {
+            let (text, error) =
+                crate::answer_for_tool(answer, tool, u32::try_from(HostAnswer::CAPACITY).expect("host capacity"))
+                    .into_parts();
+            if error {
+                return refused(line, &text, max_bytes);
+            }
+            Ok(text)
+        }
+        SeeAnswer::Page { name } => page_text(name),
+        SeeAnswer::Search { words } => search_text(words),
+        SeeAnswer::Landing(landing) => landing_text(landing),
+        SeeAnswer::Gates(repository) => gates_text(repository),
+        SeeAnswer::Proposal(proposal) => proposal_text(proposal),
+    };
+    match text {
+        Ok(text) => page(line, from, &text, following(line, answer), max_bytes),
+        Err(message) => refused(line, message, max_bytes),
+    }
+}
+
+fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
+    match answer {
+        SeeAnswer::Settings(settings) => match &settings.answer {
+            jig_domain_core::SettingsAnswer::Inventory(_) => INVENTORY,
+            jig_domain_core::SettingsAnswer::Setting(document) => match document.setting {
+                jig_domain_core::settings::Setting::Application { kind: 1 | 2, .. } => LANDING_RULE,
+                jig_domain_core::settings::Setting::Charter(_)
+                | jig_domain_core::settings::Setting::Template(_)
+                | jig_domain_core::settings::Setting::Policy(_)
+                | jig_domain_core::settings::Setting::Model(_)
+                | jig_domain_core::settings::Setting::Rules
+                | jig_domain_core::settings::Setting::ProjectPolicy { .. }
+                | jig_domain_core::settings::Setting::Application { .. } => SETTING,
+            },
+            jig_domain_core::SettingsAnswer::Revisions(_) => "revision N · settings · help revision".as_bytes(),
+            jig_domain_core::SettingsAnswer::Revision(_) => {
+                "revisions · proposal tN/K · proposal pN/K · settings".as_bytes()
+            }
+            jig_domain_core::SettingsAnswer::Unknown => unreachable!("unknown settings answer before its form"),
+        },
+        SeeAnswer::Page { .. } => {
+            if line.trim_ascii() == b"help" {
+                "help NAME · help search WORDS".as_bytes()
+            } else {
+                "help · help search WORDS".as_bytes()
+            }
+        }
+        SeeAnswer::Search { .. } => b"help NAME",
+        SeeAnswer::Call { .. } => FILE,
+        SeeAnswer::Landing(_) => {
+            "settings gates OWNER/NAME · settings landing-rule N [project] · help landing".as_bytes()
+        }
+        SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
+        SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
+        SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
+    }
+}
+
+fn landing_text(_landing: &engine::SeeLanding) -> Result<Box<[u8]>, &'static [u8]> {
+    Err(b"not there yet.")
+}
+fn gates_text(_repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static [u8]> {
+    Err(b"not there yet.")
+}
+fn proposal_text(_proposal: &engine::SeeProposal) -> Result<Box<[u8]>, &'static [u8]> {
+    Err(b"not there yet.")
+}
+
+fn page_text(name: &[u8]) -> Result<Box<[u8]>, &'static [u8]> {
+    match temper_docs::find(name) {
+        Some(page) => Ok(join(&[page.name.as_bytes(), b": ", page.title.as_bytes(), b"\n", page.text.as_bytes()])),
+        None => {
+            let mut words: Box<[u8]> = name.into();
+            for byte in &mut words {
+                if *byte == b'-' {
+                    *byte = b' ';
+                }
+            }
+            let found = search_text(&words)?;
+            Ok(join(&[b"no page ", name, b"; the sections holding its words:\n", &found]))
+        }
+    }
+}
+fn search_text(words: &[u8]) -> Result<Box<[u8]>, &'static [u8]> {
+    let hits = match temper_docs::search(&temper_docs::PAGES, words, 8) {
+        Ok(hits) => hits,
+        Err(refused) => return Err(refused.says().as_bytes()),
+    };
+    let mut parts = List::with_capacity(8);
+    for hit in &hits.hits {
+        parts
+            .push(join(&[hit.page.as_bytes(), b": ", hit.heading.as_bytes(), b": ", hit.line.as_bytes(), b"\n"]))
+            .expect("eight search hits");
+    }
+    let mut length = 0_usize;
+    for part in &parts {
+        length = length.checked_add(part.len()).expect("bounded search");
+    }
+    let last = if hits.hits.is_empty() {
+        b"nothing matches\n".as_slice()
+    } else if hits.more {
+        b"more sections match; narrow the words\n".as_slice()
+    } else {
+        b"".as_slice()
+    };
+    let mut text = Writer::new(length.checked_add(last.len()).expect("bounded search"));
+    for part in &parts {
+        text.put(part).expect("search length");
+    }
+    text.put(last).expect("search length");
+    Ok(text.finish())
+}
+
+fn join(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("admitted answer text");
+    }
+    let mut text = Writer::new(length);
+    for part in parts {
+        text.put(part).expect("answer text length");
+    }
+    text.finish()
+}
+fn refused(line: &[u8], message: &[u8], max_bytes: u32) -> HostAnswer {
+    error(&join(&[b"see ", line, b": ", message]), max_bytes)
+}
+fn error(message: &[u8], max_bytes: u32) -> HostAnswer {
+    let maximum = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
+    HostAnswer::new(bytes::utf8_prefix(message, maximum).into(), true).expect("host feedback bound")
+}
+
+pub(crate) fn page(line: &[u8], from: u32, text: &[u8], next: &[u8], max_bytes: u32) -> HostAnswer {
+    let maximum = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
+    let mut start = skein_lib::usize_of(from).min(text.len());
+    for _ in 0..3_u8 {
+        if bytes::utf8_prefix(text, start).len() == start {
+            break;
+        }
+        start = start.checked_add(1).expect("UTF-8 continuation offset");
+    }
+    if start >= text.len() {
+        return refused(
+            line,
+            &join(&[
+                b"nothing from byte ",
+                Decimal::of(u64::from(from)).as_bytes(),
+                b"; see ",
+                line,
+                b" reads it from its start.",
+            ]),
+            max_bytes,
+        );
+    }
+    let footer = join(&[b"see: ", next, b"\n"]);
+    let mut room = skein_lib::usize_of(SEE_PART).min(maximum);
+    // The tail prices the room anew; decimal offsets have at most ten digits.
+    for _ in 0..12_u8 {
+        let mut end = cut(text, start, room);
+        let mut separator =
+            if text.get(..end).expect("text cut").ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        if end.checked_sub(start).expect("forward cut").checked_add(separator.len()).expect("part length") > room {
+            end = cut(text, start, room.saturating_sub(1));
+            separator =
+                if text.get(..end).expect("text cut").ends_with(b"\n") { b"".as_slice() } else { b"\n".as_slice() };
+        }
+        if end == start {
+            break;
+        }
+        let more = if end < text.len() {
+            join(&[b"more: ", &token(line, u32::try_from(end).expect("text offset")), b"\n"])
+        } else {
+            Box::new([])
+        };
+        let body = text.get(start..end).expect("UTF-8 part");
+        let length = body
+            .len()
+            .checked_add(separator.len())
+            .expect("bounded part length")
+            .checked_add(more.len())
+            .expect("bounded part length")
+            .checked_add(footer.len())
+            .expect("bounded part length");
+        if length <= maximum {
+            return HostAnswer::new(join(&[body, separator, &more, &footer]), false).expect("host part bound");
+        }
+        room = maximum
+            .saturating_sub(more.len().checked_add(footer.len()).expect("part tail bound"))
+            .min(skein_lib::usize_of(SEE_PART));
+    }
+    refused(line, b"host answer limit cannot hold a part.", max_bytes)
+}
+fn cut(text: &[u8], start: usize, room: usize) -> usize {
+    let limit = start.checked_add(room).expect("bounded part offset").min(text.len());
+    let end = bytes::utf8_prefix(text, limit).len();
+    if end == text.len() {
+        return end;
+    }
+    let mut line_end = start;
+    for (offset, byte) in text.get(start..end).expect("UTF-8 part").iter().enumerate() {
+        if *byte == b'\n' {
+            line_end = start.checked_add(offset).expect("text offset").checked_add(1).expect("newline offset");
+        }
+    }
+    if line_end == start { end } else { line_end }
+}
+
+pub(crate) fn token(line: &[u8], from: u32) -> Box<[u8]> {
+    let mut text = List::with_capacity(
+        u32::try_from(
+            line.len().checked_mul(3).expect("address token bound").checked_add(11).expect("address token bound"),
+        )
+        .expect("address token bound"),
+    );
+    let mut space = false;
+    for byte in line.trim_ascii() {
+        if byte.is_ascii_whitespace() {
+            space = true;
+            continue;
+        }
+        if space {
+            text.push(b'+').expect("token bound");
+            space = false;
+        }
+        let escaped = match *byte {
+            b'+' => b"%2B".as_slice(),
+            b'@' => b"%40".as_slice(),
+            b'%' => b"%25".as_slice(),
+            _ => core::slice::from_ref(byte),
+        };
+        for byte in escaped {
+            text.push(*byte).expect("token bound");
+        }
+    }
+    text.push(b'@').expect("token bound");
+    for byte in Decimal::of(u64::from(from)).as_bytes() {
+        text.push(*byte).expect("token bound");
+    }
+    text.into_boxed()
+}
+
+fn untoken(value: &[u8]) -> Option<(Box<[u8]>, u32)> {
+    let at = bytes::find(value, b"@")?;
+    let encoded = value.get(..at)?;
+    let digits = value.get(at.checked_add(1)?..)?;
+    if encoded.is_empty() || digits.is_empty() {
+        return None;
+    }
+    let mut from = 0_u32;
+    for byte in digits {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        from = from.checked_mul(10)?.checked_add(u32::from(byte.checked_sub(b'0')?))?;
+    }
+    let mut words = List::with_capacity(u32::try_from(encoded.len()).ok()?);
+    let mut skip = 0_usize;
+    let mut empty = true;
+    for (at, byte) in encoded.iter().enumerate() {
+        if skip != 0 {
+            skip = skip.checked_sub(1)?;
+            continue;
+        }
+        if *byte == b'+' {
+            if empty {
+                return None;
+            }
+            words.push(b' ').ok()?;
+            empty = true;
+        } else {
+            let byte = if *byte == b'%' {
+                let after = at.checked_add(3)?;
+                let escaped = encoded.get(at..after)?;
+                skip = 2;
+                match escaped {
+                    b"%2B" => b'+',
+                    b"%40" => b'@',
+                    b"%25" => b'%',
+                    _ => return None,
+                }
+            } else {
+                if byte.is_ascii_whitespace() {
+                    return None;
+                }
+                *byte
+            };
+            words.push(byte).ok()?;
+            empty = false;
+        }
+    }
+    if empty { None } else { Some((words.into_boxed(), from)) }
 }
