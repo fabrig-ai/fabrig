@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where temper's code lags or departs from its design, and
+2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
@@ -47,10 +47,8 @@ settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
 listing and the configuring chat's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
-and fake-box press proof is recorded. A stored amendment can leave the next
-provider request on the previous model, assigned to `ui-model-next-turn`;
-an unusable account's fix remains hidden beside a usable one of the same
-provider (`client/README.md`). The
+and fake-box press proof is recorded. An unusable account's fix remains
+hidden beside a usable one of the same provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
@@ -150,6 +148,12 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
+Publication help and ctl's completed answer say that chat words may show
+in titles; ctl has no preceding acknowledgement (`client/tools.md`). The
+configuring stock instructs a run to say the words when asked, with no
+real-model outcome supplied (`domain/agent.md`). Landings is underlined
+at a row's size, and a landing draws no zero stale-proof count
+(`client/browser.md`).
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose

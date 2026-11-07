@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-06. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
@@ -32,6 +32,17 @@ Section 8.1 has no gap in settings pagination using the host answer allowance.
 Section 8.1 has no gap in note-backed whole settings proposals and decided-call replay.
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
+Section 8.1's stock instructions say that visibility is no setting, never
+to propose it, and, asked, to give the publication words whole and say the
+owner acts outside this chat. None of that chat's tools or proposal items
+offers visibility.
+
+- **Not yet:** 8.1: `configuring_txt_says_what_a_public_project_shows`
+  holds the stock's publication words, but no supplied real-model outcome
+  shows a configuring run giving them whole when asked, without proposing
+  visibility or sending the person to a command. The request `ui-public-3`
+  leaves that observation to after landing; phrase assertions prove the
+  instructions alone.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
