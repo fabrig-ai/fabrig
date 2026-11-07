@@ -213,11 +213,6 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   story ending at its task's first terminal failure. 2.7: the live GitHub
   story connects the probe App without `--read-only`, so its record's
   `read_only` is false (`crates/temper/tests/support/live_github.rs`).
-  2.7: the owned-forge landing story's referee watches the chat's one
-  delegate as its change whatever its executor, and its failure for a
-  chat with no successful `change` names none of the chat's calls
-  (`crates/temper/tests/support/forge_land.rs`, `find_delegates` and
-  `check_landing`).
   2.7: the owned-forge
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store, the

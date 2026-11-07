@@ -1501,12 +1501,57 @@ pub fn replies_after(
     Ok(replies)
 }
 
+/// domain/testing.md, 2.7: the chat's one delegate is its change; an agent's
+/// task, as a goal is, fails the story at once, naming it.
+pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
+    let task = row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?;
+    let (kind, executor) = row["chip"]["executor"]
+        .as_object()
+        .and_then(|executor| executor.iter().next())
+        .ok_or("delegate executor missing (chip.executor)")?;
+    if kind == "procedure" {
+        return Ok(task);
+    }
+    let description = if kind == "agent" {
+        let charter = executor["charter"].as_u64().ok_or("delegate charter missing (chip.executor.agent.charter)")?;
+        format!("an agent's on charter {charter}")
+    } else {
+        format!("a {kind}'s")
+    };
+    Err(format!(
+        "the chat's delegate task {task} is {description}, not a change: the shipped chat chooses change (testing.md 2.7)"
+    ))
+}
+
+/// domain/testing.md, 2.7: the landing check's words name the chat's
+/// committed calls, those that succeeded and those that failed.
+pub fn require_chat_change(evidence: &conversation::Evidence) -> Result<(), String> {
+    let succeeded = evidence.tools.iter().cloned().collect::<Vec<_>>().join(", ");
+    let failed = evidence.failed.iter().cloned().collect::<Vec<_>>().join(", ");
+    require(
+        evidence.tools.contains("change"),
+        &format!(
+            "the chat's committed change call succeeded: its committed calls succeeded [{succeeded}] and failed [{failed}]"
+        ),
+    )
+}
+
 /// Names from actual committed call blocks, never from the model's prose.
 #[must_use]
 pub fn successful_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
     let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
     committed_tools(rows)
         .filter(|call| call["failed"] == false && !call["outcome"].is_null())
+        .filter_map(|call| call["tool"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// Names of the chat's failed committed calls from detailed activity.
+#[must_use]
+pub fn failed_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
+    let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
+    committed_tools(rows)
+        .filter(|call| call["failed"] == true)
         .filter_map(|call| call["tool"].as_str().map(str::to_owned))
         .collect()
 }
@@ -1823,7 +1868,7 @@ impl LiveJudge<'_> {
     ) -> Result<(), String> {
         let mut delegates = Vec::new();
         for row in last["live"].as_array().ok_or("live delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("delegate number missing")?);
+            delegates.push(row);
         }
         let ended = &last["ended"]["rows"];
         require(
@@ -1831,7 +1876,7 @@ impl LiveJudge<'_> {
             "whole chat delegation set",
         )?;
         for row in ended["rows"].as_array().ok_or("ended delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("ended delegate number missing")?);
+            delegates.push(row);
         }
         if delegates.is_empty() {
             let chat = live_json(calls.ends().iter().rev().nth(1).ok_or("chat snapshot missing")?)?;
@@ -1853,7 +1898,7 @@ impl LiveJudge<'_> {
             self.queue_delegates();
         } else {
             require(delegates.len() == 1, "one change delegated by the new chat")?;
-            self.tasks.change = delegates[0];
+            self.tasks.change = change_delegate(delegates[0])?;
             super::live::notice(&format!(
                 "CHANGE task={} chat={} project={}",
                 self.tasks.change, self.tasks.chat, self.tasks.project
@@ -1934,7 +1979,7 @@ impl LiveJudge<'_> {
             require_closed_roots(&last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
-        require(self.conversation.tools.contains("change"), "the chat's committed change call succeeded")?;
+        require_chat_change(&self.conversation)?;
         let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.conversation.tools.contains("delegate"), "no raw delegate started the task")?;
