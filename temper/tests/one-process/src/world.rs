@@ -68,6 +68,7 @@ pub struct Stopped {
     pub saved: [Box<[jig_domain_tasks::SavedResource]>; 2],
     pub change: Option<[Counts; 2]>,
     pub next: Option<u64>,
+    /// Slots observed at the restarted agent's Start, before its teardown releases them.
     pub writers: Vec<(u64, bool)>,
     pub workspace: Option<smith_channel::Workspace>,
     pub saved_head: [Option<u64>; 2],
@@ -875,26 +876,21 @@ pub fn run(settings: Settings, scenario: Story) -> Outcome {
     .0
 }
 #[must_use]
-pub fn drain_mid_run(settings: Settings, story: Story, restart: bool) -> Outcome {
+pub fn drain_mid_run(settings: Settings, scenario: Story, restart: bool) -> Outcome {
     let run = Rc::new(RefCell::new(referee::Run::default()));
-    let (mut outcome, disk, store) = run_phase(
-        settings,
-        story,
-        Phase::Drain,
-        machine::fresh(),
-        Store::new(),
-        run.clone(),
-    );
+    let (mut outcome, disk, store) =
+        run_phase(settings, scenario, Phase::Drain, machine::fresh(), Store::new(), run.clone());
     if restart {
-        let (next, _, _) =
-            run_phase(settings, story, Phase::Restart, disk, store, run.clone());
-        if matches!(story, Story::ChatReadThenWait { .. }) { assert_eq!(outcome.settings_revision, 2, "one hosted ctl settings change before the signal"); }
+        let (next, _, _) = run_phase(settings, scenario, Phase::Restart, disk, store, run.clone());
+        if matches!(scenario, Story::ChatReadThenWait { .. }) {
+            assert_eq!(outcome.settings_revision, 2, "one hosted ctl settings change before the signal");
+        }
         assert_eq!(next.settings_revision, outcome.settings_revision, "the changed settings survive restart");
-        outcome.stopped = run.borrow_mut().stopped.take();
         outcome.restarts = next.restarts;
         outcome.claims_settled_at_restart = next.claims_settled_at_restart;
         outcome.drained &= next.drained;
     }
+    outcome.stopped = run.borrow_mut().stopped.take();
     outcome
 }
 #[must_use]

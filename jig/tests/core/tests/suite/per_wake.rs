@@ -242,7 +242,9 @@ fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
     goal.tracked = Some(1);
     goal.authority.budget.spend = 60;
     goal.llm = Some(tasks::LlmChoice {
-        account: None, main: story::M1, subagents: Box::new([]),
+        account: None,
+        main: story::M1,
+        subagents: Box::new([]),
         later: Some(tasks::LlmLater { main: story::M2, subagents: Box::new([]) }),
     });
     let task = fixtures::delegate(&mut world, caller, 1, goal);
@@ -259,11 +261,15 @@ fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
     )));
     world.restart_with(setup().configuration.expect("same configuration"));
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Fleet(jig_domain_fleet::Event::Hello {
-        worker: 0, channel: skein_lib::Token::new(7),
+        worker: 0,
+        channel: skein_lib::Token::new(7),
         hello: jig_domain_link::Hello {
-            jobs: Box::new([]), bounds: jig_test_profile::fixtures::bounds(),
-            stop_bound: skein_lib::Duration::from_millis(100), slots: 2,
-            workstreams: Box::new([]), hosting: Box::new([]),
+            jobs: Box::new([]),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: skein_lib::Duration::from_millis(100),
+            slots: 2,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
         },
     })));
     world.grant_account(1);

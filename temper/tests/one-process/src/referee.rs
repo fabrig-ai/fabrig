@@ -3,11 +3,11 @@ use crate::world::HarnessProcess;
 pub(crate) mod durable;
 pub(crate) use durable::{Capture, Store};
 mod agent;
-mod stopped;
 pub(crate) mod client;
 pub(crate) mod forge;
 pub mod restart;
 pub mod secrets;
+mod stopped;
 use crate::world::Proc;
 /// Hosted process records used by the composition regressions.
 pub(crate) use agent::Record as AgentRecord;
@@ -174,6 +174,61 @@ impl Referee {
             story: scenario,
         }
     }
+    fn stopping(&mut self) {
+        match self.phase {
+            crate::world::Phase::Drain => {
+                let mut stopped = stopped::at_signal(self.story, &self.store.borrow());
+                stopped.saved_head[0] = self.forge.borrow().saved_head(stopped.task);
+                self.run.borrow_mut().stopped = Some(stopped);
+            }
+            crate::world::Phase::Restart => {
+                let mut run = self.run.borrow_mut();
+                let disk = run.disk.clone().expect("world disk");
+                let stopped = run.stopped.as_mut().expect("stopped run");
+                stopped::at_restart(stopped, &self.store.borrow());
+                stopped.saved_head[1] = self.forge.borrow().saved_head(stopped.task);
+                stopped::checkout(stopped, &mut disk.borrow_mut());
+            }
+            _ => {}
+        }
+    }
+    fn observe_drain(&mut self, now: Time, service: &crate::world::ServiceHost) {
+        if self.done.is_some() && self.drained.is_none() && service.is_empty() {
+            Self::check_roots(&service.service);
+            assert!(self.store.borrow().pending.is_empty(), "drain settles commits");
+            self.say(now, rules::Observed::Drained { at: self.applied });
+            self.drained = Some(());
+            self.run.borrow_mut().drained = true;
+            if matches!(self.phase, crate::world::Phase::Restart) {
+                stopped::after_drain(
+                    self.run.borrow_mut().stopped.as_mut().expect("stopped run"),
+                    &self.store.borrow(),
+                );
+            }
+            if matches!(self.phase, crate::world::Phase::Drain) {
+                let mut run = self.run.borrow_mut();
+                if let Some(stopped) = run.stopped.as_mut() {
+                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow());
+                }
+            }
+        }
+    }
+    fn stop_peers(&mut self, other: &mut [Proc]) {
+        if self.done.is_some() {
+            let agents_ended = other.iter().all(|proc| !matches!(proc, Proc::Agent(agent) if !agent.is_empty()));
+            for proc in other {
+                if matches!(self.story, crate::world::Story::CodingAtStop)
+                    && !self.hold_released
+                    && agents_ended
+                    && let Proc::Peer(peer) = proc
+                {
+                    self.hold_released = true;
+                    peer.release(crate::stories::STOP_HOLD).expect("stop hold release");
+                }
+                shutdown_peer(proc);
+            }
+        }
+    }
     fn say(&mut self, now: Time, event: rules::Observed) {
         self.rules
             .borrow_mut()
@@ -275,7 +330,16 @@ impl Referee {
                 .iter()
                 .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
             crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other),
-            crate::world::Phase::Restart => self.cold.is_none() && self.run.borrow().stopped.as_ref().is_some_and(|stopped| stopped::next(stopped, &self.store.borrow()).is_some()),
+            crate::world::Phase::Restart => {
+                self.cold.is_none()
+                    && (self.run.borrow().settled > 0
+                        || self
+                            .run
+                            .borrow()
+                            .stopped
+                            .as_ref()
+                            .is_some_and(|stopped| stopped::next(stopped, &self.store.borrow()).is_some()))
+            }
             crate::world::Phase::Fault { .. } => {
                 self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
             }
@@ -383,34 +447,11 @@ impl skein_world::Referee<Proc> for Referee {
                     person.finish();
                 }
             }
-            match self.phase {
-                crate::world::Phase::Drain => {
-                    let mut stopped = stopped::at_signal(self.story, &self.store.borrow());
-                    stopped.saved_head[0] = self.forge.borrow().saved_head(stopped.task);
-                    self.run.borrow_mut().stopped = Some(stopped);
-                },
-                crate::world::Phase::Restart => {
-                    let mut run = self.run.borrow_mut();
-                    let disk = run.disk.clone().expect("world disk");
-                    let stopped = run.stopped.as_mut().expect("stopped run");
-                    stopped::at_restart(stopped, &self.store.borrow());
-                    stopped.saved_head[1] = self.forge.borrow().saved_head(stopped.task);
-                    stopped::checkout(stopped, &mut disk.borrow_mut());
-                },
-                _ => {}
-            }
+            self.stopping();
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             self.done = Some(());
         }
-        if self.done.is_some() {
-            for proc in other {
-                if !self.hold_released && service.service.end().is_some() && let Proc::Peer(peer) = proc {
-                    self.hold_released = true;
-                    peer.release(crate::stories::STOP_HOLD).expect("stop hold release");
-                }
-                shutdown_peer(proc);
-            }
-        }
+        self.stop_peers(other);
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         self.forge.borrow_mut().observe(procs);
@@ -504,19 +545,7 @@ impl skein_world::Referee<Proc> for Referee {
         // Serve's stop includes supervised agent cancellation. Only its recorded
         // end leaves teardown waiting on IO alone (protocol/README.md, 8).
         self.ended = service.service.end().is_some();
-        if self.done.is_some() && self.drained.is_none() && service.is_empty() {
-            Self::check_roots(&service.service);
-            assert!(self.store.borrow().pending.is_empty(), "drain settles commits");
-            self.say(now, rules::Observed::Drained { at: self.applied });
-            self.drained = Some(());
-            self.run.borrow_mut().drained = true;
-            if matches!(self.phase, crate::world::Phase::Drain) {
-                let mut run = self.run.borrow_mut();
-                if let Some(stopped) = run.stopped.as_mut() {
-                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow());
-                }
-            }
-        }
+        self.observe_drain(now, service);
         self.say(now, rules::Observed::Tick);
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -566,7 +595,7 @@ impl skein_world::Referee<Proc> for Referee {
                                 | crate::world::Story::Adopt
                                 | crate::world::Story::Merge
                                 | crate::world::Story::HeldChange
-                | crate::world::Story::CodingAtStop
+                                | crate::world::Story::CodingAtStop
                         )))
     }
 }

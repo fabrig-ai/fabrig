@@ -352,7 +352,11 @@ pub(crate) fn setup_settings(phase: crate::world::Phase) {
     });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain) && uses_stock()));
     REVISION.with(|slot| {
-        slot.set(if uses_stock() && matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });
+        slot.set(if uses_stock() && matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) {
+            2
+        } else {
+            1
+        });
     });
 }
 pub(crate) fn needs_settings() -> bool {
@@ -388,9 +392,9 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
 pub(crate) const STOP_HOLD: &[u8] = b"stop-mid-turn";
 fn held_turn() -> Turn {
     Turn {
-        lines: Box::new([Line::Pieces { pieces: Box::new([Piece {
-            text: b"after stop".as_slice().into(), hold: Some(STOP_HOLD.into()),
-        }]) }]),
+        lines: Box::new([Line::Pieces {
+            pieces: Box::new([Piece { text: b"after stop".as_slice().into(), hold: Some(STOP_HOLD.into()) }]),
+        }]),
         finish: Finish::Stop,
         tokens: fixtures::CALL_TOKENS,
     }
