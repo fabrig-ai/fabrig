@@ -417,7 +417,7 @@ fn key_ready() -> Walk {
         )
         .expect("me delivery"),
     ));
-    walk.act_on(Role::Link, b"Use an API key", Act::Press);
+    walk.act_on(Role::Link, b"Add key", Act::Press);
     walk
 }
 pub(super) fn key_event(value: &[u8]) -> Box<[u8]> {

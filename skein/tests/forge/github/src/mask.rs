@@ -167,6 +167,12 @@ impl Mask {
         let mut known: Vec<_> = self.opaque.iter().filter(|(value, _)| !value.is_empty()).collect();
         known.sort_by_key(|(value, _)| std::cmp::Reverse(value.len()));
         for (value, number) in known {
+            if let (Ok(text), Ok(value)) = (std::str::from_utf8(&out), std::str::from_utf8(value)) {
+                if text.contains(value) {
+                    out = text.replace(value, &format!("opaque-{number}")).into_bytes();
+                }
+                continue;
+            }
             let mut replaced = Vec::new();
             let mut at = 0;
             while at < out.len() {

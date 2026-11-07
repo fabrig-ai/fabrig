@@ -2,7 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Fresh projects offer drafts;
+milestone stands in the code (`README.md`). A person-started goal asks by
+a person task; its question in words draws under Needs you, on Home and in
+the goal's band, and its answer wakes the goal with those words. Permission
+is bounded by the requester's role, with instructions alone naming that
+requester; a chat-called goal keeps asking its chat. The requester-only
+permission, agreed-goal shape and after-landing observations remain deferred
+(`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
 the bar supplies the goal's entry. The mock's drafts-off default remains
@@ -186,14 +193,18 @@ at a row's size, and a landing draws no zero stale-proof count
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story measures each
-page and width from one boxed query, checks a wrapped text by its first
+change is handed from a live goal. The public landings check accepts a queued
+member or none before empty landings or a stock merge, with all four forms
+and malformed lines held by a focused table. The public geometry story measures
+each page and width from one boxed query, checks a wrapped text by its first
 quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds its twelve tests, four of them merged and compiled, with
-no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+The browser tier holds its twelve tests, with the call line, model picker,
+welcome sign-in and four reading stories in four merged tests, compiled
+with story labels for failed steps but with no run in Chromium yet. Reading's
+four stories, apart, passed with ctl history
 and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
@@ -381,10 +392,15 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 Service, engine and joined-client fixtures, words and command startup have
-the profiled cost repairs; remaining representation and algorithm work is
-deferred. Individual instruction savings establish no whole-suite CPU
-total, so the focused suite's 30 CPU s budget remains unproved
-(`domain/testing.md`, 6.1 and 11).
+the profiled cost repairs, alongside fake preparation, page ordering,
+projection updates, protocol scheduling queries, gallery checks and the
+launcher. Remaining representation and algorithm work is deferred.
+Individual instruction savings establish no whole-suite CPU total, so the
+focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
+6.1 and 11). The hangup/rebind and Linux killed-box stories moved whole
+into the process tier and compiled; their runtime there and the tier's
+margin after the estimated 15.9 CPU s transfer remain unobserved
+(`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
 and its CPU-budget overages remain. Reusable listener ports come from
 process-held blocks below Linux's configured ephemeral range; macOS uses
@@ -417,7 +433,13 @@ repository's "Adopt" sending its adoption and an adoption under way the
 session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
-bound on a migration, and its sheet, "Add repositories", is unbuilt;
+bound on a migration. Settings’ “Add repositories” sheet is built,
+with search, plural adoption, making, copying and failed-copy acts;
+Home’s own sheet and the two unmocked entry paths remain distinct
+(`draft/repository-copies.md`). Settings’ connection pages share the
+welcome’s cards and panels and finish on Accounts or Forges; the browser
+stories are compiled, with temper/ui’s render check after landing
+(`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a

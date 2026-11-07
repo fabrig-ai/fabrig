@@ -59,6 +59,16 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding(
             // it has no static destination until the forge answers.
             assert_eq!(sample.name, "github-picker", "{}: install link state", sample.name);
             assert_eq!(forge, 2, "{}: install link forge", sample.name);
+        } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::ConnectModel(
+            temper_client_domain::pages::connect_model::Act::Holder { .. },
+        ))) = temper_client_view::act(view, node, skein_ui::Act::Press)
+        {
+            assert!(
+                sample.name.starts_with("connect-model-")
+                    || matches!(sample.name, "accounts-added" | "accounts-renewed"),
+                "{}: model connection link state",
+                sample.name
+            );
         } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
             temper_client_view::act(view, node, skein_ui::Act::Press)
         {
@@ -583,15 +593,20 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "forges-added",
+        heading: "Where your code lives.",
+        parts: &[Part::Text { text: "Connected Forgejo on this machine." }],
+    },
+    Holds {
         name: "forges-setting-up",
         heading: "Where your code lives.",
         parts: &[
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "Forge 3 · Forgejo · Setting up: preparing\nwork/hello",
+                description: "Forge 3 · Forgejo · Setting up: preparing · work/hello",
             },
-            Part::Named { role: Role::Link, name: "Open its set-up ›" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -600,7 +615,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Described {
             role: Role::Disclosure,
             name: "Forgejo on this machine",
-            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42%\nwork/hello",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42% · work/hello",
         }],
     },
     Holds {
@@ -609,14 +624,14 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Described {
             role: Role::Disclosure,
             name: "Forgejo on this machine",
-            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB\nwork/hello",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB · work/hello",
         }],
     },
     Holds {
         name: "forges-failed",
         heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Named { role: Role::Button, name: "Try again" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
@@ -949,7 +964,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
             Part::Named {
                 role: Role::Paragraph,
-                name: "Nothing needs you. Work carries on, and this page tells you what changed when you come back.",
+                name: "Work carries on, and this page tells you what changed when you come back.",
             },
             Part::Named { role: Role::Link, name: "All 1 chats" },
             Part::Named { role: Role::Link, name: "What is in this repository?, closed, 1 h" },
@@ -1411,20 +1426,19 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forge-admin-details",
-        heading: "Connect a forge",
+        heading: "Your Forgejo",
         parts: &[
-            Part::Named { role: Role::Region, name: "Your first repository" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Your first repository" },
+            Part::Named { role: Role::TextField, name: "First repository" },
+            Part::Named { role: Role::Disclosure, name: "Its runner label: docker" },
             Part::Named { role: Role::TextField, name: "Runner label" },
         ],
     },
     Holds {
         name: "forge-setup-failed",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Status, name: "failed" },
-            Part::Named { role: Role::List, name: "Each step" },
-            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Button, name: "Try again" },
         ],
     },
     Holds {
@@ -1515,20 +1529,20 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "github-install",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
     },
     Holds {
         name: "github-picker",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "GitHub is connected" },
+            Part::Named { role: Role::Paragraph, name: "Connected GitHub." },
             Part::Named { role: Role::Link, name: "Adopt a repository" },
         ],
     },
     Holds {
         name: "github-adopted",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Link, name: "Adopt a repository" }],
     },
     Holds {
@@ -1632,16 +1646,16 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Repository" },
+            Part::Named { role: Role::TextField, name: "Name" },
             Part::Absent { role: Role::TextField, name: "Into a new project, named" },
         ],
     },
     Holds {
         name: "forge-setting-up-middle",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::List, name: "Each step" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -1727,11 +1741,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-forge-first-run-6",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Setting up Forgejo on this machine" },
-            Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::Paragraph, name: "work/hello" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -1752,8 +1765,52 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Region, name: "Your Forgejo" },
+            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Or a server of your own" },
+            Part::Named { role: Role::Link, name: "Connect your Forgejo" },
+            Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-connected",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Text { text: "✓ Connected" },
+            Part::Named { role: Role::Link, name: "Open Forgejo ↗" },
+            Part::Named { role: Role::Button, name: "Connect GitHub" },
+            Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-elsewhere",
+        heading: "A Forgejo elsewhere",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "A Forgejo elsewhere" },
+            Part::Named { role: Role::Button, name: "Copy" },
+            Part::Named { role: Role::Link, name: "Other forges" },
+            Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-yours-admin",
+        heading: "Your Forgejo",
+        parts: &[
+            Part::Named { role: Role::Choice, name: "As its admin" },
+            Part::Named { role: Role::TextField, name: "The site admin’s token" },
+            Part::Named { role: Role::Disclosure, name: "Its runner label: docker" },
+            Part::Absent { role: Role::TextField, name: "API token" },
+            Part::Named { role: Role::Link, name: "Other forges" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-yours-tokens",
+        heading: "Your Forgejo",
+        parts: &[
+            Part::Named { role: Role::Choice, name: "With its bot’s tokens" },
+            Part::Named { role: Role::TextField, name: "API token" },
+            Part::Named { role: Role::Disclosure, name: "A webhook secret, if you made hooks to temper’s listener" },
+            Part::Absent { role: Role::TextField, name: "The site admin’s token" },
+            Part::Named { role: Role::Link, name: "Other forges" },
         ],
     },
     Holds {
@@ -2107,7 +2164,20 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Navigation, name: "Settings" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
             Part::Named { role: Role::Text, name: "robin/tally" },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Link, name: "Add repositories" },
+        ],
+    },
+    Holds {
+        name: "repositories-making",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 0" },
+            Part::Named { role: Role::Text, name: "acme/other" },
+            Part::Named { role: Role::Text, name: "acme/widget" },
+            Part::Named { role: Role::Text, name: "octo/vsr" },
+            Part::Text { text: "Forgejo said: “You can not import from disallowed hosts.”" },
+            Part::Named { role: Role::Button, name: "Copy again" },
+            Part::Named { role: Role::Button, name: "Dismiss" },
         ],
     },
     Holds {
@@ -2116,7 +2186,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Text, name: "No repository yet" },
             Part::Text { text: "Chats in gallery talk and plan, but change no code until a repository is in." },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Link, name: "Add repositories" },
         ],
     },
     Holds {
@@ -2235,7 +2305,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+            Part::Named { role: Role::Disclosure, name: "Claude subscription" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
             Part::Named { role: Role::Item, name: "API key · Ready" },
             Part::Named { role: Role::Paragraph, name: "laptop" },
@@ -2261,22 +2331,64 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "adoption",
-        heading: "Adopt a repository into factory",
-        parts: &[Part::Value { role: Role::TextField, name: "Owner", value: "" }],
-    },
-    Holds {
-        name: "adoption-filled",
-        heading: "Adopt a repository into factory",
+        name: "sheet-adopt",
+        heading: "What factory works on.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt" },
-            Part::Value { role: Role::TextField, name: "Owner", value: "acme" },
+            Part::Named { role: Role::Dialog, name: "Add repositories to factory" },
+            Part::Named { role: Role::Search, name: "Find by name" },
         ],
     },
     Holds {
-        name: "adoption-refused",
-        heading: "Adopt a repository into factory",
-        parts: &[Part::Named { role: Role::Alert, name: "" }],
+        name: "sheet-searching",
+        heading: "What factory works on.",
+        parts: &[Part::Named { role: Role::Button, name: "Adopt 2 repositories" }],
+    },
+    Holds {
+        name: "sheet-none",
+        heading: "What factory works on.",
+        parts: &[
+            Part::Value { role: Role::TextField, name: "Owner", value: "sam" },
+            Part::Named { role: Role::Disclosure, name: "Not listed" },
+        ],
+    },
+    Holds {
+        name: "sheet-few",
+        heading: "What factory works on.",
+        parts: &[
+            Part::Absent { role: Role::Search, name: "Find by name" },
+            Part::Named { role: Role::Check, name: "sam/widget" },
+        ],
+    },
+    Holds { name: "sheet-empty", heading: "What factory works on.", parts: &[Part::Text { text: "None reachable." }] },
+    Holds {
+        name: "sheet-copy",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Value {
+                role: Role::TextArea,
+                name: "Their addresses, one per line",
+                value: "github.com/octo/vsr\ncodeberg.org/forgejo/runner",
+            },
+            Part::Named { role: Role::Button, name: "Copy 2 repositories" },
+        ],
+    },
+    Holds {
+        name: "sheet-copy-lines",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Use it" },
+            Part::Named { role: Role::Button, name: "Adopt it" },
+            Part::Text { text: "github isn’t a host. Did you mean github.com/octo/vsr?" },
+            Part::Text { text: "octo/raft is already on this forge." },
+        ],
+    },
+    Holds {
+        name: "sheet-empty-source",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Value { role: Role::TextField, name: "Organization", value: "work" },
+            Part::Named { role: Role::Button, name: "Make it" },
+        ],
     },
     Holds {
         name: "chats-reference",
@@ -2477,7 +2589,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
-            Part::Named { role: Role::Text, name: "No account yet" },
+            Part::Text { text: "No model of yours yet." },
             Part::Named { role: Role::Link, name: "Connect a model" },
         ],
     },
@@ -2486,7 +2598,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+            Part::Named { role: Role::Disclosure, name: "Claude subscription" },
         ],
     },
     Holds {
@@ -2561,44 +2673,41 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-choose",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Region, name: "Choose" }],
+        parts: &[Part::Named { role: Role::Region, name: "ChatGPT" }],
+    },
+    Holds {
+        name: "connect-model-connected",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Text, name: "✓ Connected" }],
     },
     Holds {
         name: "connect-model-key-details",
-        heading: "Connect a model",
+        heading: "An OpenAI API key",
         parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
     },
     Holds {
         name: "connect-model-program-details",
-        heading: "Connect a model",
+        heading: "Your Claude subscription",
         parts: &[Part::Named { role: Role::TextField, name: "Name" }],
     },
     Holds {
-        name: "connect-model-key-ready",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Status, name: "Added your OpenAI API key" }],
-    },
-    Holds {
-        name: "connect-model-signin-ready",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signed in to ChatGPT as pat@example.com" }],
+        name: "accounts-added",
+        heading: "What agents run on.",
+        parts: &[Part::Text { text: "Added your ChatGPT plan. temper’s agents now run on it." }],
     },
     Holds {
         name: "connect-model-declined",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[Part::Named { role: Role::Alert, name: "You signed in without plan usage." }],
     },
     Holds {
-        name: "connect-model-renewed",
-        heading: "Connect a model",
-        parts: &[Part::Named {
-            role: Role::Status,
-            name: "That’s pat@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
-        }],
+        name: "accounts-renewed",
+        heading: "What agents run on.",
+        parts: &[Part::Text { text: "Added your ChatGPT plan. temper’s agents now run on it." }],
     },
     Holds {
         name: "connect-model-refused",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[Part::Named {
             role: Role::Alert,
             name: "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
@@ -2606,7 +2715,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-model-signing-in",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[
             Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
             Part::Named { role: Role::Link, name: "Open it again" },
@@ -2615,7 +2724,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-model-key-lost",
-        heading: "Connect a model",
+        heading: "An OpenAI API key",
         parts: &[Part::Named { role: Role::Alert, name: "" }],
     },
     Holds {
@@ -3136,19 +3245,16 @@ fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
 fn model_samples_link_the_mockup_state_that_draws_them() {
     let mut rows = [
         ("connect-model-choose", Some("connect-model.html?world=reference&bare")),
+        ("connect-model-connected", Some("connect-model.html?world=reference&bare")),
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
         ("connect-model-signing-in", None),
-        ("connect-model-key-ready", None),
-        ("connect-model-signin-ready", Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare")),
+        ("accounts-added", Some("accounts.html?world=reference&bare")),
         (
             "connect-model-declined",
             Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-declined"),
         ),
-        (
-            "connect-model-renewed",
-            Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-renewed"),
-        ),
+        ("accounts-renewed", Some("accounts.html?world=reference&bare")),
         (
             "connect-model-refused",
             Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-refused"),
@@ -3156,8 +3262,12 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ("connect-model-key-lost", None),
     ];
     rows.sort_by_key(|row| row.0);
-    let models: Vec<_> =
-        samples::samples().into_iter().filter(|sample| sample.name.starts_with("connect-model-")).collect();
+    let models: Vec<_> = samples::samples()
+        .into_iter()
+        .filter(|sample| {
+            sample.name.starts_with("connect-model-") || matches!(sample.name, "accounts-added" | "accounts-renewed")
+        })
+        .collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");
     for (sample, (name, expected)) in models.iter().zip(rows) {
         assert_eq!(sample.name, name);
@@ -3209,15 +3319,15 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         .tree()
         .nodes()
         .iter()
-        .position(|node| node.styles.as_slice().contains(&look::FLOW_PROGRESS))
+        .position(|node| node.styles.as_slice().contains(&look::CONNECT_LIVE))
         .expect("progress");
     let nodes = view.tree().nodes();
     let end = progress + usize::try_from(nodes[progress].size).expect("subtree size");
     let items: Vec<_> = nodes[progress..end].iter().filter(|node| node.role == Role::Item).collect();
     assert_eq!(items.len(), 5);
-    assert!(items[0].styles.as_slice().contains(&look::FLOW_DONE));
+    assert!(items[0].styles.is_empty());
     assert!(items[1].states.as_slice().contains(&skein_ui::State::Current));
-    assert!(items[2].styles.is_empty());
+    assert!(items[2].styles.as_slice().contains(&look::CONNECT_LATER));
     assert!(items[2].states.is_empty());
 }
 

@@ -263,15 +263,13 @@ fn rendered(nodes: &[skein_ui::Node]) -> String {
 fn text(world: &Pages, client: ClientId) -> String {
     rendered(world.tree(client).nodes())
 }
-fn current_step(world: &Pages, client: ClientId, expected: &[u8]) {
-    let nodes = world.tree(client).nodes();
+fn no_flow_steps(world: &Pages, client: ClientId) {
     assert!(
-        nodes.iter().enumerate().any(|(index, node)| node.role == Role::Item
-            && node.states.as_slice().contains(&State::Current)
-            && rendered(&nodes[index..index + usize::try_from(node.size).expect("tree size")])
-                .contains(String::from_utf8_lossy(expected).as_ref())),
-        "current step {}: {nodes:?}",
-        String::from_utf8_lossy(expected)
+        !world
+            .tree(client)
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::List && node.name.as_deref() == Some(b"Steps"))
     );
 }
 fn pending(world: &mut Pages) {
@@ -339,7 +337,7 @@ fn malformed_first_forge_does_not_shadow_a_readable_repeat() {
 }
 
 #[test]
-fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
+fn choose_orders_owned_github_and_elsewhere_and_omits_fakes() {
     let mut world = configured_accounts(true, true, &[], true);
     let client = open(&mut world, flow(None));
     follow(
@@ -347,8 +345,8 @@ fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
         client,
         vec![
             see(Role::Region, b"GitHub"),
-            see(Role::Region, b"Forgejo on this machine"),
-            see(Role::Region, b"Your Forgejo"),
+            see(Role::Region, b"Forgejo"),
+            see(Role::Link, b"Connect your Forgejo"),
             gone(Role::Region, b"Playground forge"),
         ],
     );
@@ -360,9 +358,8 @@ fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
         .filter_map(|node| node.name.as_deref())
         .collect::<Vec<_>>();
     let github = names.iter().position(|name| *name == b"GitHub").expect("GitHub card");
-    let owned = names.iter().position(|name| *name == b"Forgejo on this machine").expect("owned card");
-    let remote = names.iter().position(|name| *name == b"Your Forgejo").expect("elsewhere card");
-    assert!(github < owned && owned < remote, "forge.md 5.4: {names:?}");
+    let owned = names.iter().position(|name| *name == b"Forgejo").expect("owned card");
+    assert!(owned < github, "forge.md 5.4: {names:?}");
 }
 
 #[test]
@@ -370,11 +367,7 @@ fn unknown_and_fake_choices_fall_back_to_choose() {
     for number in [UNKNOWN, FAKE] {
         let mut world = world_for(number);
         let client = open(&mut world, at(number));
-        follow(
-            &mut world,
-            client,
-            vec![see(Role::Region, b"Your Forgejo"), gone(Role::Link, "‹ All forges".as_bytes())],
-        );
+        follow(&mut world, client, vec![see(Role::Link, b"Connect your Forgejo"), gone(Role::Link, b"Other forges")]);
     }
 }
 
@@ -383,11 +376,7 @@ fn owned_details_offer_one_setup_and_name_its_costs() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     let client = open(&mut world, at(OWNED));
-    follow(
-        &mut world,
-        client,
-        vec![see(Role::Button, b"Set up a Forgejo here"), see(Role::Link, "‹ All forges".as_bytes())],
-    );
+    follow(&mut world, client, vec![see(Role::Button, b"Set up a Forgejo here"), see(Role::Link, b"Other forges")]);
     let words = text(&world, client);
     for expected in [
         "Its CI jobs run on this machine, as you, with no isolation.",
@@ -649,7 +638,7 @@ fn elsewhere_welcome_after_restart_connects_retries_and_leaves_the_repository_un
         vec![
             see(Role::Heading { level: 1 }, b"Connect a model"),
             PersonStep::Go { address: at(OWNED) },
-            see(Role::Heading { level: 2 }, b"Connected as qa-bot (id 1), managed."),
+            see(Role::Description, "qa-bot · user 1".as_bytes()),
             see(
                 Role::Paragraph,
                 "Made work/hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.".as_bytes(),
@@ -678,12 +667,14 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
         let mut world = world();
         connection(&mut world, OWNED, state);
         let client = open(&mut world, at(OWNED));
-        follow(&mut world, client, vec![see(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine")]);
+        follow(&mut world, client, vec![see(Role::Disclosure, b"Forgejo on this machine")]);
         let words = text(&world, client);
         let nodes = world.tree(client).nodes();
         let progress = nodes
             .iter()
-            .position(|node| node.role == Role::List && node.name.as_deref() == Some(b"Each step"))
+            .position(|node| {
+                node.role == Role::List && node.styles.as_slice().contains(&temper_client_view::look::CONNECT_LIVE)
+            })
             .expect("setup progress list");
         let progress = &nodes[progress..progress + usize::try_from(nodes[progress].size).expect("tree size")];
         let items = progress.iter().enumerate().filter(|(_, node)| node.role == Role::Item).collect::<Vec<_>>();
@@ -699,9 +690,10 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
             let subtree = &progress[*index..*index + usize::try_from(item.size).expect("tree size")];
             assert!(rendered(subtree).contains(label), "stage {stage}: {words}");
             let under_way = current == Some(stage);
-            let done = current.is_some_and(|current| stage < current);
+            let later = current.is_none_or(|current| stage > current);
             assert_eq!(item.states.as_slice().contains(&State::Current), under_way, "stage {stage}: {words}");
-            for (status, expected) in [(b"under way".as_slice(), under_way), (b"done".as_slice(), done)] {
+            assert_eq!(item.styles.as_slice().contains(&temper_client_view::look::CONNECT_LATER), later);
+            for (status, expected) in [(b"under way".as_slice(), false), (b"done".as_slice(), false)] {
                 assert_eq!(
                     subtree.iter().any(|node| node.role == Role::Status && node.name.as_deref() == Some(status)),
                     expected,
@@ -712,32 +704,30 @@ fn setup_steps_show_the_reported_step_and_current_flow_step() {
         if current.is_none() {
             node(&world, client, Role::Status, b"under way");
         }
-        current_step(&world, client, b"Setting up");
+        no_flow_steps(&world, client);
         assert!(world.front().set_ups().is_empty(), "opening a running setup must not ask again");
     }
 }
 
 #[test]
-fn connecting_and_connected_rows_select_their_flow_steps() {
-    for (number, state, step, level, heading) in [
-        (
-            OWNED,
-            forge::Connection::Connecting,
-            b"Setting up".as_slice(),
-            2,
-            b"Setting up Forgejo on this machine".as_slice(),
-        ),
-        (GITHUB, forge::Connection::Connecting, b"Connecting", 1, b"Connect a forge"),
-        (REMOTE, forge::Connection::Connecting, b"Connecting", 1, b"Connect a forge"),
-        (OWNED, connected(), b"Ready", 2, b"Forgejo on this machine is connected"),
-        (GITHUB, connected(), b"Connecting", 2, "Install temper’s App".as_bytes()),
-        (REMOTE, connected(), b"Ready", 2, b"Connected as qa-bot (id 1), managed."),
+fn connecting_and_connected_rows_keep_their_rows_without_flow_steps() {
+    for (number, state, name) in [
+        (OWNED, forge::Connection::Connecting, b"Forgejo on this machine".as_slice()),
+        (GITHUB, forge::Connection::Connecting, b"GitHub"),
+        (REMOTE, forge::Connection::Connecting, b"Your Forgejo"),
+        (OWNED, connected(), b"Forgejo on this machine"),
+        (GITHUB, connected(), b"GitHub"),
+        (REMOTE, connected(), b"Your Forgejo"),
     ] {
         let mut world = world_for(number);
         connection(&mut world, number, state);
         let client = open(&mut world, at(number));
-        follow(&mut world, client, vec![see(Role::Heading { level }, heading)]);
-        current_step(&world, client, step);
+        follow(
+            &mut world,
+            client,
+            vec![see(Role::Heading { level: 1 }, b"Where your code lives."), see(Role::Disclosure, name)],
+        );
+        no_flow_steps(&world, client);
     }
 }
 
@@ -762,28 +752,16 @@ fn forges_list_kept_unstarted_rows_and_omit_fakes() {
 #[test]
 fn forges_rows_are_folded_and_keep_state_account_and_actions() {
     for (state, words, action) in [
-        (forge::Connection::SettingUp { step: None }, "Setting up", "Open its set-up ›"),
-        (
-            forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) },
-            "Setting up: fetching",
-            "Open its set-up ›",
-        ),
-        (
-            forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) },
-            "Setting up: preparing",
-            "Open its set-up ›",
-        ),
-        (
-            forge::Connection::SettingUp { step: Some(forge::SetUpStep::Run) },
-            "Setting up: starting",
-            "Open its set-up ›",
-        ),
+        (forge::Connection::SettingUp { step: None }, "Setting up", "Remove"),
+        (forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) }, "Setting up: fetching", "Remove"),
+        (forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) }, "Setting up: preparing", "Remove"),
+        (forge::Connection::SettingUp { step: Some(forge::SetUpStep::Run) }, "Setting up: starting", "Remove"),
         (
             forge::Connection::SetUpFailed { why: FAILURE.into() },
             "Set up failed: preparing: fake disk full",
-            "Set up again",
+            "Try again",
         ),
-        (forge::Connection::Connecting, "Connecting", "Open its set-up ›"),
+        (forge::Connection::Connecting, "Connecting", "Remove"),
         (connected(), "Connected as qa-bot", "Adopt a repository"),
         (
             forge::Connection::Stopped { reason: b"token refused".as_slice().into() },
@@ -793,10 +771,14 @@ fn forges_rows_are_folded_and_keep_state_account_and_actions() {
     ] {
         let mut world = world();
         let connected = matches!(state, forge::Connection::Connected { .. });
+        let live = matches!(
+            state,
+            forge::Connection::SettingUp { .. } | forge::Connection::Connecting | forge::Connection::SetUpFailed { .. }
+        );
         connection(&mut world, OWNED, state);
         let client = open(&mut world, Address::Forges);
         let row = node(&world, client, Role::Disclosure, b"Forgejo on this machine");
-        assert!(!row.states.as_slice().contains(&State::Expanded), "rows start folded");
+        assert_eq!(row.states.as_slice().contains(&State::Expanded), live, "running and failed rows open");
         let drawing = text(&world, client);
         node(&world, client, Role::Term, b"Access");
         node(&world, client, Role::Description, b"Site admin, with temper's own token");
@@ -826,7 +808,7 @@ fn managed_and_github_connected_rows_keep_their_names_and_accounts() {
     connection(&mut world, REMOTE, connected());
     connection(&mut world, GITHUB, connected());
     let client = open(&mut world, Address::Forges);
-    follow(&mut world, client, vec![see(Role::Disclosure, b"Forgejo"), see(Role::Disclosure, b"GitHub")]);
+    follow(&mut world, client, vec![see(Role::Disclosure, b"Your Forgejo"), see(Role::Disclosure, b"GitHub")]);
     let words = text(&world, client);
     assert!(words.contains("qa-bot · user 1"), "Account line: {words}");
 }
@@ -915,13 +897,13 @@ fn retry_press_is_single_and_disabled_until_box_answers() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::SetUpFailed { why: FAILURE.into() });
     let client = open(&mut world, Address::Forges);
-    let button = node(&world, client, Role::Button, b"Set up again").id;
+    let button = node(&world, client, Role::Button, b"Try again").id;
     world.fault(Fault::DoublePress { client, node: button });
     pending(&mut world);
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
-    assert!(node(&world, client, Role::Button, b"Set up again").states.as_slice().contains(&State::Disabled));
+    assert!(node(&world, client, Role::Button, b"Try again").states.as_slice().contains(&State::Disabled));
     answer_setup(&mut world, forge::SetUpAnswer::Refused(forge::SetUpRefusal::Busy));
-    follow(&mut world, client, vec![see(Role::Button, b"Set up again")]);
+    follow(&mut world, client, vec![see(Role::Button, b"Try again")]);
 }
 
 #[test]
@@ -992,7 +974,7 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Run) });
     let _first = open(&mut world, at(OWNED));
     let second = world.client(f::PARTY, at(OWNED));
-    follow(&mut world, second, vec![see(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine")]);
+    follow(&mut world, second, vec![see(Role::Disclosure, b"Forgejo on this machine")]);
     assert!(world.front().set_ups().is_empty());
 }
 
@@ -1070,7 +1052,7 @@ fn browser_reload_preserves_running_setup_without_resending() {
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: None });
     let client = open(&mut world, at(OWNED));
     world.reload(client);
-    follow(&mut world, client, vec![see(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine")]);
+    follow(&mut world, client, vec![see(Role::Disclosure, b"Forgejo on this machine")]);
     assert!(world.front().set_ups().is_empty());
 }
 
@@ -1136,13 +1118,13 @@ fn failed_setup_flow_keeps_reason_and_offers_one_retry() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::SetUpFailed { why: FAILURE.into() });
     let client = open(&mut world, at(OWNED));
-    current_step(&world, client, b"Setting up");
+    no_flow_steps(&world, client);
     assert!(text(&world, client).contains("Set up failed: preparing: fake disk full"));
-    press_pending(&mut world, client, b"Set up again");
+    press_pending(&mut world, client, b"Try again");
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
-    assert!(node(&world, client, Role::Button, b"Set up again").states.as_slice().contains(&State::Disabled));
+    assert!(node(&world, client, Role::Button, b"Try again").states.as_slice().contains(&State::Disabled));
     answer_setup(&mut world, forge::SetUpAnswer::Refused(forge::SetUpRefusal::Busy));
-    follow(&mut world, client, vec![see(Role::Button, b"Set up again")]);
+    follow(&mut world, client, vec![see(Role::Button, b"Try again")]);
 }
 
 fn browser_client(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {

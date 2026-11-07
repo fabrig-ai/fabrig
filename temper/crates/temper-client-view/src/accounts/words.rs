@@ -6,7 +6,6 @@ use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, Phras
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Word {
     UnusableOn,
-    Models,
     LimitedBy,
     ResetUntil,
     ProgramNeedsSignIn,
@@ -14,7 +13,6 @@ pub(crate) enum Word {
     WaitingFor,
     NoUsers,
     NoOwn,
-    NoOwnTag,
     Connect,
     Playground,
     PlaygroundAccount,
@@ -32,11 +30,13 @@ pub(crate) enum Word {
     EnvironmentCommand,
     PlanRuns,
     KeyAdded,
+    PlanAdded,
+    ProgramAdded,
+    AccountAdded,
     KeyTitle,
     KeyTitleA,
     SignInDescription,
     PlanPays,
-    ProgramDeclared,
     DeploymentPays,
     OwnPays,
     MisconfiguredPlan,
@@ -46,18 +46,22 @@ pub(crate) enum Word {
     ReadyModel,
     ReadyAccount,
     StartChat,
-    ProgramRun,
-    KeyRuns,
-    ProgramNote,
     ProgramDescription,
+    ProgramNote,
     Pasted,
     KeyDescription,
     BrowserMinute,
     ChatDescription,
     AllWays,
+    ModelLead,
+    OrKey,
+    KeyBilling,
+    Connected,
+    AnotherPlan,
+    AnotherLogin,
+    YourPlan,
     SigningIn,
     Details,
-    Choose,
     ConnectAdd,
     Accounts,
     Own,
@@ -225,13 +229,12 @@ pub(crate) enum Word {
     PasteAgain,
 }
 const ROWS: &[(Word, &[u8])] = &[
+    (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
     (Word::UnusableOn, b"Can't be used on "),
-    (Word::Models, b"Models"),
     (Word::LimitedBy, b"Limited by "),
     (Word::UsedBy, b"Used by"),
     (Word::WaitingFor, b"Waiting for it"),
     (Word::NoUsers, b"no task uses it now"),
-    (Word::NoOwnTag, b"No account yet"),
     (Word::NoOwn, b"No model of yours yet."),
     (Word::Connect, b"Connect a model"),
     (Word::Playground, b"The playground"),
@@ -255,16 +258,18 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::ReadyModel, "Model".as_bytes()),
     (Word::ReadyAccount, "Account".as_bytes()),
     (Word::StartChat, "Start a chat".as_bytes()),
-    (Word::ProgramRun, "Run this on each host temper’s agents run on, in a terminal there:".as_bytes()),
-    (Word::KeyRuns, "temper’s agents now run on it.".as_bytes()),
-    (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
     (Word::ProgramDescription, "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there.".as_bytes()),
     (Word::Pasted, "Pasted here · at once".as_bytes()),
-    (Word::BrowserMinute, "In a browser on the engine’s machine · about a minute".as_bytes()),
-    (Word::AllWays, "‹ All ways".as_bytes()),
+    (Word::BrowserMinute, "Sign in, in a new tab · about a minute".as_bytes()),
+    (Word::AllWays, b"Other ways"),
+    (Word::ModelLead, "temper’s agents run on a plan you sign in to, or on an API key.".as_bytes()),
+    (Word::OrKey, b"Or an API key"),
+    (Word::KeyBilling, "Billed to the key’s organization".as_bytes()),
+    (Word::Connected, "✓ Connected".as_bytes()),
+    (Word::AnotherPlan, b"Add another plan"),
+    (Word::AnotherLogin, b"Use another login name"),
     (Word::SigningIn, "Signing in".as_bytes()),
     (Word::Details, "Details".as_bytes()),
-    (Word::Choose, "Choose".as_bytes()),
     (Word::ConnectAdd, "+ Connect a model".as_bytes()),
     (Word::AccountsOmitted, b"Accounts left out: "),
     (Word::SourcesOmitted, b"Sources left out: "),
@@ -435,6 +440,7 @@ pub(crate) fn join(parts: &[&[u8]]) -> Box<[u8]> {
     out.finish()
 }
 const NAMED: &[(Word, &[u8], &[u8])] = &[
+    (Word::YourPlan, b"Your ", b" plan"),
     (Word::ProgramNeedsSignIn, b"Claude Code isn't signed in for '", b"' on "),
     (Word::Continue, b"Continue with ", b""),
     (Word::SignInBrand, b"Sign in to ", b""),
@@ -448,7 +454,10 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::CodeLogin, b"Claude Code login ", b""),
     (Word::ProgramCommand, b"On each host, with its directories: ", b""),
     (Word::KeyTitle, "An ".as_bytes(), " API key".as_bytes()),
-    (Word::KeyAdded, "Added your ".as_bytes(), " API key".as_bytes()),
+    (Word::KeyAdded, "Added your ".as_bytes(), " API key. temper’s agents now run on it.".as_bytes()),
+    (Word::PlanAdded, b"Added your ", " plan. temper’s agents now run on it.".as_bytes()),
+    (Word::ProgramAdded, b"Added your ", " subscription. temper’s agents now run on it.".as_bytes()),
+    (Word::AccountAdded, b"Added your ", " account. temper’s agents now run on it.".as_bytes()),
     (Word::PlanRuns, "temper’s agents now run on your ".as_bytes(), " plan.".as_bytes()),
     (Word::Command, "temper program-login --config CONFIG --data DATA --cache CACHE ".as_bytes(), "".as_bytes()),
     (Word::PasteInstructions, b"When ", " is done, its tab shows a page that can’t be reached. Copy that page’s whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program’s sign-in, close that program’s sign-in and start again.".as_bytes()),
@@ -474,7 +483,6 @@ const ENDS: &[EndWords] = &[
         indices: &[1, 0, 2],
     },
     EndWords { literals: &[b"Signed in to ", b""], indices: &[0] },
-    EndWords { literals: &[b"Declared your ", " subscription · ".as_bytes(), b""], indices: &[0, 1] },
     EndWords { literals: &[b"A ", b" API key"], indices: &[0] },
     EndWords {
         literals: &[
@@ -523,8 +531,6 @@ pub(crate) fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
         226
     } else if word == Word::SignInDescription {
         227
-    } else if word == Word::ProgramDeclared {
-        223
     } else if word == Word::MadePlan {
         222
     } else {
@@ -580,8 +586,8 @@ pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>,
             })
             .expect("account phrase fits");
     }
-    for (index, end) in ENDS.iter().enumerate() {
-        let id = id(220_u16.checked_add(u16::try_from(index).expect("end words fit")).expect("phrase IDs fit"));
+    for (number, end) in [220, 221, 222, 224, 225, 226, 227].iter().zip(ENDS) {
+        let id = id(*number);
         let hole = HoleShape { kind: HoleKind::Name, bytes: text_bytes.max(7) };
         let mut holes = List::with_capacity(u32::try_from(end.indices.len()).expect("end holes fit"));
         for _ in end.indices {
@@ -637,7 +643,7 @@ pub(crate) fn capacity(words: &Words) -> Option<u32> {
     for number in 0..u16::try_from(ROWS.len()).ok()? {
         most = most.max(words.book.capacity(id(number))?);
     }
-    for number in [200, 201, 202, 203, 204, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229] {
+    for number in [200, 201, 202, 203, 204, 220, 221, 222, 224, 225, 226, 227, 228, 229] {
         most = most.max(words.book.capacity(id(number))?);
     }
     for index in 0..NAMED.len() {

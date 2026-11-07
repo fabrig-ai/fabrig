@@ -107,7 +107,7 @@ fn disabled(root: &Root) -> bool {
                 offered(root, Role::TextField, FIELD),
                 offered(root, Role::Button, b"Continue with ChatGPT"),
                 has(root, b"This sign-in has ended."),
-                has(root, b"Signed in to ChatGPT"),
+                has(root, b"Added your ChatGPT plan"),
             )
         })
         .states
@@ -249,7 +249,7 @@ fn watch_success_replaces_a_pending_paste_with_ready() {
             declined: false,
         },
     );
-    assert!(has(&root, b"Signed in to ChatGPT"));
+    assert!(has(&root, b"Added your ChatGPT plan"));
     assert!(!offered(&root, Role::TextField, FIELD));
     assert!(offered(&root, Role::Link, b"Start a chat"));
 }
@@ -317,7 +317,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
             declined: false,
         },
     );
-    assert!(has(&root, b"Signed in to ChatGPT"));
+    assert!(has(&root, b"Added your ChatGPT plan"));
     assert!(!offered(&root, Role::TextField, b"Address of the page that couldn't be reached"));
     assert!(front.leaves.is_empty());
 }

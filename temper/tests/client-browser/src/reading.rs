@@ -35,7 +35,7 @@ pub fn latest_words(number: u32) -> Box<[u8]> {
         .into_boxed_slice()
 }
 
-/// Each history's cues and replies, in `Tier::reading`'s `asked` scripts.
+/// Each history's disjoint cues and replies for `Tier::reading`.
 #[must_use]
 pub fn replies() -> Vec<(String, String)> {
     // The last reply makes opening read the preceding one. An evicting window needs room at both read margins.
@@ -87,6 +87,14 @@ pub fn anchoring_on() -> Step {
     Step::Viewport { width: 1280, height: 800 }
 }
 
+/// Offer at most eight reading replies; the rest stay cued without a suggestion.
+pub(crate) fn configure(value: &mut serde_json::Value, replies: &[(String, String)]) {
+    let (asked, cued) = replies.split_at(replies.len().min(8));
+    let llm = &mut value["application"]["demo"]["llm"];
+    llm["asked"] = scripts(asked);
+    llm["cued"] = scripts(cued);
+}
+
 pub(crate) fn scripts(replies: &[(String, String)]) -> serde_json::Value {
     serde_json::json!(
         replies
@@ -101,6 +109,29 @@ pub(crate) fn scripts(replies: &[(String, String)]) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn demo_deployment() -> serde_json::Value {
+        use std::num::NonZeroU16;
+        let facts = temper_init::Facts {
+            binary: b"/test/temper",
+            git: Some(b"/usr/bin/git"),
+            claude: None,
+            login: None,
+            sign_in: false,
+            ports: temper_init::Ports {
+                clients: NonZeroU16::new(8367).expect("clients port"),
+                owned: NonZeroU16::new(8368).expect("owned port"),
+                forge: NonZeroU16::new(8369).expect("forge port"),
+                llm: NonZeroU16::new(8370).expect("LLM port"),
+                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
+            },
+        };
+        let directories = temper_init::Directories { config: b"/test/config", data: b"/test/state" };
+        let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("demo init");
+        let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment file");
+        let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("deployment bytes") };
+        serde_json::from_slice(bytes).expect("demo deployment JSON")
+    }
 
     #[test]
     fn the_long_history_spans_three_windows_and_the_position_history_stays_inside_one() {
@@ -119,13 +150,41 @@ mod tests {
     /// A startup refusal would otherwise show only in the browser tier.
     #[test]
     fn the_fake_admits_every_historys_replies() {
-        let document = serde_json::to_vec(&serde_json::json!({
-            "listen":{"socket":"127.0.0.1:0"},"key":"/tmp/key","tls":null,
-            "models":[{"name":"qa","window":4096,"output":1024}],"cued":[],
-            "asked":scripts(&replies()),"otherwise":["fallback"]
-        }))
-        .expect("fake document JSON");
-        temper_fake::llm::Document::decode(&document).expect("the fake admits every history's replies");
+        let mut value = demo_deployment();
+        configure(&mut value, &replies());
+        let llm = &value["application"]["demo"]["llm"];
+        let complete: Vec<_> = llm["asked"]
+            .as_array()
+            .expect("offered scripts")
+            .iter()
+            .chain(llm["cued"].as_array().expect("unoffered scripts"))
+            .cloned()
+            .collect();
+        assert_eq!(serde_json::Value::Array(complete), scripts(&replies()), "every reading reply is kept whole");
+        let bytes = serde_json::to_vec(&value).expect("reading deployment JSON");
+        temper_service::startup::shape(&bytes, &jig_protocol_config::Directories::working()).unwrap_or_else(
+            |problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))),
+        );
+        let engine = crate::configuration::stock_engine(&value);
+        let document = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("reading deployment document");
+        let mut root = jig_protocol_config::read::Object::new(&document, 0).expect("deployment object");
+        let application = root.member(&document, b"application").expect("application");
+        let mut application =
+            jig_protocol_config::read::Object::new(&document, application).expect("application object");
+        let demo = application.member(&document, b"demo").expect("demo");
+        let directories = jig_protocol_config::Directories::given(b"/test/config", b"/test/state", b"/test/cache")
+            .expect("absolute demo directories");
+        temper_fake::demo::read(
+            &document,
+            demo,
+            &temper_fake::demo::Facts { llm: &engine.llm, listeners: &[], directories: &directories },
+        )
+        .expect("the complete derived fake admits every history's replies")
+        .expect("reading demo");
     }
 
     /// The fake chooses by the cue that comes first in a request's words.

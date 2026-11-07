@@ -9,7 +9,11 @@ fn a_log_takes_near_and_nothing_else() {
     for &(role, _) in super::tree::BINDING_ROLES {
         for submits in [false, true] {
             for edge in [LogEdge::Head, LogEdge::Foot] {
-                assert_eq!(takes(role, submits, &Act::Near { edge }), role == Role::Log, "{role:?}");
+                assert_eq!(
+                    takes(role, submits, &Act::Near { edge }),
+                    role == Role::Log || (role == Role::List && edge == LogEdge::Foot),
+                    "{role:?}"
+                );
             }
         }
     }
@@ -45,7 +49,7 @@ fn near_decodes_on_a_bound_log_and_is_dropped_on_an_unbound_one() {
 }
 
 #[test]
-#[should_panic(expected = "continues belongs to logs")]
+#[should_panic(expected = "continues belongs to logs or lists")]
 fn continues_belongs_to_a_log() {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::Button);
@@ -61,7 +65,7 @@ fn an_end_request_belongs_to_a_log() {
 }
 
 #[test]
-fn only_logs_hold_continues_and_end_requests_and_several_logs_may_request_the_end() {
+fn logs_and_lists_hold_continues_and_only_logs_may_request_the_end() {
     for &(role, _) in super::tree::BINDING_ROLES {
         for end_request in [false, true] {
             let result = std::panic::catch_unwind(|| {
@@ -73,7 +77,11 @@ fn only_logs_hold_continues_and_end_requests_and_several_logs_may_request_the_en
                     b.state(State::Continues);
                 }
             });
-            assert_eq!(result.is_ok(), role == Role::Log, "{role:?}, end request: {end_request}");
+            assert_eq!(
+                result.is_ok(),
+                role == Role::Log || (role == Role::List && !end_request),
+                "{role:?}, end request: {end_request}"
+            );
         }
     }
     let mut b = Builder::new(&LIMITS);
@@ -128,5 +136,33 @@ fn an_end_request_that_moves_patches_the_log() {
             }
         }
         assert!(patches.is_empty());
+    }
+}
+
+#[test]
+fn a_bound_list_takes_only_its_foot() {
+    let mut view = View::new(&LIMITS);
+    let mut b = view.builder();
+    b.open(Role::List);
+    b.bind(BINDING);
+    b.state(State::Continues);
+    b.close();
+    view.finish(b, 0, &mut Queue::with_capacity(LIMITS.patches));
+    assert_eq!(
+        view.act(NodeId(1), Act::Near { edge: LogEdge::Foot }),
+        Some(BoundAct { binding: BINDING, act: Act::Near { edge: LogEdge::Foot } })
+    );
+    for act in [
+        Act::Near { edge: LogEdge::Head },
+        Act::Press,
+        Act::Input { value: Box::new([]) },
+        Act::Submit,
+        Act::Toggle,
+        Act::Drawing { data: Box::new([]) },
+    ] {
+        for submits in [false, true] {
+            assert!(!takes(Role::List, submits, &act), "{act:?}");
+        }
+        assert_eq!(view.act(NodeId(1), act), None);
     }
 }

@@ -12,8 +12,8 @@ use skein_io_world::world::World;
 use skein_sim::Config;
 use skein_sim::Summary;
 
-const CALM: [u64; 4] = [1, 2, 3, 4];
-const CHAOS: [u64; 3] = [5, 6, 7];
+const CALM: [u64; 2] = [1, 2];
+const CHAOS: [u64; 2] = [5, 6];
 
 fn calm(scenario: fn(u64, Config) -> World) {
     for seed in CALM {

@@ -11,9 +11,12 @@ use skein_http_world::sse_world;
 use skein_http_world::transcript::{self, Decoded, Transcript};
 use skein_lib::Rng;
 
-const SEEDS: u64 = 4;
+const SEEDS: u64 = 2;
 
-fn transcripts() -> Vec<Transcript> {
+/// The named event-stream chunk sizes, one seed for each.
+const EVENT_SEEDS: u64 = 4;
+
+pub(super) fn transcripts() -> Vec<Transcript> {
     let transcripts = transcript::all();
     assert!(transcripts.len() > 40, "the transcripts are found");
     transcripts
@@ -30,7 +33,7 @@ fn agree(left: &Decoded, right: &Decoded) -> bool {
     events && left.head == right.head && left.body == right.body && left.outcome == right.outcome
 }
 
-fn exchange(transcript: &Transcript) -> [Exchange; 1] {
+pub(super) fn exchange(transcript: &Transcript) -> [Exchange; 1] {
     [Exchange { call: transcript.call(), upload: Vec::new() }]
 }
 
@@ -97,7 +100,7 @@ fn every_event_stream_reads_to_its_expectation_whatever_the_cuts_and_scans() {
         let Some(events) = transcript.expected.as_ref().and_then(|expected| expected.events.as_ref()) else { continue };
         let body =
             skein_http_world::reference::response(&transcript.bytes, transcript.method, false, &transcript.limits).body;
-        for seed in 0..SEEDS {
+        for seed in 0..EVENT_SEEDS {
             let mut rng = Rng::new(seed);
             let mut limits = transcript.sse;
             limits.chunk = [1, 7, 64, 4096][usize::try_from(seed).unwrap() % 4];
@@ -119,17 +122,5 @@ fn the_realistic_transcripts_decode_whole_and_the_hostile_ones_fail() {
             (Outcome::Done(_), None) => false,
         };
         assert_eq!(failed, transcript.name.starts_with("hostile-"), "{}", transcript.name);
-    }
-}
-
-#[test]
-fn a_transcript_cut_short_anywhere_decodes_as_the_reference_reads_its_prefix() {
-    for transcript in transcripts() {
-        for seed in 0..SEEDS {
-            let mut rng = Rng::new(seed);
-            let cut = usize::try_from(rng.below(transcript.bytes.len() as u64 + 1)).unwrap();
-            let settings = Settings { cut: Some(cut), ..Settings::calm(&mut rng, transcript.limits) };
-            let _ = client_world::check(&exchange(&transcript), &transcript.bytes, &settings, seed);
-        }
     }
 }

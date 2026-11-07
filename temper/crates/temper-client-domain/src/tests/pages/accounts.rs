@@ -817,3 +817,259 @@ fn a_pending_row_request_blocks_a_different_rows_act() {
             .is_empty()
     );
 }
+
+fn connecting(way: Way) -> (crate::Domain, Token) {
+    let (mut root, _, watch) = opened(c::HeldRole::Member);
+    event(
+        &mut root,
+        Event::Went {
+            place: crate::Place::Address(Address::ConnectModel { way: Some(pages::connect_model::model_way(way)) }),
+        },
+    );
+    (root, watch)
+}
+fn model_act(root: &mut crate::Domain, act: pages::connect_model::Act) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(pages::Act::ConnectModel(act)) })
+}
+fn answer_model(root: &mut crate::Domain, attempt: Token, outcome: c::DocumentOutcome) -> Queue<Request> {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(outcome)))),
+                },
+            },
+        },
+    )
+}
+fn adding_key() -> (crate::Domain, Token, Token) {
+    let (mut root, watch) = connecting(Way::Key { provider: PROVIDER });
+    deliver(&mut root, watch, document(false));
+    key(&mut root, b"private-once");
+    let attempt = sends(model_act(&mut root, pages::connect_model::Act::Submit { name: NAME })).pop().unwrap().0;
+    (root, watch, attempt)
+}
+fn added_key() -> (crate::Domain, Queue<Request>) {
+    let (mut root, _, attempt) = adding_key();
+    let out = answer_model(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: SOURCE });
+    (root, out)
+}
+#[test]
+fn a_kept_key_lands_on_accounts_with_a_replaced_address_and_line() {
+    let (root, out) = added_key();
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(
+        root.pages().accounts().unwrap().added,
+        Some(accounts::Added { provider: PROVIDER, kind: crate::WayKind::Key })
+    );
+    assert!(accounts_replaced(&out));
+}
+#[test]
+fn an_account_act_dismisses_the_added_line() {
+    for action in [
+        Action::Copy { words: b"command".as_slice().into() },
+        Action::Forge(crate::forge::Act::TryAccount { account: ACCOUNT, again: true }),
+        Action::Pages(pages::Act::Accounts(Act::Cancel)),
+    ] {
+        let (mut root, _) = added_key();
+        event(&mut root, Event::Act { action });
+        assert_eq!(root.pages().accounts().unwrap().added, None);
+    }
+}
+#[test]
+fn leaving_accounts_dismisses_the_added_line() {
+    let (mut root, _) = added_key();
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Forges) });
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Accounts) });
+    assert_eq!(root.pages().accounts().unwrap().added, None);
+}
+#[test]
+fn a_fresh_accounts_page_has_no_added_line() {
+    let (mut root, _, watch) = opened(c::HeldRole::Member);
+    let pending = jig_client::Key { asker: pages::me_handle().asker, number: 991 };
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Kept {
+            key: pending,
+            request: jig_client::Ask::Jig(Box::new(c::Ask::SignIn {
+                holder: c::AskAccountHolder::Own,
+                provider: PROVIDER,
+            })),
+        },
+        &mut Queue::uncapped(),
+    );
+    started(&mut root, pending);
+    deliver_ending(&mut root, watch, false, true);
+    assert_eq!(root.pages().accounts().unwrap().added, None, "restoring an ended request cannot restore the line");
+}
+fn ended_model(declined: bool, listed: bool) -> (crate::Domain, Queue<Request>) {
+    let way = Way::SignIn { provider: PROVIDER, plan: true };
+    let (mut root, watch) = connecting(way);
+    model_act(&mut root, pages::connect_model::Act::SignIn { name: NAME, way });
+    let pending = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().key;
+    started(&mut root, pending);
+    let out = deliver_ending(&mut root, watch, declined, listed);
+    (root, out)
+}
+#[test]
+fn a_made_sign_in_lands_on_accounts_with_its_line() {
+    for listed in [true, false] {
+        let (root, out) = ended_model(false, listed);
+        assert_eq!(root.pages().address(), &Address::Accounts);
+        assert_eq!(
+            root.pages().accounts().unwrap().added,
+            Some(accounts::Added { provider: PROVIDER, kind: crate::WayKind::SignIn })
+        );
+        assert!(accounts_replaced(&out));
+    }
+}
+
+#[test]
+fn a_declined_sign_in_stays_on_its_way() {
+    let (root, out) = ended_model(true, true);
+    assert_eq!(
+        root.pages().address(),
+        &Address::ConnectModel {
+            way: Some(crate::ModelWay { provider: PROVIDER, kind: crate::WayKind::SignIn, source: None })
+        }
+    );
+    assert_eq!(moves(&out), 0);
+}
+
+fn connected_document(kind: c::AccountKind, usable: bool) -> Box<c::Accounts> {
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = document(false) else { unreachable!() };
+    let mut sources = List::with_capacity(1);
+    sources
+        .push(c::AccountSource {
+            number: SOURCE,
+            place: 0,
+            kind,
+            name: if kind == c::AccountKind::Program { Some(b"claude-pat".as_slice().into()) } else { None },
+            state: c::AccountState::Granted,
+            usable,
+            expiring: false,
+            attention: false,
+            spent_until: None,
+        })
+        .unwrap();
+    doc.accounts = List::with_capacity(1);
+    doc.accounts
+        .push(c::AccountLine {
+            number: ACCOUNT,
+            place: 0,
+            uses: None,
+            plan: true,
+            provider: Some(PROVIDER),
+            provider_name: None,
+            manage_usage: None,
+            display: c::DocumentText::complete(c::Text::new(b"Person".as_slice().into(), 32).unwrap()),
+            holder: c::AccountHolder::Party(fixtures::PARTY),
+            sources,
+            cut: false,
+        })
+        .unwrap();
+    doc
+}
+fn deliver_ending(root: &mut crate::Domain, watch: Token, declined: bool, listed: bool) -> Queue<Request> {
+    let mut doc = connected_document(c::AccountKind::SignIn, !declined);
+    if !listed {
+        doc.accounts.clear();
+    }
+    doc.last_end = Some(c::AccountLastEnd { source: SOURCE, end: c::AccountEnd::Made { account: ACCOUNT, declined } });
+    deliver(root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)))
+}
+#[test]
+fn a_row_sign_in_stays_on_accounts_with_the_same_added_line() {
+    let (mut root, _, watch) = opened(c::HeldRole::Member);
+    deliver(
+        &mut root,
+        watch,
+        c::WatchEvent::Delivered(c::Delivery::Accounts(connected_document(c::AccountKind::SignIn, false))),
+    );
+    let row = Row { holder: c::AskAccountHolder::Own, account: ACCOUNT };
+    act(&mut root, Act::Submit { name: NAME, row, operation: Operation::SignIn { provider: PROVIDER } });
+    let pending = root.pages().accounts().unwrap().request.pending.as_ref().unwrap().key;
+    started(&mut root, pending);
+    let out = deliver_ending(&mut root, watch, false, true);
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(
+        root.pages().accounts().unwrap().added,
+        Some(accounts::Added { provider: PROVIDER, kind: crate::WayKind::SignIn })
+    );
+    assert_eq!(moves(&out), 0);
+    assert_eq!(root.forge().trial_asked(), None, "a row’s sign-in keeps its existing trial behaviour");
+    assert_eq!(
+        root.pages().accounts().unwrap().request.sign_in_state(root.client()),
+        accounts::SignInState::Ended { source: SOURCE }
+    );
+    act(&mut root, Act::Cancel);
+    deliver_ending(&mut root, watch, false, true);
+    assert_eq!(root.pages().accounts().unwrap().added, None, "a repeated watch cannot restore a dismissed line");
+}
+#[test]
+fn a_program_lands_only_after_its_own_check_is_usable() {
+    let (mut root, watch) = connecting(Way::Program { provider: PROVIDER });
+    let declaration = sends(model_act(&mut root, pages::connect_model::Act::Submit { name: NAME })).pop().unwrap();
+    let checked = sends(answer_model(
+        &mut root,
+        declaration.0,
+        c::DocumentOutcome::AccountProgramDeclared { source: SOURCE, name: b"claude-pat".as_slice().into() },
+    ))
+    .pop()
+    .expect("declaration chains a check");
+    answer_model(&mut root, checked.0, c::DocumentOutcome::AccountChanged);
+    let mut doc = connected_document(c::AccountKind::Program, false);
+    doc.usable = true;
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+    assert_eq!(
+        root.pages().address(),
+        &Address::ConnectModel {
+            way: Some(crate::ModelWay { provider: PROVIDER, kind: crate::WayKind::Program, source: None })
+        },
+        "another usable account cannot end this check"
+    );
+    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = true;
+    let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(
+        root.pages().accounts().unwrap().added,
+        Some(accounts::Added { provider: PROVIDER, kind: crate::WayKind::Program })
+    );
+    assert_eq!(root.forge().trial_asked(), Some(ACCOUNT), "the landing still starts the new account’s trial");
+    assert!(accounts_replaced(&out));
+}
+
+fn accounts_replaced(out: &Queue<Request>) -> bool {
+    let mut replaced = false;
+    for request in out {
+        replaced |= *request == Request::Show { address: Address::Accounts, replace: true };
+    }
+    replaced
+}
+fn moves(out: &Queue<Request>) -> u32 {
+    let mut count = 0_u32;
+    for request in out {
+        if let Request::Show { .. } = request {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
+}
+
+#[test]
+fn a_kept_keys_trial_follows_it_to_accounts() {
+    let (mut root, watch, attempt) = adding_key();
+    answer_model(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: SOURCE });
+    deliver(
+        &mut root,
+        watch,
+        c::WatchEvent::Delivered(c::Delivery::Accounts(connected_document(c::AccountKind::Key, true))),
+    );
+    assert_eq!(root.pages().address(), &Address::Accounts);
+    assert_eq!(root.forge().trial_asked(), Some(ACCOUNT));
+}

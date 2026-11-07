@@ -679,7 +679,7 @@ impl Host for Person {
             {
                 Next::Wait { until: None }
             } else if self.cutting && self.offset + before as usize + 1 == fixtures::ADOPTION_REPLY_STEP {
-                match face.find(&Find::exactly_named(skein_ui::Role::Button, b"Adopt")) {
+                match face.find(&Find::exactly_named(skein_ui::Role::Button, b"Adopt acme/app")) {
                     Found::Node(node) if face.allows(node, &skein_ui::Act::Press) => self.actor.next(&mut face, now),
                     Found::Node(_) | Found::Absent | Found::Pending => Next::Wait { until: None },
                 }

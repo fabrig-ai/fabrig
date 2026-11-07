@@ -83,7 +83,7 @@ impl World {
     fn answer(&mut self, fd: Fd) {
         // The fixture owns this App and bot. Keep this admission probe separate
         // from Chromium's incidental requests and the fake's error wording.
-        let config = super::github_config();
+        let config = super::github_config(1);
         let slug = std::str::from_utf8(&config.app.slug).expect("fixture App slug");
         let request = format!(
             "GET /users/{slug}%5Bbot%5D HTTP/1.1\r\nHost: localhost\r\nUser-Agent: fixture\r\nX-GitHub-Api-Version: {}\r\n\r\n",

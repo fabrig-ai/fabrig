@@ -6,8 +6,8 @@ use temper_client_domain::{Action, Address, Domain, Event, Request, address::Fil
 use temper_client_domain::{ChatsFilter, GoalsFilter};
 
 use Then::{
-    AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
-    Shown, SignInReady, SignInRefused, SignedOut, SigningIn,
+    AccountRefused, Closing, Declined, Held, OutOfDate, Rejecting, Releasing, Renewed, Shown, SignInReady,
+    SignInRefused, SignedOut, SigningIn,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,8 +42,6 @@ pub enum Then {
     HeldChange,
     HeldTask,
     Paused,
-    Filled,
-    Refused,
     SignedOut,
     GoogleSignIn,
     OutOfDate,
@@ -56,7 +54,6 @@ pub enum Then {
     SigningIn,
     Paste(PasteFrame),
     AccountRefused,
-    KeyReady,
     SignInReady,
     Declined,
     Renewed,
@@ -90,6 +87,7 @@ impl Sample {
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
+            "sheet-few" => Some(b"More"),
             "chat-model-open"
             | "chat-model-both"
             | "chat-model-all"
@@ -113,7 +111,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 288;
+pub const N: usize = 299;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -123,6 +121,7 @@ fn task(task: u64) -> Address {
 
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
+#[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
@@ -572,7 +571,19 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "rail-person-menu", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample {
+            name: "repositories-making",
+            world: FirstRun { step: 7 },
+            address: Address::Repositories { project: 1 },
+            then: Shown,
+        },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample {
+            name: "forges-added",
+            world: FirstRun { step: 7 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) },
+            then: Shown,
+        },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
         Sample { name: "forges-setting-up", world: FirstRun { step: 6 }, address: Address::Forges, then: Shown },
         Sample { name: "forges-fetching", world: FirstRun { step: 24 }, address: Address::Forges, then: Shown },
@@ -689,6 +700,30 @@ pub fn samples() -> [Sample; N] {
             address: Address::ConnectForge { forge: None },
             then: Shown,
         },
+        Sample {
+            name: "connect-forge-elsewhere",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Elsewhere) },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-connected",
+            world: FirstRun { step: 7 },
+            address: Address::ConnectForge { forge: None },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-yours-admin",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Managed) },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-yours-tokens",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Managed) },
+            then: Shown,
+        },
         welcome_sample("welcome-forge-choose", temper_client_domain::Step::Forge { forge: None }),
         welcome_sample(
             "welcome-forge-details",
@@ -751,9 +786,24 @@ pub fn samples() -> [Sample; N] {
         welcome_sample("welcome-ready-signing", temper_client_domain::Step::Ready),
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
-        Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
-        Sample { name: "adoption-filled", world: Reference, address: Address::Adopt { project: 1 }, then: Filled },
-        Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },
+        Sample { name: "sheet-adopt", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-searching", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-none", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-few", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-empty", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-copy", world: FirstRun { step: 7 }, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample {
+            name: "sheet-copy-lines",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "sheet-empty-source",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -885,13 +935,18 @@ pub fn samples() -> [Sample; N] {
             address: Address::ConnectModel { way: None },
             then: Shown,
         },
+        Sample {
+            name: "connect-model-connected",
+            world: Reference,
+            address: Address::ConnectModel { way: None },
+            then: Shown,
+        },
         model_sample("connect-model-key-details", temper_client_domain::WayKind::Key, Shown),
         model_sample("connect-model-program-details", temper_client_domain::WayKind::Program, Shown),
         model_sample("connect-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
-        model_sample("connect-model-key-ready", temper_client_domain::WayKind::Key, KeyReady),
-        model_sample("connect-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
+        model_sample("accounts-added", temper_client_domain::WayKind::SignIn, SignInReady),
         model_sample("connect-model-declined", temper_client_domain::WayKind::SignIn, Declined),
-        model_sample("connect-model-renewed", temper_client_domain::WayKind::SignIn, Renewed),
+        model_sample("accounts-renewed", temper_client_domain::WayKind::SignIn, Renewed),
         model_sample("connect-model-refused", temper_client_domain::WayKind::SignIn, SignInRefused),
         model_sample("connect-model-key-lost", temper_client_domain::WayKind::Key, AccountRefused),
         Sample { name: "task-reference-T28", world: Reference, address: task(28), then: Shown },
@@ -981,6 +1036,7 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
         "settings-away" => return Some("../greenfield/settings.html#away".to_owned()),
         "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
@@ -1088,8 +1144,6 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::HeldChange
             | Then::Paused
             | Then::HeldTask
-            | Then::Filled
-            | Then::Refused
             | Then::SignedOut
             | Then::GoogleSignIn
             | Then::OutOfDate
@@ -1101,8 +1155,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
-            | Then::AccountRefused
-            | Then::KeyReady => return None,
+            | Then::AccountRefused => return None,
         };
         return Some(format!("connect-model.html?world=first-run&step=5&way=chatgpt&bare{anchor}"));
     }
@@ -1306,6 +1359,9 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "settings" || sample.name.starts_with("settings-") {
         return crate::worlds::settings_world(sample.name);
     }
+    if sample.name == "repositories-making" {
+        return crate::worlds::repositories_making_world();
+    }
     if sample.name == "welcome-ready-copies" {
         return crate::worlds::copies_world(sample.address.clone(), sample.then);
     }
@@ -1354,6 +1410,47 @@ pub fn domain(sample: &Sample) -> Domain {
         crate::worlds::world(sample.world, sample.address.clone(), sample.then)
     };
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("sheet-") {
+        adoption_sheet(&mut root, sample.name, &mut out);
+        return root;
+    }
+    if sample.name.starts_with("connect-forge-yours-") {
+        use temper_client_domain::forge::{
+            self,
+            admin::{PlaceField, Way},
+        };
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite {
+                    field: PlaceField::Host,
+                    text: b"https://forge.example".as_slice().into(),
+                })),
+            },
+            &mut out,
+        );
+        if sample.name == "connect-forge-yours-tokens" {
+            step(&mut root, Event::Act { action: Action::Forge(forge::Act::AdminWay(Way::Tokens)) }, &mut out);
+        }
+    }
+    if sample.name == "connect-model-choose" || sample.name == "connect-model-connected" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
+        let mut accounts = skein_lib::List::with_capacity(1);
+        if sample.name == "connect-model-connected" {
+            for row in &doc.accounts {
+                if row.provider == Some(18) {
+                    accounts.push(row.clone()).expect("ChatGPT alone");
+                }
+            }
+        }
+        doc.accounts = accounts;
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Model watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
     if sample.name.starts_with("welcome-sheet-") {
         use temper_client_domain::forge::{
             Act as F,
@@ -1445,7 +1542,6 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::HeldChange
         | Then::Paused
         | Then::HeldTask => {}
-        Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
             &mut root,
@@ -1481,7 +1577,6 @@ pub fn domain(sample: &Sample) -> Domain {
         Then::SigningIn
         | Then::Paste(_)
         | Then::AccountRefused
-        | Then::KeyReady
         | Then::SignInReady
         | Then::Declined
         | Then::Renewed
@@ -1792,50 +1887,10 @@ fn sent_attempt(out: &mut Queue<Request>) -> Token {
     }
     unreachable!("the sample's request was stored and sent")
 }
-fn adoption(root: &mut Domain, refused: bool, out: &mut Queue<Request>) {
-    use temper_client_domain::forge::{self, Act as A, Text as T, Typed};
-    for (field, value, typed) in [
-        (T::Forge, "1", Typed::Forge(Some(1))),
-        (T::Owner, "acme", Typed::Bytes),
-        (T::Name, "shop", Typed::Bytes),
-        (T::Prefix, "temper/", Typed::Bytes),
-        (T::Landing, "main", Typed::Bytes),
-        (T::Checks, "1, 2", Typed::Checks(Some(Box::new([1, 2])))),
-    ] {
-        step(
-            root,
-            Event::Act { action: Action::Forge(A::Write { field, text: Box::from(value.as_bytes()), typed }) },
-            out,
-        );
-    }
-    step(root, Event::Act { action: Action::Forge(A::Choose { role: forge::Role::Owned }) }, out);
-    if refused {
-        step(root, Event::Act { action: Action::Forge(A::Adopt) }, out);
-        step(root, Event::Client { event: jig_client::Event::Stored }, out);
-        let attempt = sent_attempt(out);
-        step(
-            root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Answer {
-                        attempt,
-                        envelope: skein_lib::RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
-                            refusal: c::Refusal::NotOffered,
-                            at: None,
-                        })),
-                        why: None,
-                    },
-                },
-            },
-            out,
-        );
-    }
-}
 fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
     use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};
     let refused = then == Then::AccountRefused;
-    let key = refused || then == Then::KeyReady;
+    let key = refused;
     let way = if key { Way::Key { provider: 18 } } else { Way::SignIn { provider: 18, plan: true } };
     step(
         root,
@@ -2840,5 +2895,128 @@ fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>)
                 );
             }
         }
+    }
+}
+
+fn making_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    use temper_client_domain::forge::{self, sheet};
+    if name == "sheet-empty-source" {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Source(sheet::Source::Empty))) },
+            out,
+        );
+        return;
+    }
+    if matches!(name, "sheet-copy" | "sheet-copy-lines") {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Source(sheet::Source::Copy))) },
+            out,
+        );
+        let addresses = if name == "sheet-copy" {
+            b"github.com/octo/vsr\ncodeberg.org/forgejo/runner".as_slice()
+        } else {
+            b"github/octo/vsr\ngithub.com/octo/raft".as_slice()
+        };
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Addresses(addresses.into()))) },
+            out,
+        );
+    }
+}
+
+fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    use temper_client_domain::forge::{self, sheet};
+    use temper_client_protocol_wire::v1 as w;
+    making_sheet(root, name, out);
+    if name == "sheet-empty-source" {
+        return;
+    }
+    let sheet::Reading::Asked { key, .. } = root.forge().sheet().expect("sheet").reading else { return };
+    let count = match name {
+        "sheet-few" => 4,
+        "sheet-empty" | "sheet-copy" => 0,
+        "sheet-copy-lines" => 1,
+        _ => 16,
+    };
+    let mut rows = skein_lib::List::with_capacity(16);
+    for id in 1..=count {
+        let repository = match id {
+            1 => {
+                if name == "sheet-copy-lines" {
+                    b"raft".as_slice().into()
+                } else {
+                    b"widget".as_slice().into()
+                }
+            }
+            2 => b"notes".as_slice().into(),
+            _ => skein_lib::bytes::concat(&[b"repository-", skein_lib::Decimal::of(id).as_bytes()]),
+        };
+        rows.push(
+            w::Reached::new(
+                &w::CEILINGS,
+                w::ReachedParts {
+                    id,
+                    owner: w::Account::new(
+                        &w::CEILINGS,
+                        w::AccountParts {
+                            id: 3,
+                            login: if name == "sheet-copy-lines" {
+                                b"octo".as_slice().into()
+                            } else {
+                                b"sam".as_slice().into()
+                            },
+                        },
+                    )
+                    .expect("owner"),
+                    name: repository,
+                    private: id == 2,
+                },
+            )
+            .expect("row"),
+        )
+        .expect("page");
+    }
+    step(
+        root,
+        Event::Forge(forge::Event::SheetRead {
+            request: key,
+            answer: Ok(w::Page::new(
+                &w::CEILINGS,
+                w::PageParts { rows, more: name == "sheet-adopt" || name == "sheet-searching" },
+            )
+            .expect("page")),
+        }),
+        out,
+    );
+    step(
+        root,
+        Event::Act {
+            action: Action::Forge(forge::Act::Write {
+                field: forge::Text::Landing,
+                text: b"main".as_slice().into(),
+                typed: forge::Typed::Bytes,
+            }),
+        },
+        out,
+    );
+    if name == "sheet-searching" {
+        for id in [1, 2] {
+            step(root, Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Pick { id, on: true })) }, out);
+        }
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Find(b"widget".as_slice().into()))) },
+            out,
+        );
+    }
+    if name == "sheet-none" {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Find(b"sam/missing".as_slice().into()))) },
+            out,
+        );
     }
 }

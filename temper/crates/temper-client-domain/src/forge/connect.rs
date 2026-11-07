@@ -103,7 +103,7 @@ pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Opt
     step(choice, rows, playground, owned)
 }
 #[must_use]
-pub(crate) fn admin_stopped(row: &Row) -> bool {
+pub fn admin_stopped(row: &Row) -> bool {
     if let Connection::Stopped { .. } = row.connection {
         return true;
     }
@@ -156,6 +156,47 @@ pub fn choices(rows: &[Row], playground: Option<u16>, owned: bool) -> Box<[Choic
     }
     choices.push(Choice::Managed).expect("three choices");
     choices.into_boxed()
+}
+
+/// Settings offers the first available card not already connected, Forgejo first
+/// (temper/docs/design/client/forge.md, 5.4, Connecting a forge).
+#[must_use]
+pub fn default_choice(rows: &[Row], playground: Option<u16>, owned: bool) -> Option<Choice> {
+    if playground.is_some() {
+        return None;
+    }
+    if owned_offered(rows, playground, owned) && connected_choice(rows, Choice::Owned).is_none() {
+        return Some(Choice::Owned);
+    }
+    if connected_choice(rows, Choice::GitHub).is_none() {
+        return Some(Choice::GitHub);
+    }
+    None
+}
+
+/// A connected card describes a real forge of that way; managed Forgejos have
+/// their own row, and the playground never counts as a connection.
+#[must_use]
+pub fn connected_choice(rows: &[Row], choice: Choice) -> Option<&Row> {
+    for row in rows {
+        let same = match choice {
+            Choice::Owned => row.kind == Kind::Forgejo && row.mode == Mode::Owned,
+            Choice::GitHub => row.kind == Kind::GitHub && row.mode != Mode::Fake,
+            Choice::Managed => row.kind == Kind::Forgejo && row.mode == Mode::Managed,
+        };
+        if same {
+            match row.connection {
+                Connection::Connected { .. } => return Some(row),
+                Connection::NotConnected
+                | Connection::NotSetUp
+                | Connection::SettingUp { .. }
+                | Connection::SetUpFailed { .. }
+                | Connection::Connecting
+                | Connection::Stopped { .. } => {}
+            }
+        }
+    }
+    None
 }
 
 fn owned_offered(rows: &[Row], playground: Option<u16>, owned: bool) -> bool {
@@ -367,5 +408,14 @@ pub fn failed_step(row: &Row) -> Option<FailedStep> {
         | Connection::Connecting
         | Connection::Connected { .. }
         | Connection::Stopped { .. } => None,
+    }
+}
+
+/// The Settings connection follows the record its accepted request made.
+pub(crate) fn following(choice: Option<AddressChoice>, side: &super::Side) -> Option<u16> {
+    let Some(AddressChoice::Forge(number)) = choice else { return None };
+    match step(Some(AddressChoice::Forge(number)), side.forges(), playground(side), true) {
+        Shown::SettingUp(_) | Shown::Ready(_) => Some(number),
+        Shown::Choose | Shown::Unfinished(_) | Shown::Details(_) => None,
     }
 }

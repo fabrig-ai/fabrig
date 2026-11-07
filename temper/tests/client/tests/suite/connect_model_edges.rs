@@ -26,7 +26,7 @@ fn gone(role: Role, name: &[u8]) -> Step<Address> {
 fn an_unknown_provider_shows_choose() {
     let mut world = world();
     let client = open(&mut world, b"/accounts/connect?provider=999&way=key");
-    follow(&mut world, client, vec![see(Role::Link, b"Use an API key"), gone(Role::Button, b"Add key")]);
+    follow(&mut world, client, vec![see(Role::Link, b"Add key"), gone(Role::Button, b"Add key")]);
 }
 
 // client/README.md 3.5 ConnectModel: deployment choice offers keys alone.
@@ -38,14 +38,14 @@ fn deployment_choice_hides_the_personal_sign_in_way() {
         &mut world,
         client,
         vec![
-            press(Role::Button, b"Use deployment accounts"),
-            see(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Use deployment accounts"),
+            see(Role::Link, b"Add key"),
             gone(Role::Button, b"Sign in to Scripted"),
         ],
     );
 }
 
-// client/README.md 3.5 ConnectModel: every step after Choose offers All ways.
+// client/README.md 3.5 ConnectModel: each way offers Other ways beside its main button.
 #[test]
 fn all_ways_returns_key_details_to_choose() {
     let mut world = world();
@@ -55,8 +55,8 @@ fn all_ways_returns_key_details_to_choose() {
         client,
         vec![
             see(Role::Button, b"Add key"),
-            press(Role::Link, "‹ All ways".as_bytes()),
-            see(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Other ways"),
+            see(Role::Link, b"Add key"),
             gone(Role::Button, b"Add key"),
         ],
     );
@@ -115,7 +115,13 @@ fn leaving_the_flow_drops_a_pasted_key() {
             Step::Go { address: at(way(b"key", None).as_slice()) },
         ],
     );
-    follow(&mut world, client, vec![press(Role::Button, b"Add key")]);
+    let add = world
+        .tree(client)
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Add key"))
+        .expect("Add key");
+    assert!(add.states.as_slice().contains(&skein_ui::State::Disabled));
     assert!(
         !world
             .front()
@@ -156,8 +162,8 @@ fn deployment_key_choice_opens_details() {
         &mut world,
         client,
         vec![
-            press(Role::Button, b"Use deployment accounts"),
-            press(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Use deployment accounts"),
+            press(Role::Link, b"Add key"),
             see(Role::Button, b"Add key"),
         ],
     );
@@ -203,20 +209,20 @@ fn deployment_choice_is_kept_across_details_and_choose() {
         &mut world,
         client,
         vec![
-            press(Role::Button, b"Use deployment accounts"),
-            press(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Use deployment accounts"),
+            press(Role::Link, b"Add key"),
             see(Role::Button, b"Add key"),
-            press(Role::Link, "‹ All ways".as_bytes()),
-            see(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Other ways"),
+            see(Role::Link, b"Add key"),
         ],
     );
     let choice = world
         .tree(client)
         .nodes()
         .iter()
-        .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Use deployment accounts"))
+        .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Use your accounts"))
         .expect("holder choice");
-    assert!(choice.states.as_slice().contains(&skein_ui::State::Pressed));
+    assert!(choice.styles.as_slice().contains(&temper_client_view::look::CONNECT_QUIET));
 }
 
 // client/README.md 3.5 Its state: moving between the flow's steps keeps its key's value.
@@ -229,9 +235,9 @@ fn all_ways_keeps_the_key_until_the_flow_is_left() {
         client,
         vec![
             type_key(),
-            press(Role::Link, "‹ All ways".as_bytes()),
-            see(Role::Link, b"Use an API key"),
-            press(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Other ways"),
+            see(Role::Link, b"Add key"),
+            press(Role::Link, b"Add key"),
             see(Role::Button, b"Add key"),
             press(Role::Button, b"Add key"),
             see(Role::Link, b"Start a chat"),

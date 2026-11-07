@@ -1,4 +1,4 @@
-//! Connect one more model account; shared with the welcome's Model step.
+//! Connect one more model account; shared with the welcome (temper/docs/design/client/README.md, 3.5).
 use super::{
     Pages, Request as Output,
     accounts::{self, Broken, Way, request::Request},
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
 use temper_client_protocol_wire::{self as wire, v1 as w};
-/// The welcome's "I've signed in" (client/README.md, 3.5, A way's page).
+/// A program’s "I’ve signed in" (temper/docs/design/client/README.md, 3.5, A way’s page).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
     Idle,
@@ -29,7 +29,7 @@ pub enum ProgramCheck {
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
     pub check: ProgramCheck,
-    /// The way last pressed, for Ready’s retry and return to sign-in.
+    /// The way last pressed, for a check’s retry and return to sign-in.
     pub tried: Option<Way>,
     pub program: Option<Box<[u8]>>,
     pub request: Request,
@@ -84,6 +84,38 @@ pub const fn model_way(way: Way) -> ModelWay {
             Way::Key { .. } => WayKind::Key,
         },
     }
+}
+/// Whether this person holds a source of this provider and kind
+/// (temper/docs/design/client/README.md, 3.5, `ConnectModel`, Choose).
+#[must_use]
+pub fn connected(root: &crate::Domain, way: Way) -> bool {
+    let Some(me) = accounts::current_me(root.client()) else { return false };
+    let Some(doc) = accounts::document(root.client()) else { return false };
+    let kind = match way {
+        Way::SignIn { .. } => c::AccountKind::SignIn,
+        Way::Program { .. } => c::AccountKind::Program,
+        Way::Key { .. } => c::AccountKind::Key,
+    };
+    for account in &doc.accounts {
+        if account.holder == c::AccountHolder::Party(me.party.number) && account.provider == Some(way.provider()) {
+            for source in &account.sources {
+                if source.kind == kind {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+/// The first unconnected offered way; none when every way is connected (README.md, 3.5).
+#[must_use]
+pub fn default_way(ways: &skein_lib::List<Way>, root: &crate::Domain) -> Option<Way> {
+    for way in ways {
+        if !connected(root, *way) {
+            return Some(*way);
+        }
+    }
+    None
 }
 #[must_use]
 pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
@@ -342,7 +374,7 @@ impl ConnectModel {
                 }
                 let Some(doc) = accounts::document(client) else { return };
                 let program = program_default(me.party.name.bytes());
-                if let Some(source) = program_source(client, &program) {
+                if let Some(source) = program_source(client, way.provider(), &program) {
                     self.send_check(name, source, serial, out);
                 } else {
                     if doc.cut {
@@ -390,15 +422,24 @@ impl ConnectModel {
                         c::AccountChange::AddKey { provider, join: None, digest }
                     }
                     Way::Program { provider } => {
-                        let name = self.program_name(client);
-                        if !c::valid_program_name(&name) {
+                        let program = self.program_name(client);
+                        if !c::valid_program_name(&program) {
                             self.request.broken = Some(Broken::ProgramName);
                             return;
                         }
-                        c::AccountChange::DeclareProgram { provider, join: None, name }
+                        self.tried = Some(way);
+                        if let Some(source) = program_source(client, provider, &program) {
+                            self.send_check(name, source, serial, out);
+                            return;
+                        }
+                        c::AccountChange::DeclareProgram { provider, join: None, name: program }
                     }
                     Way::SignIn { .. } => return,
                 };
+                if let Way::Program { .. } = way {
+                    self.check = ProgramCheck::Declaring;
+                    self.tried = Some(way);
+                }
                 let ask = c::Ask::AccountChange { holder: self.holder, change };
                 if let Some(p) = &self.request.pending
                     && let Some(
@@ -429,10 +470,10 @@ fn matches_welcome_program(address: &Address) -> bool {
         false
     }
 }
-fn program_source(client: &Client, name: &[u8]) -> Option<u32> {
+fn program_source(client: &Client, provider: u32, name: &[u8]) -> Option<u32> {
     let me = accounts::current_me(client)?;
     for account in &accounts::document(client)?.accounts {
-        if account.holder == c::AccountHolder::Party(me.party.number) {
+        if account.holder == c::AccountHolder::Party(me.party.number) && account.provider == Some(provider) {
             for source in &account.sources {
                 if source.kind == c::AccountKind::Program && source.name.as_deref() == Some(name) {
                     return Some(source.number);
@@ -472,9 +513,14 @@ impl ConnectModel {
                 ..
             })) = outcome
             {
-                match accounts::current_me(client) {
-                    Some(me) => program_source(client, &program_default(me.party.name.bytes())),
-                    None => None,
+                if let Some(pending) = &self.request.pending
+                    && let c::Ask::AccountChange {
+                        change: c::AccountChange::DeclareProgram { provider, name, .. }, ..
+                    } = &pending.ask
+                {
+                    program_source(client, *provider, name)
+                } else {
+                    None
                 }
             } else {
                 None
@@ -549,5 +595,47 @@ impl Default for ConnectModel {
             environment_read: None,
             environment_asked: false,
         }
+    }
+}
+
+/// A standalone way lands only after its own successful ending (client/README.md, 3.5).
+pub(crate) fn added(pages: &Pages, client: &Client) -> Option<accounts::Added> {
+    let way = way(pages, client)?;
+    let page = pages.connect_model()?;
+    let chosen = model_way(way);
+    if chosen.kind == WayKind::SignIn {
+        let added = accounts::signed_in(&page.request, client, Some(chosen.provider))?;
+        return if added.provider == chosen.provider { Some(added) } else { None };
+    }
+    let pending = page.request.pending.as_ref()?;
+    let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(outcome)))) =
+        pending.outcome.as_ref()?
+    else {
+        return None;
+    };
+    match (&pending.ask, outcome) {
+        (
+            c::Ask::AccountChange { holder, change: c::AccountChange::AddKey { provider, join: None, .. } },
+            c::DocumentOutcome::AccountKeyKept { .. },
+        ) if *provider == chosen.provider && *holder == page.holder && chosen.kind == WayKind::Key => {
+            Some(accounts::Added { provider: *provider, kind: WayKind::Key })
+        }
+        (
+            c::Ask::AccountChange { change: c::AccountChange::CheckProgram { source }, .. },
+            c::DocumentOutcome::AccountChanged,
+        ) if page.tried == Some(way) => {
+            let doc = accounts::document(client)?;
+            for row in &doc.accounts {
+                if row.provider == Some(chosen.provider) {
+                    for login in &row.sources {
+                        if login.number == *source && login.usable && login.kind == c::AccountKind::Program {
+                            return Some(accounts::Added { provider: chosen.provider, kind: WayKind::Program });
+                        }
+                    }
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }

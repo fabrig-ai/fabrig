@@ -110,7 +110,7 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     assert!(end.end);
     assert!(end.acted.is_empty());
     assert!(end.recorded.is_none());
-    assert!(end.page.html().contains("Signed in to ChatGPT"), "the accounts watch completes the sign-in");
+    assert!(end.page.html().contains("Added your ChatGPT plan."), "the accounts watch completes the sign-in");
     assert!(replay.next().expect("after end").is_none());
 }
 #[test]

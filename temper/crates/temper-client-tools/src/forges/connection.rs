@@ -359,7 +359,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                     w::How::GithubManifest(_) => (super::making_number(value.forge()), false, None, true),
                     w::How::GithubApp(_) | w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_) => return false,
                 },
-                w::Request::MakeRepository(_)
+                w::Request::DismissMaking(_)
+                | w::Request::MakeRepository(_)
                 | w::Request::RemoveForge(_)
                 | w::Request::EndPlayground
                 | w::Request::StartPlayground

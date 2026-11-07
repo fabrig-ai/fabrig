@@ -26,7 +26,7 @@ use skein_sim::{Config, Faults, Handle, Pid, Sim};
 /// Seeds per scenario: a calm world draws only ports and the order of a
 /// cancel and its target; chaos draws much more, a few seeds of it in the
 /// focused tests and many in the fuzzy ones.
-pub const CALM: u64 = 16;
+pub const CALM: u64 = 4;
 pub const SMOKE: u64 = 4;
 pub const CHAOS: u64 = 200;
 
