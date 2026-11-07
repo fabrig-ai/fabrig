@@ -101,11 +101,6 @@ result supplied here (`browser.status.md`, 4.6).
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
 
-- **Not yet:** 3.5, `Forges`: it says "+ Add a forge" (`look-round-14`). 3.5,
-  *The flows' paths*: a model way's path stops at "Connect a model", with no
-  way's name, and its "‹" goes to the tab. 3.5, *The `Models` tab*: the add
-  form draws "The model’s name" and takes two rows at a phone's width. 4.4:
-  "More"'s summary has no "·", and Copy public has no drawn caption and two lines.
 - **Not yet:** 3.5, *The `Models` tab*: the render check beside `model-picker`'s
   page 07 at 1440, 1280, 1000 and 420 px follows landing, owned by temper/ui.
   The tab, switches, add-by-name form, source, estimated prices, omitted count
