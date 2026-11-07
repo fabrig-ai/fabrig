@@ -155,3 +155,6 @@ mod catalogue;
 
 #[path = "tests/approval_surface.rs"]
 mod approval_surface;
+
+#[path = "tests/approval.rs"]
+mod approval;
