@@ -475,15 +475,25 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
     let rows = [
         (
             "reserved engine channel",
-            c::TaskWaitRefused::Hello { kind: c::HostKind::Engine, at: AT, why: c::HelloRefusal::ReservedChannel },
+            c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Engine,
+                at: AT,
+                why: c::HelloRefusal::ReservedChannel,
+                figures: None,
+            },
             "next run: refused, engine refused at 00:01: channel zero belongs to the engine's own host",
-            r#"{"refused":{"hello":{"kind":"engine","at":60000000000,"why":"reserved_channel"}}}"#,
+            r#"{"refused":{"hello":{"kind":"engine","at":60000000000,"why":"reserved_channel","figures":null}}}"#,
         ),
         (
             "worker capacity",
-            c::TaskWaitRefused::Hello { kind: c::HostKind::Worker, at: AT, why: c::HelloRefusal::Workers { limit: 4 } },
+            c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Worker,
+                at: AT,
+                why: c::HelloRefusal::Workers { limit: 4 },
+                figures: None,
+            },
             "next run: refused, worker refused at 00:01: no room for another worker, limit 4",
-            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"workers":{"limit":4}}}}}"#,
+            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"workers":{"limit":4}},"figures":null}}}"#,
         ),
         (
             "worker position",
@@ -491,9 +501,10 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
                 kind: c::HostKind::Worker,
                 at: AT,
                 why: c::HelloRefusal::Position { worker: 3 },
+                figures: None,
             },
             "next run: refused, worker refused at 00:01: unconfigured or occupied worker position 3",
-            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"position":{"worker":3}}}}}"#,
+            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"position":{"worker":3}},"figures":null}}}"#,
         ),
         (
             "worker agent window",
@@ -501,9 +512,57 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
                 kind: c::HostKind::Worker,
                 at: AT,
                 why: c::HelloRefusal::Agent { why: c::AgentShortfall::Window { charter: 2, model: 5 } },
+                figures: None,
             },
             "next run: refused, worker refused at 00:01: agent window too small for charter 2, model position 5",
-            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"window":{"charter":2,"model":5}}}}}}}"#,
+            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"window":{"charter":2,"model":5}}}},"figures":null}}}"#,
+        ),
+        (
+            "bounds turns",
+            c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 3 }),
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            },
+            "next run: refused, no worker takes it: agent turns too few for charter 3",
+            r#"{"refused":{"bounds":{"kind":"worker","why":{"turns":{"charter":3}},"figures":{"required":100000,"offered":800}}}}"#,
+        ),
+        (
+            "bounds no common cause",
+            c::TaskWaitRefused::Bounds { kind: c::HostKind::Worker, why: None, figures: None },
+            "next run: refused, no worker takes it",
+            r#"{"refused":{"bounds":{"kind":"worker","why":null,"figures":null}}}"#,
+        ),
+        (
+            "hello figures",
+            c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Worker,
+                at: AT,
+                why: c::HelloRefusal::Agent { why: c::AgentShortfall::Turns { charter: 3 } },
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            },
+            "next run: refused, worker refused at 00:01: agent turns too few for charter 3",
+            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"turns":{"charter":3}}}},"figures":{"required":100000,"offered":800}}}}"#,
+        ),
+        (
+            "time charter",
+            c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Time { charter: 3 }),
+                figures: None,
+            },
+            "next run: refused, no worker takes it: agent time too short for charter 3",
+            r#"{"refused":{"bounds":{"kind":"worker","why":{"time":{"charter":3}},"figures":null}}}"#,
+        ),
+        (
+            "waiting charter",
+            c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Waiting { charter: 3 }),
+                figures: None,
+            },
+            "next run: refused, no worker takes it: agent waiting too short for charter 3",
+            r#"{"refused":{"bounds":{"kind":"worker","why":{"waiting":{"charter":3}},"figures":null}}}"#,
         ),
     ];
     for (name, cause, expected_text, expected_json) in rows {
@@ -520,9 +579,10 @@ fn assert_worker_reserve_refusals(at: skein_lib::Wall) {
             kind: c::HostKind::Worker,
             at,
             why: c::HelloRefusal::StopBound { grace: skein_lib::Duration::from_nanos(2000) },
+            figures: None,
         },
         "next run: refused, worker refused at 00:01: would not stop before the engine's grace ends, allowed grace 2000 ns",
-        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"stop_bound":{"grace":2000}}}}}"#,
+        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"stop_bound":{"grace":2000}},"figures":null}}}"#,
     );
     assert_next_run_refusal(name, cause, text, json);
     assert_next_run_refusal(
@@ -531,9 +591,10 @@ fn assert_worker_reserve_refusals(at: skein_lib::Wall) {
             kind: c::HostKind::Worker,
             at,
             why: c::HelloRefusal::Agent { why: c::AgentShortfall::Checks { charter: 2 } },
+            figures: None,
         },
-        "next run: refused, worker refused at 00:01: agent check timeout exceeds charter 2 reserve_time; see settings help for held revisions",
-        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"checks":{"charter":2,"member":"reserve_time"}}}}}}}"#,
+        "next run: refused, worker refused at 00:01: agent check timeout exceeds charter 2 reserve_time; see temper help settings for held revisions",
+        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"checks":{"charter":2,"member":"reserve_time"}}}},"figures":null}}}"#,
     );
 }
 
@@ -1025,6 +1086,7 @@ fn empty_account_wait_names_claude_login_path() {
         };
         task.kept_account = None;
         task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+        let program_login = root.limits.tools.program_login;
         root.serve(call, fixtures::task_result(task));
         let answer = root.answer(call).expect("empty-account task answered");
         assert_eq!(answer.status, 0);
@@ -1041,6 +1103,18 @@ fn empty_account_wait_names_claude_login_path() {
         ] {
             assert!(skein_lib::bytes::find(&answer.stdout, words.as_bytes()).is_some(), "missing {words}");
         }
+        fixtures::wait_commands(
+            &answer.stdout,
+            &[
+                "account connect PROVIDER --key KEY",
+                "account add-key PROVIDER FILE --key KEY",
+                "account declare PROVIDER claude_code NAME --key KEY",
+                "account list",
+                "account verify ACCOUNT --source program",
+                "temper program-login --config BOX --data STORE --cache SCRATCH NAME",
+            ],
+            program_login,
+        );
         assert!(next_run_line(&answer.stdout).starts_with(b"  no account serving this work yet"));
     }
 }
@@ -1078,37 +1152,52 @@ fn no_account_keeps_its_run_wait_and_names_its_account_wait_in_json() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table keeps every wait cause and its commands; client/tools.md, 6.1")]
 fn task_waits_explain_the_next_act_after_the_code_line() {
     use jig_client::contract::{self as c, TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
-    for (wait, explanation) in [
+    let rows: &[(W, &str, &[&str])] = &[
         (
             W::Account { account: None, source: None, why: R::Empty },
             "  no account serving this work yet (shown model: chosen)",
+            &[],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Host },
             "  its login isn't signed in on a host: temper program-login --config CONFIG --data DATA --cache CACHE NAME, then account verify 43 --source program",
+            &[
+                "temper program-login --config CONFIG --data DATA --cache CACHE NAME",
+                "account verify 43 --source program",
+            ],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Limited { until: None }) },
             "  its account is limited: account retry 43",
+            &["account retry 43"],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::NeedsSignIn) },
-            "  its account needs sign-in: account connect PROVIDER",
+            "  its account needs sign-in: account connect PROVIDER --key KEY",
+            &["account connect PROVIDER --key KEY"],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Refused) },
             "  its account's source was refused: account replace-key 43 FILE",
+            &["account replace-key 43 FILE"],
         ),
-        (W::Account { account: Some(43), source: Some(17), why: R::Source(S::Moving) }, "  its account is moving out"),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Moving) },
+            "  its account is moving out",
+            &[],
+        ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Later { until: None }) },
             "  its account will be retried later",
+            &[],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Misconfigured) },
             "  its account's source is misconfigured",
+            &[],
         ),
         (
             W::Account {
@@ -1117,22 +1206,160 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
                 why: R::Source(S::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable }),
             },
             "  its account's source could not be loaded",
+            &[],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Cancelled) },
             "  its account's source was cancelled",
+            &[],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Source(S::Closing) },
             "  its account's source is closing",
+            &[],
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Invalid(c::AccountWhy::Provider) },
             "  its account cannot serve this work: provider",
+            &[],
         ),
-        (W::Credential, "  it needs a credential from its forge: forge list"),
-        (W::Host, "  no host has room, or none is connected: deployment show"),
-    ] {
+        (W::Credential, "  it needs a credential from its forge: forge list", &["forge list"]),
+        (W::Host, "  no host has room, or none is connected; it starts when one does", &[]),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 3 }),
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            }),
+            "  no worker can take this: its charter asks 100000 turns, and the largest worker takes 800",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds { kind: c::HostKind::Worker, why: None, figures: None }),
+            "  no worker can take this: each falls short of another bound its charter asks",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Worker,
+                at: skein_lib::Wall::from_nanos(38_520_000_000_000),
+                why: c::HelloRefusal::Agent { why: c::AgentShortfall::Turns { charter: 3 } },
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            }),
+            "  no worker can take this: charter 3 asks 100000 turns, and the worker refused at 10:42 takes 800",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Worker,
+                at: skein_lib::Wall::EPOCH,
+                why: c::HelloRefusal::Agent { why: c::AgentShortfall::Checks { charter: 3 } },
+                figures: None,
+            }),
+            "  its host refused this start: refused, worker refused at 00:00: agent check timeout exceeds charter 3 reserve_time; see temper help settings for held revisions",
+            &["temper help settings"],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Time { charter: 3 }),
+                figures: Some(c::Figures { required: 7_200_000, offered: 3_600_000 }),
+            }),
+            "  no worker can take this: its charter asks 7200000 ms a run, and the largest worker takes 3600000 ms",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Waiting { charter: 3 }),
+                figures: Some(c::Figures { required: 1_800_000, offered: 600_000 }),
+            }),
+            "  no worker can take this: its charter asks 1800000 ms of waiting, and the largest worker takes 600000 ms",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Checks { charter: 3 }),
+                figures: Some(c::Figures { required: 300_000, offered: 600_000 }),
+            }),
+            "  no worker can take this: its charter keeps 300000 ms for checks, and the quickest worker's checks take 600000 ms",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Window { charter: 3, model: 1 }),
+                figures: Some(c::Figures { required: 200_000, offered: 128_000 }),
+            }),
+            "  no worker can take this: its charter's model at position 1 asks a window of 200000 tokens, and the largest worker takes 128000",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Output { charter: 3, model: 1 }),
+                figures: Some(c::Figures { required: 64000, offered: 32000 }),
+            }),
+            "  no worker can take this: its charter's model at position 1 asks 64000 output tokens, and the largest worker takes 32000",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Spend),
+                figures: Some(c::Figures { required: 5000, offered: 2000 }),
+            }),
+            "  no worker can take this: a run here may spend 5000, and the largest worker takes 2000",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Message),
+                figures: Some(c::Figures { required: 65536, offered: 16384 }),
+            }),
+            "  no worker can take this: a message here may be 65536 bytes, and the largest worker takes 16384",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Inbox),
+                figures: Some(c::Figures { required: 12, offered: 8 }),
+            }),
+            "  no worker can take this: a start here sends 12 messages, and the largest worker takes 8",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Unacknowledged),
+                figures: Some(c::Figures { required: 64, offered: 32 }),
+            }),
+            "  no worker can take this: a run here keeps 64 turns unacknowledged, and the largest worker takes 32",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Engine,
+                why: Some(c::AgentShortfall::Turns { charter: 3 }),
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            }),
+            "  the engine's own host can't take this: its charter asks 100000 turns, and it takes 800",
+            &[],
+        ),
+        (
+            W::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 3 }),
+                figures: None,
+            }),
+            "  no worker can take this. agent turns too few for charter 3",
+            &[],
+        ),
+    ];
+    for &(wait, explanation, commands) in rows {
         let (mut root, call, mut task) = fixtures::task_read();
         task.llm = Some(c::LlmChoice {
             account: None,
@@ -1140,9 +1367,11 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
             subagents: skein_lib::List::with_capacity(0),
         });
         task.run_wait = Some(wait);
+        let program_login = root.limits.tools.program_login;
         root.serve(call, fixtures::task_result(task));
         let answer = root.answer(call).expect("read answered");
         let line = next_run_line(&answer.stdout);
+        fixtures::wait_commands(line, commands, program_login);
         assert_eq!(line, explanation.as_bytes(), "{wait:?}");
     }
 }

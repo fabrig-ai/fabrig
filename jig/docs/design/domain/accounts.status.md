@@ -6,6 +6,11 @@ Section 3.7 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
 Reports for kinds 3 to 7 remain section 7's deferred work.
 
+Section 3.7's lists have no known implementation gap in first-source
+eligibility, reads on usability, daily and explicit reads, retained good
+names after failure, or offer narrowing with stock and personal-name
+fallbacks. Restored attempt times govern the next daily read.
+
 - **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request
   `first-usable-model` of 2026-11-06 asks one. temper's stories on the stock

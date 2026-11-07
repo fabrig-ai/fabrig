@@ -48,11 +48,14 @@ pub(crate) fn main(
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
-        let title = words.say(
+        let short = short_title(task.chip.title.bytes());
+        let whole = words.say(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
-        let heading = task.chip.title.bytes();
+        let numbered =
+            words.say(Word::ChatTitle, &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(&short))]);
+        let hint = if short.as_ref() == task.chip.title.bytes() { None } else { Some(task.chip.title.bytes()) };
         if terminal {
             let draft = if chat.draft.is_some() || chat.writing {
                 if chat.mode == temper_client_domain::pages::chat::document::Mode::Chat {
@@ -75,8 +78,9 @@ pub(crate) fn main(
                 bindings,
                 super::terminal::Top {
                     project: Some(task.project),
-                    heading,
-                    name: &title,
+                    heading: &short,
+                    name: &whole,
+                    hint,
                     number: Some(task.chip.task),
                     draft,
                 },
@@ -89,7 +93,7 @@ pub(crate) fn main(
                 bindings,
                 Some(task.project),
                 if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
-                super::session::Heading::Chat { whole: &title, title: heading },
+                super::session::Heading::Chat { whole: &whole, short: &short, numbered: &numbered, hint },
             );
             super::session::right(b);
             if task.result.is_some() || super::chats::ended(&task.chip) {
@@ -152,6 +156,88 @@ pub(crate) fn main(
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
+/// A chat's heading is at most this many characters, its ellipsis included.
+pub(crate) const SHORT_TITLE: usize = 72;
+
+/// A chat's heading shows its title's short form (client/README.md, 3.5, A chat's heading is short).
+pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
+    let mut start = title.len();
+    for (index, byte) in title.iter().enumerate() {
+        if !title_space(*byte) {
+            start = index;
+            break;
+        }
+    }
+    let title = title.get(start..).expect("start is within the title");
+    let mut end = title.len();
+    for (index, byte) in title.iter().enumerate() {
+        if *byte == b'\n' {
+            end = index;
+            break;
+        }
+        let next = index.checked_add(1).expect("title offset fits");
+        if b".!?".contains(byte)
+            && match title.get(next) {
+                Some(byte) => title_space(*byte),
+                None => true,
+            }
+        {
+            end = next;
+            break;
+        }
+    }
+    let words = title.get(..end).expect("sentence ends within the title");
+    for byte in words.iter().rev() {
+        if !title_space(*byte) {
+            break;
+        }
+        end = end.checked_sub(1).expect("trailing byte is within the words");
+    }
+    let words = title.get(..end).expect("trimmed words are within the title");
+    let mut characters = 0_usize;
+    let mut hard_end = 0;
+    let mut word_end = 0;
+    // Text arrived validated; each non-continuation byte starts one scalar value.
+    for (index, byte) in words.iter().enumerate() {
+        if byte & 0xc0 != 0x80 {
+            characters = characters.checked_add(1).expect("title character count fits");
+            if characters > SHORT_TITLE {
+                break;
+            }
+            if characters == SHORT_TITLE {
+                hard_end = index;
+            }
+            if *byte == b' ' || *byte == b'\t' {
+                word_end = index;
+            }
+        }
+    }
+    if characters <= SHORT_TITLE {
+        return skein_lib::bytes::copy_of(words);
+    }
+    let mut end = word_end;
+    for byte in words.get(..word_end).expect("word boundary is within the words").iter().rev() {
+        if !title_space(*byte) && !b",;:".contains(byte) {
+            break;
+        }
+        end = end.checked_sub(1).expect("trailing byte is within the prefix");
+    }
+    if end == 0 {
+        end = hard_end;
+    }
+    let prefix = words.get(..end).expect("cut is at a character boundary within the words");
+    let mark = "…".as_bytes();
+    let bytes = end.checked_add(mark.len()).expect("short title bytes fit");
+    let mut out = skein_lib::Writer::new(bytes);
+    out.put(prefix).expect("short title length counted");
+    out.put(mark).expect("short title length counted");
+    out.finish()
+}
+
+fn title_space(byte: u8) -> bool {
+    b" \t\r\n".contains(&byte)
+}
+
 fn conversation_head(b: &mut Builder, root: &Domain, words: &Words) {
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");

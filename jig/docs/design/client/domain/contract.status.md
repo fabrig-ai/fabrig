@@ -3,8 +3,18 @@
 2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 
 Sections 3.2 and 5.1 have no known gap in `ChangeModel`, numbered model
-settings, source and estimated-price facts, the project's omitted count,
+settings, source and estimated-price facts, the project's omitted count
+(apart from the delivery gap below),
 per-account provider-list narrowing, list history or new-label deadlines.
+`ReadLists` carries the provider and returns the number of reads; account
+times reach the accounts watch without marking an unchanged offer.
+
+- **Not yet:** 5.1: a provider read changing only the visible accounts'
+  largest `left_out` updates the accounts watch but does not mark `me`,
+  leaving its omitted count stale until another Frame mark
+  (`../../domain/engine.status.md`, 17.12). The field is computed correctly
+  on a fresh read; no reason for the missing mark is recorded.
+
 Section 5.1 has no known gap in either account row's bounded facts,
 registered-kind filtering or application of each kind's audience. The
 client wire and contract carry their values and reject oversized shares.

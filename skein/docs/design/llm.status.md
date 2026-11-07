@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [llm.md](llm.md).
 
+Section 4.9 has no known implementation gap in the route-specific list
+request, bounded parsing, visibility filtering or optional figures.
+Later pages remain section 6's deferred work.
+
 - **Not yet:** 5: `skein-live`, the live suite's logins on the routes that
   stay, has no design: the suite calls the public route with a lent login's
   access token and Anthropic with a lent key file, but five of its provider

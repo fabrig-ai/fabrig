@@ -669,9 +669,22 @@ served is held, kept and unsent, for its owner's version (client.md,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`
-    also carries `Refused(TaskWaitRefused)`, `Hello { kind, at, why }`:
-    the fleet's latest observed allowed-kind refusal, suppressed by any
-    admitted connected non-draining allowed-kind host. An Open task runs
+    also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
+    figures }`, the fleet's latest observed allowed-kind refusal,
+    suppressed by any admitted connected non-draining allowed-kind host;
+    or, while such hosts exist and every one of them falls short of a
+    bound of the run's charter version, `Bounds { kind, why, figures }`
+    (`../../domain/engine.md`, section 8), `why` an `AgentShortfall`, none
+    where each falls short of another bound. `figures`, `Option<Figures>`,
+    `Figures { required: u64, offered: u64 }`, is what the bound needs and
+    what is offered, in the bound's own unit, a duration in milliseconds:
+    for `Hello` the refused host's, for `Bounds` the most any of those
+    hosts offers (the least, for the checks timeout); none for a cause
+    without amounts. An `AgentShortfall` names its charter on every
+    charter bound, `Model`, `Window` and `Output { charter, model }`,
+    `Turns`, `Time`, `Waiting` and `Checks { charter }`; `Spend`,
+    `Message`, `Inbox` and `Unacknowledged` are the deployment's, with
+    none. An Open task runs
     on a program source as any task does, so no run waits for its program
     (`../../domain/hosts.md`, 8.1). The client uses its own `HostKind` and
     `HelloRefusal` vocabulary; the canonical deployment translation keeps

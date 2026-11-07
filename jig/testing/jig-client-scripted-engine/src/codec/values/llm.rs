@@ -1,8 +1,8 @@
 //! Wire projections of llm facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, w};
 use super::{
-    wire_account_use, wire_document_text, wire_hello_refusal, wire_host_kind, wire_task_source_place,
-    wire_task_source_unread,
+    wire_account_use, wire_agent_shortfall, wire_document_text, wire_hello_refusal, wire_host_kind,
+    wire_task_source_place, wire_task_source_unread,
 };
 pub(in crate::codec) fn wire_llm_choice(value: &c::LlmChoice, limits: &w::Limits) -> Result<w::LlmChoice, w::Problem> {
     w::LlmChoice::new(
@@ -136,12 +136,24 @@ pub(in crate::codec) fn wire_task_wait_refused(
     limits: &w::Limits,
 ) -> Result<w::TaskWaitRefused, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::TaskWaitRefused::Hello { kind, at, why } => w::TaskWaitRefused::Hello(w::TaskWaitHello::new(
+        c::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello::new(
             limits,
             w::TaskWaitHelloParts {
                 kind: wire_host_kind(kind, limits)?,
                 at: (at).as_nanos(),
                 why: wire_hello_refusal(why, limits)?,
+                figures: wire_shortfall_figures(figures.as_ref(), limits)?,
+            },
+        )?),
+        c::TaskWaitRefused::Bounds { kind, why, figures } => w::TaskWaitRefused::Bounds(w::TaskWaitBounds::new(
+            limits,
+            w::TaskWaitBoundsParts {
+                kind: wire_host_kind(kind, limits)?,
+                why: match why {
+                    Some(why) => Some(wire_agent_shortfall(why, limits)?),
+                    None => None,
+                },
+                figures: wire_shortfall_figures(figures.as_ref(), limits)?,
             },
         )?),
     })
@@ -233,4 +245,17 @@ pub(in crate::codec) fn wire_readiness(value: &c::Readiness, _limits: &w::Limits
         c::Readiness::Unavailable => w::Readiness::Unavailable,
         c::Readiness::Unknown => w::Readiness::Unknown,
     })
+}
+
+fn wire_shortfall_figures(
+    value: Option<&c::Figures>,
+    limits: &w::Limits,
+) -> Result<Option<w::ShortfallFigures>, w::Problem> {
+    match value {
+        Some(value) => Ok(Some(w::ShortfallFigures::new(
+            limits,
+            w::ShortfallFiguresParts { required: value.required, offered: value.offered },
+        )?)),
+        None => Ok(None),
+    }
 }

@@ -958,6 +958,11 @@ unless marked:
 
 ## 6. Later
 
+- **Later pages of a provider's list** (4.9). One request reads the first
+  page and keeps at most the configured row bound, 256 by default, in
+  provider order. Following pagination needs a consumer's design for
+  bounded requests and combined rows; jig defers it in its
+  `domain/engine.md`, section 16.
 - **Routing state.** A Responses route's turn-state token, which a
   response returns and the client replays within a turn, and its
   `reasoning.context`, which ChatGPT's backend offers to keep reasoning

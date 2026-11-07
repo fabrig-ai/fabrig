@@ -75,6 +75,9 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
     if let Some(placeholder) = &a.placeholder {
         e.set("placeholder", &words(placeholder));
     }
+    if let Some(hint) = &a.hint {
+        e.set("title", &words(hint));
+    }
     if a.role == Role::Disclosure && a.name.is_none() {
         e.append(Element::new("summary"));
     }

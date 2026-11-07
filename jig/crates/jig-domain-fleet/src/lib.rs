@@ -81,7 +81,7 @@ pub use boundary::{
 };
 pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
-pub use history::{Figures, HelloRefusal, HelloRefusalRecord, HelloRefused};
+pub use history::{BoundsRefusal, Figures, HelloRefusal, HelloRefusalRecord, HelloRefused};
 pub use limits::{Limits, valid};
 pub use progress::{Activity, Observation, Report};
 

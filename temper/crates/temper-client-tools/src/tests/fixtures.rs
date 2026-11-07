@@ -878,3 +878,51 @@ pub(super) fn selected_help(selection: crate::help::Selection) -> Box<[u8]> {
 
 mod task_text;
 pub(crate) use task_text::{source_chunk, source_show, source_summary, source_task};
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "ordinary test collections check printed commands with shared placeholder substitutions"
+)]
+pub(crate) fn substitute(call: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    for word in call.split_whitespace() {
+        // CHANGE... stands for one or more named amendment controls.
+        if word == "CHANGE..." {
+            words.extend([String::from("--priority"), String::from("1")]);
+        } else if word == "TEXT" || word == "REASON" {
+            words.push(String::from("word"));
+        } else if word.bytes().all(|byte| byte.is_ascii_uppercase()) {
+            words.push(String::from("1"));
+        } else if word.starts_with('t') && word.ends_with("/K") {
+            words.push(word.replace("/K", "/1"));
+        } else {
+            words.push(word.into());
+        }
+    }
+    words
+}
+
+/// Every pointer in a run's waiting explanation names an available command (client/tools.md, 6.1).
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "ordinary test collections check printed commands with shared placeholder substitutions"
+)]
+pub(crate) fn wait_commands(text: &[u8], commands: &[&str], program_login: &[u8]) {
+    let text = core::str::from_utf8(text).expect("printed UTF-8");
+    for command in commands {
+        assert!(text.contains(command), "missing command {command}: {text}");
+        if let Some(page) = command.strip_prefix("temper help ") {
+            assert!(temper_docs::find(page.as_bytes()).is_some(), "missing help page {page}");
+        } else if command.starts_with("temper program-login ") {
+            assert!(command.as_bytes().starts_with(program_login), "program login prefix: {command}");
+            assert_eq!(command.as_bytes().strip_prefix(program_login), Some(b" NAME".as_slice()));
+        } else {
+            let words = substitute(command);
+            let argv: Vec<&str> = words.iter().map(String::as_str).collect();
+            let parsed = parse(&argv);
+            assert!(parsed.is_ok(), "{command}: {parsed:?}");
+        }
+    }
+}

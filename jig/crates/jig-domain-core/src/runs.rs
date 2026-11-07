@@ -1,5 +1,6 @@
 //! Live runs, their preparation, calls and text (`jig/docs/design/domain/engine.md`, sections 7 and 9).
 
+mod account_llm;
 pub(crate) mod account_preference;
 pub(crate) mod brief_text;
 pub(crate) mod conversation;

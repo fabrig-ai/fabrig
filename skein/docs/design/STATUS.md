@@ -27,6 +27,9 @@ print the bytes they hold, credentials among them on known paths
 in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
+Provider-list parsing, the standalone exchange and fake list replies are
+built; later pages and sharing the exchange shape remain deferred
+(`llm.md`, 4.9 and 6; `llm-connection.md`, 4.3 and 9; `fake-llm.md`, 3.2).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `oauth-issuer.md` and `ui-text.md` have no gap. Updates recover for both
 styles in the worlds; a merge update already holding its base and a
