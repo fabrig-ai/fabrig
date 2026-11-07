@@ -163,6 +163,7 @@ fn run(dialect: Provider, seed: u64) -> (Trace, (u32, u32)) {
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. }) => panic!("unexpected io request: {other:?}"),

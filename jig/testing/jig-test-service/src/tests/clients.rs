@@ -158,6 +158,7 @@ impl Peer {
                     | io::Request::Reject { .. }
                     | io::Request::Output { .. }
                     | io::Request::Spawn { .. }
+                    | io::Request::SpawnAlone { .. }
                     | io::Request::Signal { .. }
                     | io::Request::Usage { .. }
                     | io::Request::Window { .. }) => panic!("unexpected client io {value:?}"),

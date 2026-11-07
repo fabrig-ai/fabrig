@@ -1206,6 +1206,7 @@ pub fn delayed_oauth_output() -> Vec<&'static str> {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }

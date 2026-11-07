@@ -263,6 +263,7 @@ fn start_on_pipes(service: &mut Service, form: jig_domain_link::Form) -> Box<[u8
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }

@@ -118,7 +118,9 @@ impl Below {
     }
     fn io(&mut self, request: records::Request) {
         match request {
-            records::Request::Spawn { owner, spawn } => self.spawn(owner, spawn),
+            records::Request::Spawn { owner, spawn } | records::Request::SpawnAlone { owner, spawn } => {
+                self.spawn(owner, spawn);
+            }
             records::Request::Stream { stream, down } => self.stream(stream, down),
             records::Request::Close { entity } | records::Request::Abort { entity } => self.close(entity),
             records::Request::Signal { child, signal, to } => {
