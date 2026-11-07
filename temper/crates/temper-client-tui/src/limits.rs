@@ -1,5 +1,5 @@
 //! The two screens' bound (temper/docs/design/client/README.md, 6.14).
-use crate::words::{ALL, Word};
+use crate::words::Word;
 use temper_client_domain::Limits as Domain;
 
 #[must_use]
@@ -8,7 +8,9 @@ pub fn limits(domain: &Domain, field: u32) -> Option<skein_ui::Limits> {
     // and two thirteen-byte moments fit in 256 bytes. The other borrowed
     // phrases are shorter. Own phrases derive their capacities from the table.
     let mut line = 256_u32;
-    for word in ALL {
+    for word in
+        [Word::NotALink, Word::OtherAddress, Word::SigningIn, Word::Busy, Word::NotReady, Word::NoAnswer, Word::Refused]
+    {
         line = line.max(word.capacity(domain)?);
     }
     let opened = Word::ApprovalTab

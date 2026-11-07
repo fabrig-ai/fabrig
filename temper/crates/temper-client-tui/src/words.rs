@@ -47,7 +47,7 @@ pub enum Word {
     ApprovalNotAskedBusy,
     ApprovalNotAskedDown,
 }
-pub(crate) const ALL: [Word; 36] = [
+const ALL: [Word; 36] = [
     Word::Title,
     Word::State,
     Word::Quit,
