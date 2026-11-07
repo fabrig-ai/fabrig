@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where temper's code lags or departs from its design, and
+2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
@@ -39,9 +39,7 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, `temper help proposal` still says an
-owner's rejection under Needs you fails,
-and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer

@@ -1417,7 +1417,7 @@ fn a_second_proposal_is_refused_naming_the_one_pending() {
     let rendered = answer(&value);
     assert_eq!(
         rendered.text(),
-        b"Refused: task 2 busy: it has a proposal pending (at most 1 at once): wait for its decision, or withdraw it"
+        b"Refused: task 2 busy: it has a proposal pending (at most 1 at once): wait for its decision"
     );
     assert!(rendered.error());
 }

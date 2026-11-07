@@ -1365,8 +1365,18 @@ fn configuring_txt_says_who_does_what_in_the_persons_words() {
 #[test]
 fn configuring_txt_says_how_a_pending_proposal_goes() {
     let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("You can't withdraw or replace it while it waits."));
-    assert!(words.contains("an owner rejects it under Needs you, with a reason you hear; then propose afresh"));
+    assert!(
+        words.contains("Revise pending: propose whole at newest revision; replaces yours; card says so. No Needs you.")
+    );
+    assert!(words.contains("Refused: it stays; say so."));
+}
+
+#[test]
+fn configuring_txt_points_an_unavailable_model_to_accounts() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains(
+        "none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."
+    ));
 }
 
 #[test]
