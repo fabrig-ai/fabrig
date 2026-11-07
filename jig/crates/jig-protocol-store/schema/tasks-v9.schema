@@ -279,7 +279,7 @@ record TaskRun {
     milestone: u64
     activity: u64
     due_reason: Why
-    narrowing: bool
+    narrowing: bool llm_changed: bool
     result_position: u64
     last_reply: u64
     replies: list 128 ReplyHint

@@ -2488,7 +2488,7 @@ obligations missing.
 
 | Section 14's row | Obligations |
 |---|---|
-| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `shell`, `agents`, its `modify` free, since a goal's runs inspect alone whatever it says (`agent.md`, 4.3); starting fresh, `resume` false; `waiting` 0; its wake policy, the members of `wake` `../draft/reference-code-production.md`, section 13 names (`words`, `notices`, `news`, `results`, `questions`), `answers` and `timers` free; its documents, `documents` (`contains`: `AGENTS.md` and the code's rules, by path, a heading free). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
+| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `shell`, `agents`, its `modify` free, since no word of the reference says what a goal's runs deliver, where it lets them (`agent.md`, 4.3); starting fresh, `resume` false; `waiting` 0; its wake policy, the members of `wake` `../draft/reference-code-production.md`, section 13 names (`words`, `notices`, `news`, `results`, `questions`), `answers` and `timers` free; its documents, `documents` (`contains`: `AGENTS.md` and the code's rules, by path, a heading free). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
 | the designer's charter | setting: its instructions (`judged`); its model, `model.name`; the workspace, delivery and sub-agents, `inspect`, `modify` and `agents` true; `documents` (`contains`: `DESIGN.md`, the design rules, whole). Box: Claude Code, as the coordinator's |
 | the goal template for drafts | setting: `executor.charter`, `{"role": "coordinator"}`; `llm`, whole (section 4's choice); `tracked` (`at-least` 1); `contract.report` (`set`); `resources` (`contains`: *its own goal branch*) |
 | a small goal's template | setting: the stock's goal template, `unchanged` |
@@ -2768,6 +2768,19 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **Reference obligations for a goal that designs** (6.5.1): fold
+  `../draft/goal-as-designer.md`'s workflow into the reference, its charters
+  and stage one's judge together. Goal-delivery stories use test charters;
+  they do not establish the reference's roles, models, efforts or wakes.
+  Default: keep the current reference obligations until that change.
+
+- **Tests that release a port and bind it again** (2.4): the fake-backend
+  test `peer_reservations_transfer_once_and_close_with_preparation` binds
+  the released addresses to check closure and retained reuse. Another
+  process can take one first. Keeping a listener through transfer would
+  remove that race, but needs a different closure assertion. Default:
+  this test keeps its assertion until a failure or a test change reaches
+  it; the sandbox's reservation retries are `../protocol/setup.md`, 7.5's.
 - **Reusable ports on macOS** (2.6, 2.8): read its configured ephemeral
   range before drawing ports. With no Linux range file, the chooser uses
   49152, macOS's default; a machine configured with a lower boundary can
