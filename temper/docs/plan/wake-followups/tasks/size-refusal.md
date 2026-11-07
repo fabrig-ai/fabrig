@@ -128,3 +128,15 @@ segment: 0, rule: Maximum, supplied: <the measured charter bytes>, bound: <the l
 computed from the test's own `bytes` and `env.limits.run_bytes`, not literals; nothing else in that
 file. Don't split restore from the change and start checks. The file joins the header's `files`.
 Then finish the focused runs and the dependent `heavy cargo check --tests` the first run left.
+
+## Rebase (2026-11-07, step merge, foreman wake-followups/size-refusal/foreman-2)
+
+regenerate client wire v19 from the combined schemas during rebase
+The merge conflicts in `jig/crates/jig-client-protocol-wire/src/generated/v19.rs`.
+Main’s `628d93b110` adds browser-approved sign-in records; `985c6eaf5d` preserves them in the merged wire.
+This branch’s `3823940e7c` adds `SettingMember::StoredPolicy`; both changes also alter the generated golden tables.
+Keep main’s approval schema additions and this branch’s `stored_policy` appended after `connector`, preserving tags 0–5 and assigning 6.
+Resolve the generated file by regenerating from the combined schemas, preserving both features and the generator’s table counts and boundaries.
+Run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test suite -E 'test(=drift::codec_families_match_their_schemas_and_goldens)'`.
+Run the same command without `SKEIN_CODEGEN_WRITE` to verify drift, and report the generated code and goldens that moved.
+Retain `855fdcc7b3`’s restore-test assertion unchanged.
