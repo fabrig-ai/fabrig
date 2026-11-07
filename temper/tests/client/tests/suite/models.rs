@@ -46,23 +46,21 @@ fn configuration() -> temper_engine_domain::Config {
     config
 }
 
-#[test]
-fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
+fn model_world(configs: [temper_engine_domain::Config; 2]) -> World<Temper, Joint> {
     let mut limits = Joint::new(fixtures::SEED, fixtures::domain_limits()).engine.env.limits;
     limits.people.initial_owners = 2;
-    let front = Joint::with_engine(
-        fixtures::SEED,
-        &fixtures::domain_limits(),
-        Store::new(),
-        std::array::from_fn(|_| configuration()),
-        &limits,
-        1,
-    );
+    let front = Joint::with_engine(fixtures::SEED, &fixtures::domain_limits(), Store::new(), configs, &limits, 1);
     let mut world = World::<Temper, Joint>::new(
         Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
         front,
     );
     world.randomness(2, 0, 0);
+    world
+}
+
+#[test]
+fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
+    let mut world = model_world(std::array::from_fn(|_| configuration()));
     let chat = world.client(fixtures::PARTY, fixtures::chats_page());
     super::model::follow(
         &mut world,
@@ -113,4 +111,81 @@ fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
         chat,
         vec![super::model::press(Role::Button, b"All models"), super::model::see(Role::Button, b"Sonnet 5.5")],
     );
+}
+
+#[test]
+fn an_owner_adds_a_model_and_it_is_on_the_picker() {
+    for terminal in [false, true] {
+        let mut world = model_world(std::array::from_fn(|_| {
+            let mut config = configuration();
+            config.core.defaults.charters[0].rest = true;
+            config.core.settings.llm_providers.providers[0].name = b"anthropic".as_slice().into();
+            config
+        }));
+        let owner = world.client(fixtures::PARTY, Address::Models { project: 1 });
+        if terminal {
+            world.at_text_shell(owner);
+        }
+        super::model::follow(
+            &mut world,
+            owner,
+            vec![
+                super::model::see(Role::Select, b"Provider"),
+                super::model::press(Role::Option, b"Claude"),
+                Step::Type {
+                    find: Find::named(Role::TextField, "The model’s name".as_bytes()),
+                    words: b"claude-haiku-5-5".as_slice().into(),
+                },
+                if terminal {
+                    Step::Send { find: Find::named(Role::TextField, "The model’s name".as_bytes()) }
+                } else {
+                    super::model::press(Role::Button, b"Add")
+                },
+                super::model::see(Role::Text, "claude-haiku-5-5 · added by you · estimated prices".as_bytes()),
+            ],
+        );
+        let field = world
+            .tree(owner)
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::TextField && n.name.as_deref() == Some("The model’s name".as_bytes()))
+            .unwrap();
+        assert!(field.value.as_ref().unwrap().text.is_empty());
+        let switch = world
+            .tree(owner)
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Check && n.name.as_deref() == Some(b"claude-haiku-5-5 in the picker"))
+            .unwrap();
+        assert!(switch.states.as_slice().contains(&State::Pressed));
+        let added = world
+            .root(owner)
+            .person()
+            .pages()
+            .me(world.root(owner).person().client())
+            .unwrap()
+            .projects
+            .get(0)
+            .unwrap()
+            .models
+            .iter()
+            .find(|m| m.name.bytes() == b"claude-haiku-5-5")
+            .unwrap();
+        assert_eq!(added.source, jig_client::contract::ModelSource::Person);
+        assert!(added.picker && added.estimated && added.efforts.is_empty() && added.effort.is_none());
+        super::model::follow(
+            &mut world,
+            owner,
+            vec![
+                Step::Go { address: Address::NewChat { draft: false } },
+                super::model::see(Role::Button, b"Sonnet 5.5"),
+                super::model::press(Role::Button, b"Sonnet 5.5"),
+                super::model::see(Role::Button, b"claude-haiku-5-5"),
+                super::model::press(Role::Button, b"claude-haiku-5-5"),
+                super::model::see(Role::Button, b"claude-haiku-5-5"),
+                super::model::press(Role::Button, b"claude-haiku-5-5"),
+            ],
+        );
+        assert!(!world.tree(owner).nodes().iter().any(|n| n.name.as_deref() == Some(b"Effort")));
+    }
 }

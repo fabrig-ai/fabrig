@@ -46,6 +46,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
     let (mut root, me_watch, _, _, accounts_watch) =
         f::root_at_full(Address::Models { project: f::PROJECT }, &f::domain_limits(), b"Shop");
     let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.deployment_role = Some(c::HeldRole::Owner);
     me.providers = List::uncapped();
     for (provider, name) in [(17, "anthropic"), (18, "openai")] {
         me.providers
@@ -287,7 +288,7 @@ fn each_section_says_what_pays() {
                 .filter(|n| n.role == Role::Heading { level: 2 })
                 .map(|n| n.name.as_deref().unwrap())
                 .collect();
-            assert_eq!(headings, [b"Claude".as_slice(), b"OpenAI"]);
+            assert_eq!(headings, [b"Claude".as_slice(), b"OpenAI", b"Add a model by name"]);
         }
     }
     for (kind, plan) in [(c::AccountKind::Program, false), (c::AccountKind::SignIn, true)] {
@@ -402,5 +403,211 @@ fn left_out_says_how_many() {
                 assert_eq!(omitted.as_slice(), ["3 more models don't fit the catalogue."]);
             }
         }
+    }
+}
+
+fn model_act(root: &mut d::Domain, act: d::pages::models::Act) {
+    f::root_event(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Models(act)) });
+}
+#[test]
+fn a_member_has_no_form() {
+    let (mut root, watch, _) = fixture(true);
+    for role in [Some(c::HeldRole::Policy { role: 1 }), None] {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.deployment_role = role;
+        change_me(&mut root, watch, me);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::MODELS_ADD)));
+            assert!(!main(view.tree()).iter().any(|n| n.role == Role::TextField || n.role == Role::Select));
+        }
+    }
+}
+#[test]
+fn the_add_form_binds_the_provider_name_and_press_in_both_shells() {
+    let (mut root, _, _) = fixture(false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(skein_ui::outline::check(view.tree()), None);
+        let select = named(view.tree(), "Provider");
+        let options: Vec<_> = subtree(view.tree(), select).iter().filter(|n| n.role == Role::Option).collect();
+        assert_eq!(
+            options.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Claude".as_slice(), b"OpenAI"]
+        );
+        assert!(options[0].states.as_slice().contains(&State::Selected));
+        assert_eq!(named(view.tree(), "The model’s name").placeholder.as_deref(), Some(b"model-name".as_slice()));
+        assert!(named(view.tree(), "Add").states.as_slice().contains(&State::Disabled));
+    }
+    for terminal in [true, false] {
+        let mut view = if terminal { f::page_view(&root) } else { f::browser_page_view(&root) };
+        let select = named(view.tree(), "Provider");
+        let option = subtree(view.tree(), select).iter().find(|n| n.name.as_deref() == Some(b"OpenAI")).unwrap().id;
+        assert_eq!(
+            crate::act(&mut view, option, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Provider(18))))
+        );
+        let field = named(view.tree(), "The model’s name").id;
+        assert_eq!(
+            crate::act(&mut view, field, Act::Input { value: b"claude-haiku-5-5".as_slice().into() }),
+            Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Name(
+                b"claude-haiku-5-5".as_slice().into()
+            ))))
+        );
+        assert_eq!(
+            crate::act(&mut view, field, Act::Submit),
+            Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Add)))
+        );
+    }
+    model_act(&mut root, d::pages::models::Act::Name(b"claude-haiku-5-5".as_slice().into()));
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let button = named(view.tree(), "Add");
+        assert!(!button.states.as_slice().contains(&State::Disabled));
+        let id = button.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Add)))
+        );
+    }
+}
+#[test]
+fn a_name_out_of_shape_keeps_add_off() {
+    let (mut root, _, _) = fixture(true);
+    for name in [b"".as_slice(), b"space name", b"slash/name", &[b'a'; 129]] {
+        model_act(&mut root, d::pages::models::Act::Name(name.into()));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(named(view.tree(), "Add").states.as_slice().contains(&State::Disabled));
+        }
+    }
+}
+#[test]
+fn a_name_the_provider_holds_says_so() {
+    let (mut root, _, _) = fixture(true);
+    model_act(&mut root, d::pages::models::Act::Name(b"claude-sonnet-5-5".as_slice().into()));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        named(view.tree(), "Claude already has that model.");
+        assert!(named(view.tree(), "Add").states.as_slice().contains(&State::Disabled));
+    }
+    model_act(&mut root, d::pages::models::Act::Provider(18));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(!named(view.tree(), "Add").states.as_slice().contains(&State::Disabled));
+        assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Claude already has that model.")));
+    }
+}
+
+fn send_add(root: &mut d::Domain) -> Token {
+    let mut out = skein_lib::Queue::uncapped();
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
+    d::step(
+        root,
+        &env,
+        d::Event::Act { action: d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Add)) },
+        &mut out,
+    );
+    d::step(root, &env, d::Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let mut sent = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            assert!(sent.is_none(), "Add sends one request");
+            sent = Some(*attempt);
+        }
+    }
+    sent.expect("Add sends a request")
+}
+fn answer_add(root: &mut d::Domain, attempt: Token, answer: c::Answer) {
+    f::root_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+#[test]
+fn a_provider_without_an_account_can_be_added_to() {
+    let (mut root, watch, _) = fixture(false);
+    model_act(&mut root, d::pages::models::Act::Provider(18));
+    model_act(&mut root, d::pages::models::Act::Name(b"gpt-next".as_slice().into()));
+    let attempt = send_add(&mut root);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for name in ["Provider", "The model’s name", "Add"] {
+            assert!(named(view.tree(), name).states.as_slice().contains(&State::Disabled));
+        }
+    }
+    answer_add(
+        &mut root,
+        attempt,
+        c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 1 })),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        named(view.tree(), "Added. It shows when an account of OpenAI can run it.");
+        assert!(named(view.tree(), "The model’s name").value.as_ref().unwrap().text.is_empty());
+        assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"gpt-next")));
+    }
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let mut added = model("gpt-next", 18, "gpt-next");
+    added.number = 64;
+    added.source = c::ModelSource::Person;
+    added.estimated = true;
+    added.efforts.clear();
+    added.effort = None;
+    me.projects.get_mut(0).unwrap().models.push(added).unwrap();
+    change_me(&mut root, watch, me);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        named(view.tree(), "gpt-next · added by you · estimated prices");
+        assert!(
+            !main(view.tree())
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Added. It shows when an account of OpenAI can run it."))
+        );
+    }
+}
+#[test]
+fn a_refusal_shows_under_the_add_form() {
+    let (mut root, _, _) = fixture(true);
+    model_act(&mut root, d::pages::models::Act::Name(b"claude-haiku-5-5".as_slice().into()));
+    let attempt = send_add(&mut root);
+    answer_add(&mut root, attempt, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let form = main(view.tree()).iter().find(|n| n.styles.as_slice().contains(&look::MODELS_ADD)).unwrap();
+        let parent = main(view.tree())
+            .iter()
+            .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION))
+            .find(|n| subtree(view.tree(), n).contains(form))
+            .unwrap();
+        let refusal = subtree(view.tree(), parent)
+            .iter()
+            .find(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL))
+            .expect("the add section holds its refusal");
+        assert!(!f::nodes_text(subtree(view.tree(), refusal)).is_empty());
+        assert_eq!(named(view.tree(), "The model’s name").value.as_ref().unwrap().text.as_ref(), b"claude-haiku-5-5");
+    }
+}
+#[test]
+fn the_provider_select_leaves_out_the_playground_in_the_supplied_order() {
+    let original = fixture(false).0;
+    let me = original.pages().me(original.client()).unwrap().clone();
+    let (mut root, watch, _, _, _) = f::root_at_with_playground(
+        Address::Models { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        Some((f::PROJECT, true)),
+    );
+    assert_eq!(root.forge().playground_provider(), Some(17));
+    change_me(&mut root, watch, me);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let options: Vec<_> = subtree(view.tree(), named(view.tree(), "Provider"))
+            .iter()
+            .filter(|n| n.role == Role::Option)
+            .map(|n| n.name.as_deref().unwrap())
+            .collect();
+        assert_eq!(options, [b"OpenAI".as_slice()]);
     }
 }

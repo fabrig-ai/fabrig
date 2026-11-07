@@ -1924,6 +1924,9 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 
 /* ==== ui: settings ==== */
+#app > .temper-settings .temper-models-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+#app > .temper-settings .temper-models-add > input { flex: 1 1 200px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
+#app > .temper-settings .temper-models-add > select { padding: 6px 8px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
 /* Settings' list of models. */
 #app > .temper-settings .temper-models-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 #app > .temper-settings .temper-models-source small, #app > .temper-settings .temper-settings-section > small, #app > .temper-settings .temper-models-ask { font-size: 13px; color: var(--gf-muted); }

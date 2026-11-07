@@ -90,7 +90,14 @@ impl Bindings {
                         PageAct::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (PageAct::AmendTracked, skein_ui::Act::Toggle) => PageAct::AmendTracked,
-                    (PageAct::Models(act), skein_ui::Act::Toggle) => PageAct::Models(*act),
+                    (PageAct::Models(act), skein_ui::Act::Toggle) => PageAct::Models(act.clone()),
+                    (
+                        PageAct::Models(temper_client_domain::pages::models::Act::Name(..)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Models(temper_client_domain::pages::models::Act::Name(value)),
+                    (PageAct::Models(temper_client_domain::pages::models::Act::Name(..)), skein_ui::Act::Submit) => {
+                        PageAct::Models(temper_client_domain::pages::models::Act::Add)
+                    }
                     (
                         PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
                         skein_ui::Act::Toggle,
