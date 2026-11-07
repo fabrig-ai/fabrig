@@ -66,6 +66,8 @@ chat-terminal-commands
 chat-terminal-draft
 chat-terminal-light
 chat-terminal-model
+chat-terminal-proposal
+chat-terminal-question
 chat-terminal-working
 chat-work-done
 chat-work-empty

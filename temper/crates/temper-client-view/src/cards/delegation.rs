@@ -138,3 +138,29 @@ pub(crate) fn said(b: &mut Builder, said: Said<'_>, words: &Words) {
         }
     }
 }
+
+/// The browser's terminal needs one line; the task's page holds its details (client/README.md, 3.5).
+pub(crate) fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    let facts = delegation::facts(task);
+    b.open(Role::Region);
+    b.style(look::TERMINAL_CARD);
+    b.name(&words.say(Word::Task, &[Hole::Number(facts.task)]));
+    b.open(Role::Slot);
+    b.style(look::TERMINAL_CARD_LINE);
+    let kind = match facts.kind {
+        Kind::Change => Word::DelegationChange,
+        Kind::Report => Word::DelegationReport,
+        Kind::Verdict => Word::DelegationVerdict,
+        Kind::Job => Word::DelegationJob,
+        Kind::Approval => Word::DelegationApproval,
+    };
+    text(b, Role::Paragraph, &words.say(kind, &[Hole::Number(facts.task)]));
+    text(b, Role::Heading { level: 3 }, facts.title);
+    status(b, facts.state, words);
+    let name = words.say(Word::Task, &[Hole::Number(facts.task)]);
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: facts.task } }));
+    words.text(b, Word::DelegationOpen, &[]);
+    b.close();
+    b.close();
+    b.close();
+}
