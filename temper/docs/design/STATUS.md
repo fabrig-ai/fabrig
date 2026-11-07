@@ -308,7 +308,7 @@ design admits one with the printed link off
 at a start, which the user's request counts a bug
 (`domain/root.md`). The render check of `ready-account-email` on a real
 sign-in and a real Claude Code login follows landing, owned by temper/ui
-(`client/README.md`, 3.5). Ready draws no words for a
+(`client/README.md`, section 11). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its

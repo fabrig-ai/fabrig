@@ -2,6 +2,10 @@
 
 2026-11-07. Where smith's code lags or departs from [programs.md](programs.md).
 
+Section 3 has no known gap in reading a usable status's optional email,
+bounded to 255 bytes, without making usability depend on it. Section 8's
+fake status supplies it; this does not establish a real-login render check.
+
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
