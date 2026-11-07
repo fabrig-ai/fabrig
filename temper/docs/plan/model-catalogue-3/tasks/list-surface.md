@@ -71,3 +71,16 @@ pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList,
 pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 ```
 These exports serve separate contracts in `contracts.md`, section 6, and require no behavioral change. Preserve the automatically merged changes in the other paths.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-3/list-surface/foreman-2)
+
+Rebase onto integration and regenerate the conflicting Story A fixture from the combined code.
+The sole reported conflict is `temper/tests/playground/tests/fixtures/story-a.log`.
+Branch commit `6e154280d4` changes 82 recorded response hashes; integration also changes the fixture through `2b160c3f7f` and `c1caaef855`, brought in by `29b1ec07df`.
+Preserve both sides’ source changes and the automatically merged `jig/crates/jig-domain-core/src/tests.rs`.
+Regenerate the fixture after combining the code; choosing either side’s hashes alone cannot represent both changes.
+The generator is `temper/tests/playground/tests/suite/walk.rs`, function `story_a_walks_from_the_welcome_to_the_csv_change_landed`, under `SKEIN_CODEGEN_WRITE=1`.
+Run its fixture generation through heavy:
+`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify `walk::story_a_kept_log_replays_natively` alone through heavy, without the variable.
+Include the regenerated fixture in the rebase and report its regeneration; it is the task’s generated output, requiring no scope expansion.
