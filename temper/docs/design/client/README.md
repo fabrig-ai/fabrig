@@ -6754,6 +6754,12 @@ own tests:
 
 ## 11. Open questions
 
+- **A document's drawing after landing** (3.5): temper/ui looks at a flow
+  in a chat and in its document, including both layouts and the narrow
+  fallback (`browser.md`, section 5). Default: skein's acceptance cases
+  and temper's host test hold the scene's bytes; the rendered comparison
+  follows landing.
+
 - **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
   and disclosures at 1440, 1000 and 420 px, with screenshots also at

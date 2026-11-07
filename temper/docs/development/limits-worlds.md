@@ -4,7 +4,9 @@
 trunk. Test builds and dependencies are unoptimized. CPU means user plus
 system seconds, including waited-for descendants. The record of commands,
 loads, individual runs, instruction counts and unsuccessful profiles is
-[close.md](../plan/limits-worlds/figures/close.md).
+the figure `close`. The plan's figures are preserved in `861a69c920` under
+`temper/docs/plan/limits-worlds/figures/`; this account names each by its
+file's name there.
 
 | Suite | World | Before tests | Before CPU s | After tests | After median serial CPU s † |
 |---|---|---:|---:|---:|---:|
@@ -79,27 +81,27 @@ total cannot establish a successful-story saving.
 
 | Story | First Ir | Last Ir on combined trunk | First figure |
 |---|---:|---:|---|
-| `fuzzy::stories::a_ci_repair_is_crashed_at_every_live_commit` (C) | 41,386,230,122 | 14,810,315,805 | [figures-before.md](../plan/limits-worlds/figures/figures-before.md) |
-| `fuzzy::shared::a_changed_judge_is_crashed_at_every_live_commit` (J) | 37,550,774,224 | 12,794,367,523 | [cuts-fork.md](../plan/limits-worlds/figures/cuts-fork.md) |
-| `stories::a_forked_cut_ends_as_a_fresh_cut_does` (Q) | 2,105,510,429 parent only; whole total unknown | 1,060,592,335 | [cuts-fork.md](../plan/limits-worlds/figures/cuts-fork.md) |
-| `stories::failed_ci_is_repaired_and_the_new_head_is_reviewed` (B) | 488,398,612 | 291,672,676 | [cuts-fork.md](../plan/limits-worlds/figures/cuts-fork.md) |
-| `public::every_inaccessible_identifier_is_one_unknown_byte_for_byte` (U) | 18,514,602,590 | 10,996,373,926 | [figures-before.md](../plan/limits-worlds/figures/figures-before.md) |
-| `public::every_owner_version_and_kind_answers_as_declared` (O) | 6,377,149,314 | 3,792,362,463 | [public-causes.md](../plan/limits-worlds/figures/public-causes.md) |
-| `m15::whole_run_and_renewal_scan_every_fake_issued_token_byte` (M) | 17,791,335,749 | 11,756,350,787 | [public-causes.md](../plan/limits-worlds/figures/public-causes.md) |
-| `fuzzy::repair::a_change_failing_ci_is_repaired_and_lands` (R) | 25,889,333,321 / 28,824,912,164, both partial | 23,471,805,382 (partial) / 22,906,059,880 (partial) | [figures-before.md](../plan/limits-worlds/figures/figures-before.md) |
-| `fuzzy::case_6_4::a_red_tip_pauses_kits_queue_for_one_repair_that_lands_before_a4_while_the_directors_interim_timer_waits_without_adopting_a4` (P) | 32,077,040,893 / 39,395,136,937, both partial | 21,430,390,341 / 21,249,528,979 | [figures-before.md](../plan/limits-worlds/figures/figures-before.md) |
-| `github_land::a_chats_change_lands_on_connected_github` (G) | 14,649,575,831 / 16,436,998,947 | 11,561,761,382 / 11,595,415,230 | [figures-before.md](../plan/limits-worlds/figures/figures-before.md) |
+| `fuzzy::stories::a_ci_repair_is_crashed_at_every_live_commit` (C) | 41,386,230,122 | 14,810,315,805 | `figures-before` |
+| `fuzzy::shared::a_changed_judge_is_crashed_at_every_live_commit` (J) | 37,550,774,224 | 12,794,367,523 | `cuts-fork` |
+| `stories::a_forked_cut_ends_as_a_fresh_cut_does` (Q) | 2,105,510,429 parent only; whole total unknown | 1,060,592,335 | `cuts-fork` |
+| `stories::failed_ci_is_repaired_and_the_new_head_is_reviewed` (B) | 488,398,612 | 291,672,676 | `cuts-fork` |
+| `public::every_inaccessible_identifier_is_one_unknown_byte_for_byte` (U) | 18,514,602,590 | 10,996,373,926 | `figures-before` |
+| `public::every_owner_version_and_kind_answers_as_declared` (O) | 6,377,149,314 | 3,792,362,463 | `public-causes` |
+| `m15::whole_run_and_renewal_scan_every_fake_issued_token_byte` (M) | 17,791,335,749 | 11,756,350,787 | `public-causes` |
+| `fuzzy::repair::a_change_failing_ci_is_repaired_and_lands` (R) | 25,889,333,321 / 28,824,912,164, both partial | 23,471,805,382 (partial) / 22,906,059,880 (partial) | `figures-before` |
+| `fuzzy::case_6_4::a_red_tip_pauses_kits_queue_for_one_repair_that_lands_before_a4_while_the_directors_interim_timer_waits_without_adopting_a4` (P) | 32,077,040,893 / 39,395,136,937, both partial | 21,430,390,341 / 21,249,528,979 | `figures-before` |
+| `github_land::a_chats_change_lands_on_connected_github` (G) | 14,649,575,831 / 16,436,998,947 | 11,561,761,382 / 11,595,415,230 | `figures-before` |
 
 The five requested baseline stories come from
-[figures-before.md](../plan/limits-worlds/figures/figures-before.md).
+`figures-before`.
 The additional judge sweep and comparison come from
-[cuts-fork.md](../plan/limits-worlds/figures/cuts-fork.md); owner and M15
-from [public-causes.md](../plan/limits-worlds/figures/public-causes.md).
+`cuts-fork`; owner and M15
+from `public-causes`.
 The uncut repair (B, RepairCi at seed 71) was also profiled as cuts-fork's
 prefix estimate. Q's first figure is the unreset comparison profile's
 parent only; its whole-program total is unknown and cannot be compared
 with the closing sum of parent and children.
-All last figures are from [close.md](../plan/limits-worlds/figures/close.md). The forked sweep figures sum parent
+All last figures are from `close`. The forked sweep figures sum parent
 and every child's PROGRAM TOTALS, resetting at child entry; their small
 inherited libtest overhead is retained. The first sweep figures reran a
 fresh prefix per cut. Both methods keep every live cut, but count different
@@ -119,9 +121,8 @@ patience. Slow-tier results and a complete-tree suite total remain unknown.
 
 ## What went, and what holds it
 
-[`plan.md`](../plan/limits-worlds/plan.md), Belonging, records the assertion
-reading. [stories-go.md](../plan/limits-worlds/figures/stories-go.md)
-records nineteen distinct holders, each selected alone and passing before
+The plan's Belonging section, preserved in `861a69c920` beside the figures,
+records the assertion reading. `stories-go` records nineteen distinct holders, each selected alone and passing before
 removal, and the resulting 22-to-18 fuzzy count. The two lower holders
 were added first. All names below are tests; `fuzzy::case_*` abbreviations
 refer to the full names in the closing figures.
@@ -233,18 +234,18 @@ overlap. “No isolated saving” is a measurement limit, not a zero cost.
 
 | Cause and source figure | What changed and what it saved |
 |---|---|
-| Fresh prefix at every crash, [cuts-fork.md](../plan/limits-worlds/figures/cuts-fork.md) | Fork at each live commit; CI 41,387,037,208 → 25,170,467,106 Ir (39.18%); judge 37,550,774,224 → 21,871,236,484 (41.76%). All 78 / 77 cuts remain. |
-| Whole-store projection, [conformance-causes.md](../plan/limits-worlds/figures/conformance-causes.md) | Keyed row contributions: CI saves 980,994,301 Ir (3.90%); judge 1,651,083,158 (7.55%). Complete referee snapshots remain. |
+| Fresh prefix at every crash, `cuts-fork` | Fork at each live commit; CI 41,387,037,208 → 25,170,467,106 Ir (39.18%); judge 37,550,774,224 → 21,871,236,484 (41.76%). All 78 / 77 cuts remain. |
+| Whole-store projection, `conformance-causes` | Keyed row contributions: CI saves 980,994,301 Ir (3.90%); judge 1,651,083,158 (7.55%). Complete referee snapshots remain. |
 | Repeated full policy equality, same | Shared immutable atomic snapshots with detached edits: another 3,138,736,310 / 2,204,383,450 Ir (12.98% / 10.90%). |
 | Borrowed-map rebuilds and joins, same | Direct durable-key lookup and keyed cross-row facts: another 1,200,578,818 / 1,473,143,333 Ir (5.70% / 8.18%). |
 | Effect-evidence scans, same | Typed ranges and exact lookups: another 412,112,143 / 952,988,136 Ir (2.08% / 5.76%); full-walk comparison remains. |
 | Fixture rebuilt for public watch, same | Reuse fixed watch parameters, all 954 reads retained. CI factory calls 1,128 → 252; its inclusive Ir 1,190,351,569 → 268,678,903. Whole arm saves 1,115,429,189 Ir (5.74%), including compatibility work. |
 | Empty per-row payloads and temporary spend map, same | Compact row facts and ordered expense totals. Combined final arm saves 628,227,774 / 466,432,531 Ir (3.43% / 2.99%); compaction's net saving is not isolated. Adapter work excluding projection/resolution falls 442,664,283 / 298,873,669 Ir. Heap ceilings and observations remain. |
 | Repeated fresh comparison outcomes, same | Complete first/middle/last references with every forked cut retained; native 1.082 → 0.491 CPU s, within the 1 s guide. |
-| Allocation-accounting TLS lookup, [engine-causes.md](../plan/limits-worlds/figures/engine-causes.md) | Group destructor-free counters, one lookup per allocation/free. Unforked CI saves 3,564,161,827 Ir (8.61%), same allocation/free counts; 3,563,853,699 is bookkeeping. No whole-GitHub saving beyond its spread is established. |
-| Durable-row landing scan, [public-causes.md](../plan/limits-worlds/figures/public-causes.md) | Key-range lookup saves 3,804,986,652 Ir (20.55% of original identifiers); readiness short-circuit saves another 1,009,651,739 (6.86%); applied-commit cache another 401,584,371 (2.93%). Whole identifiers 28.17% cheaper; owners 28.42%. |
+| Allocation-accounting TLS lookup, `engine-causes` | Group destructor-free counters, one lookup per allocation/free. Unforked CI saves 3,564,161,827 Ir (8.61%), same allocation/free counts; 3,563,853,699 is bookkeeping. No whole-GitHub saving beyond its spread is established. |
+| Durable-row landing scan, `public-causes` | Key-range lookup saves 3,804,986,652 Ir (20.55% of original identifiers); readiness short-circuit saves another 1,009,651,739 (6.86%); applied-commit cache another 401,584,371 (2.93%). Whole identifiers 28.17% cheaper; owners 28.42%. |
 | Repeated issued-token searches, same | One cached overlapping matcher, original needle priority and old-artifact checks. Search path saves 4,778,588,655 Ir; M15 whole story saves 5,129,459,177 (28.83%), including shared drain change. |
-| Repeated forge-history collection, [real-loop-causes.md](../plan/limits-worlds/figures/real-loop-causes.md) | Change-triggered snapshots and suffix cursor. Repair 833,682,304 → 6,401,309 inclusive Ir (70098.6 → 500.8 Ir/call); case 4,625,233,683 → 6,693,892 (186238.5 → 481.2). Partial endpoints prevent a whole-story gain claim. |
+| Repeated forge-history collection, `real-loop-causes` | Change-triggered snapshots and suffix cursor. Repair 833,682,304 → 6,401,309 inclusive Ir (70098.6 → 500.8 Ir/call); case 4,625,233,683 → 6,693,892 (186238.5 → 481.2). Partial endpoints prevent a whole-story gain claim. |
 | Terminal byte windows, same | Shared linear byte search, about 74% fewer instructions per query: 105,000–108,000 → 27,475–27,563. Final footprint 1.85–2.08%; readiness counts vary. |
 | Case cue byte windows, same | Earliest cue and tie priority retained, about 79% fewer instructions per observed query: 81.05 million → 16.94–16.95 million; final footprint 0.82–0.86%. |
 

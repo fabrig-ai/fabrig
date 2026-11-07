@@ -66,8 +66,9 @@ is testing-strategy.md.
 - **A small Rust.** Structs, enums, `match`, functions, references, moves
   and a short list of library types. No `async`, closures, trait objects,
   user-defined traits or generics, `Rc` or `RefCell`, `Drop` impls, or
-  `unsafe` outside one module (in tests, also the counting allocator's:
-  skein's testing.md, section 6). Panics abort.
+  `unsafe` outside one module (in tests, also the counting allocator and
+  the fork kit's process boundary: skein's testing.md, section 6). Panics
+  abort.
 
 ## 2. The loop
 
@@ -172,9 +173,9 @@ to a file.
   other crates from outside skein and the service. Among them `ring` runs
   `unsafe` code for its cryptography, and `getrandom` for the entropy
   `ring` draws from the kernel; `zeroize`, `subtle` and `once_cell`,
-  beneath rustls, a few lines each. In tests, the only `unsafe` is the
-  counting allocator's `unsafe impl GlobalAlloc` (skein's testing.md,
-  section 6).
+  beneath rustls, a few lines each. In tests, `unsafe` is confined to the
+  counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
+  documented process-boundary module (skein's testing.md, section 6).
 - **In a client compiled to WebAssembly, the glue crates are the only
   `unsafe` code,** since they make every platform call: `wasm-bindgen`,
   `js-sys` and `web-sys`, pinned to exact versions, their dependencies,
@@ -1022,8 +1023,8 @@ does not hand-roll data structures: what is missing goes into lib.
 
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
-counting allocator's `unsafe impl GlobalAlloc` (skein's testing.md,
-section 6).
+counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
+documented process-boundary module (skein's testing.md, section 6).
 
 ### 10.3 What is out
 

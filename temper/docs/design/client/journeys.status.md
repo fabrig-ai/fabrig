@@ -8,6 +8,11 @@ no request CSS or script is part of a journey. The `project-landing`
 recording is refreshed at `37e4a1aa55`. Render comparison remains
 temper/ui's after-landing work (section 10).
 
+Section 9 has no known gap in the flow's drawing route. The gallery
+measures no box and prints the fallback; existing recordings contain no
+flow. A rendered flow in a chat and its document remains section 10's
+after-landing comparison.
+
 Sections 8.2 and 9 have no known gap in `chat-draft`'s drafts-on start:
 its setup leaves the fresh project's value alone, its recording has no
 drafts toggle, and its account names `again chat-draft` and twenty prints.
