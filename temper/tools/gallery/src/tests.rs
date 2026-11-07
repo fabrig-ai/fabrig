@@ -402,7 +402,15 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Limits" },
         ],
     },
-    Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
+    Holds {
+        name: "start-goal",
+        heading: "6 goals, 4 under way.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start a goal" },
+            Part::Value { role: Role::TextField, name: "Draft", value: "" },
+            Part::Value { role: Role::TextField, name: "Name", value: "" },
+        ],
+    },
     Holds {
         name: "start-goal-draft",
         heading: "T1 · Away mode, draft",
@@ -528,7 +536,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "goal-no-report",
-        heading: "6 of 9 tasks landed.",
+        heading: "6 of 9 tasks done.",
         parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
     },
     Holds {
@@ -1154,7 +1162,7 @@ const HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Text { text: "Six of nine tasks landed; the store task is split in two after two size failures." },
-            Part::Text { text: "96 of 112 tasks landed." },
+            Part::Text { text: "96 of 112 tasks done." },
         ],
     },
     Holds {
@@ -1181,7 +1189,7 @@ const HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Text { text: "Planning from the draft." },
-            Part::Text { text: "0 of 1 tasks landed." },
+            Part::Text { text: "0 of 1 tasks done." },
         ],
     },
     Holds {
@@ -2282,7 +2290,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-solo-T3",
-        heading: "0 of 2 tasks landed.",
+        heading: "0 of 2 tasks done.",
         parts: &[
             Part::Text { text: "CSV import" },
             Part::Text { text: "needs you" },
@@ -2754,8 +2762,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "task-reference-T12",
-        heading: "3 of 9 tasks landed.",
-        parts: &[Part::Text { text: "Harness" }, Part::Named { role: Role::Disclosure, name: "3 landed" }],
+        heading: "3 of 9 tasks done.",
+        parts: &[Part::Text { text: "Harness" }, Part::Named { role: Role::Disclosure, name: "1 landed" }],
     },
     Holds {
         name: "task-solo-T9",

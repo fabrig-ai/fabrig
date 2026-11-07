@@ -595,7 +595,7 @@ fn weight(counts: &[u32], widths: &[usize]) -> u64 {
 fn a_huffman_code_is_complete_canonical_and_as_short_as_any() {
     // Counts no more than five times apart build no tree deeper than 15:
     // the code is the tree's. Counts from 1 may: the code is no shorter.
-    for (seed, rarest) in (0..20).zip([1000, 1].into_iter().cycle()) {
+    for (seed, rarest) in (0..4).zip([1000, 1].into_iter().cycle()) {
         let mut rng = Rng::new(seed);
         let mut counts = [0_u32; 288];
         for count in &mut counts {

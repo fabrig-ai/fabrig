@@ -191,7 +191,7 @@ impl Goal {
         {
             for row in rows {
                 match line(&row.chip, false) {
-                    Some(Line::Landed) => {
+                    Some(Line::Landed | Line::Done) => {
                         counts.done = counts.done.checked_add(1).expect("delegate count fits");
                         counts.total = counts.total.checked_add(1).expect("delegate count fits");
                     }
@@ -331,6 +331,7 @@ pub enum Line {
     Failed,
     Waits,
     Landed,
+    Done,
 }
 /// A delegate's words, cancelled delegates left out; first match wins.
 #[must_use]
@@ -338,7 +339,18 @@ pub fn line(chip: &c::Chip, yours: bool) -> Option<Line> {
     match &chip.details.phase {
         c::ChipPhase::Ended => {
             return match &chip.details.details.ending {
-                Some(c::ChipEnding::Done(_)) => Some(Line::Landed),
+                Some(c::ChipEnding::Done(value)) => Some(match value {
+                    c::ResultValue::Change { kind: 1, .. } => Line::Landed,
+                    c::ResultValue::Report(_)
+                    | c::ResultValue::OwnerVerdict { .. }
+                    | c::ResultValue::Verdict { .. }
+                    | c::ResultValue::Connector { .. }
+                    | c::ResultValue::Change { .. }
+                    | c::ResultValue::Choice { .. }
+                    | c::ResultValue::Approved { .. }
+                    | c::ResultValue::Failure(_)
+                    | c::ResultValue::Words(_) => Line::Done,
+                }),
                 Some(c::ChipEnding::Failed(_)) => Some(Line::Failed),
                 Some(c::ChipEnding::Cancelled { .. }) => None,
                 None => Some(Line::Waits),

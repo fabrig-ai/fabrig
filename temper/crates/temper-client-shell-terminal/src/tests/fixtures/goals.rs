@@ -43,11 +43,10 @@ pub fn page() -> Tree {
         b.close();
     }
     b.close();
-    b.open(Role::Link);
+    b.open(Role::Button);
     b.style(look::SHEET_LINK);
     b.name(b"Start one from a draft");
-    b.link(binding());
-    b.text(Run::Plain, b"Start one from a draft");
+    b.bind(binding());
     b.close();
     b.close();
     b.open(Role::Slot);

@@ -16,6 +16,29 @@ fn the_start_reaches_ready_from_the_recorded_answers() {
     assert!(world.close());
 }
 #[test]
+fn settlement_counts_fragments_before_a_header_line_is_complete() {
+    // A line longer than sixteen maximum-size wire fragments needs progress
+    // before the HTTP reader can answer its demand for a complete line.
+    let body = br#"{"id":2,"login":"writer"}"#;
+    let mut response = b"HTTP/1.1 200 Answer\r\nX-Padding: ".to_vec();
+    response.extend(std::iter::repeat_n(b'x', 1024));
+    response.extend_from_slice(format!("\r\nContent-Length: {}\r\n\r\n", body.len()).as_bytes());
+    response.extend_from_slice(body);
+    let mut world = Machine::new(
+        7,
+        vec![
+            Answer { request: "GET /api/v1/user", response: Response::Bytes(response) },
+            Answer::case("GET /api/v1/settings/api", "settings-api"),
+        ],
+    );
+    world.advance_to(skein_lib::Time::ZERO);
+    assert!(world.script_done());
+    assert_eq!(world.requests().len(), 2);
+    assert_eq!(world.connected_forges(), &[fixtures::FORGE]);
+    assert_eq!(world.stopped(), None);
+    assert!(world.close());
+}
+#[test]
 fn another_user_stops_the_start_once_naming_the_forge() {
     let mut world = Machine::new(
         7,

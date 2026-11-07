@@ -2,19 +2,21 @@
 
 2026-11-07. Where skein's code lags or departs from [testing.md](testing.md).
 
-Section 5's heap counts, peaks and hand-outs are preserved with one
-thread-local reach per accounting call. The wire keeps structured trace
-steps and bytes, formatting its lines when read. The shared helpers use
-slice copies for TLS fills and text runs, literal event assembly, and skip
-empty wire writes. The six-test instruction account is
-`skein/docs/development/world-costs.md`; it establishes no whole-suite CPU
-total for section 7's budgets. Remaining cost work is deferred in section 9.
+Unlisted sections have no known gap. Section 9 carries deferred cost work.
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
+  7: no complete post-repair focused-suite CPU total establishes the
+  30 CPU s budget. `skein/docs/development/skein-limits-heavy.md` estimates
+  5.311441 CPU s saved from selected instruction ratios, short of the
+  request's at-least-6 aim; neither that aim nor the suite budget is
+  established. The process-world row has no complete instruction pair,
+  other tests have unknown individual counts, and the row ratios come
+  from different baselines. Shared-helper measurements in
+  `skein/docs/development/world-costs.md` establish no suite total either.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

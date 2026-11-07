@@ -2225,8 +2225,11 @@ impl GoalPage {
         task.chip.phase = phase;
         task.last_activity = goal_wall(w, at);
         if phase == c::Phase::Ended {
-            task.result =
-                Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))))));
+            task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
+                kind: 1,
+                part: c::Part { connector: FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(number) },
+                words: doc("Landed."),
+            }))));
         }
         let mut line = task_line(finish_document(task));
         let dependencies: &[u64] = match (self.facts.number, index) {

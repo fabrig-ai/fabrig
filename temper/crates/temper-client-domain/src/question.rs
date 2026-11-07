@@ -2,6 +2,8 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
+pub const CHOICES: u32 = 16;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Choice {
     /// What the button says, and the answer's words: no prefix or recommendation ending.
@@ -50,8 +52,13 @@ pub fn parse(words: &[u8], cut: bool) -> Parsed {
     let mut choices = List::uncapped();
     let mut saw = List::uncapped();
     let mut marked = false;
+    let mut choice_lines = 0_u32;
     for line in lines.get(trailing..).expect("trailing begins at a line boundary") {
         if let Some(words) = line.strip_prefix(b"Choice: ") {
+            choice_lines = choice_lines.checked_add(1).expect("bounded question lines");
+            if choice_lines > CHOICES {
+                return fallback(lines);
+            }
             let words = words.trim_ascii_end();
             let ending = words.strip_suffix(b" (recommended)");
             let words = ending.unwrap_or(words).trim_ascii();

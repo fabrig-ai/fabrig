@@ -88,7 +88,10 @@ impl Side {
 }
 #[expect(clippy::too_many_lines, reason = "one fixture settles the goal and its side reads together")]
 fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool, side: Side) -> Domain {
-    let limits = fixtures::domain_limits();
+    let mut limits = fixtures::domain_limits();
+    if let Some(whole) = &side.specification {
+        limits.client.domain.long_text = limits.client.domain.long_text.max(u32::try_from(whole.len()).unwrap());
+    }
     let (mut root, _, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
         Address::Task { task: TASK },
         &limits,
@@ -493,7 +496,7 @@ fn a_failed_goals_heading_says_why() {
 }
 #[test]
 fn otherwise_it_counts_what_landed() {
-    assert_heading(document(), DONE, TOTAL, b"6 of 9 tasks landed.");
+    assert_heading(document(), DONE, TOTAL, b"6 of 9 tasks done.");
 }
 #[test]
 fn no_byline_with_no_report() {
@@ -693,7 +696,11 @@ fn delegate(number: u64, title: &[u8], phase: c::ChipPhase) -> c::TreeRow {
 }
 fn landed(number: u64, title: &[u8]) -> c::TreeRow {
     let mut row = delegate(number, title, c::ChipPhase::Ended);
-    row.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+    row.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Change {
+        kind: 1,
+        part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(number) },
+        words: text(b"Done."),
+    }));
     row
 }
 fn ended_line(row: c::TreeRow) -> c::TaskLine {
@@ -923,28 +930,43 @@ fn a_waits_line_says_waits() {
 }
 #[test]
 fn landed_rows_fold_under_n_landed_with_their_end() {
-    let root = side_root(with_rows(
-        &[landed(14, b"No time")],
-        &[ended_line(landed(11, b"Earlier")), ended_line(landed(13, b"Later"))],
-    ));
+    let mut person = landed(11, b"Person");
+    person.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Words(text(b"Blue"))));
+    let mut advisor = landed(13, b"Advisor");
+    advisor.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Advice"))));
+    let root = side_root(with_rows(&[landed(14, b"No time")], &[ended_line(person), ended_line(advisor)]));
     for words in [fixtures::browser_words(), fixtures::words()] {
         let tree = draw(&root, &words).0;
         let at = styled(&tree, look::GOAL_LANDED_FOLD);
         assert_eq!(tree.nodes()[at].role, Role::Disclosure);
-        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"3 landed".as_slice()));
+        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"1 landed".as_slice()));
         assert!(!tree.nodes()[at].states.as_slice().contains(&skein_ui::State::Expanded));
+        let bar = styled(&tree, look::GOAL_BAR);
+        assert_eq!(tree.nodes()[bar].name.as_deref(), Some(b"1 landed of 3".as_slice()));
+        let cells = &tree.nodes()[bar + 1..node_end(&tree, bar)];
+        assert!(cells[0].styles.is_empty());
+        assert!(cells[1].styles.is_empty());
+        assert!(cells[2].styles.as_slice().contains(&look::GOAL_BAR_LANDED));
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Link
+                && [b"Person".as_slice(), b"Advisor"].contains(&node.name.as_deref().unwrap_or_default())
+            {
+                assert!(index < at, "done rows stay outside the fold");
+            }
+        }
         let expected = if words.shell == crate::words::Shell::Terminal {
             [
-                row_words(&[b"Earlier", " · ".as_bytes(), b"06:20"]),
-                row_words(&[b"Later", " · ".as_bytes(), b"06:20"]),
+                row_words(&[b"Person", " · ".as_bytes(), b"done 06:20"]),
+                row_words(&[b"Advisor", " · ".as_bytes(), b"done 06:20"]),
                 row_words(&[b"No time"]),
             ]
         } else {
-            [row_words(&[b"Earlier", b"06:20"]), row_words(&[b"Later", b"06:20"]), row_words(&[b"No time"])]
+            [row_words(&[b"Person", b"done 06:20"]), row_words(&[b"Advisor", b"done 06:20"]), row_words(&[b"No time"])]
         };
         assert_eq!(lines(&tree).as_ref(), expected);
     }
 }
+
 fn section_text(tree: &Tree, name: &[u8]) -> Box<[u8]> {
     for (at, node) in tree.nodes().iter().enumerate() {
         if node.role == Role::Region && node.name.as_deref() == Some(name) {
@@ -1167,7 +1189,11 @@ fn funds_row(kinds: &[c::ActKind]) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 fn bands_root(cards: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> Domain {
+    bands_root_read(cards, None)
+}
+fn bands_root_read(cards: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<Box<[u8]>>) -> Domain {
     let mut side = Side::empty();
+    side.specification = whole;
     for card in cards {
         side.cards.push(card.clone()).unwrap();
     }
@@ -1206,34 +1232,62 @@ fn band_press(tree: &Tree, bindings: &Bindings, name: &[u8]) -> temper_client_do
 }
 #[test]
 fn one_band_per_open_need_in_the_inboxs_order() {
-    let mut root = bands_root(&[
-        question_row(FIRST_MESSAGE, b"First question?"),
-        question_row(SECOND_MESSAGE, b"Second question?"),
-    ]);
-    for words in [fixtures::browser_words(), fixtures::words()] {
-        let tree = draw(&root, &words).0;
-        let bands = bands(&tree);
-        assert_eq!(bands.len(), OPEN_QUESTIONS);
-        assert_eq!(bands[0], node_end(&tree, styled(&tree, look::GOAL_HEAD)));
-        assert_eq!(node_end(&tree, bands[1]), styled(&tree, look::GOAL_TWO));
-        for (at, expected) in bands.iter().zip([b"First question?".as_slice(), b"Second question?"]) {
-            assert_eq!(tree.nodes()[*at].role, Role::Region);
-            assert_eq!(tree.nodes()[*at].name.as_deref(), Some(b"Needs you".as_slice()));
-            assert_eq!(tree.nodes()[at + 1].role, Role::Paragraph);
-            assert_eq!(styled_text_in_band(&tree, *at, look::GOAL_BAND_TAG).as_ref(), b"Needs you \xc2\xb7 a question");
-            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, *at), expected).is_some());
+    let first = b"First question?\n\nContext.\nSaw: Evidence.\nChoice: First";
+    let second = b"Second question?\n\nOther context.\nChoice: Second";
+    let mut person = super::needs::person();
+    person.task.task = TASK + 1;
+    person.contract = c::TaskContractDocument::Report { words: 4096 };
+    person.requester = c::Requester::Task(TASK);
+    person.spec.specification.words = text(b"First ques");
+    person.spec.specification.words.cut = true;
+    let person_object = c::ObjectKey::PersonTask(person.task.task);
+    let person_read = c::Read::PersonTask { task: person.task.task };
+    let person = c::ReadValue::PersonTask(Box::new(person));
+    for (mut root, object) in [
+        (
+            Box::new(bands_root(&[question_row(FIRST_MESSAGE, first), question_row(SECOND_MESSAGE, second)])),
+            question_row(FIRST_MESSAGE, b"").0,
+        ),
+        (
+            Box::new(bands_root_read(
+                &[(person_object, person_read, person), question_row(SECOND_MESSAGE, second)],
+                Some(Box::from(first.as_slice())),
+            )),
+            person_object,
+        ),
+    ] {
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            let bands = bands(&tree);
+            assert_eq!(bands.len(), OPEN_QUESTIONS);
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[0]), b"Context.").is_some());
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[0]), b"Evidence.").is_some());
+            assert_eq!(control_names(&tree, bands[1]), row_words(&[b"Answer"]));
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[1]), b"Other context.").is_none());
+            assert_eq!(bands[0], node_end(&tree, styled(&tree, look::GOAL_HEAD)));
+            assert_eq!(node_end(&tree, bands[1]), styled(&tree, look::GOAL_TWO));
+            for (at, expected) in bands.iter().zip([b"First question?".as_slice(), b"Second question?"]) {
+                assert_eq!(tree.nodes()[*at].role, Role::Region);
+                assert_eq!(tree.nodes()[*at].name.as_deref(), Some(b"Needs you".as_slice()));
+                assert_eq!(tree.nodes()[at + 1].role, Role::Paragraph);
+                assert_eq!(
+                    styled_text_in_band(&tree, *at, look::GOAL_BAND_TAG).as_ref(),
+                    b"Needs you \xc2\xb7 a question"
+                );
+                assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, *at), expected).is_some());
+            }
         }
+        fixtures::root_event(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Pages(Act::Needs(
+                    temper_client_domain::pages::needs::Act::Later { object },
+                )),
+            },
+        );
+        let tree = draw(&root, &fixtures::browser_words()).0;
+        assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands(&tree)[0]), b"Second question?").is_some());
     }
-    fixtures::root_event(
-        &mut root,
-        Event::Act {
-            action: temper_client_domain::Action::Pages(Act::Needs(temper_client_domain::pages::needs::Act::Later {
-                object: question_row(FIRST_MESSAGE, b"").0,
-            })),
-        },
-    );
-    let tree = draw(&root, &fixtures::browser_words()).0;
-    assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands(&tree)[0]), b"Second question?").is_some());
 }
 fn styled_text_in_band(tree: &Tree, at: usize, style: Style) -> Box<[u8]> {
     for index in at..node_end(tree, at) {
@@ -1334,15 +1388,31 @@ fn no_choices_says_answer_or_open() {
         c::Read::Proposal { proposal: proposal.key },
         c::ReadValue::Proposal(Box::new(proposal)),
     );
-    for (card, name) in [
-        (question_row(FIRST_MESSAGE, b"Where?"), b"Answer".as_slice()),
-        (person, b"Answer"),
-        (held, b"Open"),
-        (proposal, b"Open"),
+    let mut cut = question_row(FIRST_MESSAGE, CHOICES);
+    if let c::ReadValue::Question(question) = &mut cut.2 {
+        question.words.cut = true;
+    }
+    for (card, name, cut) in [
+        (question_row(FIRST_MESSAGE, b"Where?"), b"Answer".as_slice(), false),
+        (cut, b"Answer", true),
+        (person, b"Answer", false),
+        (held, b"Open", false),
+        (proposal, b"Open", false),
     ] {
         let root = bands_root(&[card]);
         for words in [fixtures::browser_words(), fixtures::words()] {
             let (tree, bindings, _) = draw(&root, &words);
+            let band = bands(&tree)[0];
+            assert_eq!(
+                skein_lib::bytes::find(&fixtures::node_text(&tree, band), b"This question is cut here.").is_some(),
+                cut
+            );
+            if cut {
+                assert_eq!(
+                    band_press(&tree, &bindings, b"Read the rest"),
+                    temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task: TASK } })
+                );
+            }
             let at = styled(&tree, look::GOAL_PRIMARY);
             assert_eq!(tree.nodes()[at].role, Role::Link);
             assert!(tree.nodes()[at].styles.as_slice().contains(&look::GOAL_BTN));

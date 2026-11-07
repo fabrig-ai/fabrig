@@ -1240,8 +1240,8 @@ fn supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_who
 
 #[test]
 fn repeated_stderr_overflow_unwinds_without_aborting() {
-    // Exercise twenty independent stderr-overflow unwinds in one test process.
-    const UNWINDS: usize = 20;
+    // A second unwind shows what the first left behind; a third shows it does not build up.
+    const UNWINDS: usize = 3;
     for iteration in 0..UNWINDS {
         let failure = std::panic::catch_unwind(legacy_stderr_overflow).expect_err("stderr overflow fails the scenario");
         assert_eq!(

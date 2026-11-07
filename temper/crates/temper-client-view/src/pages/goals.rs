@@ -142,13 +142,10 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             && !ways(me, project, words).is_empty()
         {
             let name = words.say(Word::GoalsStartDraft, &[]);
-            crate::link(
-                b,
-                &name,
-                bindings.insert(Act::Go { address: Address::Chats { filter: temper_client_domain::ChatsFilter::All } }),
-            );
+            b.open(Role::Button);
+            b.name(&name);
+            b.bind(bindings.insert(Act::OpenStart { draft: None, chat: None }));
             b.style(look::SHEET_LINK);
-            b.text(Run::Plain, &name);
             b.close();
         }
         b.close();
@@ -340,15 +337,15 @@ fn headline(words: &Words, line: &c::TaskLine, state: State, report: Option<&Rep
             if line.delegates_total == 0 {
                 Word::GoalPlanningLine
             } else {
-                Word::GoalTasksLanded
+                Word::GoalTasksDone
             }
         }
-        State::Paused | State::Running => Word::GoalTasksLanded,
+        State::Paused | State::Running => Word::GoalTasksDone,
         State::Landed => Word::GoalLandedLine,
         State::Closed => Word::GoalClosedLine,
         State::Failed => Word::GoalFailedLine,
     };
-    if word == Word::GoalTasksLanded {
+    if word == Word::GoalTasksDone {
         words.say(word, &[Hole::Number(u64::from(line.delegates_done)), Hole::Number(u64::from(line.delegates_total))])
     } else {
         words.say(word, &[])

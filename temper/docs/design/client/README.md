@@ -2009,7 +2009,10 @@ keeps (`../protocol/configuration.md`, section 2).
     has them, then Release (primary) and Leave held (plain, its reason's
     textarea as Reject's). A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
-    owner, then Release and Leave held; there is no "Add $10". A person task: its
+    owner, then Release and Leave held; there is no "Add $10". Its hold's
+    words say what a person can do: accept a proposal for more budget, if one
+    waits, then release it; otherwise close it and start the work again once
+    their pool has room, which closing an open chat makes. A person task: its
     title, its spec, its acts as plain buttons. *A person task in words,*
     one addressed to a person with a report as its contract, as a goal
     asks the person who started it (`../domain/agent.md`, 8.2), reads as a
@@ -2023,8 +2026,24 @@ keeps (`../protocol/configuration.md`, section 2).
     a person task. On the terminal's inbox, Answer sends its words with
     the shown person revision. A role's task or a contract other than a
     report keeps the ordinary person-task card.
+  - *Whole,* since a person decides on these words. The engine's read of a
+    person task cuts its words at `documents.text_bytes`, so a card whose words
+    are cut reads the rest through `TaskText`, as a goal's page does (5.8), up to
+    `long_text`, which bounds a task's words (5.4). Only the whole parses by the
+    line form, so its context, "What the agent saw" and its choices draw once it
+    has it all; until then the card reads as words in no such form, ending in
+    `…`, answered by "Reply…" alone. A read that ended short is asked again at the
+    inbox's next refresh. Words with more than 16 choices read as words in no such
+    form, whole. A question by `message` has no such read: its words stay as the
+    document has them.
+  - *Cut,* what a card says while its words stay short of the whole: a person
+    task's whose read ended, a `message` question's cut by the document's bound.
+    Under the words, in `.ctx`: "This question is cut here." and the link "Read
+    the rest", to its task's page (the requester's, for a person task in
+    words), whose conversation holds them. No question is cut without it.
   - *SHORT,* what a next-up line or a Home line says of a card: a
-    question's line, or a person task in words'; a proposal's reason's first
+    question's line, or a person task in words', from the document's bounded
+    words; a proposal's reason's first
     sentence; a held task's or another person task's title, a funds card's
     "S of L used".
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
@@ -2389,7 +2408,9 @@ keeps (`../protocol/configuration.md`, section 2).
   | failed | ended, failed | "failed" |
 
   A row's **headline** is its report's. With no report: "Planning from the
-  draft." planning; "N of M tasks landed." running or paused; "Landed." landed;
+  draft." planning; "N of M tasks done." running or paused, N its direct
+  delegates ended done, whatever they did, since `TaskLine` counts no landings
+  (section 11); "Landed." landed;
   "Closed by you." closed; "Failed." failed; a goal that needs the person
   takes running's words, or planning's with no delegates.
 
@@ -3858,8 +3879,11 @@ client removes no account and closes no chat of its own.
     "This link was already used. A fresh one is in your terminal."; past
     its expiry, "This link has expired. A fresh one is in your terminal.";
     any other, a real link of an older box or one that never was, "This
-    link isn't from this temper. Use the one its terminal printed." A page
-    reached with no link keeps the shell's words;
+    link isn't from this temper. Use the one its terminal printed." The
+    reason is the engine's: it remembers only its last 8 used or expired
+    links in memory, so a forgotten link, after a restart included, reads
+    as unknown (jig's `protocol/client.md`, section 8). A page reached with
+    no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "This temper is out of date: run the temper the
     engine runs." What is pending stays in the small store (jig's
@@ -4166,7 +4190,8 @@ A chat's first message reads back whole. Past the engine's `documents.text_bytes
 (512 on `temper init`'s box) its spec comes marked cut, and the chat's page reads
 the rest through `TaskText`, as a goal's page does (5.8), drawing what it has, ending
 in `…`, until it has it all or the read ended. The view prices that line at
-`long_text`.
+`long_text`. It prices a question read whole (3.5, *Whole*) the same, one to a page,
+with at most 16 choices (`question::CHOICES`).
 
 temper's client takes every document within the bounds the engine's
 configuration gives its documents. A path's segments have a bound of
@@ -4716,7 +4741,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
     goal's words (below), or "Planning: reading what was asked." without one;
     closed, "Closed by you. What landed on the goal branch stays there.";
     landed, the result's first line, or "Landed."; failed, "Failed: " and the
-    failure's reason; otherwise "N of M tasks landed."
+    failure's reason; otherwise "N of M tasks done.", as a Goals row's (3.5).
   - `p.byline`: "Written by its agent at " and the note's `changed` in the
     clock form. No byline with no report.
   - `.acts`: "Draft" (`.btn.small`), when the goal's words name a draft and a
@@ -4728,6 +4753,10 @@ an open need on it, whether it has a report, and its direct delegates' total.
   `<p><span class=tag>Needs you · KIND</span>QUESTION</p>`, KIND and QUESTION
   as Needs you's card reads them (3.5, *Needs you*): "a question", "a
   proposal", "held", "a person task", "funds". Then:
+  - the page's first question whole, as Needs you's card draws it (3.5, *Whole*,
+    *Cut*): its context, "What the agent saw" and its cut line, in `.ctx`. A later
+    question on the page draws its QUESTION from the document's bounded words and
+    "Answer", so that one page holds one whole question, as 5.4 prices it;
   - the parsed choices of a question or a person task in words, in
     `.choices`, answering as Needs you does, with no Reply and no Later;
   - no choices: `.btn.primary` "Answer" for a question or a person task,
@@ -4756,10 +4785,14 @@ an open need on it, whether it has a report, and its direct delegates' total.
     ones are left out.
     - `figure.bar` (`Role::Figure` in the browser, `Role::Image` in the terminal),
       named "N landed of M", a `<span>` per task in
-      order, class `landed` for an ended done, `running` for a running one,
-      none otherwise.
-    - Each task not yet landed, `p.task-line`, with class `running` when
-      running: the title, a link to its `Task`, then its state: "running";
+      order, class `landed` for a landing, `running` for a running one,
+      none otherwise. A *landing* is a delegate ended done with a change's
+      result that landed (`ResultValue::Change { kind: 1, .. }`, as a delegation's card
+      reads it, 5.7); a person task's answer, an advisor's report
+      or another result is done, and not landed.
+    - Each task not landed, `p.task-line`, with class `running` when
+      running: the title, a link to its `Task`, then its state: "done" and its end
+      in the clock form; "running";
       "waits on TITLE" for one dependency, or "waits on task N" where the title
       is not among these rows; "waits on N tasks" for several; "waits on you"
       when an open need of the goal's is that task's; "waits on its resources";
@@ -5658,6 +5691,15 @@ can open it. `draft` is the draft's path in the repository
   - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while
     Name or Draft is empty or a request is out.
 - **Not drawn:** "Budget": nothing stands behind it yet (section 11).
+- **With nothing to fund it:** while the project's first creating bound gives no
+  budget (`creating.within.budget` 0) and the way's budget isn't a fixed amount,
+  `.sheet-error` above the foot, and "Start goal" is disabled; `Me` is watched, so
+  it clears when a chat closes. While the party's pool has reservations: "Nothing
+  is left in your pool to fund a goal: your open chats hold it. Close one you’ve
+  finished with, and you can start this."; with none, "Nothing is left in your pool
+  to fund a goal." Funding's rules are as ever. Stock reaches it: a role 2 member's
+  pool is one chat's spend, so one open chat takes it, and an owner's is eighty's
+  (`../../help/budget.md`).
 - **Start** calls `shapes::set_goal_from(me, project, number, GoalDraft { words,
   executor, budget, deadline: None, priority: None, llm: None }, "Started from
   its draft")`: `executor` the template's charter, else `Agent { charter: 1 }`;
@@ -5683,7 +5725,12 @@ can open it. `draft` is the draft's path in the repository
   answer: `.sheet-error` in the sheet, in jig's words, and it stays open.
 - **Where it opens:** on a chat, its "Start goal…" (3.5); on Goals, the `.link`
   "Start one from a draft" at the section head (3.5, *Goals*), with no draft, shown
-  while the project has a tracked template.
+  while the project has a tracked template: `Act::OpenStart { draft: None, chat:
+  None }`, a button in the link's look, as it moves nowhere, for the project in the
+  address; a draft without a chat, or a chat without a draft, opens nothing. A goal
+  started this way asks its person as a chat's does (`../domain/agent.md`, 8.2); its
+  words have no `Chat:` line. The rail's "Goal" stays what 5.3 has it, a new chat for
+  a new draft.
 - **The chat's thread:** a person's Create leaves no turn, so its "Started goal"
   line is drawn from the fact `GoalFrom` (3.5).
 - **The look:** `browser.md`, 2.5, *A goal's look*.
@@ -5948,9 +5995,9 @@ command.
   `temper: signing in: the engine is busy; trying again`. Either is
   made again, the same link with the same held credential, after a
   backoff of 250 ms, doubling to 8 s. `q` gives up and exits 0. A
-  refusal (the link spent or expired) exits 1 (6.1); `temper serve`
-  prints a fresh link when a spent one is tried (jig's
-  `protocol/client.md`, section 8).
+  link answered refused, used, expired or unknown exits 1 with the same
+  refusal words (6.1). Temper prints a fresh link when none is live or
+  reserved (jig's `protocol/client.md`, section 8).
 - **The engine's sign-ins full** exits 1 with `temper open: all N
   sign-ins are in use; the earliest ends at T; this link stays usable
   until U; after that, temper serve prints a fresh one when it is tried`
@@ -6661,6 +6708,12 @@ own tests:
 
 ## 11. Open questions
 
+- **A failed link beside a live cookie** (5.1): the used, expired or
+  unknown paragraph remains until another sign-in, even if the cookie
+  still signs in on a reload. Falling back to the transport is jig's
+  client question (jig's `client/domain/client.md`, section 18).
+  Default: no fallback; reload to use the cookie.
+
 - **The person-started question flow after landing** (3.5, 5.8; the
   request `ui-goal-asks`): the focused client world starts a goal from
   the sheet, supplies its person-task question, answers under Needs you
@@ -6719,6 +6772,9 @@ own tests:
   command's help still name `temper serve`. A person may have run `temper box`.
   Default: those words stay until a wording change covers the terminal and
   command help; the request `ui-qa-small` names the browser paragraph alone.
+  The used, expired and unknown answers also retain the terminal's and
+  `temper ctl`'s generic refusal words: `ui-small-1` changes the page's
+  paragraph, with reason-specific command refusals left for later.
 - **A line past `long_text`** (5.4): `standard` with no override takes a message of
   262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
@@ -7341,3 +7397,8 @@ own tests:
   bytes as they are, and the page draws text. Default: the command isn't
   drawn as it would run; the flags `../../help/box.md`, section 5, shows
   still do.
+- **A goal row's count of landings** (3.5, *Goals*; 5.8): `TaskLine` counts a goal's
+  delegates ended done whatever they did, so a row and the goal's headline say "N of
+  M tasks done.", and only the goal's own rows, whose chips carry their results, say
+  "landed". Default: so; or jig's `Endings` counts change results, a stored and a wire
+  field.

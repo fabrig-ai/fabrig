@@ -540,6 +540,7 @@ fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
     let mut cards = List::with_capacity(1);
     cards
         .push(crate::pages::inbox::Card {
+            whole: None,
             object: c::ObjectKey::Proposal(key),
             group: c::InboxGroup::Proposals,
             project: Some(f::PROJECT),

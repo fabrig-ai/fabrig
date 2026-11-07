@@ -2,7 +2,17 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). A person-started goal asks by
+milestone stands in the code (`README.md`). Home says "Nothing needs you."
+once, semantic repair names the updated head without blame, and failed
+sign-in links say used, expired or unknown. Forgotten links are unknown;
+cookie fallback and command refusal words remain later work
+(`client/README.md`, sections 5.1 and 11). Stock instructions hold forge
+identity advice to approvals and send a chat to the forge before declaring
+a repository absent; real-model compliance remains unobserved
+(`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link
+assertions count complete lines and carry filtered stderr; the reported
+second link's cause is unproved (`domain/testing.md`, 2.6 and 11).
+A person-started goal asks by
 a person task; its question in words draws under Needs you, on Home and in
 the goal's band, and its answer wakes the goal with those words. Permission
 is bounded by the requester's role, with instructions alone naming that
@@ -201,8 +211,10 @@ quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds its twelve tests, four of them merged and compiled, with
-no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+The browser tier holds its twelve tests, with the call line, model picker,
+welcome sign-in and four reading stories in four merged tests, compiled
+with story labels for failed steps but with no run in Chromium yet. Reading's
+four stories, apart, passed with ctl history
 and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public

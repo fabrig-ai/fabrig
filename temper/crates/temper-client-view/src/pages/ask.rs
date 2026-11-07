@@ -9,7 +9,11 @@ use jig_client::contract::{InboxGroup, ReadValue, Requester};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
-    pages::{Act, inbox::Card, needs},
+    pages::{
+        Act,
+        inbox::{Card, QuestionWords},
+        needs,
+    },
 };
 
 pub(crate) enum Kind {
@@ -26,8 +30,15 @@ pub(crate) struct Asked<'a> {
     pub source: Option<u64>,
     pub parsed: Option<temper_client_domain::question::Parsed>,
     pub short: Box<[u8]>,
+    pub cut: bool,
 }
 pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
+    read_parts(card, w, true)
+}
+pub(crate) fn bounded<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
+    read_parts(card, w, false)
+}
+fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
     let mut kind = match card.group {
         InboxGroup::Questions => Kind::Question,
         InboxGroup::Proposals => Kind::Proposal,
@@ -41,14 +52,29 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
         let numbers = held.task.budget.numbers;
         kind = Kind::Funds { spent: numbers.spent, limit: numbers.budget };
     }
-    let parsed = if let Some(ReadValue::Question(q)) = &card.page {
-        Some(temper_client_domain::question::parse(q.words.bytes(), q.words.cut))
-    } else if let Some(task) = person_in_words(card) {
-        kind = Kind::Question;
-        let words = &task.spec.specification.words;
-        Some(temper_client_domain::question::parse(words.bytes(), words.cut || task.spec.cut))
-    } else {
-        None
+    let mut cut = false;
+    let parsed = match card.question_words() {
+        Some(read) => {
+            kind = Kind::Question;
+            let (bytes, partial, reading) = if whole {
+                match read {
+                    QuestionWords::Whole(bytes) => (bytes, false, false),
+                    QuestionWords::Reading(bytes) => (bytes, true, true),
+                    QuestionWords::Cut(bytes) => (bytes, true, false),
+                }
+            } else {
+                let words = bounded_words(card);
+                (words.bytes(), words.cut, false)
+            };
+            cut = partial && !reading;
+            let mut parsed = temper_client_domain::question::parse(bytes, partial);
+            if reading {
+                let ending = if parsed.context.is_empty() { &mut parsed.question } else { &mut parsed.context };
+                *ending = skein_lib::bytes::concat(&[ending, "…".as_bytes()]);
+            }
+            Some(parsed)
+        }
+        None => None,
     };
     let source = match person_in_words(card) {
         Some(task) => match task.requester {
@@ -59,7 +85,11 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     };
     let title = title_for(card, w, Word::Task);
     let short = match &parsed {
-        Some(parsed) => parsed.question.clone(),
+        Some(_) => {
+            let words = bounded_words(card).bytes();
+            let end = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
+            words.get(..end).expect("question first line").trim_ascii_end().into()
+        }
         None => match &card.page {
             Some(ReadValue::Proposal(proposal)) => {
                 if proposal.reason.bytes().is_empty() {
@@ -95,8 +125,41 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
         Kind::Held | Kind::PersonTask => title.clone(),
         Kind::Question | Kind::Proposal => short,
     };
-    Asked { card, kind, title, source, parsed, short }
+    Asked { card, kind, title, source, parsed, short, cut }
 }
+fn bounded_words(card: &Card) -> &jig_client::contract::DocumentText {
+    if let Some(ReadValue::Question(question)) = &card.page {
+        return &question.words;
+    }
+    &person_in_words(card).expect("question in words").spec.specification.words
+}
+
+/// Context, evidence and the way to finish reading a cut question (client/README.md, 3.5).
+pub(crate) fn whole_parts(b: &mut Builder, asked: &Asked<'_>, w: &Words, bindings: &mut Bindings) {
+    if let Some(parsed) = &asked.parsed {
+        if !parsed.context.is_empty() {
+            text(b, Role::Paragraph, &parsed.context, look::ASK_CONTEXT);
+        }
+        if let Some(saw) = &parsed.saw {
+            b.open(Role::Disclosure);
+            b.style(look::ASK_SAW);
+            b.name(&w.say(Word::NeedsSaw, &[]));
+            text(b, Role::Paragraph, saw, look::ASK_CONTEXT);
+            b.close();
+        }
+    }
+    if asked.cut {
+        b.open(Role::Paragraph);
+        b.style(look::ASK_CONTEXT);
+        b.text(Run::Plain, &w.say(Word::NeedsCut, &[]));
+        b.text(Run::Plain, b" ");
+        if let Some(task) = asked.source {
+            link(b, bindings, &w.say(Word::NeedsCutRest, &[]), Address::Task { task });
+        }
+        b.close();
+    }
+}
+
 pub(crate) fn need_title(card: &Card, w: &Words) -> Box<[u8]> {
     title_for(card, w, Word::TaskWho)
 }
@@ -382,18 +445,10 @@ pub(crate) fn home_body(
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
     };
     text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-    if let Some(parsed) = &asked.parsed {
-        if !parsed.context.is_empty() {
-            text(b, Role::Paragraph, &parsed.context, look::ASK_CONTEXT);
-        }
-        if let Some(saw) = &parsed.saw {
-            b.open(Role::Disclosure);
-            b.style(look::ASK_SAW);
-            b.name(&w.say(Word::NeedsSaw, &[]));
-            text(b, Role::Paragraph, saw, look::ASK_CONTEXT);
-            b.close();
-        }
-    } else if let Some(page) = &card.page {
+    whole_parts(b, asked, w, bindings);
+    if asked.parsed.is_none()
+        && let Some(page) = &card.page
+    {
         b.open(Role::Slot);
         b.style(look::ASK_CONTEXT);
         if let ReadValue::Escalation(held) = page {

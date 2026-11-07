@@ -820,8 +820,10 @@ terminal client, the captures and the faults.
 
 - **One printed link, counted.** A story that holds a box to one sign-in
   link counts the lines of its stdout and never compares their bytes, which
-  would write the link's secret into the log. Its panic carries the box's
-  stderr with every line holding `secret=` filtered out, so that a second
+  would write the link's secret into the log. Each line must be a complete
+  link ending in a line feed; any other or unfinished line fails too.
+  Its panic carries the box's stderr with every line holding `secret=`
+  filtered out, so that a second
   link says why it came.
 
 - **Focused wiring,** one short test in the ordinary `suite` binary:
@@ -2783,6 +2785,14 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **The second printed link's cause** (2.6): a serve restart draws a new
+  link; a retry whose earlier sign-in spent its secret can also ask for
+  another when no link is live. Neither is established as the reported
+  process failure's cause. Default: keep the one-link assertion strict,
+  count complete link lines and carry filtered stderr. The next red's
+  diagnostics determine whether a production fault needs a lower-tier
+  repair; no cause is declared fixed by the assertion change.
 
 - **Further focused-test cost reductions** (2.1, 2.2, 2.6, 6.1):
   the row profiles and their remaining causes are in
