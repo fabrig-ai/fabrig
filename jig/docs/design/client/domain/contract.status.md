@@ -14,10 +14,6 @@ per-account provider-list narrowing, list history or new-label deadlines.
 `ReadLists` carries the provider and returns the number of reads; account
 times reach the accounts watch without marking an unchanged offer.
 
-- **Not yet:** 3.2, 5.1: the client's charter carries no parts and its LLM
-  choice no `later` (`jig/crates/jig-client-protocol-wire/schema/client-v19.schema`
-  and `client-v19-part1.schema`, `jig/crates/jig-client-domain/src/contract/settings.rs`
-  and `llm.rs`).
 - **Not yet:** 5.1: a task's document shows its first choice whatever its reasons
   (`jig/crates/jig-domain-core/src/runs/llm.rs`, `document_llm`).
 

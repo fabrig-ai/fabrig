@@ -3608,7 +3608,7 @@ pub(super) fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort 
     }
 }
 pub(super) fn model_choice(model: &str, effort: Option<&str>) -> c::LlmChoice {
-    c::LlmChoice { account: None, main: model_effort(model, effort), subagents: List::with_capacity(0) }
+    c::LlmChoice { later: None, account: None, main: model_effort(model, effort), subagents: List::with_capacity(0) }
 }
 pub(super) fn model_line_page(latest: Option<c::ModelEffort>) -> c::ActivityPage {
     let mut row = crate::tests::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1, proposal: None });
@@ -3857,6 +3857,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
             task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
             task.run_wait = Some(wait);
             task.llm = Some(c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None },
                 subagents: List::with_capacity(0),

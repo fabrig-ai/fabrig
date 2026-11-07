@@ -17,8 +17,17 @@ fn choice(main: (&[u8], Option<&[u8]>), subagents: &[(&[u8], Option<&[u8]>)]) ->
     for item in subagents {
         items.push(named(*item)).expect("same capacity");
     }
-    w::LlmChoice::new(&limits, w::LlmChoiceParts { account: None, main: named(main), subagents: items })
+    w::LlmChoice::new(&limits, w::LlmChoiceParts { later: None, account: None, main: named(main), subagents: items })
         .expect("choice")
+}
+fn with_later(first: w::LlmChoice, later: w::LlmChoice) -> w::LlmChoice {
+    let limits = fixtures::limits().wire;
+    let mut first = first.into_parts();
+    let later = later.into_parts();
+    first.later = Some(
+        w::LlmLater::new(&limits, w::LlmLaterParts { main: later.main, subagents: later.subagents }).expect("later"),
+    );
+    w::LlmChoice::new(&limits, first).expect("choice with later")
 }
 /// A Create of one agent task in the member's project, run by the configured charter.
 fn create(llm: w::LlmChoice) -> w::Ask {
@@ -114,28 +123,111 @@ const HIGH: u8 = 1;
 #[test]
 fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices() {
     let (mut peer, mut world, bearer) = member_setup(360);
-    let llm = choice((b"scripted", Some(b"high")), &[(b"scripted", Some(b"low"))]);
-    let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(llm)), Some(&bearer));
+    let first = choice((b"scripted", Some(b"high")), &[(b"scripted", Some(b"low"))]);
+    let expected = tasks::LlmChoice {
+        later: None,
+        account: None,
+        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
+        subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) }]),
+    };
+    let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(first.clone())), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[62; 16]], "core reply: {:?}", world.people_answers.last());
     let w::Final::Done(done) = final_answer(&peer, socket) else { panic!("done") };
     let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
     let w::DocumentOutcome::Created(created) = owner.value() else { panic!("created: {:?}", owner.value()) };
+    assert_eq!(live_row(&world, created.first()).llm, Some(expected.clone()));
+
+    // Both translations meet at the core boundary; the core owns retaining a party's choice.
+    let models = super::real_core_settings().models;
+    let limits = fixtures::limits().wire;
+    for (key, named, later) in [
+        ([66; 16], first.clone(), None),
+        (
+            [67; 16],
+            with_later(first, choice((b"scripted", Some(b"low")), &[(b"scripted", Some(b"high"))])),
+            Some(tasks::LlmLater {
+                main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) },
+                subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) }]),
+            }),
+        ),
+    ] {
+        let expected = tasks::LlmChoice { later, ..expected.clone() };
+        assert_eq!(
+            jig_protocol_engine_clients::translate::llm::choice(Some(&expected), &models, &limits)
+                .expect("named choice"),
+            Some(named.clone())
+        );
+        peer.post(b"/jig/v1/request", keyed(key, &create(named)), Some(&bearer));
+        let Some(jig_domain_core::Event::People(jig_domain_people::Event::Ask { ask, reply_to, .. })) =
+            peer.take_core()
+        else {
+            panic!("core ask")
+        };
+        let jig_domain_people::Ask::Create { batch, .. } = ask else { panic!("create") };
+        peer.answer_request(
+            reply_to,
+            jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created { first: 8, last: 8, given: None }),
+        );
+        assert_choice_indices(batch[0].llm.as_ref().expect("choice"), &expected);
+    }
+}
+fn assert_choice_indices(actual: &jig_domain_people::LlmChoice, expected: &tasks::LlmChoice) {
+    assert_eq!(actual.account, expected.account);
+    assert_eq!((actual.main.model, actual.main.effort), (expected.main.model, expected.main.effort));
+    assert_eq!(actual.subagents.len(), expected.subagents.len());
+    for (actual, expected) in actual.subagents.iter().zip(expected.subagents.iter()) {
+        assert_eq!((actual.model, actual.effort), (expected.model, expected.effort));
+    }
     assert_eq!(
-        live_row(&world, created.first()).llm,
-        Some(tasks::LlmChoice {
-            later: None,
-            account: None,
-            main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
-            subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) }]),
-        })
+        actual.later.as_ref().map(|later| (later.main.model, later.main.effort)),
+        expected.later.as_ref().map(|later| (later.main.model, later.main.effort))
+    );
+    assert_eq!(
+        actual.later.as_ref().map(|later| later
+            .subagents
+            .iter()
+            .map(|item| (item.model, item.effort))
+            .collect::<Vec<_>>()),
+        expected.later.as_ref().map(|later| later
+            .subagents
+            .iter()
+            .map(|item| (item.model, item.effort))
+            .collect::<Vec<_>>())
     );
 }
+
 #[test]
 fn a_model_or_an_effort_configuration_lacks_is_refused_by_its_name_before_the_core() {
     let (mut peer, mut world, bearer) = member_setup(361);
     for (llm, model, why) in [
         (choice((b"unheard", None), &[]), b"unheard".as_slice(), w::LlmWhy::Unconfigured),
         (choice((b"scripted", Some(b"medium")), &[]), b"scripted".as_slice(), w::LlmWhy::Effort),
+        (
+            with_later(choice((b"scripted", Some(b"low")), &[]), choice((b"unheard", None), &[])),
+            b"unheard".as_slice(),
+            w::LlmWhy::Unconfigured,
+        ),
+        (
+            with_later(choice((b"scripted", Some(b"low")), &[]), choice((b"scripted", Some(b"medium")), &[])),
+            b"scripted".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            with_later(
+                choice((b"scripted", Some(b"low")), &[]),
+                choice((b"scripted", Some(b"low")), &[(b"unheard", None)]),
+            ),
+            b"unheard".as_slice(),
+            w::LlmWhy::Unconfigured,
+        ),
+        (
+            with_later(
+                choice((b"scripted", Some(b"low")), &[]),
+                choice((b"scripted", Some(b"low")), &[(b"scripted", Some(b"medium"))]),
+            ),
+            b"scripted".as_slice(),
+            w::LlmWhy::Effort,
+        ),
     ] {
         let socket = peer.post(b"/jig/v1/request", keyed([63; 16], &create(llm)), Some(&bearer));
         assert_eq!(route_real_core(&mut peer, &mut world), Vec::<[u8; 16]>::new(), "no ask reaches the core");

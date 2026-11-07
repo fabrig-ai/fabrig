@@ -178,8 +178,11 @@ pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &
     )
     .unwrap();
     let subagent = w::ModelEffort::new(l, w::ModelEffortParts { model: subagent.into(), effort: None }).unwrap();
-    w::LlmChoice::new(l, w::LlmChoiceParts { account: None, main, subagents: List::from_boxed(Box::new([subagent])) })
-        .unwrap()
+    w::LlmChoice::new(
+        l,
+        w::LlmChoiceParts { later: None, account: None, main, subagents: List::from_boxed(Box::new([subagent])) },
+    )
+    .unwrap()
 }
 
 pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {

@@ -33,6 +33,7 @@ fn amend_can_start_a_task_choice() {
     assert_eq!(
         change.llm,
         Some(c::LlmChoice {
+            later: None,
             account: None,
             main: f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME)),
             subagents: List::with_capacity(0),

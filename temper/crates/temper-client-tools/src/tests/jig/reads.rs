@@ -1078,6 +1078,7 @@ fn empty_account_wait_names_claude_login_path() {
         root.limits.tools.program_login = b"temper program-login --config BOX --data STORE --cache SCRATCH";
         task.llm = match model {
             Some(model) => Some(c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None },
                 subagents: skein_lib::List::with_capacity(0),
@@ -1362,6 +1363,7 @@ fn task_waits_explain_the_next_act_after_the_code_line() {
     for &(wait, explanation, commands) in rows {
         let (mut root, call, mut task) = fixtures::task_read();
         task.llm = Some(c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None },
             subagents: skein_lib::List::with_capacity(0),

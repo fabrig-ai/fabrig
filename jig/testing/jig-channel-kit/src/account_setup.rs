@@ -209,6 +209,7 @@ impl Setup {
                             .push(c::ModelEffort { model: text(b"other"), effort: None })
                             .expect("bounded fixture value");
                         task.llm = Some(c::LlmChoice {
+                            later: None,
                             account: None,
                             main: c::ModelEffort { model: text(b"fake"), effort: None },
                             subagents,

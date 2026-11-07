@@ -157,7 +157,16 @@ fn charter() -> jig_domain_core::Charter {
     use jig_domain_core as core;
     use skein_lib::Duration;
     core::Charter {
-        parts: Box::new([]),
+        parts: Box::new([
+            jig_domain_core::CharterPart {
+                on: jig_domain_tasks::Reasons::FIRST,
+                instructions: b"first part".as_slice().into(),
+            },
+            jig_domain_core::CharterPart {
+                on: jig_domain_tasks::Reasons::QUESTION.union(jig_domain_tasks::Reasons::NEWS),
+                instructions: b"later part".as_slice().into(),
+            },
+        ]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([
@@ -219,7 +228,19 @@ fn values() -> [s::Value; 4] {
     use jig_domain_authority as a;
     [
         s::Value::Charter(Box::new(charter())),
-        s::Value::Template(Box::new(f::template())),
+        s::Value::Template(Box::new({
+            let mut template = f::template();
+            template.llm = Some(jig_domain_tasks::LlmChoice {
+                account: Some(21),
+                main: jig_domain_tasks::ModelEffort { model: 0, effort: Some(1) },
+                subagents: Box::new([]),
+                later: Some(jig_domain_tasks::LlmLater {
+                    main: jig_domain_tasks::ModelEffort { model: 1, effort: None },
+                    subagents: Box::new([jig_domain_tasks::ModelEffort { model: 0, effort: Some(0) }]),
+                }),
+            });
+            template
+        })),
         s::Value::Policy(Box::new(jig_domain_core::ConfiguredPolicy {
             policy: a::Policy {
                 escalation_role: Some(1),
@@ -270,6 +291,26 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
             jig_client_protocol_link::translate::settings::restore_setting_document(&wire, &f::client_limits())
                 .unwrap();
         assert_eq!(restored.revision, 6);
+        let client_value = restored.value.as_ref().unwrap();
+        let wire_value =
+            jig_client_protocol_link::translate::settings::wire_setting_value(client_value, &w::CEILINGS).unwrap();
+        let row = w::SettingItem::new(
+            &w::CEILINGS,
+            w::SettingItemParts {
+                setting: translate::name(name, &w::CEILINGS).unwrap(),
+                edit: w::SettingEdit::Set(
+                    w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire_value }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+        row.encode(&mut writer).unwrap();
+        let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+        assert_eq!(
+            items.as_ref(),
+            &[s::Item { setting: name, edit: s::Edit::Set(document.value.as_ref().unwrap().clone()) }]
+        );
         match (document.value.as_ref().unwrap(), restored.value.unwrap()) {
             (s::Value::Charter(source), c::SettingValue::Charter(value)) => {
                 assert_eq!(value.instructions.bytes(), source.policy.instructions.as_ref());
@@ -497,6 +538,10 @@ fn change_settings_keeps_the_charter_documents() {
     let s::Edit::Set(value) = &change.items[0].edit else { panic!("charter set") };
     assert_eq!(translate::value(value, &f::models(), &w::CEILINGS).unwrap(), expected);
     let s::Value::Charter(value) = value else { panic!("charter") };
+    assert_eq!(value.parts.len(), 2);
+    assert_eq!(value.parts[0].on, jig_domain_tasks::Reasons::FIRST);
+    assert_eq!(value.parts[1].on, jig_domain_tasks::Reasons::QUESTION.union(jig_domain_tasks::Reasons::NEWS));
+    assert_eq!(value.parts[1].instructions.as_ref(), "later part λ".as_bytes());
     assert_eq!(value.documents.len(), 2);
     assert_eq!(value.documents[0].heading, None);
     assert_eq!(value.documents[1].heading.as_deref(), Some(b"Rules".as_slice()));
@@ -688,4 +733,12 @@ fn a_model_setting_round_trips_whole_in_both_directions() {
         document.items.get(0).unwrap().edit,
         jig_client_domain::contract::RevisionEdit::Set(jig_client_domain::contract::SettingSet { value: client })
     );
+}
+
+#[test]
+fn client_reason_names_follow_the_cores_bit_order() {
+    assert_eq!(jig_client_domain::REASON_NAMES.len(), jig_domain_tasks::REASON_NAMES.len());
+    for (client, core) in jig_client_domain::REASON_NAMES.into_iter().zip(jig_domain_tasks::REASON_NAMES) {
+        assert_eq!(client.as_bytes(), core);
+    }
 }

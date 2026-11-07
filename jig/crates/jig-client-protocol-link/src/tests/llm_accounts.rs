@@ -109,6 +109,7 @@ fn zero_model_prices_or_units_are_malformed() {
 fn an_explicit_account_preference_survives_link_storage() {
     let limits = fixtures::limits();
     let choice = c::LlmChoice {
+        later: None,
         account: Some(42),
         main: c::ModelEffort { model: c::Text::new(b"chosen".as_slice().into(), 32).unwrap(), effort: None },
         subagents: skein_lib::List::with_capacity(0),
