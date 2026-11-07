@@ -1501,6 +1501,18 @@ pub fn replies_after(
     Ok(replies)
 }
 
+/// domain/testing.md, 2.7: the chat's one delegate is its change; an agent's
+/// task, as a goal is, fails the story at once, naming it.
+pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
+    row["chip"]["task"].as_u64().ok_or_else(|| "delegate task missing (chip.task)".to_owned())
+}
+
+/// domain/testing.md, 2.7: the landing check's words name the chat's
+/// committed calls, those that succeeded and those that failed.
+pub fn require_chat_change(evidence: &conversation::Evidence) -> Result<(), String> {
+    require(evidence.tools.contains("change"), "the chat's committed change call succeeded")
+}
+
 /// Names from actual committed call blocks, never from the model's prose.
 #[must_use]
 pub fn successful_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {

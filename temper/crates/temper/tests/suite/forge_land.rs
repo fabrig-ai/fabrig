@@ -1134,6 +1134,22 @@ fn an_imported_records_path_is_printed_as_file() {
     }
 }
 
+/// domain/testing.md, 2.7: the chat's delegate is a change or the story stops, naming it.
+#[test]
+fn the_chats_delegate_is_a_change_or_the_story_names_it() {
+    use support::forge_land::change_delegate;
+    for (executor, expected) in [
+        (json!({"procedure": {"connector": 1, "code": 2}}), Ok(3)),
+        (json!({"agent": {"charter": 1}}), Err("the chat's delegate task 3 is an agent's on charter 1, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (Value::Null, Err("delegate executor missing (chip.executor)".to_owned())),
+        (json!({"job": {"kind": 1}}), Err("the chat's delegate task 3 is a job's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (json!({"person": {"party": 1}}), Err("the chat's delegate task 3 is a person's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+    ] {
+        let row = json!({"chip": {"task": 3, "executor": executor}});
+        assert_eq!(change_delegate(&row), expected, "{row}");
+    }
+}
+
 fn delegate_read(rows: &[u64], cut: bool, after: Option<&str>) -> Value {
     json!({
         "live": [], "live_after": null,
@@ -1435,6 +1451,20 @@ fn a_landing_referee_reads_committed_tools_beyond_the_conversation() {
     let activity = referee_json(&argv, &page);
     assert_eq!(evidence.read(&activity).expect("detail page"), Some(read_before("task", "activity")));
     assert_eq!(evidence.tools, BTreeSet::from(["change".to_owned()]), "failed and unfinished delegates do not count");
+    assert_eq!(evidence.failed, BTreeSet::from(["delegate".to_owned()]), "failed committed calls count");
+    assert_eq!(support::forge_land::require_chat_change(&evidence), Ok(()));
+    for (tools, failed, expected) in [
+        (vec!["goal"], vec!["delegate"], "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed [delegate]"),
+        (vec!["read_branch", "goal"], vec!["change"], "the chat's committed change call succeeded: its committed calls succeeded [goal, read_branch] and failed [change]"),
+        (vec![], vec!["read_branch", "change"], "the chat's committed change call succeeded: its committed calls succeeded [] and failed [change, read_branch]"),
+        (vec!["goal"], vec![], "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed []"),
+        (vec![], vec![], "the chat's committed change call succeeded: its committed calls succeeded [] and failed []"),
+    ] {
+        evidence.tools = tools.into_iter().map(str::to_owned).collect();
+        evidence.failed = failed.into_iter().map(str::to_owned).collect();
+        assert_eq!(support::forge_land::require_chat_change(&evidence), Err(expected.to_owned()));
+    }
+
     page.before = None;
     let row = page.rows.get_mut(0).expect("activity row");
     row.source.line =
