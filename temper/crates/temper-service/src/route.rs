@@ -419,6 +419,20 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
+        root::HostDelivery::See { to, line, from, answer } => {
+            let maximum = engine
+                .env
+                .limits
+                .call_answer_bytes
+                .saturating_sub(3)
+                .min(engine.env.limits.host_reply_bytes.unwrap_or(u32::MAX));
+            let (body, error) =
+                temper_engine_smith::see_answer(&line, from, &answer, &engine.domain.catalogue(), maximum).into_parts();
+            engine.events.push(root::Event::Worker(root::WorkerInput::RenderedHostCall {
+                to,
+                answer: jig_domain_core::SettledAnswer::Host { error, body },
+            }));
+        }
         root::HostDelivery::Render { to, answer, tool, key, .. } => {
             render_host(engine, to, &answer, &tool, key);
         }
