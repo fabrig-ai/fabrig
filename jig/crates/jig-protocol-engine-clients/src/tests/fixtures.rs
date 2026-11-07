@@ -39,6 +39,7 @@ pub fn settings() -> Settings {
         deployment_provider: 2,
         link: None,
         link_secret: None,
+        approval: false,
         heartbeat: Duration::from_secs(5),
         rows: 32,
         served,
@@ -196,6 +197,7 @@ impl Exchange {
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::Exchange {
+                browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
                 message,
@@ -780,5 +782,32 @@ pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
         | w::KeyedAnswer::SignedOut) => {
             panic!("expected final, got {other:?}")
         }
+    }
+}
+
+impl Exchange {
+    pub fn send_as(&mut self, message: crate::Message, browser: bool, credential: Option<Secret>) -> Token {
+        let owner = self.component.name();
+        self.component.down(
+            &self.env,
+            Event::Transport(crate::FromTransport::Exchange { exchange: owner, credential, browser, message }),
+            &mut self.out,
+        );
+        owner
+    }
+    pub fn approval_whose(&mut self) -> ReplyTo {
+        let Some(Request::Core(event)) = self.out.pop() else { panic!("Whose event") };
+        let core::Event::People(people::Event::Whose { reply_to, sign_in }) = *event else {
+            panic!("take must ask Whose before SignIn")
+        };
+        assert_eq!(sign_in, NUMBER);
+        reply_to
+    }
+    pub fn approval_sign_in(&mut self, identity: &people::Identity) -> ReplyTo {
+        let Some(Request::Core(event)) = self.out.pop() else { panic!("SignIn event") };
+        let core::Event::SignIn { reply_to, identity: given, held } = *event else { panic!("ordinary SignIn") };
+        assert_eq!(&given, identity);
+        assert_eq!(held, None);
+        reply_to
     }
 }

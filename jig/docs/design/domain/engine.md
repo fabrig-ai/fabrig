@@ -506,7 +506,9 @@ next only once the root says this one is done (root.md, section 8).
    they committed nothing (tasks.md, 5.2); so are claims on workers in
    the engine's own process, which no worker outlives
    (`../protocol/service.md`, section 10), when its configuration says
-   its workers are in process. Claims on other workers reach the
+   its workers are in process. A stop that reached its first decision
+   settled its agent claims of both kinds as interrupted already (6.1),
+   so those left are a crash's, or a job's. Claims on other workers reach the
    fleet, which adopts each attempt a worker reports as it dials in,
    keeps waiting for one within its grace, and cancels any it does not
    name (section 8). A claim an upgrade across a fresh mark crossed (its
@@ -676,6 +678,25 @@ would make a commit:
 - **a run's turn or call** is answered busy, and its answer left
   unacknowledged, so its host keeps them and sends them again, to this
   engine or the next;
+- **a run in the engine's own process** cannot send them to the next
+  engine, since it ends with this one (`../protocol/service.md`, section
+  10): one in its own slots, or on a worker in its process when its
+  configuration says its workers are, as section 6, step 3 counts them.
+  So on hearing it stops, before anything else, the core settles each such
+  agent task's claim as **interrupted**, in one decision: its attempt
+  ends with no try spent and no backoff, keeping the turns and calls it
+  committed, and the task is due again when an engine next starts
+  (tasks.md, 5.2). The fleet forgets the attempt, sending its host
+  nothing, and whatever the run sends after is for an attempt the core no
+  longer holds, and dropped. Its writer slots are released: the run may
+  still write until its process ends, but nothing is placed while the
+  engine stops, and the next start reads every resource afresh before it
+  places anything (section 6, steps 4 and 6). A job's claim is left as it stands, for the
+  next start to settle as a crash leaves it, since its one effect may
+  have happened. A crash, or a second signal before that decision
+  commits, leaves every such claim to the next start, which settles it
+  lost or not started (section 6, step 3), so a run that brings its
+  engine down still spends its tries;
 - **a connector's events and outcomes** stay with the connector, as when
   the journal is full;
 - **no run is placed, and no procedure stepped.**

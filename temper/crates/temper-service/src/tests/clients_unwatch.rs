@@ -52,6 +52,7 @@ impl Stand {
             deployment_provider: 2,
             link: None,
             link_secret: None,
+            approval: false,
             heartbeat: config.clients.heartbeat,
             rows: 32,
             served,
@@ -87,6 +88,7 @@ impl Stand {
     }
     fn exchange(&mut self, exchange: Token, message: kit::Message) {
         self.down(kit::Event::Transport(kit::FromTransport::Exchange {
+            browser: false,
             exchange,
             credential: Some(self.credential.clone()),
             message,

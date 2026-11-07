@@ -113,6 +113,8 @@ impl Component {
                 }
             },
             Waiting::Authorize { .. }
+            | Waiting::ApprovalWhose { .. }
+            | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
             | Waiting::SignOut { .. }
@@ -150,6 +152,8 @@ impl Component {
                 self.read_response(exchange, answer, &env.limits.wire);
             }
             Waiting::Authorize { .. }
+            | Waiting::ApprovalWhose { .. }
+            | Waiting::ApprovalCore { .. }
             | Waiting::Core { .. }
             | Waiting::LinkGet { .. }
             | Waiting::SignOut { .. }

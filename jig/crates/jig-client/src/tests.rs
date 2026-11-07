@@ -166,3 +166,5 @@ fn the_link_view_names_a_watch_refused_busy() {
     assert_eq!(c.machine.link().state, Link::Live);
     assert!(c.requests().is_empty());
 }
+
+mod approval;

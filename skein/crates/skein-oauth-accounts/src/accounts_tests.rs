@@ -24,7 +24,7 @@ fn roomy() -> (Component, Env<Limits>) {
     let mut configured = List::with_capacity(1);
     configured.push(Account::HandedIn).expect("configured account room");
     (
-        Component::new(configured, &profile, crypto(1)).expect("roomy component"),
+        Component::new(configured, &profile, crypto(1), b"accounts-test").expect("roomy component"),
         Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile },
     )
 }

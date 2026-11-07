@@ -85,6 +85,7 @@ pub struct Joint {
     read_loads: BTreeSet<Token>,
     transport: Transport,
     component: crate::component::Composition,
+    taking: BTreeMap<ClientId, jig_client::Taking>,
     limits: client::Limits,
     client_limits: BTreeMap<ClientId, client::Limits>,
     next_limits: Option<client::Limits>,
@@ -117,7 +118,8 @@ struct HeldReply {
     next: usize,
     words: Vec<u8>,
 }
-fn engine_limits() -> engine::Limits {
+#[must_use]
+pub fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     // The world's engine admits the whole starters and cues its client offers.
     limits.people.words = limits.people.words.max(temper_client_protocol_wire::CUE_BYTES);
@@ -523,6 +525,35 @@ impl Joint {
             1,
         )
     }
+    /// A client world with the component's browser approval enabled.
+    #[must_use]
+    pub fn with_approval(seed: u64, limits: client::Limits) -> Self {
+        let mut joint = Self::new(seed, limits);
+        joint.component =
+            crate::component::Composition::new_with_approval(&walking::config(seed), limits.client.domain);
+        joint
+    }
+
+    pub fn as_browser(&mut self, client: ClientId) {
+        self.component.as_browser(client);
+    }
+
+    pub fn ask_approval(&mut self, client: ClientId) -> (jig_client::ApprovalCode, Wall) {
+        self.component.ask_approval(client);
+        self.pump_component();
+        self.component.asked(client).expect("the component answered asked")
+    }
+
+    pub fn take_approval(&mut self, client: ClientId) {
+        self.taking.remove(&client);
+        self.component.take_approval(client);
+        self.pump_component();
+    }
+
+    #[must_use]
+    pub fn taking(&self, client: ClientId) -> Option<jig_client::Taking> {
+        self.taking.get(&client).copied()
+    }
 
     #[must_use]
     pub fn with_printed_link(seed: u64, limits: client::Limits) -> Joint {
@@ -559,6 +590,7 @@ impl Joint {
                 }
                 jig_client::Request::CloseStream
                 | jig_client::Request::Told { .. }
+                | jig_client::Request::Approval(_)
                 | jig_client::Request::Authorized(_)
                 | jig_client::Request::ServiceCredential { .. } => {}
             }
@@ -1376,6 +1408,7 @@ impl Joint {
             read_loads: BTreeSet::new(),
             transport,
             component,
+            taking: BTreeMap::new(),
             limits: *limits,
             client_limits: BTreeMap::new(),
             next_limits: None,
@@ -1785,7 +1818,12 @@ impl Joint {
         false
     }
     fn request(&mut self, who: ClientId, request: Request) {
-        if self.offline_until.is_some() || self.transport.sign_in(who).is_none() {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(act) } = request {
+            self.component.approval(who, act);
+            self.pump_component();
+            return;
+        }
+        if self.offline_until.is_some() || !self.transport.is_bound(who) || self.transport.sign_in(who).is_none() {
             if let Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, value: Some(_), .. } },
@@ -2009,7 +2047,19 @@ impl Joint {
     }
     fn incoming(&mut self, packet: crate::component::Incoming) {
         match packet {
-            crate::component::Incoming::Authenticated { client, .. } => {
+            crate::component::Incoming::Taking { client, taking } => {
+                self.taking.insert(client, taking);
+            }
+            crate::component::Incoming::Authenticated { client, person, .. } => {
+                if self.component.bind_authenticated(client, person, &mut self.transport) {
+                    let limits = *self.client_limits.entry(client).or_insert(self.limits);
+                    self.component.receiving(client, limits.client.domain);
+                    self.hello(client);
+                    self.callbacks.push((
+                        client,
+                        RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } }.into(),
+                    ));
+                }
                 for request in self.parked.remove(&client).unwrap_or_default() {
                     self.request(client, request);
                 }

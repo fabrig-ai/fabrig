@@ -10,7 +10,7 @@ says so in the draft's status.
 
 - **Four milestones,** M1 to M4 (section 3): alone and small, reading,
   showing, remembering.
-- **M1 first:** the chat stands beside the configuring chat, small, with what
+- **M1 first:** the chat takes the configuring chat's place, small, with what
   configuring needs, so that the user can try it from its landing.
 - **M2, then M3:** `see`'s remaining addresses, then the views, which draw
   from the same reads.
@@ -19,9 +19,7 @@ says so in the draft's status.
 - **The instructions are whole from M1** but their Showing part, which joins
   at M3, and their Remembering part, at M4; an address not built yet answers
   so (`ask-temper.md`, section 8).
-- **Then the user takes over:** they try it against the configuring chat and
-  say what changes, and when it takes template 3's place (`ask-temper.md`,
-  section 9).
+- **Then the user takes over:** they try it and say what changes.
 
 ## 2. How a milestone runs
 
@@ -46,8 +44,10 @@ says so in the draft's status.
 ### M1. Alone and small
 
 - **Executes:** `ask-temper.md`, section 9: charter 11 and template 5 in the
-  stock beside charter 3 and template 3, which stay as they are, charter 11
-  in the rules' and policy 1's delegation, and "Ask temper" on Settings;
+  stock, charter 11 in the rules' and policy 1's delegation, "Ask temper" in
+  the rail and the tab bar, and charter 3, template 3, `Configure` and
+  Settings' offer gone, which a plan of its own may do straight after, with no
+  walk between;
   4.2: no repository and no workspace for its runs; 4.3: its tools declared
   alone, in the asking family; 4.4: Claude Code's prompt replaced for a run
   with no workspace; 5.1: `see` with the addresses configuring reads,
@@ -63,7 +63,7 @@ says so in the draft's status.
   both shapes; the four tools and no workspace; Claude Code's arguments on the
   fake program; M1's addresses.
 - **Walk:** on a fresh `temper box` with a ChatGPT account and then a Claude
-  one, Ask temper opened from Settings: asked "how does a change land here?",
+  one, Ask temper opened from the rail: asked "how does a change land here?",
   then "every change gets one review from me before it lands", through to its
   proposal and an owner's Accept.
 - **Done** when it lands.

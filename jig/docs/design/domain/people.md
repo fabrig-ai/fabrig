@@ -131,7 +131,7 @@ inbox are the views child's (engine.md, section 11).
   lifetime. Creation and restoration arm both expiry conditions; timer
   scheduling translates the saved wall expiry at the current supplied
   clocks (root.md, section 3; engine.md, section 11).
-- **Two ways of signing in are jig's own:**
+- **Three ways of signing in are jig's own:**
   - *the printed link,* on one person's machine: the clients' component
     draws a one-time secret at start, which the application's startup
     prints in a URL of its own; presenting it signs in the configured
@@ -139,7 +139,16 @@ inbox are the views child's (engine.md, section 11).
     section 8). An application enables it by configuration, on loopback
     only;
   - *a service's credential* (below), presented to sign in as that
-    service.
+    service;
+  - *a sign-in approved by a browser:* the clients' component holds an
+    approval a client asked for until a browser signed in by its cookie
+    approves it, and at its take asks people `Whose` the approving
+    sign-in is (below) and signs that identity in afresh, as the printed
+    link does, held none (`../protocol/client.md`, section 8). People
+    sees an ordinary sign-in of the approver's person, counted, full and
+    expiring as any; an approver whose sign-in has ended is no signer,
+    and the take signs no one in. Nothing of the approval reaches
+    people before the take.
 - **A sign-in held is kept.** A person signing in by the printed link
   while presenting the credential of a sign-in of their own keeps that
   sign-in, rather than making another beside it:
@@ -169,8 +178,8 @@ inbox are the views child's (engine.md, section 11).
     after the clients' component checked it, before people answers, is
     no longer live there, and the person signs in afresh.
 
-  Only the printed link offers a held sign-in: a `Mint` and a service's
-  sign-in sign in afresh.
+  Only the printed link offers a held sign-in: a `Mint`, a service's
+  sign-in and an approval's take sign in afresh.
 - **Full sign-ins say so.** The deployment holds at most
   `limits.people.sign_ins` sign-ins (`../protocol/configuration.md`,
   section 6). A sign-in that would make one more is answered *full*,
@@ -179,9 +188,9 @@ inbox are the views child's (engine.md, section 11).
     the sign-ins held, the wall moment by which one will have ended
     unless its person signs out sooner. No person, number or count: the
     printed link's holder, the deployment's first owner on its own
-    machine, learns when the next room comes, and nothing of whose it
-    is; a `Mint` and a service learn only busy (`../protocol/client.md`,
-    section 8);
+    machine, and an approval's taker learn when the next room comes,
+    and nothing of whose it is; a `Mint` and a service learn only busy
+    (`../protocol/client.md`, section 8);
   - *after the held sign-in:* a person keeping their own sign-in (above)
     is never answered full;
   - *only while every sign-in is live:* the deployment's sign-ins are
@@ -1056,6 +1065,10 @@ deletion has ended, no row names its project or one of its tasks but
 what outlives it (5.2).
 
 ## 12. Open questions
+
+- **A person's sign-ins listed and each ended** (3), browser-approved
+  ones among them: `../protocol/client.md`, section 15. Approval between
+  hosts also waits there; people still receives an ordinary sign-in.
 
 - **Acting as a person:** whether an approval should also be posted on a
   system as the person who gave it, so that the system's own protection

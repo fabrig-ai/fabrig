@@ -96,6 +96,7 @@ pub(crate) fn start(client: &mut world::Client, env: &Env<accounts::Limits>) {
             configured,
             &env.limits,
             skein_lib::CryptoRng::new(&skein_world::crypto_seed(17), 0).expect("seed"),
+            b"oauth-accounts-world",
         )
         .expect("sign-out account"),
     );

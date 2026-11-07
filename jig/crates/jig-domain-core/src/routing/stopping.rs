@@ -3,8 +3,9 @@ use crate::{Core, Event, Held, Limits, Now, Request, Timer, effects::projections
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
+use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use skein_lib::{Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 impl Core {
     /// Whether new work is refused while the service drains.
@@ -14,10 +15,70 @@ impl Core {
     }
 }
 
-pub(crate) fn start(core: &mut Core) -> Queue<Request> {
+/// Settle each agent claim on a host in this process as interrupted, then
+/// refuse what would commit (jig/docs/design/domain/engine.md, 6.1).
+pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
+    let mut claims = List::with_capacity(core.proofs.len());
+    for (&task, proof) in &core.proofs {
+        if !core.start_opened()
+            || (!core.workers_in_process && proof.host != fleet::HostKind::Engine)
+            || core.unreported_restored.contains_key(&task)
+            || core.restoring_proofs.contains_key(&task)
+        {
+            continue;
+        }
+        let Some(record) = core.tasks.task(task) else { continue };
+        let agent = match record.executor {
+            tasks::Executor::Agent { .. } => true,
+            tasks::Executor::Job { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
+        };
+        if agent && tasks::run_attempt(&record.phase) == Some(proof.attempt) {
+            claims.push((Token::new(task), Token::new(proof.attempt))).expect("at most one claim per proof");
+        }
+    }
+    let mut out = Queue::uncapped();
+    let mut work = Queue::uncapped();
+    for &(run, attempt) in &claims {
+        let mut forgotten =
+            super::children::route_fleet(core, env, &mut work, fleet::Event::Interrupt { run, attempt });
+        for _ in 0..forgotten.len() {
+            out.push(forgotten.pop().expect("interrupted fleet output count"));
+        }
+        core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
+        out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
+        let token = core.internal(super::flight::Internal::Acknowledge);
+        super::children::append_tasks(
+            core,
+            env,
+            tasks::Event::Activation {
+                reply_to: ReplyTo::new(token),
+                task: run.raw(),
+                attempt: attempt.raw(),
+                cause: tasks::Cause::Unpriced,
+                end: tasks::End::Recheck,
+                saved: None,
+            },
+            &mut out,
+        );
+    }
+    assert!(work.is_empty(), "forgetting an attempt starts no sibling work");
     core.stopping = true;
     core.draining = Some(true);
-    empty()
+    out
+}
+
+pub(crate) fn interrupted(core: &Core, run: Token, attempt: Token) -> bool {
+    if !core.stopping {
+        return false;
+    }
+    let Some(proof) = core.proofs.get(&run.raw()) else { return false };
+    if !core.workers_in_process && proof.host != fleet::HostKind::Engine {
+        return false;
+    }
+    match core.committed_terminal(run.raw(), attempt.raw()) {
+        Some(terminal) => terminal.end == tasks::End::Recheck,
+        None => false,
+    }
 }
 
 pub(crate) fn empty() -> Queue<Request> {

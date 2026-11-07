@@ -109,6 +109,10 @@ impl World {
                         | Message::SignInLink(_)
                         | Message::SignInService
                         | Message::SignOut
+                        | Message::ApprovalAsk(_)
+                        | Message::ApprovalRead(_)
+                        | Message::ApprovalDecide(_)
+                        | Message::SignInApproval(_)
                         | Message::Authorize(_) => {
                             panic!("unplanned exchange");
                         }

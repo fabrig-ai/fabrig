@@ -232,9 +232,11 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store. The Claude Code fixture adds
   `claude-haiku-5-5` by name with `low` its default effort and selects it
-  in charters 1 and 2 in one settings apply; ChatGPT keeps stock row 7,
-  `gpt-6-luna`. The focused settings table holds both selections and
-  refusal of an unexpected stock model, but establishes no real launch
+  in charters 1 and 2 in a second settings apply, as 2.7 has it; a
+  focused test applies both through ctl on the joined world's Claude
+  catalogue (`crates/temper/tests/suite/forge_land.rs`). ChatGPT
+  keeps stock row 7, `gpt-6-luna`. The focused settings table holds both
+  selections and refusal of an unexpected stock model, but establishes no real launch
   with `--model claude-haiku-5-5 --effort low` or live landing. That
   evidence remains after-landing work (11); the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"

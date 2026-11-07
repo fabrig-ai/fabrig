@@ -7,5 +7,6 @@
   - 5.4 and 7: jig's `domain/engine.md`, section 10: notes have no party scope and no kind, as jig's `draft/notes-memory.md`'s status says of its section 3; jig's `domain/engine.md`, section 9, and jig's `client/domain/contract.md`, section 6: a brief carries no person's preferences, and a turn's read shows its brief and calls whole to whoever may read the task.
   - 6.2: `../client/README.md`: no `view` block and no views.
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`.
+  - 9: `../client/README.md`, 3.5 and 5.13: the rail and the tab bar have no Ask temper, and Home's first step, `Configure` and Settings' How work runs keep the configuring chat; `../protocol/configuration.md`, 13.4, `../domain/agent.md`, 8.1, and `../domain/testing.md`, 6.4: charter 3.
 - **Design departs:** 5.2: `../domain/agent.md`, 8.4.2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07.
 - **Open:** 12.

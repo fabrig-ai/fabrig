@@ -287,7 +287,7 @@ fn wrong_pasted_addresses_leave_the_sign_in_waiting() {
             Refused(Redirect), // Path.
             Refused(Redirect), // Fragment.
             Refused(Redirect), // Duplicate state.
-            Refused(Redirect), // Past url_bytes.
+            Refused(Redirect), // Past redirect_bytes.
             Taken,
             Keep(1),
             SignedIn(1),

@@ -544,6 +544,13 @@ The reasons behind `ask-temper.md`, from the user, 2026-11-07.
   the old instructions, the configuring chat kept, and no golden judging it.
 - **It changes nothing but settings,** and most probably replaces the
   configuring chat (the user's answers to the two questions).
+- **In the rail, the old chat dropped.** Having read the draft, the user:
+  'the "configuring agent" is now the built in temper AI', and "we should find
+  another place for it, not Settings". Offered both side by side to compare:
+  "just drop the old one". It keeps the name Ask temper with no persona, since
+  its instructions have it speak as temper and the landing page already says
+  "temper proposes". The rail over a box on Home, which would invite requests
+  for work it cannot do.
 - **Memory, guarded.** "Adding notes to the tool… would be the model's memory,
   so it can adjust a bit to the person preferences and remember past choices",
   with care: "it tends to create bloat and unexpected behaviors. The best would

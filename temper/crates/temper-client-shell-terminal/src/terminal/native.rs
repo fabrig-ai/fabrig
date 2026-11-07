@@ -31,7 +31,9 @@ pub(crate) fn signing(signing: &jig_client_protocol_link::Signing, out: bool) ->
         Signing::Full { sign_ins, earliest, link_until } if !out => {
             Some(Notice::SignInFull { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until })
         }
-        Signing::LinkUsed | Signing::LinkExpired | Signing::LinkUnknown | Signing::Refused if !out => {
+        Signing::Approval(_) | Signing::LinkUsed | Signing::LinkExpired | Signing::LinkUnknown | Signing::Refused
+            if !out =>
+        {
             Some(Notice::SignInRefused)
         }
         Signing::SignedIn { .. }
@@ -42,6 +44,7 @@ pub(crate) fn signing(signing: &jig_client_protocol_link::Signing, out: bool) ->
         | Signing::Lost
         | Signing::LinkUsed
         | Signing::LinkExpired
+        | Signing::Approval(_)
         | Signing::LinkUnknown
         | Signing::Refused => None,
     }

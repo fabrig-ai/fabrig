@@ -7,6 +7,10 @@ pub(crate) enum Route {
     Public(jig_protocol_engine_clients::PublicRead),
     Link,
     Service,
+    SignInApproval,
+    ApprovalAsk,
+    ApprovalRead,
+    ApprovalDecide,
     SignOut,
     Authorize,
     Request,
@@ -36,6 +40,10 @@ pub(crate) fn route(prefix: &[u8], call: &skein_http::server::Call) -> Route {
     match path {
         b"/v1/sign-in/link" => Route::Link,
         b"/v1/sign-in/deployment" => Route::Service,
+        b"/v1/sign-in/approval" => Route::SignInApproval,
+        b"/v1/approval/ask" => Route::ApprovalAsk,
+        b"/v1/approval/read" => Route::ApprovalRead,
+        b"/v1/approval/decide" => Route::ApprovalDecide,
         b"/v1/request" => Route::Request,
         b"/v1/sign-out" => Route::SignOut,
         b"/v1/authorize" => Route::Authorize,
@@ -54,6 +62,10 @@ pub(crate) fn body_bound(route: &Route, configured: u32) -> u32 {
         Route::Public(_)
         | Route::Link
         | Route::Service
+        | Route::SignInApproval
+        | Route::ApprovalAsk
+        | Route::ApprovalRead
+        | Route::ApprovalDecide
         | Route::SignOut
         | Route::Request
         | Route::Read
@@ -68,6 +80,10 @@ pub(crate) fn message(route: &Route, body: Box<[u8]>) -> Option<Message> {
     Some(match route {
         Route::Link => Message::SignInLink(body),
         Route::Service => Message::SignInService(body),
+        Route::SignInApproval => Message::SignInApproval(body),
+        Route::ApprovalAsk => Message::ApprovalAsk(body),
+        Route::ApprovalRead => Message::ApprovalRead(body),
+        Route::ApprovalDecide => Message::ApprovalDecide(body),
         Route::SignOut => Message::SignOut(body),
         Route::Authorize => Message::Authorize(body),
         Route::Request => Message::Request(body),
@@ -91,11 +107,19 @@ pub(crate) fn reply(
     if call.route == Route::SignOut {
         return (body, Some(crate::cleared(settings, call.via)));
     }
-    if call.route != Route::Link && call.route != Route::Service {
-        return (body, None);
-    }
     let mut reader = skein_lib::Reader::new(&body);
-    let Ok(w::SignInAnswer::SignedIn(value)) = w::SignInAnswer::decode(&w::CEILINGS, &mut reader) else {
+    let value = if call.route == Route::SignInApproval {
+        let Ok(w::ApprovalSignInAnswer::SignedIn(value)) = w::ApprovalSignInAnswer::decode(&w::CEILINGS, &mut reader)
+        else {
+            return (body, None);
+        };
+        value
+    } else if call.route == Route::Link || call.route == Route::Service {
+        let Ok(w::SignInAnswer::SignedIn(value)) = w::SignInAnswer::decode(&w::CEILINGS, &mut reader) else {
+            return (body, None);
+        };
+        value
+    } else {
         return (body, None);
     };
     if reader.remaining() != 0 {
@@ -105,8 +129,17 @@ pub(crate) fn reply(
     let Some(credential) = parts.token.take() else { return (body, None) };
     let life = skein_lib::Duration::from_nanos(parts.expires.saturating_sub(wall.as_nanos()));
     let cookie = crate::cookie(settings, call.via, &credential, life);
-    let answer = w::SignInAnswer::SignedIn(w::SignedIn::new(&w::CEILINGS, parts).expect("token removed"));
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut bytes).expect("measured answer");
-    (bytes.finish(), Some(cookie))
+    let signed_in = w::SignedIn::new(&w::CEILINGS, parts).expect("token removed");
+    let body = if call.route == Route::SignInApproval {
+        let answer = w::ApprovalSignInAnswer::SignedIn(signed_in);
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+        answer.encode(&mut bytes).expect("measured answer");
+        bytes.finish()
+    } else {
+        let answer = w::SignInAnswer::SignedIn(signed_in);
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+        answer.encode(&mut bytes).expect("measured answer");
+        bytes.finish()
+    };
+    (body, Some(cookie))
 }

@@ -109,7 +109,9 @@ section 11.
   transport (section 6).
 - **Signed in by jig's printed link,** on loopback, and kept signed in
   across restarts by its bearer credential, which the terminal keeps in
-  the client's private directory (section 7). The forge as people's
+  the client's private directory (section 7). A native client, the
+  TUI, may instead be approved by the person's browser, signed in
+  there, on the approval page (3.5, 7.1). The forge as people's
   sign-in provider is open (section 11).
 - **temper's server owns the clients' listener,** and mounts jig's
   clients' component on it with jig's default HTTP mapping, under
@@ -3001,6 +3003,81 @@ keeps (`../protocol/configuration.md`, section 2).
   leaves `me`, and with it the navigation and every list (5.3); its
   work is jig's to end and erase. The settings' other parts are
   section 11's.
+- **The approval page** (`../draft/tui.md`, 4.2; jig's
+  `protocol/client.md`, section 8, *A sign-in approved by a browser*):
+  where a person signed in to the browser approves a terminal's sign-in,
+  in the browser alone. Its terminal's side is 7.1.
+  - *A place of its own,* `Place::Approve { code }`, at `/terminal`
+    (`browser.md`, 2.3), beside `Authorize`: no page's address, so the
+    pages and the forge's side are left as at any place that isn't
+    theirs (3.3), and the frame is the banner alone (5.1). `code` is an
+    `ApprovalCode` (jig's wire), or none. Its state is the root's, in a
+    module of its own, `approve`, beside `authorize`: made when the place
+    is gone to, dropped when it is left, and kept nowhere, the small
+    store included. `Domain::approval()` gives it to the view, and the
+    root's shown count moves with it.
+  - *Opening it approves nothing.* With a code, the page reads the
+    approval, `jig-client`'s `ReadApproval { code }`, once the link is
+    live and an exchange is free, as the `Authorize` place sends its
+    own; until then, and while it is read, it says "Reading CODE…".
+  - *With no code,* or one the address carried that doesn't read
+    (`browser.md`, 2.3), it asks for one: a field named "Code" and
+    "Check". The field keeps what is typed up to jig's bound on a typed
+    code (`CODE_TYPED_BYTES`, 32 bytes), and marks a field typed past
+    it; "Check", or Enter, reads it as the address's code is read,
+    `ApprovalCode::parse`: letters of the code's alphabet in either
+    case, hyphens and spaces ignored. One that reads is read as above;
+    one that doesn't, or a field typed past the bound, stays in the
+    field with the alert below. A typed code changes no address. The page never
+    lists the approvals that wait: the engine reads one by its code
+    alone.
+  - *Its states,* each a card as the sign-in page's (`browser.md`,
+    2.5), under temper's mark, its level-1 heading and its words, CODE
+    the code as shown (`WDJB-MJHT`):
+
+    | State | Heading | The card | Its acts |
+    |---|---|---|---|
+    | asking for a code | "Sign in a terminal?" | "Type the code your terminal shows.", the field | "Check" |
+    | a typed code that doesn't read | "Sign in a terminal?" | the same, the field as typed, and the alert "That isn't a terminal's code. Type the eight letters your terminal shows." | "Check" |
+    | reading | "Sign in a terminal?" | "Reading CODE…" | none |
+    | the ask, the approval waiting | "Sign in a terminal?" | CODE, large; "Asked AGO" (5.12's *ago*, from the read's wall time); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | deciding | "Sign in a terminal?" | the ask's, "Approving…" or "Refusing…" in its buttons' place | none |
+    | approved, waiting for the terminal's take | "Approved" | CODE; "Waiting for your terminal to sign in…" | none |
+    | signed in, taken | "Terminal signed in" | "Signed in. You can close this tab." | none |
+    | refused | "Sign-in refused" | "This terminal's sign-in was refused. Nothing was signed in." | none |
+    | expired | "Code expired" | "This code has expired. Ask again in your terminal." | none |
+    | used | "Code already used" | "This code was already approved or refused. If your terminal isn't signed in, ask again there." | none |
+    | unknown | "Unknown code" | "temper doesn't know this code. Check the code your terminal shows, or ask again there." | "Type a code" |
+    | signed out | "Sign in first" | "This browser isn't signed in to temper. Open the sign-in link temper printed first, then open this page's address again: your terminal shows it." | none |
+    | busy, not ready or lost | "temper couldn't answer just now" | "It is starting or stopping, busy, or out of reach. Try again in a moment." | "Try again" |
+
+  - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
+    code, approve }` once, when the link is live and an exchange is
+    free, and the page is deciding until it is answered: approved,
+    refused, used, expired or unknown as the table says. Nothing sends
+    a decision by itself, and none is sent again.
+  - *Approved:* the page reads the approval again each second
+    (`approve::AGAIN`) while it stays approved, from the answer's
+    turn, to learn the terminal's take: taken is signed in, and the
+    reading ends. The approval's own expiry ends it otherwise, answered
+    expired (jig's `protocol/client.md`, section 8, *Never taken,
+    nothing made*), so a page left open reads at most for the
+    approval's ten minutes. A read answered busy, not ready or lost
+    meanwhile keeps the page approved and reads again a second later.
+  - *Ended:* signed in, refused, expired, used and unknown read no more.
+    "Type a code" returns to the field, empty, its code dropped.
+  - *Signed out:* the link signed out, before a read or after, or a read
+    or a decision answered signed out (which signs the client out,
+    jig's `client/domain/client.md`, section 12), draws "Sign in first"
+    in place of the pages' signed-out paragraph and sign-in page (5.1).
+    An answer of not a browser draws it too: the page's exchanges carry
+    the cookie (`browser.md`, 2.4), so the answer says they reached the
+    engine without it, and the remedy is the same. The printed link's
+    sign-in lands on `/welcome` (`browser.md`, 2.4), so the person comes
+    back by the address their terminal shows.
+  - *Busy:* a read or a decision answered busy, not ready or lost.
+    "Try again" reads the approval again, from its code, so that a
+    decision lost on its way back shows as it stands.
 
 ### 3.6 Requests and confirmations
 
@@ -4159,7 +4236,13 @@ client removes no account and closes no chat of its own.
     of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
     heading, but `Home`'s, whose headline changes with what it says:
-    "Home".
+    "Home";
+  - *at the approval place* (3.5, *The approval page*), in the browser
+    alone: the banner, as at the `Authorize` place, then the page's
+    card as the main, whatever the link's state; no rail, tab bar,
+    accounts' or playground's banner, and no paragraph of the pages
+    not about the work (below), whose words the card's own states
+    take.
 
   Then skein-ui diffs it and keeps the tree.
 - **The pages not about the work** (jig's `client/domain/pages.md`,
@@ -4186,6 +4269,10 @@ client removes no account and closes no chat of its own.
   - *signed out at the authorization:* the `Authorize` place's sign-in
     page, "to continue to FORGE" under its heading, its link's `then`
     the authorization's address (`../protocol/sign-in.md`, 9.3);
+  - *signed out at the approval:* the approval page's own card, "Sign
+    in first" (3.5, *The approval page*), in place of the paragraph and
+    of the sign-in page: the approval is offered on loopback alone, where
+    the printed link is the browser's way in;
   - *signed out, the link's sign-in not taken:* while the link's view
     says why its last sign-in installed nothing and the link stays
     usable (jig's `client/domain/client.md`, section 12,
@@ -5780,7 +5867,8 @@ On both:
 - **Where they are said:** a chats line's last activity or end, an ago
   (3.5); a chat's turns and its end, clocks under the day's rules
   (3.5); a card's wait, a span, in the inbox and on a chat's page; an
-  update's arrival in the inbox, an ago (3.5). The task pages and the
+  update's arrival in the inbox, an ago (3.5); the approval page's ask,
+  an ago (3.5, *The approval page*). The task pages and the
   accounts page say their moments as their sections do (5.5, 5.8,
   5.9), in universal time, and so does a full deployment's earliest end
   (5.1, the pages not about the work).
@@ -6872,6 +6960,106 @@ temper's:
 - **One person.** The deployment's link signs in its first owner;
   signing in through the forge is open (section 11).
 
+### 7.1 A terminal signed in from the browser
+
+jig's third built-in way (jig's `protocol/client.md`, section 8, *A
+sign-in approved by a browser*; `../draft/tui.md`, 4.2): a native
+client on the person's machine, the TUI, asks; the person's browser,
+signed in by its cookie, approves at the approval page (3.5, *The
+approval page*); the client takes the sign-in with the secret its ask
+was answered with. A box enables it beside the printed link
+(`../protocol/configuration.md`, section 3, clients).
+
+- **The root's half,** for a native client, in `temper-client-domain`,
+  a module of its own, `asked`:
+  - *Asking:* `Event::AskApproval`, the host's, while the link is signed
+    out; at any other time, or while an ask is in flight, it changes
+    nothing. The root sends `jig-client`'s `AskApproval` and holds
+    `asked::State::Asking`.
+  - *Asked:* on `jig-client`'s `Approval::Asked { secret, code, expires
+    }`, the root signs in at once, `SignIn { with: Approval { secret }
+    }`, and holds `Asked { code, expires }` alone, for its host to draw.
+    The secret goes to `jig-client`, which holds it while the take runs
+    (jig's `client/domain/client.md`, section 12), never into the
+    root's state, a print or a log. An unlinked client (jig's
+    `client/domain/client.md`, 4.4) leaves the take to its host's link,
+    which made the ask and holds the secret: the root holds the code
+    and the expiry, and drops the secret it was told.
+  - *Not asked:* `NotAsked(Refused | NotReady | Busy | Lost)`, held as
+    it came, for its host's line.
+  - *The take's outcomes are the link's,* in `jig-client`'s `link()`:
+    while it waits, `not_signed_in` is `Approval(Waiting)`, and
+    `jig-client` sends the take again each second; refused, expired,
+    used and unknown end it, `Approval(..)`; full, `Full { .. }`, its
+    `link_until` the approval's own expiry; signed in, the link starts,
+    its credential in `link().credential`, which the host keeps as it
+    keeps a link's (section 7, *The bearer credential*). Once the link
+    leaves signed out, the root drops what it held.
+  - *Asking again* is another `AskApproval`: its take replaces the one
+    before.
+  - `Domain::asked()` gives the state to the host and the view, and the
+    root's shown count moves with it.
+- **The TUI's flow,** on the TUI's sign-in screen (`../draft/tui.md`,
+  4.1), its host and its view, the TUI's crates:
+  - *It asks* when its sign-in screen opens signed out, and the screen
+    still takes the printed link, pasted, as `../draft/tui.md`, 4.1 has
+    it.
+  - *The tab's address* is the TUI's own, made from its own parts alone:
+    the engine's address it was given or kept, `http://HOST:PORT`, then
+    the approval page's printed path, `address::print_approve(Some(code))`,
+    `/terminal?code=WDJB-MJHT` (`browser.md`, 2.3), the code an
+    `ApprovalCode`, so of the code's alphabet by its type. It opens no
+    address the engine sent, and gives the address to the opener as one
+    argument, with no shell between: `xdg-open ADDRESS` on Linux, `open
+    ADDRESS` on macOS, a departure, on purpose, from `temper open`,
+    which opens no browser (6.5).
+  - *Its lines,* the code and the address drawn, the code as shown:
+
+    ```
+    Sign in this terminal
+    A tab opened in your browser. Check it shows
+    WDJB-MJHT, then press Approve.
+    No tab? Open http://127.0.0.1:8367/terminal?code=WDJB-MJHT
+    The code expires in 10 min.
+    ```
+
+    "The code expires in SPAN." is 5.12's *span* to the ask's expiry,
+    with its tick.
+  - *No browser to open:* an SSH session (`SSH_CONNECTION` or `SSH_TTY`
+    set), no display (on Linux, neither `DISPLAY` nor `WAYLAND_DISPLAY`
+    set), or the opener failing (not found, or exiting other than 0):
+    the TUI opens nothing more and prints the address and the code,
+    "Open this address in a browser that reaches temper:", the address,
+    "and check it shows CODE, then press Approve.", then "From another
+    machine, tunnel port PORT to this one first." The engine is on
+    loopback, so a browser elsewhere reaches it through a tunnel to its
+    listener on the same port, which jig's guards require of the
+    address (jig's `protocol/browser.md`, 12.2).
+  - *Each outcome's line,* in place of the screen's last line; a key of
+    the sign-in screen asks again (`a`, "Press a to ask again."), as
+    the screen's other keys are the TUI's:
+
+    | Outcome | Its line |
+    |---|---|
+    | waiting | the screen as drawn |
+    | refused | "The browser refused this sign-in. Press a to ask again." |
+    | expired | "The code expired before it was approved. Press a to ask again." |
+    | used | "That code was already used. Press a to ask again." |
+    | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press a to ask again." |
+    | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press a to ask again then." (5.1's full, its moments so said) |
+    | the take busy, not ready or lost | "temper is busy; still trying…", while `jig-client` sends it again |
+    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead." |
+    | not asked: busy | "Too many terminals are waiting to sign in. Press a to ask again in a moment." |
+    | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press a to ask again." |
+
+  - *Signed in:* the TUI keeps the credential in its directory
+    (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
+    7), before anything is told of the sign-in, and draws its first
+    screen; the page says "Signed in. You can close this tab." (3.5).
+  - *Never printed:* the secret and the credential are drawn, printed
+    or logged nowhere; the TUI's recordings redact them
+    (`../draft/tui.md`, section 5).
+
 ## 8. On the engine's side
 
 The engine's service is `../protocol/README.md`'s (section 6). What it
@@ -7476,10 +7664,18 @@ own tests:
 
 ## 11. Open questions
 
-- **The TUI's later passes** (6.11 to 6.16): the browser's approval
-  above the paste (`../draft/tui.md`, 4.2), the recording at the host's
-  seam (its section 5), and everything of its sections 3 and 7. Default:
-  the first pass alone, in `../draft/tui.execution.md`'s order.
+- **The TUI's later passes** (6.11 to 6.16, 7.1): the TUI's flow above
+  the paste, using the root's approval half and the web's page: opening
+  its locally constructed address, showing the code and address when no
+  browser opens, drawing each outcome and asking again (`../draft/tui.md`,
+  4.2). Recording at the host's seam follows (its section 5), then the
+  surfaces of its section 3. Default: the first pass alone, in
+  `../draft/tui.execution.md`'s order.
+- **Approval between hosts and managing sign-ins** (7.1): a deployment
+  at a name, Google on the web, the code typed there with the ask's origin
+  and age shown, and the web's list of a person's sign-ins, each ended
+  from there (`../draft/tui.md`, section 7). Default: loopback, approved
+  by a browser signed in by the printed link.
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
   printed link into the TUI in another terminal and read the first
   screen (`../draft/tui.execution.md`, M1). Its frames' refinement

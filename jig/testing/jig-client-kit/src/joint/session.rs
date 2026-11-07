@@ -14,6 +14,7 @@ use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, List, Time, Wall};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+mod approval;
 mod offers;
 mod offline;
 mod signing;
@@ -241,7 +242,10 @@ impl Session {
                 Some(until)
             } else {
                 let heartbeat = if self.delay_until.is_none() { self.stream_due.values().copied().min() } else { None };
-                [self.driver.next_due(), self.delay_until, heartbeat].into_iter().flatten().min()
+                [self.driver.next_due(), self.component.next_deadline(), self.delay_until, heartbeat]
+                    .into_iter()
+                    .flatten()
+                    .min()
             }
         } else {
             Some(Time::ZERO)
@@ -699,6 +703,7 @@ impl Session {
             }
             self.recover(now, wall)?;
         }
+        self.pump(now, wall)?;
         let ready = self.scheduled_sources.partition_point(|(at, _)| *at <= now);
         let sources: Vec<_> = self.scheduled_sources.drain(..ready).collect();
         for (_, event) in sources {

@@ -158,6 +158,7 @@ impl Connections {
             client::Request::Save { .. }
             | client::Request::Erase { .. }
             | client::Request::Told { .. }
+            | client::Request::Approval(_)
             | client::Request::Authorized(_)
             | client::Request::ServiceCredential { .. } => {}
         }

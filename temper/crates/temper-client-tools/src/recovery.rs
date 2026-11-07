@@ -70,6 +70,8 @@ impl Recovery {
             jig_client::UnlinkedRequest::Down { .. }
             | jig_client::UnlinkedRequest::SignOut
             | jig_client::UnlinkedRequest::Told { .. }
+            | jig_client::UnlinkedRequest::ApprovalAct(_)
+            | jig_client::UnlinkedRequest::Approval(_)
             | jig_client::UnlinkedRequest::Authorized(_) => {}
         }
     }

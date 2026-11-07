@@ -155,6 +155,11 @@ pub(crate) fn tag_fleet(
             fleet::Request::SignedOut { to, channel, name, result } => {
                 Request::Held(Box::new(Held::SourceSignedOut { to, channel, name, result }))
             }
+            fleet::Request::Acknowledge { run, attempt, .. } | fleet::Request::AcknowledgeTurn { run, attempt, .. }
+                if super::stopping::interrupted(core, run, attempt) =>
+            {
+                continue;
+            }
             fleet::Request::Acknowledge { channel, run, attempt } => {
                 Request::Held(Box::new(Held::Acknowledge { channel, run, attempt }))
             }
@@ -774,6 +779,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
+        | fleet::Event::Interrupt { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
@@ -867,6 +873,7 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
+        | fleet::Event::Interrupt { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Answer { .. }
         | fleet::Event::Inbound { .. }
