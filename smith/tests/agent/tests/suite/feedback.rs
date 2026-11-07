@@ -91,6 +91,8 @@ fn opaque_receipts_diagnostics_markers_and_check_tail_are_lossless_ascii() {
     let got = feedback(
         run::Returned::ChecksFailed {
             repository: bytes(&opaque),
+            check: bytes(b".smith/check"),
+            given: Duration::from_secs(60),
             ran: run::Ran { exit: run::Exit::Code { code: 255 }, output: bytes(&opaque), cut: u64::MAX },
         },
         256,
@@ -98,8 +100,13 @@ fn opaque_receipts_diagnostics_markers_and_check_tail_are_lossless_ascii() {
     .expect("checks");
     assert_eq!(
         got.text.as_ref(),
-        [b"checks-failed repository=".as_slice(), encoded, b" exit=code:255 cut=18446744073709551615 tail=", encoded]
-            .concat()
+        [
+            b"checks-failed repository=".as_slice(),
+            encoded,
+            b" check=\".smith/check\" exit=code:255 given_ms=60000 cut=18446744073709551615 tail=",
+            encoded
+        ]
+        .concat()
     );
     assert!(got.error);
     assert!(got.text.is_ascii());

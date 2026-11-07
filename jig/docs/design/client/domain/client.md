@@ -767,7 +767,14 @@ for any presentation of a chat or of any agent task's activity.
   turn shares one `turn_text` budget, priced in section 14's order, so its
   calls' names go last; `llm` stands outside that budget, as its usage
   does, and is never cut. A text cut at the bound ends in "…", where it was
-  cut, and the decoded turn is marked.
+  cut, and the decoded turn is marked. A turn read alone (`Read::Turn`,
+  an archived turn) is decoded whole instead: its texts within twice the
+  bytes it was carried in, since each text is within them once and an
+  outcome repeats at most its result's first line, and its messages and
+  blocks within smith's transcript ceilings, so nothing of a turn the
+  archive's byte bound admits is cut, a call's input included, and a
+  reader paging it reads every byte; one past that bound is too large,
+  as now (section 14).
   Neither the application nor the helpers link smith.
 - **What the conversation last ran on.** `Thread.latest_llm` is the `llm`
   of the newest decoded turn that names a model, taken when the window
@@ -1080,7 +1087,8 @@ dialect with them; its calls' outcomes, a line each within `text`; its calls'
 inputs; and its results' summaries. An outcome comes before the inputs because a
 call's input can fill the budget, a note's whole body, and what reads a call's
 outcome needs its line. It is at least the receiving field bound `text` and at
-most `turn_bytes`; limits outside those bounds are refused.
+most `turn_bytes`; limits outside those bounds are refused. It bounds the
+turns a page carries; a turn read alone is decoded whole (section 10).
 
 `DomainLimits.long_text` bounds what a person may read or send whole past a
 field's `text`: a note's body, a document's text and a task's words, the words of

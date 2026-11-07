@@ -135,7 +135,7 @@ pub fn activity_page(record: w::ActivityPage, limits: &Limits) -> Result<c::Acti
     }
 }
 
-/// An archived turn its page carries, within the archive's bound (`turn::archive`).
+/// An archived turn its page carries, within the archive's byte bound and the page's `turn_text`.
 pub(crate) fn carried_turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead {
     super::turn::decode(value, limits.archived_turn())
 }

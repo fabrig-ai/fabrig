@@ -1,6 +1,7 @@
 //! Shared key generators and interval membership fixtures.
 use crate::keys::Own;
 use alloc::boxed::Box;
+use jig_domain_core::settings::{Key as SettingKey, Setting};
 use jig_domain_core::{self as core, CoreKey, ProjectionKey};
 use jig_domain_people::{self as people, Proposer};
 use skein_lib::Rng;
@@ -30,7 +31,7 @@ pub fn own(rng: &mut Rng) -> Own {
     }
 }
 pub fn core_key(rng: &mut Rng) -> CoreKey {
-    match rng.below(8) {
+    match rng.below(15) {
         0 => CoreKey::Deployment,
         1 => CoreKey::Projection(match rng.below(4) {
             0 => ProjectionKey::Goal(number(rng)),
@@ -54,7 +55,31 @@ pub fn core_key(rng: &mut Rng) -> CoreKey {
             },
             proposal: number(rng),
         },
-        _ => CoreKey::EscalationDecision { task: number(rng), revision: number(rng) },
+        7 => CoreKey::EscalationDecision { task: number(rng), revision: number(rng) },
+        8 => CoreKey::Settings(SettingKey::Default(setting(rng))),
+        9 => CoreKey::Settings(SettingKey::Changed(setting(rng))),
+        10 => CoreKey::Settings(SettingKey::Held(narrow(rng))),
+        11 => CoreKey::Settings(SettingKey::Charter { charter: narrow(rng), revision: narrow(rng) }),
+        12 => CoreKey::Settings(SettingKey::Proposal {
+            proposer: match rng.below(2) {
+                0 => Proposer::Task(number(rng)),
+                _ => Proposer::Party(number(rng)),
+            },
+            proposal: narrow(rng),
+        }),
+        13 => CoreKey::Settings(SettingKey::Extent),
+        _ => CoreKey::Settings(SettingKey::History(narrow(rng))),
+    }
+}
+fn setting(rng: &mut Rng) -> Setting {
+    match rng.below(7) {
+        0 => Setting::Charter(narrow(rng)),
+        1 => Setting::Template(narrow(rng)),
+        2 => Setting::Policy(narrow(rng)),
+        3 => Setting::Rules,
+        4 => Setting::Application { kind: narrow(rng), scope: narrow(rng), number: narrow(rng) },
+        5 => Setting::ProjectPolicy { project: narrow(rng) },
+        _ => Setting::Model(narrow(rng)),
     }
 }
 pub fn people_key(rng: &mut Rng) -> people::Key {

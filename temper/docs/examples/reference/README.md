@@ -17,15 +17,23 @@ the fallback in `../../design/protocol/configuration.md`, 13.8. Its agent's
 measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
 carry the bounds derived from that turn and payload.
 
-Set the agent and every worker before the first start. Run these in the
-deployment's configuration directory, with the reference's `room.json`:
+Set the agent, every worker and the application before the first start,
+retaining the document's other application members and overrides. Run these
+in the deployment's configuration directory, with the reference's `room.json`:
 
 ```sh
 jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
 mv agent.next.json agent.json
-jq --slurpfile room room.json '.workers[] |= (. * $room[0].worker)' temper.json > temper.next.json
+jq --slurpfile room room.json '(.workers[] |= (. * $room[0].worker)) | .application = (.application * $room[0].application)' temper.json > temper.next.json
 mv temper.next.json temper.json
 ```
+
+`root.journal.run_bytes` bounds a run's stored policy, a charter's whole
+policy among it, and the box's bound of 20,480 bytes refuses a charter of 31 KB, so
+the room sets 65,536 bytes. A charter's `turns`, its `time` and the run's
+spend must fit the bounds a worker advertises, or no host takes its tasks
+(`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
+and `shortfall`).
 
 Apply `settings.json` after that start, in the order below. Its charter models
 require the reference agent's output allowance; a stock agent's smaller

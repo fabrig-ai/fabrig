@@ -149,28 +149,106 @@ fn resolver_comparison_read_errors_still_fail_the_section() {
 }
 
 #[test]
-fn a_reviews_lone_pull_read_failure_fails_its_brief_without_words() {
-    let mut world = World::new(246);
-    world.adopt();
-    let mut row = changes::change_row();
-    // The fake has no such pull; its Item read answers Missing.
-    let pull = 17;
-    let head = translate::commit(1);
-    row.pull = Some(pull);
-    row.change.last_head = Some(head);
-    row.change.state = change::State::Gating { head, asked: Box::new([]) };
-    world.event(top::Event::Change { row });
-    gather(&mut world, pull, head);
-    assert!(world.seen().contains(&top::Request::BriefReadRefused {
-        section: SECTION,
-        stage: "item",
-        error: Some(api::Error::Missing)
-    }));
-    assert!(world.seen().contains(&top::Request::BriefSized {
-        section: SECTION,
-        size: Err(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" })
-    }));
-    world.take_seen();
-    world.event(top::Event::TakeBrief { section: SECTION });
-    assert_eq!(world.seen(), &[top::Request::BriefTaken { section: SECTION, bytes: None }]);
+fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
+    type MakePull = fn(&mut World) -> (u64, api::Commit);
+    let rows: [(MakePull, &str, api::Error, Option<top::BriefUnread>); 2] = [
+        (
+            // The fake has no such pull; its Item read answers Missing.
+            |_| (17, translate::commit(1)),
+            "item",
+            api::Error::Missing,
+            Some(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" }),
+        ),
+        (
+            |world| {
+                let path = b"notes/contracts.md";
+                let before = b"contract\n".repeat(256);
+                let mut after = before.clone();
+                after.extend_from_slice(b"one new clause\n");
+                assert!(before.len() < 4096 && after.len() < 4096 && before.len() + after.len() > 4096);
+                world.push_file(b"main", path, &before);
+                world.external(
+                    raw::Op::Git(raw::Git::Create {
+                        branch: b"temper/51".as_slice().into(),
+                        commit: world.branch(b"main"),
+                    }),
+                    2,
+                );
+                world.push_file(b"temper/51", path, &after);
+                let pull = world.open_pull(b"temper/51", b"main");
+                (pull, translate::commit(world.branch(b"temper/51")))
+            },
+            "files",
+            api::Error::TooLarge,
+            None,
+        ),
+    ];
+    for (make_pull, stage, error, failure) in rows {
+        let mut world = World::with_goal_room(246, 8, 4096);
+        world.adopt();
+        let (pull, head) = make_pull(&mut world);
+        let mut row = changes::change_row();
+        row.pull = Some(pull);
+        row.change.last_head = Some(head);
+        row.change.state = change::State::Gating { head, asked: Box::new([]) };
+        world.event(top::Event::Change { row });
+        gather(&mut world, pull, head);
+        let refused = world
+            .seen()
+            .iter()
+            .position(|request| {
+                *request == top::Request::BriefReadRefused { section: SECTION, stage, error: Some(error) }
+            })
+            .expect("the refused read is logged");
+        let sizes: Vec<_> = world
+            .seen()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, request)| match request {
+                top::Request::BriefSized { section: SECTION, size } => Some((index, *size)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(sizes.len(), 1, "one terminal sizing response for {stage}");
+        let (terminal_at, size) = sizes[0];
+        assert!(refused < terminal_at, "the refusal precedes sizing");
+        if let Some(failure) = failure {
+            assert_eq!(size, Err(failure));
+            world.take_seen();
+            world.event(top::Event::TakeBrief { section: SECTION });
+            assert_eq!(world.seen(), &[top::Request::BriefTaken { section: SECTION, bytes: None }]);
+        } else {
+            let size = size.expect("the review keeps its pull section after oversized files");
+            assert!(size <= BYTES);
+            let calls = world.take_calls();
+            assert_eq!(
+                calls.iter().filter(|op| matches!(op, api::Op::Read(api::Read::PullFiles { .. }))).count(),
+                1,
+                "the refused page ends files reads"
+            );
+            assert!(calls.contains(&api::Op::Read(api::Read::Compare {
+                before: translate::commit(world.branch(b"main")),
+                after: head,
+            })));
+            world.take_seen();
+            world.event(top::Event::TakeBrief { section: SECTION });
+            let [top::Request::BriefTaken { section: SECTION, bytes: Some(words) }] = world.seen() else {
+                panic!("the review's pull section must be taken: {:?}", world.seen())
+            };
+            assert_eq!(words.len(), usize::try_from(size).expect("bounded size"));
+            let text = std::str::from_utf8(words).expect("brief text");
+            let pinned: String = head[..20].iter().flat_map(|byte| top::hex(*byte)).map(char::from).collect();
+            for context in [
+                format!("Pull request: #{pull}"),
+                "Branch: temper/51".into(),
+                "Base: main".into(),
+                format!("Head: {pinned}"),
+                "Title: Change".into(),
+                "Description".into(),
+                "[files omitted from page 1: past the forge client's limit; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
+            ] {
+                assert!(text.contains(&context), "missing context {context}: {text}");
+            }
+        }
+    }
 }

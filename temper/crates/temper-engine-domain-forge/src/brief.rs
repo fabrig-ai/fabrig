@@ -331,25 +331,17 @@ pub(crate) fn brief_answer(
                 }
                 append(&mut fetch.words, b"[more files omitted]\n");
             }
-            let comparison = match fetch.mode {
-                PullMode::Review | PullMode::Other => match fetch.base {
-                    Some(base) => Some((base, fetch.head.0)),
-                    None => None,
-                },
-                PullMode::Conflict(base) => Some((fetch.head.0, base)),
-                PullMode::Semantic(before) => match before {
-                    Some(before) => Some((before, fetch.head.0)),
-                    None => None,
-                },
-            };
-            fetch.comparison = comparison;
-            match comparison {
-                Some((before, after)) => {
-                    fetch.stage = BriefStage::Compare;
-                    Some(skein_forge::api::Read::Compare { before, after })
-                }
-                None => None,
-            }
+            comparison(&mut fetch)
+        }
+        Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Files => {
+            refused(fetch.owner, fetch.stage, error, out);
+            append(&mut fetch.words, b"[files omitted from page ");
+            append(&mut fetch.words, &decimal(u64::from(fetch.file_page)));
+            append(&mut fetch.words, b": past the forge client's limit; read_pull_files from page ");
+            let next_page = fetch.file_page.checked_add(1).expect("pages bounded by section bytes");
+            append(&mut fetch.words, &decimal(u64::from(next_page)));
+            append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
+            comparison(&mut fetch)
         }
         Ok(skein_forge::api::Answer::Compare { before, after, files, commits, .. })
             if fetch.stage == BriefStage::Compare && Some((before, after)) == fetch.comparison =>
@@ -449,6 +441,30 @@ pub(crate) fn brief_answer(
         crate::held::ready(domain, fetch.owner, read, out);
     }
     true
+}
+
+/// Every pull section goes from its last gathered or omitted files page to its comparison
+/// (temper/docs/design/domain/forge.md, 8.4).
+fn comparison(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
+    let comparison = match fetch.mode {
+        PullMode::Review | PullMode::Other => match fetch.base {
+            Some(base) => Some((base, fetch.head.0)),
+            None => None,
+        },
+        PullMode::Conflict(base) => Some((fetch.head.0, base)),
+        PullMode::Semantic(before) => match before {
+            Some(before) => Some((before, fetch.head.0)),
+            None => None,
+        },
+    };
+    fetch.comparison = comparison;
+    match comparison {
+        Some((before, after)) => {
+            fetch.stage = BriefStage::Compare;
+            Some(skein_forge::api::Read::Compare { before, after })
+        }
+        None => None,
+    }
 }
 
 /// Comparison contents follow the pinned pull identity and gathered diff.

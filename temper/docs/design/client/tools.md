@@ -2363,6 +2363,12 @@ contract's reads, watches and requests, they take:
 
 ## 14. Later
 
+- **The settings reference's help pointer** (5.3): `settings-fields`'s
+  `reserve_time` description says "See settings help". The field table
+  that generates it needs to name `temper help settings`, with a check
+  over that generated pointer. Default: leave this non-waiting reference
+  to separate wording work; 6.1's waiting-line pointers are checked now.
+
 - **A replaced proposal's decision** (7): returning `decided first:`
   for an automatically replaced task proposal needs jig to retain that
   decision and name its decider (jig's `client/domain/contract.md`,

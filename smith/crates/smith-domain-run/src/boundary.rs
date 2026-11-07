@@ -499,6 +499,10 @@ pub enum Returned {
     ChecksFailed {
         /// First failed repository in workspace order, or none for a workspace-wide failure.
         repository: Box<[u8]>,
+        /// The check's convention path in that repository.
+        check: Box<[u8]>,
+        /// The time allowed by the check timeout or the caller's earlier deadline.
+        given: Duration,
         /// Checks' process terminal, including its bounded diagnostic tail.
         ran: Ran,
     },

@@ -280,7 +280,7 @@ pub struct Core {
     pub(crate) kinds: Box<[settings::Kind]>,
     pub(crate) restoring: settings::Restoring,
     pub(crate) settings_judging: settings::application::Judging,
-    pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32, bool)>,
+    pub(crate) settings_input: Option<(Result<Box<settings::Change>, people::Refusal>, u32, bool)>,
     pub(crate) key_input: Option<Carried>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
     pub(crate) task_capacity_mark: u64,

@@ -1228,7 +1228,11 @@ setup across desktop and phone widths. The twelve test functions in
    chat reconnects after a server restart and remains live after rapid reloads.
 2. **History** (4.1, 2): from the chats to a chat by its link, Back and
    Forward; a new chat's composer focused, and its filter's address and
-   pressed state kept across a reload and Back, and an address that is no page opens
+   pressed state kept across a reload and Back. The story awaits Closed
+   pressed after reloading `/chats?state=closed`, then All pressed after
+   Back to `/chats`, each by its exact button name within `WITHIN`
+   (skein's `ui-web.md`, 14.2), independently of a Drafts button arriving
+   before Closed. An address that is no page opens
    the inbox at `/` (4.1, 2). Its chat's model scripts a run of calls: the folded
    line hides its rows until a press, and stays open on its node across a reply,
    `details[open]` being the browser's, which the model doesn't hold
@@ -1322,6 +1326,13 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **A filter row while its project's ways arrive** (2.3, 4.6): Drafts
+  appears before Closed once the ways offer drafts, moving Closed under
+  a person's pointer. Default: keep the conditional Drafts button; a
+  separate look decision settles whether the row should reserve its
+  place. The history story reads the filter by name and pressed state,
+  and makes no claim that the row stays still.
 
 - **Settings, Models comparison** (2.5; `README.md`, 3.5): temper/ui owns
   page 07 of `model-picker` beside the shipped page, its named states and

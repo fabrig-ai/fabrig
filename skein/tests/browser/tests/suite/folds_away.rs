@@ -23,6 +23,19 @@ fn check(selector: &[u8]) -> harness::Step {
         name: selector.into(),
     }
 }
+/// A go ends at the page's load, and the loader starts the module after it
+/// (skein/docs/design/ui-web.md, 4.3 and 14.2), so each story sees the
+/// fixture's first apply before it acts or reads.
+fn arrive(steps: impl IntoIterator<Item = harness::Step>) -> Script {
+    let arrived = [
+        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+        harness::Step::Person(Step::See {
+            find: Find::exactly_named(Role::Disclosure, b"Editor"),
+            within: Duration::from_secs(2),
+        }),
+    ];
+    Script::new(arrived.into_iter().chain(steps).collect())
+}
 pub(super) fn setup() -> Setup<'static> {
     let exe = std::env::current_exe().expect("test executable");
     let server = exe.parent().and_then(std::path::Path::parent).expect("target debug").join("skein-ui-example");
@@ -47,13 +60,7 @@ pub(super) fn setup() -> Setup<'static> {
 
 #[test]
 fn removing_a_focused_form_returns_to_its_disclosures_summary() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
-        // Navigation can finish before the Wasm fixture's first apply.
-        harness::Step::Person(Step::See {
-            find: Find::exactly_named(Role::Disclosure, b"Editor"),
-            within: Duration::from_secs(2),
-        }),
+    let mut person = arrive([
         harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
         check(b"details:not([tabindex]):has(> summary:focus:not([tabindex]))"),
         disclosure(b"Editor"),
@@ -65,14 +72,13 @@ fn removing_a_focused_form_returns_to_its_disclosures_summary() {
         harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
         check(b"main:not(:focus)"),
         check(b"details:not([tabindex]):has(> summary:focus:not([tabindex])):not(:has(form))"),
-    ]));
+    ]);
     assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
 }
 
 #[test]
 fn a_panel_folds_away_without_taking_the_outside_press_or_a_forms_escape() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+    let mut person = arrive([
         disclosure(b"Panel"),
         check(b"details[data-folds-away][open]"),
         press(b"Outside"),
@@ -117,14 +123,13 @@ fn a_panel_folds_away_without_taking_the_outside_press_or_a_forms_escape() {
         check(b"details[data-folds-away]:not([open])"),
         harness::Step::Focused(Find::exactly_named(Role::Button, b"Form escape")),
         see(b"Pressed 2"),
-    ]));
+    ]);
     assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
 }
 
 #[test]
 fn a_press_outside_closes_a_menu_and_goes_on() {
-    let mut person = Script::new(Box::new([
-        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+    let mut person = arrive([
         disclosure(b"Panel"),
         press(b"Actions"),
         check(b"[role=menu]:not([hidden])"),
@@ -155,6 +160,6 @@ fn a_press_outside_closes_a_menu_and_goes_on() {
         check(b"[role=menu][hidden]"),
         check(b"details:not([data-folds-away])[open]:nth-of-type(2)"),
         harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Plain")),
-    ]));
+    ]);
     assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
 }
