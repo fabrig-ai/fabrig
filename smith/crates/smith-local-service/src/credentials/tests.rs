@@ -9,6 +9,7 @@ pub(crate) fn limits() -> oauth::Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 1,
         listeners: 0,
+        redirect_bytes: 1024,
         server: skein_http::server::Limits { head: 1024, headers: 8, body: 1024, read: 256, response: 1024, send: 256 },
         http: skein_http::client::Limits { request: 1024, head: 1024, headers: 8, read: 256, send: 256 },
         tls: skein_tls::client::Limits { read: 1024, send: 1024, records: 131_072 },

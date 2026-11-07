@@ -1085,8 +1085,9 @@ impl Component {
             Phase::Loading { crypto } => crypto,
             Phase::Running => unreachable!("driver starts once"),
         };
-        let component = driver::Component::new(List::with_capacity(0), &self.env.limits, crypto)
-            .expect("startup checked driver bounds");
+        let component =
+            driver::Component::new(List::with_capacity(0), &self.env.limits, crypto, self.moves.application())
+                .expect("startup checked driver bounds");
         // The stored installation id, rather than this start's draw, goes on account sign-ins.
         let mut after = 0;
         for _ in 0..self.providers.len() {

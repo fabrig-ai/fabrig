@@ -195,5 +195,8 @@ fn a_terms_endpoint_on_another_origin_is_unusable() {
     }
     let mut configured = List::with_capacity(1);
     configured.push(configuration).expect("configured account room");
-    assert_eq!(Component::new(configured, &limits(), crypto(1)).err(), Some(Unusable::Origin { account: 0 }));
+    assert_eq!(
+        Component::new(configured, &limits(), crypto(1), b"accounts-test").err(),
+        Some(Unusable::Origin { account: 0 })
+    );
 }

@@ -1264,6 +1264,11 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **Browser approval between hosts and listing sign-ins** (12): the
+  public-name flow and ending another sign-in from the browser remain
+  `../../protocol/client.md`, section 15's work. The client takes an
+  approval on loopback and signs out its own sign-in.
+
 - **A failed link beside a live transport sign-in** (12): whether to
   fall back to the transport after `link_used`, `link_expired` or
   `link_unknown`. Default: the link's reason remains visible, with no

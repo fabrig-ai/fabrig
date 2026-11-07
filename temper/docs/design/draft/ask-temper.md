@@ -3,8 +3,8 @@
 Draft, 2026-11-07, from a session with the user that day. One chat in which a
 person asks temper itself: how to set it up for the way they work, where their
 work stands, how a piece of work ran, how temper works. It grows from the
-configuring chat (`../domain/agent.md`, 8.1), which stays as it is beside it
-until the user, having tried both, says otherwise, and it is written green
+configuring chat (`../domain/agent.md`, 8.1) and takes its place (the user,
+2026-11-07), and it is written green
 field: nothing of `configuring.txt` carries over unless this draft says so
 (section 9). It adopts jig's `draft/notes-memory.md`, section 3, narrowed, for
 this chat's runs (section 7); it extends skein's `draft/diagrams.md`, section
@@ -36,8 +36,9 @@ carries it out (section 11). Reasons: `notes.md`, section 10.
   step, code, an agent or a person (section 6).
 - **It remembers a little:** a person's preferences, a dozen lines, kept
   across their chats, the list shown in full to them alone (section 7).
-- **Beside, then instead:** a stock template and charter of its own, started
-  from Settings; the configuring chat stays until the user says (section 9).
+- **In the configuring chat's place:** a stock template and charter of its
+  own, in the rail and the tab bar; the configuring chat and Settings' offer of
+  it go (section 9).
 
 ## 2. What it is for
 
@@ -412,7 +413,7 @@ remember keeps a few lines about this person across their chats; they see and ed
 Speak their terms: what happens to their work, who does it, what must pass before a change lands, who approves, which model runs. Name charters, templates and revisions only in a proposal, or when asked. Never send them to a terminal or a command: where they must act, name the page, Home, Needs you, Chats, Settings, or Goals and Changes where the project shows them, and what to do there. Lead with the answer, then why, briefly. Say nothing has changed only when you tell them of a proposal, or when they think something applied.
 ````
 
-## 9. Beside the configuring chat
+## 9. In the configuring chat's place
 
 - **Its own stock settings:** charter 11, its instructions section 8's, charter
   3's models, its families 4.3's and no repository; template 5, Ask temper, a
@@ -422,14 +423,17 @@ Speak their terms: what happens to their work, who does it, what must pass befor
   13.9 adds charter 5; a project made before keeps its own policy, a copy
   (jig's `domain/engine.md`, 17.2), and gains it by a proposal its owner
   accepts, or is made again, as nothing before v0.1.0 is kept compatible.
-- **Started from Settings:** "Ask temper" beside "Configure temper" on
-  Settings' How work runs (`../client/README.md`, 3.5), and from `chat start
-  --template 5`.
-- **The configuring chat stays:** template 3 and charter 3 as they are, and
-  Configure opens them.
-- **Then, by the user's word:** template 5 takes template 3's place in the
-  client, and charter 3 goes, with whatever of `configuring.md`'s acceptance
-  the user keeps.
+- **Its place:** "Ask temper" in the rail after "Chats", and "Ask" in the tab
+  bar, on every page of a project, as the look request `ask-temper-place` draws
+  them; To begin's first step keeps its words and opens it; and `chat start
+  --template 5`. Its page is `Configure { project }` moved and renamed,
+  `Ask { project }`, through no Settings (`../client/README.md`, 3.5).
+- **The configuring chat goes** (the user, 2026-11-07), with no time beside it:
+  template 3, charter 3, `Configure` and Settings' offer. Every word that names
+  it names Ask temper.
+- **Its acceptance stays:** `configuring.md`, section 8, whole, and with it rung
+  D of `v0.1.0.md`, ask Ask temper; the gate's scripted runs of charter 3
+  (`../domain/testing.md`, 6.4) become charter 11's.
 
 ## 10. Its tests
 

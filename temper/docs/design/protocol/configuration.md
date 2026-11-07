@@ -1314,6 +1314,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A terminal approved at a public name** (3, clients): Google on the
+  web and the between-hosts approval wait for `../draft/tui.md`, section
+  7's flow. Init's `approval` enables the loopback flow beside the
+  printed link; it grants no approval on a listener beyond loopback.
+
 - **The reference story's catalogue** (13.9): retaining the configured
   model catalogue across the forge world's crash and restart is test
   harness follow-up. `the_reference_goal_reads_its_cut_then_its_questions_part`

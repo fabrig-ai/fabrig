@@ -375,6 +375,7 @@ impl Component {
             None | Some(Failure::Unloaded { why: Unloaded::Unreadable, .. }) => true,
             Some(
                 Failure::Unloaded { .. }
+                | Failure::LongRedirect { .. }
                 | Failure::Expired
                 | Failure::Exchange(_)
                 | Failure::NotKept

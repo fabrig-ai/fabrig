@@ -1429,6 +1429,17 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The terminal approval page after landing** (2.3 to 2.5, 7.2):
+  check `/terminal` in a signed-in browser on a fresh box, its typed-code
+  entry and the eleven `approve-*` gallery states at narrow and wide
+  widths. Domain, view and shell tables and gallery prints establish no
+  rendered browser result. The TUI's own flow and walk follow
+  `../draft/tui.execution.md`, M2.
+- **Terminal approval at a public name** (2.4): Google's browser sign-in,
+  the code typed rather than carried in the address, the request's origin
+  and age, and a person's list of sign-ins with each ended from there
+  (`../draft/tui.md`, section 7). The loopback page uses the printed link.
+
 - **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
   3.5): temper/ui compares the four `chat-terminal` requests' pages,
   rules and named states with the nine gallery states and live page

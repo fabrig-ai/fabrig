@@ -48,7 +48,7 @@ fn fixed_zero() -> Account {
 fn new_refuses(account: Account) -> Option<Unusable> {
     let mut configured = List::with_capacity(1);
     configured.push(account).expect("one account");
-    Component::new(configured, &limits(), crypto(17)).err()
+    Component::new(configured, &limits(), crypto(17), b"accounts-test").err()
 }
 fn add_refuses(account: Account) -> Option<Unusable> {
     let mut owner = Owner::configured([], &limits());
@@ -84,8 +84,8 @@ fn a_redirect_is_matched_against_the_bound_uri() {
         };
         assert_eq!(
             (
-                redirect::parse(uri, BOUND, &limits().client).is_some(),
-                redirect::from_head(&call, BOUND, &limits().client).is_some()
+                redirect::parse(uri, BOUND, &limits().client, limits().redirect_bytes).is_some(),
+                redirect::from_head(&call, BOUND, &limits().client, limits().redirect_bytes).is_some()
             ),
             (expected, expected)
         );

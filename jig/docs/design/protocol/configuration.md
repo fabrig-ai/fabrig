@@ -559,7 +559,19 @@ host's half reports it (`llm.md`, 5.5).
   document lines in each account, source and sign-in list
   (`../client/domain/client.md`, section 14). A sign-in waits for its
   redirect only within the sign-in deadline, a limit of the driver's
-  (skein's `oauth.md`, section 3). A move out waits for its client's
+  (skein's `oauth.md`, section 3). The driver reads a returning redirect
+  within its own bound, `redirect_bytes`, 16,384 in both profiles: at
+  least what holds its client's registered URI, code, scope, state and
+  issued client id at their bounds (skein's `oauth.md`, 6.7,
+  `redirect_room`: 13,407 in small). Its listener's request head,
+  `server.head`, holds a browser's request for a redirect at that bound,
+  cookies for `127.0.0.1` among its fields (`listener_head`: 24,593). The
+  address the driver sends out stays within the accounts' address bound,
+  `ADDRESS`, 2,048 (`url_bytes`). A profile whose driver holds less than
+  either, or sends out more, is refused at the driver's member
+  (`limits.driver.redirect_bytes`, `limits.driver.server.head`,
+  `limits.driver.url_bytes`), and so is an override whose driver would.
+  A move out waits for its client's
   *written* only within the move's deadline, the accounts child's, past
   which the move is cancelled (`../domain/accounts.md`, section 6); it
   is positive, or the start is refused.
@@ -770,6 +782,10 @@ the same capacities even when every run slot is occupied.
   Nor is a template dropped: no task depends on one (3.1).
 
 ## 9. Open questions
+
+- **Approval beyond loopback** (3, clients): enabling it at a public
+  name waits for the between-hosts flow (`client.md`, section 15).
+  The optional `approval` boolean enables the loopback flow alone.
 
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at

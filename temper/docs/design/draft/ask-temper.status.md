@@ -14,6 +14,6 @@
   - 5.4 and 7: jig's `domain/engine.md`, section 10: notes have no party scope and no kind, as jig's `draft/notes-memory.md`'s status says of its section 3; jig's `domain/engine.md`, section 9, and jig's `client/domain/contract.md`, section 6: a brief carries no person's preferences, and a turn's read shows its brief and calls whole to whoever may read the task.
   - 6.2: `../client/README.md`: no `view` block and no views.
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`.
-  - 9: `../protocol/configuration.md`, 13.4: no charter 11 or template 5, and the rules' and policy 1's delegation names no charter 11; `../client/README.md`, 3.5: Settings' How work runs has no Ask temper.
+  - 9: `../protocol/configuration.md`, 13.4: no charter 11 or template 5, and the rules' and policy 1's delegation names no charter 11; `../client/README.md`, 3.5 and 5.13: the rail and the tab bar have no Ask temper, and Home's first step, `Configure` and Settings' How work runs keep the configuring chat; `../domain/agent.md`, 8.1, and `../domain/testing.md`, 6.4: charter 3.
 - **Design departs:** none.
 - **Open:** 12.
