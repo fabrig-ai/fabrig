@@ -2,7 +2,7 @@
 id = "story"
 part = "story"
 kind = "feature"
-needs = ["offering", "parts-core", "later"]
+needs = ["offering", "parts-core", "later", "prepared"]
 files = ["jig/tests/core/tests/suite/per_wake.rs", "jig/tests/core/tests/suite/main.rs", "jig/testing/jig-core-kit/src/stories/per_wake.rs", "jig/testing/jig-core-kit/src/stories.rs", "jig/testing/jig-test-profile/src/charters.rs"]
 effort = "high"
 minutes = 150
@@ -132,3 +132,15 @@ The ownership rule says: “A row that fails for a reason in jig's code, not the
 The checkout still contains the reported invalidation in `jig/crates/jig-domain-core/src/routing/task/save.rs` and context rejection in `jig/crates/jig-domain-core/src/routing/run/preparation.rs`; both are outside this task’s files.
 After fab integrates the separate repair, resume the story run for row 6’s restart oracle and all remaining acceptance checks.
 The pushed story is not accepted as done: its report explicitly says “Acceptance remains blocked.”
+
+### 2026-11-07: Row 6 still loses its preparation after four runs; the "separate repair" the earlier answers named was never a task. (per-wake/story-4, needs judgement)
+
+The repair is now a task of this plan, `tasks/prepared.md` (part `parts`), and this story
+needs it, so it runs only once `prepared` has landed on the trunk. `prepared` owns
+`routing/task/save.rs`, `routing/run/preparation.rs` and the other places that compare a
+preparation's `last_message`; this story still changes none of them. On the next run: row 6
+should now claim (`S` at `M2` with the person's words alone at its start) and the kept
+question wake `S\n\nQ` at `M2`. Then finish what the run-4 report lists as remaining: row 6's
+restart oracle, the three bites, the bundle's time beside `runs_scenarios`', fmt, clippy and
+the core world's focused suite. If row 6 still fails after `prepared` lands, stop with
+`Question:` quoting the new failure; do not repeat this one.
