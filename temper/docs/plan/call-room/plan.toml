@@ -1,0 +1,22 @@
+draft = "call-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/call-room/inputs/request.md", "temper/docs/design/draft/goal-as-designer.md", "temper/docs/design/draft/goal-as-designer.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "argument"
+title = "An argument of 64 to 128 KB through a program into smith's MCP server, by test"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/goal-as-designer.md, 6"
+
+[[slice]]
+id = 1
+story = "A host tool's argument of 128 KB goes through the fake program and smith's MCP server whole, and each size says what limit it meets first"
+parts = ["argument"]
+walk = false
