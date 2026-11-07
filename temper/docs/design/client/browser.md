@@ -943,9 +943,12 @@ without it.
    `/welcome`, or, where the first run is over, the chats, the
    address reading `/chats` once they do (2.4); a reload on a chat's
    address shows that chat, signed in by the cookie; a link spent shows
-   the browser's signed-out paragraph (2.4). That the secret leaves the
-   address before the first request is held by the shell's start order
-   (2.1), and is not tested.
+   the reason-specific signed-out paragraph (`README.md`, 5.1). After a
+   server restart, reopening the first printed link shows "This link
+   isn't from this temper. Use the one its terminal printed." because a
+   restart forgets retired link digests (jig's `protocol/client.md`, section 8).
+   That the secret leaves the address before the first request is held by
+   the shell's start order (2.1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui-web.md`,
    14.2), from the chats to a chat by its link and back; an address
    that is no page opens the inbox, and the address reads `/` once it

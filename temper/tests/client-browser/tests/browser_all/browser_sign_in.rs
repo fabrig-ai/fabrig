@@ -66,7 +66,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
         see(tier.states().signed_out),
         Step::Reopen,
-        see(tier.states().signed_out),
+        see(Find::text(b"This link isn't from this temper. Use the one its terminal printed.")),
         Step::Address(b"/welcome".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
