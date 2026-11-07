@@ -1843,6 +1843,23 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal.temper-terminal-plex { --bold: 500; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 14px; }
 @media (max-width: 760px) { #app > .temper-terminal { font-size: 13px; } }
 
+/* chat-terminal: .tt-list, .tt-head and their options under the box. */
+#app > .temper-terminal [role="listbox"] { padding: 7px 0 2px 1.5ch; }
+#app > .temper-terminal [role="listbox"][hidden] { display: none; }
+#app > .temper-terminal .temper-terminal-head { display: block; color: var(--dim); padding-bottom: 3px; }
+#app > .temper-terminal [role="listbox"] [role="option"] { display: grid; grid-template-columns: 13ch minmax(0, 1fr); gap: 1ch; padding: 0 1ch; margin-left: -1ch; border-radius: 3px; color: var(--dim); cursor: pointer; }
+#app > .temper-terminal [role="listbox"].temper-terminal-choices [role="option"] { grid-template-columns: 24ch minmax(0, 1fr); }
+#app > .temper-terminal [role="listbox"] [role="option"] > span:first-child { color: var(--ink); }
+#app > .temper-terminal [role="listbox"] [role="option"][aria-selected="true"] { background: var(--sel); }
+#app > .temper-terminal [role="listbox"] [role="option"][aria-selected="true"] > span:first-child { color: var(--accent); }
+#app > .temper-terminal .temper-terminal-dismiss { display: none; }
+#app > .temper-terminal .temper-terminal-note { color: var(--dim); padding-left: 2ch; margin-bottom: 1.1em; max-width: 100ch; white-space: pre-wrap; }
+#app > .temper-terminal .temper-terminal-note + .temper-terminal-note { margin-top: -1.1em; }
+@media (max-width: 760px) {
+  #app > .temper-terminal [role="listbox"] [role="option"] { grid-template-columns: 11ch minmax(0, 1fr); }
+  #app > .temper-terminal [role="listbox"].temper-terminal-choices [role="option"] { grid-template-columns: 18ch minmax(0, 1fr); }
+}
+
 /* ==== ui: needs ==== */
 
 /* A question that needs the person, answered in place. */
