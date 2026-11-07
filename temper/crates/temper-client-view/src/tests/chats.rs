@@ -939,7 +939,7 @@ fn the_repository_context_links_into_its_project() {
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, headline).is_some());
         assert!(fixtures::find(view.tree(), Role::Paragraph, "Shop · chats".as_bytes()).is_some());
         assert!(
-            fixtures::find(view.tree(), Role::Paragraph, b"A chat answers a question or changes the code.").is_some()
+            fixtures::find(view.tree(), Role::Paragraph, DRAFT_LEDE).is_some()
         );
         if let Some(context) = context {
             let nodes = view.tree().nodes();

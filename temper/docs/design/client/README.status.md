@@ -106,13 +106,6 @@
   A proposed goal is 5.14's toast, where the request has a line above the composer:
   `Chat.proposed` is set (`temper-client-domain`'s `pages/start_goal.rs`, `told`) and
   read by nothing. No plan holds these; section 11 keeps them.
-- **Not yet:** 3.5, *A chat's document*, 5.13: kind 7's stock: `Ways::STOCK`
-  (`temper-client-domain`'s `forge/ways.rs`) has `drafts` false, so a fresh project
-  offers no "+ Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can
-  write drafts" is turned on, and Settings' `shows` draws that stock until kind 7 is read.
-- **Not yet:** 5.3: Goals in the bar of a project holding a goal: `temper-client-view`'s
-  `frame.rs`, `goals_shown`, reads no `Domain::has_goals`, so a goal started with Goals
-  hidden has no entry there, and Home, while To begin shows, draws Chats in its place.
 - **Design departs:** 3.5, *A chat's document*, from that request's decision 7,
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`

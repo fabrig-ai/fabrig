@@ -287,7 +287,7 @@ fn kind_six_is_read_on_the_tab_alone() {
 fn no_value_is_the_stock() {
     let mut f = fixture();
     page(&mut f.root, f.read, Some(none()));
-    assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways::STOCK));
+    assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways { drafts: true, goals: false, changes: false, away: false, way: 0 }));
     let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
     page(&mut f.root, reads(&out, 6)[0].0, Some(none()));
     assert_eq!(f.root.forge().questions(f::PROJECT), Some(Route::None));
