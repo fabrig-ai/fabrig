@@ -6857,6 +6857,15 @@ own tests:
 
 ## 11. Open questions
 
+- **The chat heading's rendered look** (3.5; the request `chat-title`):
+  temper/ui compares the request's page and named states with the shipped
+  view after landing, at 1440, 1000 and 420 px, including open disclosures
+  and menus (`../draft/look-requests.md`, section 4). Default: the focused
+  short-title and heading tables; they establish no rendered equality.
+- **A model-written chat title** (3.5): a later request may replace the
+  first-sentence short form. Default: derive the heading in the view and
+  keep the stored title whole, as the `chat-title` request asks for now.
+
 - **Account email after landing** (3.5, 5.5; the request
   `ready-account-email`): temper/ui checks a real ChatGPT sign-in and a
   real Claude Code login on Ready, the Model step, the model-check pane,
@@ -7356,9 +7365,8 @@ own tests:
   and expiry fallback in 5.5; other work names the model alone, with
   the playground provider's exception.
 - **A time's moment on demand:** an ago ("12 min ago") has no title
-  or hover saying its moment, since skein-ui's nodes carry no title.
-  Default: none; a time node with its moment, skein-ui's, is the
-  candidate.
+  or hover saying its moment. Default: none; the view can give the time
+  node its moment as a hint (`skein/docs/design/ui.md`, 3.2).
 - **The terminal's reprint:** skein's text shell prints the whole page
   when it changes (skein's `ui-text.md`, section 4), so a page with a
   time under 12 hours old prints again each minute while it is shown.
