@@ -170,20 +170,34 @@ fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]
         return None;
     }
     for &project in &domain.core.projects {
-        if (asked.scope != 0 && asked.scope != project) || !covers_project(domain, rule, project) {
+        if asked.scope != 0 && asked.scope != project {
             continue;
         }
-        for approval in &rule.approvals {
-            let count = eligible_people(domain, project, approval.role);
-            if count < approval.people {
-                return Some(approval_words(project, approval, count));
+        let repositories = domain.forge.writable_repositories(project);
+        let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
+        let mut seen = skein_lib::Set::with_capacity(capacity);
+        for repository in repositories {
+            let forge = repository.provider.forge;
+            if !covers_repository(rule, repository) || !seen.insert(forge).expect("one entry per covered forge") {
+                continue;
+            }
+            if let Some(configured) = domain.forge.configured(forge)
+                && configured.mode == temper_engine_domain_forge::Mode::Fake
+            {
+                return Some(fake_approval_words(project));
+            }
+            for approval in &rule.approvals {
+                let count = eligible_people(domain, project, forge, approval.role);
+                if count < approval.people {
+                    return Some(approval_words(project, &repository.host, approval, count));
+                }
             }
         }
     }
     None
 }
 
-fn covers_project(domain: &Domain, rule: &settings::LandingRule, project: u32) -> bool {
+fn covers_repository(rule: &settings::LandingRule, repository: &temper_engine_domain_forge::Repository) -> bool {
     use jig_domain_authority::{Last, Pattern, pattern_at_most};
     use temper_engine_domain_forge::GateLast;
     let pattern = Pattern {
@@ -193,49 +207,59 @@ fn covers_project(domain: &Domain, rule: &settings::LandingRule, project: u32) -
             GateLast::Open(last) => Last::Open(last.clone()),
         },
     };
-    for repository in domain.forge.writable_repositories(project) {
-        let branches = Pattern {
-            segments: Box::new([
-                Box::from(b"forge".as_slice()),
-                repository.host.clone(),
-                repository.owner.clone(),
-                repository.name.clone(),
-                Box::from(b"branch".as_slice()),
-            ]),
-            last: Last::Open(Box::new([])),
-        };
-        if pattern_at_most(&pattern, &branches) || pattern_at_most(&branches, &pattern) {
-            return true;
-        }
-    }
-    false
+    let branches = Pattern {
+        segments: Box::new([
+            Box::from(b"forge".as_slice()),
+            repository.host.clone(),
+            repository.owner.clone(),
+            repository.name.clone(),
+            Box::from(b"branch".as_slice()),
+        ]),
+        last: Last::Open(Box::new([])),
+    };
+    pattern_at_most(&pattern, &branches) || pattern_at_most(&branches, &pattern)
 }
 
-fn eligible_people(domain: &Domain, project: u32, role: u32) -> u32 {
+/// The project's members with `role` who count as people on `forge` (domain/forge.md, 8.9).
+pub(super) fn eligible_people(domain: &Domain, project: u32, forge: u16, role: u32) -> u32 {
     let mut count = 0_u32;
     let Some(members) = domain.core.people.project_members(project) else { return count };
     for member in members {
-        if member.role.number() == role && super::forge_route::human_forge_identity(domain, project, member.person) {
+        if member.role.number() == role && super::forge_route::forge_human(domain, project, forge, member.person) {
             count = count.saturating_add(1);
         }
     }
     count
 }
 
-fn approval_words(project: u32, approval: &settings::RuleApproval, count: u32) -> Box<[u8]> {
+fn approval_words(project: u32, host: &[u8], approval: &settings::RuleApproval, count: u32) -> Box<[u8]> {
     let project = Decimal::of(u64::from(project));
     let role = Decimal::of(u64::from(approval.role));
     let required = Decimal::of(u64::from(approval.people));
     let count = Decimal::of(u64::from(count));
     let mut words = List::uncapped();
     for part in [
-        b"project ".as_slice(), project.as_bytes(), b" role ", role.as_bytes(), b" requires ",
+        b"project ".as_slice(), project.as_bytes(), b" role ", role.as_bytes(), b" on forge ", host, b" requires ",
         required.as_bytes(), b" distinct known forge people; currently ", count.as_bytes(),
         b" eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; ",
         b"then propose afresh against the newest revision, or remove the approval requirement.",
     ] {
         for &byte in part {
             words.push(byte).expect("measured approval refusal");
+        }
+    }
+    words.into_boxed()
+}
+
+fn fake_approval_words(project: u32) -> Box<[u8]> {
+    let project = Decimal::of(u64::from(project));
+    let mut words = List::uncapped();
+    for part in [
+        b"project ".as_slice(), project.as_bytes(),
+        b": the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.",
+    ] {
+        for &byte in part {
+            words.push(byte).expect("measured fake forge approval refusal");
         }
     }
     words.into_boxed()
