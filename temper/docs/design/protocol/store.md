@@ -105,6 +105,11 @@ section 7).
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup.md, 8.4). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
 - **Reserved bytes:** 17 and 19 keep no family and are never reused.
+- **Provider 0's subject,** in jig's party rows, which hold it opaque (jig's
+  `domain/people.md`): 10 bytes, the forge's number then the user's, each
+  big-endian (`../domain/forge.md`, section 4). A subject of any other form
+  names no forge's user. Only the forge's `user_key` and `key_user` know this
+  form.
 - **The repositories being made** (`../domain/forge.md`, 4.5), 35
   `Making`, keyed `Making { forge, org, name }`: one row per name a
   forge is making, holding what was asked (`from`, an address or
