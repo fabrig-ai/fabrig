@@ -10,7 +10,8 @@ Section 13.3's title decision is carried by temper's publication help and
 completed ctl answer. No acknowledgement precedes `SetVisibility`; that
 client step remains deferred in temper's `client/tools.md`, section 14.
 
-- **Not yet:** 3: a service's credential reissued or removed. 5.1:
+- **Not yet:** 3: a service's credential reissued or removed. 4: the
+  deployment's sole owner, no read. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
   release; a widening funded from the amender's pool. 6: retention; a
   delegate's question to a conversation kept with the conversation. 7:

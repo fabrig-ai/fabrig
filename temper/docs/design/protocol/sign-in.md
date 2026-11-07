@@ -865,6 +865,11 @@ one, until the same reasoning has been checked for several members.
   `public`, where the redirect init writes is the owned `listen`'s, so 9.7's check
   would serve nothing, with the source added and no off fact. No walk has proved a
   box behind a proxy (section 10).
+- **Refused too, at the start, at `machine.owned.sign_in`'s path:** that member
+  beside an `application.sign_in` that isn't `null`, in the words "a box's sign-in
+  takes application.sign_in null". A box is its one person's: a member Google signs
+  in could land on the person's Forgejo account by name, and temper's link to that
+  account (`../draft/forge-identity.md`, 9) would count them as the person.
 - **Nobody else signs in:** a box has no member and no Google; the printed link
   alone signs anyone in, always its owner, so the link provider's one owner is the
   one person who can reach `/oauth/authorize` signed in. An agent or a coding run
