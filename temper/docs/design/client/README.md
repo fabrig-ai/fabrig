@@ -397,9 +397,9 @@ keeps (`../protocol/configuration.md`, section 2).
   chat's path is "PROJECT / Chats /", "‹" on a phone a
   link to `Chats`; a configuring chat's is still through `Settings`, the
   rail current on Settings.
-- **A chat's bar** holds its path, its level-1 heading "TN · TITLE", the
-  chat's task number and its title (a chat's first message), of which a
-  browser shows the title, and at its right, in this order:
+- **A chat's bar** holds its path, its level-1 heading named "TN · TITLE", the
+  chat's task number and its title (a chat's first message, whole), and at its
+  right, in this order:
   1. *Its number:* "T4", the same pixels as the mock's `.byline`. The browser
      alone draws it, as the terminal's heading says it; on a phone it goes.
      The model and effort are the composer's, and the account leaves the bar
@@ -422,6 +422,33 @@ keeps (`../protocol/configuration.md`, section 2).
   After the number, once a chat has a document, its mode group; with none,
   "+ Draft"; then "Start goal…" or its goal's link; on a configuring chat
   "Start over" (*A chat's document,* below).
+- **A chat's heading is short** (the request `chat-title`): it shows its
+  title's short form, which a browser draws alone and the terminal after
+  "TN · ". The short form is worked out in the view, in one function
+  (`pages/chat.rs`):
+  - *its words:* the title from its first character that isn't white space
+    (a space, a tab, a carriage return or a line feed), up to its first line
+    feed or through its first sentence's end, whichever comes first, with the
+    white space at its end dropped. A sentence ends at a `.`, `!` or `?`
+    followed by white space or by the title's end, so a `.` inside a word
+    ("3.5", "lib.rs") ends none;
+  - *its length:* at most 72 characters, counted as Unicode scalar values.
+    Past that, it is cut on a word: the words before the last space or tab
+    within its first 72 characters, with any `,`, `;`, `:` and white space at
+    their end dropped, then "…", so that the heading is at most 72 characters.
+    Where that leaves no words, a first word of more than 71 characters, it is
+    cut within it after its 71st character;
+  - *the whole title* stays in the heading's name, "TN · TITLE", and where
+    the short form isn't the whole title it is the heading's hint as well,
+    which a browser shows on hover (`skein/docs/design/ui.md`, 3.2); a title
+    shown whole has no hint. The person's message, the task card and the stored title keep it
+    whole. Only a chat's heading is short: an agent's page keeps "TN ·
+    TITLE" whole.
+
+  The path yields to the right part: the crumbs take `flex: 1 1 320px`, so
+  the right part keeps the bar's row while the path has 320 px, and the
+  heading's ellipsis takes up the rest. Below that the row wraps, and a
+  phone keeps the heading above the controls.
 - **A person's pause** is a chat held by a placed hold of that person's own,
   mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
   its owner the party reading (jig's `client/domain/contract.md`, 5.6). Nothing
@@ -2747,7 +2774,9 @@ keeps (`../protocol/configuration.md`, section 2).
   (jig's `client/domain/client.md`, 19.1), each sentence ending with a
   full stop: for a host's hello, "An engine host was refused at HH:MM"
   or "A worker was refused at HH:MM" (5.12's clock), then its cause, in
-  the words jig's reference view gives a hello's refusal. A refusal is not a reply: the chat
+  the words jig's reference view gives a hello's refusal. A run no worker
+  can ever take, a refused hello with its figures among them, says 5.5's
+  "No worker can take this: ..." instead. A refusal is not a reply: the chat
   starts nothing, and keeps its composer, so the person can choose
   another model. The scripted model is offered where `me` serves it,
   in the playground's project alone (4.8). Setting a goal names its planner's model and
@@ -4399,6 +4428,48 @@ The words for each offered source are:
     a person who has only run `temper box` doesn't know "host". Otherwise,
     and until that read answers, "No host has room for this, or none is
     connected. It starts when one does." Either way, with nothing to press.
+  - *No worker can ever take it:* jig's `Refused(Bounds { kind, why,
+    figures })` (jig's `client/domain/contract.md`, 5.1), every connected
+    worker too small for a bound of its charter, says "No worker can take
+    this: ASKED, and the largest worker takes OFFERED.", box or not, one
+    form for every bound (the request `ui-wait-words`, 2026-11-07), with
+    nothing to press:
+
+    | Bound | ASKED | OFFERED |
+    |---|---|---|
+    | turns | its charter asks 100,000 turns | 800 |
+    | time | its charter asks 2 h a run | 1 h |
+    | waiting | its charter asks 30 min of waiting | 10 min |
+    | checks | its charter keeps 5 min for checks | 10 min, said "and the quickest worker's checks take 10 min" |
+    | window | its charter's model at position 1 asks a window of 200,000 tokens | 128,000 |
+    | output | its charter's model at position 1 asks 64,000 output tokens | 32,000 |
+    | spend | a run here may spend 5,000 | 2,000 |
+    | message | a message here may be 65,536 bytes | 16,384 |
+    | inbox | a start here sends 12 messages | 8 |
+    | unacknowledged | a run here keeps 64 turns unacknowledged | 32 |
+
+    Counts and spend are grouped digits, spend in the units a chat's spend
+    is said in, and durations are said in minutes and hours as the
+    page says a span; the figures come in the bound's unit, durations in
+    milliseconds. Where each worker falls short of another bound, jig
+    names none: "No worker can take this: each falls short of another
+    bound its charter asks." On the engine's own host, a kind temper never
+    runs on (`../domain/root.md`), "The engine's own host can't take this:
+    ASKED, and it takes OFFERED." Without figures, "No worker can take
+    this." then the cause as a refused hello gives it (3.5).
+
+    A refused hello whose cause is an agent's shortfall with figures, no
+    worker admitted at all, says the same of the refused worker: "No worker
+    can take this: charter 3 asks 100,000 turns, and the worker refused at
+    10:42 takes 800." (5.12's clock), its charter named, as the refusal may
+    be another charter's. Every other refused hello keeps 3.5's "Next run
+    refused · WHY". The status above the composer is "Cannot start yet"
+    for both.
+  - *A command it names exists:* a wait's words in the page and the
+    terminal name no ctl command; one that names a help page names
+    `temper help NAME` with NAME a page (`../protocol/documentation.md`), as a
+    shortfall of the checks timeout does: "See temper help settings for
+    held revisions."
 
   A wait about to end (jig's `client/domain/client.md`, 19.1) stays
   "Starting". A Chats row holds no wait, and says "Starting".
@@ -6798,8 +6869,11 @@ own tests:
 - **Settings, Models after landing** (3.5): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
   including the named states and screenshots (`../draft/look-requests.md`,
-  section 4). Default: the client world's switch and add-by-name stories
-  across reloads; browser and real-provider checks remain after landing.
+  section 4). Default: the client world's switches and adding across
+  reloads, reads, failures, retries, retained names and unchanged reads;
+  view tables and gallery states for the read ages and expiring new tags;
+  a fake-provider row through a worker and agent. Browser and real-provider
+  checks remain after landing.
   The comparison includes Provider's chevron, the single-row add form
   and its section headings. Settings' shared H1 and the open project
   menu row keep their frame's design, as the repair request leaves them.

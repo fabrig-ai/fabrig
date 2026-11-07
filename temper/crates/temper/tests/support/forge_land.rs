@@ -203,10 +203,12 @@ impl Face {
     }
 }
 
-/// What the model peer saw, without credential values.
+/// What the model peer saw, without credential values (skein/docs/design/fake-llm.md, 3–3.2).
 pub struct Seen {
     pub requests: Vec<api::Query>,
     pub answers: Vec<Result<(), api::Error>>,
+    /// Catalogue reads, which consume no scripted model call.
+    pub lists: usize,
     pub schemes: Vec<Option<skein_llm::Scheme>>,
 }
 
@@ -218,16 +220,14 @@ pub(super) fn seen(procs: &[Process], at: &FaceProcs) -> Seen {
 pub(super) fn peer_seen(procs: &[Process], index: usize) -> Seen {
     use skein_fake_peers::llm::Observation;
     let Process::Peer(peer) = &procs[index] else { panic!("LLM peer") };
-    let mut seen = Seen { requests: Vec::new(), answers: Vec::new(), schemes: Vec::new() };
+    let mut seen = Seen { requests: Vec::new(), answers: Vec::new(), lists: 0, schemes: Vec::new() };
     for event in peer.observations() {
         match event {
             Observation::Query { query, .. } => seen.requests.push(query.clone()),
             Observation::Answered { result, .. } => seen.answers.push(*result),
             Observation::Credential { scheme, .. } => seen.schemes.push(*scheme),
-            Observation::Accepted { .. }
-            | Observation::Head { .. }
-            | Observation::List { .. }
-            | Observation::Closed { .. } => {}
+            Observation::List { .. } => seen.lists += 1,
+            Observation::Accepted { .. } | Observation::Head { .. } | Observation::Closed { .. } => {}
         }
     }
     seen
@@ -554,8 +554,12 @@ pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
     }
     assert_eq!(counts, if first { [3, 4, 1] } else { [2, 0, 0] }, "chat, coder, review requests");
     assert_eq!(seen.requests.len(), count, "exact scripted model requests");
-    assert_eq!(seen.answers, vec![Ok(()); count], "every request answered");
-    assert_eq!(seen.schemes, vec![Some(skein_llm::Scheme::Bearer); count], "a bearer on every request");
+    assert_eq!(seen.answers, vec![Ok(()); count], "every scripted request answered");
+    assert_eq!(
+        seen.schemes,
+        vec![Some(skein_llm::Scheme::Bearer); count + seen.lists],
+        "a bearer on every model and catalogue request"
+    );
 }
 
 pub fn plan_change_steps(

@@ -272,7 +272,14 @@ fn refuse(
 ) {
     crate::history::refused(
         domain,
-        crate::HelloRefusalRecord { channel, at: env.wall, slots: hello.slots, stop_bound: hello.stop_bound, why },
+        crate::HelloRefusalRecord {
+            channel,
+            at: env.wall,
+            slots: hello.slots,
+            stop_bound: hello.stop_bound,
+            why,
+            figures,
+        },
     );
     domain.facts.push(Fact::TurnedAway);
     out.push(Request::Refuse { channel, hello: Some(crate::HelloRefused { why, figures }) });

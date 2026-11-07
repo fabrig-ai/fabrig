@@ -249,12 +249,18 @@ and pending dependencies, and the owner's message kinds the met
 notice, the dependency and whether it was removed
 (`../domain/tasks.md`, 5.7 and 8.1; `../domain/engine.md`, section 7).
 
-A task's run wait carries `TaskRunWait.refused`, a hello refusal:
-`TaskWaitHello`, the `HostKind`, the wall receipt time and the
-`HelloRefusal`. The server and client share the deployment's
-hello-refusal translations. A checks shortfall carries the failing
-charter number as `AgentShortfallChecks { charter }`, identifying its
-`reserve_time` member. Turns, time and waiting omit charter numbers.
+A task's run wait carries `TaskRunWait.refused`: a hello refusal,
+`TaskWaitHello`, the `HostKind`, the wall receipt time, the
+`HelloRefusal` and `figures: option ShortfallFigures`; or a bounds
+refusal, `TaskWaitBounds { kind: HostKind why: option AgentShortfall
+figures: option ShortfallFigures }`, `ShortfallFigures { required: u64
+offered: u64 }` (`../client/domain/contract.md`, 5.1). The server and
+client share the deployment's hello-refusal translations. A checks
+shortfall carries the failing charter number as `AgentShortfallChecks {
+charter }`, identifying its `reserve_time` member, and turns, time and
+waiting carry theirs as `AgentShortfallTurns`, `AgentShortfallTime` and
+`AgentShortfallWaiting { charter }`. The v19 schema takes these in
+place.
 `TaskWaitSource { state }` names a source's state. `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header
 bytes. Shared admission types precede their task-wait consumers in the

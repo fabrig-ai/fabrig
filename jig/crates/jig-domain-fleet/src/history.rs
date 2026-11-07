@@ -44,6 +44,15 @@ pub struct HelloRefusalRecord {
     pub slots: u32,
     pub stop_bound: Duration,
     pub why: HelloRefusal,
+    pub figures: Option<Figures>,
+}
+
+/// Every admitted host of an allowed kind falls short (domain/engine.md, section 8).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct BoundsRefusal {
+    pub kind: crate::HostKind,
+    pub why: Option<crate::AgentShortfall>,
+    pub figures: Option<Figures>,
 }
 
 /// A lost channel's identity and admitted slots remain available for display.

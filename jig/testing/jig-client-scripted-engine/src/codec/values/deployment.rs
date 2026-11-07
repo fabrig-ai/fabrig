@@ -79,10 +79,19 @@ pub(in crate::codec) fn wire_agent_shortfall(
             limits,
             w::AgentShortfallOutputParts { charter: *(charter), model: *(model) },
         )?),
-        c::AgentShortfall::Turns => w::AgentShortfall::Turns,
+        c::AgentShortfall::Turns { charter } => w::AgentShortfall::Turns(w::AgentShortfallTurns::new(
+            limits,
+            w::AgentShortfallTurnsParts { charter: *charter },
+        )?),
         c::AgentShortfall::Spend => w::AgentShortfall::Spend,
-        c::AgentShortfall::Time => w::AgentShortfall::Time,
-        c::AgentShortfall::Waiting => w::AgentShortfall::Waiting,
+        c::AgentShortfall::Time { charter } => w::AgentShortfall::Time(w::AgentShortfallTime::new(
+            limits,
+            w::AgentShortfallTimeParts { charter: *charter },
+        )?),
+        c::AgentShortfall::Waiting { charter } => w::AgentShortfall::Waiting(w::AgentShortfallWaiting::new(
+            limits,
+            w::AgentShortfallWaitingParts { charter: *charter },
+        )?),
         c::AgentShortfall::Checks { charter } => w::AgentShortfall::Checks(w::AgentShortfallChecks::new(
             limits,
             w::AgentShortfallChecksParts { charter: *charter },

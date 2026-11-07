@@ -403,37 +403,54 @@ fn a_changed_sort_is_one_attribute_patch() {
     }
 }
 
-fn placeholder_tree(placeholder: Option<&[u8]>) -> Tree {
+#[derive(Clone, Copy)]
+enum WordsAttribute {
+    Placeholder,
+    Hint,
+}
+
+fn placeholder_or_hint_tree(attribute: WordsAttribute, words: Option<&[u8]>) -> Tree {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::TextArea);
-    if let Some(placeholder) = placeholder {
-        b.placeholder(placeholder);
+    if let Some(words) = words {
+        match attribute {
+            WordsAttribute::Placeholder => b.placeholder(words),
+            WordsAttribute::Hint => b.hint(words),
+        }
     }
     b.close();
     b.finish()
 }
 
 #[test]
-fn setting_changing_and_clearing_a_placeholder_patch_its_attribute() {
-    let mut old = placeholder_tree(None);
+fn setting_changing_and_clearing_a_placeholder_or_hint_patch_its_attribute() {
+    let mut old = placeholder_or_hint_tree(WordsAttribute::Placeholder, None);
     let mut next_id = 0;
     let mut out = Queue::with_capacity(LIMITS.patches);
     crate::diff(&Tree::new(LIMITS.nodes), &mut old, &LIMITS, &mut next_id, &mut out);
     out.clear();
-    for placeholder in [Some(b"Hint".as_slice()), Some(b"Changed".as_slice()), None] {
-        let mut new = placeholder_tree(placeholder);
+    for (attribute, words, placeholder, hint) in [
+        (WordsAttribute::Placeholder, Some(b"Hint".as_slice()), Some(b"Hint".as_slice()), None),
+        (WordsAttribute::Placeholder, Some(b"Changed".as_slice()), Some(b"Changed".as_slice()), None),
+        (WordsAttribute::Placeholder, None, None, None),
+        (WordsAttribute::Hint, Some(b"Hint".as_slice()), None, Some(b"Hint".as_slice())),
+        (WordsAttribute::Hint, Some(b"Changed".as_slice()), None, Some(b"Changed".as_slice())),
+        (WordsAttribute::Hint, None, None, None),
+    ] {
+        let mut new = placeholder_or_hint_tree(attribute, words);
         crate::diff(&old, &mut new, &LIMITS, &mut next_id, &mut out);
         assert_eq!(out.len(), 1);
         match out.pop().unwrap() {
             Patch::Attribute { node, attribute } => {
                 assert_eq!(node, old.get(0).unwrap().id);
                 assert_eq!(attribute.placeholder.as_deref(), placeholder);
+                assert_eq!(attribute.hint.as_deref(), hint);
             }
             Patch::Insert { .. }
             | Patch::Remove { .. }
             | Patch::Move { .. }
             | Patch::Text { .. }
-            | Patch::Value { .. } => unreachable!("only the placeholder changed"),
+            | Patch::Value { .. } => unreachable!("only the placeholder or hint changed"),
         }
         old = new;
     }

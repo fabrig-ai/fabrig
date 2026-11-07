@@ -472,6 +472,8 @@ pub struct Node {
     pub source: Option<Source>,
     pub description: Option<Box<[u8]>>,
     pub placeholder: Option<Box<[u8]>>,
+    /// Words a shell with a pointer shows on hover, never needed to decide (ui.md, 3.2).
+    pub hint: Option<Box<[u8]>>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
@@ -507,6 +509,7 @@ impl Node {
             source: None,
             description: None,
             placeholder: None,
+            hint: None,
             entry: None,
             focus: None,
             end_request: None,
@@ -540,6 +543,7 @@ impl Node {
             source: None,
             description: None,
             placeholder: None,
+            hint: None,
             entry: None,
             focus: None,
             end_request: None,
@@ -573,6 +577,9 @@ impl Node {
         }
         if let Some(placeholder) = &self.placeholder {
             bytes = bytes.checked_add(length(placeholder)).expect("node bytes fit u32");
+        }
+        if let Some(hint) = &self.hint {
+            bytes = bytes.checked_add(length(hint)).expect("node bytes fit u32");
         }
         if let Some(source) = &self.source {
             match source {

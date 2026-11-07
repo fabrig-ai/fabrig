@@ -284,6 +284,35 @@ fn a_description_shares_the_nodes_byte_bound() {
 }
 
 #[test]
+fn a_hint_counts_in_the_nodes_text_bytes() {
+    const HEADING_BYTES: u32 = 8; // Four name bytes and four hint bytes.
+    for first in [None, Some(b"Old".as_slice())] {
+        let mut b = Builder::new(&Limits { text_per_node: HEADING_BYTES, text_bytes: HEADING_BYTES, ..LIMITS });
+        b.open(Role::Heading { level: 1 });
+        b.name(b"Name");
+        if let Some(first) = first {
+            b.hint(first);
+        }
+        b.hint(b"Hint");
+        b.close();
+        let tree = b.finish();
+        let node = tree.get(0).unwrap();
+        assert_eq!(node.hint.as_deref(), Some(b"Hint".as_slice()));
+        assert_eq!(node.text_bytes(), HEADING_BYTES);
+    }
+}
+
+#[test]
+#[should_panic(expected = "node fits its text capacity")]
+fn a_hint_shares_the_nodes_byte_bound() {
+    const HEADING_BYTES: u32 = 7; // One below four name bytes and four hint bytes.
+    let mut b = Builder::new(&Limits { text_per_node: HEADING_BYTES, ..LIMITS });
+    b.open(Role::Heading { level: 1 });
+    b.name(b"Name");
+    b.hint(b"Hint");
+}
+
+#[test]
 #[should_panic(expected = "entry kinds belong to text fields")]
 fn an_entry_kind_on_a_button_is_an_assertion() {
     let mut b = Builder::new(&LIMITS);
