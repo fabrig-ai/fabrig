@@ -35,10 +35,12 @@ pub enum Story {
     Adopt,
     Merge,
     HeldChange,
+    CodingAtStop,
     PlaygroundA,
 }
 #[derive(Debug)]
 pub struct Outcome {
+    pub stopped: Option<Stopped>,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
     pub signed_in: u32,
@@ -55,6 +57,30 @@ pub struct Outcome {
     pub adoption_pending_at_restart: bool,
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
+}
+/// The signal's run and its next start (temper/docs/design/protocol/README.md, 8).
+#[derive(Debug)]
+pub struct Stopped {
+    pub task: u64,
+    pub attempt: u64,
+    pub interrupted: u32,
+    pub tries: [jig_domain_tasks::Tries; 2],
+    pub saved: [Box<[jig_domain_tasks::SavedResource]>; 2],
+    pub change: Option<[Counts; 2]>,
+    pub next: Option<u64>,
+    pub writers: Vec<(u64, bool)>,
+    pub workspace: Option<smith_channel::Workspace>,
+    pub saved_head: [Option<u64>; 2],
+    pub checkout_head: Option<u64>,
+    pub checkout_file: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Counts {
+    pub repairs: u32,
+    pub resolutions: u32,
+    pub updates: u32,
+    pub gate_failures: Vec<(u64, u32)>,
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
@@ -449,7 +475,7 @@ impl Person {
                 Step::See { find: Find::text("gpt-future · estimated prices · new".as_bytes()), within: CHAT_WITHIN },
             ],
             Story::Adoption => stories::adoption_person(),
-            Story::Adopt | Story::Merge => stories::person(),
+            Story::Adopt | Story::Merge | Story::CodingAtStop => stories::person(),
             Story::HeldChange if stories::first_start() => stories::person(),
             Story::HeldChange => Vec::new(),
             Story::PlaygroundA => playground_steps,
@@ -849,11 +875,11 @@ pub fn run(settings: Settings, scenario: Story) -> Outcome {
     .0
 }
 #[must_use]
-pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
+pub fn drain_mid_run(settings: Settings, story: Story, restart: bool) -> Outcome {
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let (mut outcome, disk, store) = run_phase(
         settings,
-        Story::ChatReadThenWait { words: b"Hello" },
+        story,
         Phase::Drain,
         machine::fresh(),
         Store::new(),
@@ -861,9 +887,10 @@ pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
     );
     if restart {
         let (next, _, _) =
-            run_phase(settings, Story::ChatReadThenWait { words: b"Hello" }, Phase::Restart, disk, store, run);
-        assert_eq!(outcome.settings_revision, 2, "one hosted ctl settings change before the signal");
+            run_phase(settings, story, Phase::Restart, disk, store, run.clone());
+        if matches!(story, Story::ChatReadThenWait { .. }) { assert_eq!(outcome.settings_revision, 2, "one hosted ctl settings change before the signal"); }
         assert_eq!(next.settings_revision, outcome.settings_revision, "the changed settings survive restart");
+        outcome.stopped = run.borrow_mut().stopped.take();
         outcome.restarts = next.restarts;
         outcome.claims_settled_at_restart = next.claims_settled_at_restart;
         outcome.drained &= next.drained;
@@ -1034,7 +1061,7 @@ fn settings_revision(records: &Store) -> u32 {
 
 fn forge_for_run(run: &Rc<RefCell<referee::Run>>, scenario: Story, phase: Phase) -> temper_fake_git_hosted::Typed {
     let transport = run.borrow().forge.clone().unwrap_or_else(|| stories::forge(scenario));
-    if matches!(scenario, Story::HeldChange) || matches!(phase, Phase::Fault { .. }) {
+    if matches!(scenario, Story::HeldChange | Story::CodingAtStop) || matches!(phase, Phase::Fault { .. }) {
         run.borrow_mut().forge = Some(transport.clone());
     }
     transport
@@ -1099,6 +1126,7 @@ fn run_phase(
     let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
 
     let machine = Machine::new(disk);
+    run.borrow_mut().disk = Some(machine.0.clone());
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
         parameters.route =
@@ -1201,6 +1229,7 @@ fn run_phase(
     });
     let records = std::mem::take(&mut *store.borrow_mut());
     let result = Outcome {
+        stopped: None,
         peaks: outcome.peaks(),
         verdict: skein_world::domain::Verdict::Passed,
         signed_in,

@@ -227,6 +227,55 @@ fn a_question_arriving_after_preparation_waits_for_the_next_run() {
     world.close();
 }
 
+fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
+    const SEED: u64 = 867;
+    let setup = || {
+        let mut setup = story::setup(SEED, true);
+        setup.configuration.as_mut().expect("per-wake configuration").core.workers_in_process = true;
+        setup
+    };
+    let mut world = World::new(setup());
+    world.grant_account(2);
+    let caller = fixtures::run(&world);
+    let mut goal = fixtures::member(&world, tasks::Executor::Agent { charter: 2 }, b"Cut the goal into work");
+    goal.label = 2;
+    goal.tracked = Some(1);
+    goal.authority.budget.spend = 60;
+    goal.llm = Some(tasks::LlmChoice {
+        account: None, main: story::M1, subagents: Box::new([]),
+        later: Some(tasks::LlmLater { main: story::M2, subagents: Box::new([]) }),
+    });
+    let task = fixtures::delegate(&mut world, caller, 1, goal);
+    assert_assignment(&world, task, b"S\n\nF", story::M1, &[]);
+    let attempt = live_row(&world, task).attempt;
+    story::park(&mut world, caller, None);
+    story::turn(&mut world, (task, attempt), None);
+    world.stop();
+    assert_eq!(live_row(&world, task).reasons, tasks::Reasons::FIRST, "Recheck retains the first cut's reasons");
+    assert_eq!(live_row(&world, task).tries, tasks::Tries::NONE);
+    assert!(world.store.rows.values().any(|row| matches!(row,
+        jig_test_domain::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Terminal(end)))
+            if end.task == task && end.attempt == attempt && end.end == tasks::End::Recheck
+    )));
+    world.restart_with(setup().configuration.expect("same configuration"));
+    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Fleet(jig_domain_fleet::Event::Hello {
+        worker: 0, channel: skein_lib::Token::new(7),
+        hello: jig_domain_link::Hello {
+            jobs: Box::new([]), bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: skein_lib::Duration::from_millis(100), slots: 2,
+            workstreams: Box::new([]), hosting: Box::new([]),
+        },
+    })));
+    world.grant_account(1);
+    world.grant_account(2);
+    assert!(live_row(&world, task).attempt > attempt);
+    assert_assignment(&world, task, b"S\n\nF", story::M1, &[]);
+    assert_eq!(live_row(&world, task).reasons, tasks::Reasons::FIRST);
+    let next = live_row(&world, task).attempt;
+    story::park(&mut world, (task, next), None);
+    world.close();
+}
+
 #[test]
 fn per_wake_scenarios() {
     let mut bundle = super::bundle::Bundle::default();
@@ -236,5 +285,6 @@ fn per_wake_scenarios() {
     crate::bundle::case!(bundle, 864, words_and_an_amendment_are_always_relayed);
     crate::bundle::case!(bundle, 865, a_charter_without_parts_relays_the_question_and_keeps_its_model);
     crate::bundle::case!(bundle, 866, a_question_arriving_after_preparation_waits_for_the_next_run);
+    crate::bundle::case!(bundle, 867, a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice);
     bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

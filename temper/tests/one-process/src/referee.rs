@@ -3,6 +3,7 @@ use crate::world::HarnessProcess;
 pub(crate) mod durable;
 pub(crate) use durable::{Capture, Store};
 mod agent;
+mod stopped;
 pub(crate) mod client;
 pub(crate) mod forge;
 pub mod restart;
@@ -25,12 +26,14 @@ use temper_engine_domain as root;
 #[derive(Default)]
 pub(crate) struct Run {
     pub(crate) forge: Option<temper_fake_git_hosted::Typed>,
+    pub(crate) disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     rules: Option<Rc<RefCell<rules::Referee>>>,
     pub(crate) rows: BTreeMap<root::Key, root::Record>,
     pub(crate) applied: u64,
     pub(crate) restarts: u32,
     pub(crate) drained: bool,
     pub(crate) settled: u32,
+    pub(crate) stopped: Option<crate::world::Stopped>,
     pub(crate) answers: BTreeMap<[u8; 16], temper_client_domain::forge::Answer>,
     applications: BTreeMap<[u8; 16], u32>,
     pub(crate) pending_adoption: bool,
@@ -66,6 +69,7 @@ pub(crate) struct Referee {
     done: Option<()>,
     drained: Option<()>,
     ended: bool,
+    hold_released: bool,
     forge: Rc<RefCell<forge::Forge>>,
     story: crate::world::Story,
 }
@@ -99,6 +103,7 @@ impl Referee {
                 | crate::world::Story::Adopt
                 | crate::world::Story::Merge
                 | crate::world::Story::HeldChange
+                | crate::world::Story::CodingAtStop
         ) {
             scope.tools = 3;
             scope.depth = 3;
@@ -164,6 +169,7 @@ impl Referee {
             done: None,
             drained: None,
             ended: false,
+            hold_released: false,
             forge,
             story: scenario,
         }
@@ -268,10 +274,8 @@ impl Referee {
             crate::world::Phase::SignIn => other
                 .iter()
                 .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
-            crate::world::Phase::Drain => {
-                snapshot(&self.store.borrow()).receipts.contains(&rules::Receipt::Turn(1, 1, 1))
-            }
-            crate::world::Phase::Restart => self.run.borrow().settled > 0 && self.cold.is_none(),
+            crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other),
+            crate::world::Phase::Restart => self.cold.is_none() && self.run.borrow().stopped.as_ref().is_some_and(|stopped| stopped::next(stopped, &self.store.borrow()).is_some()),
             crate::world::Phase::Fault { .. } => {
                 self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
             }
@@ -288,6 +292,7 @@ impl Referee {
                 }
                 crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
                 crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
+                crate::world::Story::CodingAtStop => unreachable!("stop story uses drain and restart"),
             },
         }
     }
@@ -378,11 +383,31 @@ impl skein_world::Referee<Proc> for Referee {
                     person.finish();
                 }
             }
+            match self.phase {
+                crate::world::Phase::Drain => {
+                    let mut stopped = stopped::at_signal(self.story, &self.store.borrow());
+                    stopped.saved_head[0] = self.forge.borrow().saved_head(stopped.task);
+                    self.run.borrow_mut().stopped = Some(stopped);
+                },
+                crate::world::Phase::Restart => {
+                    let mut run = self.run.borrow_mut();
+                    let disk = run.disk.clone().expect("world disk");
+                    let stopped = run.stopped.as_mut().expect("stopped run");
+                    stopped::at_restart(stopped, &self.store.borrow());
+                    stopped.saved_head[1] = self.forge.borrow().saved_head(stopped.task);
+                    stopped::checkout(stopped, &mut disk.borrow_mut());
+                },
+                _ => {}
+            }
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             self.done = Some(());
         }
         if self.done.is_some() {
             for proc in other {
+                if !self.hold_released && service.service.end().is_some() && let Proc::Peer(peer) = proc {
+                    self.hold_released = true;
+                    peer.release(crate::stories::STOP_HOLD).expect("stop hold release");
+                }
                 shutdown_peer(proc);
             }
         }
@@ -485,6 +510,12 @@ impl skein_world::Referee<Proc> for Referee {
             self.say(now, rules::Observed::Drained { at: self.applied });
             self.drained = Some(());
             self.run.borrow_mut().drained = true;
+            if matches!(self.phase, crate::world::Phase::Drain) {
+                let mut run = self.run.borrow_mut();
+                if let Some(stopped) = run.stopped.as_mut() {
+                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow());
+                }
+            }
         }
         self.say(now, rules::Observed::Tick);
     }
@@ -535,6 +566,7 @@ impl skein_world::Referee<Proc> for Referee {
                                 | crate::world::Story::Adopt
                                 | crate::world::Story::Merge
                                 | crate::world::Story::HeldChange
+                | crate::world::Story::CodingAtStop
                         )))
     }
 }
