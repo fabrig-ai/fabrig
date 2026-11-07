@@ -71,3 +71,20 @@ This changes what a shared item means for readers of `Timer::Account`'s marks: r
 ## Report
 
 As the implementer's text says.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-3/core-reads/foreman-1)
+
+reconcile the three status conflicts with landed offer narrowing and core list reads
+Rebase onto the current integration tip. The merge conflicts are in:
+- `jig/docs/design/domain/accounts.status.md`
+- `jig/docs/design/domain/engine.status.md`
+- `jig/docs/design/protocol/store.status.md`
+
+`dd8cd9741a` implemented offer narrowing and implicit account choice; main commit `77727e6f22`, incorporated by `5c55e8e3d2`, added catalogue completion prose.
+
+Resolve the combined state:
+- In `accounts.status.md`, remove the implementation-gap bullet entirely: core-reads closes 3.4/3.7, and `dd8cd9741a` closes the old 4.3 first-choice gap. Preserve the separate real-box walk gap.
+- In `engine.status.md`, remove the provider-list gap bullet and the sentence “Provider-list reads and their decider remain the gap below.” Do not retain this branch’s 11.1 offer gap; offer narrowing has landed. Preserve the main-side catalogue completion paragraph and unrelated gaps.
+- In `store.status.md`, preserve main’s sections 5/5.1 completion paragraph and remove the 4.4 “no live read writes it” bullet, as core-reads does.
+
+Keep the feature code intact; the refusal reports content conflicts, with no build or test failure.
