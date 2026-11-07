@@ -335,7 +335,7 @@ off in the stock, where that request has them follow a tracked template
 has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
 the first model it can use, and a run that can't start says why on its page and
 in `task show`, but no walk on record has a real box do either, a Chats row still
-says "Starting", and `task show` names a `deployment show` ctl lacks
+says "Starting"
 (`client/README.md`, `client/tools.md`). `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not

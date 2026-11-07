@@ -758,8 +758,19 @@ fn a_refused_next_run_says_why() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table retains each hello cause and all ten bound clauses; client/README.md, 5.5"
+)]
 fn every_hello_refusal_keeps_its_cause_and_numbers() {
-    use c::{AgentShortfall as S, HelloRefusal as F};
+    use c::{AgentShortfall as S, Figures, HelloRefusal as F, HostKind as K, TaskWaitRefused as R};
+    let hello = |why| R::Hello { kind: K::Worker, at: fixtures::NOW, why, figures: None };
+    let bounds = |why, required, offered| R::Bounds {
+        kind: K::Worker,
+        why: Some(why),
+        figures: Some(Figures { required, offered }),
+    };
+    let mut rows = Vec::new();
     for (why, cause) in [
         (F::Workers { limit: 7 }, "No room for another worker. Limit: 7."),
         (
@@ -781,28 +792,133 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
         (F::Agent { why: S::Waiting { charter: 2 } }, "Agent waiting too short."),
         (
             F::Agent { why: S::Checks { charter: 2 } },
-            "Agent check timeout exceeds reserve_time for charter 2. See settings help for held revisions.",
+            "Agent check timeout exceeds reserve_time for charter 2. See temper help settings for held revisions.",
         ),
         (F::Agent { why: S::Message }, "Agent message bound too small."),
         (F::Agent { why: S::Inbox }, "Agent inbox too small."),
         (F::Agent { why: S::Unacknowledged }, "Agent unacknowledged turns too few."),
     ] {
-        let mut builder = Builder::new(&fixtures::tree_limits());
-        crate::choice::waiting(
-            &mut builder,
-            &task_root(),
-            &waiting_task(Some(c::TaskRunWait::Refused(c::TaskWaitRefused::Hello {
-                kind: c::HostKind::Worker,
-                at: fixtures::NOW,
-                why,
-                figures: None,
-            }))),
-            &fixtures::words(),
-            &mut crate::frame::Bindings::new(32),
-            &mut crate::words::Times::new(fixtures::NOW),
-        );
-        let expected = format!("Next run refused · A worker was refused at 00:00. {cause}");
-        assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected.as_bytes());
+        rows.push((hello(why), format!("Next run refused · A worker was refused at 00:00. {cause}")));
+    }
+    for (why, required, offered, clause) in [
+        (S::Turns { charter: 3 }, 100_000, 800, "its charter asks 100,000 turns, and the largest worker takes 800."),
+        (S::Time { charter: 3 }, 7_200_000, 3_600_000, "its charter asks 2 h a run, and the largest worker takes 1 h."),
+        (
+            S::Waiting { charter: 3 },
+            1_800_000,
+            600_000,
+            "its charter asks 30 min of waiting, and the largest worker takes 10 min.",
+        ),
+        (
+            S::Checks { charter: 3 },
+            300_000,
+            600_000,
+            "its charter keeps 5 min for checks, and the quickest worker's checks take 10 min.",
+        ),
+        (
+            S::Window { charter: 3, model: 1 },
+            200_000,
+            128_000,
+            "its charter's model at position 1 asks a window of 200,000 tokens, and the largest worker takes 128,000.",
+        ),
+        (
+            S::Output { charter: 3, model: 1 },
+            64000,
+            32000,
+            "its charter's model at position 1 asks 64,000 output tokens, and the largest worker takes 32,000.",
+        ),
+        (S::Spend, 5000, 2000, "a run here may spend 5,000, and the largest worker takes 2,000."),
+        (S::Message, 65536, 16384, "a message here may be 65,536 bytes, and the largest worker takes 16,384."),
+        (S::Inbox, 12, 8, "a start here sends 12 messages, and the largest worker takes 8."),
+        (S::Unacknowledged, 64, 32, "a run here keeps 64 turns unacknowledged, and the largest worker takes 32."),
+        (
+            S::Time { charter: 3 },
+            59000,
+            0,
+            "its charter asks under 1 min a run, and the largest worker takes under 1 min.",
+        ),
+        (
+            S::Waiting { charter: 3 },
+            5_400_000,
+            3_600_000,
+            "its charter asks 1 h 30 min of waiting, and the largest worker takes 1 h.",
+        ),
+    ] {
+        rows.push((bounds(why, required, offered), format!("No worker can take this: {clause}")));
+    }
+    rows.extend([
+        (
+            R::Bounds { kind: K::Worker, why: None, figures: None },
+            String::from("No worker can take this: each falls short of another bound its charter asks."),
+        ),
+        (
+            R::Bounds { kind: K::Worker, why: Some(S::Turns { charter: 3 }), figures: None },
+            String::from("No worker can take this. Agent turns too few."),
+        ),
+        (
+            R::Bounds {
+                kind: K::Engine,
+                why: Some(S::Turns { charter: 3 }),
+                figures: Some(Figures { required: 100_000, offered: 800 }),
+            },
+            String::from("The engine's own host can't take this: its charter asks 100,000 turns, and it takes 800."),
+        ),
+        (
+            R::Hello {
+                kind: K::Worker,
+                at: skein_lib::Wall::from_nanos(38_520_000_000_000),
+                why: F::Agent { why: S::Turns { charter: 3 } },
+                figures: Some(Figures { required: 100_000, offered: 800 }),
+            },
+            String::from(
+                "No worker can take this: charter 3 asks 100,000 turns, and the worker refused at 10:42 takes 800.",
+            ),
+        ),
+    ]);
+    // The widest count, model position and duration fit the bound words' holes.
+    rows.extend([
+        (bounds(S::Window { charter: u32::MAX, model: u32::MAX }, u64::MAX, u64::MAX), String::from("No worker can take this: its charter's model at position 4294967295 asks a window of 18,446,744,073,709,551,615 tokens, and the largest worker takes 18,446,744,073,709,551,615.")),
+        (bounds(S::Time { charter: u32::MAX }, u64::MAX, u64::MAX), String::from("No worker can take this: its charter asks 213503982334 d a run, and the largest worker takes 213503982334 d.")),
+    ]);
+    let root = task_root();
+    let words = [fixtures::words(), fixtures::browser_words()];
+    let bound_words = [
+        crate::words::Words::english(fixtures::FORGE, 1, crate::words::Shell::Terminal).unwrap(),
+        crate::words::Words::english(fixtures::FORGE, 1, crate::words::Shell::Browser).unwrap(),
+    ];
+    for (why, expected) in rows {
+        wait_pointers(expected.as_bytes());
+        let vocabularies = match why {
+            R::Bounds { .. } => &bound_words,
+            R::Hello { .. } => &words,
+        };
+        for w in vocabularies {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            let at = match why {
+                R::Hello { at, .. } => at,
+                R::Bounds { .. } => fixtures::NOW,
+            };
+            crate::choice::waiting(
+                &mut builder,
+                &root,
+                &waiting_task(Some(c::TaskRunWait::Refused(why))),
+                w,
+                &mut crate::frame::Bindings::new(32),
+                &mut crate::words::Times::new(at),
+            );
+            let text = fixtures::text(&builder.finish());
+            wait_pointers(&text);
+            assert_eq!(text.as_ref(), expected.as_bytes(), "{why:?}");
+        }
+    }
+}
+
+pub(super) fn wait_pointers(text: &[u8]) {
+    let text = core::str::from_utf8(text).unwrap();
+    assert!(!text.contains("temper ctl "), "page wait names ctl: {text}");
+    for after in text.split("temper help ").skip(1) {
+        let page = after.split(|c: char| !c.is_ascii_alphanumeric() && c != '-').next().unwrap();
+        assert!(temper_docs::find(page.as_bytes()).is_some(), "missing help page {page}");
     }
 }
 

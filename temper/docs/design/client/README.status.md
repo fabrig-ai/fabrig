@@ -112,11 +112,6 @@ geometry, with no passing runtime result supplied here (`browser.status.md`,
   because skein-ui carries no rows attribute. The plan's cut chose the
   four-line box by rule; its rendered height remains section 11's
   after-landing comparison.
-- **Not yet:** 3.5, 5.5: a run no worker can ever take reads "No host has
-  room for this, or none is connected." or "Next run refused · A worker was
-  refused at HH:MM. Agent turns too few.", with no charter or figures, and a
-  checks shortfall's words point at `settings help`, no command
-  (`temper-client-view/src/choice.rs`, `words.rs`).
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
