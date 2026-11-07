@@ -254,25 +254,43 @@ fn the_target_holds_at_the_page_bytes_bound() {
     check_json(&manifest, &given);
 }
 #[test]
-fn a_target_one_byte_past_the_bound_stops() {
-    let given = target_bound_given(1);
-    assert_eq!(make(&given, &Target::Personal, RANDOM), stopped());
-}
-#[test]
-fn a_name_or_manifest_one_byte_past_stops_without_items() {
-    let given = fixtures::given();
-    for (name_bytes, page_bytes) in [
-        (NAME_BYTES.checked_sub(1).expect("positive name bound"), given.limits.page_bytes),
-        (given.limits.name_bytes, MANIFEST_BYTES.checked_sub(1).expect("positive page bound")),
-        (given.limits.name_bytes, 1),
-        (given.limits.name_bytes, 25),
-        (given.limits.name_bytes, 100),
-    ] {
-        let mut given = given.clone();
-        given.limits.name_bytes = name_bytes;
-        given.limits.page_bytes = page_bytes;
-        assert_eq!(make(&given, &Target::Personal, RANDOM), stopped());
-    }
+fn manifest_generation_refuses_outputs_beyond_configured_bounds() {
+    skein_rows::check(
+        [
+            ("a_target_one_byte_past_the_bound_stops", target_bound_given(1)),
+            ("a_name_or_manifest_one_byte_past_stops_without_items: name", {
+                let mut given = fixtures::given();
+                given.limits.name_bytes = NAME_BYTES.checked_sub(1).expect("positive name bound");
+                given.limits.page_bytes = fixtures::given().limits.page_bytes;
+                given
+            }),
+            ("a_name_or_manifest_one_byte_past_stops_without_items: manifest", {
+                let mut given = fixtures::given();
+                given.limits.name_bytes = fixtures::given().limits.name_bytes;
+                given.limits.page_bytes = MANIFEST_BYTES.checked_sub(1).expect("positive page bound");
+                given
+            }),
+            ("a_name_or_manifest_one_byte_past_stops_without_items: one byte", {
+                let mut given = fixtures::given();
+                given.limits.name_bytes = fixtures::given().limits.name_bytes;
+                given.limits.page_bytes = 1;
+                given
+            }),
+            ("a_name_or_manifest_one_byte_past_stops_without_items: 25 bytes", {
+                let mut given = fixtures::given();
+                given.limits.name_bytes = fixtures::given().limits.name_bytes;
+                given.limits.page_bytes = 25;
+                given
+            }),
+            ("a_name_or_manifest_one_byte_past_stops_without_items: 100 bytes", {
+                let mut given = fixtures::given();
+                given.limits.name_bytes = fixtures::given().limits.name_bytes;
+                given.limits.page_bytes = 100;
+                given
+            }),
+        ],
+        |given| assert_eq!(make(&given, &Target::Personal, RANDOM), stopped()),
+    );
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "test checks refusal Debug for secret bytes")]

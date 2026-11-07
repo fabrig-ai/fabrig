@@ -320,6 +320,7 @@ testing/skein-conformance       the conformance suite: the backend interface, th
 testing/skein-heap              the counting allocator, the meter that checks a step under its scenario's ceiling, and the span a world meters its processes with
 testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
 testing/skein-fork              a run forked at a chosen moment of a test and waited for, so that a sweep of cuts holds its prefix once
+testing/skein-rows              one table test's rows: every row runs, and a failure names each (testing-strategy.md, 8)
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
 testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fake-forge.md, 6)
@@ -430,6 +431,21 @@ receives `Exit::Code` or `Exit::Signal`; a child cannot fork again. Each
 parent waits for each child, so the suite's CPU includes its descendants
 (testing-strategy.md, 8.1). The kit supplies the process boundary alone;
 the consuming harness takes the crash and checks every cut.
+
+**A table test's rows** are `skein-rows`, on the `harness` lint profile.
+`skein_rows::check(rows, body)` takes rows of `(&'static str, R)` and a
+`body: Fn(R)`, and runs the body on every row, each under `catch_unwind`,
+so that a panic, an `assert_eq!`'s as any other, ends that row alone.
+Afterwards it panics at its caller's line, naming each row that failed
+with its message. Rows carry data (testing-strategy.md, 10): the kit
+hands a body the row's data and never its name. Fewer than two rows, or
+two rows of one name, is that same panic before any row runs. A test
+that reads what an earlier row of its process would disturb, such as a
+heap ceiling, stays a test of its own. The kit shares nothing between
+rows; a fixture a body builds is built per row.
+`skein_rows::panics(expected, call)` holds for a row what
+`#[should_panic(expected = "...")]` holds for a test: `call` must panic,
+with a message holding `expected`.
 
 A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (testing-strategy.md, 4): it has no

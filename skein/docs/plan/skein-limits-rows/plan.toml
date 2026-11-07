@@ -1,0 +1,35 @@
+draft = "skein-limits-rows"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-limits-rows/inputs/request.md", "skein/tests/forge/machine/src/hand.rs", "skein/crates/skein-tls/src/rs256.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "judge"
+title = "The access judge parses a key and the fake verifies a token: neither signs to check"
+mode = "direct"
+needs = []
+design = "skein/docs/design/tls.md, 4"
+
+[[part]]
+id = "rows"
+title = "Cases of one behaviour become rows of one table test, in the binaries with the highest floors"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 1
+story = "A GitHub App's checks judge a wrong key wrong without signing"
+parts = ["judge"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Cases of one behaviour share a process, and every row still runs and names itself"
+parts = ["rows"]
+walk = false

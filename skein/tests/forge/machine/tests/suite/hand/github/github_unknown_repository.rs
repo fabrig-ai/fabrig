@@ -57,26 +57,43 @@ fn unknown_repository_tries_recent_then_another_installation() {
     assert_eq!(count(&h, ONE), 2);
     assert_eq!(count(&h, TWO), 1);
 }
-#[test]
-fn all_installation_probes_404_is_missing() {
-    let mut h = candidates();
-    begin(&mut h, branch());
-    h.answer(FORGE, &f::status(404));
-    next(&mut h);
-    h.answer(FORGE, &f::status(404));
-    answered(&mut h, 2, Err(Error::Missing));
-    assert_eq!(count(&h, ONE), 1);
-    assert_eq!(count(&h, TWO), 1);
-    assert_eq!(h.answers.len(), 1);
+struct ProbeRows {
+    accounts: &'static [(u64, u64, &'static [u8], &'static [u8])],
+    cost: u32,
+    one: u32,
+    two: u32,
 }
 #[test]
-fn single_installation_probe_404_is_missing() {
-    let mut h = f::github_calls();
-    begin(&mut h, branch());
-    h.answer(FORGE, &f::status(404));
-    answered(&mut h, 1, Err(Error::Missing));
-    assert_eq!(count(&h, b"GET /repositories/1 "), 1);
+fn exhausting_installation_probes_returns_missing_with_incurred_cost() {
+    skein_rows::check(
+        [
+            (
+                "all_installation_probes_404_is_missing",
+                ProbeRows { accounts: &[(2, 23, b"other", b"artificial-full-two")], cost: 2, one: 1, two: 1 },
+            ),
+            ("single_installation_probe_404_is_missing", ProbeRows { accounts: &[], cost: 1, one: 1, two: 0 }),
+        ],
+        |row| {
+            let mut h = f::github_calls();
+            for &(id, account, login, token) in row.accounts {
+                f::github_account(&mut h, id, account, login, token);
+                h.component.test_github_mut().recent = Some(id);
+            }
+            begin(&mut h, branch());
+            for _ in 1..row.cost {
+                h.answer(FORGE, &f::status(404));
+                next(&mut h);
+            }
+            h.answer(FORGE, &f::status(404));
+            answered(&mut h, row.cost, Err(Error::Missing));
+            assert_eq!(count(&h, ONE), row.one);
+            assert_eq!(count(&h, TWO), row.two);
+            assert_eq!(count(&h, b"GET /repositories/1 "), row.cost);
+            assert_eq!(h.answers.len(), 1);
+        },
+    );
 }
+
 #[test]
 fn successful_probe_routes_the_call_by_owner_account() {
     let mut h = candidates();
@@ -323,23 +340,29 @@ fn closed(h: &mut Harness) {
     h.run(Duration::ZERO);
 }
 #[test]
-fn close_during_discovery_token_wait_has_no_terminal() {
-    closed(&mut waiting_on_second());
+fn closing_discovery_phases_suppresses_the_pending_call_terminal() {
+    skein_rows::check(
+        [
+            ("close_during_discovery_token_wait_has_no_terminal", (Time::ZERO, vec![f::status(404)])),
+            ("close_during_a_written_probe_has_no_terminal", (Time::from_nanos(3_600_000_000_000), vec![])),
+            (
+                "close_during_discovery_continuation_has_no_terminal",
+                (Time::from_nanos(3_600_000_000_000), vec![f::ok(f::GITHUB_REPOSITORY)]),
+            ),
+        ],
+        |(expiry, responses)| {
+            let mut h = candidates();
+            h.component.test_github_mut().rows.get_mut(&1).expect("row").full.expiry = expiry;
+            begin(&mut h, branch());
+            for response in responses {
+                h.answer(FORGE, &response);
+                h.run(Duration::ZERO);
+            }
+            closed(&mut h);
+        },
+    );
 }
-#[test]
-fn close_during_a_written_probe_has_no_terminal() {
-    let mut h = candidates();
-    begin(&mut h, branch());
-    closed(&mut h);
-}
-#[test]
-fn close_during_discovery_continuation_has_no_terminal() {
-    let mut h = candidates();
-    begin(&mut h, branch());
-    h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    h.run(Duration::ZERO);
-    closed(&mut h);
-}
+
 #[test]
 fn no_eligible_candidate_preserves_landed_admission_failure() {
     for state in [Tokens::Gone, Tokens::Current] {

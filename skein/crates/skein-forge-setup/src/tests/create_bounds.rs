@@ -22,22 +22,58 @@ fn refused(place: Place) -> Result<(), Refused> {
     Err(Refused { place, other: None })
 }
 #[test]
-fn creation_accepts_a_path_at_255_bytes() {
-    assert_eq!(check(&plan(&[b'a'; PATH], b"")), Ok(()));
+fn creation_fields_at_their_size_bounds_are_admitted() {
+    skein_rows::check(
+        [
+            ("creation_accepts_a_path_at_255_bytes", plan(&[b'a'; PATH], b"")),
+            ("creation_accepts_content_at_its_byte_limit", {
+                let bytes = skein_lib::bytes::zeroed(usize::try_from(fixtures::limits().file_bytes).unwrap());
+                plan(b"file", &bytes)
+            }),
+            ("creation_accepts_the_file_count_limit", plan(b"file", b"")),
+            ("creation_accepts_a_100_byte_repository_name", named(b"first", &[b'a'; NAME])),
+        ],
+        |plan| assert_eq!(check(&plan), Ok(())),
+    );
 }
 #[test]
-fn creation_refuses_a_path_one_byte_past_255() {
-    assert_eq!(check(&plan(&[b'a'; PATH + 1], b"")), refused(Place::FilePath(0)));
-}
-#[test]
-fn creation_accepts_content_at_its_byte_limit() {
-    let bytes = skein_lib::bytes::zeroed(usize::try_from(fixtures::limits().file_bytes).unwrap());
-    assert_eq!(check(&plan(b"file", &bytes)), Ok(()));
-}
-#[test]
-fn creation_refuses_content_one_byte_past_its_limit() {
-    let bytes = skein_lib::bytes::zeroed(usize::try_from(fixtures::limits().file_bytes).unwrap() + 1);
-    assert_eq!(check(&plan(b"file", &bytes)), refused(Place::FileContent(0)));
+fn creation_fields_exceeding_size_bounds_name_their_place() {
+    skein_rows::check(
+        [
+            ("creation_refuses_a_path_one_byte_past_255", (plan(&[b'a'; PATH + 1], b""), Place::FilePath(0))),
+            (
+                "creation_refuses_content_one_byte_past_its_limit",
+                (
+                    {
+                        let bytes =
+                            skein_lib::bytes::zeroed(usize::try_from(fixtures::limits().file_bytes).unwrap() + 1);
+                        plan(b"file", &bytes)
+                    },
+                    Place::FileContent(0),
+                ),
+            ),
+            (
+                "creation_refuses_one_file_past_the_count_limit",
+                (
+                    {
+                        let mut plan = plan(b"file", b"");
+                        let Plan::Create { files, .. } = &mut plan else { unreachable!() };
+                        *files = Box::new([
+                            File { path: b"one".as_slice().into(), content: Box::new([]) },
+                            File { path: b"two".as_slice().into(), content: Box::new([]) },
+                        ]);
+                        plan
+                    },
+                    Place::Files,
+                ),
+            ),
+            (
+                "creation_refuses_a_repository_name_past_100_bytes",
+                (named(b"first", &[b'a'; NAME + 1]), Place::CreateRepository),
+            ),
+        ],
+        |(plan, place)| assert_eq!(check(&plan), refused(place)),
+    );
 }
 #[test]
 fn creation_refuses_absolute_empty_and_dot_segments() {
@@ -45,30 +81,8 @@ fn creation_refuses_absolute_empty_and_dot_segments() {
         assert_eq!(check(&plan(path, b"")), refused(Place::FilePath(0)));
     }
 }
-#[test]
-fn creation_accepts_the_file_count_limit() {
-    assert_eq!(check(&plan(b"file", b"")), Ok(()));
-}
-#[test]
-fn creation_refuses_one_file_past_the_count_limit() {
-    let mut plan = plan(b"file", b"");
-    let Plan::Create { files, .. } = &mut plan else { unreachable!() };
-    *files = Box::new([
-        File { path: b"one".as_slice().into(), content: Box::new([]) },
-        File { path: b"two".as_slice().into(), content: Box::new([]) },
-    ]);
-    assert_eq!(check(&plan), refused(Place::Files));
-}
 fn named(org: &[u8], repository: &[u8]) -> Plan {
     Plan::Create { forge: 1, org: org.into(), repository: repository.into(), files: Box::new([]) }
-}
-#[test]
-fn creation_accepts_a_100_byte_repository_name() {
-    assert_eq!(check(&named(b"first", &[b'a'; NAME])), Ok(()));
-}
-#[test]
-fn creation_refuses_a_repository_name_past_100_bytes() {
-    assert_eq!(check(&named(b"first", &[b'a'; NAME + 1])), refused(Place::CreateRepository));
 }
 #[test]
 fn creation_repository_names_allow_a_leading_dot_or_dash() {

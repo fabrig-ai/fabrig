@@ -4,6 +4,9 @@
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.
+Its logins rows also carry usable program statuses' optional email,
+which reaches the accounts child through the fleet's accepted inventory;
+there is no known gap in that path.
 
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
 - **Departs:** 12: the `jig-world-cost` request says no story loses what it

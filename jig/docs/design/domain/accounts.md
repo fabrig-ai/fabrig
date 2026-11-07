@@ -419,7 +419,8 @@ Fact
   label       at most 32 bytes: which one, where a kind has several (a
               usage window's name); empty otherwise
   value       Value
-  seen        the wall time the provider first said this value
+  seen        the wall time the provider first said this value through
+              this source with this origin
   source      option: the account's source it came through
   origin      u16, the registry's
 

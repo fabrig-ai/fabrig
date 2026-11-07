@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
+- **Not yet:** 10: the `GET /app` account fact,
+  `app-owner-id-login-type`, has no live observation supplied
+  (`forge-github.status.md`, 13). The case is written; its live run is
+  after landing under the request's focused-and-fuzzy limit.
 - **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the
   recording ran `--migrate` without `--runner`, so no run shows Actions
