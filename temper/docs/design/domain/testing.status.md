@@ -17,6 +17,18 @@ The owned-forge setup counts agree: `assert_forgejo_setup` checks and
 removes the sign-in call before `assert_forgejo_setup_after_sign_in`
 checks six calls on the first run or three otherwise.
 
+Section 2.7's fresh Claude Code sitting applies its model item first
+(`live-model`), then charters 1 and 2 against the resulting revision
+(`live-settings`). The focused joined-world test declares a Claude Code
+program account and applies the fixture's own files and argv through ctl
+on the Claude deployment's catalogue. Readback checks model 64's person
+source, estimated figures and `low` effort, and both charters naming
+`claude-haiku-5-5` at `low`, with no alternatives and `rest` false
+(`crates/temper/tests/suite/forge_land.rs`). The settings table retains
+ChatGPT's single change on stock row 7, `gpt-6-luna`, and refusal of an
+unexpected stock model. These checks establish no real-model launch or
+live landing; section 11 retains that proof.
+
 Sections 2.5, 6 and 6.1 have the profiled fuzzy repairs: engine walking,
 terminal-cut, escalation and role sweeps compare exact traces and
 complete frozen-state digests each iteration, with full text on a
@@ -230,15 +242,11 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   `read_only` is false (`crates/temper/tests/support/live_github.rs`).
   2.7: the owned-forge
   landing pair has not passed in the after-landing tier: neither story
-  has passed live on its own store. The Claude Code fixture adds
-  `claude-haiku-5-5` by name with `low` its default effort and selects it
-  in charters 1 and 2 in a second settings apply, as 2.7 has it; a
-  focused test applies both through ctl on the joined world's Claude
-  catalogue (`crates/temper/tests/suite/forge_land.rs`). ChatGPT
-  keeps stock row 7, `gpt-6-luna`. The focused settings table holds both
-  selections and refusal of an unexpected stock model, but establishes no real launch
-  with `--model claude-haiku-5-5 --effort low` or live landing. That
-  evidence remains after-landing work (11); the pair's `#[ignore]`
+  has passed live on its own store. The focused settings proof above
+  establishes no real launch with
+  `--model claude-haiku-5-5 --effort low` or live landing. That evidence
+  remains after-landing work (11): the plan compiles the live story
+  without running it, and no worker holds its login. The pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`).
   2.7: the held record's guard is shown on the fake issuer and on stubs
