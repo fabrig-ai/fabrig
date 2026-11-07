@@ -29,3 +29,43 @@ id = 1
 story = "the decoder sweep and the crash sweeps draw what they drew, at a lower cost that a profile explains"
 parts = ["codecs", "one-process"]
 walk = false
+
+[[part]]
+id = "state"
+title = "skein's and jig's state types derive Hash, if a profile says the compare pays for it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 5.1"
+
+[[part]]
+id = "engine"
+title = "The engine world's walking and escalation sweeps replay by digest"
+mode = "direct"
+needs = ["state"]
+design = "skein/docs/foundation/testing-strategy.md, 6"
+
+[[slice]]
+id = 2
+story = "the engine world's sweeps step two worlds in lockstep and compare a digest at each iteration, and the text where they differ and at each seed's end"
+parts = ["state", "engine"]
+walk = false
+
+[[part]]
+id = "under"
+title = "What the sweeps left below their worlds, and what the real loop offers cheaply"
+mode = "direct"
+needs = ["codecs", "one-process", "engine"]
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[part]]
+id = "close"
+title = "The account: temper's fuzzy suite against its limit"
+mode = "direct"
+needs = ["codecs", "one-process", "state", "engine", "under"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 3
+story = "the causes below the worlds are fixed or written down, and the account says where the suite stands against 120 CPU s"
+parts = ["under", "close"]
+walk = false
