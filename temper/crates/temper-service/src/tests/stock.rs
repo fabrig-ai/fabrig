@@ -1428,10 +1428,10 @@ fn configuring_txt_says_who_does_what_in_the_persons_words() {
     assert!(words.contains("Not \"stock settings\" or \"operator\""));
     let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
     for phrase in [
-        "Whenever someone is to approve or join, before or after acceptance",
-        "say all this, and who does each",
-        "as Write is not enough",
-        "Adopting is theirs, no one else's: Settings, Repositories, Adopt a repository",
+        "No inventory account there? Approve or join, before/after acceptance",
+        "say who does each",
+        "Write isn't enough",
+        "Person: adopt again, reread inventory and propose afresh against the newest revision: Settings, Repositories, Adopt a repository",
     ] {
         assert!(approvers.contains(phrase), "missing: {phrase}");
     }
@@ -1469,9 +1469,12 @@ fn configuring_txt_names_complete_approval_adoption_steps() {
     let words = include_str!("../stock/configuring.txt");
     let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
     for phrase in [
-        "add a human collaborator with mapped forge permission",
-        "a Forgejo repository admin separately grants temper's forge user repository admin",
-        "have the person adopt again",
+        "Inventory account on repository's forge (as on a box)? Nothing to add",
+        "propose own role, owner (0) on a project they made; no more of forge identity",
+        "A login alone is no eligibility",
+        "a repository admin adds a human collaborator at mapped permission",
+        "on Forgejo, grants temper's forge user repository admin",
+        "Person: adopt again",
         "reread inventory and propose afresh against the newest revision",
     ] {
         assert!(approvers.contains(phrase), "missing approval adoption instruction: {phrase}");

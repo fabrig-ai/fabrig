@@ -51,7 +51,6 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
-- **Not yet:** 8.1: the instructions (`stock/configuring.txt`) send every person who'd approve through a collaborator and adopting again; none says a person the inventory shows on the forge, as a box's person by its link, needs nothing added.
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
