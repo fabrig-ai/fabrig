@@ -32,10 +32,12 @@ The binding calls are `notes/contracts.md`. In short:
 - **`jig-story`** is the meeting point: jig's joint world, real component, real core.
 
 | `temper-approval` | `temper-config` | `config`, `component`, `http` | `temper-init`'s documents, `temper-service`'s tests, the configuration reference pages | 60 |
+| | `temper-domain` | `client` | `temper-client-domain` (`Place::Approve`, `approve`, `asked`); `temper-client-shell-web`'s host | 210 |
 
+- **`temper-domain`** gives the root the approval page's place, codec, state and reads (`approve`), and the native client's ask that signs in at once with the secret and keeps only the code and expiry (`asked`); the web shell keeps the page's address.
 - **`temper-config`** turns the approval on beside the printed link in `temper init`'s two documents (so every box's) and the owned example, and proves the service passes it on: a box answers an ask.
 
-temper's design is `temper/docs/design/client/README.md`, 3.5 (*The approval page*), 5.1, 5.12 and 7.1 (*A terminal signed in from the browser*, the root's half and the TUI's flow, the latter designed and built by the follow-up plan), `client/browser.md`, 2.3, 2.4, 2.5 and 7.2, `protocol/configuration.md`, section 3, and `protocol/setup.md`, 8.3. Its remaining tasks follow in the next batch: the client root's half and the page's state (`temper-domain`), the view, `temper.css` and the gallery (`temper-view`), and the client world's story (`temper-story`).
+temper's design is `temper/docs/design/client/README.md`, 3.5 (*The approval page*), 5.1, 5.12 and 7.1 (*A terminal signed in from the browser*, the root's half and the TUI's flow, the latter designed and built by the follow-up plan), `client/browser.md`, 2.3, 2.4, 2.5 and 7.2, `protocol/configuration.md`, section 3, and `protocol/setup.md`, 8.3. Its remaining tasks follow in the next batch: the view, `temper.css` and the gallery (`temper-view`), and the client world's story (`temper-story`).
 
 ## Critical path, as it stands
 
