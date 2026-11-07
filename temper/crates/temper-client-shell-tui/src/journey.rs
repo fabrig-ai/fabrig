@@ -2,3 +2,6 @@
 mod line;
 
 pub use line::{Line, Sent, Streamed, Unreadable, lines};
+
+#[cfg(test)]
+mod tests;
