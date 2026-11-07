@@ -71,3 +71,17 @@ Keep `names.txt` sorted and consistent with the table; regenerate any stale prin
 
 Validate the combined vocabulary through focused `temper-client-view` tests and the gallery’s `names_are_the_promised_ones` and `each_state_holds_what_its_name_says` tests, through `heavy`.
 Run only focused and fuzzy suites; retain the task’s prohibition on browser comparisons and walks.
+
+## Rebase (2026-11-07, step merge, foreman look-round-13/sheet-view/foreman-2)
+
+combine the sheet and incoming proposal vocabulary counts in words.rs
+Rebase onto the landing trunk; the inspected integration tip is `0470f4a7ee`.
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Incoming merge `96b7b3852e` brings proposal wording from `183c94f536`, adding three phrases, five segments and 55 English bytes.
+Retain `WorkProposedChange`, `WorkProposedChangeCount` and `WorkProposingChange`, including their enum entries, IDs and English forms.
+Preserve the sheet’s vocabulary additions and regenerate the combined declarations rather than choosing either side’s totals.
+The inspected combined code implies `PHRASES = 1946`, `SEGMENTS = 3387`, `ENGLISH_BYTES = 47527`, and `ALL` length 1299.
+Use `SKEIN_CODEGEN_WRITE=1` with the focused `temper-client-view` test `tests::accounts::english_phrase_declarations_match_the_vocabulary` through `heavy` to regenerate, then verify without write mode.
+Keep the automatically merged CSS and gallery changes from both sides.
+Regenerate any combined prints, goldens or counted baselines found stale by focused checks.
+Run only focused and fuzzy suites; retain the prohibition on browser comparisons and walks.
