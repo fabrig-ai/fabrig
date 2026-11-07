@@ -236,3 +236,12 @@ Acceptance:
 
 As the implementer's text says; name each compiler-forced arm's file, the options
 taken, and the rows' failures seen first.
+
+## Rebase (2026-11-07, step merge, foreman ui-ask-m1/document/foreman-1)
+
+Resolve the client status conflict by preserving both tasks’ gap removals.
+Rebase onto the current integration tip. The sole reported conflict is `temper/docs/design/client/README.status.md`.
+Commit `2cfda766bed423146e536e3bbfccee680df3fc6b` removes the **Not yet** entry for 3.5, *Ask temper's page*, and 5.13, *Ask temper*.
+This branch’s `ae6bcc2127` removes the adjacent **Not yet** entry for 3.5, *A chat's document*.
+Resolve the conflict with both entries absent. Preserve all other status text, including the following **Design departs** entries.
+Keep both tasks’ changes in the automatically merged client tests and retain the other successful automatic merges.
