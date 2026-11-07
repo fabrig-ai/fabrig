@@ -878,23 +878,21 @@ fn valid_refuses_an_output_queue_past_u32() {
 }
 
 #[test]
-fn valid_refuses_a_terms_body_past_u32() {
-    let bounds = Limits { kinds: u32::MAX, ..limits() };
-    assert!(!super::valid(&schema(), Role::Initiator, &bounds));
+fn unrepresentable_control_frame_limits_fail_validation() {
+    skein_rows::check(
+        [
+            ("valid_refuses_a_terms_body_past_u32", Limits { kinds: u32::MAX, ..limits() }),
+            ("valid_refuses_an_open_body_past_u32", Limits { credential: u32::MAX, ..limits() }),
+            ("valid_refuses_a_control_frame_past_u32: credential", Limits { credential: u32::MAX - 14, ..limits() }),
+            ("valid_refuses_a_control_frame_past_u32: kinds", Limits { kinds: (u32::MAX - 4) / 6, ..limits() }),
+        ],
+        |bounds| assert!(!super::valid(&schema(), Role::Initiator, &bounds)),
+    );
 }
 
-#[test]
-fn valid_refuses_an_open_body_past_u32() {
-    let bounds = Limits { credential: u32::MAX, ..limits() };
-    assert!(!super::valid(&schema(), Role::Initiator, &bounds));
-}
 
-#[test]
-fn valid_refuses_a_control_frame_past_u32() {
-    for bounds in [Limits { credential: u32::MAX - 14, ..limits() }, Limits { kinds: (u32::MAX - 4) / 6, ..limits() }] {
-        assert!(!super::valid(&schema(), Role::Initiator, &bounds));
-    }
-}
+
+
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "Debug regression tests format made-up credential canaries")]
