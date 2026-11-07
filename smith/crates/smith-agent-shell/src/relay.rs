@@ -7,7 +7,7 @@ use skein_io::{
     kernel::{Complete, Exit, Fd, Submit},
 };
 use skein_lib::{
-    Duration, Env, Queue, Time, Token, Wall,
+    Env, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
 use skein_shell::Host;
@@ -52,19 +52,7 @@ impl std::fmt::Debug for Process {
 }
 
 pub(crate) fn limits() -> io::Limits {
-    io::Limits {
-        sockets: 5,
-        names: 0,
-        refusals: 1,
-        intake: 4096,
-        receive: 4096,
-        output: 4096,
-        sends: 1,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        retry: Duration::from_millis(10),
-    }
+    io::Limits { intake: 4096, receive: 4096, output: 4096, ..crate::list::limits() }
 }
 
 /// Kernel ring size for the relay's I/O limits (smith/docs/design/protocol/programs.md, section 5.3).

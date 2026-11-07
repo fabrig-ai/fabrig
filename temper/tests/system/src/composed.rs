@@ -1182,7 +1182,11 @@ impl World {
 
     fn worker_request(&mut self, request: worker::Request) {
         match request {
-            worker::Request::Job { .. } | worker::Request::Source { .. } | worker::Request::SourceFault => {
+            worker::Request::ReadList { .. }
+            | worker::Request::CancelRead { .. }
+            | worker::Request::Job { .. }
+            | worker::Request::Source { .. }
+            | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),

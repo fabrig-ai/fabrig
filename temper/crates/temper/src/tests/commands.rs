@@ -19,6 +19,7 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::Box { .. } | Command::BoxFakeBackends { .. } => vec!["box"],
         Command::ProgramLogin { .. } => vec!["program-login"],
         Command::Agent { .. } => vec!["internal", "agent"],
+        Command::AgentList { .. } => vec!["internal", "agent-list"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Help { .. } => vec!["help"],
@@ -58,6 +59,7 @@ fn every_row_parses_from_an_example() {
         (&["ctl"], &["ctl", "help", "task", "show"]),
         (&["open"], &["open", "/client", "http://127.0.0.1:7000"]),
         (&["internal", "agent"], &["internal", "agent", "agent.json"]),
+        (&["internal", "agent-list"], &["internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
         (&["fake", "llm"], &["fake", "llm"]),
@@ -146,6 +148,7 @@ fn temper_help_lists_rows_by_who() {
 fn spawned_commands_answer_only_under_internal() {
     for (words, error) in [
         (vec!["agent", "X"], "temper: no command agent; temper --help lists them\n"),
+        (vec!["agent-list", "X"], "temper: no command agent-list; temper --help lists them\n"),
         (vec!["serve", "--box"], "temper serve: invalid arguments\nusage: temper serve [DIRECTORIES]\n"),
         (
             vec!["forge", "child", "--parent", "1", "--signal", "kill", "--", "p"],
@@ -155,6 +158,12 @@ fn spawned_commands_answer_only_under_internal() {
         assert_eq!(configured(&words), Err(error.into()));
     }
     assert_eq!(configured(&["internal", "agent", "X"]), Ok(Command::Agent { configuration: "X".into() }));
+    for words in [vec!["internal", "agent-list", "X"], vec!["--list", "internal", "agent-list", "X"]] {
+        assert_eq!(configured(&words), Ok(Command::AgentList { configuration: "X".into() }));
+    }
+    for words in [vec!["internal", "agent-list"], vec!["internal", "agent-list", "X", "Y"]] {
+        assert!(configured(&words).is_err(), "one list configuration: {words:?}");
+    }
     let Command::Serve { directories, boxed } = configured(&["internal", "serve", "--box"]).expect("box step") else {
         panic!("serve")
     };

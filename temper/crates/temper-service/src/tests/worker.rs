@@ -212,6 +212,133 @@ fn the_agent_runs_as_temper_agent_with_no_credential_in_its_environment() {
     assert!(launched.env.is_empty(), "no credential reaches an agent");
 }
 
+// jig/docs/design/domain/hosts.md, 5.1: one read, endpoint and account, without a run slot.
+const LIST_READ: u64 = 71;
+const LIST_ENDPOINT: u32 = 0;
+const LIST_ACCOUNT: u32 = 1;
+const LIST_GENERATION: u64 = 2;
+
+fn list_grant(form: jig_domain_link::Form) -> jig_domain_link::Grant {
+    jig_domain_link::Grant { account: LIST_ACCOUNT, generation: LIST_GENERATION, valid: Duration::from_nanos(10), form }
+}
+
+#[test]
+fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
+    use jig_protocol_accounts::table::{Scheme, Value};
+    for (scheme, form, dump, environment) in [
+        (Scheme::Key, jig_domain_link::Scheme::Key, None, Box::<[Box<[u8]>]>::default()),
+        (Scheme::Bearer, jig_domain_link::Scheme::Bearer, None, Box::default()),
+        (
+            Scheme::Key,
+            jig_domain_link::Scheme::Key,
+            Some(b"/request-dumps".as_slice()),
+            Box::new([Box::from(b"TEMPER_DUMP_LLM=/request-dumps".as_slice())]),
+        ),
+    ] {
+        let mut worker = fixtures::started_worker().worker;
+        let mut peer = LinkPeer::new();
+        peer.open(&mut worker);
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down { down: hub::LinkDown::Sources { sources: Box::new([]) }, parts: Box::new([]) },
+        );
+        if let Some(directory) = dump {
+            worker.dump_llm(directory);
+        }
+        worker
+            .values
+            .granted(
+                LIST_ACCOUNT,
+                LIST_GENERATION,
+                Value { scheme, token: Secret::new(b"list-fixture-key".as_slice().into()) },
+                Time::from_nanos(10),
+            )
+            .unwrap();
+        worker.link(
+            fixtures::NOW,
+            link::Request::Down {
+                down: hub::LinkDown::ReadList {
+                    read: LIST_READ,
+                    endpoint: LIST_ENDPOINT,
+                    grant: list_grant(jig_domain_link::Form::Credential(form)),
+                },
+                parts: Box::new([]),
+            },
+        );
+        let (_, launched) = fixtures::spawn(&mut worker);
+        assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+        assert_eq!(
+            launched.args.as_ref(),
+            [
+                Box::from(b"--list".as_slice()),
+                Box::from(b"internal".as_slice()),
+                Box::from(b"agent-list".as_slice()),
+                Box::from(fixtures::AGENT_JSON),
+            ]
+        );
+        assert_eq!(launched.env.as_ref(), environment.as_ref());
+        assert_eq!(launched.root, io::kernel::Fd::new(9));
+        assert_eq!(launched.dir.as_ref(), b".");
+        assert_eq!(worker.root.host().hosted(), 0, "a list takes no slot");
+    }
+}
+
+#[test]
+fn reads_without_a_usable_launch_or_grant_fail_without_io() {
+    use jig_domain_link::{Form, ListFailure, ListOutcome, Scheme as GrantScheme};
+    use jig_protocol_accounts::table::{Scheme, Value};
+    let own: &[&[u8]] = &[b"internal", b"agent", fixtures::AGENT_JSON];
+    let key = Form::Credential(GrantScheme::Key);
+    for (words, generation, scheme, expires, form) in [
+        (&[b"/custom".as_slice()][..], LIST_GENERATION, Scheme::Key, 10, key),
+        (&[b"internal".as_slice(), b"agent", b"relative.json"][..], LIST_GENERATION, Scheme::Key, 10, key),
+        (
+            &[b"internal".as_slice(), b"agent", fixtures::AGENT_JSON, b"extra"][..],
+            LIST_GENERATION,
+            Scheme::Key,
+            10,
+            key,
+        ),
+        (own, 1, Scheme::Key, 10, key),
+        (own, LIST_GENERATION, Scheme::Bearer, 10, key),
+        (own, LIST_GENERATION, Scheme::Key, 0, key),
+        (own, LIST_GENERATION, Scheme::Key, 10, Form::Application),
+        (own, LIST_GENERATION, Scheme::Key, 10, Form::Program(jig_domain_link::SourceName::new(b"source").unwrap())),
+    ] {
+        let mut settings = fixtures::worker_settings();
+        let mut arguments = skein_lib::List::with_capacity(u32::try_from(words.len()).unwrap());
+        for word in words {
+            arguments.push(Box::from(*word)).unwrap();
+        }
+        settings.jig.agent.arguments = arguments.into_boxed();
+        let mut worker = crate::Worker::new(
+            &settings,
+            &fixtures::worker_agent(),
+            &fixtures::worker_limits(),
+            &fixtures::worker_files(),
+            crate::WorkerRuntime { root: io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+            7,
+        )
+        .unwrap();
+        worker
+            .values
+            .granted(
+                LIST_ACCOUNT,
+                generation,
+                Value { scheme, token: Secret::new(b"list-fixture-key".as_slice().into()) },
+                Time::from_nanos(expires),
+            )
+            .unwrap();
+        worker.route(root::Request::ReadList { read: LIST_READ, endpoint: LIST_ENDPOINT, grant: list_grant(form) });
+        assert_eq!(
+            worker.events.pop(),
+            Some(root::Event::ListRead { read: LIST_READ, outcome: ListOutcome::Failed(ListFailure::Agent) }),
+            "{words:?}"
+        );
+        assert!(worker.io().is_empty(), "an unusable read spawns nothing: {words:?}");
+    }
+}
+
 #[test]
 fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
     let mut service = fixtures::system::one_process().service;

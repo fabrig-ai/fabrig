@@ -2,6 +2,7 @@
 //! Keeps its I/O queues and one Exchange; holds the credential until the request is written.
 //! `Process::new` adopts the supplied faces; `run_decoded` supplies the native kernel.
 
+#[cfg(unix)]
 use std::{io::Write, path::Path};
 
 use skein_io::{
@@ -9,7 +10,7 @@ use skein_io::{
     kernel::{Complete, Exit, Fd, Submit},
 };
 use skein_lib::{
-    Env, List, Queue, Reader, Time, Token, Wall, Writer,
+    Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer,
     stream::{Down, Read, Up},
 };
 use skein_llm_connection::{
@@ -19,6 +20,7 @@ use skein_llm_connection::{
 use skein_shell::Host;
 use smith_channel::{self as wire, CEILINGS};
 
+#[cfg(unix)]
 use crate::config;
 
 /// Select one standalone list read instead of a run.
@@ -63,7 +65,7 @@ fn ask_bound() -> u32 {
     u32::try_from(wire::ListAsk::encoded_bound(&CEILINGS).expect("list ask bound")).expect("ask fits u32")
 }
 
-fn limits() -> io::Limits {
+pub(crate) fn limits() -> io::Limits {
     io::Limits {
         sockets: 5,
         names: 0,
@@ -71,7 +73,12 @@ fn limits() -> io::Limits {
         receive: 8192,
         output: u32::try_from(wire::ListAnswer::encoded_bound(&CEILINGS).expect("answer bound"))
             .expect("answer fits u32"),
-        ..crate::relay::limits()
+        refusals: 1,
+        sends: 1,
+        accepts: 1,
+        backlog: 1,
+        close_timeout: Duration::from_secs(1),
+        retry: Duration::from_millis(10),
     }
 }
 
@@ -83,12 +90,16 @@ pub fn operations() -> u32 {
 
 impl Process {
     /// Resolve startup endpoints without opening a machine, event sink or run.
-    #[expect(
-        clippy::needless_pass_by_value,
-        reason = "startup transfers ownership of these descriptors to the process"
-    )]
+    #[cfg(unix)]
     pub fn new(decoded: config::Decoded, faces: Faces) -> Result<Self, String> {
         let endpoints = decoded.list_endpoints()?;
+        Ok(Self::with_endpoints(endpoints, faces))
+    }
+
+    /// Host a list read with the caller's resolved agent endpoints and descriptors.
+    #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "startup transfers descriptor ownership to the process")]
+    pub fn with_endpoints(endpoints: smith_protocol_llm::Endpoints, faces: Faces) -> Self {
         let mut io = Io::new(&limits());
         let input = io.adopt_read_pipe(faces.stdin).expect("list stdin slot");
         let output = io.adopt_write_pipe(faces.stdout, None).expect("list stdout slot");
@@ -98,7 +109,7 @@ impl Process {
             let error = io.adopt_write_pipe(fd, None).expect("list stderr slot");
             requests.push(Request::Close { entity: error });
         }
-        Ok(Self {
+        Self {
             io,
             endpoints,
             input,
@@ -113,7 +124,7 @@ impl Process {
             submissions: Queue::with_capacity(QUEUE),
             events: Queue::uncapped(),
             requests,
-        })
+        }
     }
 
     fn answer(&mut self, answer: Answer) {
@@ -330,6 +341,7 @@ impl Host for Process {
 }
 
 /// Drive one list invocation with native signals and kernel; startup failures go to stderr.
+#[cfg(unix)]
 pub fn run_decoded(decoded: config::Decoded, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     let result = (|| {
         let signal =
@@ -346,6 +358,7 @@ pub fn run_decoded(decoded: config::Decoded, mut errors: Box<dyn Write>) -> Resu
 }
 
 /// Read the same bounded configuration as a run before reading any ask.
+#[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     match config::read_decoded(path) {
         Ok(decoded) => run_decoded(decoded, errors),
