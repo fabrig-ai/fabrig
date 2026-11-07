@@ -1,7 +1,7 @@
 # hearth-apt-304: retirement
 
 2026-11-07. The recordings part of `hearth/docs/plan/hearth-apt-304/`
-is landed, as reported by `fab status`.
+is landed.
 
 The seven mmdebstrap 1.5.7 / apt 3.0.4 cases contain all 50 supplied
 capture files, byte for byte. Their seven expectations equal apt 3.0.3's
@@ -21,6 +21,4 @@ The supplied change to `temper/docs/design/STATUS.md` indexes a TUI draft
 and is unrelated to this plan. It needs no retirement edit here. No design
 contradiction was found in the recording contract.
 
-Retirement validation: `fab status hearth/docs/plan/hearth-apt-304` passes
-and reports `recordings` landed. No build, test or heavy command runs during
-retirement. The checks above are file comparisons, not decoder test runs.
+The checks above are file comparisons, not decoder test runs.
