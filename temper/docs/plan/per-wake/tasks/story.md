@@ -113,3 +113,12 @@ The ownership rule says: “A row that fails for a reason in jig's code, not the
 The story run must not repair `jig/crates/jig-domain-core/src/routing/task/save.rs` or `jig/crates/jig-domain-core/src/routing/run/preparation.rs`.
 After fab integrates the separate repair, resume the story run for row 6 and all remaining acceptance checks.
 The pushed story is not accepted as done: its report explicitly says acceptance remains blocked.
+
+### 2026-11-07: Row 6 still loses its preparation; integrate the separately assigned jig-domain-core repair and rerun (recommended), or keep this story pending until that repair is ready? (per-wake/story-3, foreman per-wake/story/foreman-3)
+
+Keep the story pending until fab integrates the separately assigned jig-domain-core repair, then rerun and complete acceptance.
+The existing Answer settles this: “Keep the story pending until the separately assigned jig-domain-core repair is integrated, then rerun and complete acceptance.”
+The ownership rule says: “A row that fails for a reason in jig's code, not the story, is not yours to fix.”
+The story run must not repair `jig/crates/jig-domain-core/src/routing/task/save.rs` or `jig/crates/jig-domain-core/src/routing/run/preparation.rs`.
+After fab integrates the repair, resume the story run for row 6’s restart oracle and all remaining acceptance checks.
+The pushed story is not accepted as done: its report explicitly says “Acceptance remains blocked.”
