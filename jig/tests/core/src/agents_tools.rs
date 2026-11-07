@@ -1,5 +1,5 @@
 //! Named tool stories share restart cuts around their own commits.
-use crate::world::{Cut, World};
+use crate::world::{Cut, Setup, World};
 use jig_domain_core as core;
 use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_tasks as tasks;
@@ -11,16 +11,20 @@ const CHANNEL: u64 = 7;
 
 pub struct Story {
     pub name: &'static str,
+    pub setup: fn(u64) -> World,
     pub run: fn(&mut World, Option<Cut>) -> u64,
 }
 pub const STORIES: &[Story] = &[
-    Story { name: "amend done", run: amend_done },
-    Story { name: "amend moved", run: amend_moved },
-    Story { name: "release moved", run: release_moved },
-    Story { name: "held notice", run: held_notice },
-    Story { name: "delegate given", run: delegate_given },
-    Story { name: "withdraw decided", run: withdraw_decided },
+    Story { name: "amend done", setup: world, run: amend_done },
+    Story { name: "amend moved", setup: world, run: amend_moved },
+    Story { name: "release moved", setup: world, run: release_moved },
+    Story { name: "held notice", setup: crate::fixtures::notices_world, run: held_notice },
+    Story { name: "delegate given", setup: world, run: delegate_given },
+    Story { name: "withdraw decided", setup: world, run: withdraw_decided },
 ];
+fn world(seed: u64) -> World {
+    World::new(Setup { seed, ..Setup::default() })
+}
 fn amend_done(world: &mut World, cut: Option<Cut>) -> u64 {
     amend(world, cut, false)
 }
@@ -135,7 +139,6 @@ fn release_moved(world: &mut World, cut: Option<Cut>) -> u64 {
 }
 
 fn held_notice(world: &mut World, cut: Option<Cut>) -> u64 {
-    *world = crate::fixtures::notices_world(190);
     world.hold_procedures = true;
     world.delegate();
     let input = format!(r#"{{"kind":"task","target":{CHILD},"held":true}}"#);

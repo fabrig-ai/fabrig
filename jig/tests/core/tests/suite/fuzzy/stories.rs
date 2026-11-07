@@ -257,10 +257,10 @@ fn random_policy_changes_leave_a_committed_flight_whole_and_recheck_waiting_prop
 fn each_commit_cut_of_an_agents_tool_story_answers_its_call_once() {
     use jig_core_world::world::Cut;
     for story in jig_core_world::agents_tools::STORIES {
-        let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
+        let commits = (story.run)(&mut (story.setup)(190), None);
         for at in 1..=commits {
             for cut in [Cut::Submitted(at), Cut::Durable(at)] {
-                let mut world = World::new(Setup { seed: 190, ..Setup::default() });
+                let mut world = (story.setup)(190);
                 (story.run)(&mut world, Some(cut));
                 assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", story.name);
             }
