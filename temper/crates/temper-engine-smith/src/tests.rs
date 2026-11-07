@@ -697,17 +697,48 @@ const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":
 
 #[test]
 fn a_delegate_deadline_in_seconds_is_a_span() {
-    for (field, expected) in [
-        ("", tasks::Deadline::Named),
-        (r#", "deadline_seconds":14400"#, tasks::Deadline::Span(Duration::from_secs(14_400))),
+    const PERSON_MEMBER: &str = r#""executor":{"kind":"person","person":1},"spec":{"words":"Which colour?"},"contract":{"kind":"report","words":4096},"authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":0},"notes":0}"#;
+    for (member, field, deadline, executor, tools, spend, words) in [
+        (DELEGATE_MEMBER, "", tasks::Deadline::Named, tasks::Executor::Agent { charter: 1 }, 1, 40, 128),
+        (
+            DELEGATE_MEMBER,
+            r#", "deadline_seconds":14400"#,
+            tasks::Deadline::Span(Duration::from_secs(14_400)),
+            tasks::Executor::Agent { charter: 1 },
+            1,
+            40,
+            128,
+        ),
+        (
+            PERSON_MEMBER,
+            "",
+            tasks::Deadline::Named,
+            tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+            0,
+            0,
+            4096,
+        ),
     ] {
-        let input = format!("{{\"batch\":[{{{DELEGATE_MEMBER}{field}}}]}}");
+        let input = format!("{{\"batch\":[{{{member}{field}}}]}}");
         let engine::Tool::Delegate { batch } = decided(b"delegate", input.as_bytes()).expect("delegate deadline").tool
         else {
             panic!("delegate tool")
         };
-        assert_eq!(batch[0].deadline, expected);
-        assert_eq!(batch[0].authority.budget.deadline, None);
+        assert_eq!(batch[0].deadline, deadline);
+        assert_eq!(batch[0].executor, executor);
+        assert_eq!(batch[0].contract, tasks::Contract::Report { words });
+        assert_eq!(
+            batch[0].authority,
+            tasks::Authority {
+                tools: tasks::Tools(tools),
+                models: tasks::Models::NONE,
+                grants: Box::new([]),
+                delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+                budget: tasks::Budget { spend, deadline: None },
+                notes: tasks::Scopes(0),
+                note_resources: Box::new([]),
+            }
+        );
     }
 }
 
@@ -2413,12 +2444,12 @@ fn a_refused_message_says_where_its_requester_is() {
         (
             vec![Finding::Reference],
             b"message".as_slice(),
-            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.",
         ),
         (
             vec![Finding::Reference, Finding::Tool, Finding::Tool],
             b"message".as_slice(),
-            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.",
         ),
         (vec![Finding::Reference], b"read_task".as_slice(), "Authority refused: task reference"),
     ] {
