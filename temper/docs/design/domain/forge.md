@@ -2253,7 +2253,11 @@ merge, kind 4, on a pattern of landing branches (jig's
   for them: temper's own default has none (`../README.md`, section 2).
 - **The panel's approval evidence** is the last judged review set per
   change, kept only in the forge domain's working set, bounded like
-  `change_due` and removed when the change ends. Both procedure and
+  `change_due`, with when it was first kept at its head, and removed when
+  the change's merge is admitted or the change ends: a review that counts
+  takes the change from Needs you (8.12) as its merge goes, not when it
+  lands, and until a merge refused or failed is judged again its panel
+  says reviews not read yet. Both procedure and
   landing merge waits supply its head, whether the read is complete,
   the verified reviewers and the reviews from unmapped forge accounts.
   No row, event or restore carries it. The panel selects requirements
@@ -2691,6 +2695,80 @@ early, by these rules:
   cancels the change and makes it again instead. One that fails or is
   cancelled holds the change, as any failed dependency does (jig's
   `domain/tasks.md`, 5.5).
+
+### 8.12 Waiting on a person's approval
+
+A change whose merge waits on a person's approval on the forge (8.7,
+requirement 4) shows under Needs you to whoever's review it waits on, with
+its link (`../client/forge.md`, 4.1). It is a read, neither a task nor a
+hold (`../draft/forge-identity.md`, section 8): a person task would ask for
+an authority widened down the tree, to agents too, couldn't be opened by a
+change made before its rule, and would need a stored number, a delegate slot
+and a task per head; a hold escalates to the goal above first, wakes an
+agent to no purpose and offers a Release that does nothing here. The read
+leaves the landing branch held by the change first in line (section 9),
+which is what a person's approval asks of it.
+
+- **The subject `approvals`:** one number, `APPROVALS_SUBJECT`, `(1 << 62) |
+  (1 << 37)`, outside the task numbers as `TRIALS_SUBJECT` is (`trial.md`,
+  section 6), of the party's own scope. The root makes its document, since
+  roles and eligibility live with the people and the forge holds none: the
+  core's ask names the watcher's party, and the root answers that party's
+  rows. The party's own scope skips jig's project check (jig's
+  `client/domain/contract.md`, 7.5), so the root filters every row by the
+  watcher's role itself. One subject serves the deployment, as `dismissed`
+  does (5.5). It stores nothing.
+- **The forge's part:** each live change, in a project that lands by queue or
+  by turn, in state `First` or `Landing`, with a pull request, whose review
+  facts (8.7) are at its last head, with an approval of an enforcing rule
+  covering its landing branch still short and none refused, each judged as its
+  panel judges them (8.8). Of each: its task, project and forge; its
+  repository's owner and name; its pull request's number; its title; when its
+  facts at that head were first kept; whether its reviews were read whole;
+  how many changes wait behind it in its landing branch's order (section 9),
+  counted as its panel counts those ahead (8.8); and its short approvals, each
+  its scope, rule, role, required count and the people counted. Reviews read
+  in part make a row as a whole read does. A change with no facts at its last
+  head has none: one not yet judged at its merge, one that left the queue or
+  was held, and every change after a restart until its next step judges its
+  merge again.
+- **The root's part:** of those, the changes in a project where the watcher
+  holds a role. The row's approval is the first short one whose role is the
+  watcher's, else, for an owner of the project, the first short one; a
+  watcher of another role has no row, nor has one already counted for that
+  approval at the head. The row says whether the watcher's review would
+  count, the first that holds of:
+  - *too few:* fewer of the project's members count as people on the change's
+    forge with the approval's role than it asks for (`eligible_people`, 8.9),
+    as when later membership changes, or a repository adopted from a forge
+    with no link (4.6), leave a rule that can't be met;
+  - *no account:* the watcher doesn't count as a person on that forge
+    (`forge_human`, section 4);
+  - *another role:* the approval's role isn't the watcher's, as for an owner
+    seeing a wait whose review isn't theirs to give;
+  - otherwise *counts*.
+
+  It names, too, the goal the change was made under, the outermost goal
+  above its task, if any, for that goal's page to show it.
+- **Its rows,** oldest first by when their facts were first kept, then by
+  task: at most 32, and as many as one whole delivery holds at the largest
+  row, as the trials' are bounded (`trial.md`, section 6); `more` counts the
+  rows past them.
+- **Marked** wherever `changes` is (`changes_mark`), and when a change's
+  review facts are kept anew or dropped (8.7). A role or a link that changes
+  shows at the next mark.
+- **The client** merges the rows with jig's inbox and draws each as a card
+  (`../client/README.md`, 3.5 and 4.6; `../client/forge.md`, 4.1).
+- **What a proposal says of such a rule:** the forge's read of a pending
+  proposal's items (`../protocol/configuration.md`, 13.2, *Read from the
+  forge*) answers too whether one of its landing rules has an enforcing
+  approval covering a writable repository on an owned Forgejo, a box's
+  (`../protocol/setup.md`, 7.1), the root judging the coverage as it does for
+  eligibility (8.9). There agents and CI jobs run as the box's user, who can
+  read the person's write credential (`../protocol/setup.md`, section 15), so
+  such a rule stops their mistakes, not one trying to get past it, and the
+  client says so (`../client/README.md`, 5.13; `../draft/forge-identity.md`,
+  section 6).
 
 ## 9. Landing queues
 
@@ -3364,11 +3442,6 @@ whole.
 
 ## 20. Open questions
 
-- **An approval under Needs you** (`../draft/forge-identity.md`, section 8):
-  the watchable approval read, its viewer's eligibility, the review link
-  and the client's card are separate work. Default: an approval waits at
-  the merge, with review evidence on the change's panel; evidence stays
-  until the change ends, rather than leaving at merge admission.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a

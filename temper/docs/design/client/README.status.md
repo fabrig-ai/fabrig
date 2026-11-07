@@ -350,6 +350,12 @@ checks remain section 11's deferred work, with no outcome supplied here.
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 3.5, *An approval*, *The rail's count* and *The approvals*, 4.6's subject `approvals`
+  and `owned_approval`, 5.8's approval band: the wire has no `approvals` watch or document, the
+  client merges no row of it into *Needs you*, Home, a goal's bands, the rail's count or the
+  banner's, and Later knows none.
+- **Not yet:** 5.13, *What a rule on a box holds against*: a proposal's card says nothing of what a
+  landing rule on an owned Forgejo holds against.
 - **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
   Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
   tests draw those states; `home-try-stopped` draws Home's failed line.
