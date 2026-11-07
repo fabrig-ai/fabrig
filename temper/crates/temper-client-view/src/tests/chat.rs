@@ -479,6 +479,7 @@ fn the_end_goes_when_the_turn_commits() {
             used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
             spent: 0,
             read_through: None,
+            llm: None,
             cut: false,
         }),
     ))
@@ -1007,6 +1008,7 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
         used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut,
     };
     let mut rows = List::with_capacity(1);
@@ -1413,6 +1415,7 @@ pub(super) fn structured_thread() -> Thread {
                     used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
                     spent: 0,
                     read_through: None,
+                    llm: None,
                     cut: false,
                 }),
             ),
@@ -2949,6 +2952,9 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
+                if configuring {
+                    assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
+                }
             }
         }
     }
@@ -3073,13 +3079,13 @@ fn goals_navigation_shows_when_the_setting_is_on() {
     goals_navigation(&root, true);
 }
 #[test]
-fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
+fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
     let (mut root, me, _) = fixtures::root_at(
         temper_client_domain::Address::Home { project: fixtures::PROJECT },
         &fixtures::domain_limits(),
     );
     super::rail::with_goal_fact(&mut root, me, Some(true));
-    goals_navigation(&root, false);
+    goals_navigation(&root, true);
 }
 
 #[test]
@@ -3511,6 +3517,163 @@ fn the_head_says_when_an_earlier_read_is_out() {
     let nodes = view.tree().nodes();
     let inner = styled(view.tree(), crate::look::THREAD_INNER);
     assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
+}
+
+pub(super) fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort {
+    c::ModelEffort {
+        model: fixtures::first_run::text(model.as_bytes()),
+        effort: match effort {
+            Some(effort) => Some(fixtures::first_run::text(effort.as_bytes())),
+            None => None,
+        },
+    }
+}
+pub(super) fn model_choice(model: &str, effort: Option<&str>) -> c::LlmChoice {
+    c::LlmChoice { account: None, main: model_effort(model, effort), subagents: List::with_capacity(0) }
+}
+pub(super) fn model_line_page(latest: Option<c::ModelEffort>) -> c::ActivityPage {
+    let mut row = crate::tests::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1, proposal: None });
+    if let Some(llm) = latest {
+        row.source.line = c::Activity::Turn { reply: 1, attempt: ATTEMPT, turn: TURN, read: None };
+        row.decoded = Some(c::ArchivedTurn {
+            task: TASK,
+            name: c::TurnName { attempt: ATTEMPT, number: TURN },
+            cumulative: 0,
+            read: None,
+            at: Wall::EPOCH,
+            turn: c::TurnRead::Decoded(c::Turn {
+                messages: List::with_capacity(0),
+                used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+                spent: 0,
+                read_through: None,
+                cut: false,
+                llm: Some(llm),
+            }),
+        });
+    }
+    c::ActivityPage { rows: List::from_boxed(Box::new([row])), before: None, after: None, cut: false }
+}
+pub(super) fn model_line_root(
+    task: c::Task,
+    latest: Option<c::ModelEffort>,
+    preview: Option<u32>,
+) -> temper_client_domain::Domain {
+    let (mut root, me_watch, watch, _, _) = fixtures::root_at_with_activity(
+        temper_client_domain::Address::Chat { task: TASK },
+        &fixtures::domain_limits(),
+        b"Shop",
+        None,
+        Some(model_line_page(latest)),
+        None,
+    );
+    let (source, _) = super::choice::provider_byline_root(
+        temper_client_domain::Address::NewChat { draft: false },
+        [c::Readiness::Usable; 2],
+        [true; 2],
+        true,
+    );
+    let mut me = fixtures::configuring_me(source.pages().me(source.client()).unwrap().clone());
+    let project = me.projects.get_mut(0).unwrap();
+    project.models = List::with_capacity(2);
+    for (raw, shown, provider) in [("gpt-6-astra", "GPT-6 Astra", 17), ("claude-opus-5-5", "Opus 5.5", 18)] {
+        let mut model = super::choice::line_models(true).get(0).unwrap().clone();
+        model.name = fixtures::first_run::text(raw.as_bytes());
+        model.shown = Some(fixtures::first_run::text(shown.as_bytes()));
+        model.effort = Some(fixtures::first_run::text(b"high"));
+        model.provider = Some(provider);
+        project.models.push(model).unwrap();
+    }
+    project.defaults = List::with_capacity(2);
+    if let Some(template) = preview {
+        project.defaults.push(c::MeDefault { template, choice: model_choice("gpt-6-astra", None) }).unwrap();
+        if template != 1 {
+            project
+                .defaults
+                .push(c::MeDefault { template: 1, choice: model_choice("wrong-chat-preview", None) })
+                .unwrap();
+        }
+    }
+    fixtures::deliver_me(&mut root, me_watch, me);
+    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
+    root
+}
+
+#[test]
+fn a_closed_chat_says_what_it_ran_on() {
+    use crate::look;
+    for (latest, own, preview, charter, caught_up, closed, expected) in [
+        (
+            Some(model_effort("gpt-6-astra", Some("low"))),
+            Some(model_choice("different-next-run", Some("high"))),
+            None,
+            1,
+            true,
+            true,
+            Some("T9 · GPT-6 Astra · low"),
+        ),
+        (Some(model_effort("gpt-6-astra", None)), None, None, 1, true, true, Some("T9 · GPT-6 Astra")),
+        (
+            Some(model_effort("claude-opus-5-5", Some("high"))),
+            None,
+            None,
+            1,
+            true,
+            true,
+            Some("T9 · Claude Opus 5.5 · high"),
+        ),
+        (
+            Some(model_effort("unoffered-model", Some("medium"))),
+            None,
+            None,
+            1,
+            true,
+            true,
+            Some("T9 · unoffered-model · medium"),
+        ),
+        (None, Some(model_choice("gpt-6-astra", None)), None, 1, true, true, Some("T9 · GPT-6 Astra · high")),
+        (None, None, Some(1), 1, true, true, Some("T9 · GPT-6 Astra · high")),
+        (None, None, Some(3), 37, true, true, Some("T9 · GPT-6 Astra · high")),
+        (None, None, None, 37, true, true, Some("T9 · Using the default model")),
+        (None, None, Some(1), 37, true, true, Some("T9 · Using the default model")),
+        (Some(model_effort("gpt-6-astra", Some("low"))), None, Some(1), 1, false, true, None),
+        (Some(model_effort("gpt-6-astra", Some("low"))), None, Some(1), 1, true, false, None),
+    ] {
+        let mut task = configuring_task();
+        task.chip.executor = c::ChipExecutor::Agent { charter };
+        task.activity = if caught_up { 1 } else { 2 };
+        task.llm = own;
+        if !closed {
+            task.acts = List::with_capacity(2);
+            for act in [c::ActKind::Message, c::ActKind::Amend] {
+                task.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
+            }
+        }
+        if closed {
+            task.result = Some(c::TaskResult::Ending(Box::new(cancelled_by(task.requester))));
+        }
+        let root = model_line_root(task, latest, preview);
+        assert_eq!(root.pages().chat().unwrap().thread.caught_up(), caught_up);
+        for (view, browser) in [(fixtures::browser_page_view(&root), true), (fixtures::page_view(&root), false)] {
+            let tree = view.tree();
+            let bar = subtree(tree, styled(tree, look::SESSION_TOP));
+            let byline = style_position(bar, look::BYLINE);
+            let expected = expected.or(if browser { Some("T9") } else { None });
+            assert_eq!(byline.is_some(), expected.is_some());
+            if let Some(expected) = expected {
+                let node = &bar[byline.unwrap()];
+                assert_eq!(node.role, Role::Paragraph);
+                assert_eq!(node.name.as_deref(), Some(expected.as_bytes()));
+                let at = styled(tree, look::BYLINE);
+                assert_eq!(fixtures::node_text(tree, at).as_ref(), expected.as_bytes());
+            }
+            if closed {
+                assert!(fixtures::find(tree, Role::Disclosure, b"Model").is_none());
+                assert!(style_position(tree.nodes(), look::ACCOUNT_LINE).is_none());
+            } else {
+                assert!(fixtures::find(tree, Role::Disclosure, b"Model").is_some());
+            }
+        }
+    }
 }
 
 #[test]

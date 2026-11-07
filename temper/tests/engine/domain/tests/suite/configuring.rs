@@ -23,7 +23,7 @@ fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
         held: None,
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: user.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, user),
             login: login.into(),
             name: b"Private display name".as_slice().into(),
         },
@@ -41,10 +41,7 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
     };
     config.core.seed_projects = config.core.seed_projects.into_vec().into_iter().chain([other]).collect();
     let mut owners = config.core.owners.into_vec();
-    owners.push(people::InitialOwner {
-        project: 2,
-        identity: people::IdentityKey { provider: 0, subject: 9_u64.to_be_bytes().into() },
-    });
+    owners.push(people::InitialOwner { project: 2, identity: temper_engine_domain_forge::user_key(1, 9_u64) });
     config.core.owners = owners.into();
     config.forges[0].mode = mode;
     let place = forge::Place {
@@ -294,7 +291,7 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
     );
     let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
     assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
-    assert!(inventory.contains("person 3: role 1, forge user 2"), "{inventory}");
+    assert!(inventory.contains("person 3: role 1, forge forge.example:3847 user 2"), "{inventory}");
     refuse_owner_approval(world, &run, proposal, 25);
     world.decide(
         &run,
@@ -323,7 +320,7 @@ fn an_inventory_names_its_own_projects_people() {
     let (people, _) = people.split_once("models you can offer:").expect("offer follows people");
     assert_eq!(
         people,
-        "  person 1 person: role 0, requester, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
+        "  person 1 person: role 0, requester, forge forge.example:3847 user 7\n  person 4 member: role 2, forge forge.example:3847 user 8\n  person 5 temper-writer: role 2, forge forge.example:3847 user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge forge.example:3847 user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
         "{inventory}"
     );
     for forbidden in ["elsewhere", "deployment-service", "Private display name", "Person", "@"] {
@@ -564,8 +561,8 @@ fn a_members_chat_reads_the_same_people() {
     let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
     let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
     let (_, member) = member.split_once("project people:\n").expect("member's people block");
-    assert!(owner.contains("person 1 person: role 0, requester, forge user 7"), "{owner}");
-    assert!(member.contains("person 4 member: role 2, requester, forge user 8"), "{member}");
+    assert!(owner.contains("person 1 person: role 0, requester, forge forge.example:3847 user 7"), "{owner}");
+    assert!(member.contains("person 4 member: role 2, requester, forge forge.example:3847 user 8"), "{member}");
     assert_eq!(owner.replace(", requester", ""), member.replace(", requester", ""));
 }
 
@@ -771,7 +768,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     let mut world = World::stock();
     let run = world.chat(CONFIGURING, world.owner, 20);
     for (completion, kind, value) in [
-        (1, "project-ways", r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
     ] {
         let input = json!({"setting":{"kind":kind,"project":PROJECT}});

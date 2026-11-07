@@ -215,8 +215,7 @@ fn eligible_people(domain: &Domain, project: u32, role: u32) -> u32 {
     let mut count = 0_u32;
     let Some(members) = domain.core.people.project_members(project) else { return count };
     for member in members {
-        let Some(identity) = domain.core.people.identity(member.person) else { continue };
-        if member.role.number() == role && super::forge_route::human_forge_identity(domain, project, &identity.key) {
+        if member.role.number() == role && super::forge_route::human_forge_identity(domain, project, member.person) {
             count = count.saturating_add(1);
         }
     }

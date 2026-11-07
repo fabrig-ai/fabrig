@@ -728,8 +728,8 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
   scans cut anywhere, so a character may span two of them; the check
   runs in the same pass that undoes escapes and counts the limit, a plain
   run (3.4) at once and every other byte through the state machine, and
-  needs no exemption from the subset. The writer checks its text with the
-  same code.
+  needs no exemption from the subset. The writer's measuring pass checks
+  its text with the same code; its writing pass checks no string's text (4).
 - **A plain run costs no call per byte.** Test builds stay unoptimized
   (testing-strategy.md, 8), so a call per byte costs what it costs, and
   every tree's worlds read and write their strings here. A run is found by
@@ -762,6 +762,9 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
 
 ## 8. Open questions
 
+- **Other JSON string paths.** Borrowed JSON spelling (4) keeps the
+  per-byte state machine. Further cost work on that path,
+  `skein_llm::wire::json` and each tree's application decoders is deferred.
 - **Decoding by hand** into an application's types is verbose without
   serde or traits. If that hurts, the candidate is codec.md's generator,
   writing JSON codecs from schemas the way it writes binary ones, its

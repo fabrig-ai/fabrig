@@ -2,9 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). A goal with a confirmed goal
-branch and a modifying charter delivers to its own run branch and lands
-through a change into g; later runs merge r into g's tip before delivering
+milestone stands in the code (`README.md`). Fresh box documents admit four
+agents with four workspaces and git operations; their agent-process memory
+on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
+box wait uses the deployment's `owned` read, and failed settings reads
+name the kind and missing member (`client/README.md`, `domain/agent.md`).
+A goal with a confirmed goal branch and a modifying charter delivers to
+its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
 again. The domain, checkout and real-loop stories use scripted models and
 fake forge/git; stock and reference workflow words, larger calls and
 reports, and a saved start overtaken by a repair remain separate work

@@ -920,9 +920,11 @@ and waits in the Needs you of each project it belongs to (jig's
   This lets a configuring chat name documents without a workspace or ctl.
   The same inventory names the caller project's people, one line each:
   its number, its login where temper holds one, its role's number, its
-  forge user's id where its identity is the forge's, and marks for the
-  task requester and for temper's own forge writer, who never counts as
-  a person. An absent forge identity is explicit and cannot count for
+  account on each forge of the project's repositories, by the host their
+  lines use, that forge's user's id or unknown (`forge.md`, section 4), and
+  marks for the task requester and for temper's own forge writer, who never
+  counts as a person. Someone known on none of them is said so once: an
+  absent forge identity is explicit and cannot count for
   approvals. Services are left out. It then names each configured owned-forge
   account (`../protocol/setup.md`, section 8), whose login alone verifies
   no project membership. The requester, a known forge identity and that
@@ -1373,6 +1375,11 @@ host:
   be jig's, a new executor kind. And `shapes::set_agreed_goal_from`, were it
   sent, would owe a question no person task answers. Default: the role, the
   charter's words, and that shape unsent.
+
+- **Proposal-form diagnostics** (8.1): `settings` reads name the kind
+  and its missing member; `propose_settings` keeps the shared settings-file
+  parser's errors. Default: those words, until a proposal needs the same
+  kind-specific guidance. Both tools' schemas name the numbered kinds.
 
 - **A real model revising a proposal** (8.1; the request `ui-proposal-2`
   of 2026-11-06): after landing, check that a request from "Change

@@ -44,7 +44,11 @@ fn contains(hay: &[u8], needle: &[u8]) -> bool {
     }
 }
 fn text(node: &Node) -> Vec<u8> {
-    node.text.as_slice().iter().flat_map(|run| run.text.iter().copied()).collect()
+    let mut bytes = Vec::new();
+    for run in node.text.as_slice() {
+        bytes.extend_from_slice(&run.text);
+    }
+    bytes
 }
 fn exactly_named(nodes: &[Node], index: usize, role: skein_ui::Role, name: &[u8]) -> bool {
     let node = &nodes[index];

@@ -2114,7 +2114,7 @@ impl Front<Temper> for Joint {
             who,
             party,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },
@@ -2128,7 +2128,7 @@ impl Front<Temper> for Joint {
         self.component.sign_in(
             who,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },
@@ -2279,7 +2279,7 @@ impl Front<Temper> for Joint {
         self.component.sign_in(
             who,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },

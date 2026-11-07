@@ -7,12 +7,12 @@ use skein_fake_oauth as fake;
 use skein_io as io;
 use skein_lib::{Env, Queue, Token, bytes};
 use skein_oauth_accounts as accounts;
-use skein_world::stream::Wire;
+use skein_world::stream::{Trace, Wire};
 use std::net::Ipv4Addr;
 
 /// The same owner runs directly over seeded protocol streams and fake issuer.
 #[must_use]
-pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
+pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Trace) {
     // These owners' scripts run only in the simulated world (`run`).
     assert!(
         !matches!(
@@ -240,7 +240,7 @@ impl Callbacks {
         assert!(self.callback.replace(identity).is_none());
         super::owner_mut(client).callback = super::paste::Callback::Accepted;
     }
-    pub(crate) fn close(&mut self, client: &mut Client, entity: Token, trace: &mut Vec<String>) -> Token {
+    pub(crate) fn close(&mut self, client: &mut Client, entity: Token, trace: &mut Trace) -> Token {
         let story = self.story;
         if let Some(at) = self.listeners.iter().position(|(_, token, _)| *token == entity) {
             self.listeners.remove(at).0
