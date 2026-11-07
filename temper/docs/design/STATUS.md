@@ -423,7 +423,12 @@ refuses `again` on a real journey, and the refusal's process tests watch two
 directories, not every path; no run on record has `again` walk `project-landing`'s
 setup through a sign-in's new tab, and its words still say the page returns
 (`client/journeys.md`). Conversations are read by their log's edges
-(`client/README.md`, 5.15); in the terminal PgUp and PgDn are lines followed
+(`client/README.md`, 5.15). A browser's agent page, including a goal's
+untracked page, scrolls its log with the brief through plan inside it;
+focused stylesheet and view tables hold that shape. The keys and layout
+rewalk follows landing, including opening at the end; a PgUp at the head
+while earlier lines load is not queued (`client/README.md`, 5.9 and 11).
+In the terminal PgUp and PgDn are lines followed
 by Enter and a chat opens on one page, `lines` stays for jig's reference UI and
 tools, past what temper's bytes hold, and sending on an agent's page leaves the view
 where it is. The browser tier runs Chromium alone, with

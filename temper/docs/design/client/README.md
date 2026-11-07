@@ -5094,8 +5094,9 @@ acts on it as its document offers (5.11).
   on the lineage bar (a node
   carries two tokens at most, and its main has MAIN and AGENT_PAGE),
   AGENT_BRIEF on the brief, AGENT_RUN on the run's heading and its
-  start, AGENT_RESULT on its result. `task-pages.css` draws them as the
-  mockup's
+  start, AGENT_RESULT on its result, and AGENT_FOOT on the keyed slot
+  holding the acts' outcome, result and plan after the lines. `task-pages.css`
+  draws them as the mockup's
   `.agent-lineage`, `.agent-brief`, `.agent-run-heading`,
   `.agent-run-meta` and `.agent-result` (`browser.md`, 2.5).
 
@@ -5831,11 +5832,13 @@ measures it (skein's `ui-web.md`, section 7).
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
   rewritten, and the page part can keep the words where they are.
-- **The log's head holds nothing that stays while lines arrive below it,** but
+- **A chat's log head holds nothing that stays while lines arrive below it,** but
   the status below: the page part holds the first entry in view. So the context
   line (5.6) draws once the window holds the chat's start, and a day's label is
   keyed by its date and the first line under it, so that a page of the same day
-  read in above replaces it.
+  read in above replaces it. An agent's task's log keeps its brief, run heading
+  and own held card before its lines (5.9); their effect on reaching earlier
+  lines is section 11's *An agent's page opening at its end*.
 - **While a read is out** the log is *busy*, and so it stays after a failure,
   which the page part then leaves alone until the person moves. At the head:
   "Loading earlier messages…" while an earlier page is out, "Couldn't load
@@ -6793,6 +6796,23 @@ own tests:
   brief, the view kept. Default: so, until temper/qa's walk after landing
   says otherwise. Otherwise the card moves to the log's foot, or the brief
   draws only once the window reaches the start, as a chat's context does.
+
+- **The agent-page keys after landing** (5.9, 5.15; the request
+  `ui-agent-keys`): temper/qa reads back from Message with PgUp and PgDn
+  on an agent's page and a goal's untracked page, while text streams and
+  after the turn ends, wide and at 420 px. The check includes a screen per
+  press, focus kept in Message, the kept place as words arrive, Latest,
+  long briefs and results, the plan and held cards, and opening the amendment's
+  editor in a short window. Default: the focused stylesheet and view-order
+  tables; no new browser story. The keys and layout are checked after landing.
+
+- **A PgUp while earlier lines are being read** (5.15; the request
+  `ui-agent-keys`): at the log's head a press has no room to move and is
+  not kept for the arriving lines. Reads chain from the log's measures,
+  not the presses. Default: no queued press. Keeping a bounded page request
+  and replaying it after the view is restored is a candidate in skein's page
+  part; it needs per-log state and a bound on repeated presses, and does not
+  itself shorten the read's wait.
 
 - **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
