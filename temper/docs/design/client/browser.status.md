@@ -70,6 +70,8 @@ keeps it; publication is not a cutoff on a handed change's commit.
   where the request says only with a queue: the plan's `public-page`
   contract asks for either, and records no reason for widening that rule.
 
+- **Not yet:** 2.5, *A chat's terminal* (look-round-16): its rules, tokens and
+  fonts; 7.2: the `chat-terminal-*` states. `terminal-close` deletes this entry.
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
