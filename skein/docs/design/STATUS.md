@@ -35,7 +35,9 @@ built; later pages and sharing the exchange shape remain deferred
 styles in the worlds; a merge update already holding its base and a
 rebase overtaking a later push still lack real-Forgejo conformance
 (`forge-client.md`, `forge.md`). The viewport story awaits its runtime
-check after landing (`browser.md`).
+check after landing (`browser.md`). The kit reads a toggle's pressed
+state, and its harness awaits that state by a named target within the
+step's bound (`browser.md`, section 5; `ui-web.md`, 14.2).
 Markdown flows have their own owner, bounded reader and deterministic
 layout; scenes may state their height and the web puts that SVG in its
 figure's flow. The case scenes and text fallback are held by host tests

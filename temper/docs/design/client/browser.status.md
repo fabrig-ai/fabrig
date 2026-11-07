@@ -2,6 +2,15 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Section 4.6's history story awaits Closed pressed after reload and All
+pressed after Back by exact button name, each within `WITHIN`, retaining
+the address, visibility, focus and call-line checks. No implementation
+gap remains in those reads. The client takes its filter from the address;
+Drafts arriving before Closed is section 5's deferred row movement, not
+a loss of the selected filter. The runtime and whole-tier budget gaps
+below remain; the supplied evidence contains no browser-run results for
+this repair.
+
 Sections 2.5 and 7.2 have the Models tab's shipped view and gallery states.
 Every Settings select has the chevron rule above its scoped backgrounds
 and padding. Models' add row does not wrap, its field's label stays
