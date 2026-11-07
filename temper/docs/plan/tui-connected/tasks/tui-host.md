@@ -192,3 +192,17 @@ As the implementer's text says, and: what `Duty::Show` met in the rows,
 the sign-in exchanges' bound, the tests' time, and anything of the seam
 you found M3's recording would need and the contract lacks (named, not
 added).
+
+## Answers
+
+### 2026-11-07: Finish screen-render's missing `render` export and resume, or widen this task to implement it? (tui-connected/tui-host-1)
+
+Resume; the scope is not widened. `screen-render` has since pushed its
+renderer: `origin/tui-connected/screen-render` at `66473e90e2` exports
+`pub use render::render;` from `skein/crates/skein-ui-screen/src/lib.rs`.
+Merge that branch into yours (`git merge --no-edit
+origin/tui-connected/screen-render`), keep `8df8e570ee`'s work, and finish
+acceptance: clippy, the rows of Steps 3 and their bites. If `render`'s
+signature differs from `notes/contracts.md`, section 2, call it as
+`screen-render` built it and name the difference in the report; a defect in
+the renderer is reported under `## Left`, not repaired here.
