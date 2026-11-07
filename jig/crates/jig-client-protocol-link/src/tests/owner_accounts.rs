@@ -529,15 +529,45 @@ fn wire_deployment_account(facts: List<w::AccountFact>) -> w::Account {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "unit-test tables use ordinary Rust result projections")]
 fn account_fact_values_reach_both_client_rows() {
     let limits = fixtures::limits();
     let line = jig_client_test_records::account_line_record();
     let deployment = wire_deployment_account(jig_client_test_records::account_fact_records());
-    let mut room = u64::MAX;
-    let line = crate::translate::documents::account_line(&line, &limits, &mut room).unwrap();
-    let account = crate::translate::documents::account_fields(&deployment, &limits, &mut room).unwrap();
-    assert_eq!(line.facts, fact_rows());
-    assert_eq!(account.facts, fact_rows());
+    // Each row pays for its fact records, all labels and every text value.
+    let facts = fact_rows();
+    let mut fact_bytes = List::<c::AccountFact>::price(facts.len()).unwrap();
+    for fact in &facts {
+        fact_bytes = fact_bytes.checked_add(len_u64(fact.label.len())).unwrap();
+        if let c::AccountFactValue::Text(text) = &fact.value {
+            fact_bytes = fact_bytes.checked_add(len_u64(text.len())).unwrap();
+        }
+    }
+    let line_bytes = fact_bytes
+        .checked_add(List::<c::AccountUse>::price(2).unwrap())
+        .unwrap()
+        .checked_add(len_u64(b"Personal".len()))
+        .unwrap()
+        .checked_add(List::<c::AccountSource>::price(2).unwrap())
+        .unwrap();
+    let account_bytes =
+        fact_bytes.checked_add(List::<c::Chip>::price(limits.client().rows).unwrap().checked_mul(2).unwrap()).unwrap();
+    for (line_room, account_room, expected) in [
+        (line_bytes, account_bytes, Ok(facts)),
+        (
+            line_bytes.checked_sub(1).unwrap(),
+            account_bytes.checked_sub(1).unwrap(),
+            Err(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+        ),
+    ] {
+        let mut room = line_room;
+        assert_eq!(crate::translate::documents::account_line(&line, &limits, &mut room).map(|row| row.facts), expected,);
+        let mut room = account_room;
+        assert_eq!(
+            crate::translate::documents::account_fields(&deployment, &limits, &mut room).map(|row| row.facts),
+            expected,
+        );
+    }
 }
 
 #[test]
