@@ -109,3 +109,14 @@ The implementer's report, and, for the account `terminal-close` writes:
 - each state the request's message names as not drawn, landed or how it differs;
 - each rule broken and the failure seen;
 - each reader file you edited beyond the header's.
+
+## Rebase (2026-11-07, step merge, foreman look-round-16/terminal-cards/foreman-1)
+
+resolve the words.rs conflict by combining vocabulary counts
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`, in its three counted vocabulary declarations.
+Integration commit `07dd6ddd61` retained main’s approval vocabulary and set counts to 2060 phrases, 3631 segments and 50547 bytes.
+Task commit `597ba2b66a` adds three terminal phrases, three segments and 38 bytes.
+Preserve integration’s vocabulary and the task’s additions in `pages/terminal/words.rs`; use combined counts 2063, 3634 and 50585.
+Keep this shared-file adjustment limited to the counted declarations; it is required baseline maintenance.
+Verify with `heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`.
+Run the task’s two new focused tests after rebasing to check the automatically merged chat and terminal changes.
