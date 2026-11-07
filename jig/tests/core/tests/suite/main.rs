@@ -40,6 +40,7 @@ mod instructions;
 mod jobs;
 mod joint_clock;
 mod memory;
+mod models;
 mod operations;
 mod oracle;
 mod orders;
