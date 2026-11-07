@@ -485,6 +485,77 @@ fn a_claude_plan_declares_without_import_or_sign_in() {
     );
 }
 
+#[test]
+fn a_fresh_sitting_selects_its_model_in_every_charter() {
+    use serde_json::json;
+    use std::path::Path;
+    use support::forge_land::{LiveModel, live_settings};
+
+    let mut lines: Vec<_> = (1..=8).map(|number| json!({"setting":{"kind":"model","number":number}})).collect();
+    lines.extend([json!({"setting":{"kind":"charter","number":1}}), json!({"setting":{"kind":"charter","number":2}})]);
+    let inventory = json!({"newest":0,"settings":lines});
+    let charters = [1, 2].map(|number| {
+        json!({
+            "setting":{"kind":"charter","number":number},
+            "value":{"instructions":format!("charter {number}"),"model":{"name":"old"},
+                "alternatives":[{"name":"fallback"}],"rest":true,"time":1}
+        })
+    });
+    let stock_model = json!({
+        "provider":2,"dialect":2,"endpoint":2,"program":"claude_code","name":"claude-fable-5-1",
+        "window":200_000,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":4,
+        "output_price":15,"price_unit":1_000_000,"efforts":["low","medium","high","xhigh","max"],"effort":"high"
+    });
+    let mut gpt_model = stock_model.clone();
+    gpt_model["name"] = "gpt-6-luna".into();
+    let mut haiku_model = stock_model.clone();
+    haiku_model["name"] = "claude-haiku-5-5".into();
+    haiku_model["effort"] = "low".into();
+    let charter_items = |model: &serde_json::Value| {
+        [1, 2].map(|number| {
+            json!({
+                "setting":{"kind":"charter","number":number},
+                "set":{"instructions":format!("charter {number}"),"model":model,
+                    "alternatives":[],"rest":false,"time":240_000_000_000_u64}
+            })
+        })
+    };
+    let gpt_items = charter_items(&gpt_model);
+    let haiku_items = charter_items(&haiku_model);
+    let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
+    let cases = [
+        (LiveModel::ChatGpt { account: None }, "gpt-6-luna", "gpt-6-luna", Ok(json!({"items":gpt_items}))),
+        (
+            claude,
+            "claude-fable-5-1",
+            "claude-haiku-5-5",
+            Ok(json!({"items":[
+                {"setting":{"kind":"model","number":64},"set":{
+                    "number":64,"model":haiku_model,"shown":null,"description":null,
+                    "picker":true,"withdrawn":false,"source":"person","estimated":true
+                }}, haiku_items[0], haiku_items[1]
+            ]})),
+        ),
+        (
+            claude,
+            "another-model",
+            "claude-haiku-5-5",
+            Err("the selected live stock model: claude-fable-5-1".to_owned()),
+        ),
+    ];
+    for (model, row_name, selected, expected) in cases {
+        let mut row_model = stock_model.clone();
+        row_model["name"] = row_name.into();
+        let number = if row_name == "gpt-6-luna" { 7 } else { 3 };
+        let row = json!({"setting":{"kind":"model","number":number},"value":{
+            "number":number,"model":row_model,"shown":"Stock model","description":"Stock description",
+            "picker":false,"withdrawn":true,"source":"stock","estimated":false
+        }});
+        assert_eq!(model.name(), selected, "chat's --model for {row_name}");
+        assert_eq!(live_settings(model, &inventory, [&charters[0], &charters[1]], &row), expected, "{row_name}");
+    }
+}
+
 fn stubbed_launcher(case: &str, body: &str, source: &str) -> (support::Scratch, std::process::Output) {
     stubbed_story_launcher(case, body, source, "forge-land-claude", false)
 }

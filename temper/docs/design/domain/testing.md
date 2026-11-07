@@ -1276,8 +1276,14 @@ section 8; testing-strategy.md, 2.9).
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
-  role on Claude Code on `claude-haiku-5-5`, on a held login used in place
-  (../protocol/credentials.md, 3): `TEMPER_LIVE_CLAUDE` names the
+  role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
+  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  a fresh sitting takes it by name, as a person adds a Claude
+  subscription's model (jig's `domain/engine.md`, 17.11): one `settings
+  apply` sets a model at the highest number its catalogue leaves free,
+  with the figures of the provider's dearest stock model, `claude-fable-5-1`,
+  marked estimated and the person's, its efforts with `low` its default,
+  and every charter the story selects naming it. `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the

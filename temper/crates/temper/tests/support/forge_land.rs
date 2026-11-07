@@ -1270,17 +1270,34 @@ impl LiveModel<'_> {
         }
     }
 
+    /// The model every charter the story selects runs, and the chat's `--model`.
     #[must_use]
     pub const fn name(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "gpt-6-luna",
+            Self::ClaudeCode { .. } => "claude-haiku-5-5",
+        }
+    }
+    /// The stock row read after startup: the selected model's own, or the
+    /// provider's dearest, whose figures a model taken by name copies
+    /// (jig's `domain/engine.md`, 17.11).
+    const fn number(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "7",
+            Self::ClaudeCode { .. } => "3",
+        }
+    }
+    const fn row(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
             Self::ClaudeCode { .. } => "claude-fable-5-1",
         }
     }
-    const fn number(self) -> &'static str {
+    /// A model taken by name: its default effort; `None` for a stock row.
+    const fn by_name(self) -> Option<&'static str> {
         match self {
-            Self::ChatGpt { .. } => "7",
-            Self::ClaudeCode { .. } => "3",
+            Self::ChatGpt { .. } => None,
+            Self::ClaudeCode { .. } => Some("low"),
         }
     }
     const fn unavailable(self) -> &'static str {
@@ -1408,6 +1425,53 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     });
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
+}
+
+/// The settings change a fresh sitting applies (domain/testing.md, 2.7):
+/// charters 1 and 2 name the story's model alone. A model taken by name is
+/// added in the same change, at the highest model number the inventory
+/// leaves free, from the stock row it copies.
+pub fn live_settings(
+    model: LiveModel<'_>,
+    inventory: &serde_json::Value,
+    charters: [&serde_json::Value; 2],
+    row: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    require(row["value"]["model"]["name"] == model.row(), &format!("the selected live stock model: {}", model.row()))?;
+    let mut value = row["value"].clone();
+    let mut items = Vec::new();
+    if let Some(effort) = model.by_name() {
+        let settings = inventory["settings"].as_array().ok_or("settings inventory missing")?;
+        let number = (1..=jig_domain_tasks::MODELS)
+            .rev()
+            .find(|number| {
+                !settings.iter().any(|line| line["setting"]["kind"] == "model" && line["setting"]["number"] == *number)
+            })
+            .ok_or_else(|| format!("no free model number for {}", model.name()))?;
+        require(
+            value["model"]["efforts"].as_array().is_some_and(|efforts| efforts.iter().any(|offered| offered == effort)),
+            &format!("the selected live stock model {} offers no {effort} effort for {}", model.row(), model.name()),
+        )?;
+        value["number"] = number.into();
+        value["model"]["name"] = model.name().into();
+        value["model"]["effort"] = effort.into();
+        value["shown"] = serde_json::Value::Null;
+        value["description"] = serde_json::Value::Null;
+        value["picker"] = true.into();
+        value["withdrawn"] = false.into();
+        value["source"] = "person".into();
+        value["estimated"] = true.into();
+        items.push(serde_json::json!({"setting":{"kind":"model","number":number},"set":value}));
+    }
+    for charter in charters {
+        let mut charter_value = charter["value"].clone();
+        charter_value["model"] = value["model"].clone();
+        charter_value["alternatives"] = serde_json::json!([]);
+        charter_value["rest"] = false.into();
+        charter_value["time"] = 240_000_000_000_u64.into();
+        items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
+    }
+    Ok(serde_json::json!({"items":items}))
 }
 
 pub struct LivePlan<'a> {
@@ -1834,22 +1898,12 @@ impl LiveJudge<'_> {
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
         let reads = &calls.ends()[calls.ends().len() - 4..];
-        let revision = live_json(&reads[0])?["newest"].as_u64().ok_or("settings revision missing")?;
+        let inventory = live_json(&reads[0])?;
+        let revision = inventory["newest"].as_u64().ok_or("settings revision missing")?;
         let catalogue = live_json(&reads[3])?;
-        let model = &catalogue["value"]["model"];
-        require(model["name"] == self.plan.model.name(), "the selected live stock model")?;
-        let mut items = Vec::new();
-        for read in &reads[1..3] {
-            let setting = live_json(read)?;
-            let mut value = setting["value"].clone();
-            value["model"] = model.clone();
-            value["alternatives"] = serde_json::json!([]);
-            value["rest"] = false.into();
-            value["time"] = 240_000_000_000_u64.into();
-            items.push(serde_json::json!({"setting":setting["setting"],"set":value}));
-        }
+        let charters = [live_json(&reads[1])?, live_json(&reads[2])?];
+        let change = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
         let file = self.plan.client.join("settings.json");
-        let change = serde_json::json!({"items":items});
         fs::write(&file, serde_json::to_vec(&change).map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
         self.queue(&[
