@@ -109,12 +109,22 @@
   A proposed goal is 5.14's toast, where the request has a line above the composer:
   `Chat.proposed` is set (`temper-client-domain`'s `pages/start_goal.rs`, `told`) and
   read by nothing. No plan holds these; section 11 keeps them.
+- **Not yet:** 3.5, *A chat's document*, 5.13: kind 7's stock: `Ways::STOCK`
+  (`temper-client-domain`'s `forge/ways.rs`) has `drafts` false, so a fresh project
+  offers no "+ Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can
+  write drafts" is turned on, and Settings' `shows` draws that stock until kind 7 is read.
+- **Not yet:** 5.3: Goals in the bar of a project holding a goal: `temper-client-view`'s
+  `frame.rs`, `goals_shown`, reads no `Domain::has_goals`, so a goal started with Goals
+  hidden has no entry there, and Home, while To begin shows, draws Chats in its place.
 - **Design departs:** 3.5, *A chat's document*, from that request's decision 7,
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
-  7's `drafts`, false in the stock (5.13), where the request has it true while `me`
-  lists a tracked template with no conversation flag. So a fresh project offers no "+
-  Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can write drafts"
-  is turned on, as the journey `chat-draft` does first.
+  7's `drafts`, true in the stock (5.13), where the request has it true while `me`
+  lists a tracked template with no conversation flag. So a project can turn the offer off.
+- **Design departs:** 3.5, *A chat's document*, 5.13, from the mock (`greenfield/`), whose
+  fresh projects have `drafts` false (`data.js`) and whose "+ Draft" follows it on every
+  chat (`app.js`): a fresh project's chats write drafts, and a configuring chat offers
+  "+ Draft" whatever `drafts` says. The user's word, 2026-11-07 (the request
+  `ui-drafts-default`).
 - **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
   2026-11-06. A failed call's "1 failed" shares the description with the run's time, both
   in the signal's colour, where the request adds ", 1 failed" alone in it, and a document's
@@ -391,7 +401,7 @@
   setting changed, that person reads them again only as the project opens or
   the link comes back. A project-scoped settings inventory needs a contract in
   jig before the tab can use it.
-  5.13: Home draws neither "Turn on drafts and goals" nor "See the settings", so
+  5.13: Home draws neither "Show goals" nor "See the settings", so
   nothing opens the tab by them.
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
