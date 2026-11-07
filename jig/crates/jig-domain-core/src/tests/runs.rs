@@ -10,6 +10,7 @@ pub(in crate::tests) mod credentials;
 pub(in crate::tests) mod default_llm;
 pub(in crate::tests) mod first_usable;
 pub(in crate::tests) mod notes_room;
+pub(in crate::tests) mod parts;
 pub(in crate::tests) mod reserve;
 pub(in crate::tests) mod result_reads;
 pub(in crate::tests) mod run_choice;
