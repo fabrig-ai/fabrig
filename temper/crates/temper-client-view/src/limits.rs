@@ -16,10 +16,9 @@ impl Limits {
     )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
-        let text = words
-            .capacity()?
-            .max(receiving.text.checked_mul(2)?)
-            .max(domain.forge.field_bytes.checked_mul(3)?.checked_add(128)?);
+        let phrase = words.capacity()?;
+        let text =
+            phrase.max(receiving.text.checked_mul(2)?).max(domain.forge.field_bytes.checked_mul(3)?.checked_add(128)?);
         // An account heading joins the provider, plan/display and holder's words.
         let text = text.max(receiving.text.checked_add(words.name_bytes.min(256).checked_mul(3)?)?.checked_add(64)?);
         // The toast wraps a full outgoing choice or reply label and "Answered: ".
@@ -202,7 +201,7 @@ impl Limits {
             text_per_node: text.max(turn.checked_mul(2)?).max(builder_name).max(
                 temper_client_protocol_wire::v1::CEILINGS
                     .deployment_answer_program_login_some
-                    .checked_add(words.capacity()?)?
+                    .checked_add(phrase)?
                     .checked_add(1)?,
             ),
             // Whole builder names are held once per document row.
