@@ -1794,8 +1794,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
   A title is the first line of a spec an agent wrote from what a person
-  said, so a chat's words can show here; making a project public says so
-  (`tools.md`, 5.3), and no page makes a project public.
+  said, so a chat's words can show here; ctl's publication help and completed
+  answer say so (`tools.md`, 5.3). A preceding acknowledgement is Later
+  (`tools.md`, section 14), and no page makes a project public.
 - **The look:** one plain column, the same at every width from 320 to
   1440 px, in the client's type and colours (`temper.css`'s tokens), its
   rows modelled on the Chats page's: no table, no monospace, and nothing
