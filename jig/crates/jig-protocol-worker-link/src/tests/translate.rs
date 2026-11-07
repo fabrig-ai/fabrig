@@ -499,7 +499,7 @@ fn every_piece_kind_encodes_whole_including_offsets_past_u32() {
 }
 
 #[test]
-fn list_answers_encode_rows_and_every_typed_failure() {
+fn list_answers_encode_rows_and_every_failure() {
     use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
     for (outcome, body) in [
         (ListOutcome::Listed(Box::new([])), [0, 0, 0, 0, 0].as_slice()),
