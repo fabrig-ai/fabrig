@@ -13,9 +13,6 @@ known in that room; the settings-answer bound gap remains below.
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
 
-- **Not yet:** 7.1: a run whose charter names the asking family is given the
-  project's home and context repositories (`temper-engine-domain/src/route/forge_route.rs`,
-  `run_workspace`, which gives none to charters 9 and 10 alone).
 - **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
   counted its `read_task` calls since the room landed, where the request
   `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
