@@ -376,6 +376,19 @@ scenarios of the worlds they belong to, a few cuts each in the focused
 suite and swept with the rest in the fuzzy one: none needs a suite of
 its own.
 
+The core world's deletion, startup, effect-and-terminal, failed-commit
+and decision-read stories keep their whole sweeps in fuzzy. Focused
+chooses the decision, family-step, sign-in, chat, claim, effect and
+terminal commits for what a crash there can lose. The store world's
+commit cuts remain focused.
+
+The stock profiles' room for a day of deciding requests is arithmetic
+over both profiles in the configuration's step tests. Focused drives
+one world to `Small`'s request bound and restarts it; fuzzy drives
+`Standard`'s whole room under the request world's heap ceiling. Both
+worlds check every answer, the last request and the first request's
+replay after a cold restart.
+
 The store's generation, patch, check and frame scenarios are focused tests
 in `jig-store-world::suite::upgrades`, on the simulated disk. Layout,
 manifest and admission cases are data rows of their behaviour's table;
@@ -421,10 +434,18 @@ than cutting the cover.
   period and `Drained` as the referee sees them. Default: as they stand, until
   `jig/docs/development/debt/D030-conformance-not-drop-in.md` is planned.
 - **A commit's rows for the core's observer** (5): the observer projects the
-  whole store at each new commit. A feed of each commit's rows needs keyed
-  snapshot accounting, commit-level observations and a check against the whole
-  projection. Default: the whole projection, until
-  `jig/docs/development/debt/D034-world-replay-cost.md` is planned.
+  whole store at each new commit, combining naming and row projection in one
+  pass and collecting accepted proposal decisions with the other evidence.
+  A feed of each commit's rows needs keyed replacement and erasure accounting,
+  commit-level observations and a check against the whole projection. `Got`
+  changes rows outside commits too, so cold observation needs the current rows.
+  Default: the whole projection, until a keyed feed is designed
+  (`jig/docs/development/debt/D034-world-replay-cost.md`).
+- **Further world-cost repairs** (9): which remaining representations and
+  algorithms need to change for the focused suite to fit its 30 CPU s budget.
+  Read whole-suite cost from the queue after landing, including fuzzy's moved
+  sweeps and `Standard` drive. Apply testing-strategy.md, 8.1 in order;
+  neither budgets nor build settings change to make a cost repair pass.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
   names it.

@@ -242,6 +242,10 @@ skein-io socket
   store, its repositories, its writer and its git identity
   (credentials.md, 2.1 and section 4). A removed forge's number stays
   spent; a forge set up again is a new forge.
+- **Its users among jig's parties.** A party adoption knows from a forge
+  is keyed by that forge's number and the user's (store.md, section 2;
+  `../domain/forge.md`, section 4). As a number is never given twice, such
+  a key stays that forge's user's, even after the forge is removed.
 - **Restored, then handed over.** The forge's restart step restores
   each `Forge` row (store.md, section 5), and the connector hands each
   kept one to the routing, as it hands a new one (2.2), which adds its

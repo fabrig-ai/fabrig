@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
 ><title
->New chat · temper</title
+>Let us design Away mode. · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -21,6 +21,10 @@
 ><span
 >temper</span
 ></a
+><details data-folds-away="" class="temper-rail-unfold"
+><summary
+>Show the rail</summary
+></details
 ><details class="temper-projects"
 ><summary
 >Hello</summary
@@ -29,7 +33,7 @@
 ><button type="button" aria-pressed="true"
 >Hello</button
 ><span class="temper-projects-repo"
-><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:42939/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
+><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:37339/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
 ><span
 >work/hello ↗</span
 ></a
@@ -39,9 +43,9 @@
 ><button type="button" class="temper-project-rename"
 >Rename Hello</button
 ><form aria-label="New project" class="temper-project-new"
-><label for="skein-ui-label-168"
+><label for="skein-ui-label-266"
 >New project</label
-><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-168"
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-266"
 ><button type="button"
 >Create</button
 ></form
@@ -113,7 +117,7 @@
 ></div
 ></div
 ></nav
-><main class="temper-main temper-session"
+><main class="temper-mode-chat temper-session"
 ><div class="temper-session-top"
 ><nav aria-label="Where" class="temper-crumbs"
 ><a aria-label="Chats" class="temper-back" href="/chats"
@@ -130,30 +134,98 @@
 >Chats</span
 ></a
 ></div
-><h1 aria-label="New chat"
+><h1 aria-label="T2 · Let us design Away mode."
 ><span
->New chat</span
+>Let us design Away mode.</span
 ></h1
 ></nav
 ><div class="temper-session-right"
-><button type="button" class="temper-add-draft"
+><p aria-label="T2" class="temper-byline"
+><span
+>T2</span
+></p
+><button data-journey-next="06.html" type="button" class="temper-add-draft"
 >+ Draft</button
+><div role="status" aria-label="waiting on your words" class="temper-status-waiting temper-state-needs"
+><span
+>waiting on your words</span
+></div
+><button type="button"
+>Pause</button
+><button type="button"
+>Close</button
+><p aria-label="23 spent · of 1046016"
+><span
+>23 spent · of 1046016</span
+></p
 ></div
 ></div
 ><section aria-label="Conversation" class="temper-convo"
 ><div class="temper-thread"
-><p aria-label="Say what you want; the agent works in work/hello." class="temper-meta-line"
+><div role="log" aria-label="Conversation"
+><div class="temper-thread-inner"
+><div aria-label="Today · Saturday 7 November" class="temper-day"
+><p aria-label="Today · Saturday 7 November"
 ><span
->Say what you want; the agent works in work/hello.</span
+>Today · Saturday 7 November</span
 ></p
+></div
+><section class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Let us design Away mode."
+><span
+>Let us design Away mode.</span
+></p
+></div
+></div
+></section
+></section
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>Hello from the local fake model.</span
+></p
+></div
+></div
+></section
+></div
+></div
+></div
+><button type="button" data-to-log-end="" class="temper-latest"
+>Latest</button
 ></div
 ><div class="temper-choice"
 ></div
-><form aria-label="What do you want done?" class="temper-session-foot"
+><form aria-label="Message" class="temper-session-foot"
 ><div class="temper-session-composer"
-><textarea aria-label="What do you want done?" placeholder="What do you want done?" enterkeyhint="send"
->Let us design Away mode.</textarea
-><button data-journey-next="06.html" type="button"
+><textarea aria-label="Message" placeholder="Reply to T2" enterkeyhint="send"
+></textarea
+><button type="button" disabled=""
 >Send</button
 ></div
 ><div class="temper-foot-row"
@@ -163,10 +235,14 @@
 ></p
 ><details data-folds-away="" class="temper-model"
 ><summary
->Model<span id="skein-ui-description-228"
+>Model<span id="skein-ui-description-317"
 > GPT-6.1 Sol · high</span
 ></summary
 ><div class="temper-model-menu"
+><p aria-label="A change applies from the next turn." class="temper-model-note"
+><span
+>A change applies from the next turn.</span
+></p
 ><div class="temper-model-from"
 ><span
 ><strong

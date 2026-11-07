@@ -56,6 +56,11 @@ pub(crate) fn main(
         b.open(Role::Slot);
         super::task::executor(b, task.chip.executor, words);
         text(b, Role::Paragraph, &words.say(Word::RowSpent, &[Hole::Number(task.budget.numbers.spent)]));
+        if (task.result.is_some() || super::chats::ended(&task.chip))
+            && let Some(line) = crate::choice::ran_line(root, task, &page.thread, words)
+        {
+            text(b, Role::Paragraph, &line);
+        }
         if root.pages().confirmation().is_none()
             && match &page.amending {
                 Some(open) => open.done,

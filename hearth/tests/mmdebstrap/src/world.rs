@@ -77,7 +77,7 @@ pub fn output_steps(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Vec<S
     let mut steps = vec![snapshot(&mut above, &mut below)];
     take_step(&mut wire, &steps[0]);
     for _ in 0..bytes.len() * 10 + 100 {
-        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        // Steps retain the observations; the wire's trace need not accumulate.
         wire.trace.clear();
         if let Some(mut event) = wire.answer() {
             if broken && matches!(event, Up::End) {
@@ -121,7 +121,7 @@ pub fn index_steps(bytes: &[u8], seed: u64, limits: &Limits, end: End) -> Vec<St
     let mut steps = vec![snapshot(&mut above, &mut below)];
     take_step(&mut wire, &steps[0]);
     for _ in 0..bytes.len() * 10 + 100 {
-        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        // Steps retain the observations; the wire's trace need not accumulate.
         wire.trace.clear();
         if let Some(mut event) = wire.answer() {
             if broken && matches!(event, Up::End) {

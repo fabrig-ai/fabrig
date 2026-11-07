@@ -1,6 +1,14 @@
 # testing: status
 
-2026-11-06. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where skein's code lags or departs from [testing.md](testing.md).
+
+Section 5's heap counts, peaks and hand-outs are preserved with one
+thread-local reach per accounting call. The wire keeps structured trace
+steps and bytes, formatting its lines when read. The shared helpers use
+slice copies for TLS fills and text runs, literal event assembly, and skip
+empty wire writes. The six-test instruction account is
+`skein/docs/development/world-costs.md`; it establishes no whole-suite CPU
+total for section 7's budgets. Remaining cost work is deferred in section 9.
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
