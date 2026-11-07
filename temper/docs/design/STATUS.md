@@ -40,6 +40,9 @@ in both shells, retaining the whole name and, where cut, a hover hint;
 the crumbs yield to the bar's controls. Temper/ui's render comparison
 and a possible model-written title remain later work (`client/README.md`,
 3.5 and 11; `client/journeys.md`, sections 9 and 10).
+The Chats history story awaits Closed and All pressed by name across
+reload and Back; a Drafts button moving Closed as ways arrive remains a
+separate look decision (`client/browser.md`, 4.6 and 5).
 Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
