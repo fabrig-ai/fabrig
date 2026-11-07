@@ -518,6 +518,12 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         }
     };
     let terminal_parks = end == End::Parked;
+    let activation_ended = match &end {
+        End::Parked => !narrowed && !kept.blocks_claims() && !kept.owes,
+        End::Finished { .. } => true,
+        End::Exceeded(_) | End::Failed(_) | End::Refused | End::Recheck => false,
+        End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
+    };
     let next = if let Some(mut closing) = closing {
         closing.stage = Stage::Delegates;
         match &mut closing.ending {
@@ -572,6 +578,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     };
     let task = task_mut(domain, number).expect("terminal names live task");
     task.record.invalid_result = invalid;
+    if activation_ended {
+        task.record.reasons = crate::Reasons::EMPTY;
+    }
     task.record.numbers.reserved =
         task.record.numbers.reserved.checked_sub(task.record.run_reserved).expect("run held");
     task.record.run_reserved = 0;

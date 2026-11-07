@@ -42,7 +42,7 @@ fn a_read_fence_takes_only_offered_words() {
         turn: 1,
         read: Some(2),
         offered: Some(1),
-        outstanding: Box::new([]),
+        outstanding: Box::new([1]),
         cumulative: 1,
     });
     assert!(matches!(&world.replies[&call], Reply::Refused(problem) if problem.why == Refusal::Read));
@@ -56,7 +56,7 @@ fn a_read_fence_takes_only_offered_words() {
         turn: 1,
         read: Some(1),
         offered: Some(1),
-        outstanding: Box::new([]),
+        outstanding: Box::new([1]),
         cumulative: 1,
     });
     assert_eq!(world.replies[&call], Reply::Turn(Accepted::New));
@@ -685,6 +685,13 @@ fn refusal_snapshot(world: &World) -> jig_domain_tasks::TaskRecord {
 }
 
 fn refusal_turn(world: &mut World, turn: u32, read: u64, offered: u64, refused: &[u64]) -> Reply {
+    let row = world.record(1);
+    let outstanding = row
+        .inbox
+        .iter()
+        .filter(|word| word.number <= offered && !row.refused.contains(&word.number))
+        .map(|word| word.number)
+        .collect();
     let reply_to = world.to();
     let call = reply_to.into_token().raw();
     world.send(Event::Turn {
@@ -695,7 +702,7 @@ fn refusal_turn(world: &mut World, turn: u32, read: u64, offered: u64, refused: 
         read: Some(read),
         refused: refused.into(),
         offered: Some(offered),
-        outstanding: Box::new([]),
+        outstanding,
         cumulative: u64::from(turn),
     });
     world.replies[&call].clone()
