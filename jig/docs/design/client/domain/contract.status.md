@@ -14,9 +14,6 @@ per-account provider-list narrowing, list history or new-label deadlines.
 `ReadLists` carries the provider and returns the number of reads; account
 times reach the accounts watch without marking an unchanged offer.
 
-- **Not yet:** 5.1: a task's document shows its first choice whatever its reasons
-  (`jig/crates/jig-domain-core/src/runs/llm.rs`, `document_llm`).
-
 - **Not yet:** 5.1: a provider read changing only the visible accounts'
   largest `left_out` updates the accounts watch but does not mark `me`,
   leaving its omitted count stale until another Frame mark

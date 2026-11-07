@@ -13,7 +13,6 @@ Section 7's next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
 
-- **Not yet:** 3, 7: a task's LLM choice has no `later` (`jig-domain-tasks/src/llm.rs`).
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is

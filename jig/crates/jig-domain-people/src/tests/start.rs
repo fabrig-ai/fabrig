@@ -851,7 +851,7 @@ fn selected_capacity_details_include_the_incoming_row() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "stored exact/one-over cases name each nested representation bound")]
 fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
-    for field in 0_u8..13 {
+    for field in 0_u8..15 {
         for extra in [0, 1] {
             let mut env = env();
             let (ask, outcome, which, held, limit) = match field {
@@ -870,6 +870,46 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                             action: Action::Amend { task: 1, revision: 0, amendment: Box::new(amendment) },
                             reason: Box::new([]),
                         },
+                        Outcome::SignedOut,
+                        RestoreBound::Subagents,
+                        MODELS + extra,
+                        MODELS,
+                    )
+                }
+                14 => {
+                    // One sub-agent in each choice owns two model/effort rows.
+                    let held = u32::try_from(2 * size_of::<ModelEffort>()).unwrap();
+                    let chosen = ModelEffort { model: 255, effort: None };
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.llm = Some(LlmChoice {
+                        account: None,
+                        main: chosen,
+                        subagents: Box::new([chosen]),
+                        later: Some(LlmLater { main: chosen, subagents: Box::new([chosen]) }),
+                    });
+                    env.limits.amendment_bytes = held - extra;
+                    (
+                        Ask::Amend { project: 1, task: 1, revision: 0, amendment, release: None },
+                        Outcome::SignedOut,
+                        RestoreBound::AmendmentBytes,
+                        held,
+                        held - extra,
+                    )
+                }
+                13 => {
+                    let mut amendment = fixtures::unchanged(b"");
+                    amendment.llm = Some(LlmChoice {
+                        later: Some(LlmLater {
+                            main: ModelEffort { model: 255, effort: None },
+                            subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),
+                        }),
+                        account: None,
+                        main: ModelEffort { model: 255, effort: None },
+                        subagents: Box::new([]),
+                    });
+                    env.limits.amendment_bytes = 4096;
+                    (
+                        Ask::Amend { project: 1, task: 1, revision: 0, amendment, release: None },
                         Outcome::SignedOut,
                         RestoreBound::Subagents,
                         MODELS + extra,

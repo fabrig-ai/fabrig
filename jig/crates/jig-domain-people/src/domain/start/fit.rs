@@ -61,6 +61,9 @@ fn bytes(key: &Key, which: RestoreBound, value: Option<u64>, limit: u32, invaria
 fn choice(key: &Key, value: Option<&crate::LlmChoice>) -> Result<(), RestoreCause> {
     if let Some(value) = value {
         within(key, RestoreBound::Subagents, value.subagents.len(), crate::MODELS)?;
+        if let Some(later) = &value.later {
+            within(key, RestoreBound::Subagents, later.subagents.len(), crate::MODELS)?;
+        }
     }
     Ok(())
 }
