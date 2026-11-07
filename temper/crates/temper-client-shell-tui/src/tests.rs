@@ -313,3 +313,27 @@ fn approval_opened_reports_reach_the_tui() {
         assert_eq!(host.state().browser(), Some(if opened { temper_client_tui::Browser::Opened } else { temper_client_tui::Browser::None }));
     }
 }
+
+#[test]
+fn the_opener_gets_one_argument_and_no_terminal_descriptors() {
+    use crate::opener::{self, Opener};
+    use skein_io::kernel::{Fd, Pipe, Way};
+    for (program, address, env) in [
+        ("/usr/bin/xdg-open", "http://127.0.0.1:8367/terminal?code=WDJB-MJHT", vec!["DISPLAY=:1", "PATH=/usr/bin"]),
+        ("/usr/bin/open", "http://127.0.0.1:9000/terminal?code=BCDF-GHJK", vec!["HOME=/person"]),
+    ] {
+        let opener = Opener { program: program.as_bytes().into(), env: env.iter().map(|value| Box::from(value.as_bytes())).collect() };
+        let root = Fd::new(91);
+        let spawn = opener::spawn(&opener, address.as_bytes(), root);
+        assert_eq!(spawn.program, opener.program);
+        assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(address.as_bytes())]);
+        assert_eq!(spawn.env, opener.env);
+        assert_eq!(spawn.root, root);
+        assert_eq!(spawn.dir.as_ref(), b".");
+        assert_eq!(spawn.pipes.as_ref(), &[
+            Pipe { child: 0, way: Way::Null, parent: None },
+            Pipe { child: 1, way: Way::Null, parent: None },
+            Pipe { child: 2, way: Way::Null, parent: None },
+        ]);
+    }
+}
