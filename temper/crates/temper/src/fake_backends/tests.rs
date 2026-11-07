@@ -53,7 +53,8 @@ fn start_chosen(source: &Directories, bundle: Option<&Path>, chosen: Option<&Cho
         write(&adapter, b"#!/bin/sh\nexit 1\n", false).expect("fixture adapter");
         fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     }
-    prepare(source, bundle, &adapter, chosen)
+    // Use the source fixture's explicit absence of optional executables.
+    prepare_with_environment(source, bundle, &adapter, chosen, &[])
 }
 fn provision_bundle(path: &Path) -> PathBuf {
     make_private(&path.join("0000000000000001"), skein_shell::effective_user()).expect("private fixture bundle");
@@ -260,21 +261,25 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
 
 #[test]
 fn retained_peer_edits_are_checked_without_replacement() {
+    let scratch = Scratch::new("peer-validation");
+    let source = provisioned_source(&scratch);
+    let first = start(&source, None).expect("fresh sandbox");
+    let config = crate::path(&first.directories.config).to_path_buf();
+    let peers = first.peers;
+    let (ordinary, _) =
+        crate::box_command::configuration_steps(&first.directories, &first.bytes, Box::new([])).expect("steps");
+    let ordinary_socket =
+        read_json(&first.directories.document())["application"]["clients"]["listener"]["socket"].clone();
+    let mut first = Some(first);
     for kind in ["edited", "zero", "collision", "ordinary", "outside", "oauth"] {
-        let scratch = Scratch::new(&format!("peer-validation-{kind}"));
-        let source = provisioned_source(&scratch);
-        let first = start(&source, None).expect("fresh sandbox");
         let file = if kind == "oauth" { "oauth.json" } else { "llm.json" };
-        let path = crate::path(&first.directories.config).join(file);
-        let mut edited = read_json(&path);
+        let path = config.join(file);
+        let original = fs::read(&path).expect("original public peer document");
+        let mut edited: serde_json::Value = serde_json::from_slice(&original).expect("fixture JSON");
         let mut reservation = None;
         match kind {
             "edited" => {
-                let (ordinary, _) =
-                    crate::box_command::configuration_steps(&first.directories, &first.bytes, Box::new([]))
-                        .expect("steps");
-                let mut taken =
-                    vec![1455, first.peers.github.port(), first.peers.oauth.port(), first.peers.forgejo.port()];
+                let mut taken = vec![1455, peers.github.port(), peers.oauth.port(), peers.forgejo.port()];
                 for step in ordinary
                     .always
                     .iter()
@@ -290,17 +295,14 @@ fn retained_peer_edits_are_checked_without_replacement() {
                 reservation = Some(socket);
             }
             "zero" => edited["listen"]["socket"] = "127.0.0.1:0".into(),
-            "collision" => edited["listen"]["socket"] = first.peers.github.to_string().into(),
-            "ordinary" => {
-                edited["listen"]["socket"] =
-                    read_json(&first.directories.document())["application"]["clients"]["listener"]["socket"].clone();
-            }
+            "collision" => edited["listen"]["socket"] = peers.github.to_string().into(),
+            "ordinary" => edited["listen"]["socket"] = ordinary_socket.clone(),
             "outside" => edited["key"] = "/outside/llm.key".into(),
             "oauth" => edited["redirect_port"] = 0.into(),
             _ => unreachable!("fixture kind"),
         }
         store_json(&path, &edited);
-        drop(first);
+        drop(first.take());
         let result = start(&source, None);
         if kind == "edited" {
             assert_eq!(
@@ -313,6 +315,7 @@ fn retained_peer_edits_are_checked_without_replacement() {
         }
         assert_eq!(read_json(&path), edited, "retained edits never silently replaced");
         drop(reservation);
+        write(&path, &original, true).expect("restore public peer document for the next case");
     }
 }
 
@@ -370,6 +373,19 @@ fn explicit_bundle_imports_init_configuration_without_a_source_bundle() {
         supplied.to_str().expect("supplied path")
     );
     assert_eq!(fs::read(source.document()).expect("source unchanged"), original);
+}
+
+#[test]
+fn preparation_does_not_discover_optional_programs_outside_its_environment() {
+    let scratch = Scratch::new("optional-programs");
+    let source = scratch.dirs();
+    let bundle = provision_bundle(&scratch.0.join("bundle"));
+    let prepared = start(&source, Some(&bundle)).expect("prepare without optional executables");
+    let document = read_json(&prepared.directories.document());
+    assert!(document["application"]["workers"][0]["git"].is_null());
+    assert!(document["engine"]["clients"]["provider"].is_null());
+    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert!(!crate::path(&prepared.directories.data).join("provider.key").exists());
 }
 
 #[test]
@@ -746,6 +762,20 @@ fn oversized_explicit_bundle_refuses_before_creating_data_or_cache() {
 }
 
 #[test]
+fn oversized_source_bundle_refuses_before_sandbox_creation() {
+    let scratch = Scratch::new("source-bundle-bytes");
+    let source = provisioned_source(&scratch);
+    let original = fs::read(source.document()).expect("source public bytes");
+    let limits = temper_service::limits::profile(temper_service::limits::Profile::Small).clients;
+    let page = OpenOptions::new().write(true).open(scratch.0.join("bundle-loopback/index.html")).expect("fixture page");
+    page.set_len(u64::from(limits.bundle_bytes) + 1).expect("one byte past the admitted source bundle bound");
+    let error = start(&source, None).err().expect("oversized source bundle refused");
+    assert!(error.contains("clients.bundle_bytes"), "{error}");
+    assert!(!crate::path(&source.data).join("box/fake-backends").exists());
+    assert_eq!(fs::read(source.document()).expect("unchanged source public bytes"), original);
+}
+
+#[test]
 fn unsupported_provisioned_file_refuses_before_sandbox_creation() {
     let scratch = Scratch::new("bundle-type");
     let source = provisioned_source(&scratch);
@@ -807,19 +837,21 @@ fn fake_github_machine_passes_ordinary_admission_without_document_forges() {
 
 #[test]
 fn missing_required_retained_documents_refuse_without_writes() {
-    for (index, name) in REQUIRED.iter().enumerate() {
-        let scratch = Scratch::new(&format!("required-{index}"));
-        let (source, first) = prepared_source(&scratch);
-        let config = crate::path(&first.directories.config).to_path_buf();
-        let marker = fs::read(config.parent().expect("sandbox").join("prepared")).expect("marker");
+    let scratch = Scratch::new("required");
+    let (source, first) = prepared_source(&scratch);
+    let config = crate::path(&first.directories.config).to_path_buf();
+    let marker = fs::read(config.parent().expect("sandbox").join("prepared")).expect("marker");
+    drop(first);
+    for name in REQUIRED {
+        let original = fs::read(config.join(name)).expect("original public fixture document");
         fs::remove_file(config.join(name)).expect("remove required fixture document");
         let before = fs::read_dir(&config).expect("config listing").count();
-        drop(first);
         let error = start(&source, None).err().expect("missing required document refused");
         assert!(error.contains(name) && error.contains("reset"), "{error}");
         assert_eq!(fs::read_dir(&config).expect("unchanged listing").count(), before);
         assert!(fs::read(config.parent().expect("sandbox").join("prepared")).expect("marker") == marker);
         assert!(!config.join(name).exists());
+        write(&config.join(name), &original, false).expect("restore required public document for the next case");
     }
 }
 

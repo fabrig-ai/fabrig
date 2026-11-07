@@ -4893,6 +4893,7 @@ dependencies = [
  "skein-ui-web",
  "skein-world",
  "temper-client-domain",
+ "temper-fake",
  "temper-fixtures",
  "temper-playground",
  "temper-playground-world",

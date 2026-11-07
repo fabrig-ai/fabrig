@@ -38,7 +38,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // A Create member owns stock's fourteen grants and nine executors, plus its words.
+    // A Create member owns stock's fourteen grants and twelve executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
@@ -53,11 +53,11 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries seven charters, fourteen grants and nine executor kinds.
+    // The stock carries seven charters, fourteen grants and twelve executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 7.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 9.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 9.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 12.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 12.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
     // A chat copies stock policy 1's fourteen grants into its task authority.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();

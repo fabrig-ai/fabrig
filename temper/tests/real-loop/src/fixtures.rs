@@ -356,8 +356,8 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 9),
-        ("tasks.executor_kinds", 9),
+        ("authority.executors", 12),
+        ("tasks.executor_kinds", 12),
         ("notes.scopes", 32),
         // Seven slots hold the stock charters.
         ("tasks.charters", 7),

@@ -997,7 +997,7 @@ the page, which stayed, drawing the end.
 - **Against:** `temper serve` with its OpenAI provider's issuer, its
   authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
-  harness's loop, its one grant a success for a synthetic subject, and
+  harness's loop, each grant a success for one synthetic subject, and
   the provider's redirect port the kernel's (the listener's port
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
@@ -1010,8 +1010,16 @@ the page, which stayed, drawing the end.
   has taken one authorization and one code exchange. A reload then shows
   Ready again and the issuer has taken no second authorization: the tab
   is pointed once.
-- **The welcome's Model step:** the same press holds the welcome, and it
-  moves on to Ready by itself, `/welcome?at=ready`.
+- **The welcome's Model step,** the first thing a person meets: the same
+  press holds the welcome at `/welcome?at=model`, and it moves on to Ready
+  by itself, `/welcome?at=ready`, with one authorization and one code
+  exchange of its own. It runs first in this story's test (4.6, 9), on a
+  second provider of the same issuer: the issuer's one subject signing in
+  twice on one provider renews its account, in other words than Ready's
+  (`README.md`, 5.5), and a usable model leaves the welcome no sign-in to
+  press. Each sign-in keeps its tab, so the story ends with two.
+  The client world's `suite::second_sign_in` holds that the second provider's
+  sign-in reaches Ready after the welcome's.
 - **Run on Chromium alone,** the tier's one browser. Firefox and Safari
   are read: a press reaches `window.open` within its event's listener
   (skein's `ui-web.md`, 14.3).
@@ -1053,7 +1061,9 @@ real key in that restored form.
   `document_bytes`, through the same window mechanism. The long reading
   story (4.6, 14) passes that bound by at least two windows' worth and
   evicts and recovers lines at both ends. The unanchored position story
-  stays within one window; it checks the words holding across a read above.
+  stays within one window; it checks the words holding across a read above,
+  and a window dropping lines would change what that proves, so it never
+  reads the long story's chat.
   The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
 - **A chat's history:** what a reading story reads is made through
@@ -1062,7 +1072,21 @@ real key in that restored form.
   `task show --until replied`. A face of its own signs ctl in with the printed
   link and opens the spent link, so that the server prints the reader's, as
   8.4's walk does. A page types only what its story is about: in reading's,
-  the message sent from far back.
+  the message sent from far back. Reading's test (4.6, 14) holds three chats
+  on one `temper box`, as few as its stories allow: T1, the short chat, which
+  six messages sent through ctl then make Latest's; T2, the position story's,
+  inside one window; T3, the long story's, past three. Their requests cue
+  disjoint scripts, and their replies together stay within the fake's joint
+  script allowance (`temper-fake`'s `SCRIPT_BYTES`), both held by a focused test
+  of the tier's crate.
+- **Anchoring within a step** (4.6, 14): reading's test serves a private
+  bundle whose stylesheet, only at a page one pixel taller than the kit's
+  1280 by 800, turns the browser's scroll anchoring off on the log
+  (`overflow-anchor: none`) and sets the log 7 px lower. The position story
+  goes to that height on its live page and back at its end, so its words stand
+  on the page's own anchoring while the other stories stay on the browser's.
+  That the log moved by those 7 px says the rule holds, and the next story's log
+  standing where the position story's first did says it has gone.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
@@ -1076,6 +1100,13 @@ real key in that restored form.
   any browser-only proof is dropped, and what must leave the browser
   goes to the lowest world that still shows it, named in its line of
   4.6; the cap stays. The tests are 4.6's.
+- **A test of several stories** says which failed: it marks where each
+  story's steps begin (the tier's `Stories`), and a failed step's report, and
+  each measure read after the run, name its story. Each story's assertions
+  stay as its steps, in its order. It reruns whole on a flake, and a failure
+  hides the steps after it: taken, for the cap. It stands on the same forty
+  seconds as any run of the harness (skein's `ui-web.md`, 14.2): a test that
+  can't fit them is two tests, never a longer run.
 - **Chromium** is the machine's, at the path its owner configures
   (skein's `browser.md`), which skein's, jig's and temper's browser
   tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
@@ -1158,8 +1189,13 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
 2. **History** (4.1, 2): from the chats to a chat by its link, Back and
    Forward; a new chat's composer focused, and its filter's address and
    pressed state kept across a reload and Back, and an address that is no page opens
-   the inbox at `/` (4.1, 2).
-4. **The composer** (4.1, 3).
+   the inbox at `/` (4.1, 2). Its chat's model scripts a run of calls: the folded
+   line hides its rows until a press, and stays open on its node across a reply,
+   `details[open]` being the browser's, which the model doesn't hold
+   (`README.md`, 3.5).
+4. **The composer** (4.1, 3), and its model picker (`README.md`, 3.5): one press
+   applies a model and an effort, at 420 px and 1440 px, and a press away or
+   Escape closes it.
 5. **A panic** (4.1, 4).
 6. **jig's attacks that need a browser** (4.1, 6): a cross-site request
    from another port and from another host does nothing, and a framed
@@ -1168,7 +1204,8 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
    (4.5).
 8. **The accounts page after a key's send:** Back restores an emptied
    field, Forward the chats (4.2).
-9. **`ConnectModel`'s sign-in, in a new tab** (4.2).
+9. **`ConnectModel`'s sign-in, in a new tab** (4.2), after the welcome's Model
+   step's, each with one authorization and one code exchange.
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
@@ -1178,20 +1215,23 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, its board and task
     lines readable at 1440 px and 420 px, and losing it when it is made private.
-14. **Reading back** (4.1, 5).
+14. **Reading back** (4.1, 5), one test of four stories, each on its own page
+    load (4.3): a short chat opens whole, with no reading status, both its ends
+    in the log; Latest returns a chat to its end, after new words and after a
+    send from far back, the view holding while it reads back; earlier words stay
+    put without the browser's scroll anchoring; and a long chat opens at its end
+    and reads back from the composer, past its window at both ends.
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`.
-16. **The composer's model picker** (`README.md`, 3.5): on a started chat,
-    open the menu at 420 px, press a model and then an effort, each changing
-    the line with one press; outside and Escape fold it. This checks the
-    browser's disclosure, viewport and focus behaviour; the domain and view
-    tests hold account filtering, amendments, refusal and search. It does
-    not prove which model a subsequent provider request uses.
 
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
 - **Models switched off and back, and added by name, across reloads:** the client world's `models::a_switch_turned_off_and_back_holds_across_a_reload` and `models::a_model_added_by_name_is_on_the_picker`.
+- **A run of calls' rows and their words:** the client world's
+  `suite::call_line::opened_it_holds_one_row_a_call` holds one row a call, its
+  first line alone. Test 2 keeps the closed line hiding them and the open line
+  across a reply.
 - **Goals' link to a draft:** the view's
   `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
   Chats page; test 2 holds what a browser's history does with a link.
@@ -1231,6 +1271,12 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
+  the real-box check of the configuring chat's offer and the draft-to-goal
+  flow, including Goals in the phone tab bar, is after-landing work
+  (`README.md`, section 11). Default: the view tables and fake-model
+  `chat-draft` journey, with no browser or render check during the plan.
 
 - **Kept work in the browser** (`README.md`, 3.4 and 6.6): another
   party's kept work, and kept work dropped at start, which the terminal
@@ -1321,10 +1367,12 @@ Not in the tier, each in the lowest world that shows it:
   change; the repaired long story's query count alone gives no reason to add it.
 - **The remaining browser cost** (4.3, 4.6): another repair may prepare the
   other stories' histories outside the page, and combine stories sharing a setup
-  before dropping a browser-only proof, including the picker with another
-  started-chat story. Default: keep the CPU budget, timeouts,
+  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
+  becomes two tests, the long chat's apart, and test 15, which shares its setup
+  with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
 - **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
   small-window stories prove eviction and recovery through the same mechanism,
   but leave the 1,048,576-byte window's manual reading check separate. Default:
@@ -1883,5 +1931,8 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
-  show yet." or the stock queue's merge, by whether the merge came before the read.
+  hold nothing a browser alone shows (4.6). Its landings page reads the queue's one
+  member while the change waits, and below it "No landings to show yet." or the stock
+  queue's merge, by whether the merge came before the read. One run reads only one of
+  these, so the tier's library holds them all as a table in the focused suite, and
+  refuses any other line.
