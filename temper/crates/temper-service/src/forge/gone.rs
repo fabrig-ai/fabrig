@@ -75,7 +75,8 @@ fn next(engine: &mut Engine, forge: u16) -> bool {
         Item::AppSlug => Item::AppKey,
         Item::AppKey => Item::Accepted,
         Item::Accepted => Item::Origin,
-        Item::Origin => {
+        Item::Origin => Item::AppMade,
+        Item::AppMade => {
             *item = None;
             answered(engine, forge);
             return false;

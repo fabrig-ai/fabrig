@@ -35,6 +35,8 @@ fn complete(kind: Kind) -> Rows {
 #[test]
 fn record_numbers_and_origin_addresses_keep_their_meaning() {
     assert_eq!(records::number(0x1234, Item::Origin), 0x0001_0000_1234_000a);
+    assert_eq!(Item::AppMade.code(), 12);
+    assert_eq!(records::parse(0x0001_0000_1234_000c), Some((1, 0x1234, Item::AppMade)));
     for (i, address) in ["127.0.0.1:3000", "[::1]:3000", "forge.test:443", "api.github.com:443"].iter().enumerate() {
         let kind = if i == 3 { Kind::GitHub } else { Kind::Forgejo };
         let configured = if let Ok(socket) = address.parse() {
@@ -57,6 +59,7 @@ fn record_numbers_and_origin_addresses_keep_their_meaning() {
         Item::AppKey,
         Item::Accepted,
         Item::Origin,
+        Item::AppMade,
     ] {
         assert_eq!(records::parse(records::number(65535, item)), Some((1, 65535, item)));
     }
@@ -77,7 +80,10 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
         put(&mut rows, Item::Accepted, &1_u64.to_le_bytes());
         let byte = u8::try_from(Rng::new(84).between(33, 126)).expect("ASCII");
         put(&mut rows, Item::WebhookSecret, &[byte; 32]);
-        for hooks in [false, true] {
+        for (hooks, made) in [(false, false), (true, true)] {
+            if made && kind == Kind::GitHub {
+                put(&mut rows, Item::AppMade, &7_u64.to_le_bytes());
+            }
             let start = records::access(kind, &expected(kind), rows.forge(1).expect("rows"), &bounds(), hooks)
                 .expect("complete");
             assert_eq!(start.access.user, 9);
@@ -103,6 +109,7 @@ fn access_checks_each_record_and_preserves_the_access_and_accepted_ids() {
     );
     for (item, bytes) in [
         (Item::AppId, vec![0; 8]),
+        (Item::AppMade, vec![0; 8]),
         (Item::AppSlug, b"Bad".to_vec()),
         (Item::AppKey, vec![0; 1197]),
         (Item::Accepted, vec![1]),
@@ -173,7 +180,7 @@ const KEY_BYTES: usize = 65539;
 const INSTALLATIONS: usize = 256;
 const API_BYTES: usize = 259;
 
-fn scalar_rows() -> [(Item, Vec<u8>); 10] {
+fn scalar_rows() -> [(Item, Vec<u8>); 11] {
     [
         (Item::AdminToken, b"admin".to_vec()),
         (Item::ApiToken, b"api".to_vec()),
@@ -181,6 +188,7 @@ fn scalar_rows() -> [(Item, Vec<u8>); 10] {
         (Item::User, 9_u64.to_le_bytes().to_vec()),
         (Item::WebhookSecret, b"hook".to_vec()),
         (Item::AppId, 7_u64.to_le_bytes().to_vec()),
+        (Item::AppMade, 7_u64.to_le_bytes().to_vec()),
         (Item::AppSlug, b"test-app".to_vec()),
         (Item::AppKey, vec![0x30, 0]),
         (Item::Accepted, 1_u64.to_le_bytes().to_vec()),
