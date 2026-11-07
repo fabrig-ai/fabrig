@@ -430,7 +430,12 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
     let signed = sign_in(&mut world);
     let mut invalid = world.domain.settings().template(1).expect("settings fixture").clone();
     invalid.executor = people::TemplateExecutor::Charter(999);
-    let cases: [(u32, Box<[settings::Item]>, people::Refusal); 3] = [
+    let mut charter = world.domain.settings().charter(1).expect("configured charter").clone();
+    charter.policy.instructions = b"Changed by review".as_slice().into();
+    let mut invalid_charter = charter.clone();
+    invalid_charter.number = 2;
+    invalid_charter.policy.model.name = b"not-configured".as_slice().into();
+    let cases: [(u32, Box<[settings::Item]>, people::Refusal); 4] = [
         (0, Box::new([template_edit(&world, 7)]), people::Refusal::Stale { newest: 1 }),
         (
             1,
@@ -447,6 +452,28 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
                 at: 0,
                 why: people::Malformed::Settings {
                     setting: settings::Setting::Template(1),
+                    fault: settings::Fault::Reference,
+                    detail: None,
+                },
+            },
+        ),
+        (
+            1,
+            Box::new([
+                template_edit(&world, 7),
+                settings::Item {
+                    setting: settings::Setting::Charter(1),
+                    edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
+                },
+                settings::Item {
+                    setting: settings::Setting::Charter(2),
+                    edit: settings::Edit::Set(settings::Value::Charter(Box::new(invalid_charter))),
+                },
+            ]),
+            people::Refusal::NotWellFormed {
+                at: 2,
+                why: people::Malformed::Settings {
+                    setting: settings::Setting::Charter(2),
                     fault: settings::Fault::Reference,
                     detail: None,
                 },
