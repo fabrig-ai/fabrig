@@ -6,8 +6,9 @@ use temper_engine_domain_forge as domain;
 use temper_protocol_records as records;
 
 fn service(states: u32, life: Duration) -> crate::Service {
-    let mut service = routing_service(states, life);
     let ready = fixtures::ready().engine.expect("engine");
+    let store = fixtures::records_store_from(ready.store.host.component.into_stores());
+    let mut service = routing_service_with_store(states, life, None, Some(store));
     service.engine.as_mut().expect("engine").env.limits = ready.env.limits;
     service.engine.as_mut().expect("engine").domain = ready.domain;
     let rows = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
@@ -42,6 +43,14 @@ fn routing_service_at(
     life: Duration,
     public: Option<crate::startup::application::Origin>,
 ) -> crate::Service {
+    routing_service_with_store(states, life, public, None)
+}
+fn routing_service_with_store(
+    states: u32,
+    life: Duration,
+    public: Option<crate::startup::application::Origin>,
+    store: Option<crate::store::Store>,
+) -> crate::Service {
     let config = github_config(states, life, public);
     let mut runtime = List::with_capacity(1);
     runtime
@@ -52,8 +61,8 @@ fn routing_service_at(
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
         })
         .unwrap();
-    let mut service = fixtures::configured_service(config, &fixtures::seeds(), None, runtime).unwrap();
-    fixtures::replace_store(&mut service, fixtures::records_store());
+    let mut service =
+        fixtures::configured_service_with_store(config, &fixtures::seeds(), None, runtime, store).unwrap();
     load_routing(&mut service);
     service
 }
