@@ -20,8 +20,15 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/domain/forge.md, 4.6"
 
+[[part]]
+id = "approval"
+title = "An approval waiting on the forge, under Needs you: the read, its wire, the client's merge and card, and the proposal's sentence on a box"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.12"
+
 [[slice]]
 id = 1
 story = "A box's person says nothing lands without their approval, the rule is accepted, a change waits under Needs you with its link, they approve on the forge, and it lands, on an owned Forgejo and on GitHub"
-parts = ["scope", "link"]
+parts = ["scope", "link", "approval"]
 walk = false

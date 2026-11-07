@@ -16,7 +16,9 @@ The rest of `temper/docs/design/draft/forge-identity.md`, sections 4 to 9, tempe
 | `link` | `link-words` | | temper | the help and the configuring agent's instructions say a box's person needs nothing added, with section 6's sentence |
 | `link` | `box-story` | `link-lookup`, `link-scope`, `link-words` | temper | the engine's world: a box's person linked, their rule accepted (section 2, steps 1 and 2) |
 
-The `approval` part (section 8: the read and the card under Needs you; section 6's sentence on the proposal's card; section 2's steps 3 to 5 in the world) follows from its designer.
+| `approval` | `approval-wire` | | temper | the client wire's `approvals` document and watch, and `ProposalItemsAnswer`'s `owned_approval` |
+
+The rest of the `approval` part (section 8: the forge's waits, the root's read, the client's merge and card; section 6's sentence on the proposal's card; section 2's steps 3 to 5 in the world) follows from its designer, built to `notes/contracts.md`, *The approval read*.
 
 **Critical path, as it stands:** `link-record`, `link-decide`, `link-scope`, `box-story`, then the `approval` part's story. `link-lookup` feeds the `approval` part's read.
 
