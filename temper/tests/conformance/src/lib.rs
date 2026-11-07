@@ -653,23 +653,7 @@ impl Application for Temper {
         }
         observations.append(&mut peers.observed);
         observations.extend(systems.take_observed());
-        let mut totals = std::collections::BTreeMap::<u64, (u64, u64)>::new();
-        for (&(task, attempt), expense) in &peers.worker.expenses {
-            if expense.lost_turns > 0 {
-                observations.push(r::Observed::LostTurns {
-                    task,
-                    attempt,
-                    turns: expense.lost_turns,
-                    spent: expense.lost,
-                });
-            }
-            let total = totals.entry(task).or_default();
-            total.0 += expense.spent;
-            total.1 += expense.lost;
-        }
-        for (task, (spent, lost_bound)) in totals {
-            observations.push(r::Observed::Spend { task, spent, lost_bound });
-        }
+        observations::expenses(&peers.worker.expenses, &mut observations);
         observations
     }
     fn ready(domain: &Domain) -> bool {

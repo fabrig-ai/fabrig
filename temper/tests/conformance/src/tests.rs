@@ -143,3 +143,29 @@ fn ci_evidence_follows_native_commit_and_pull_reads() {
     forge.poll(clock);
     assert!(forge.take_observed().is_empty());
 }
+
+#[test]
+fn expense_observations_keep_lost_turns_before_sorted_task_totals() {
+    use jig_fake_workers::Expense;
+    let mut actual = vec![r::Observed::Restart];
+    observations::expenses(&std::collections::BTreeMap::new(), &mut actual);
+    assert_eq!(actual, vec![r::Observed::Restart]);
+    let expenses = std::collections::BTreeMap::from([
+        ((3, 8), Expense { spent: 7, lost: 4, lost_turns: 2, ..Expense::default() }),
+        ((1, 4), Expense { spent: 11, kept: 11, ..Expense::default() }),
+        ((3, 7), Expense { spent: 5, lost: 2, lost_turns: 1, ..Expense::default() }),
+        ((2, 1), Expense::default()),
+    ]);
+    observations::expenses(&expenses, &mut actual);
+    assert_eq!(
+        actual,
+        vec![
+            r::Observed::Restart,
+            r::Observed::LostTurns { task: 3, attempt: 7, turns: 1, spent: 2 },
+            r::Observed::LostTurns { task: 3, attempt: 8, turns: 2, spent: 4 },
+            r::Observed::Spend { task: 1, spent: 11, lost_bound: 0 },
+            r::Observed::Spend { task: 2, spent: 0, lost_bound: 0 },
+            r::Observed::Spend { task: 3, spent: 12, lost_bound: 6 },
+        ]
+    );
+}

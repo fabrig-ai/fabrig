@@ -549,3 +549,35 @@ fn whole_resolved(
     snapshot.held_effects.extend(held.keys().map(|key| (0, *key)));
     snapshot.settled_effects.extend(settled.iter().map(|key| (0, *key)));
 }
+
+/// Report every lost turn before task totals, preserving the map's task and
+/// attempt order. Sorted attempts can be summed without a temporary task map.
+pub(crate) fn expenses(
+    expenses: &BTreeMap<(u64, u64), jig_fake_workers::Expense>,
+    observations: &mut Vec<r::Observed>,
+) {
+    for (&(task, attempt), expense) in expenses {
+        if expense.lost_turns > 0 {
+            observations.push(r::Observed::LostTurns { task, attempt, turns: expense.lost_turns, spent: expense.lost });
+        }
+    }
+    let mut total = None;
+    for (&(task, _), expense) in expenses {
+        match &mut total {
+            Some((prior, spent, lost)) if *prior == task => {
+                *spent += expense.spent;
+                *lost += expense.lost;
+            }
+            Some((prior, spent, lost)) => {
+                observations.push(r::Observed::Spend { task: *prior, spent: *spent, lost_bound: *lost });
+                *prior = task;
+                *spent = expense.spent;
+                *lost = expense.lost;
+            }
+            None => total = Some((task, expense.spent, expense.lost)),
+        }
+    }
+    if let Some((task, spent, lost_bound)) = total {
+        observations.push(r::Observed::Spend { task, spent, lost_bound });
+    }
+}
