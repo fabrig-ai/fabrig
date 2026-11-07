@@ -89,13 +89,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     );
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
-    let pressed = |position| Step::Keep {
-        selector: format!("main .temper-filters > button[aria-pressed='true']:nth-child({position})")
-            .into_bytes()
-            .into_boxed_slice(),
-        attribute: Some(b"aria-pressed".as_slice().into()),
-        name: b"pressed-filter".as_slice().into(),
-    };
+    let pressed = |name: &[u8]| Step::Pressed { find: Find::exactly_named(Role::Button, name), within: WITHIN };
     let needs_page = || Step::Keep {
         selector: b"main.temper-needs".as_slice().into(),
         attribute: Some(b"class".as_slice().into()),
@@ -141,11 +135,11 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Reload),
         see(Find::exactly_named(Role::Button, b"Closed")),
-        pressed(3),
+        pressed(b"Closed"),
         Step::Back,
         see(Find::exactly_named(Role::Button, b"All")),
         Step::Address(b"/chats".as_slice().into()),
-        pressed(1),
+        pressed(b"All"),
         Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),

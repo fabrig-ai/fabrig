@@ -690,7 +690,8 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             host::LinkDown::Acknowledge { .. } => {
                 core::CoreKey::Terminal { task: assignment.task, attempt: assignment.attempt }
             }
-            other @ (host::LinkDown::Sources { .. }
+            other @ (host::LinkDown::ReadList { .. }
+            | host::LinkDown::Sources { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }
             | host::LinkDown::Assign { .. }

@@ -343,6 +343,7 @@ fn a_move_in_makes_an_account_refreshed_once_before_it_is_usable() {
     assert!(world.domain.source(source).is_none());
     open(&mut world, source, b"alice");
     let made = Stored::Account {
+        list: None,
         number: 1,
         provider: PROVIDER,
         holder: ALICE,

@@ -192,6 +192,7 @@ pub fn account_rows(providers: &jig_domain_accounts::Providers) -> Box<[engine::
         {
             for row in [
                 Stored::Account {
+                    list: None,
                     number: account,
                     provider,
                     holder: Holder::Deployment,

@@ -428,3 +428,37 @@ The reasons behind `goal-as-designer.md`, from the user, 2026-11-06.
   result, and the user expects the tree to run itself.
 - **The close-out after the landing** (revises N16). It is the pipeline's sequence, and
   the user asked for the same sequence.
+
+## 8. Instructions per wake
+
+The reasons behind `per-wake.md`, from the user, 2026-11-07.
+
+- **Instructions per wake, not an answering task.** The user asked whether temper
+  could answer as the pipeline does, a fresh call with an answering prompt, and
+  chose instructions per wake over a task added for each question. An answer often
+  amends the asking change, makes a prerequisite and adds it to the asker's
+  `after`, or revises the design in g: each is its requester's, the goal's (jig's
+  `domain/tasks.md`, section 7). A task of its own would need that authority, a
+  second writer of the goal's plan. The goal's later runs already start fresh,
+  so only the instructions differ from the pipeline.
+- **Reasons from jig's vocabulary.** The engine already gathers a brief for why
+  a run runs, and the store's kinds of message are a closed set, so a part names
+  them rather than new words for a wake. Only what woke a run chooses its parts,
+  or every run would read the parts for whatever rode along.
+- **Kept for the next run, not offered with its part.** A message no part covers
+  stays in the inbox, judged again when the run ends, as an unread one is. A part
+  given mid-run would put instructions inside a message, and the cut never
+  answers a question anyway, as the pipeline's doesn't. Replies to a run's own
+  acts, entries, an amendment, a request to finish and a person's words always
+  reach it: a run waits on its replies, no policy keeps a decision from whoever
+  must make it, and no batch holds a person's words (jig's `domain/tasks.md`,
+  8.3). An entry left undecided wakes the next run, as entries aren't inbox
+  messages and nothing would judge one again.
+- **Fresh runs only.** A conversation's instructions can't change under it
+  without losing its cache and its turns' reading.
+- **A later choice, not one per kind** (revises N11's one choice per task). One
+  run takes one model, and the need measured is the cut against the rest. It also ends an amendment that
+  whoever started the goal had to remember, and the goal couldn't make itself.
+- **Focused.** What a role doesn't act on costs every run, and blurs what it does
+  act on. The comparisons' goal read 31 KB at each run, a fifth of it rules for
+  building and testing it never runs.

@@ -45,6 +45,10 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
+        w::Ask::ReadLists(value) => p::Ask::AccountChange {
+            holder: p::AccountHolder::Own,
+            change: p::AccountChange::ReadLists { provider: value.provider() },
+        },
         w::Ask::Restore(value) => {
             let value = value.into_parts();
             p::Ask::Restore { revision: value.revision, reason: value.reason }

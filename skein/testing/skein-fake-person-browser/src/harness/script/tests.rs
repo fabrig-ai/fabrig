@@ -311,3 +311,84 @@ fn a_viewport_step_sends_dimensions_and_holds_the_face_pending() {
     face.event(&Event::Done { op: ADDRESS_OP });
     assert!(!face.pending());
 }
+
+#[test]
+fn the_pressed_step_awaits_the_found_nodes_state_within_its_bound() {
+    use skein_fake_person::{Next, Why};
+    use skein_lib::Duration;
+
+    const ROWS: &[(&str, Option<bool>, bool, Option<&str>)] = &[
+        ("pressed at first look", Some(true), false, None),
+        ("pressed at later look", Some(false), true, None),
+        ("unpressed until bound", Some(false), false, Some("unpressed")),
+        ("absent until bound", None, false, Some("missing")),
+    ];
+    for &(name, first, later, expected) in ROWS {
+        for deadline in [false, true] {
+            let find = Find::exactly_named(Role::Button, b"Closed");
+            let within = Duration::from_secs(1);
+            let start = Time::from_nanos(7);
+            let until = start.saturating_add(within);
+            let mut script = Script::new(Box::new([Step::Pressed { find: find.clone(), within }]));
+            let mut face = face();
+            face.tick(start);
+            assert_eq!(script.next(&mut face, start), Next::Wait { until: Some(until) }, "{name}");
+            let target = first.map(|pressed| {
+                let mut target = seen(b"");
+                target.role = b"button".as_slice().into();
+                target.name = b"Closed".as_slice().into();
+                target.states.pressed = pressed;
+                target
+            });
+            found(&mut face, target);
+            script.next(&mut face, start);
+            if first != Some(true) {
+                assert_eq!(script.at(), 0, "{name} must wait");
+                assert_eq!(face.failure(), None, "{name} must not fail early");
+                let poll = skein_browser::Limits::default().poll;
+                let before_poll = start.saturating_add(Duration::from_nanos(poll.as_nanos() - 1));
+                face.tick(before_poll);
+                assert_eq!(script.next(&mut face, before_poll), Next::Wait { until: Some(until) }, "{name}");
+                assert_eq!(face.requests().count(), 0, "{name}: no early look");
+                let again = start.saturating_add(poll);
+                face.tick(again);
+                assert_eq!(script.next(&mut face, again), Next::Wait { until: Some(until) }, "{name}");
+                assert!(face.pending(), "{name}: look again at the poll");
+                if later {
+                    let mut target = seen(b"");
+                    target.states.pressed = true;
+                    found(&mut face, Some(target));
+                    script.next(&mut face, again);
+                } else {
+                    let before_bound = Time::from_nanos(until.as_nanos() - 1);
+                    script.check_deadline(&mut face, before_bound);
+                    assert_eq!(script.at(), 0, "{name}: keep waiting before the bound");
+                    assert_eq!(face.failure(), None, "{name}: no failure before the bound");
+                    face.tick(until);
+                    if deadline {
+                        script.check_deadline(&mut face, until);
+                    } else {
+                        let next = script.next(&mut face, until);
+                        if expected == Some("missing") {
+                            assert_eq!(
+                                next,
+                                Next::Failed { step: 0, why: Why::Missing { find: find.clone() } },
+                                "{name}"
+                            );
+                            continue;
+                        }
+                    }
+                }
+            }
+            let failure = match expected {
+                None => None,
+                Some("unpressed") => Some(format!("node {find:?} is not pressed within its bound")),
+                Some("missing") => Some(format!("{:?}", Why::Missing { find })),
+                Some(other) => panic!("unknown outcome {other}"),
+            };
+            assert_eq!(face.failure(), failure, "{name}, deadline {deadline}");
+            assert_eq!(script.at(), 1, "{name}, deadline {deadline}");
+            assert_eq!(script.next(&mut face, until), Next::Done, "{name}: script goes on");
+        }
+    }
+}

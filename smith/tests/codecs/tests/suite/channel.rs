@@ -8,6 +8,12 @@ use smith_channel::{Answer, CEILINGS, Start, V6, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
+    assert_measured("channel", 6, "list_ask", |bytes| {
+        smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list ask decodes").measure()
+    });
+    assert_measured("channel", 6, "list_row", |bytes| {
+        smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list row decodes").measure()
+    });
     assert_measured("channel", 6, "start", |bytes| {
         Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
     });
@@ -175,5 +181,25 @@ fn refused_notice_fields_read_back_at_both_bounds() {
         let bytes = writer.finish();
         let read = smith_channel::AccountRefused::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("refusal decodes");
         assert_eq!((read.account(), read.code().len(), read.reason().len()), (7, code_length, reason_length));
+    }
+}
+
+#[test]
+fn a_list_asks_debug_keeps_the_credentials_value_private() {
+    const VALUE: &[u8] = b"private-list-value";
+    for scheme in [smith_channel::Scheme::Key, smith_channel::Scheme::Bearer] {
+        let credential = smith_channel::CredentialValue::new(
+            &CEILINGS,
+            smith_channel::CredentialValueParts { scheme, bytes: skein_lib::Secret::new(VALUE.into()) },
+        )
+        .expect("bounded credential");
+        let ask = smith_channel::ListAsk::new(
+            &CEILINGS,
+            smith_channel::ListAskParts { endpoint: 17, credential: Some(credential) },
+        )
+        .expect("list ask");
+        let words = format!("{ask:?}");
+        assert!(!words.contains(std::str::from_utf8(VALUE).expect("fixture text")), "no secret text in Debug");
+        assert!(!words.contains(&format!("{VALUE:?}")), "no secret bytes in Debug");
     }
 }

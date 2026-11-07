@@ -103,6 +103,7 @@ fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
     let account = accounts_v2::Account::new(
         &ceilings,
         accounts_v2::AccountParts {
+            list: None,
             place: u32::MAX,
             uses: Some({
                 let mut uses = skein_lib::List::with_capacity(ceilings.account_uses_some);

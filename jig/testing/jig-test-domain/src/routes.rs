@@ -91,6 +91,7 @@ pub(super) fn route_core(
                 | core::Held::Drained
                 | core::Held::Grant { .. }
                 | core::Held::Cancel { .. }
+                | core::Held::ReadList { .. }
                 | core::Held::Sources { .. }
                 | core::Held::CheckSource { .. }
                 | core::Held::SignOutSource { .. }
@@ -1106,6 +1107,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::AccountFinishing { .. }
         | people::Outcome::AccountMovedIn { .. }
+        | people::Outcome::AccountReading { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountRemoved { .. }
         | people::Outcome::AccountSignedOut { .. }

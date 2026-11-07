@@ -324,6 +324,8 @@ pub enum Held {
     SettledCall { to: ReplyTo, key: CallKey, call: crate::SettledCall },
     /// A claimed host receives the parent's conversation references.
     Assign { channel: Token, run: Token, attempt: Token, activation: u64, assignment: fleet::Assignment },
+    /// Read an account's list on this channel (jig/docs/design/protocol/channel.md, 5.2).
+    ReadList { channel: Token, read: u64, endpoint: u32, grant: jig_domain_link::Grant },
     /// Replace the connected worker's whole program-source list after commit.
     Sources { channel: Token, sources: Box<[SourceName]> },
     /// Request a fresh observation of one named program source on this channel.
@@ -1224,11 +1226,13 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::CleanupPrograms { .. }
         | fleet::Event::CheckProgram { .. }
         | fleet::Event::SignOutProgram { .. }
+        | fleet::Event::ReadList { .. }
         | fleet::Event::Sources { .. }
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
         | fleet::Event::Relay { .. } => true,
-        fleet::Event::Logins { .. }
+        fleet::Event::ListRead { .. }
+        | fleet::Event::Logins { .. }
         | fleet::Event::SignedOut { .. }
         | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
@@ -1304,6 +1308,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::Listed { .. }
+        | accounts::Event::ListFailed { .. }
         | accounts::Event::Close => false,
     }
 }

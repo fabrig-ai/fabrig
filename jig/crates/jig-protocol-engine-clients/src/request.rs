@@ -186,7 +186,8 @@ impl Component {
                         })));
                         return;
                     }
-                    other @ (w::Ask::AccountChange(_)
+                    other @ (w::Ask::ReadLists(_)
+                    | w::Ask::AccountChange(_)
                     | w::Ask::Amend(_)
                     | w::Ask::Answer(_)
                     | w::Ask::Cancel(_)
@@ -328,7 +329,8 @@ impl Component {
 fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKind>)> {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
-        w::Ask::ChangeModel(_)
+        w::Ask::ReadLists(_)
+        | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
@@ -383,7 +385,8 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
 fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes: u32) -> u64 {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
-        w::Ask::ChangeModel(_)
+        w::Ask::ReadLists(_)
+        | w::Ask::ChangeModel(_)
         | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)

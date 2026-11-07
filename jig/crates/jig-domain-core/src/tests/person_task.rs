@@ -273,6 +273,7 @@ fn person_account(
 ) {
     for record in [
         accounts::Stored::Account {
+            list: None,
             number,
             provider,
             holder: accounts::Holder::Party(PERSON),

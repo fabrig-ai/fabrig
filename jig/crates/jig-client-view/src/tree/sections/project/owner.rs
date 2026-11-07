@@ -79,6 +79,7 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -551,6 +552,7 @@ fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -643,6 +645,7 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -680,6 +683,7 @@ fn pool_request(ask: &Ask) -> bool {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -717,6 +721,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -1155,6 +1160,7 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

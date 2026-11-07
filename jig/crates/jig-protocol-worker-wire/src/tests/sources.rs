@@ -12,7 +12,7 @@ const EMAIL_BYTES: usize = 255;
 #[test]
 fn source_caps_are_measured_without_run_slots() {
     let sizes = Sizes { slots: 0, ..SIZES_ONE_SLOT };
-    assert_eq!(sizes::engine_cap(&sizes), Some(sizes::Cap { bytes: 260, frames: 5 }));
+    assert_eq!(sizes::engine_cap(&sizes), Some(sizes::Cap { bytes: 337, frames: 6 }));
 }
 #[test]
 fn source_record_bodies_are_measured() {

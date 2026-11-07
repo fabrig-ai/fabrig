@@ -142,6 +142,11 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         live_call_id,
         live_call_tool,
         live_bytes,
+        list_row_name: _,
+        list_row_shown_some: _,
+        list_row_efforts: _,
+        list_row_efforts_item: _,
+        list_rows_rows: _,
     } = *limits;
     Box::new([
         body_bytes("process.channel.bodies.directory_name", directory_name),

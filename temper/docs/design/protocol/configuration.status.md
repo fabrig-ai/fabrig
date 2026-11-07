@@ -3,8 +3,8 @@
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
 Sections 2 and 13.4 have no known gap in the binary's numbered stock,
-model-free configuration documents or `rest` on stock charters. Provider
-lists remain section 11's deferred work; the measurement gap below stays.
+model-free configuration documents or `rest` on stock charters. The
+measurement gap below stays.
 
 Section 13.4's charter 1 has the forge-first `read_branch` instruction for
 a repository outside its checkout, held by a stock phrase assertion.

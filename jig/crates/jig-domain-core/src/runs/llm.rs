@@ -132,20 +132,21 @@ impl Core {
             {
                 usable = Some(*candidate);
             }
-            if serving.is_none()
-                && !self
-                    .accounts
-                    .candidates(
-                        super::coverage::payer(payer),
-                        provider,
-                        model.program.as_deref(),
-                        None,
-                        None,
-                        coverage.as_slice(),
-                    )
-                    .is_empty()
-            {
-                serving = Some(*candidate);
+            if serving.is_none() {
+                let accounts = self.accounts.candidates(
+                    super::coverage::payer(payer),
+                    provider,
+                    model.program.as_deref(),
+                    None,
+                    None,
+                    coverage.as_slice(),
+                );
+                for account in &accounts {
+                    if self.account_allows(*account, model) {
+                        serving = Some(*candidate);
+                        break;
+                    }
+                }
             }
         }
         let selected = kept.or(usable).or(serving);

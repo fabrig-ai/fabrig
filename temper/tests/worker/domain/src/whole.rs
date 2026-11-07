@@ -163,7 +163,9 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::Source { .. } | Request::SourceFault => panic!("this fixture declares no program sources"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                panic!("this fixture declares no program sources")
+            }
             Request::Hello(hello) => {
                 assert!(hello.hosting.len() <= 1);
                 self.report.stop_bound = hello.stop_bound;
@@ -209,7 +211,8 @@ impl World {
                 assert_eq!(input.as_ref(), b"{}");
                 assert!(self.call.replace(call).is_none());
             }
-            host::LinkUp::Logins { .. }
+            host::LinkUp::ListRead { .. }
+            | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Turn { .. }

@@ -126,6 +126,8 @@ impl Peer {
             owner,
             service: provider::Service::new(
                 provider::Config {
+                    list: None,
+                    list_status: None,
                     without_credential: false,
                     usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
                     echo: skein_llm::openai::Echo::NONE,
@@ -187,7 +189,10 @@ impl Peer {
         if let Some(event) = self.above.pop() {
             match event {
                 provider::Event::Domain(event) => fake::step(&mut self.domain, &domain_env, event, &mut self.replies),
-                provider::Event::Head { .. } | provider::Event::Close | provider::Event::Closed => {}
+                provider::Event::Head { .. }
+                | provider::Event::List { .. }
+                | provider::Event::Close
+                | provider::Event::Closed => {}
             }
         }
         if let Some(reply) = self.replies.pop() {
