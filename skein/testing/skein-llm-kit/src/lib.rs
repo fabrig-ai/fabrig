@@ -79,7 +79,13 @@ pub fn anthropic_call(owner: u64) -> skein_llm::Call {
 
 #[must_use]
 pub fn events(documents: &[&str]) -> Vec<u8> {
-    documents.iter().flat_map(|document| format!("data: {document}\n\n").into_bytes()).collect()
+    let mut bytes = Vec::new();
+    for document in documents {
+        bytes.extend_from_slice(b"data: ");
+        bytes.extend_from_slice(document.as_bytes());
+        bytes.extend_from_slice(b"\n\n");
+    }
+    bytes
 }
 
 #[must_use]
