@@ -45,6 +45,23 @@ Sections 7.1 and 7.2 have no known implementation gap in an ordered hangup
 stop, ignored hangups, or Linux's parent-death wrapper. macOS's lack of
 a parent-death signal is the designed limit, deferred in section 15.
 
+- **Not yet:** 7.2, *Its children*: after-landing's owned-forge landing
+  story on Claude Code (`crates/temper/tests/live.rs`,
+  `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) has no
+  live rerun establishing that no descendant survives the box's stop.
+  The live judge snapshots descendants before stopping and, at the box's
+  exit, reports each survivor's command line, parent, process group and
+  session, or that it is gone, plus retained rows for its parent and
+  group leader, through the live log's filter. Its table test covers the
+  rendering and process-stat parsing; the live assertion is unchanged.
+  serve's orderly stop now lets its agents end their programs, covered
+  by the real-loop held-Claude-turn test. That fix does not establish
+  the live story's outcome or identify the survivor at `21a9819cc3`;
+  the runner's forced shutdown of a recent job remains a lead. Diagnosis
+  of any remaining survivor awaits the next after-landing red. Programs
+  surviving a forced agent-group kill remain section 15's contained-tree
+  work, rather than an orderly-stop implementation gap.
+
 - **Not yet:** 13.4: the hangup/rebind and Linux killed-box stories in
   `crates/temper/tests/suite/box_lifetime.rs` are present in the process
   binary and compiled, with their assertions retained. Their process-tier
