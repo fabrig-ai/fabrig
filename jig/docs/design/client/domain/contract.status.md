@@ -35,11 +35,6 @@ both proposers with and without a running-work choice.
   and left the run's readiness check unchanged; that does not establish
   the promised agreement. Seen by reading; no runtime result is supplied.
 
-- **Not yet:** 5.1: `TaskWaitRefused::Hello` has no `figures`, there is no
-  `TaskWaitRefused::Bounds` and no `Figures`, and `AgentShortfall`'s `Turns`,
-  `Time` and `Waiting` carry no charter (`jig-client-domain/src/contract/llm.rs`,
-  `contract/deployment.rs`).
-
 - **Not yet:** 5.1: `me` gives `words_bytes` from `people.words` for a party's
   spec, message and answer, but says no bound on an amendment's: the long-words
   plan carries the words bound alone.

@@ -713,12 +713,12 @@ fn a_refused_next_run_says_why() {
     for (name, refusal, expected) in [
         (
             "engine",
-            R::Hello { kind: H::Engine, at: fixtures::NOW, why: F::ReservedChannel },
+            R::Hello { kind: H::Engine, at: fixtures::NOW, why: F::ReservedChannel, figures: None },
             "Next run refused · An engine host was refused at 00:00. Channel zero belongs to the engine's own host.",
         ),
         (
             "worker",
-            R::Hello { kind: H::Worker, at: fixtures::NOW, why: F::Position { worker: 7 } },
+            R::Hello { kind: H::Worker, at: fixtures::NOW, why: F::Position { worker: 7 }, figures: None },
             "Next run refused · A worker was refused at 00:00. Unconfigured or occupied worker position 7.",
         ),
     ] {
@@ -736,6 +736,7 @@ fn a_refused_next_run_says_why() {
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected.as_bytes(), "{name}");
         let midnight = match refusal {
             R::Hello { .. } => Some(skein_lib::Wall::from_nanos(86_400_000_000_000)),
+            R::Bounds { .. } => None,
         };
         assert_eq!(times.next, midnight, "{name}");
         let source = fixtures::chat::messaging_root();
@@ -774,10 +775,10 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
             F::Agent { why: S::Output { charter: 3, model: 8 } },
             "Agent output too small for charter 3. Model position 8.",
         ),
-        (F::Agent { why: S::Turns }, "Agent turns too few."),
+        (F::Agent { why: S::Turns { charter: 2 } }, "Agent turns too few."),
         (F::Agent { why: S::Spend }, "Agent spend too small."),
-        (F::Agent { why: S::Time }, "Agent time too short."),
-        (F::Agent { why: S::Waiting }, "Agent waiting too short."),
+        (F::Agent { why: S::Time { charter: 2 } }, "Agent time too short."),
+        (F::Agent { why: S::Waiting { charter: 2 } }, "Agent waiting too short."),
         (
             F::Agent { why: S::Checks { charter: 2 } },
             "Agent check timeout exceeds reserve_time for charter 2. See settings help for held revisions.",
@@ -794,6 +795,7 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
                 kind: c::HostKind::Worker,
                 at: fixtures::NOW,
                 why,
+                figures: None,
             }))),
             &fixtures::words(),
             &mut crate::frame::Bindings::new(32),

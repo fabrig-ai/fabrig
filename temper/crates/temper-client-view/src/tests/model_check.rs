@@ -602,6 +602,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
             kind: c::HostKind::Worker,
             at: skein_lib::Wall::from_nanos(1_791_828_240_000_000_000),
             why: c::HelloRefusal::JobKinds,
+            figures: None,
         }),
     ] {
         wait_delivery(&mut root, task_watch, Some(wait));

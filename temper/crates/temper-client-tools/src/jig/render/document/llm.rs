@@ -316,7 +316,14 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
     out.key(b"refused");
     out.object_start();
     match value {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { kind, .. } => {
+            out.key(b"bounds");
+            out.object_start();
+            out.key(b"kind");
+            out.string(host_kind(kind));
+            out.object_end();
+        }
+        c::TaskWaitRefused::Hello { kind, at, why, .. } => {
             out.key(b"hello");
             out.object_start();
             out.key(b"kind");
@@ -363,10 +370,10 @@ fn agent_shortfall(value: c::AgentShortfall, out: &mut Encoder) {
         c::AgentShortfall::Model { charter, model } => agent_numbers(b"model", charter, model, out),
         c::AgentShortfall::Window { charter, model } => agent_numbers(b"window", charter, model, out),
         c::AgentShortfall::Output { charter, model } => agent_numbers(b"output", charter, model, out),
-        c::AgentShortfall::Turns => out.string(b"turns"),
+        c::AgentShortfall::Turns { .. } => out.string(b"turns"),
         c::AgentShortfall::Spend => out.string(b"spend"),
-        c::AgentShortfall::Time => out.string(b"time"),
-        c::AgentShortfall::Waiting => out.string(b"waiting"),
+        c::AgentShortfall::Time { .. } => out.string(b"time"),
+        c::AgentShortfall::Waiting { .. } => out.string(b"waiting"),
         c::AgentShortfall::Checks { charter } => {
             out.object_start();
             out.key(b"checks");
@@ -397,7 +404,8 @@ fn agent_numbers(variant: &[u8], charter: u32, model: u32, out: &mut Encoder) {
 fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
     out.put(b"refused, ");
     match value {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { .. } => out.put(b"no host takes it"),
+        c::TaskWaitRefused::Hello { kind, at, why, .. } => {
             out.put(host_kind(kind));
             out.put(b" refused at ");
             super::utc(at, out);
@@ -446,10 +454,10 @@ fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
             out.put(b", model position ");
             out.number(u64::from(model));
         }
-        c::AgentShortfall::Turns => out.put(b"agent turns too few"),
+        c::AgentShortfall::Turns { .. } => out.put(b"agent turns too few"),
         c::AgentShortfall::Spend => out.put(b"agent spend too small"),
-        c::AgentShortfall::Time => out.put(b"agent time too short"),
-        c::AgentShortfall::Waiting => out.put(b"agent waiting too short"),
+        c::AgentShortfall::Time { .. } => out.put(b"agent time too short"),
+        c::AgentShortfall::Waiting { .. } => out.put(b"agent waiting too short"),
         c::AgentShortfall::Checks { charter } => {
             out.put(b"agent check timeout exceeds charter ");
             out.number(u64::from(charter));

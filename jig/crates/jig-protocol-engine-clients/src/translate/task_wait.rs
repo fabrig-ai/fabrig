@@ -11,14 +11,30 @@ pub(super) fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Resu
             limits,
             w::TaskRunWaitRefusedParts {
                 value: match value {
-                    d::TaskWaitRefused::Hello { kind, at, why } => w::TaskWaitRefused::Hello(w::TaskWaitHello::new(
-                        limits,
-                        w::TaskWaitHelloParts {
-                            kind: super::deployment::host_kind(kind),
-                            at: at.as_nanos(),
-                            why: super::deployment::hello(why, limits)?,
-                        },
-                    )?),
+                    d::TaskWaitRefused::Hello { kind, at, why, figures } => {
+                        w::TaskWaitRefused::Hello(w::TaskWaitHello::new(
+                            limits,
+                            w::TaskWaitHelloParts {
+                                kind: super::deployment::host_kind(kind),
+                                at: at.as_nanos(),
+                                why: super::deployment::hello(why, limits)?,
+                                figures: shortfall_figures(figures, limits)?,
+                            },
+                        )?)
+                    }
+                    d::TaskWaitRefused::Bounds { kind, why, figures } => {
+                        w::TaskWaitRefused::Bounds(w::TaskWaitBounds::new(
+                            limits,
+                            w::TaskWaitBoundsParts {
+                                kind: super::deployment::host_kind(kind),
+                                why: match why {
+                                    Some(why) => Some(super::deployment::shortfall(why, limits)?),
+                                    None => None,
+                                },
+                                figures: shortfall_figures(figures, limits)?,
+                            },
+                        )?)
+                    }
                 },
             },
         )?),
@@ -92,5 +108,18 @@ fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {
     match value {
         Some(value) => Some(value.as_nanos()),
         None => None,
+    }
+}
+
+fn shortfall_figures(
+    value: Option<jig_domain_fleet::Figures>,
+    limits: &w::Limits,
+) -> Result<Option<w::ShortfallFigures>, w::Problem> {
+    match value {
+        Some(value) => Ok(Some(w::ShortfallFigures::new(
+            limits,
+            w::ShortfallFiguresParts { required: value.required, offered: value.offered },
+        )?)),
+        None => Ok(None),
     }
 }

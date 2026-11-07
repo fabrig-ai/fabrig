@@ -1008,6 +1008,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
             kind,
             at,
             why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 1 } },
+            figures: Some(fleet::Figures { required: 8, offered: 0 }),
         }));
         assert_eq!(document_wait(&core, &limits), expected);
         assert!(core.fleet.hello_refusals().is_empty());
@@ -1046,6 +1047,47 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         );
         assert_eq!(task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap().run_wait, expected);
     }
+}
+
+#[test]
+fn a_due_tasks_bounds_wait_tracks_its_charters_growth_and_recovery() {
+    // The charter-growth regression: 100,000 turns against an 800-turn worker.
+    const GROWN_TURNS: u32 = 100_000;
+    const WORKER_TURNS: u32 = 800;
+    let (mut core, limits) = ready(false);
+    core.fleet = placement_fleet(&core, &limits);
+    fleet_event(
+        &mut core,
+        &limits,
+        Wall::EPOCH,
+        fleet::Event::Hello {
+            channel: FIRST,
+            worker: 0,
+            hello: Hello {
+                jobs: Box::default(),
+                bounds: Bounds { turns: WORKER_TURNS, ..fixtures::bounds() },
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        },
+    );
+    let before = document_wait(&core, &limits);
+    let mut needs = fleet_needs::configured(&config(41), &limits);
+    let original = needs.clone();
+    needs.charters[0].turns = GROWN_TURNS;
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Needs(needs));
+    assert_eq!(
+        document_wait(&core, &limits),
+        Some(TaskRunWait::Refused(TaskWaitRefused::Bounds {
+            kind: fleet::HostKind::Worker,
+            why: Some(fleet::AgentShortfall::Turns { charter: 1 }),
+            figures: Some(fleet::Figures { required: 100_000, offered: 800 }),
+        }))
+    );
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Needs(original));
+    assert_eq!(document_wait(&core, &limits), before);
 }
 
 #[test]
