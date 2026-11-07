@@ -24,6 +24,13 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui-web.md, 10"
 
+[[part]]
+id = "field-options"
+title = "skein-ui gains a field's options: a menu moved through from its text field, Enter pressing and Tab completing"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 3.2"
+
 [[slice]]
 id = 1
 story = "A draft's \"_Draft, with the user._\" shows as emphasis, and snake_case stays as written"
@@ -34,4 +41,10 @@ walk = false
 id = 2
 story = "A page keeps a record in local storage across tabs, and goes into and out of full screen with Escape held, reporting each"
 parts = ["web-screen"]
+walk = false
+
+[[slice]]
+id = 3
+story = "In a form, a text area keeps the focus while its options under it move with the arrows, Enter presses the active one, Tab completes /mo to /model"
+parts = ["field-options"]
 walk = false

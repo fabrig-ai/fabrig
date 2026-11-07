@@ -185,6 +185,7 @@ fake person. What waits is in section 18, and what is open in section
 | continues | a log whose last entry is not its list's last: a shell does not follow it, and counts the person away from the list's end |
 | folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
 | to log end | a button a shell answers, pressed, by taking the page's logs to their ends; its press still reaches its owner where bound |
+| options | a menu offering the choices of the nearest text field or text area before it in its innermost form, while the focus stays in the field: a list a person moves through from the field, a command's completions or a choice's values |
 
 There is no provisional state: no accessibility API has one. A node
 whose content is provisional says so in words (a status), and its look
@@ -199,6 +200,21 @@ do. Each shell says it in words: the page part in a word of its own
 section 5), a phone's shell as it says a sort (16.2, 16.3). The builder
 asserts it on an item alone: a tree item's content is not read when it
 is named, so completed there waits for a design of its own.
+
+Options is the web's list a field controls (ARIA's combobox pattern over a
+text box) and Android's completions under a field, so it is in by 4.1. A
+menu with it has no button of its own: it shows while it is in the tree,
+its items the choices, the item marked selected the one its field starts
+at, or else the first. Its field keeps the focus and the keys: the shell
+moves an active item through the menu's enabled items, presses it on
+Enter in place of the field's `Submit`, and on Tab writes its name into
+the field, as the person's input, where the field holds words its name
+begins with (ui-web.md, section 7). The active item is the shell's, as a
+menu's focused item is, and reaches the owner only as a press or an
+input. The builder asserts it on a menu alone, and the outline
+(section 14) that the menu's form holds a text field or text area before
+it. A shell with no focus, as the text shell, prints the menu as any
+menu.
 
 Folds away and to log end say nothing to a person, and no accessibility
 API has them. Each asks a shell for a behaviour over what the shell alone
