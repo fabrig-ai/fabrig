@@ -114,12 +114,23 @@ fn group(ended: bool, landed: bool) -> Observation {
 }
 
 #[test]
-fn once_fails_on_two_pulls_with_one_key() {
-    let mut judge = judge();
+fn duplicate_client_markers_breach_once_within_their_namespace() {
+    skein_rows::check(
+        [
+            ("once_fails_on_two_pulls_with_one_key", { let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/pull/same")); 
     for number in [1, 2] {
-        observe(&mut judge, opened(REPOSITORY, number, Kind::Pull, b"<key>same</key>", CLIENT));
+        row.before.push(recorded(opened(REPOSITORY, number, Kind::Pull, b"<key>same</key>", CLIENT)));
     }
-    assert_eq!(finish(&mut judge), fails(Promise::Once, b"owner%2Frepo/pull/same"));
+     row }),
+            ("once_fails_on_two_comments_with_one_key", { let mut row = PromiseRow::new(fails(Promise::Once, b"owner%2Frepo/comment/same")); 
+    row.before.push(recorded(pull(1, CLIENT)));
+    for id in [1, 2] {
+        row.before.push(recorded(comment(1, id, b"<key>same</key>", CLIENT)));
+    }
+     row }),
+        ],
+        promised,
+    );
 }
 
 #[test]
@@ -137,15 +148,7 @@ fn once_passes_one_key_across_kinds_and_repositories() {
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
 
-#[test]
-fn once_fails_on_two_comments_with_one_key() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, CLIENT));
-    for id in [1, 2] {
-        observe(&mut judge, comment(1, id, b"<key>same</key>", CLIENT));
-    }
-    assert_eq!(finish(&mut judge), fails(Promise::Once, b"owner%2Frepo/comment/same"));
-}
+
 
 #[test]
 fn once_uses_the_first_marker_and_next_close() {
@@ -157,30 +160,28 @@ fn once_uses_the_first_marker_and_next_close() {
 }
 
 #[test]
-fn forced_fails_on_a_move_that_does_not_descend() {
-    let mut judge = judge();
-    moved(&mut judge, b"bot/work", Some(HEAD), COMMIT, CLIENT, Some(false));
-    assert_eq!(finish(&mut judge), fails(Promise::Forced, b"owner%2Frepo/bot%2Fwork"));
-}
-
-#[test]
-fn forced_fails_on_a_remake_that_does_not_descend() {
-    let mut judge = judge();
-    moved(&mut judge, b"work", None, HEAD, CLIENT, None);
-    observe(&mut judge, deleted(b"work", HEAD, CLIENT));
-    moved(&mut judge, b"work", None, COMMIT, CLIENT, Some(false));
-    assert_eq!(finish(&mut judge), fails(Promise::Forced, b"owner%2Frepo/work"));
-}
-
-#[test]
-fn forced_fails_on_a_rejected_push() {
-    let mut judge = judge();
-    observe(
-        &mut judge,
-        Observation::Rejected { repository: copy_of(REPOSITORY), branch: copy_of(b"work"), commit: HEAD, by: CLIENT },
+fn nonforward_client_pushes_breach_the_forced_promise() {
+    skein_rows::check(
+        [
+            ("forced_fails_on_a_move_that_does_not_descend", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/bot%2Fwork")); 
+    row.before.push(movement(b"bot/work", Some(HEAD), COMMIT, CLIENT, Some(false)));
+     row }),
+            ("forced_fails_on_a_remake_that_does_not_descend", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work")); 
+    row.before.push(movement(b"work", None, HEAD, CLIENT, None));
+    row.before.push(recorded(deleted(b"work", HEAD, CLIENT)));
+    row.before.push(movement(b"work", None, COMMIT, CLIENT, Some(false)));
+     row }),
+            ("forced_fails_on_a_rejected_push", { let mut row = PromiseRow::new(fails(Promise::Forced, b"owner%2Frepo/work")); 
+    row.before.push(recorded(Observation::Rejected { repository: copy_of(REPOSITORY), branch: copy_of(b"work"), commit: HEAD, by: CLIENT }));
+     row }),
+        ],
+        promised,
     );
-    assert_eq!(finish(&mut judge), fails(Promise::Forced, b"owner%2Frepo/work"));
 }
+
+
+
+
 
 #[test]
 fn forced_passes_forward_moves_and_another_users_force() {
@@ -194,47 +195,120 @@ fn forced_passes_forward_moves_and_another_users_force() {
 }
 
 #[test]
-fn foreign_fails_on_a_write_to_another_users_item() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, PERSON));
-    observe(&mut judge, revised(1, CLIENT));
-    assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/item/1"));
+fn unallowed_client_writes_breach_foreign_ownership_promises() {
+    skein_rows::check(
+        [
+            ("foreign_fails_on_a_write_to_another_users_item", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); 
+    row.before.push(recorded(pull(1, PERSON)));
+    row.before.push(recorded(revised(1, CLIENT)));
+     row }),
+            ("foreign_fails_on_a_move_of_an_unowned_branch", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work")); 
+    row.before.push(movement(b"work", Some(HEAD), COMMIT, CLIENT, Some(true)));
+     row }),
+            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let labels = &[&b"bot/ready"[..], b"person/keep"][..];
+
+        row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
+        
+        row.before.push(recorded(pull(1, PERSON)));
+        row.before.push(recorded(labelled(1, &[b"person/old"], PERSON)));
+        row.before.push(recorded(labelled(1, labels, CLIENT)));
+         row }),
+            ("foreign_fails_on_a_label_outside_the_allowed_prefixes: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let labels = &[];
+
+        row.profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
+        
+        row.before.push(recorded(pull(1, PERSON)));
+        row.before.push(recorded(labelled(1, &[b"person/old"], PERSON)));
+        row.before.push(recorded(labelled(1, labels, CLIENT)));
+         row }),
+            ("foreign_fails_on_an_edit_over_another_users_edit: 1", { let (entry, subject) = (revised(1, CLIENT), &b"owner%2Frepo/item/1"[..]); let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
+
+        row.before.push(recorded(pull(1, CLIENT)));
+        row.before.push(recorded(comment(1, 1, b"mine", CLIENT)));
+        row.before.push(recorded(revised(1, PERSON)));
+        row.before.push(recorded(edited(1, PERSON)));
+        row.before.push(recorded(entry));
+         row }),
+            ("foreign_fails_on_an_edit_over_another_users_edit: 2", { let (entry, subject) = (edited(1, CLIENT), &b"owner%2Frepo/comment/1"[..]); let mut row = PromiseRow::new(fails(Promise::Foreign, subject));
+
+        row.before.push(recorded(pull(1, CLIENT)));
+        row.before.push(recorded(comment(1, 1, b"mine", CLIENT)));
+        row.before.push(recorded(revised(1, PERSON)));
+        row.before.push(recorded(edited(1, PERSON)));
+        row.before.push(recorded(entry));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Depends { repository: copy_of(REPOSITORY), number: 1, dependencies: Box::new([]), by: CLIENT };
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Requested { repository: copy_of(REPOSITORY), number: 1, reviewers: Box::new([]), by: CLIENT };
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 3", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Reviewed {
+            repository: copy_of(REPOSITORY),
+            number: 1,
+            id: 1,
+            commit: HEAD,
+            verdict: ReviewVerdict::Approve,
+            body: copy_of(b""),
+            by: CLIENT,
+        };
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 4", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Closed { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 5", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = Observation::Reopened { repository: copy_of(REPOSITORY), number: 1, by: CLIENT };
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 6", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = comment(1, 1, b"", CLIENT);
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 7", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = enqueued(1, HEAD);
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_each_unallowed_item_write: 8", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/item/1")); let entry = merged(1, HEAD, CLIENT);
+
+        row.before.push(recorded(entry));
+        row.decisions.push(decision(1, HEAD));
+         row }),
+            ("foreign_fails_on_preexisting_comment_edits_and_removals: 1", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1")); let entry = edited(1, CLIENT);
+
+        row.before.push(recorded(entry));
+         row }),
+            ("foreign_fails_on_preexisting_comment_edits_and_removals: 2", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/comment/1")); let entry = Observation::Removed { repository: copy_of(REPOSITORY), number: 1, id: 1, by: CLIENT };
+
+        row.before.push(recorded(entry));
+         row }),
+            ("foreign_fails_on_an_unowned_deletion_at_the_stream_end", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/work")); 
+    row.before.push(recorded(deleted(b"work", HEAD, CLIENT)));
+     row }),
+            ("foreign_does_not_exempt_an_ordinary_queue_named_branch", { let mut row = PromiseRow::new(fails(Promise::Foreign, b"owner%2Frepo/branch/gh-readonly-queue%2Fmain%2Fpr-1-30")); 
+    row.before.push(movement(b"gh-readonly-queue/main/pr-1-30", Some(HEAD), COMMIT, CLIENT, Some(true)));
+     row }),
+        ],
+        promised,
+    );
 }
 
-#[test]
-fn foreign_fails_on_a_move_of_an_unowned_branch() {
-    let mut judge = judge();
-    moved(&mut judge, b"work", Some(HEAD), COMMIT, CLIENT, Some(true));
-    assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/branch/work"));
-}
 
-#[test]
-fn foreign_fails_on_a_label_outside_the_allowed_prefixes() {
-    for labels in [&[&b"bot/ready"[..], b"person/keep"][..], &[]] {
-        let mut profile = profile();
-        profile.allowed = Box::new([Allowance::Labels(copy_of(b"bot/"))]);
-        let mut judge = Judge::new(profile);
-        observe(&mut judge, pull(1, PERSON));
-        observe(&mut judge, labelled(1, &[b"person/old"], PERSON));
-        observe(&mut judge, labelled(1, labels, CLIENT));
-        assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/item/1"));
-    }
-}
 
-#[test]
-fn foreign_fails_on_an_edit_over_another_users_edit() {
-    for (entry, subject) in
-        [(revised(1, CLIENT), &b"owner%2Frepo/item/1"[..]), (edited(1, CLIENT), &b"owner%2Frepo/comment/1"[..])]
-    {
-        let mut judge = judge();
-        observe(&mut judge, pull(1, CLIENT));
-        observe(&mut judge, comment(1, 1, b"mine", CLIENT));
-        observe(&mut judge, revised(1, PERSON));
-        observe(&mut judge, edited(1, PERSON));
-        observe(&mut judge, entry);
-        assert_eq!(finish(&mut judge), fails(Promise::Foreign, subject));
-    }
-}
+
+
+
 
 #[test]
 fn foreign_passes_allowed_writes_and_owned_objects() {
@@ -298,57 +372,13 @@ fn foreign_passes_each_named_item_allowance() {
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
 
-#[test]
-fn foreign_fails_each_unallowed_item_write() {
-    for entry in [
-        Observation::Depends { repository: copy_of(REPOSITORY), number: 1, dependencies: Box::new([]), by: CLIENT },
-        Observation::Requested { repository: copy_of(REPOSITORY), number: 1, reviewers: Box::new([]), by: CLIENT },
-        Observation::Reviewed {
-            repository: copy_of(REPOSITORY),
-            number: 1,
-            id: 1,
-            commit: HEAD,
-            verdict: ReviewVerdict::Approve,
-            body: copy_of(b""),
-            by: CLIENT,
-        },
-        Observation::Closed { repository: copy_of(REPOSITORY), number: 1, by: CLIENT },
-        Observation::Reopened { repository: copy_of(REPOSITORY), number: 1, by: CLIENT },
-        comment(1, 1, b"", CLIENT),
-        enqueued(1, HEAD),
-        merged(1, HEAD, CLIENT),
-    ] {
-        let mut judge = judge();
-        observe(&mut judge, entry);
-        judge.decide(&decision(1, HEAD));
-        assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/item/1"));
-    }
-}
 
-#[test]
-fn foreign_fails_on_preexisting_comment_edits_and_removals() {
-    for entry in
-        [edited(1, CLIENT), Observation::Removed { repository: copy_of(REPOSITORY), number: 1, id: 1, by: CLIENT }]
-    {
-        let mut judge = judge();
-        observe(&mut judge, entry);
-        assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/comment/1"));
-    }
-}
 
-#[test]
-fn foreign_fails_on_an_unowned_deletion_at_the_stream_end() {
-    let mut judge = judge();
-    observe(&mut judge, deleted(b"work", HEAD, CLIENT));
-    assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/branch/work"));
-}
 
-#[test]
-fn foreign_does_not_exempt_an_ordinary_queue_named_branch() {
-    let mut judge = judge();
-    moved(&mut judge, b"gh-readonly-queue/main/pr-1-30", Some(HEAD), COMMIT, CLIENT, Some(true));
-    assert_eq!(finish(&mut judge), fails(Promise::Foreign, b"owner%2Frepo/branch/gh-readonly-queue%2Fmain%2Fpr-1-30"));
-}
+
+
+
+
 
 #[test]
 fn dependencies_do_not_overwrite_the_item_body() {
@@ -363,30 +393,36 @@ fn dependencies_do_not_overwrite_the_item_body() {
 }
 
 #[test]
-fn order_fails_on_a_merge_without_its_decision() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, CLIENT));
-    observe(&mut judge, merged(1, HEAD, CLIENT));
-    judge.decide(&decision(2, HEAD));
-    assert_eq!(finish(&mut judge), fails(Promise::Order, b"owner%2Frepo/1/30"));
+fn merge_order_requires_matching_repository_item_and_head_decisions() {
+    skein_rows::check(
+        [
+            ("order_fails_on_a_merge_without_its_decision", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
+    row.before.push(recorded(pull(1, CLIENT)));
+    row.before.push(recorded(merged(1, HEAD, CLIENT)));
+    row.decisions.push(decision(2, HEAD));
+     row }),
+            ("order_fails_on_an_enqueue_decided_at_another_head", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
+    row.before.push(recorded(pull(1, CLIENT)));
+    row.decisions.push(decision(1, COMMIT));
+    row.after.push(recorded(enqueued(1, HEAD)));
+     row }),
+            ("order_fails_on_a_merge_with_no_decisions_given", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
+    row.before.push(recorded(pull(1, CLIENT)));
+    row.before.push(recorded(merged(1, HEAD, CLIENT)));
+     row }),
+            ("order_does_not_use_another_repositorys_decision", { let mut row = PromiseRow::new(fails(Promise::Order, b"owner%2Frepo/1/30")); 
+    row.before.push(recorded(pull(1, CLIENT)));
+    row.decisions.push(Decision { repository: copy_of(OTHER), number: 1, head: HEAD });
+    row.after.push(recorded(enqueued(1, HEAD)));
+     row }),
+        ],
+        promised,
+    );
 }
 
-#[test]
-fn order_fails_on_an_enqueue_decided_at_another_head() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, CLIENT));
-    judge.decide(&decision(1, COMMIT));
-    observe(&mut judge, enqueued(1, HEAD));
-    assert_eq!(finish(&mut judge), fails(Promise::Order, b"owner%2Frepo/1/30"));
-}
 
-#[test]
-fn order_fails_on_a_merge_with_no_decisions_given() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, CLIENT));
-    observe(&mut judge, merged(1, HEAD, CLIENT));
-    assert_eq!(finish(&mut judge), fails(Promise::Order, b"owner%2Frepo/1/30"));
-}
+
+
 
 #[test]
 fn order_passes_merges_and_enqueues_decided_at_their_heads() {
@@ -401,14 +437,7 @@ fn order_passes_merges_and_enqueues_decided_at_their_heads() {
     assert_eq!(finish(&mut judge), Verdict::Pass);
 }
 
-#[test]
-fn order_does_not_use_another_repositorys_decision() {
-    let mut judge = judge();
-    observe(&mut judge, pull(1, CLIENT));
-    judge.decide(&Decision { repository: copy_of(OTHER), number: 1, head: HEAD });
-    observe(&mut judge, enqueued(1, HEAD));
-    assert_eq!(finish(&mut judge), fails(Promise::Order, b"owner%2Frepo/1/30"));
-}
+
 
 #[test]
 fn a_stream_with_lost_entries_is_undecided() {
@@ -444,23 +473,23 @@ fn order_without_decisions_is_undecided() {
 }
 
 #[test]
-fn a_table_past_its_bound_is_undecided() {
-    let mut profile = profile();
-    profile.bounds.objects = 1;
-    let mut judge = Judge::new(profile);
-    observe(&mut judge, pull(1, CLIENT));
-    observe(&mut judge, pull(2, CLIENT));
-    assert_eq!(finish(&mut judge), Verdict::Undecided(Why::Full, Box::new([])));
+fn object_tables_distinguish_capacity_from_one_additional_object() {
+    skein_rows::check(
+        [
+            ("a_table_past_its_bound_is_undecided", (2, Verdict::Undecided(Why::Full, Box::new([])))),
+            ("a_table_at_its_bound_passes", (1, Verdict::Pass)),
+        ],
+        |(count, expected)| {
+            let mut profile = profile();
+            profile.bounds.objects = 1;
+            let mut judge = Judge::new(profile);
+            for number in 1..=count { observe(&mut judge, pull(number, CLIENT)); }
+            assert_eq!(finish(&mut judge), expected);
+        },
+    );
 }
 
-#[test]
-fn a_table_at_its_bound_passes() {
-    let mut profile = profile();
-    profile.bounds.objects = 1;
-    let mut judge = Judge::new(profile);
-    observe(&mut judge, pull(1, CLIENT));
-    assert_eq!(finish(&mut judge), Verdict::Pass);
-}
+
 
 #[test]
 fn per_repository_tables_have_separate_bounds() {
@@ -784,4 +813,38 @@ fn an_intervening_observation_ends_a_rebase_exemption() {
     );
     moved(&mut judge, b"work", Some(HEAD), COMMIT, CLIENT, Some(false));
     assert_eq!(finish(&mut judge), fails(Promise::Forced, b"owner%2Frepo/work"));
+}
+
+
+struct PromiseRow {
+    profile: Profile,
+    before: Vec<Recorded>,
+    decisions: Vec<Decision>,
+    after: Vec<Recorded>,
+    expected: Verdict,
+}
+
+impl PromiseRow {
+    fn new(expected: Verdict) -> Self {
+        Self { profile: profile(), before: Vec::new(), decisions: Vec::new(), after: Vec::new(), expected }
+    }
+}
+
+fn recorded(observation: Observation) -> Recorded {
+    Recorded::Observed { observation, forward: None }
+}
+
+fn movement(branch: &[u8], from: Option<u64>, to: u64, by: u64, forward: Option<bool>) -> Recorded {
+    Recorded::Observed {
+        observation: Observation::Moved { repository: copy_of(REPOSITORY), branch: copy_of(branch), from, to, by },
+        forward,
+    }
+}
+
+fn promised(row: PromiseRow) {
+    let mut judge = Judge::new(row.profile);
+    for entry in row.before { judge.observe(&entry); }
+    for decision in row.decisions { judge.decide(&decision); }
+    for entry in row.after { judge.observe(&entry); }
+    assert_eq!(finish(&mut judge), row.expected);
 }
