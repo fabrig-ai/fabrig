@@ -24,7 +24,6 @@ both proposers with and without a running-work choice.
   a ctl edge outside the happy path and spend binds. Section 11 keeps
   the retention choice open.
 
-- **Not yet:** 5.1: an account's row carries no facts and no audience.
 - **Departs:** 5.1: an omitted template's preview and its new task's next-run
   model can differ while no supporting worker is ready. `Core::preview_llm`
   (`jig-domain-core/src/runs/llm.rs`) takes the first of `Core::offer`, which

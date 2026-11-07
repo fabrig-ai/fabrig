@@ -2,9 +2,7 @@
 
 2026-11-07. Where jig's code lags or departs from [accounts.md](accounts.md).
 
-- **Not yet:** 3.7: no record of an account's facts, no report of one and no
-  client's line of them.
-  4.3: no walk on record has a real box with one account,
+- **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request
   `first-usable-model` of 2026-11-06 asks one. temper's stories on the stock
   settings (`temper-service`'s `tests/first_model.rs`) hold the rule as far as a

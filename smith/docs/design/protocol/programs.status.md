@@ -2,8 +2,7 @@
 
 2026-11-07. Where smith's code lags or departs from [programs.md](programs.md).
 
-- **Not yet:** 3: a check reads no email from a usable answer.
-  5.1, 5.5: what the program offers is not read from
+- **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
   MCP servers only. 8: whether the live suite passes on Claude Code
