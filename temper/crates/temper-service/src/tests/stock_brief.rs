@@ -91,8 +91,8 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 42_314, 357_821),
-        (1, true, 40_224, 359_911),
+        (1, false, 42_402, 357_733),
+        (1, true, 40_312, 359_823),
         (2, false, 36_070, 364_065),
         (3, false, 42_791, 357_344),
         (4, false, 32_636, 367_499),

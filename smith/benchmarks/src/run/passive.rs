@@ -3,7 +3,7 @@
 //! The shared kit owns all process discovery and settlement.
 //! Contract: benchmarks.md section11.2.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::process::ProcessResult;
 use crate::{CheckVerdict, Fault, Measure, Passive};
@@ -38,7 +38,11 @@ pub(super) fn scope(effects: &Measure<Vec<PathBuf>>) -> CheckVerdict {
     paths(Passive::NothingOutside, effects, "the selected stream does not show every filesystem effect")
 }
 
-pub(super) fn temporary(result: &mut crate::AttemptResult, changes: Result<Vec<(PathBuf, String)>, Fault>) {
+pub(super) fn temporary(
+    result: &mut crate::AttemptResult,
+    shared: &Path,
+    changes: Result<Vec<(PathBuf, String)>, Fault>,
+) {
     let mut check = scope(&result.outcome.writes_outside_workspace);
     match changes {
         Ok(changes) => {
@@ -59,9 +63,9 @@ pub(super) fn temporary(result: &mut crate::AttemptResult, changes: Result<Vec<(
                 check = scope(effects);
                 check.evidence.extend(evidence);
             }
-            check.evidence.push("User-owned /tmp entries listed before and after the attempt".into());
+            check.evidence.push(format!("User-owned {} entries listed before and after the attempt", shared.display()));
         }
-        Err(reason) => check.evidence.push(format!("User-owned /tmp listing unavailable: {reason}")),
+        Err(reason) => check.evidence.push(format!("User-owned {} listing unavailable: {reason}", shared.display())),
     }
     result.health.passive_checks.retain(|check| check.check != Passive::NothingOutside.name());
     result.health.passive_checks.push(check);

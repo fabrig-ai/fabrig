@@ -282,7 +282,7 @@ impl Stages {
         };
         super::dump::started(self, identity, start.activation, &start.charter);
         self.run_started = self.domain_env.now;
-        self.opening.contract(start.charter.outcome.clone());
+        self.opening.contract(start.charter.outcome.clone(), start.charter.grants.deliver.clone());
         self.domain_events.push(domain::Event::Start(domain::Start {
             messages: start.messages,
             reply_to: ReplyTo::new(START_REPLY),

@@ -381,7 +381,7 @@ fn task_busy(problem: &jig_domain_tasks::Problem) -> Rendered {
             &[
                 b"Refused: busy: a proposal is pending (at most ",
                 Decimal::of(u64::from(limit)).as_bytes(),
-                b" at once): wait for its decision, or withdraw it",
+                b" at once): wait for its decision",
             ],
             true,
         ),
@@ -744,10 +744,9 @@ mod tests {
             render(&CallPart::ProposalRefused(problem)),
             Rendered {
                 error: true,
-                text:
-                    b"Refused: busy: a proposal is pending (at most 1 at once): wait for its decision, or withdraw it"
-                        .as_slice()
-                        .into()
+                text: b"Refused: busy: a proposal is pending (at most 1 at once): wait for its decision"
+                    .as_slice()
+                    .into()
             },
         );
     }
