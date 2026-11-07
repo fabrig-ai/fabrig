@@ -2783,16 +2783,22 @@ fn a_refused_branch_read_says_what_to_read_instead() {
 /// agent.md, 4.3 and 4.3.2: a declaration says what a run calls instead.
 #[test]
 fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
-    let declared = tools(Duration::from_secs(1));
-    let goal = declared.iter().find(|tool| tool.name.as_ref() == b"goal").expect("goal declared");
-    assert_eq!(goal.description.as_ref(), b"Have one goal in your words tracked and reported; it may plan, ask you and call change. Call it only for work your person wants agreed first (set agree) or a survey that changes nothing; with advisor set, it reads and reports and changes nothing. For a change to a repository, call change.");
-    let delegate = declared.iter().find(|tool| tool.name.as_ref() == b"delegate").expect("delegate declared");
-    assert!(delegate.description.ends_with(b"For a change to a repository, call change."));
-    let branches = declared.iter().find(|tool| tool.name.as_ref() == b"read_branches").expect("read_branches declared");
-    let schema = crate::json::parse(&branches.schema).expect("JSON schema");
-    let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
-    let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
-    assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+    let mut count = 0_usize;
+    for tool in tools(Duration::from_secs(1)) {
+        match tool.name.as_ref() {
+            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal in your words tracked and reported; it may plan, ask you and call change. Call it only for work your person wants agreed first (set agree) or a survey that changes nothing; with advisor set, it reads and reports and changes nothing. For a change to a repository, call change."),
+            b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
+            b"read_branches" => {
+                let schema = crate::json::parse(&tool.schema).expect("JSON schema");
+                let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
+                let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
+                assert_eq!(description.as_ref(), b"A nonempty prefix of the names, as temper/.");
+            }
+            _ => continue,
+        }
+        count += 1;
+    }
+    assert_eq!(count, 3);
 }
 
 #[test]
