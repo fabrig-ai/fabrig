@@ -99,13 +99,30 @@ fn me_adds_the_largest_visible_list_omission_to_the_charters_count() {
 fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
     for provider in [PROVIDER, 99] {
         let (mut core, env) = fixture_lists(own_records(), true);
-        grant(&mut core, &env, FIRST_SOURCE);
-        // Finish the automatic first read before the party presses read again.
         drop(step(
             &mut core,
             &env,
-            Event::Account(accounts::Event::Listed { read: 0, names: 0, left_out: 0, at: env.wall }),
+            Event::Fleet(fleet::Event::Hello {
+                worker: 0,
+                channel: Token::new(77),
+                hello: Hello {
+                    jobs: Box::new([]),
+                    bounds: fixtures::bounds(),
+                    stop_bound: Duration::ZERO,
+                    slots: 1,
+                    workstreams: Box::new([]),
+                    hosting: Box::new([]),
+                },
+            }),
         ));
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Logins { channel: Token::new(77), logins: Box::new([]) }),
+        ));
+        grant(&mut core, &env, FIRST_SOURCE);
+        // Finish the automatic first read before the party presses read again.
+        finish_read(&mut core, &env, 0);
         let ask = people::Ask::AccountChange {
             holder: people::AccountHolder::Own,
             change: people::AccountChange::ReadLists { provider },
@@ -146,11 +163,7 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
             assert_eq!(answered, 1);
             assert_eq!(saved, u32::from(attempt == 0));
             if attempt == 0 && provider == PROVIDER {
-                drop(step(
-                    &mut core,
-                    &env,
-                    Event::Account(accounts::Event::Listed { read: 1, names: 0, left_out: 0, at: env.wall }),
-                ));
+                finish_read(&mut core, &env, 1);
             }
             core.reclaim();
         }
@@ -175,4 +188,23 @@ fn read_lists_retains_its_count_and_a_retry_starts_no_second_read() {
         }
         assert_eq!(reads, u32::from(provider == PROVIDER));
     }
+}
+
+fn finish_read(core: &mut Core, env: &Env<Limits>, read: u64) {
+    let mut out = resume_fleet(core, env);
+    let Request::Held(held) = out.pop().expect("a queued read reaches the worker") else { panic!("worker read") };
+    let Held::ReadList { channel, read: sent, endpoint, grant } = *held else { panic!("worker read") };
+    assert_eq!(sent, read);
+    assert_eq!(endpoint, 1);
+    assert_eq!(grant.account, FIRST_SOURCE);
+    assert!(out.is_empty());
+    drop(step(
+        core,
+        env,
+        Event::Fleet(fleet::Event::ListRead {
+            channel,
+            read,
+            outcome: jig_domain_link::ListOutcome::Listed(Box::new([])),
+        }),
+    ));
 }

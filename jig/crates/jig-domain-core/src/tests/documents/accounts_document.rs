@@ -38,6 +38,7 @@ fn fixture_lists(records: Vec<accounts::Stored>, configured: bool) -> (Core, Env
     limits.accounts.accounts = 4;
     limits.accounts.holder_accounts = 2;
     let mut config = config(73);
+    config.settings.endpoints[0].providers = Box::new([1, PROVIDER]);
     config.owners = Box::new([people::InitialOwner {
         project: people::DEPLOYMENT,
         identity: people::IdentityKey { provider: 0, subject: ALICE.to_be_bytes().into() },
