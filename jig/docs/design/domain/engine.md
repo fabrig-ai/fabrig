@@ -2231,7 +2231,12 @@ section 17; the records are `../protocol/store.md`, 4.4.
     project's from one who is not that project's owner (people.md,
     section 4). A set touching both needs one party who is both;
   - *out of shape:* the settings it would leave fail 17.1's check,
-    which names the item and what fails;
+    which names the item and what fails. The refusal's `at` is that
+    item's position among the change's items as the request gave
+    them, counted from 0 as a batch's members are: the last item
+    naming the failing setting, so that a repeated setting names its
+    repeat, and 0 when no item names it (a setting the change leaves
+    as it was), which the fault's setting still names;
   - *judged:* a connector refuses an item of its kinds (17.5), saying
     why;
   - *full:* the revisions or the charter versions held once the

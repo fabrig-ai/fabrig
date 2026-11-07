@@ -3,3 +3,33 @@ repo = "fabrig"
 sources = ["temper/docs/plan/replay-repairs/inputs/request.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "refusal-at"
+title = "An out-of-shape settings refusal names the failing item's position"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[part]]
+id = "room"
+title = "The reference's room carries the journal's run bound and says what a charter must fit"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "A change whose third item, a charter, fails its check is refused naming item 2, its settings rows unchanged"
+parts = ["refusal-at"]
+walk = false
+
+[[slice]]
+id = 2
+story = "The reference's room, merged as its README says, starts with root.journal.run_bytes 65,536"
+parts = ["room"]
+walk = false
