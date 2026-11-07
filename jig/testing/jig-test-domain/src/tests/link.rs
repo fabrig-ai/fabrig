@@ -516,7 +516,9 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                     drained = drained.checked_add(1).expect("one drain");
                 }
                 Request::Deliver(Delivery::Projection { .. }) => {}
-                other @ (Request::Start { .. }
+                other @ (Request::StoreCatalogue { .. }
+                | Request::ClientsCatalogue { .. }
+                | Request::Start { .. }
                 | Request::ReadResult { .. }
                 | Request::Busy { .. }
                 | Request::Deliver(_)

@@ -852,6 +852,10 @@ pub enum Request {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum StoreRequest {
+    /// Replace the names before the catalogue decision commits (jig domain/engine.md, 17.11).
+    Catalogue {
+        names: Box<[core::settings::ModelName]>,
+    },
     Switch,
     Commit {
         /// Positive ordered commit number allocated by the journal, echoed by the store terminal;
@@ -892,6 +896,10 @@ pub enum WorkerRequest {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum PartyRequest {
+    /// Replace the clients' catalogue before its decision commits (jig domain/engine.md, 17.11).
+    Catalogue {
+        models: Box<[core::settings::CatalogueModel]>,
+    },
     /// A sign-in the core refused before any decision: a counter is
     /// exhausted, or the store is at its fill mark.
     SignInRefused {

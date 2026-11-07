@@ -157,7 +157,10 @@ impl Host {
                         self.stopped = true;
                         return;
                     }
-                    Request::Deliver(_) | Request::Now(_) => {}
+                    Request::StoreCatalogue { .. }
+                    | Request::ClientsCatalogue { .. }
+                    | Request::Deliver(_)
+                    | Request::Now(_) => {}
                     Request::Busy { .. } | Request::ReadResult { .. } => {
                         panic!("start host vocabulary")
                     }

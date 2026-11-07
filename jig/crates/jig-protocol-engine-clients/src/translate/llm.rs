@@ -8,6 +8,40 @@ use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, Reader, bytes};
 
+/// The current catalogue in numbered positions, including empty rows for holes
+/// (jig/docs/design/domain/engine.md, 17.11).
+#[must_use]
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[Model]> {
+    let mut rows = List::with_capacity(u32::try_from(models.len()).expect("checked catalogue"));
+    for row in models {
+        let model = &row.model;
+        rows.push(Model {
+            name: model.name.clone(),
+            provider: if model.provider == 0 { None } else { Some(model.provider) },
+            window: model.window,
+            output: model.output,
+            efforts: model.efforts.clone(),
+            effort: match model.default_effort() {
+                Some(effort) => Some(bytes::copy_of(effort)),
+                None => None,
+            },
+            prices: crate::Prices {
+                input: model.input_price,
+                cached: model.cached_price,
+                cache_write: model.cache_write_price,
+                output: model.output_price,
+                unit: model.price_unit,
+            },
+            description: row.description.clone(),
+            shown: row.shown.clone(),
+            picker: row.picker,
+        })
+        .expect("one row per catalogue position");
+    }
+    rows.into_boxed()
+}
+
 /// A complete permission selector by names, preserving literal ALL even with 64 models.
 pub fn authority(value: Models, models: &[Model], limits: &w::Limits) -> Result<Option<w::ModelSet>, w::Problem> {
     if value.is_all() {
@@ -15,7 +49,9 @@ pub fn authority(value: Models, models: &[Model], limits: &w::Limits) -> Result<
     }
     let mut names = List::with_capacity(p::MODELS);
     for (at, model) in models.iter().enumerate() {
-        if value.bits() & (1_u64.checked_shl(u32::try_from(at).expect("bounded model index")).unwrap_or(0)) != 0 {
+        if !model.name.is_empty()
+            && value.bits() & (1_u64.checked_shl(u32::try_from(at).expect("bounded model index")).unwrap_or(0)) != 0
+        {
             names.push(bytes::copy_of(&model.name)).expect("configured models");
         }
     }
@@ -80,9 +116,11 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         return false;
     }
     for (at, model) in models.iter().enumerate() {
+        if model.name.is_empty() {
+            continue;
+        }
         let name = model.name.len();
-        if model.name.is_empty()
-            || !skein_codec::text_is_valid(&model.name)
+        if !skein_codec::text_is_valid(&model.name)
             || name > skein_lib::length::usize_of(jig_domain_core::MODEL_NAME_BYTES)
             || name > skein_lib::length::usize_of(limits.model_set_names_names_item)
             || name > skein_lib::length::usize_of(limits.me_model_name)
@@ -157,6 +195,9 @@ pub fn models(
         let model = models
             .get(usize::from(offered.model))
             .ok_or(w::Problem { path: w::Path::MeModelName, reason: skein_codec::Reason::Bound })?;
+        if model.name.is_empty() {
+            continue;
+        }
         let mut efforts = List::with_capacity(u32::try_from(model.efforts.len()).expect("checked efforts"));
         for effort in &model.efforts {
             efforts.push(bytes::copy_of(effort)).expect("same capacity");
@@ -215,6 +256,9 @@ fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> 
     let Some(model) = models.get(usize::from(value.model)) else {
         return Err(unknown);
     };
+    if model.name.is_empty() {
+        return Err(unknown);
+    }
     let effort = match value.effort {
         Some(effort) => match model.efforts.get(usize::from(effort)) {
             Some(name) => Some(bytes::copy_of(name)),
@@ -360,7 +404,7 @@ pub(crate) fn people(
 fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w::LlmWhy> {
     let mut found = None;
     for (at, model) in models.iter().enumerate() {
-        if *model.name == *value.model() {
+        if !model.name.is_empty() && *model.name == *value.model() {
             found = Some((at, model));
             break;
         }
@@ -398,6 +442,9 @@ pub(crate) fn refusal(
     let Some(model) = models.get(usize::from(model)) else {
         return Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound });
     };
+    if model.name.is_empty() {
+        return Err(w::Problem { path: w::Path::RefusalLlmModel, reason: skein_codec::Reason::Bound });
+    }
     let why = match why {
         p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
         p::LlmWhy::Effort => w::LlmWhy::Effort,

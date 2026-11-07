@@ -209,6 +209,16 @@ impl Store {
         self.host.adopt(fd, user, self.installation)
     }
     pub fn down(&mut self, out: root::StoreRequest) -> bool {
+        let out = match out {
+            root::StoreRequest::Catalogue { names } => {
+                self.host.component.catalogue(names);
+                return true;
+            }
+            out @ (root::StoreRequest::Switch
+            | root::StoreRequest::Commit { .. }
+            | root::StoreRequest::Load { .. }
+            | root::StoreRequest::Read { .. }) => out,
+        };
         #[cfg(test)]
         if self.hold_mark
             && let root::StoreRequest::Commit { writes, .. } = &out

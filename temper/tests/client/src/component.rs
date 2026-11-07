@@ -221,7 +221,8 @@ impl Composition {
                 transport.take_reply(reply_token(&mut reply));
                 Some(Event::Read { reply, answer })
             }
-            request @ (root::PartyRequest::SignInRefused { .. }
+            request @ (root::PartyRequest::Catalogue { .. }
+            | root::PartyRequest::SignInRefused { .. }
             | root::PartyRequest::WatchRefused { .. }
             | root::PartyRequest::RunText { .. }
             | root::PartyRequest::Deliver(_)) => temper_service::clients::translation::to_component(request),
