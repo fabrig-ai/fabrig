@@ -200,6 +200,8 @@ fn running_at_a_wall() -> Harness {
     h.make(vec![new]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         reply_to: to(),
         account: None,
         task: 1,

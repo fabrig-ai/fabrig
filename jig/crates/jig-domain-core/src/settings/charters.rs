@@ -20,6 +20,15 @@ pub struct Document {
     pub heading: Option<Box<[u8]>>,
 }
 
+/// A charter's part: instructions for runs whose reasons meet `on`
+/// (jig/docs/design/domain/tasks.md, 8.6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct CharterPart {
+    /// Nonempty, known bits (`tasks::Reasons::is_known`).
+    pub on: tasks::Reasons,
+    pub instructions: Box<[u8]>,
+}
+
 /// One numbered charter offered by the deployment, with its documents
 /// (protocol/configuration.md, 3; domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -32,6 +41,7 @@ pub struct Charter {
     /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks.md, 8.3).
     pub wake: tasks::WakePolicy,
     pub documents: Box<[Document]>,
+    pub parts: Box<[CharterPart]>,
 }
 
 /// Resolve names against the current catalogue (domain/engine.md, 17.11).
@@ -244,7 +254,7 @@ fn append_models(current: &Current, settings: &Settings, charters: &mut List<tas
             && change.value.is_none()
         {
             charters
-                .push(tasks::CharterModels { number: *number, revision: change.revision, models: None })
+                .push(tasks::CharterModels { resumes: false, number: *number, revision: change.revision, models: None })
                 .expect("removed charter version bound");
         }
     }
@@ -266,7 +276,12 @@ pub(crate) fn one_models_rows(charter: &Charter, revision: u32, rows: &[crate::M
             models.push(index).expect("charter model count");
         }
     }
-    tasks::CharterModels { number: charter.number, revision, models: Some(models.into_boxed()) }
+    tasks::CharterModels {
+        number: charter.number,
+        revision,
+        resumes: charter.policy.resume,
+        models: Some(models.into_boxed()),
+    }
 }
 
 /// How many efforts each catalogue row declares, by number (tasks.md, 3).
@@ -453,7 +468,7 @@ pub(crate) fn held_models(core: &Core, limits: &Limits) -> Box<[tasks::CharterMo
     for (&key, value) in &core.held.versions {
         let models = match &value.charter {
             Some(charter) => one_models(charter, key.revision, &core.settings),
-            None => tasks::CharterModels { number: key.charter, revision: key.revision, models: None },
+            None => tasks::CharterModels { resumes: false, number: key.charter, revision: key.revision, models: None },
         };
         values.push(models).expect("held model table");
     }

@@ -29,6 +29,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     hold_waiters: 128,
     charters: 12,
     charter_documents: 2,
+    charter_parts: 8,
     facts: 128,
     room_refusals: 32,
     batch: 160,

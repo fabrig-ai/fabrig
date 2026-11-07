@@ -152,6 +152,7 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
             None
         } else {
             Some(p::LlmChoice {
+                later: None,
                 account: None,
                 main: p::ModelEffort { model: 0, effort: Some(1) },
                 subagents: Box::new([p::ModelEffort { model: 1, effort: None }]),

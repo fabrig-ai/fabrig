@@ -412,8 +412,9 @@ const STANDARD_ROOT: Root = Root {
     },
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
-        // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
-        transcript_bytes: 22_467_664,
+        // Deep task row at jig standard's bounds, including its inbox, later choice
+        // and two reason sets (engine::row_bound).
+        transcript_bytes: 22_467_696,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

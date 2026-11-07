@@ -62,6 +62,7 @@ fn names() -> Box<[s::ModelName]> {
 fn template_choice(model: u8) -> core::Record {
     let mut template = template();
     template.llm = Some(jig_domain_tasks::LlmChoice {
+        later: None,
         account: None,
         main: ModelEffort { model, effort: Some(1) },
         subagents: Box::new([]),

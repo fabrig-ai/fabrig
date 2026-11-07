@@ -750,6 +750,7 @@ fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::C
             .expect("decoded documents bound");
     }
     Ok(core::Charter {
+        parts: Box::new([]),
         rest,
         number,
         policy: decode_run_policy(policy),
@@ -1428,7 +1429,7 @@ fn decode_llm_choice(value: wire::LlmChoice) -> tasks::LlmChoice {
         list_34.push(element).expect("decoded list bound");
     }
     let field_subagents = list_34.into_boxed();
-    tasks::LlmChoice { account: field_account, main: field_main, subagents: field_subagents }
+    tasks::LlmChoice { later: None, account: field_account, main: field_main, subagents: field_subagents }
 }
 fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire::Template, wire::Problem> {
     let field_number = value.number;

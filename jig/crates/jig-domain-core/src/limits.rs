@@ -39,10 +39,12 @@ pub fn brief_holds_documents(sections: u32, charter_documents: u32) -> bool {
 }
 
 /// The bytes a charter owns beyond its struct: its policy's, as `policy_owned_bytes`,
-/// and its documents' structs, name segments, paths and headings (domain/engine.md, 17.9).
+/// its parts' as `parts_owned_bytes`, and its documents' structs, name segments, paths
+/// and headings (jig/docs/design/domain/tasks.md, 8.6; domain/engine.md, 17.9).
 #[must_use]
 pub fn charter_owned_bytes(charter: &crate::Charter) -> Option<u64> {
     let mut bytes = policy_owned_bytes(&charter.policy)?
+        .checked_add(parts_owned_bytes(&charter.parts)?)?
         .checked_add(sizeof(charter.documents.len())?.checked_mul(sizeof(size_of::<crate::Document>())?)?)?;
     for document in &charter.documents {
         bytes = bytes
@@ -54,6 +56,18 @@ pub fn charter_owned_bytes(charter: &crate::Charter) -> Option<u64> {
         if let Some(heading) = &document.heading {
             bytes = bytes.checked_add(sizeof(heading.len())?)?;
         }
+    }
+    Some(bytes)
+}
+
+/// The bytes a charter's parts add to its stored policy: each part's own size, its
+/// instructions and the two bytes of the blank line that joins them
+/// (jig/docs/design/protocol/configuration.md, 6).
+#[must_use]
+pub fn parts_owned_bytes(parts: &[crate::CharterPart]) -> Option<u64> {
+    let mut bytes = sizeof(parts.len())?.checked_mul(sizeof(size_of::<crate::CharterPart>())?)?;
+    for part in parts {
+        bytes = bytes.checked_add(sizeof(part.instructions.len())?)?.checked_add(2)?;
     }
     Some(bytes)
 }

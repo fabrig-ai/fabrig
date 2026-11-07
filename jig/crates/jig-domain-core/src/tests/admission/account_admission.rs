@@ -46,6 +46,7 @@ fn family() -> (Core, Limits) {
 }
 fn choice() -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: Some(ACCOUNT),
         main: tasks::ModelEffort { model: 0, effort: Some(0) },
         subagents: Box::new([]),
