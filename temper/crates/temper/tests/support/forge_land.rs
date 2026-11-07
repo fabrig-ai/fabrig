@@ -1266,7 +1266,13 @@ impl LiveModel<'_> {
     pub const fn name(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
-            Self::ClaudeCode { .. } => "claude-haiku-5-5",
+            Self::ClaudeCode { .. } => "claude-fable-5-1",
+        }
+    }
+    const fn number(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "7",
+            Self::ClaudeCode { .. } => "3",
         }
     }
     const fn unavailable(self) -> &'static str {
@@ -1333,18 +1339,14 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
     .collect())
 }
 
-/// Keep the live `OpenAI` model and demo, so stock's named first choices cannot supersede it.
+/// Keep the live `OpenAI` provider and demo; the owner selects the model after startup.
 pub fn retain_live_model(path: &std::path::Path, name: &str) {
+    assert_eq!(name, LiveModel::ChatGpt { account: None }.name());
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
-    value["engine"]["llm"]["models"]
-        .as_array_mut()
-        .expect("engine models")
-        .retain(|model| model["name"] == name || model["name"] == "demo");
     for table in ["providers", "endpoints"] {
         value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
-    value["engine"]["llm"]["providers"][0]["models"] = serde_json::json!([name]);
-    fs::write(path, serde_json::to_vec(&value).expect("deployment JSON")).expect("deployment");
+    super::write_private(path, &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
@@ -1735,6 +1737,7 @@ impl LiveJudge<'_> {
                 self.queue(&["settings", "show", "--json"]);
                 self.queue(&["settings", "show", "charter", "1", "--json"]);
                 self.queue(&["settings", "show", "charter", "2", "--json"]);
+                self.queue(&["settings", "show", "model", self.plan.model.number(), "--json"]);
                 self.phase = LivePhase::Settings;
             }
         } else {
@@ -1774,13 +1777,18 @@ impl LiveJudge<'_> {
         Ok(())
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
-        let reads = &calls.ends()[calls.ends().len() - 3..];
+        let reads = &calls.ends()[calls.ends().len() - 4..];
         let revision = live_json(&reads[0])?["newest"].as_u64().ok_or("settings revision missing")?;
+        let catalogue = live_json(&reads[3])?;
+        let model = &catalogue["value"]["model"];
+        require(model["name"] == self.plan.model.name(), "the selected live stock model")?;
         let mut items = Vec::new();
-        for read in &reads[1..] {
+        for read in &reads[1..3] {
             let setting = live_json(read)?;
             let mut value = setting["value"].clone();
-            require(value["model"]["name"] == self.plan.model.name(), "the selected live model in every charter")?;
+            value["model"] = model.clone();
+            value["alternatives"] = serde_json::json!([]);
+            value["rest"] = false.into();
             value["time"] = 240_000_000_000_u64.into();
             items.push(serde_json::json!({"setting":setting["setting"],"set":value}));
         }
