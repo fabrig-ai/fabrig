@@ -23,6 +23,7 @@ Coverage uses the fake forge. Section 20 keeps the default for deleting
 unlanded run work and the deferred saved-start case overtaken by a repair.
 
 - **Not yet:**
+  - 8.1: a pull request's body follows `forge.client.op_bytes` alone, with no bound of 65,536 bytes of its own (`temper-engine-domain-forge/src/domain.rs`, `change_write`).
   - 4.5: `DismissMaking`: no request erases a failed row (look-round-13's `dismiss-making`).
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

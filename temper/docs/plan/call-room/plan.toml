@@ -20,3 +20,23 @@ id = 1
 story = "A host tool's argument of 128 KB goes through the fake program and smith's MCP server whole, and each size says what limit it meets first"
 parts = ["argument"]
 walk = false
+
+[[part]]
+id = "agent"
+title = "Smith's charter allowance and outcome follow the payload, and the largest turn is measured"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/limits.md, 3.10"
+
+[[part]]
+id = "profile"
+title = "jig's standard holds a whole spec and a batch of 32, and a change's body follows its words"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[slice]]
+id = 2
+story = "A run on a declared 128 KB call derives within smith's ceiling, and a change's report is bounded by its contract's words and not a constant"
+parts = ["agent", "profile"]
+walk = false
