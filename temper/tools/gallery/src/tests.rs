@@ -131,6 +131,40 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-terminal-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[Part::Named { role: Role::Button, name: "Exit" }, Part::Pressed { name: "Draft" }],
+    },
+    Holds {
+        name: "chat-terminal-commands",
+        heading: "T1 · Away mode, draft",
+        parts: &[Part::Named { role: Role::Button, name: "Exit" }, Part::Named { role: Role::Menu, name: "Commands" }],
+    },
+    Holds {
+        name: "chat-terminal-model",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Menu, name: "Model. A change applies from the next turn." },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-light",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "Font: IBM Plex Mono." },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-closed",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+        ],
+    },
+    Holds {
         name: "chat-terminal",
         heading: "T1 · Away mode, draft",
         parts: &[
@@ -2874,8 +2908,11 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 48] = [
+const SPENDS: [(&str, Role, &str); 51] = [
     ("chat-terminal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-draft", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-light", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-closed", Role::Paragraph, "1 spent · of 40"),
     ("chat-terminal-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-model-fixed", Role::Paragraph, "70 spent · of 101472"),
     ("chat-started-model-open", Role::Paragraph, "70 spent · of 101472"),
@@ -2925,6 +2962,13 @@ const SPENDS: [(&str, Role, &str); 48] = [
     ("chats-solo", Role::Paragraph, "1 spent"),
 ];
 fn each_chat_reads_its_allotment(sample: &Sample, view: &temper_client_view::View) {
+    if matches!(sample.name, "chat-terminal-commands" | "chat-terminal-model") {
+        assert!(
+            !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::TERMINAL_LINE)),
+            "a list replaces the quiet line and spend"
+        );
+        return;
+    }
     if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
         && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
     {

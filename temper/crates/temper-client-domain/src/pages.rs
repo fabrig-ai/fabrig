@@ -60,6 +60,8 @@ pub(crate) enum PlaygroundChoice {
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
     look: terminal::Look,
+    listing: Option<terminal::Listing>,
+    notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     away: Option<away::Pending>,
     overturns: away::Overturns,
@@ -294,6 +296,8 @@ impl Pages {
     pub fn new() -> Self {
         Self {
             look: terminal::Look::default(),
+            listing: None,
+            notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             away: None,
             overturns: away::Overturns::new(),
@@ -523,6 +527,7 @@ pub(crate) fn acted(pages: &mut Pages) {
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
+    let Some(event) = terminal::prepare(pages, env, client, event, out) else { return };
     if let Event::AccountKey { .. } | Event::SignInAddress { .. } = &event {
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
@@ -605,7 +610,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: Act::Terminal(act) } => pages.look.act(act),
+        Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Models(act) } => {
             if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -692,9 +697,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if pages.address == (Address::NewChat { draft: true })
                 || pages.address == (Address::NewChat { draft: false })
             {
-                pages.address = Address::NewChat { draft: mode != chat::document::Mode::Chat };
+                let address = Address::NewChat { draft: mode != chat::document::Mode::Chat };
+                if pages.address != address {
+                    pages.notes.clear();
+                }
+                pages.address = address;
                 out.push(Request::Replace { address: pages.address.clone() });
-            } else if let Some(chats) = &mut pages.chats {
+            } else if let Some(chats) = &mut pages.chats
+                && pages.chat.is_none()
+            {
                 if chats.reference.is_some() {
                     chats.reference = Some(mode);
                 }
@@ -1147,6 +1158,10 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    if pages.address != address {
+        pages.notes.clear();
+        pages.listing = None;
+    }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
     if let Some(chats) = &pages.chats
@@ -1464,6 +1479,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             pages.needs.say(toasted, env.now);
         }
         return task_told(task, &mut pages.inbox, env, client, told, out);
+    }
+    if pages.chat.is_some()
+        && let Some(chats) = &mut pages.chats
+        && chats.told(told.clone(), &pages.address, out)
+    {
+        return true;
     }
     if let Some(chat) = &mut pages.chat {
         let moved = match &told {
@@ -1873,6 +1894,8 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
 fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
+            pages.listing = None;
+            pages.notes.clear();
             pages.start = None;
             pages.has_goals.leave(out);
             if pages.watching {

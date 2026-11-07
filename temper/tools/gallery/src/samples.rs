@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 311;
+pub const N: usize = 316;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,11 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "chat-terminal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-commands", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-model", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-light", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-closed", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-terminal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
@@ -1417,13 +1422,25 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
-    if sample.name == "chat-terminal" || sample.name == "chat-terminal-working" {
-        let mut root = if sample.name == "chat-terminal" {
-            let base = Sample {
-                name: "chat-draft-chat",
+    use temper_client_domain::pages::terminal::{Act as T, Command};
+    if sample.name.starts_with("chat-terminal") {
+        let mut root = if sample.name == "chat-terminal-closed" {
+            domain(&Sample {
+                name: "chat-closed",
                 world: sample.world,
                 address: sample.address.clone(),
-                then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+                then: Then::Sheet(Confirmation::Closed),
+            })
+        } else if sample.name != "chat-terminal-working" {
+            let base = Sample {
+                name: if sample.name == "chat-terminal" { "chat-draft-chat" } else { "chat-draft-split" },
+                world: sample.world,
+                address: sample.address.clone(),
+                then: Then::Mode(if sample.name == "chat-terminal" {
+                    temper_client_domain::pages::chat::document::Mode::Chat
+                } else {
+                    temper_client_domain::pages::chat::document::Mode::Split
+                }),
             };
             domain(&base)
         } else {
@@ -1434,6 +1451,19 @@ pub fn domain(sample: &Sample) -> Domain {
             Event::Act { action: Action::Pages(Act::Terminal(temper_client_domain::pages::terminal::Act::Enter)) },
             &mut Queue::uncapped(),
         );
+        let mut out = Queue::uncapped();
+        if sample.name == "chat-terminal-commands" || sample.name == "chat-terminal-model" {
+            let words: &[u8] = if sample.name == "chat-terminal-model" { b"/model" } else { b"/" };
+            step(&mut root, Event::Act { action: Action::Pages(Act::MessageWords { words: words.into() }) }, &mut out);
+            if sample.name == "chat-terminal-model" {
+                step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+            }
+        }
+        if sample.name == "chat-terminal-light" {
+            for command in [Command::Theme, Command::Font] {
+                step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Run { command })) }, &mut out);
+            }
+        }
         return root;
     }
     if sample.name.starts_with("chat-model-")
