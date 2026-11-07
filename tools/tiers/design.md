@@ -37,15 +37,18 @@ temper's playground: `bundle.sh --playground` builds its page and its
 world in their own profiles (temper's `docs/design/playground.md`, 7), so
 that the tier walks and measures what a visitor downloads.
 
+Each browser pair builds its tree's bundle from the bundle list (2.2), the
+one list of the browser bundles, read by any runner that builds them.
+
 | Pair | Prerequisites in order | Bundle environment |
 | --- | --- | --- |
 | browser-skein | wasm `skein-ui-example-shell-web`; `skein-ui-bundle`; run the tool; `skein-ui-example-server` | `SKEIN_UI_EXAMPLE_BUNDLE`, target's `ui-example-bundle` |
 | browser-jig | wasm `jig-client-test-shell-web`; `skein-ui-bundle`; run the tool; `jig-test` | `JIG_TEST_BUNDLE`, target's `jig-test-bundle` |
-| browser-temper | wasm `temper-client-shell-web` with `loopback-navigation`; `skein-ui-bundle`; run the tool; `temper/scripts/bundle.sh --playground`; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle`; `TEMPER_TEST_PLAYGROUND`, target's `temper-playground` |
+| browser-temper | wasm `temper-client-shell-web` with its listed features; `skein-ui-bundle`; run the tool; `temper/scripts/bundle.sh --playground`; `temper` | `TEMPER_TEST_BUNDLE`, target's `temper-bundle`; `TEMPER_TEST_PLAYGROUND`, target's `temper-playground` |
 
 The wasm target is `wasm32-unknown-unknown`. Each tool invocation uses the
-module's underscored package name, `/bundle/` prefix, and the old browser
-script's stylesheets, pictures, files and noscript text. Temper matches
+module's underscored package name, `/bundle/` prefix, and the options of
+its tree's table in the list. Temper matches
 `temper/scripts/bundle.sh --loopback`, without embedding the bundle in the
 native binary. Existing bundle outputs are rebuilt on every invocation.
 
@@ -81,6 +84,41 @@ above. Smith's selected live tests use the `smith` package's own binaries;
 the separate `smith-fake-claude` package's binary tests are not selected by
 any of these pairs. No other native binary requirement was found across
 the configured pairs.
+
+### 2.2 The bundle list
+
+`tools/tiers/bundles.toml` is the one list of the browser bundles: this
+runner reads it, and so does any other runner that builds them, so that
+each builds the same bundle for a pair. It holds one table for each tree
+with a browser pair, `skein`, `jig` and `temper`, of these five fields and
+no other:
+
+- `package`, a string: the wasm package;
+- `out`, a string: the output directory's name, beneath the target
+  directory;
+- `variable`, a string: the environment variable that gives the tests the
+  output directory's absolute path;
+- `options`, an array of strings: the bundle tool's options and their
+  values, in order, asset paths relative to the checkout root;
+- `features`, an array of strings: the package's Cargo features, empty when
+  it has none.
+
+For the pair's tree, with TARGET the target directory and MODULE the
+package's name with each `-` made `_`, a runner runs in order:
+
+1. `cargo build --target wasm32-unknown-unknown --features F1,F2 -p PACKAGE`,
+   the features joined by commas, with no `--features` when there are none;
+2. `cargo build -p skein-ui-bundle`;
+3. `TARGET/debug/skein-ui-bundle --module TARGET/wasm32-unknown-unknown/debug/MODULE.wasm --name MODULE --prefix /bundle/ OPTIONS... --out TARGET/OUT`,
+
+and gives every later step VARIABLE, set to `TARGET/OUT` (section 3).
+
+This runner reads the list before the first of those builds. A missing or
+unreadable file, a tree with no table, a field missing or of the wrong
+type, an empty `package` or `variable`, an `out` that is no plain directory
+name (empty, `.`, `..` or holding a `/`), and a field the list does not
+define each fail the pair's setup: the message names the file and the field
+(`temper.options`), the runner returns 2 (section 4), and no build starts.
 
 ## 3. Environment and output
 
@@ -128,7 +166,8 @@ failed step and do not start later steps. The runner does not retry failures.
 inside this checkout, fake commands on PATH, and a mocked disk sleep.
 It checks configuration-derived pairs, prerequisite order, arguments and
 environment, plain commands with no wrapper and a fake wrapper's prefix on
-each command, map refusal and sorted package arguments, verification with fake
+each command, map refusal and sorted package arguments, the bundle list's
+commands for each tree, byte for byte, and its refusals, verification with fake
 JSON listings, the disk wait on and off and refusal/failure exit codes without
 builds, network access, Chromium or credentials. It clears any inherited
 `TIERS_WRAPPER` and `TIERS_DISK_BYTES` and needs no real wrapper on PATH.
@@ -573,6 +612,10 @@ A caller running the after-landing tier calls this entry point
 (section 10). The trees' old `scripts/browser.sh` scripts retire in their
 own trees' branches.
 
+The trees' own bundle scripts (`temper/scripts/bundle.sh` and the like)
+hold their options in their own words, and read no list: whether they read
+2.2's is left for later.
+
 `budgets.toml`'s first comment cites the user's decision on its figures
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
@@ -753,3 +796,9 @@ In a directory `prepare` made, once `execute` has returned:
 configuration, nextest's inputs, not results. A directory `cpu-run` wrote
 holds one suite record for each ID, `<ID-sanitized>.json` (7.5); a name
 ending `.tmp` is no record.
+
+### 10.4 The bundle list
+
+A caller that builds a browser pair's bundle itself reads it from
+`tools/tiers/bundles.toml` and builds it as 2.2 gives: the fields and the
+commands there are kept as they stand.
