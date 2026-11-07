@@ -62,3 +62,12 @@ Acceptance:
 ## Report
 
 As the implementer's text says, with the story's seconds.
+
+## Rebase (2026-11-07, step merge, foreman ui-forge-identity/box-story/foreman-1)
+
+resolve the status conflict by removing only the approval-identities gap and retaining both approval-waiting gaps.
+The merge conflicts in `temper/docs/design/domain/testing.status.md`.
+Integration commit `2fce9aea3a` split the pending approval-waiting coverage into two entries beside the line this branch removes.
+Keep this task’s deletion of “6.4, the row *a box’s approval identities*” as acceptance 4 requires.
+Preserve integration’s separate “6.4, the row *a box’s approval waiting*” and “6.3, *A change waiting on a review on the forge*” entries.
+Retain the branch’s story and fixture changes. `configuring.rs` auto-merged; the refusal reports no code conflict or test failure.
