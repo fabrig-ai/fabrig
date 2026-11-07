@@ -120,3 +120,19 @@ Acceptance:
 
 As the implementer's text says, and also: each existing expectation changed, with its
 design line; how the waking kinds are judged at activation.
+
+## Answers
+
+2026-11-07, to run `per-wake/offering-1`.
+
+- **May offering repair the core unit fixture's `outstanding` from `[]` to `[60]`?** Yes.
+  In `jig/crates/jig-domain-core/src/tests.rs`,
+  `tests::documents_question_words_are_bounded_and_answered_questions_end`, change that
+  turn's `outstanding: Box::new([])` to `outstanding: Box::new([60])`, and nothing else in
+  that file. The fixture claims a run offered message 60 and a turn that reads it; its turn
+  evidence must name the offered, unread message it takes (`jig/docs/design/domain/tasks.md`,
+  8.2, "Not offered, a message stays too"). Its assertions are unchanged, so no expectation
+  moves. This task's acceptance runs `jig-domain-core`'s focused tests, so it cannot hold
+  without the repair: the "Readers" exception covers this file for this one line. List it
+  with that design line in the report, then run the four packages' focused tests whole, with
+  no exclusion.
