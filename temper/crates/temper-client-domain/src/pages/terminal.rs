@@ -54,6 +54,11 @@ impl Look {
             }
         }
         out.push(super::Request::KeepLook { look: *self });
+        match act {
+            Act::Enter => out.push(super::Request::Screen { on: true }),
+            Act::Leave => out.push(super::Request::Screen { on: false }),
+            Act::Theme | Act::Font | Act::Run { .. } | Act::Dismiss => {}
+        }
     }
 }
 /// Whether the terminal draws the page at this address: a chat's, `NewChat` or `Configure`.

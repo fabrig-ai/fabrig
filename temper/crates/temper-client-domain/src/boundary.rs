@@ -12,8 +12,12 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
+    /// The browser left full screen, whoever left it (client/README.md, 3.5).
+    ScreenLeft,
     /// At start, the kept store’s look (client/README.md, 3.5).
-    LookKept { look: crate::pages::terminal::Look },
+    LookKept {
+        look: crate::pages::terminal::Look,
+    },
     Copied {
         token: u32,
         written: crate::copy::Written,
@@ -66,8 +70,14 @@ pub enum Tab {
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    /// Full screen in the turn of a person’s terminal act (client/README.md, 3.5).
+    Screen {
+        on: bool,
+    },
     /// Keep the look in the step that changed it (client/README.md, 3.5).
-    KeepLook { look: crate::pages::terminal::Look },
+    KeepLook {
+        look: crate::pages::terminal::Look,
+    },
     /// Keep an answered sign-in beside the client's records (client/README.md, 7).
     KeepSignIn {
         source: u32,

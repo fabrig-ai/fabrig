@@ -282,6 +282,7 @@ pub fn agent_root_with_page(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }

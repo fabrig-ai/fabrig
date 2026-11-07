@@ -9,7 +9,7 @@ use skein_ui_web::{
     clipboard, fetch, history,
     inbox::Inbox,
     page::{Page, web::Dom},
-    platform,
+    platform, screen,
     store::Store,
     timer, title, transport,
 };
@@ -37,6 +37,7 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
     Copied(clipboard::Report),
+    Screen(screen::Report),
     Place(Box<[u8]>),
     Frame(playground::Control),
     World(platform::worker::Heard),
@@ -52,6 +53,7 @@ struct Shell<P: ShellPlatform> {
     platform: P,
     store: Store,
     kept: Store,
+    screen: screen::web::Screen<Report>,
     clipboard: clipboard::web::Clipboard<Report>,
     history: Rc<history::web::History>,
     timer: P::Timer,
@@ -169,6 +171,7 @@ fn start_signed_in() {
         platform,
         store,
         kept,
+        screen: screen::web::Screen::new(Rc::clone(&inbox), Report::Screen),
         clipboard: clipboard::web::Clipboard::new(Rc::clone(&inbox), Report::Copied),
         history,
         timer,
@@ -251,6 +254,7 @@ impl<P: ShellPlatform> Shell<P> {
                 host::Report::Due
             }
             Report::TabRefused => host::Report::TabRefused,
+            Report::Screen(report) => host::Report::Screen(report),
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
@@ -279,6 +283,13 @@ impl<P: ShellPlatform> Shell<P> {
                 }
                 host::TabAct::Point { to } => platform::Platform::point_tab(&mut self.platform, to),
                 host::TabAct::Close => platform::Platform::close_tab(&mut self.platform),
+            }
+        }
+        if let Some(on) = duties.screen {
+            if on {
+                self.screen.enter();
+            } else {
+                self.screen.leave();
             }
         }
         // Keep the person's gesture (skein/docs/design/ui-web.md, section 11).

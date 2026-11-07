@@ -787,6 +787,7 @@ pub(super) fn sign_in_address(address: &[u8]) -> d::Domain {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Screen { .. }
             | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
@@ -1010,6 +1011,7 @@ fn answer_account_operation(root: &mut d::Domain, operation: Operation, outcome:
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Screen { .. }
             | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }

@@ -199,6 +199,7 @@ fn root_chat_with_reads(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }

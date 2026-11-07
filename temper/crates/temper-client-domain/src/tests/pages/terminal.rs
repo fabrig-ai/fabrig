@@ -5,20 +5,24 @@ use crate::pages::{
 };
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "look acts, restoration and full-screen departure share the terminal fixture"
+)]
 fn the_look_moves_by_its_acts() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     let dark = Look::default();
     let light = Look { terminal: true, theme: Theme::Light, font: Font::Plex };
-    for (before, act, after) in [
-        (dark, terminal::Act::Enter, Look { terminal: true, ..dark }),
-        (dark, terminal::Act::Leave, dark),
-        (dark, terminal::Act::Theme, Look { theme: Theme::Light, ..dark }),
-        (dark, terminal::Act::Font, Look { font: Font::Plex, ..dark }),
-        (light, terminal::Act::Enter, light),
-        (light, terminal::Act::Leave, Look { terminal: false, ..light }),
-        (light, terminal::Act::Theme, Look { theme: Theme::Dark, ..light }),
-        (light, terminal::Act::Font, Look { font: Font::DejaVu, ..light }),
+    for (before, act, after, screen) in [
+        (dark, terminal::Act::Enter, Look { terminal: true, ..dark }, Some(true)),
+        (dark, terminal::Act::Leave, dark, Some(false)),
+        (dark, terminal::Act::Theme, Look { theme: Theme::Light, ..dark }, None),
+        (dark, terminal::Act::Font, Look { font: Font::Plex, ..dark }, None),
+        (light, terminal::Act::Enter, light, Some(true)),
+        (light, terminal::Act::Leave, Look { terminal: false, ..light }, Some(false)),
+        (light, terminal::Act::Theme, Look { theme: Theme::Dark, ..light }, None),
+        (light, terminal::Act::Font, Look { font: Font::DejaVu, ..light }, None),
     ] {
         let mut pages = Pages::new();
         assert_eq!(pages.look(), dark);
@@ -37,13 +41,13 @@ fn the_look_moves_by_its_acts() {
         let mut domain = crate::unlinked(&limits, fixtures::SEED);
         domain.pages = pages;
         let mut acts = Queue::uncapped();
-        crate::step(
-            &mut domain,
-            &env,
-            crate::Event::Act { action: Action::Pages(Act::Terminal(act)) },
-            &mut acts,
-        );
+        crate::step(&mut domain, &env, crate::Event::Act { action: Action::Pages(Act::Terminal(act)) }, &mut acts);
         assert_eq!(acts.pop(), Some(crate::Request::KeepLook { look: after }));
+        let screen = match screen {
+            Some(on) => Some(crate::Request::Screen { on }),
+            None => None,
+        };
+        assert_eq!(acts.pop(), screen);
         assert!(acts.is_empty());
         let pages = domain.pages();
         assert_eq!(pages.look(), after);
@@ -60,6 +64,75 @@ fn the_look_moves_by_its_acts() {
         crate::step(&mut root, &fixtures::env(&limits), crate::Event::LookKept { look }, &mut out);
         assert_eq!(root.pages().look(), look);
         assert!(out.is_empty(), "a restored look asks for nothing");
+    }
+    for (command, words, configuring) in [
+        (None, b"hello".as_slice(), false),
+        (None, b"/m".as_slice(), false),
+        (Some(Command::Model), b"".as_slice(), false),
+        (Some(Command::Effort), b"".as_slice(), false),
+        (Some(Command::Close), b"".as_slice(), false),
+        (Some(Command::StartOver), b"".as_slice(), true),
+    ] {
+        let (mut pages, fixture) = loaded_pages(false, configuring);
+        let env = fixtures::env(&limits);
+        let mut out = Queue::uncapped();
+        pages::step(
+            &mut pages,
+            &env,
+            &fixture.client,
+            Event::Act { act: Act::MessageWords { words: words.into() } },
+            &mut out,
+        );
+        if let Some(command) = command {
+            pages::step(
+                &mut pages,
+                &env,
+                &fixture.client,
+                Event::Act { act: Act::Terminal(terminal::Act::Run { command }) },
+                &mut out,
+            );
+        }
+        let mut domain = crate::unlinked(&limits, fixtures::SEED);
+        domain.pages = pages;
+        domain.client = fixture.client;
+        let mut out = Queue::uncapped();
+        crate::step(&mut domain, &env, crate::Event::ScreenLeft, &mut out);
+        assert_eq!(domain.pages().look(), Look { terminal: true, ..dark });
+        assert_eq!(domain.pages().listing(), None);
+        assert!(domain.pages().confirmation().is_none());
+        let chat = domain.pages().chat().unwrap();
+        assert!(chat.closing.is_none());
+        assert_eq!(chat.words.as_ref(), if words.starts_with(b"/") { b"" } else { words });
+        assert!(out.is_empty());
+    }
+    for command in [None, Some(Command::Model)] {
+        let mut domain = crate::unlinked(&limits, fixtures::SEED);
+        let env = fixtures::env(&limits);
+        let mut out = Queue::uncapped();
+        crate::step(
+            &mut domain,
+            &env,
+            crate::Event::Act { action: Action::Pages(Act::Terminal(terminal::Act::Enter)) },
+            &mut out,
+        );
+        if let Some(command) = command {
+            crate::step(
+                &mut domain,
+                &env,
+                crate::Event::Act { action: Action::Pages(Act::Terminal(terminal::Act::Run { command })) },
+                &mut out,
+            );
+        }
+        let listing = domain.pages().listing();
+        let mut out = Queue::uncapped();
+        crate::step(&mut domain, &env, crate::Event::LookKept { look: light }, &mut out);
+        assert_eq!(domain.pages().look(), light);
+        assert_eq!(domain.pages().listing(), listing, "restoring a look leaves its list alone");
+        assert!(out.is_empty());
+        crate::step(&mut domain, &env, crate::Event::ScreenLeft, &mut out);
+        assert_eq!(domain.pages().look(), light);
+        assert_eq!(domain.pages().listing(), None);
+        assert!(out.is_empty());
     }
     for (address, expected) in [
         (Address::Chat { task: 9 }, true),

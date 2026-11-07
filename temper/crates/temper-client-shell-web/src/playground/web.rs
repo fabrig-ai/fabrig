@@ -180,6 +180,7 @@ impl Life {
             platform,
             store,
             kept: Store::kept(b"temper.", None),
+            screen: skein_ui_web::screen::web::Screen::new(Rc::clone(inbox), Report::Screen),
             clipboard: skein_ui_web::clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
             history: Rc::clone(&self.history),
             timer: (),
@@ -232,6 +233,7 @@ impl Life {
                 | Report::Fetch(_)
                 | Report::TabRefused
                 | Report::Copied(_)
+                | Report::Screen(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {
                     if !self.failed
