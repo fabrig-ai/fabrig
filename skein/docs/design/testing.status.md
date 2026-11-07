@@ -3,8 +3,10 @@
 2026-11-07. Where skein's code lags or departs from [testing.md](testing.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
-its documented process boundary are present. Section 9 carries deferred
-cost work, including allocation layout and the native fork floor.
+its documented process boundary are present, as are the row runner's
+admission, continuation, failure diagnostics and expected-panic helper.
+Section 9 carries deferred cost work, including further folds,
+allocation layout and the native fork floor.
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
@@ -19,6 +21,13 @@ cost work, including allocation layout and the native fork floor.
   other tests have unknown individual counts, and the row ratios come
   from different baselines. Shared-helper measurements in
   `skein/docs/development/world-costs.md` establish no suite total either.
+  7: the requested margin of at least 2.5 CPU s below the 30 CPU s
+  focused limit is unproved. `skein/docs/plan/skein-limits-rows/plan.md`
+  records instruction pairs for the two checking-signature paths and
+  folds removing 397 existing test processes, with eight row-kit tests
+  of their own. Its binary-floor estimates and individual instruction
+  counts establish no whole-suite margin; that requires the gate's
+  post-landing measurement.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
