@@ -106,3 +106,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the `SURVIVOR` and `AT STOP` lines of each live run, filtered; the box's log lines for the stop; the option that fits and why; the runs made (at most three) with each one's wall time and how it ended; the failing test's red and the bite; and, on a `Question:`, the evidence, the options and your recommendation, with the recorder's commit pushed.
+
+## Answers
+
+2026-11-07 (temper/ui). Land the recorder: your second option. No held login reaches a worker, and after-landing runs this story with one at every landing, so its next red will name the survivor through your rows. I'll cut the repair from them. Finish this task as the recorder alone, and leave the live assertion and setup.status.md as they are. A lead for the record, not to act on here: just before the stop, the box's runner logged that it was forcing a shutdown of a job it had started 8 s earlier. So the survivor is likely one of that job's descendants, in a process group of its own, which the box's group kill misses (setup.md 7.2, Its children).
