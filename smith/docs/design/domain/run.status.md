@@ -17,10 +17,17 @@ for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
 a silent check still has no output to report (section 15).
 
+- **Not yet:** 5.3: a sub-agent's answer cap is 1,024 bytes rather than
+  the outcome's room, and a cut falls at a byte rather than a character's
+  boundary (`smith-domain-run/src/limits.rs`, `derive`; `src/agent.rs`,
+  `yielded`).
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
   marks the budget's thresholds.
+- **Not yet:** 5.3: a cut answer's marker is the bracket alone, with no
+  words on how much was left out or how to read it
+  (`smith-domain/src/feedback.rs`, `render_child`).
 - **Departs:** 3.3: the workspace's section renders as `## Checkout`, and
   the system text says "the checkout" (`smith-domain-run/src/prompt.rs`,
   `render_checkout`). The user's request of 2026-11-04 asks that the word

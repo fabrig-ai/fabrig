@@ -1,0 +1,36 @@
+draft = "survey-answer"
+repo = "fabrig"
+sources = ["temper/docs/plan/survey-answer/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "answer-room"
+title = "A sub-agent's answer has the outcome's room, the larger of 4,096 and tool_payload, and is cut at a character's boundary"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/limits.md, 3.10"
+
+[[slice]]
+id = 1
+story = "In the agent's process world, a real child's 3,000-byte answer reaches main whole, where it was cut at 1,024 with [child-result cut=1976 stop=end-turn]"
+parts = ["answer-room"]
+walk = false
+
+[[part]]
+id = "cut-words"
+title = "A cut sub-agent answer says how many bytes were left out and to ask a new sub-agent, narrower, for the rest"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/run.md, 5.3"
+
+[[slice]]
+id = 2
+story = "A child's answer cut by 14 bytes reaches its asker with the bracket and: The answer above is cut: its last 14 bytes were left out. The sub-agent has closed; to read the rest, ask a new one for it with a narrower brief."
+parts = ["cut-words"]
+walk = false

@@ -21,10 +21,16 @@ runtime outcome is supplied here.
 
 - **Not yet:** 2.4: a host's answer stops at 65,536 rather than 262,144
   bytes (`smith-domain-run/src/host.rs`, `HostAnswer::CAPACITY`).
+- **Not yet:** 3.10: a sub-agent's answer stops at 1,024 bytes whatever
+  `tool_payload`, and is cut at a byte rather than a character's boundary
+  (`smith-domain-run/src/limits.rs`, `derive`; `src/agent.rs`, `yielded`).
 - **Departs:** 2.4: a host's input admits up to 1,048,576 rather than
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
   ceilings; the deployment's receiving limit still applies.
+- **Not yet:** 6: a sub-agent's cut answer is marked `[child-result cut=N
+  stop=S]` alone, with no words on how to read the rest
+  (`smith-domain/src/feedback.rs`, `render_child`).
 - **Departs:** 9: a derived limit is named by its layer and its field, but
   `ComponentLimits`' `translation` reports `adapter.tool_bytes` and
   `adapter.history_bytes`
