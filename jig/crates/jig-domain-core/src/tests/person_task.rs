@@ -264,6 +264,7 @@ fn person_account(core: &mut Core, env: &Env<Limits>, kind: accounts::Kind, uses
     use super::runs::run_choice::{account, granted, host};
     for record in [
         accounts::Stored::Account {
+            list: None,
             number: 1,
             provider: 2,
             holder: accounts::Holder::Party(PERSON),

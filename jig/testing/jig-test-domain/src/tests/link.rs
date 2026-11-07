@@ -292,6 +292,7 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
     let holder = accounts::Holder::Party(7);
     for record in [
         accounts::Stored::Account {
+            list: None,
             number: 0,
             provider: 1,
             holder,

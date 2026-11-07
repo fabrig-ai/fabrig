@@ -14,6 +14,7 @@ fn next(number: u32) -> core::Record {
 
 fn account() -> core::Record {
     core::Record::Accounts(Stored::Account {
+        list: None,
         place: 0,
         uses: None,
         number: 1,

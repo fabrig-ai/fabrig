@@ -29,7 +29,7 @@ pub use domain::{Account, Domain, fire, step};
 pub use keys::{KEY_VALID, PROGRAM_VALID};
 pub use limits::{Limits, valid};
 pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
-pub use records::{DISPLAY, Held, Holder, Key, Kind, NAME, SUBJECT, Stored, USES, Use};
+pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 pub use restore::{RestoreLimit, RestoreSet};
 pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy};
 

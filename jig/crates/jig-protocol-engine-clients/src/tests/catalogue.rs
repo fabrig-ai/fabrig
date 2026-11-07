@@ -33,6 +33,7 @@ fn catalogue() -> Box<[CatalogueModel]> {
         effort: None,
     };
     let row = |number, model| CatalogueModel {
+        first_read: None,
         number,
         model,
         shown: None,

@@ -425,6 +425,9 @@ fn encode_decider(value: &settings::Decider, limits: &wire::Limits) -> Result<wi
     Ok(match value {
         settings::Decider::FirstStart => wire::Decider::FirstStart,
         settings::Decider::Release => wire::Decider::Release,
+        settings::Decider::List { provider } => {
+            wire::Decider::List(wire::ListDecider::new(limits, wire::ListDeciderParts { provider: *provider })?)
+        }
         settings::Decider::Party(entry) => {
             wire::Decider::Party(wire::Party::new(limits, wire::PartyParts { number: *entry })?)
         }
@@ -434,6 +437,7 @@ fn decode_decider(value: wire::Decider) -> settings::Decider {
     match value {
         wire::Decider::FirstStart => settings::Decider::FirstStart,
         wire::Decider::Release => settings::Decider::Release,
+        wire::Decider::List(entry) => settings::Decider::List { provider: entry.into_parts().provider },
         wire::Decider::Party(entry) => {
             let wire::PartyParts { number } = entry.into_parts();
             settings::Decider::Party(number)
@@ -2234,6 +2238,10 @@ fn encode_catalogue(
             picker: value.picker,
             withdrawn: value.withdrawn,
             estimated: value.estimated,
+            first_read: match value.first_read {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
             source: match value.source {
                 settings::ModelSource::Stock => wire::ModelSource::Stock,
                 settings::ModelSource::List => wire::ModelSource::List,
@@ -2252,6 +2260,10 @@ fn decode_catalogue(value: wire::CatalogueModel) -> settings::CatalogueModel {
         picker: value.picker,
         withdrawn: value.withdrawn,
         estimated: value.estimated,
+        first_read: match value.first_read {
+            Some(at) => Some(Wall::from_nanos(at)),
+            None => None,
+        },
         source: match value.source {
             wire::ModelSource::Stock => settings::ModelSource::Stock,
             wire::ModelSource::List => settings::ModelSource::List,

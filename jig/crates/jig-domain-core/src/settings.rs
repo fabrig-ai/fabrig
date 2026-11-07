@@ -175,6 +175,7 @@ pub enum Decider {
     FirstStart,
     Release,
     Party(u64),
+    List { provider: u32 },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Head {

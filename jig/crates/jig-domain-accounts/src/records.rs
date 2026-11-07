@@ -46,6 +46,27 @@ pub enum Held {
     Moving,
 }
 
+/// What an account's last list reads gave (domain/accounts.md, 3.7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ListRecord {
+    pub names: u64,
+    pub read: Option<Wall>,
+    pub tried: Option<Wall>,
+    pub failure: Option<ReadFailure>,
+    pub left_out: u32,
+}
+
+/// Why a list read failed, without provider words (domain/accounts.md, 3.7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ReadFailure {
+    Refused { status: u16 },
+    Unreachable,
+    Unreadable,
+    Deadline,
+    Agent,
+    Room,
+}
+
 /// A record of the accounts' family: the counter's one row, an account, or one of its sources.
 /// An account's uses name exactly its payers, or leave the default (accounts.md, 4.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -63,6 +84,7 @@ pub enum Stored {
         uses: Option<Box<[Use]>>,
         subject: Box<[u8]>,
         display: Box<[u8]>,
+        list: Option<ListRecord>,
     },
     /// A source of an account at its place in the holder's order; the name is a program's,
     /// empty for every other kind.

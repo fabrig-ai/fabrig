@@ -58,7 +58,8 @@ enum ApplicationFollows { default, changed: ApplicationRevision, removed: Applic
 record ApplicationState { follows: ApplicationFollows size: u32 charters: list 255 u32 }
 record SettingLine { setting: Setting name: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState }
 record RevisionParty { number: u64 }
-enum RevisionDecider { first_start, release, party: RevisionParty }
+record RevisionList { provider: u32 }
+enum RevisionDecider { first_start, release, party: RevisionParty, list: RevisionList }
 record RevisionHead { number: u32 against: u32 at: u64 by: RevisionDecider proposal: option ProposalKey moved: bool }
 record HeldRevision { head: RevisionHead holders: u32 }
 record SettingsProposal { proposer: Proposer number: u32 }
