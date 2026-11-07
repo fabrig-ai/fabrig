@@ -15,6 +15,15 @@ the fake's goal script, who is offered `decided`, what the configuring agent
 can read to size temper's own way, and what no real model has
 shown: the configuring agent's words, a document built in parts and a receipt's words.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
+Sections 4.3 and 4.3.1 have no known implementation gap in a goal's
+delivery grant or `change` on its run branch. The real-loop story uses
+real smith and a worker with a scripted model, fake git and a fake forge:
+it edits, receives a receipt naming r, lands through a change into g and
+finishes with a report, leaving main unchanged. It does not establish
+real-model behaviour or run the project's executable checks; the grant
+requires them, and smith's report-delivery process story checks the files.
+Stock and reference instructions remain separate work (section 10 and
+`../draft/goal-as-designer.status.md`).
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's

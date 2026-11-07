@@ -31,11 +31,13 @@ still open is listed in section 10.
 - **The engine keeps what smith leaves to hosts:** transcripts, turn by
   turn, in its store; host tools' calls, decided once; what follows an
   answer (jig's `domain/engine.md`, section 7).
-- **One translation, temper's own.** `temper-engine-smith`, which the
+- **One translation.** `temper-engine-smith`, which the
   engine's routing calls, is the only place where temper's charter,
-  tools and results become smith's, and smith's back. temper uses
-  neither `jig-protocol-charter` nor `jig-protocol-tools`, since its root
-  has a `Tool` vocabulary of its own (`../protocol/llm.md`, sections 4
+  tools and results become smith's, and smith's back. It uses
+  `jig-protocol-charter` to assemble and translate the charter, supplying
+  temper's host tools, workspace delivery fact and conventions (section 4;
+  jig's `domain/hosts.md`, section 8). Its `Tool` vocabulary is its own,
+  rather than `jig-protocol-tools`' (`../protocol/llm.md`, sections 4
   and 5). smith interprets no temper vocabulary, and the worker none of
   either.
 
@@ -1331,6 +1333,14 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **A goal as the designer** (4.3 and 4.3.1;
+  `../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
+  path is independent of the stock and reference instructions, their
+  wakes and their location. Those words and settings are folded into the
+  reference workflow together; the room for whole specs, batches, briefs
+  and reports is a separate change. Default: the existing stock and
+  reference words and bounds; test charters exercise goal delivery.
 
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what

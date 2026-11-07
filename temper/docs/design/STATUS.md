@@ -2,7 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). After landing is built
+milestone stands in the code (`README.md`). A goal with a confirmed goal
+branch and a modifying charter delivers to its own run branch and lands
+through a change into g; later runs merge r into g's tip before delivering
+again. The domain, checkout and real-loop stories use scripted models and
+fake forge/git; stock and reference workflow words, larger calls and
+reports, and a saved start overtaken by a repair remain separate work
+(`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
+`draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
 living to cleared; a red of no goal's, trailers, what the forge

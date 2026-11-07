@@ -49,6 +49,11 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
 2026-11-06 has it read the commit's rows (`domain/testing.md`).
+A Finite report can deliver when its policy and workspace permit it,
+keeping its report contract; a procedure on its requester's resource can
+step beside that requester's writing run (`domain/hosts.md`, section 8;
+`domain/connectors.md`, section 11). The shell authority of a run without
+delivery still departs (`domain/hosts.md`).
 The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).
