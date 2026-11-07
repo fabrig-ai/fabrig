@@ -219,17 +219,14 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::QaNext,
         Agent::QaCoder,
     ] {
-        for (at, word) in system.windows(agent.cue().len()).enumerate() {
-            if word == agent.cue() {
-                // No later cue can precede zero; equal positions keep this agent's priority.
-                if at == 0 {
-                    return Some(agent);
-                }
-                if at < first_at {
-                    first_at = at;
-                    first = Some(agent);
-                }
-                break;
+        if let Some(at) = skein_lib::bytes::find(system, agent.cue()) {
+            // No later cue can precede zero; equal positions keep this agent's priority.
+            if at == 0 {
+                return Some(agent);
+            }
+            if at < first_at {
+                first_at = at;
+                first = Some(agent);
             }
         }
     }
@@ -550,6 +547,16 @@ mod tests {
     };
     use crate::case::{A_SPEC_PREFIX, A_SPEC_SUFFIX};
     use serde_json::json;
+
+    #[test]
+    fn the_first_system_cue_identifies_the_agent_before_delegated_cues() {
+        let system = [b"guide\n".as_slice(), Agent::A.cue(), b"\ndelegate ", Agent::Director.cue()].concat();
+        let query = Told::new(&system, b"fake", None, &[]).expect("system cue");
+        assert_eq!(query.agent, Agent::A);
+        let query = Told::new(Agent::RedDirector.cue(), b"fake", None, &[]).expect("opening cue");
+        assert_eq!(query.agent, Agent::RedDirector);
+        assert!(Told::new(b"guide without a case cue", b"fake", None, &[]).is_none());
+    }
 
     #[test]
     fn borrowed_paths_keep_json_pointer_semantics() {
