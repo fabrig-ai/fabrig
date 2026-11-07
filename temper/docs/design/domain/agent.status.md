@@ -106,11 +106,6 @@ offers visibility.
   leaves that observation to after landing; phrase assertions prove the
   instructions alone.
 
-- **Not yet:** 8: a forge read answered with `Runs`, `Run`, `Commits`,
-  `Tree` or `Queued` stops `temper serve` in its rendering
-  (`temper-engine-smith/src/answers.rs`, `forge_answer`, an
-  `unreachable!`) rather than being refused, and no read refusal is
-  noted for it.
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
   corrected receipt's words, a refused compare's recovery, or the producer

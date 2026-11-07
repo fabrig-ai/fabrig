@@ -114,8 +114,65 @@ pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u
     bounded(answer, tool, max_bytes, Some(task))
 }
 
+/// The kind of a forge read's answer no agent read asks for, as the log's
+/// reason (temper/docs/design/domain/agent.md, 8).
+#[must_use]
+pub fn unasked_kind(answer: &CallAnswer) -> Option<&'static str> {
+    if let CallAnswer::ForgeRead(read) = answer {
+        return match read.as_ref() {
+            Ok(answer) => match answer {
+                api::Answer::Runs { .. } => Some("answer of kind Runs"),
+                api::Answer::Run(_) => Some("answer of kind Run"),
+                api::Answer::Commits { .. } => Some("answer of kind Commits"),
+                api::Answer::Tree { .. } => Some("answer of kind Tree"),
+                api::Answer::Queued => Some("answer of kind Queued"),
+                api::Answer::Located { .. }
+                | api::Answer::Items { .. }
+                | api::Answer::Item { .. }
+                | api::Answer::Pull(_)
+                | api::Answer::Reviews { .. }
+                | api::Answer::Statuses { .. }
+                | api::Answer::Remarks { .. }
+                | api::Answer::Commit(_)
+                | api::Answer::Branches(_)
+                | api::Answer::PullFiles { .. }
+                | api::Answer::Compare { .. }
+                | api::Answer::Checks(_)
+                | api::Answer::Job { .. }
+                | api::Answer::File { .. }
+                | api::Answer::Directory { .. }
+                | api::Answer::Protection(_)
+                | api::Answer::Settings(_)
+                | api::Answer::Collaborators { .. }
+                | api::Answer::Permission(_)
+                | api::Answer::Created(_)
+                | api::Answer::Commented(_)
+                | api::Answer::Reviewed(_)
+                | api::Answer::Merged(_)
+                | api::Answer::Branch(_)
+                | api::Answer::Done => None,
+            },
+            Err(_) => None,
+        };
+    }
+    None
+}
+
+fn unasked_refusal(tool: &[u8], reason: &'static str, cap: usize) -> HostAnswer {
+    let mut text = Text::new();
+    text.add(b"Forge read refused: ").expect("fixed unasked refusal");
+    text.add(if tool.is_empty() { b"the read" } else { tool }).expect("bounded tool name");
+    text.add(b" got an ").expect("fixed unasked refusal");
+    text.add(reason.as_bytes()).expect("fixed unasked kind");
+    text.add(b", which it never asks for. Nothing was read; read again.").expect("fixed unasked refusal");
+    clipped_refusal(text, cap)
+}
+
 fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
     let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
+    if let Some(reason) = unasked_kind(answer) {
+        return unasked_refusal(tool, reason, cap);
+    }
     if let CallAnswer::ForgeRead(read) = answer {
         if let Ok(value @ (api::Answer::File { .. } | api::Answer::Directory { .. } | api::Answer::PullFiles { .. })) =
             read.as_ref()
@@ -425,6 +482,7 @@ pub fn answer(answer: &CallAnswer) -> HostAnswer {
 fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswer {
     match rendered(answer, tool, task) {
         Ok(answer) => answer,
+        Err(Problem::Unasked(reason)) => unasked_refusal(tool, reason, HostAnswer::CAPACITY),
         Err(Problem::TooLarge) => HostAnswer::new(
             bytes::copy_of(b"The recorded answer exceeded the host text limit; ask a narrower read."),
             true,
@@ -1447,10 +1505,11 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             api::BranchCreation::Created => text.add(b"Branch created")?,
             api::BranchCreation::Exists => text.add(b"Branch already exists")?,
         },
-        api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Commits { .. } | api::Answer::Tree { .. } => {
-            unreachable!("agent forge reads do not request Actions or trees")
-        }
-        api::Answer::Queued => unreachable!("agent forge reads do not request a merge"),
+        api::Answer::Runs { .. } => return Err(Problem::Unasked("answer of kind Runs")),
+        api::Answer::Run(_) => return Err(Problem::Unasked("answer of kind Run")),
+        api::Answer::Commits { .. } => return Err(Problem::Unasked("answer of kind Commits")),
+        api::Answer::Tree { .. } => return Err(Problem::Unasked("answer of kind Tree")),
+        api::Answer::Queued => return Err(Problem::Unasked("answer of kind Queued")),
         api::Answer::Done => text.add(b"Done")?,
     }
     Ok(())
