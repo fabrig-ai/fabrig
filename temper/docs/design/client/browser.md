@@ -1379,8 +1379,9 @@ Not in the tier, each in the lowest world that shows it:
   sending there by hand.
 - **A public page's plain text in one query** (8.4): the page-text walk,
   apart from geometry measurement, reads a node at a time, about 0.8 CPU s
-  over its seven pages. Default: so, until that
-  passes 1 CPU s, when the browser kit would read a page's text at once.
+  over its seven pages. Default: read a node at a time, accepting 8.4's
+  queued and unqueued landings forms, until that passes 1 CPU s, when the
+  browser kit would read a page's text at once.
 - **Every wrapped text fragment** (8.4): checking all of a title's wrapped
   fragments needs a browser testing interface decision (skein's
   `browser.md`, 11). Default: keep `Seen` and its first content quad;
@@ -1930,8 +1931,13 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads the queue's one
-  member while the change waits, and below it "No landings to show yet." or the stock
-  queue's merge, by whether the merge came before the read. One run reads only one of
-  these, so the tier's library holds them all as a table in the focused suite, and
-  refuses any other line.
+  hold nothing a browser alone shows (4.6). Its landings page reads "temper" and
+  "Landings", optionally "Queue" and its one member, then "No landings to show yet."
+  or the stock queue's merge. The member reads "task " and eight lowercase hexadecimal
+  digits, " · Goal " and eight such digits, then " · Ready " and "just now",
+  "a minute ago" or decimal digits and " minutes ago". The merge reads
+  "landed · task ", eight lowercase hexadecimal digits, " · " and seven such
+  commit digits. These are the whole text joined without separators; nothing may
+  precede or follow it. One run reads only one form, so the tier's library holds
+  the queued and unqueued forms as a table in the focused suite, and refuses
+  any other line. The story's other page and geometry checks stay the same.
