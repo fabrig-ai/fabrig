@@ -148,6 +148,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     for (name, count) in [
         ("core.load_slots", 8),
         ("core.run_bytes", 8192),
+        ("core.templates", 3),
         ("documents.rows", 2),
         ("documents.lines", DOCUMENT_LINES),
         ("documents.text_bytes", 128),
