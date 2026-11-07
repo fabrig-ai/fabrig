@@ -328,16 +328,151 @@ fn restored_task(world: &World, task: u64) -> &tasks::TaskRecord {
 
 #[test]
 fn a_restart_with_workers_in_process_settles_their_claims_at_once() {
-    let mut world = World::new(Setup { seed: 121, ..Setup::default() });
-    world.turn(1, 2, None, b"worker turn");
+    struct Row {
+        name: &'static str,
+        seed: u64,
+        stop: bool,
+        in_process: bool,
+        interrupted: usize,
+        lost: u32,
+        refusals: u32,
+        due: bool,
+    }
+    for row in [
+        Row {
+            name: "crashed",
+            seed: 121,
+            stop: false,
+            in_process: true,
+            interrupted: 0,
+            lost: 1,
+            refusals: 0,
+            due: false,
+        },
+        Row {
+            name: "stopped, worker elsewhere",
+            seed: 127,
+            stop: true,
+            in_process: false,
+            interrupted: 0,
+            lost: 0,
+            refusals: 2,
+            due: false,
+        },
+        Row {
+            name: "stopped",
+            seed: 126,
+            stop: true,
+            in_process: true,
+            interrupted: 1,
+            lost: 0,
+            refusals: 2,
+            due: true,
+        },
+    ] {
+        let mut world = resumable_worker(row.seed, row.in_process);
+        world.turn(1, 2, None, b"worker turn");
+        let (task, attempt) = (world.task(), world.attempt());
+        let saved = restored_task(&world, task).saved.clone();
+        let turn_key = root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, attempt, turn: 1 }));
+        let turn = world.store.rows[&turn_key].clone();
+        if row.stop {
+            stop_with_late_words(&mut world, row.interrupted, row.name);
+        }
+        let before = world.wall_time().as_nanos();
+        world.assigned = None;
+        world.restart_with(worker_configuration(row.seed, row.in_process));
+        assert!(world.domain.ready(), "{}", row.name);
+        let restored = restored_task(&world, task);
+        assert_eq!(restored.tries, tasks::Tries { lost: row.lost, ..tasks::Tries::NONE }, "{}", row.name);
+        assert_eq!(restored.refusals, row.refusals, "{}", row.name);
+        assert_eq!(restored.saved, saved, "{}", row.name);
+        assert_eq!(world.store.rows.get(&turn_key), Some(&turn), "{}: committed turn kept", row.name);
+        assert_eq!(restored.phase == tasks::Phase::Active(tasks::Active::Due), row.due, "{}", row.name);
+        if row.interrupted > 0 {
+            assert!(
+                !world.store.rows.values().any(|record| matches!(record,
+                root::Record::Core(core::Record::Tasks(tasks::Stored::Writer(slot)))
+                if slot.writer == tasks::Writer::Run { task, attempt })),
+                "{}: writer released",
+                row.name
+            );
+        }
+        if !row.in_process {
+            hello(
+                &mut world,
+                Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
+            );
+            assert_eq!(restored_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt }));
+        }
+        assert!(world.wall_time().as_nanos() - before < Duration::from_secs(5).as_nanos(), "{}", row.name);
+    }
+}
+
+fn worker_configuration(seed: u64, in_process: bool) -> root::Config {
+    let mut config = jig_core_world::world::fixture(seed, false).0;
+    config.core.workers_in_process = in_process;
+    config
+}
+
+fn resumable_worker(seed: u64, in_process: bool) -> World {
+    let mut world =
+        World::new(Setup { seed, configuration: Some(worker_configuration(seed, in_process)), ..Setup::default() });
+    world.park_for_message(0);
     let task = world.task();
-    let before = world.wall_time().as_nanos();
-    let mut config = jig_core_world::world::fixture(121, false).0;
-    config.core.workers_in_process = true;
-    world.restart_with(config);
-    assert!(world.domain.ready());
-    assert_eq!(restored_task(&world, task).tries.lost, 1);
-    assert!(world.wall_time().as_nanos() - before < Duration::from_secs(5).as_nanos());
+    let mut kept = restored_task(&world, task).clone();
+    kept.saved = Box::new([tasks::SavedResource { connector: 1, path: Box::new([Box::from(*b"work")]) }]);
+    kept.refusals = 2;
+    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(kept))))]));
+    world.restart_with(worker_configuration(seed, in_process));
+    hello(&mut world, Box::new([]));
+    account(&mut world);
+    world.say(93);
+    world
+}
+
+fn stop_with_late_words(world: &mut World, expected: usize, name: &str) {
+    let (task, attempt) = (world.task(), world.attempt());
+    let relay = world.host_call(b"read-at-stop", b"read", b"{}", false);
+    let answers = world.host_answers.len();
+    let decisions = world.commits.len();
+    let cancellations = world.cancellations.len();
+    world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+    world.stop();
+    assert_eq!(world.cancellations.len(), cancellations, "{name}: stop tells the host nothing");
+    assert_eq!(world.commits.len(), decisions + expected, "{name}: one stop decision");
+    let drained_before_commit = world.stop_deliveries.iter().any(|held| matches!(held, core::Held::Drained));
+    world.release_commits();
+    assert_eq!(interrupted(world, task, attempt), expected, "{name}: terminal at stop");
+    assert_eq!(drained_before_commit, expected == 0, "{name}: drain waits for terminal");
+    assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1, "{name}");
+    let commits = world.store.applied;
+    world.turn(2, 3, None, b"late turn");
+    world.end(tasks::End::Parked, 3);
+    world.send(root::Event::CallAnswered {
+        to: skein_lib::ReplyTo::new(relay),
+        call: core::SettledCall {
+            serial: 0,
+            tool: b"read".as_slice().into(),
+            answer: core::SettledAnswer::Host { error: false, body: b"late result".as_slice().into() },
+        },
+    });
+    assert_eq!(world.host_answers.len(), answers, "{name}: interrupted relay answer dropped");
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
+    assert_eq!(world.store.applied, commits, "{name}: late host words commit nothing");
+}
+
+fn interrupted(world: &World, task: u64, attempt: u64) -> usize {
+    world
+        .store
+        .rows
+        .values()
+        .filter(|record| {
+            matches!(record,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.task == task && terminal.attempt == attempt && terminal.end == tasks::End::Recheck)
+        })
+        .count()
 }
 
 #[test]

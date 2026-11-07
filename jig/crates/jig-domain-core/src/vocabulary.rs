@@ -1240,6 +1240,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
+        | fleet::Event::Interrupt { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded
