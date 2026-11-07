@@ -4,7 +4,7 @@
 - **Where:** `jig/testing/jig-conformance/src/core.rs`, `jig/testing/jig-core-kit/src/conformance.rs`
 - **Seen:** 2026-10-18 at `86971be`, in jig's tech-debt list ("Test cost": conformance and `ops`'s alert story; the core world's observer)
 - **Seen:** 2026-10-31 at `1b5c98834`, in the quality run's debt list ("Ops (A12)": `alert_cuts` replays its baseline; "Tech-debt cross-checks still open": the core observer rebuilds its snapshot per commit)
-- **Checked:** 2026-11-06
+- **Checked:** 2026-11-07
 - **Value:** medium (the worlds' CPU spent projecting durable state)
 - **Size:** M
 - **Status:** open
@@ -34,9 +34,15 @@ is not idempotent. A feed must preserve those commit boundaries. `Got` also
 changes the store's rows outside commits, so cold observation needs the current
 rows even when `applied` is unchanged.
 
-`Observer::inbound` also builds the full view for every core event
-(`jig/testing/jig-core-kit/src/conformance.rs`'s `inbound`,
-`jig/tests/ops/src/conformance/mod.rs`'s `inbound`). And
+`Observer::inbound` builds a current view only for a party's request, a
+proposal of settings or a run's accepted proposal. `Observer::submitted`
+translates only the newest commit's writes and builds a current view only
+when that commit erases task activity or an ended task. Views are never kept.
+The whole snapshot combines naming and row projection in one pass, and
+`durable_at` collects accepted proposal decisions in its existing evidence
+pass. It still rebuilds the whole snapshot at each new commit; there is no
+keyed row feed, and the referee's walk is unchanged.
+
 `Neighbours::busy_events` keeps `{event:?}` strings
 (`jig/tests/conformance/src/lib.rs`).
 

@@ -8,7 +8,7 @@ A deployment is one temper: its engine, the workers that run its agents, the for
 
 - **The engine** keeps state and decides acts. A **worker** checks out
   repositories and runs agents. `temper init` writes one worker in the
-  engine's process, with one slot.
+  engine's process, with 4 slots.
 - **`temper serve`** runs the configured engine, workers or both.
   **`temper box`** runs serve and each managed forge's setup processes
   on this machine (temper help box). A **server** separates engine and workers (temper help server).

@@ -631,6 +631,10 @@ fn editable(task: &c::Task) -> bool {
         Some(c::Admission::Refused(_)) | None => false,
     }
 }
+/// A wait for a host, in a box's words on a box (temper/docs/design/client/README.md, 5.5).
+fn host_wait(root: &Domain) -> W {
+    if crate::forge::connect::owned(root) { W::WaitCapacityBox } else { W::WaitCapacity }
+}
 pub(crate) fn waiting(
     b: &mut Builder,
     root: &Domain,
@@ -648,7 +652,7 @@ pub(crate) fn waiting(
         Some(c::TaskRunWait::Refused(why)) => {
             line(b, w, W::WaitRefused, &[Hole::Name(refused(w, times, why))]);
         }
-        Some(c::TaskRunWait::Host) => line(b, w, W::WaitCapacity, &[]),
+        Some(c::TaskRunWait::Host) => line(b, w, host_wait(root), &[]),
         Some(c::TaskRunWait::Account { .. }) => {
             account_wait(b, root, task, w, bindings);
         }
@@ -819,7 +823,7 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
     use c::{TaskSourceState as S, TaskWaitWhy as R};
     let (word, until) = match *wait {
         c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
-        c::TaskRunWait::Host => return w.say(W::WaitCapacity, &[]),
+        c::TaskRunWait::Host => return w.say(host_wait(root), &[]),
         c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
             return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
         }

@@ -104,3 +104,17 @@ fn valid_requires_room_for_transcript_work() {
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }
+
+#[test]
+#[should_panic(expected = "the store's limits are valid")]
+fn over_refuses_insufficient_transcript_readers() {
+    let mut limits = fixtures::store_limits();
+    limits.reads = limits
+        .core
+        .load_slots
+        .checked_add(limits.core.tasks.tasks)
+        .expect("fixture reader capacity")
+        .checked_sub(1)
+        .expect("fixture has transcript readers");
+    let _store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
+}

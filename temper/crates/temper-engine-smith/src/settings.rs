@@ -49,23 +49,34 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         let kind = setting.required(b"kind")?.text(b"kind")?;
         let number = setting.field(b"number")?;
         let project = setting.field(b"project")?;
-        if project.is_some()
-            && kind.as_ref() != b"landing-rule"
-            && ![b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref())
-        {
+        let mut numbered = None;
+        for name in [b"charter".as_slice(), b"template", b"policy", b"landing-rule", b"forge-charter"] {
+            if kind.as_ref() == name {
+                numbered = Some(name);
+            }
+        }
+        let mut by_project = None;
+        for name in [b"project-policy".as_slice(), b"project-ways", b"project-questions"] {
+            if kind.as_ref() == name {
+                by_project = Some(name);
+            }
+        }
+        if project.is_some() && kind.as_ref() != b"landing-rule" && by_project.is_none() {
             return Err(Problem::Range(b"project"));
         }
-        if [b"rules".as_slice(), b"project-policy", b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
+        if kind.as_ref() == b"rules" || by_project.is_some() {
             if number.is_some() {
                 return Err(Problem::Range(b"number"));
             }
-        } else {
-            positive(number.ok_or(Problem::Missing(b"number"))?, b"number")?;
+        } else if let Some(kind) = numbered {
+            positive(number.ok_or(Problem::Needs { kind, member: b"number" })?, b"number")?;
+        } else if let Some(number) = number {
+            positive(number, b"number")?;
         }
         if let Some(project) = project {
             positive(project, b"project")?;
-        } else if [b"project-policy".as_slice(), b"project-ways", b"project-questions"].contains(&kind.as_ref()) {
-            return Err(Problem::Missing(b"project"));
+        } else if let Some(kind) = by_project {
+            return Err(Problem::Needs { kind, member: b"project" });
         }
         let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
             .or(Err(Problem::Range(b"kind")))?;
