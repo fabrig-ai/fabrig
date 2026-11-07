@@ -118,7 +118,7 @@ impl Checks {
 
 fn failure(answer: ProgramCheck) -> Option<local::CredentialFailure> {
     match answer {
-        ProgramCheck::Usable => None,
+        ProgramCheck::Usable { .. } => None,
         ProgramCheck::NotSignedIn => Some(local::CredentialFailure::ProgramNotSignedIn),
         ProgramCheck::SignedInOtherwise(method) => Some(local::CredentialFailure::ProgramSignedInOtherwise { method }),
         ProgramCheck::Failed(failure) => Some(local::CredentialFailure::ProgramFailed(failure)),

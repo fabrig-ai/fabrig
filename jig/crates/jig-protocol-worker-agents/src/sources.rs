@@ -268,7 +268,7 @@ fn binding_error(error: smith_protocol_program::Error) -> &'static [u8] {
 fn translate(answer: SourceAnswer, bound: u32) -> sources::Answer {
     match answer {
         SourceAnswer::Check(check) => sources::Answer::Checked(match check {
-            smith::ProgramCheck::Usable => LoginState::Usable,
+            smith::ProgramCheck::Usable { email: _ } => LoginState::Usable,
             smith::ProgramCheck::NotSignedIn => LoginState::NotSignedIn,
             smith::ProgramCheck::SignedInOtherwise(method) => LoginState::SignedInOtherwise(
                 LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),

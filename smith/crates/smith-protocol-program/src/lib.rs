@@ -26,4 +26,4 @@ pub use command::{Command, Ended, Launch};
 pub use source::{
     ENVIRONMENT_BYTES, ENVIRONMENT_ENTRIES, Error, Programs, configuration_directory, environment, keeps,
 };
-pub use status::{Method, SIGN_IN, SIGN_OUT, STATUS, STATUS_BYTES, SUBSCRIPTION, Status, status};
+pub use status::{EMAIL_BYTES, Method, SIGN_IN, SIGN_OUT, STATUS, STATUS_BYTES, SUBSCRIPTION, Status, email, status};
