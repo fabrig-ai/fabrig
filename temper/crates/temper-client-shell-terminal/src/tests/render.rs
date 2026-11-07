@@ -323,6 +323,9 @@ pub(super) fn models_frame(
         project
             .models
             .push(c::MeModel {
+                number: 1,
+                source: jig_client::contract::ModelSource::Stock,
+                estimated: false,
                 name: text(name),
                 provider: Some(provider),
                 window: 200_000,

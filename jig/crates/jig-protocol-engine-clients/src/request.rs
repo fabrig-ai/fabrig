@@ -138,6 +138,26 @@ impl Component {
                         })));
                         return;
                     }
+                    w::Ask::ChangeModel(value) => {
+                        if keyed.value.is_some() {
+                            self.not_a_record(owner);
+                            return;
+                        }
+                        let act = crate::translate::settings::model_act(value);
+                        let digest = sign_in::digest(&keyed.request).expose().try_into().expect("32-byte digest");
+                        self.pending
+                            .exchanges
+                            .insert(exchange, Waiting::Ask { sign_in, family: None, version: keyed.version })
+                            .expect("released slot");
+                        out.push(Request::Core(Box::new(core::Event::ChangeModel {
+                            reply_to: ReplyTo::new(exchange),
+                            sign_in,
+                            key: keyed.key,
+                            digest,
+                            act,
+                        })));
+                        return;
+                    }
                     w::Ask::ChangeSettings(value) => {
                         if keyed.value.is_some() {
                             self.not_a_record(owner);
@@ -308,7 +328,8 @@ impl Component {
 fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKind>)> {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
-        w::Ask::ChangeSettings(_)
+        w::Ask::ChangeModel(_)
+        | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::Message(_)
@@ -362,7 +383,8 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
 fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes: u32) -> u64 {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
-        w::Ask::ChangeSettings(_)
+        w::Ask::ChangeModel(_)
+        | w::Ask::ChangeSettings(_)
         | w::Ask::MoveToNewest(_)
         | w::Ask::Restore(_)
         | w::Ask::Message(_)

@@ -422,8 +422,14 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
         charter.policy.alternatives = models[1..].into();
     }
     config.core.settings.endpoints = Box::new([
-        jig_domain_core::EndpointFacts { number: 1, dialect: models[0].dialect, program: None },
         jig_domain_core::EndpointFacts {
+            providers: Box::new([]),
+            number: 1,
+            dialect: models[0].dialect,
+            program: None,
+        },
+        jig_domain_core::EndpointFacts {
+            providers: Box::new([]),
             number: 2,
             dialect: models[0].dialect,
             program: Some(b"claude_code".as_slice().into()),

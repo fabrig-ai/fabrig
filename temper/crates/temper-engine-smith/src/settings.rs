@@ -93,6 +93,9 @@ fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
     for value in values {
         models
             .push(protocol::Model {
+                number: 0,
+                source: s::ModelSource::Stock,
+                estimated: false,
                 name: value.name.clone(),
                 provider: None,
                 window: value.window,

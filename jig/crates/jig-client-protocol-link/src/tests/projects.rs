@@ -190,6 +190,7 @@ fn a_public_identifier_in_me_reaches_the_contract() {
         let project = w::MeProject::new(
             limits.wire(),
             w::MeProjectParts {
+                left_out: 0,
                 defaults: skein_lib::List::with_capacity(0),
                 project: u32::MAX,
                 name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::default(), cut: false })

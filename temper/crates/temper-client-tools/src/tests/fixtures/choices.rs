@@ -38,6 +38,9 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            number: 1,
+            source: jig_client::contract::ModelSource::Stock,
+            estimated: false,
             effort: efforts.get(0).cloned(),
             shown: None,
             accounts: List::from_boxed(Box::new([ACCOUNT])),
@@ -54,6 +57,9 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            number: 1,
+            source: jig_client::contract::ModelSource::Stock,
+            estimated: false,
             effort: None,
             shown: None,
             accounts: List::from_boxed(Box::new([ACCOUNT])),

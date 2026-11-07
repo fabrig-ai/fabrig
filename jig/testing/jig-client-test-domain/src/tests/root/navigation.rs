@@ -72,6 +72,7 @@ fn chat_project() -> List<MeProject> {
     let mut projects = List::with_capacity(1);
     projects
         .push(MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             models: List::with_capacity(0),

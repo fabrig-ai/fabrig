@@ -24,6 +24,9 @@ pub struct LlmChoice {
 /// A model the party may choose in a project, with what configuration gives it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeModel {
+    pub number: u32,
+    pub source: super::ModelSource,
+    pub estimated: bool,
     pub name: Text,
     /// The LLM provider that serves it, when configuration names one.
     pub provider: Option<u32>,

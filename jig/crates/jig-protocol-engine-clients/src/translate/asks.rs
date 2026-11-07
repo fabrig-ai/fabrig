@@ -50,6 +50,7 @@ fn decode(
             p::Ask::Restore { revision: value.revision, reason: value.reason }
         }
         w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision() },
+        w::Ask::ChangeModel(_) => return Err(Untranslatable { path: w::Path::ChangeModelAct }),
         w::Ask::ChangeSettings(value) => {
             let against = value.against();
             let record = w::Ask::ChangeSettings(value);
