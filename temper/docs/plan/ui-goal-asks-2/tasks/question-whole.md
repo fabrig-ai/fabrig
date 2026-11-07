@@ -117,3 +117,15 @@ A person task in words uncut, and a `message` question uncut, are `Whole`. A `me
 ## Report
 
 Say that it reads the whole rather than carrying it. Name the rules broken by hand and what failed, whether the band needed a CSS rule, and any terminal path left.
+
+## Rebase (2026-11-07, step merge, foreman ui-goal-asks-2/question-whole/foreman-1)
+
+rebase onto integration, preserving both tasks’ words, status removals and question stories
+The merge conflicts with `39caa855bbc5999e8eccb8d170890655fabbfaf6` (“Open goals from drafts and count only change results as landings”), merged into integration by `21229a2c02`.
+Resolve these three paths:
+- `temper/crates/temper-client-view/src/words.rs`: retain goals-start’s additions and `GoalTasksDone` rename, plus this task’s `NeedsCut` and `NeedsCutRest`, including their enum, ALL, id and English entries. Preserve the contracted IDs. Recount the combined vocabulary; expected totals are PHRASES 1898, SEGMENTS 3307, ENGLISH_BYTES 46578 and ALL length 1297.
+- `temper/docs/design/client/README.status.md`: remove both completed “Not yet” entries: question whole/cut/funds and goal start/funding/landing counts. Preserve the adjacent “Design departs” entry.
+- `temper/tests/client/tests/suite/chat_draft.rs`: retain goals-start’s `answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe)` extraction and both calling stories. Put this task’s long question, cut assertion, button-render pumping and Blue button press inside that shared helper. Pass its existing `front` and `probe` references directly to `pump` and `pump_at`.
+Preserve the cleanly merged goal Tasks changes alongside this task’s question-band changes.
+Regenerate any combined-code goldens or counted baselines using their existing tools.
+Run the focused checks for the combined vocabulary and question rendering, and compile the client stories; run only focused and fuzzy suites.
