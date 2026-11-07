@@ -420,11 +420,11 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
     world.close();
 }
 
-/// Reproduce the queued wait, an unmapped review, a satisfied rule and its removal.
+/// Reproduce an approval wait, an unmapped review, a satisfied rule and its removal.
 pub(crate) fn approval_wait_story() {
     let (mut world, change) = waiting_approval();
     let panel = approval_panel(&mut world, change, 990);
-    assert!(matches!(panel.step, forge_top::PanelStep::Queued { place: 1, .. }));
+    assert_eq!(panel.step, forge_top::PanelStep::First);
     assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
     assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
     assert_approval_wait(&panel);

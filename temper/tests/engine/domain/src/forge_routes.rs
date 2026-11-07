@@ -1582,7 +1582,10 @@ impl World {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
                     Delivery::Panel { watcher, panel } => self.panels.push((watcher, *panel)),
-                    Delivery::Approvals { watcher, document } => self.approvals.push((watcher, *document)),
+                    Delivery::Approvals { watcher, document } => {
+                        self.approvals.push((watcher, *document));
+                        self.events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+                    }
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
