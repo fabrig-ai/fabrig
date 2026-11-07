@@ -757,6 +757,7 @@ fn resume_is_refused_unless_paused() {
         .unwrap()
         .cards
         .push(pages::inbox::Card {
+            whole: None,
             object: c::ObjectKey::Proposal(acts::PROPOSAL),
             group: c::InboxGroup::Proposals,
             project: Some(fixtures::PROJECT),

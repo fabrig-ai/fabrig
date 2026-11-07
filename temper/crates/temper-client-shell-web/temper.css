@@ -1828,6 +1828,10 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app:has(> .temper-rail) .temper-goal-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 #app:has(> .temper-rail) .temper-goal-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: var(--gf-signal-pale); }
 #app:has(> .temper-rail) .temper-goal-band > p { flex: 1 1 280px; }
+#app:has(> .temper-rail) .temper-goal-band .temper-ask-context { flex: 1 1 100%; color: var(--gf-ink-2); white-space: pre-line; }
+#app:has(> .temper-rail) .temper-goal-band .temper-ask-saw { flex: 1 1 100%; font-size: 14px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-goal-band .temper-ask-saw summary { cursor: pointer; width: fit-content; }
+#app:has(> .temper-rail) .temper-goal-band .temper-ask-saw p { margin-top: 6px; color: inherit; }
 #app:has(> .temper-rail) .temper-goal-band .temper-goal-band-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goal-band .temper-goal-btn:not(.temper-goal-primary) { border-color: var(--gf-signal-line); }
 #app:has(> .temper-rail) .temper-goal-head { max-width: 720px; display: flex; flex-direction: column; gap: 14px; }

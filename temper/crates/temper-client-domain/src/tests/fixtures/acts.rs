@@ -118,6 +118,7 @@ pub fn pages(object: ObjectKey, page: ReadValue) -> Pages {
     inbox
         .cards
         .push(Card {
+            whole: None,
             object,
             group: InboxGroup::Proposals,
             project: Some(PROJECT),

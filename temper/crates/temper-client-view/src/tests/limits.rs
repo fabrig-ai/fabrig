@@ -249,9 +249,9 @@ fn a_request_and_a_composer_at_long_text_build() {
     let before = crate::Limits::of(&domain, &words).unwrap();
     domain.client.domain.long_text += bound;
     let after = crate::Limits::of(&domain, &words).unwrap();
-    // The document's Markdown takes twice its bytes; the request and
-    // composer's value each take their bytes once, independent of lines.
-    assert_eq!(after.tree.text_bytes - before.tree.text_bytes, 4 * bound);
+    // The document's Markdown takes twice its bytes; the request, composer
+    // and one question read whole each take their bytes once, independent of lines.
+    assert_eq!(after.tree.text_bytes - before.tree.text_bytes, 5 * bound);
 }
 
 pub(super) fn repeated(byte: u8, length: u32) -> Box<[u8]> {
