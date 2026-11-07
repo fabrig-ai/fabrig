@@ -79,6 +79,7 @@ pub(super) const PEOPLE: people::Limits = people::Limits {
     ..small::PEOPLE
 };
 pub(super) const FLEET: fleet::Limits = fleet::Limits {
+    reads: ACCOUNTS.accounts,
     configured_workers: 64,
     workers: 8,
     program_sources: 12,

@@ -116,6 +116,7 @@ pub fn limits() -> engine::Limits {
         room_refusals: 2,
     };
     let fleet = fleet::Limits {
+        reads: 1,
         configured_workers: 1,
         worker_name_bytes: 32,
         program_sources: 12,
