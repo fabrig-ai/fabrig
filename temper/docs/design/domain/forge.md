@@ -3285,13 +3285,14 @@ whole.
 
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
-  change landed it; a run branch holds a revision of the design at most, and
-  the goal's words are to land it first. Default: it goes.
+  change landed it. Retaining unlanded run work on close would need a
+  retention rule of its own. Default: the run branch goes.
 - **A saved start a change overtook** (11.1): a goal's run that parked with
   edits resumes from them. If a repair or a resolution has since moved the run
   branch, its delivery finds the branch moved and the run ends stale, and its
-  next run resumes from the same saved tree. It takes a parked edit and a
-  live change's repair on one branch, and no story has met it. Default: so.
+  next run resumes from the same saved tree. Recovery from this case, with
+  a parked edit and a live change's repair on one branch, is left for later.
+  Default: the stale end and the saved tree remain.
 - **Saved branches outside the task's saved set** (11): a terminal the
   engine never heard, a repository no longer in the set, or full holds at
   close can leave a branch on the forge. Finding these needs a branch

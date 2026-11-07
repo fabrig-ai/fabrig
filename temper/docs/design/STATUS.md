@@ -2,7 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). After landing is built
+milestone stands in the code (`README.md`). A goal with a confirmed goal
+branch and a modifying charter delivers to its own run branch and lands
+through a change into g; later runs merge r into g's tip before delivering
+again. The domain, checkout and real-loop stories use scripted models and
+fake forge/git; stock and reference workflow words, larger calls and
+reports, and a saved start overtaken by a repair remain separate work
+(`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
+`draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
 living to cleared; a red of no goal's, trailers, what the forge
@@ -45,7 +52,10 @@ settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
 listing and the configuring chat's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
-and fake-box press proof is recorded. An unusable account's fix remains
+and fake-box press proof is recorded. A chat's model or effort amendment
+answers its person's next words on the new choice; a model change within a
+resumable window first asks the window's model for a summary
+(`domain/agent.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
@@ -267,8 +277,14 @@ gaining access, and effort refusals name the effort locally only for models
 a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+project's Needs you and rail's count and is accepted on its chat's card. A fresh
+proposal replaces the chat's own pending one; live cards draw application rows
+from the review and its proposal-value key, templates by name and activity as
+"Proposed a change". Latest has its own row on a phone, held by CSS assertions;
+a measured press and the new instructions' real-model proof follow landing.
+Without a review, a card has no application rows; ended cards retain only
+kind 6 and 7 values already read in the session. An accepted card still stays
+on Needs you. No live turn
 names its proposal, so its card stands after the turn that made it; filling the call's
 objects and the real-model proposal-card QA walk remain separate work. The chat's card
 draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a

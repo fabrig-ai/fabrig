@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.13 have no known implementation gap in replacing a
+proposal through "Change something", drawing live application rows from
+the review under its key, naming templates and proposal activity in the
+person's words, or placing Latest in flow on a phone. The joined client
+world holds replacement and the Goals row through the engine; its stale
+Accept is dropped before jig, whose core world checks the refusal. The
+phone test asserts CSS rules, not measured geometry or a press. The
+after-landing checks and ended-card row retention are section 11's later
+work; no new real-model or phone press outcome is supplied.
+
 - **Not yet:** 3.5, `ConnectModel`, `Accounts`: one set of cards, "✓ Connected", the moved default, the panels, *Ready's place* and an opened row's words (look-round-13's `model-cards`, `model-end`).
 - **Not yet:** 4.4: the sheet "Add repositories": its sources, its picker, "Not listed", "More", its plural sends (look-round-13's `sheet-state`, `sheet-view`, `sheet-copies`); Home's and a project with no repository's ways into it stay as they are, as the request leaves them unmocked.
 - **Not yet:** 4.6: `DismissMaking`, and Settings' Repositories' lines for a repository being made, a failed one's "Copy again" and "Dismiss" (look-round-13's tasks).
@@ -10,12 +20,6 @@
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
-- **Not yet:** 3.5, *The work's account and model*, 5.5: a stored model and
-  effort amendment can leave the next run using the previous model. The
-  `model-picker` proof stored and reloaded GPT-6 Astra at low, but four
-  fake-provider requests still named `gpt-6.1-sol` (`1d82a937df`). The
-  `ui-model-next-turn` plan owns the runtime repair, by the answer of 2026-11-06
-  to the `look-round-11` task `picker-proof`; no repair is on record.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -624,9 +628,10 @@
   it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
   controls are disabled together while one is out, where the request disables the
   one pressed: they write one record, so two at once would lose one. And a
-  proposal's card names kinds 6 and 7 as `temper ctl` names them for a person with
-  no role in the deployment, where the request has their values for everyone: a
-  proposal's items span scopes, so their read keeps that role
+  proposal's card has no application rows for a person with no review,
+  including one with no role in the deployment, where the request has their
+  values for everyone: the heads omit application items, and the review and
+  proposal-value read keep the deployment role because items span scopes
   (`../protocol/configuration.md`, 13.2).
 - **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
