@@ -90,3 +90,37 @@ fn phone_latest_takes_its_own_row_below_each_log() {
         assert!(rule.contains("display: flex;") && rule.contains("flex-direction: column;"), "{selector}: {rule}");
     }
 }
+
+#[test]
+fn settings_controls_keep_the_connect_flows_rules() {
+    let css = include_str!("../../temper.css");
+    for (selector, declarations) in [
+        (
+            "#app#app .temper-settings select {",
+            &[
+                "appearance: none;",
+                "padding-right: 36px;",
+                "background-image: url(files/chevron.svg);",
+                "background-repeat: no-repeat;",
+                "background-position: right 14px center;",
+                "background-size: 12px;",
+            ][..],
+        ),
+        (".temper-settings [role=radiogroup]:has(> input):not(.temper-connect-sources) {", &["display: grid;"][..]),
+        (".temper-settings textarea.temper-connect-addresses {", &["min-height: 107px;"][..]),
+        (".temper-connect-list > li.temper-connect-none {", &["padding: 14px 0;"][..]),
+        (
+            ".temper-connect-sheet p.temper-connect-title:has(+ .temper-settings-text) {",
+            &["margin: 0 0 4px;", "font: 600 14px/1.55 var(--gf-sans);"][..],
+        ),
+        (".temper-connect-row > div > span:not(:has(> strong)) {", &["font-size: 13.5px;"][..]),
+    ] {
+        let (_, rule) = css.split_once(selector).unwrap_or_else(|| panic!("missing selector: {selector}"));
+        let (rule, _) = rule.split_once('}').expect("control declarations");
+        for declaration in declarations {
+            assert!(rule.contains(declaration), "{selector}: {declaration}: {rule}");
+        }
+    }
+    assert_eq!(css.matches("#app#app").count(), 1, "only the select rule needs two ids");
+    assert!(!css.contains(".temper-connect-row span:not("), "row descriptions exclude action labels");
+}

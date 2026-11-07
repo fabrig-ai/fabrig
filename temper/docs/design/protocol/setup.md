@@ -2418,7 +2418,7 @@ playground and no Forgejo on this machine.
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as 6.8's first step, and kept if already there (`sign-in.md`, 9.9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (8.4): a symbolic link to the binary |
-  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and, with `--box`, the scripted provider's endpoint and model (8.3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (6.6), and its programs directory, `programs` in the data directory; and its endpoint and model (8.3), whether or not `claude` is on `PATH` |
+  | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints with their limits and its profile (8.1), and, with `--box`, the scripted provider's endpoint and limits (8.3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (6.6), and its programs directory, `programs` in the data directory; and its endpoint and limits (8.3), whether or not `claude` is on `PATH` |
   | `temper.json` | configuration | 0o644 | the default document (8.3) |
 
 - **What it finds,** each written absolute:
@@ -2576,9 +2576,9 @@ override.
   Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
 - **Its LLM providers:** the owned example's `engine.llm` with no
-  account, its models `temper init`'s (configuration.md, 13.4), each with
-  its `shown`, `efforts` and `effort`, where the owned example's are its
-  own; 2, `anthropic`, on every document, whatever is on
+  account and no model tables: the binary supplies stock model settings,
+  each with its `shown`, `efforts` and `effort` (configuration.md, 13.4);
+  2, `anthropic`, on every document, whatever is on
   `PATH`, so that the Model step offers ChatGPT and Claude
   (`../client/README.md`, 3.5): `signed_in_plan` false, `manage_usage`
   `https://claude.ai/settings/usage`, its models Anthropic's of that table,
@@ -3946,11 +3946,11 @@ Each is intended; what it needs is named with it.
   processes drawing their own ports. Focused proof holds the choice and
   retention rules; the process and browser walks hold the running box.
 
-- **Models kept beyond init** (8.3): the catalogue's store step moves
-  models out of both generated configuration documents, keeping the seven
-  as release defaults; the list step adds discovery per usable account
-  (`../draft/model-catalogue.md`, section 7). Until then offering another
-  model edits both documents.
+- **Discovering models per account** (8.3): provider-list reads and their
+  retained names are the catalogue's lists step
+  (`../draft/model-catalogue.md`, sections 5 and 7). Default: the binary's
+  stock and model settings added by name through Settings, Models or the
+  configuring chat; neither generated configuration document holds models.
 
 - **A handover made by a Forgejo's own restart** (6.5, 7.1): a Forgejo
   step that exits under a running serve runs its preparation again,
