@@ -1731,7 +1731,11 @@ fn task_read(
         Ok(read) => read,
         Err(why) => {
             text.add(b"Task read refused: ")?;
-            task_problem(&mut text, &jig_domain_tasks::Problem::new(None, *why))?;
+            if *why == jig_domain_tasks::Refusal::Unknown {
+                text.add(b"unknown: no such task, no result yet, or no text at that offset. A task has a result only once it has ended, and its requester hears it then as a result message; while it runs, read its specification (leave out field) for its state, holds and questions.")?;
+            } else {
+                task_problem(&mut text, &jig_domain_tasks::Problem::new(None, *why))?;
+            }
             if text.len > maximum {
                 return Err(Problem::TooLarge);
             }
