@@ -9,7 +9,7 @@ use super::{documents, fixtures as f};
 use crate::{look, words::Shell};
 use jig_client::contract as c;
 use skein_lib::{Env, List, Queue, Time, Wall};
-use skein_ui::{Node, Role, State, Style, Tree};
+use skein_ui::{Node, Role, Run, State, Style, Tree};
 use temper_client_domain::{
     self as d,
     pages::{Act, chat::document::Mode},
@@ -370,18 +370,37 @@ fn chat_draws_no_pane() {
 }
 #[test]
 fn split_draws_the_pane_after_the_conversation() {
-    let view = view(&root(Some(BODY), Mode::Split, &[]), Shell::Browser);
-    let nodes = view.tree().nodes();
-    let convo = nodes.iter().position(|n| n.styles.as_slice().contains(&look::CONVO)).unwrap();
-    let pane = nodes.iter().position(|n| n.styles.as_slice().contains(&look::DOC)).unwrap();
-    assert_eq!(pane, convo + usize::try_from(nodes[convo].size).unwrap());
-    assert_eq!(nodes[pane].role, Role::Region);
-    assert_eq!(nodes[pane].name.as_deref(), Some(TITLE));
-    assert_eq!(styled(view.tree(), look::MODE_SPLIT).len(), 1);
-    assert_eq!(styled(view.tree(), look::DOC_MUTED)[0].role, Role::Paragraph);
-    let path = section_words(view.tree(), look::DOC_PATH);
-    assert!(path.starts_with(b"docs/design/draft/how-shop-works.md"));
-    assert!(path.ends_with(b"edited just now"));
+    for (opening, run, words) in [
+        ("Draft, with the user.", Run::Plain, b"Draft, with the user.".as_slice()),
+        ("_Draft, with the user._", Run::Emphasis, b"Draft, with the user."),
+        ("**x**", Run::Strong, b"x"),
+        ("`x`", Run::Code, b"x"),
+    ] {
+        let body = String::from_utf8_lossy(BODY).replace("Draft, with the user.", opening);
+        let view = view(&root(Some(body.as_bytes()), Mode::Split, &[]), Shell::Browser);
+        let nodes = view.tree().nodes();
+        let convo = nodes.iter().position(|n| n.styles.as_slice().contains(&look::CONVO)).unwrap();
+        let pane = nodes.iter().position(|n| n.styles.as_slice().contains(&look::DOC)).unwrap();
+        assert_eq!(pane, convo + usize::try_from(nodes[convo].size).unwrap());
+        assert_eq!(nodes[pane].role, Role::Region);
+        assert_eq!(nodes[pane].name.as_deref(), Some(TITLE));
+        assert_eq!(styled(view.tree(), look::MODE_SPLIT).len(), 1);
+        let muted = styled(view.tree(), look::DOC_MUTED)[0];
+        assert_eq!(muted.role, Role::Slot);
+        let at = nodes.iter().position(|node| node.id == muted.id).unwrap();
+        let paragraph = &nodes[at + 1];
+        assert_eq!(paragraph.role, Role::Paragraph);
+        assert_eq!(muted.size, paragraph.size + 1);
+        let runs: Vec<_> = nodes[at + 1..at + usize::try_from(muted.size).unwrap()]
+            .iter()
+            .flat_map(|node| node.text.iter())
+            .map(|text| (text.run, text.text.as_ref()))
+            .collect();
+        assert_eq!(runs, [(run, words)], "opening: {opening}");
+        let path = section_words(view.tree(), look::DOC_PATH);
+        assert!(path.starts_with(b"docs/design/draft/how-shop-works.md"));
+        assert!(path.ends_with(b"edited just now"));
+    }
 }
 #[test]
 fn sections_are_keyed_by_heading() {
@@ -435,17 +454,27 @@ fn a_first_write_tints_the_first_second_level_section() {
 #[test]
 fn the_terminal_prints_the_document_after_the_conversation() {
     for mode in [Mode::Split, Mode::Draft] {
-        let view = view(&root(Some(BODY), mode, &[]), Shell::Terminal);
-        let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
-        skein_ui_text::render(view.tree(), b"temper", None, &mut print);
-        let printed = String::from_utf8(print.text.as_slice().to_vec()).unwrap();
-        let conversation = printed.find("Conversation").unwrap();
-        let document = printed.find("How Shop works").unwrap();
-        assert!(conversation < document, "{printed}");
-        assert!(printed.contains("Check and land."));
-        assert!(printed.contains("how-shop-works.md · edited just now"));
-        assert!(f::find(view.tree(), Role::Region, TITLE).is_some());
-        assert!(styled(view.tree(), look::RAIL_UNFOLD).is_empty());
+        for (opening, words, line) in [
+            ("Draft, with the user.", "Draft, with the user.", "Draft, with the user."),
+            ("_Draft, with the user._", "Draft, with the user.", "Draft, with the user."),
+            ("**x**", "x", "x"),
+            ("`x`", "x", "`x`"),
+        ] {
+            let body = String::from_utf8_lossy(BODY).replace("Draft, with the user.", opening);
+            let view = view(&root(Some(body.as_bytes()), mode, &[]), Shell::Terminal);
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+            let printed = String::from_utf8(print.text.as_slice().to_vec()).unwrap();
+            let conversation = printed.find("Conversation").unwrap();
+            let document = printed.find("How Shop works").unwrap();
+            assert!(conversation < document, "{printed}");
+            assert!(printed.contains("Check and land."));
+            assert!(printed.contains("how-shop-works.md · edited just now"));
+            assert_eq!(section_words(view.tree(), look::DOC_MUTED), words.as_bytes());
+            assert!(printed.lines().any(|printed| printed.trim() == line), "{printed}");
+            assert!(f::find(view.tree(), Role::Region, TITLE).is_some());
+            assert!(styled(view.tree(), look::RAIL_UNFOLD).is_empty());
+        }
     }
 }
 #[test]

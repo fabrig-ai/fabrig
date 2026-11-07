@@ -177,7 +177,7 @@ fn heading_hash(heading: &[u8]) -> u64 {
     hash
 }
 
-// The introductory metadata is a separate muted paragraph beneath the
+// The introductory metadata reads as Markdown in a muted slot beneath the
 // document’s Markdown heading.
 fn opening(b: &mut Builder, bytes: &[u8]) {
     let Some(heading) = bytes.strip_prefix(b"# ") else {
@@ -201,9 +201,9 @@ fn opening(b: &mut Builder, bytes: &[u8]) {
         return;
     }
     let end = skein_lib::bytes::find(rest, b"\n\n").unwrap_or(rest.len());
-    b.open(Role::Paragraph);
+    b.open(Role::Slot);
     b.style(look::DOC_MUTED);
-    b.text(Run::Plain, rest.get(..end).expect("introductory paragraph"));
+    skein_ui::markdown::read(rest.get(..end).expect("introductory paragraph"), 1, b);
     b.close();
     skein_ui::markdown::read(rest.get(end..).expect("remaining body"), 1, b);
 }
