@@ -998,6 +998,10 @@ pub struct KeptDeletion {
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the people boundary carries the complete request including its later choice"
+)]
 pub enum Event {
     /// Keep or erase a deletion row (jig/docs/design/domain/people.md, 5.2).
     Deleting { project: u32, step: Option<DeletionStep>, grace: Option<Duration> },
