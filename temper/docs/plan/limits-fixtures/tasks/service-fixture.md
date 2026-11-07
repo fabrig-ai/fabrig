@@ -68,3 +68,13 @@ minutes = 120
 ## Report
 
 The counts before and after, the causes fixed and not fixed, what you changed outside the owned files, and whether `setup`'s median met its half.
+
+## Rebase (2026-11-07, step merge, foreman limits-fixtures/service-fixture/foreman-1)
+
+resolve the store validation conflict by retaining integration’s equivalent codec reuse
+The merge conflicts in `jig/crates/jig-protocol-store/src/lib.rs`.
+Integration commit `0f9f39128a` (“Avoid discarded bootstrap stores and repeat codec mappings”) implements the same optimization as this branch.
+Keep integration’s `checked_codec` and `valid_with_codec`, with `Store::over` and `valid` calling `checked_codec`; discard this branch’s duplicate `checked_limits`.
+Retain the shared `codec::View` arguments to `frame_bound` and `decoded_records_bound`.
+Both implementations preserve the admission checks and compute the codec view once; taking integration’s version of this file preserves the task’s optimization.
+Keep the remaining service fixture and configuration changes.
