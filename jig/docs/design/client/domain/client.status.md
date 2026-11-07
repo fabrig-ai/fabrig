@@ -5,6 +5,13 @@
 Unlisted sections have no known gap, including 8.2's `watches_full`
 fact for `me` and application watches through retries and recovery.
 
+Sections 10 and 14 have no known gap in decoding a turn read alone:
+`Read::Turn` uses the archive's byte bound, twice that bound for text
+and smith's message and block ceilings. A call input past `turn_text`
+is retained whole and unmarked, so tools can page through its last byte.
+Turns carried by an activity page still use `turn_text`; a turn past
+the archive's byte bound remains section 18's deferred read case.
+
 Section 12 has no known gap in carrying `link_used`, `link_expired` and
 `link_unknown` as `not_signed_in`, telling the application, stopping retries
 and clearing the reason on the next sign-in. Falling back to a live

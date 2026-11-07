@@ -2,13 +2,6 @@
 
 2026-11-07. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
-7.3's Smith and Skein gate entries, Jig's fuzzy entry and their validation
-have no known gap. Jig's fuzzy entry has only `cpu_suite_s = 120`, beside
-the requested comment; Jig has no focused entry. Whether their figures
-are CPU seconds per tree and Jig's focused entry are deferred in section
-8; neither the entries nor their validation establish measured suite
-totals.
-
 - **Not yet:** 4: a `df` that fails in `run --cpu`'s last disk wait, the one before nextest, is no failed disk check: `subprocess.CalledProcessError` passes `main`'s handler, so the run ends in a traceback and exit 1, not 2. `step` and `list_tests` catch it. 7.5: the same `df` before `cpu-run`'s build passes that launcher's handler too, with exit 1 in place of a failed build's 2. The request for plain commands names neither, so its plan left both.
 - **Design departs:** from the user's request for plain commands, and the code with it. The plan's cut decided each; no signature of section 10 changes.
   - 7.3: SIGKILL goes to every process left in the command's session, not to its process group alone, because nextest gives each test a group of its own, and a signal to the command's group would leave tests running once nextest is dead. SIGTERM goes to the group, as asked.

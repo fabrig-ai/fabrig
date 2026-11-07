@@ -8,7 +8,7 @@ pub const PROVIDER_NAME: u32 = 256;
 pub const MANAGE_USAGE: u32 = 2_048;
 
 /// Every configured LLM provider; empty when the configuration names none.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Providers {
     pub providers: Box<[Provider]>,
 }
@@ -33,7 +33,7 @@ impl Providers {
 }
 
 /// One LLM provider: its number and the sources it offers.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Provider {
     pub number: u32,
     pub name: Box<[u8]>,
@@ -44,7 +44,7 @@ pub struct Provider {
 }
 
 /// Which names of a provider's list are models for this work (jig/docs/design/domain/accounts.md, 3.7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProviderList {
     pub keep: Box<[Box<[u8]>]>,
     pub drop: Box<[Box<[u8]>]>,
@@ -52,7 +52,7 @@ pub struct ProviderList {
 
 /// The sources a provider offers its accounts. Offering none of them is the `none` source:
 /// nothing held, as for a local model (accounts.md, 3.4).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Offers {
     /// A sign-in, with the provider's public registration, kept by configuration for the driver.
     pub sign_in: bool,

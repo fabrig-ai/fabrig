@@ -4,6 +4,53 @@ use core::fmt::Write;
 
 use crate::{generate, parse};
 
+fn list_measure(declarations: &str) -> String {
+    // One admits both an empty list and a nonempty list.
+    const ITEMS: u32 = 1;
+    let source = format!("family measured 1\n{declarations}\nrecord Rows {{ values: list {ITEMS} Cell }}");
+    let output = generate(&parse(&source).expect("valid measurement family"));
+    let (_, measure) =
+        output.rust.split_once("impl Rows {\n    /// Measures this record's wire encoding.").expect("Rows measurement");
+    measure.split_once("\n    /// Writes").expect("encoding follows measurement").0.to_owned()
+}
+
+#[test]
+fn fixed_record_lists_measure_by_count() {
+    // Twelve is 2 + 2 + 8; six is the version, unit tag and three fixed bytes.
+    let cases = [
+        ("scalars", "record Cell { first: u16 second: u16 at: u64 }", "field_values.len().checked_mul(12)"),
+        (
+            "nested versioned",
+            "enum Tag { one, two }\nrecord Inner { tag: Tag bytes: fixed 3 }\nversioned record Cell { value: Inner }",
+            "field_values.len().checked_mul(6)",
+        ),
+        ("empty", "record Cell {}", "field_values.len().checked_mul(0)"),
+    ];
+    for (label, declarations, expected) in cases {
+        let measure = list_measure(declarations);
+        assert!(measure.contains(expected), "{label}: {measure}");
+    }
+}
+
+#[test]
+fn variable_record_lists_measure_each_value() {
+    let cases = [
+        ("bytes", "record Cell { value: bytes 1 }"),
+        ("option", "record Cell { value: option u8 }"),
+        (
+            "unequal variants",
+            "record Small { n: u8 }\nrecord Large { n: u16 }\nenum Choice { small: Small, large: Large }\nrecord Cell { value: Choice }",
+        ),
+    ];
+    for (label, declarations) in cases {
+        let measure = list_measure(declarations);
+        assert!(
+            measure.contains("for item_0 in field_values.as_slice()") && measure.contains("item_0.measure()"),
+            "{label}: {measure}",
+        );
+    }
+}
+
 #[test]
 fn a_family_of_120_records_has_no_function_past_100_lines() {
     let mut records = String::new();

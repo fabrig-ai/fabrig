@@ -21,6 +21,8 @@ use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
+mod approvals;
+pub use approvals::ApprovalWait;
 pub mod boundary;
 mod brief;
 mod brief_ci;
@@ -59,6 +61,7 @@ mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;
 mod limits;
+mod link;
 mod making;
 pub use making::{
     MakeFailure, MakeFrom, MakeInto, MakeRefusal, MakeStep, MakingFailed, MakingKey, MakingState, RepositoryMaking,
@@ -111,11 +114,11 @@ pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
 pub use verification::LandingRed;
 pub use views::{
-    ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate, LandingLine,
-    LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
+    APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate,
+    LandingLine, LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Access {
     Owned,
     Participant,
@@ -124,7 +127,7 @@ pub enum Access {
 }
 
 /// What a forge write does to its named target.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EffectForm {
     Creation,
     Transition,
@@ -132,7 +135,7 @@ pub enum EffectForm {
 }
 
 /// Recovery promise of one forge effect kind.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Recovery {
     Keyed,
     Conditional,
@@ -649,7 +652,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
 }
 
 /// Connector-owned description of one goal projection write.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionEffect {
     pub resource: What,
     pub kind: u16,

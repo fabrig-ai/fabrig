@@ -486,6 +486,21 @@ pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Cha
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// The approvals document's bytes (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn approvals(record: &v1::Approvals) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// The approvals document, whole, with no trailing byte (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_approvals(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Approvals> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::Approvals::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode a party's project status (temper/docs/design/client/README.md, 4.6).
 #[must_use]
 pub fn project_status(record: &v1::ProjectStatus) -> Box<[u8]> {

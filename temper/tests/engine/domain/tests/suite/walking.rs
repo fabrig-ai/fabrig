@@ -593,3 +593,60 @@ fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
     );
     world.close();
 }
+
+#[test]
+fn a_replay_differing_in_its_root_store_or_counters_fails_its_compare() {
+    use core::fmt::Debug;
+    use core::hash::Hash;
+    use skein_lib::{Buffer, Secret};
+    use temper_engine_domain_world::replay::{same_digest, same_text};
+
+    fn difference<T: Hash + Debug>(first: &T, replay: &T, at: &str) -> String {
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| same_digest(first, replay, &at)));
+        let Err(failure) = failure else { panic!("different state at {at} must fail its digest comparison") };
+        let message = *failure.downcast::<String>().expect("comparison's diagnostic text");
+        assert!(message.contains(at), "{message}");
+        assert!(message.contains(&format!("first: {first:?}")), "first state's text: {message}");
+        assert!(message.contains(&format!("replay: {replay:?}")), "replay state's text: {message}");
+        message
+    }
+
+    // Both hidden-byte fixtures hold two bytes and differ only in the second.
+    const HIDDEN_BYTES: u32 = 2;
+
+    #[derive(Hash, Debug)]
+    enum Hidden {
+        Secret(Secret),
+        Buffer(Buffer),
+    }
+    fn buffer(bytes: &[u8]) -> Hidden {
+        let mut buffer = Buffer::with_capacity(HIDDEN_BYTES);
+        buffer.put(bytes).expect("two fixture bytes fit");
+        Hidden::Buffer(buffer)
+    }
+
+    type Change = fn(&mut World);
+    let changes: &[(&str, Change)] = &[
+        ("pages", |world| world.pages += 1),
+        ("store row", |world| {
+            world.store.rows.remove(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)));
+        }),
+        ("root iteration", World::iterate),
+    ];
+    for (at, change) in changes {
+        let first = World::new(Settings::calm(60));
+        let mut replay = World::new(Settings::calm(60));
+        change(&mut replay);
+        difference(&first, &replay, at);
+    }
+
+    let hidden = [
+        (Hidden::Secret(Secret::new(Box::new([1, 2]))), Hidden::Secret(Secret::new(Box::new([1, 3])))),
+        (buffer(&[1, 2]), buffer(&[1, 3])),
+    ];
+    for (first, replay) in hidden {
+        same_text(&first, &replay, &"hidden bytes");
+        let message = difference(&first, &replay, "hidden bytes");
+        assert!(message.contains("equal text: Hash covers state Debug omits"), "{message}");
+    }
+}

@@ -11,38 +11,38 @@ use crate::domain::{Domain, push, valid_scope};
 use crate::limits::Limits;
 
 /// One scope's in-memory index and when it was last used.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Cached {
     pub(crate) lines: Map<u64, Line>,
     pub(crate) used: u64,
 }
 
 /// One named entry or scoped read waiting for the store.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct ReadPending {
     tokens: ReadTokens,
     pending: Pending,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct ReadTokens {
     owner: Token,
     load_owner: Token,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Pending {
     Named { name: u64 },
     Scoped { kind: Kind, stage: Stage },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Kind {
     Index { scopes: List<Scope>, most: u32 },
     Search { scopes: List<Scope>, query: Box<[u8]>, page: u32 },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Stage {
     Lines { scope: Scope, after: Option<u64>, lines: Map<u64, Line> },
     Entries { names: List<u64>, at: u32, entries: List<Entry>, more: bool },

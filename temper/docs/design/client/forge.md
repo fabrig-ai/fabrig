@@ -267,13 +267,74 @@ change is given when a person asks for it, or a project's rule
 - **On the forge:** reviews by people of a role, counted by the landing
   rule at the head or, where the rule allows, a clean update of it. The
   panel shows each approval counted, by whom and at which head, and how
-  many more the rule asks; the person reviews through the panel's link.
+  many more the rule asks; the person reviews through the panel's link,
+  or through the change's card under Needs you while it waits (4.1).
 
 If the change's head moves while the card is open, the card says so. A
 clean update temper made carries the approval where its gate counts
 clean updates (its freshness, `../domain/forge.md`, 8.3); any other
 new head asks again, as a new person task at that head, and the old card
 says it has been replaced.
+
+### 4.1 Under Needs you
+
+A change whose merge waits on a review on the forge is a card under Needs
+you for each person whose review it waits on, and for the project's owners: a
+row of the subject `approvals` (`README.md`, 4.6; `../domain/forge.md`, 8.12),
+merged with the inbox's cards (`README.md`, 3.5, *Needs you*). It draws as
+every other card does, in the greenfield mock's `needs.html`, and no look of
+its own:
+
+- **Its mono line:** TITLE, the change's title, a link to its task; " · an
+  approval"; " · " and its age, since the row's `since`, as 5.12's span; " ·
+  later" with it.
+- **Its question:** "Approve TITLE on Forgejo", or "on GitHub", by the row's
+  `kind`. It is the card's SHORT too.
+- **Its context,** in `.ctx`, these sentences in order:
+  - the rule: "The deployment's landing rule N" for a rule of scope 0, else
+    "This project's landing rule N"; then, where it asks for one person, "
+    asks for one approval by ROLE.", ROLE "an owner", "a maintainer", "a
+    member" or "an observer" for roles 0 to 3, "someone with role R" for
+    another; where it asks for more, " asks for P approvals by ROLES; C so
+    far.", ROLES "owners", "maintainers", "members", "observers" or "people
+    with role R", P and C in digits;
+  - "1 more change waits behind this one." or "N more changes wait behind
+    this one.", while any does;
+  - "There are too many reviews to read them all, so one may already count.",
+    where its reviews weren't read whole;
+  - where the viewer's review wouldn't count, why. Too few: "Fewer people can
+    approve it than the rule asks for, so it waits until the rule or the
+    project's people change." No account: "temper knows no Forgejo account of
+    yours, so your review wouldn't count.", "GitHub" on GitHub. Another role:
+    "It waits for a review by ROLE; yours wouldn't count.", ROLE as above.
+- **Its acts:** where the viewer's review would count and the card has an
+  address, the primary "Review on Forgejo ↗" or "Review on GitHub ↗", in
+  `.choices`, a link opening the review in a new tab; otherwise no primary, so
+  an owner still sees a wait nobody can end and is never sent to a review that
+  would come back unknown. Then the pair: "Open", to the change's `Task { task
+  }`, and "Later", which marks it as any card is marked (`README.md`, 3.5,
+  *What the client keeps*). Nothing is answered in the client: a person who
+  won't approve asks for changes on the forge, which holds the change as a
+  requirement refused does (6.1).
+- **Its address,** the pull request's files page, where the review box is:
+  - on a Forgejo whose page facts offer sign-in (`../protocol/sign-in.md`,
+    9.3): `ROOT/user/oauth2/temper?redirect_to=` and the path
+    `/OWNER/NAME/pulls/N/files`, encoded as a repository's link is (5.4), ROOT
+    as for "Open Forgejo ↗", so that one click signs the person in and lands
+    on it;
+  - otherwise the row's `address`, made by the engine from the forge's
+    configuration as a change's panel's pull request address is (9.2), with
+    `/files` after it: `ROOT/OWNER/NAME/pulls/N/files` on a Forgejo and
+    `WEB/OWNER/NAME/pull/N/files` on GitHub; empty for a forge with none, as
+    the playground's;
+  - an address that isn't a safe `http` or `https` URL is none.
+- **On Home,** the first card as here, its primary in `.choices`, then quiet
+  "Open" and quiet "Later"; as one of the others, its line, SHORT and at the
+  right its kind and age (`README.md`, 3.5, *Home*).
+- **On a goal's page,** a band for a change under that goal (`README.md`,
+  5.8).
+- **In the terminal,** none: its inbox's list stays as it is
+  (`../draft/v0.1.0.md`, section 6).
 
 ## 5. Repositories, and the forge itself
 
@@ -1132,7 +1193,7 @@ and its hold (2.5) follow.
 | its holds | a hold, on the held card | `../domain/forge.md`, 8.4 and 8.5; jig's `domain/connectors.md`, 4.3 and section 11 |
 | what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../domain/forge.md`, section 6 |
 | a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`README.md`, 4.6) | `../domain/forge.md`, section 9; `../domain/after-landing.md`, section 10 |
-| approvals | a person task's card; a panel | `../domain/forge.md`, 8.3 and 8.7; jig's `domain/people.md`, section 8 |
+| approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (4.1; `README.md`, 4.6) | `../domain/forge.md`, 8.3, 8.7 and 8.12; jig's `domain/people.md`, section 8 |
 | adoption, repositories, health, landing rules | temper's `Adopt` page; a project's part | `../domain/forge.md`, sections 4 and 5, and 8.7; jig's `domain/connectors.md`, section 12; jig's `domain/authority.md`, section 10 |
 | goals' issues, landings as news, findings | a project's part; a goal's page | `../domain/forge.md`, sections 7 and 12 |
 | the forge itself | the deployment's part | `../domain/forge.md`, 5.4 |

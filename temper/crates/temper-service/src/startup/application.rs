@@ -1,4 +1,5 @@
 //! Machine and client settings, read strictly (temper/docs/design/protocol/configuration.md, 3).
+//! A box's sign-in is exclusive (temper/docs/design/protocol/sign-in.md, 9.9).
 mod demo;
 mod landing;
 mod public;
@@ -375,6 +376,9 @@ pub fn parse(
         read::form(sign_in::visible(client), path.member(b"machine").member(b"owned").member(b"sign_in"), problems);
         if !found {
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
+        }
+        if sign_in.is_some() {
+            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::BoxSignIn);
         }
     }
     if let Some(sign_in) = &sign_in {

@@ -382,13 +382,14 @@ fn approval_panel_distinguishes_unread_incomplete_and_counted_reviews() {
     ] {
         let facts =
             ReviewFacts { head, reviews_complete: complete, reviewers: Box::from(reviews), unmapped: Box::new([]) };
-        assert!(d.keep_review_facts(CHANGE, facts.clone()));
-        assert!(!d.keep_review_facts(CHANGE, facts), "unchanged reads need no duplicate panel mark");
+        assert!(d.keep_review_facts(env().wall, CHANGE, facts.clone()));
+        assert!(!d.keep_review_facts(env().wall, CHANGE, facts), "unchanged reads need no duplicate panel mark");
         let line = &d.panel_approvals(d.change(CHANGE).unwrap())[0];
         assert_eq!((line.read, line.remaining, line.counted.len(), line.refused), (read, remaining, count, refused));
     }
     d.changes.get_mut(&CHANGE).unwrap().change.clean = Box::new([fixtures::BASE]);
     d.keep_review_facts(
+        env().wall,
         CHANGE,
         ReviewFacts {
             head: Some(HEAD),
@@ -402,4 +403,175 @@ fn approval_panel_distinguishes_unread_incomplete_and_counted_reviews() {
     assert_eq!(lines[0].remaining, Some(0));
     keep(&mut d, 0, 1, rule());
     assert!(d.panel_approvals(d.change(CHANGE).unwrap()).is_empty(), "removing a rule removes its line");
+}
+
+#[test]
+fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
+    use change::State;
+    let first = State::First { head: HEAD, ready_since: env().wall };
+    let approved = reviewers()[0];
+    let refused = Reviewer { verdict: skein_forge::api::Verdict::RequestChanges, ..approved };
+    for (state, pull, head, complete, reviews, expected) in [
+        (first.clone(), Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
+        (State::Landing { head: HEAD }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
+        (State::Queued { head: HEAD, ready_since: env().wall }, Some(1), Some(Some(HEAD)), true, [].as_slice(), None),
+        (
+            State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
+            Some(1),
+            Some(Some(HEAD)),
+            true,
+            [].as_slice(),
+            None,
+        ),
+        (first.clone(), Some(1), Some(Some(fixtures::BASE)), true, [].as_slice(), None),
+        (first.clone(), Some(1), Some(None), true, [].as_slice(), None),
+        (first.clone(), Some(1), None, true, [].as_slice(), None),
+        (first.clone(), Some(1), Some(Some(HEAD)), false, [].as_slice(), Some((false, 1))),
+        (first.clone(), Some(1), Some(Some(HEAD)), true, [approved].as_slice(), None),
+        (first.clone(), Some(1), Some(Some(HEAD)), true, [refused].as_slice(), None),
+        (first.clone(), None, Some(Some(HEAD)), true, [].as_slice(), None),
+        (State::Ended, Some(1), Some(Some(HEAD)), true, [].as_slice(), None),
+    ] {
+        let (mut d, _) = fixture();
+        let mut required = rule();
+        required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+        keep(&mut d, 0, 1, required.clone());
+        let row = d.changes.get_mut(&CHANGE).expect("change");
+        row.pull = pull;
+        // Keep evidence while live so the terminal filter is exercised independently.
+        if let Some(head) = head {
+            d.keep_review_facts(
+                env().wall,
+                CHANGE,
+                ReviewFacts { head, reviews_complete: complete, reviewers: Box::from(reviews), unmapped: Box::new([]) },
+            );
+        }
+        d.changes.get_mut(&CHANGE).expect("change").change.state = state.clone();
+        let waits = d.approval_waits(env().wall, &LIMITS);
+        let summary = match waits.first() {
+            Some(row) => Some((row.whole, row.short.len())),
+            None => None,
+        };
+        assert_eq!(summary, expected, "{state:?}, {pull:?}, {head:?}, {complete}, {reviews:?}");
+        assert_eq!(waits.len(), usize::from(expected.is_some()));
+        if let Some(wait) = waits.first() {
+            assert_eq!(
+                (wait.task, wait.project, wait.forge, wait.pull, wait.since, wait.behind),
+                (CHANGE, 5, REPO.forge, 1, env().wall, 0)
+            );
+            assert_eq!(wait.owner.as_ref(), b"org");
+            assert_eq!(wait.name.as_ref(), b"repo");
+            assert_eq!(wait.title.as_ref(), b"Small fix");
+            assert_eq!(wait.short.as_ref(), d.panel_approvals(d.change(CHANGE).expect("change")).as_ref());
+        }
+        d.repositories.remove(&REPO);
+        assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "only adopted repositories");
+        d.repositories.insert(REPO, adopted()).expect("repository room");
+        required.enforce = false;
+        keep(&mut d, 0, 1, required);
+        assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "advice holds no approval");
+    }
+}
+
+#[test]
+fn approval_waits_keep_the_heads_first_time_and_count_the_changes_behind() {
+    let (mut d, _) = fixture();
+    let mut required = rule();
+    required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
+    keep(&mut d, 0, 1, required.clone());
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.pull = Some(1);
+    row.pending = None;
+    row.title = Box::new([b'x'; LOGGED_TITLE_BYTES + 1]);
+    row.change.state = change::State::First { head: HEAD, ready_since: env().wall };
+    row.change.owns_turn = true;
+    let mut second = row.clone();
+    second.task = 52;
+    second.change.task = 52;
+    second.change.owns_turn = false;
+    second.change.state = change::State::Queued { head: HEAD, ready_since: env().wall };
+    d.changes.insert(52, second).expect("second change");
+    let facts =
+        ReviewFacts { head: Some(HEAD), reviews_complete: false, reviewers: Box::new([]), unmapped: Box::new([]) };
+    let a = Wall::from_nanos(10);
+    let b = Wall::from_nanos(20);
+    let c = Wall::from_nanos(30);
+    assert!(d.keep_review_facts(a, CHANGE, facts.clone()));
+    assert!(!d.keep_review_facts(b, CHANGE, facts.clone()));
+    assert!(d.keep_review_facts(b, CHANGE, ReviewFacts { reviews_complete: true, ..facts.clone() }));
+    let waits = d.approval_waits(env().wall, &LIMITS);
+    assert_eq!((waits[0].since, waits[0].behind), (a, 1));
+    assert_eq!(waits[0].title.len(), LOGGED_TITLE_BYTES);
+    assert!(waits[0].title.ends_with("…".as_bytes()));
+    assert_eq!(d.review_since.get(&CHANGE), Some(&a));
+    let next = ReviewFacts { head: Some(fixtures::BASE), ..facts.clone() };
+    assert!(d.keep_review_facts(c, CHANGE, next));
+    assert_eq!(d.review_since.get(&CHANGE), Some(&c));
+    assert!(d.approval_waits(env().wall, &LIMITS).is_empty(), "old facts leave the read");
+    d.changes.get_mut(&CHANGE).expect("change").change.last_head = Some(fixtures::BASE);
+    d.changes.get_mut(&52).expect("second").change.state = change::State::Landing { head: HEAD };
+    assert!(d.keep_review_facts(b, 52, facts));
+    let waits = d.approval_waits(env().wall, &LIMITS);
+    assert_eq!(waits.len(), 2);
+    assert_eq!([(waits[0].task, waits[0].since), (waits[1].task, waits[1].since)], [(52, b), (CHANGE, c)]);
+    assert!(d.keep_review_facts(
+        c,
+        52,
+        ReviewFacts {
+            head: Some(fixtures::BASE),
+            reviews_complete: true,
+            reviewers: Box::new([]),
+            unmapped: Box::new([])
+        }
+    ));
+    d.changes.get_mut(&52).expect("second").change.last_head = Some(fixtures::BASE);
+    let waits = d.approval_waits(env().wall, &LIMITS);
+    assert_eq!(waits.len(), 2);
+    assert_eq!([waits[0].task, waits[1].task], [CHANGE, 52]);
+    // One met requirement is omitted while the remaining lines keep the panel's order.
+    required.approvals = Box::new([
+        RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact },
+        RuleApproval { role: 2, people: 2, freshness: JudgeFreshness::Exact },
+        RuleApproval { role: 3, people: 1, freshness: JudgeFreshness::Exact },
+    ]);
+    keep(&mut d, 0, 1, required);
+    d.keep_review_facts(
+        c,
+        CHANGE,
+        ReviewFacts {
+            head: Some(fixtures::BASE),
+            reviews_complete: true,
+            reviewers: Box::new([Reviewer { head: fixtures::BASE, ..reviewers()[0] }]),
+            unmapped: Box::new([]),
+        },
+    );
+    let waits = d.approval_waits(env().wall, &LIMITS);
+    assert_eq!(waits[0].short.len(), 2);
+    assert_eq!([waits[0].short[0].role, waits[0].short[1].role], [2, 3]);
+    d.keep_review_facts(
+        c,
+        CHANGE,
+        ReviewFacts {
+            head: Some(fixtures::BASE),
+            reviews_complete: true,
+            reviewers: Box::new([Reviewer {
+                role: 2,
+                head: fixtures::BASE,
+                verdict: skein_forge::api::Verdict::RequestChanges,
+                ..reviewers()[0]
+            }]),
+            unmapped: Box::new([]),
+        },
+    );
+    assert_eq!(
+        d.approval_waits(env().wall, &LIMITS).len(),
+        1,
+        "a refusal excludes the change even with other short approvals"
+    );
+    let row = d.changes.get_mut(&CHANGE).expect("change");
+    row.change.state = change::State::Ended;
+    let row = row.clone();
+    domain::save_change(&mut d, &mut Queue::uncapped(), row);
+    assert!(!d.review_facts.contains_key(&CHANGE));
+    assert!(!d.review_since.contains_key(&CHANGE));
 }

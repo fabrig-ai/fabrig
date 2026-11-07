@@ -1,0 +1,42 @@
+# The browser bundles, one table per tree (tools/tiers/design.md, 2.2).
+
+[skein]
+package = "skein-ui-example-shell-web"
+out = "ui-example-bundle"
+variable = "SKEIN_UI_EXAMPLE_BUNDLE"
+options = [
+    "--stylesheet", "skein/examples/ui/shell-web/notes.css",
+    "--placeholder", "skein/examples/ui/shell-web/loading.html",
+    "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
+    "--noscript", "Notes needs WebAssembly and scripts.",
+]
+features = []
+
+[jig]
+package = "jig-client-test-shell-web"
+out = "jig-test-bundle"
+variable = "JIG_TEST_BUNDLE"
+options = [
+    "--stylesheet", "jig/crates/jig-client-shell-web/jig.css",
+    "--stylesheet", "jig/testing/jig-client-test-shell-web/jig_client_test_shell_web.css",
+    "--pictures", "jig=jig/crates/jig-client-shell-web/pictures",
+    "--pictures", "jig-test=jig/testing/jig-client-test-shell-web/pictures",
+    "--files", "jig/testing/jig-client-test-shell-web/files",
+    "--noscript", "jig needs WebAssembly and scripts.",
+]
+features = []
+
+[temper]
+package = "temper-client-shell-web"
+out = "temper-bundle"
+variable = "TEMPER_TEST_BUNDLE"
+options = [
+    "--title", "temper",
+    "--placeholder", "temper/crates/temper-client-shell-web/loading.html",
+    "--placeholder-stylesheet", "temper/crates/temper-client-shell-web/loading.css",
+    "--stylesheet", "temper/crates/temper-client-shell-web/temper.css",
+    "--stylesheet", "temper/crates/temper-client-shell-web/task-pages.css",
+    "--files", "temper/crates/temper-client-shell-web/files",
+    "--noscript", "temper needs WebAssembly and scripts.",
+]
+features = ["loopback-navigation", "small-window"]

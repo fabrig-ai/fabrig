@@ -181,6 +181,7 @@ fn largest_forge_record_fits_the_application_ceiling() {
     let limits = bounds.limits();
     let bytes = |length| skein_lib::bytes::zeroed(usize::try_from(length).expect("field length"));
     let row = forge::Stored::Forge(forge::ForgeRecord {
+        person: Some(forge::Link { user: u64::MAX, person: u64::MAX }),
         git_program: Some(bytes(limits.forge_git_program_some)),
         number: u16::MAX,
         kind: forge::Kind::GitHub,

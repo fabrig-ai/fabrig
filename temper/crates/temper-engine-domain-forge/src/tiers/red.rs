@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Queue, Token};
 use temper_engine_domain_forge_tiers as p;
 
 /// Disposable reads: the kept final receipt starts them again after a restart.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(super) enum Fetch {
     Run { id: u64 },
     Jobs { attempts: Box<[api::JobAttempt]>, logs: Box<[JobLog]>, next: usize, share: u32 },

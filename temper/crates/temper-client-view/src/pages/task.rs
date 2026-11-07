@@ -34,6 +34,7 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     rows: u32,
     times: &mut Times,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(page) = root.pages().task()
         && page.shape == Shape::Agent
@@ -46,7 +47,7 @@ pub(crate) fn main(
         && page.shape == Shape::Tracked
         && page.document(root.client()).is_some()
     {
-        super::goal::main(b, root, words, bindings, rows, times);
+        super::goal::main(b, root, words, bindings, rows, times, sign_in);
         return;
     }
     b.open(Role::Main);

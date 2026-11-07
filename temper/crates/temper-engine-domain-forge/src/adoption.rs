@@ -9,14 +9,14 @@ use jig_domain_people as people;
 use skein_forge::api;
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     pub(crate) token: Token,
     pub(crate) retention: Duration,
     pub(crate) observed: Option<ApplicationOutcome>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct State {
     pending: Map<Token, Pending>,
     pub(crate) kept: Map<Token, (Wall, ApplicationOutcome)>,
@@ -241,7 +241,7 @@ fn again(request: Token, why: people::Again, out: &mut Queue<Request>) {
     out.push(Request::ApplicationAgain { request, why });
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum AdoptionStage {
     Access,
     Locate,
@@ -255,7 +255,7 @@ enum AdoptionStage {
 
 /// One admission read chain; only rows proven from current provider facts
 /// can become durable adopted repositories.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingAdoption {
     request: Adoption,
     repository: api::Repository,
@@ -682,8 +682,12 @@ impl Domain {
 
 fn human_collaborators(d: &Domain, forge: u16, collaborators: List<api::Collaborator>) -> Box<[api::Collaborator]> {
     let mut humans = List::with_capacity(collaborators.len());
+    let linked = match d.link(forge) {
+        Some(link) => Some(link.user),
+        None => None,
+    };
     for collaborator in &collaborators {
-        if !d.is_writer(forge, collaborator.user) {
+        if !d.is_writer(forge, collaborator.user) && linked != Some(collaborator.user) {
             humans.push(collaborator.clone()).expect("bounded adoption collaborators");
         }
     }

@@ -6,6 +6,7 @@
 use crate::escalation;
 use crate::escalation_referee::Story;
 use crate::protocol::Protocol;
+use crate::replay::{same_digest, same_text};
 use crate::roles_referee::{Referee, Replacement};
 use crate::store::Store;
 use crate::walking;
@@ -13,15 +14,12 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
-use std::{
-    collections::{BTreeMap, VecDeque},
-    fmt::Write as _,
-};
+use std::collections::{BTreeMap, VecDeque};
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record, Write};
 
 /// Actual held-chat state at which the previous process stops
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Base {
     /// Requester holds Waiting revision one.
     Requester,
@@ -35,7 +33,7 @@ pub enum Base {
 
 /// Tiny outside scheduling and startup configuration; child capacities remain
 /// immutable throughout the run.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct Settings {
     /// Deterministic real-child seed.
@@ -74,7 +72,7 @@ impl Settings {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 struct Input {
     owner: usize,
     key: [u8; 16],
@@ -83,7 +81,7 @@ struct Input {
 
 /// One loop with actual root outputs, paged Store, authenticated outside people,
 /// and the independent transaction observer.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct World {
     settings: Settings,
     domain: engine::Domain,
@@ -161,18 +159,26 @@ fn snapshot(settings: Settings) -> Store {
         previous.run();
         return previous.store;
     }
+    let mut seen = 0;
+    let mut acknowledged = false;
     for _ in 0..300 {
         previous.iterate();
-        let waiting = previous.store.rows.values().any(|row| {
-            matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record))) if matches!(record.escalation,
-                tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Person(_), .. }
-                    if settings.base == Base::Requester)
-                || matches!(record.escalation,
-                    tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Role { .. }, .. }
-                    if settings.base == Base::FinalRole))
-        });
-        let acknowledged = previous.trace.iter().any(|entry| entry.contains("down: Acknowledge {"));
-        if waiting && acknowledged && previous.store.pending.is_empty() {
+        // The boundary trace only grows; inspect each entry until the required ACK.
+        if !acknowledged {
+            acknowledged = previous.trace[seen..].iter().any(|entry| entry.contains("down: Acknowledge {"));
+            seen = previous.trace.len();
+        }
+        if acknowledged
+            && previous.store.pending.is_empty()
+            && previous.store.rows.values().any(|row| {
+                matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record))) if matches!(record.escalation,
+                    tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Person(_), .. }
+                        if settings.base == Base::Requester)
+                    || matches!(record.escalation,
+                        tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Role { .. }, .. }
+                        if settings.base == Base::FinalRole))
+            })
+        {
             return previous.store;
         }
     }
@@ -604,23 +610,18 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
     for _ in 0..500 {
         if first.settled() {
             assert!(replay.settled(), "replay settles at identical cut");
+            same_text(&first, &replay, &format_args!("settled roles: {settings:?}"));
             first.close();
             replay.close();
             return first;
         }
         first.iterate();
         replay.iterate();
-        // Keep the complete comparison while avoiding repeated formatting of the
-        // growing trace, as the walking replay does.
+        // Compare the trace exactly outside the frozen-state digest.
         let first_trace = std::mem::take(&mut first.trace);
         let replay_trace = std::mem::take(&mut replay.trace);
         assert_eq!(first_trace, replay_trace, "role trace: {settings:?}");
-        let (mut first_state, mut replay_state) = (String::new(), String::new());
-        write!(first_state, "{first:?}").expect("write to string");
-        first_state.shrink_to_fit();
-        write!(replay_state, "{replay:?}").expect("write to string");
-        replay_state.shrink_to_fit();
-        assert_eq!(first_state, replay_state, "complete frozen role world: {settings:?}");
+        same_digest(&first, &replay, &format_args!("roles iteration {}: {settings:?}", first.iteration));
         first.trace = first_trace;
         replay.trace = replay_trace;
     }

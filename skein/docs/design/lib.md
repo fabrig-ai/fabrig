@@ -164,14 +164,16 @@ where it holds it.
   room, an address. Two states that would answer every later step alike
   digest alike, however each was reached. A `Slab` hashes all the slots
   it holds in index order, free ones included.
-- **Not state, so no `Hash`:** `Env<L>`, which a step is handed and does
-  not keep (programming-model.md, section 3), and `stream::Held` and
-  `stream::Slice`, a buffer served as a stream's side below, which the
-  step that makes it reads. A
-  service that keeps its layers' envs beside them, as the echo's does,
-  digests its domains' state without them: the times are the trace's. A
-  state that keeps a `Held` past its step hashes, by hand, what of it is
-  left to read.
+- **An environment retained by a world:** `Env<L>` derives `Hash` where
+  `L: Hash`, over its clocks and limits. A step still receives it by
+  shared borrow and keeps none (programming-model.md, section 3), but a
+  world comparing its complete frozen state can include the environments
+  it retains beside its domains. A service comparing only its domains,
+  as the echo's does, leaves those environments outside that comparison.
+- **No `Hash` for stream views:** `stream::Held` and `stream::Slice`, a
+  buffer served as a stream's side below, which the step that makes it
+  reads. A state that keeps a `Held` past its step hashes, by hand, what
+  of it is left to read.
 - **A digest reads the whole state,** so a world asks for one at the end
   of a run, and after each iteration only when it chooses to (testing.md,
   section 5). No step code calls it.
@@ -764,6 +766,15 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
 
 ## 14. Open questions
 
+- **Remaining decoder allocation and scalar costs** (5, 6):
+  `temper/docs/development/limits-fuzzy.md` records actual list growth,
+  scalar reads and scalar writes after the append-bookkeeping repair.
+  Eager decoder allocation needs a different entrance/allocation contract
+  from grow-as-filled lists; coalesced writes must preserve field order,
+  whole-put refusal and partial progress on overflow. Default: keep the
+  required allocations, reads and writes until a profile supports that
+  mechanism, with no change to wire bytes, bounds or errors. Smaller
+  conversion costs stay below the account's roughly 2% stop rule.
 - **temper's side of 4 and 8:** temper's six hand-written calendars, in
   `temper-box`, `temper-client-domain`, `temper-client-view` and
   `temper-client-tools`, move onto `Wall::civil` and `Civil`, and its

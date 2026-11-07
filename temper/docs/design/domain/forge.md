@@ -258,7 +258,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
   gives the human collaborators to the core as parties known by their forge
   account: provider 0, with the subject of the repository's forge and the
   collaborator's user (`../protocol/store.md`, section 2). temper's own writer
-  is excluded. The
+  is excluded, and so is the user the forge's link names (4.6): the link's
+  person is known there already. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people.md`, section 4):
   temper's usual mapping is admin to maintainer, write to member, read to
@@ -269,13 +270,20 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **Who a forge's user is: one lookup, by forge and user.** A user's number
   means nothing without its forge: GitHub's user 3 isn't Forgejo's, and anyone
   may post a review on a public repository's pull request. The root's
-  `forge_person` answers the party whose key is provider 0's subject for that
-  pair, with their role in the project, else unknown. Every reader of a
+  `forge_person` answers the link's person when the forge's link names that
+  user (4.6), else the party whose key is provider 0's subject for that
+  pair, with their role in the project, else unknown. A party seeded for
+  the link's user before the link was made stays, role and all, but is
+  never answered on that forge: nothing merges. Every reader of a
   person's forge account goes through it: the reviews counted (8.7), the people
   eligible (8.9) and the inventory's people (`agent.md`, 8.1). Going the other
   way, `person_forge_user` answers the user a party is on a forge only where
-  `forge_person` answers that party for that user. The subject's form is known
-  to the forge's `user_key` and `key_user` alone.
+  `forge_person` answers that party for that user: the link's user for the
+  link's person, else the user their key names. So a seeded party shadowed
+  by the link is known on no forge it's shadowed on. A party counts as a
+  person on a forge, `forge_human`, when `person_forge_user` answers them a
+  user there who isn't that forge's retained writer. The subject's form is
+  known to the forge's `user_key` and `key_user` alone.
 - **Access is given per repository, at adoption.** On a managed or
   owned Forgejo, the adoption asks for it first: temper's user made a
   collaborator with write, and the repository's hook made when the
@@ -736,6 +744,47 @@ public address, adopted into a project when `into` names one
   and its live run ends with the forge's runs (skein's `forge-setup.md`, 6.3).
 - **A project deleted** while a row names it: the act is refused, and the
   row says so.
+
+### 4.6 A box's person on its forges
+
+On a box, the forge knows who its one person is on each forge it can vouch
+for, with no collaborator and no adopting again (`../draft/forge-identity.md`,
+sections 3, 4 and 9). It keeps that as one fact of the forge's record, its
+**link** (`../protocol/forge.md`, 2.1): on this forge, that party is that user.
+One person on a box means at most one link per forge, so it has no family, no
+bound and no restore of its own, and it goes with the forge if that's removed.
+
+- **The person is the deployment's sole owner,** handed by the root at each
+  start, once the core's and the forge's records are loaded (`root.md`, 9.1):
+  the party jig's people answer as the deployment's sole owner (jig's
+  `domain/people.md`, section 4), or none. In that decision every link whose
+  person isn't that party is cleared and logged, and while the root has
+  handed none, no link is made.
+- **Only under a box** (`../protocol/setup.md`, 7.1): a forge connector built
+  without `--box` makes no link, whatever it's told.
+- **From an owned Forgejo's `Reconcile`** (`../protocol/setup.md`, 5.2): given
+  the owned forge's person's login, it answers that account's id or none for
+  an account gone. An id links that user to the person; the same link again
+  changes nothing; a different id replaces the link, as a person may remake
+  their account, and that's logged. An account gone leaves the link as it is,
+  and that's logged. A managed or fake Forgejo is given no login, so it never
+  links.
+- **From a GitHub App's account** (`../protocol/setup.md`, 17.2): each `GET
+  /app` a plan answers says whether the App is the box's person's, a
+  manifest's App whose `AppMade` equals its `AppId` and whose account's
+  `type` is `User`. If it is, its account's id links that user to the person,
+  as above; if not, the link is cleared and logged. So a restart before the
+  link was kept loses nothing, a pasted App replacing a manifest's has no link,
+  and an App transferred away and back links again. A read that fails changes
+  nothing.
+- **Never temper's writer:** a link to the forge's retained writer is refused
+  and logged, and the forge keeps what it had. Reviews skip the writer before
+  any lookup (8.7), so one human counts once on a forge, and temper never.
+- **Its log lines** name the forge and what happened: the account gone and the
+  link kept, refused as temper's writer, replaced, or cleared.
+- **A link replaced** leaves its old user a stranger, or the seed that was made
+  for it before the link: a second account of a person who made one on
+  purpose, which counts only if a rule asks for two people.
 
 ## 5. What it holds, and keeping up
 
@@ -2215,7 +2264,11 @@ merge, kind 4, on a pattern of landing branches (jig's
   for them: temper's own default has none (`../README.md`, section 2).
 - **The panel's approval evidence** is the last judged review set per
   change, kept only in the forge domain's working set, bounded like
-  `change_due` and removed when the change ends. Both procedure and
+  `change_due`, with when it was first kept at its head, and removed when
+  the change's merge is admitted or the change ends: a review that counts
+  takes the change from Needs you (8.12) as its merge goes, not when it
+  lands, and until a merge refused or failed is judged again its panel
+  says reviews not read yet. Both procedure and
   landing merge waits supply its head, whether the read is complete,
   the verified reviewers and the reviews from unmapped forge accounts.
   No row, event or restore carries it. The panel selects requirements
@@ -2353,20 +2406,32 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   refused with it.
 - **The root checks approval eligibility** when a rule is set, after the
   forge's structural judgement, including when a proposal is accepted.
-  For each project in the setting's scope with an adopted writable
-  repository whose branch names overlap the pattern, each enforcing
+  For each project in the setting's scope, and each adopted writable
+  repository of it whose branch names overlap the pattern, each enforcing
   approval needs at least its required count of distinct project members
-  with the named role and a forge account known to the core on a forge of
-  that project (section 4). The root
-  joins the people's identities and roles with the forge's rule; a
-  deployment login or display name supplies no forge identity. A refusal
-  names the project, role, required and eligible counts, and asks for
+  with the named role who count as people on **that repository's forge**,
+  `forge_human` (section 4): an account known on another forge of the
+  project doesn't make a rule on this one satisfiable. The root's
+  `eligible_people` counts them, joining the people's identities and roles
+  with the forge's rule and link (4.6); a deployment login or display name
+  supplies no forge identity. On a box, the person linked on a forge
+  counts there with their own role, so `people: 1` naming it isn't refused,
+  and `people: 2` is unless a seeded collaborator makes up the count. A
+  refusal names the project, the forge by its host, the role, and the
+  required and eligible counts: "project 1 role 0 on forge HOST requires 1
+  distinct known forge people; currently 0 eligible." It then asks for
   human collaborators added on the forge, the project's policy giving the
   permission that role where needed and the repository adopted again,
   followed by a fresh proposal against the newest revision, or offers
   removal of the approval. It names no command or help page: whoever
   reads it may be in the browser, or an agent talking to someone who is
   (`agent.md`, 8.1).
+- **The playground's fake forge** has no account and no address, so no one
+  can approve there: a rule with an enforcing approval covering one of its
+  repositories is refused whatever the count, in its own words: "project 1:
+  the playground's forge has no accounts, so no one can approve there. Name a
+  branch pattern or a project that leaves its repository out, or remove the
+  approval requirement."
   temper's retained forge writer is ineligible even with an existing role. No rule
   or accompanying settings become effective on refusal. Later membership
   changes can leave a held rule waiting; the merge still counts only
@@ -2641,6 +2706,80 @@ early, by these rules:
   cancels the change and makes it again instead. One that fails or is
   cancelled holds the change, as any failed dependency does (jig's
   `domain/tasks.md`, 5.5).
+
+### 8.12 Waiting on a person's approval
+
+A change whose merge waits on a person's approval on the forge (8.7,
+requirement 4) shows under Needs you to whoever's review it waits on, with
+its link (`../client/forge.md`, 4.1). It is a read, neither a task nor a
+hold (`../draft/forge-identity.md`, section 8): a person task would ask for
+an authority widened down the tree, to agents too, couldn't be opened by a
+change made before its rule, and would need a stored number, a delegate slot
+and a task per head; a hold escalates to the goal above first, wakes an
+agent to no purpose and offers a Release that does nothing here. The read
+leaves the landing branch held by the change first in line (section 9),
+which is what a person's approval asks of it.
+
+- **The subject `approvals`:** one number, `APPROVALS_SUBJECT`, `(1 << 62) |
+  (1 << 37)`, outside the task numbers as `TRIALS_SUBJECT` is (`trial.md`,
+  section 6), of the party's own scope. The root makes its document, since
+  roles and eligibility live with the people and the forge holds none: the
+  core's ask names the watcher's party, and the root answers that party's
+  rows. The party's own scope skips jig's project check (jig's
+  `client/domain/contract.md`, 7.5), so the root filters every row by the
+  watcher's role itself. One subject serves the deployment, as `dismissed`
+  does (5.5). It stores nothing.
+- **The forge's part:** each live change, in a project that lands by queue or
+  by turn, in state `First` or `Landing`, with a pull request, whose review
+  facts (8.7) are at its last head, with an approval of an enforcing rule
+  covering its landing branch still short and none refused, each judged as its
+  panel judges them (8.8). Of each: its task, project and forge; its
+  repository's owner and name; its pull request's number; its title; when its
+  facts at that head were first kept; whether its reviews were read whole;
+  how many changes wait behind it in its landing branch's order (section 9),
+  counted as its panel counts those ahead (8.8); and its short approvals, each
+  its scope, rule, role, required count and the people counted. Reviews read
+  in part make a row as a whole read does. A change with no facts at its last
+  head has none: one not yet judged at its merge, one that left the queue or
+  was held, and every change after a restart until its next step judges its
+  merge again.
+- **The root's part:** of those, the changes in a project where the watcher
+  holds a role. The row's approval is the first short one whose role is the
+  watcher's, else, for an owner of the project, the first short one; a
+  watcher of another role has no row, nor has one already counted for that
+  approval at the head. The row says whether the watcher's review would
+  count, the first that holds of:
+  - *too few:* fewer of the project's members count as people on the change's
+    forge with the approval's role than it asks for (`eligible_people`, 8.9),
+    as when later membership changes, or a repository adopted from a forge
+    with no link (4.6), leave a rule that can't be met;
+  - *no account:* the watcher doesn't count as a person on that forge
+    (`forge_human`, section 4);
+  - *another role:* the approval's role isn't the watcher's, as for an owner
+    seeing a wait whose review isn't theirs to give;
+  - otherwise *counts*.
+
+  It names, too, the goal the change was made under, the outermost goal
+  above its task, if any, for that goal's page to show it.
+- **Its rows,** oldest first by when their facts were first kept, then by
+  task: at most 32, and as many as one whole delivery holds at the largest
+  row, as the trials' are bounded (`trial.md`, section 6); `more` counts the
+  rows past them.
+- **Marked** wherever `changes` is (`changes_mark`), and when a change's
+  review facts are kept anew or dropped (8.7). A role or a link that changes
+  shows at the next mark.
+- **The client** merges the rows with jig's inbox and draws each as a card
+  (`../client/README.md`, 3.5 and 4.6; `../client/forge.md`, 4.1).
+- **What a proposal says of such a rule:** the forge's read of a pending
+  proposal's items (`../protocol/configuration.md`, 13.2, *Read from the
+  forge*) answers too whether one of its landing rules has an enforcing
+  approval covering a writable repository on an owned Forgejo, a box's
+  (`../protocol/setup.md`, 7.1), the root judging the coverage as it does for
+  eligibility (8.9). There agents and CI jobs run as the box's user, who can
+  read the person's write credential (`../protocol/setup.md`, section 15), so
+  such a rule stops their mistakes, not one trying to get past it, and the
+  client says so (`../client/README.md`, 5.13; `../draft/forge-identity.md`,
+  section 6).
 
 ## 9. Landing queues
 
@@ -3314,17 +3453,14 @@ whole.
 
 ## 20. Open questions
 
-- **A person's link to a forge's user, and eligibility per forge** (section 4,
-  8.9; `../draft/forge-identity.md`, sections 3, 4 and 7): the lookup knows
-  only what adoption seeded, and eligibility counts an account on any forge of
-  the project. The draft's link would answer first in `forge_person`, and its
-  count asks for an account on the forge of each repository the rule covers.
-  Default: as it stands, until the plans that carry those sections.
-- **An approval under Needs you** (`../draft/forge-identity.md`, section 8):
-  the watchable approval read, its viewer's eligibility, the review link
-  and the client's card are separate work. Default: an approval waits at
-  the merge, with review evidence on the change's panel; evidence stays
-  until the change ends, rather than leaving at merge admission.
+- **A forge read past its bound** (8.4): distinguishing
+  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
+  size, needs skein's bare `TooLarge` to carry the bound and an exact or
+  lower-bound measure, then temper's stored answer to retain them.
+  Those public-interface and stored-format decisions belong to their
+  owners. Default: keep the files-omitted notice and the tool's unknown
+  measure; neither raise the room nor split a file across pages. A host
+  answer's rendered-size bound is separate from the forge client's bound.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a

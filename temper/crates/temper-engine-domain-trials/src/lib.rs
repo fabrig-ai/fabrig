@@ -9,12 +9,12 @@ pub struct Limits {
     pub rows: u32,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Trials {
     rows: List<Row>,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Row {
     pub account: u32,
     pub person: u64,
@@ -25,24 +25,24 @@ pub struct Row {
     pub state: State,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
     Starts,
     Answers,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     Running,
     Answered { seconds: u32 },
     Failed { why: Why },
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Why {
     Ended { class: Class },
     Refused,
     Waited,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Class {
     Transient,
     Permanent,

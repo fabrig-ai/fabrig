@@ -66,7 +66,7 @@ pub enum Problem {
 }
 
 /// Owns the immutable names and mints positions only within that membership.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Membership {
     names: Box<[Box<[u8]>]>,
 }

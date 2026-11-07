@@ -1,4 +1,5 @@
-//! Owned Forgejo signing its member in through temper's printed setup command.
+//! Owned Forgejo signing in a Google member or its box owner through temper.
+//! temper/docs/design/protocol/sign-in.md, 9.9.
 //! temper/docs/design/domain/testing.md, 2.6.
 use super::{
     configuration,
@@ -167,115 +168,38 @@ pub fn public(directory: &Path) {
         story_socket::finish(error);
     }
 }
-#[expect(clippy::too_many_lines, reason = "the public and confidential clients share one real Forgejo sign-in proof")]
 fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let whole = clock.now().now;
     let forge = super::owned::tier_configuration(directory);
     let [temper] = super::free_addresses(&[forge]);
-    let [listener] = super::reserve_listeners(&[forge, temper]);
-    let google = listener.local_addr().expect("issuer address");
-    configure(directory, &forge.to_string(), &temper.to_string(), &google.to_string());
+    let (_google, instructions) = client_configuration(directory, forge, temper, public);
     fixture_bundle(directory);
-    let registration = json!({"issuer":format!("http://{google}"),"authorization":format!("http://{google}/auth"),"token":format!("http://{google}/token"),"revocation":format!("http://{google}/revoke"),"keys":format!("http://{google}/keys"),"client":"temper-test","scopes":[]});
-    let _google =
-        super::sign_in::issuer(listener, &registration, format!("http://{temper}/sign-in/google/return").as_bytes());
-    let instructions = command(directory).output().expect("sign-in instructions");
-    success(&instructions);
-    if public {
-        let path = directory.join("temper.json");
-        let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-        value["engine"]["clients"]["provider"]["clients"][0]["secret"] = Value::Null;
-        value["application"]["machine"]["owned"]["sign_in"] = json!("forgejo");
-        super::write_private(&path, &serde_json::to_vec(&value).expect("public configuration"));
-    }
-    let prepared = super::owned::prepare(directory, 1);
-    success(&prepared);
+    success(&super::owned::prepare(directory, 1));
     assert!(!directory.join("box/groups").exists(), "prepare needs no group's file");
-    let secret = fs::read(directory.join("forgejo.secret")).expect("scratch client secret");
-    for output in [&instructions.stdout, &instructions.stderr] {
-        assert!(!output.windows(secret.len()).any(|part| part == secret), "credential absent from output");
-    }
-    let printed_command =
-        std::str::from_utf8(&instructions.stdout).expect("instructions").lines().next().expect("command");
     let running = super::owned::run(directory, "forgejo");
     let instance = super::owned::attach(directory, forge.port(), running);
     let past_start = clock.now().now;
-    let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
-    let mut serve = Serve {
-        child: Command::new(skein_scratch::paths::binary("temper"))
-            .arg("serve")
-            .args(configuration::flags(directory))
-            .current_dir(directory)
-            .process_group(0)
-            .stdout(Stdio::piped())
-            .stderr(log)
-            .spawn()
-            .expect("serve"),
-        reaped: false,
-    };
+    let mut serve = start_serve(directory);
     let stdout = serve.child.stdout.take().expect("stdout pipe");
     let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
-    let printed_command = owned_command(directory, printed_command);
-    let added = if public {
-        let source = || {
-            Command::new(skein_scratch::paths::binary("temper"))
-                .args(["forge", "source"])
-                .args(configuration::flags(directory))
-                .arg("1")
-                .current_dir(directory)
-                .output()
-                .expect("public source command")
-        };
-        let first = source();
-        success(&first);
-        assert_eq!(first.stdout, b"source added\n", "{}", String::from_utf8_lossy(&first.stdout));
-        let second = source();
-        success(&second);
-        assert_eq!(second.stdout, b"source added\n");
-        let list = Command::new(super::owned::binaries().0)
-            .arg("--work-path")
-            .arg(directory.join("forge-1/forgejo"))
-            .arg("--config")
-            .arg(directory.join("forge-1/forgejo/app.ini"))
-            .args(["admin", "auth", "list"])
-            .output()
-            .expect("real auth list");
-        success(&list);
-        assert!(temper_forge_setup::sign_in::source_present(&list.stdout));
-        let renamed = String::from_utf8_lossy(&list.stdout).replace("temper", "temper-other");
-        assert!(!temper_forge_setup::sign_in::source_present(renamed.as_bytes()), "source names are exact columns");
-        let count = String::from_utf8_lossy(&list.stdout)
-            .lines()
-            .filter(|line| line.split_whitespace().nth(1) == Some("temper"))
-            .count();
-        assert_eq!(count, 1, "a second source command keeps exactly one source");
-        eprintln!("public source list: {}", String::from_utf8_lossy(&list.stdout));
-        first
+    if let Some(instructions) = instructions {
+        confidential_source(directory, &instructions);
     } else {
-        Command::new("/bin/sh")
-            .args(["-c", &printed_command])
-            .current_dir(directory.join("forge-1/forgejo"))
-            .output()
-            .expect("printed command")
-    };
-    assert!(added.status.success(), "printed add-oauth command failed");
-    for output in [&added.stdout, &added.stderr] {
-        let lower = String::from_utf8_lossy(output).to_lowercase();
-        assert!(!lower.contains("failed") && !lower.contains("error"), "add-oauth reported failure");
-        assert!(!output.windows(secret.len()).any(|part| part == secret), "credential absent from add-oauth output");
+        public_source(directory);
     }
     let link = std::str::from_utf8(&link).expect("printed link");
     let mut browser = Browser::default();
     sign_in(&mut browser, temper, forge, link)?;
-    member_named(&instance);
-    let member_signed_in = clock.now().now;
     if public {
+        owner_named(directory, &instance);
         serve.stop();
         instance.stop().expect("public Forgejo stopped");
         eprintln!("public Forgejo source and token exchange: {:?}", clock.now().now.saturating_since(whole));
         return Ok(());
     }
+    member_named(&instance);
+    let member_signed_in = clock.now().now;
     let instance = no_registration(directory, &mut browser, temper, forge, instance)?;
     let registration_checked = clock.now().now;
     connect(directory, forge, temper, &stdout, link, &mut browser)?;
@@ -293,6 +217,148 @@ fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
         clock.now().now.saturating_since(connected)
     );
     Ok(())
+}
+
+fn client_configuration(
+    directory: &Path,
+    forge: std::net::SocketAddr,
+    temper: std::net::SocketAddr,
+    public: bool,
+) -> (Option<skein_fake_peers::oauth::Peer>, Option<std::process::Output>) {
+    if public {
+        public_configuration(directory, forge, temper);
+        return (None, None);
+    }
+    let [listener] = super::reserve_listeners(&[forge, temper]);
+    let google = listener.local_addr().expect("issuer address");
+    configure(directory, &forge.to_string(), &temper.to_string(), &google.to_string());
+    let registration = json!({"issuer":format!("http://{google}"),"authorization":format!("http://{google}/auth"),"token":format!("http://{google}/token"),"revocation":format!("http://{google}/revoke"),"keys":format!("http://{google}/keys"),"client":"temper-test","scopes":[]});
+    let google =
+        super::sign_in::issuer(listener, &registration, format!("http://{temper}/sign-in/google/return").as_bytes());
+    let instructions = command(directory).output().expect("sign-in instructions");
+    success(&instructions);
+    (Some(google), Some(instructions))
+}
+
+fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: std::net::SocketAddr) {
+    let path = directory.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let email = value["application"]["machine"]["owned"]["person"]["email"].clone();
+    value["engine"]["owners"] = json!([{"provider":1,"subject":email}]);
+    value["engine"]["clients"]["provider"] = json!({
+        "key":"provider.key", "addresses":[1],
+        "clients":[{"id":"forgejo", "secret":null,
+            "redirect_uri":format!("http://{forge}/user/oauth2/temper/callback")}]
+    });
+    value["application"]["clients"]["listener"] = json!({"socket":temper});
+    value["application"]["sign_in"] = Value::Null;
+    value["application"]["machine"]["owned"]["sign_in"] = json!("forgejo");
+    super::write_private(&path, &serde_json::to_vec(&value).expect("public configuration"));
+    super::write_private(&directory.join("provider.key"), b"");
+    let key = Command::new("openssl")
+        .args(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:3072", "-out"])
+        .arg(directory.join("provider.key"))
+        .output()
+        .expect("public provider key generation");
+    success(&key);
+    assert!(!directory.join("forgejo.secret").exists(), "public client needs no secret");
+    assert!(!directory.join("google.secret").exists(), "box needs no Google sign-in");
+}
+
+fn start_serve(directory: &Path) -> Serve {
+    let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
+    Serve {
+        child: Command::new(skein_scratch::paths::binary("temper"))
+            .arg("serve")
+            .args(configuration::flags(directory))
+            .current_dir(directory)
+            .process_group(0)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(log)
+            .spawn()
+            .expect("serve"),
+        reaped: false,
+    }
+}
+
+fn confidential_source(directory: &Path, instructions: &std::process::Output) {
+    let secret = fs::read(directory.join("forgejo.secret")).expect("scratch client secret");
+    for output in [&instructions.stdout, &instructions.stderr] {
+        assert!(!output.windows(secret.len()).any(|part| part == secret), "credential absent from output");
+    }
+    let printed = std::str::from_utf8(&instructions.stdout).expect("instructions").lines().next().expect("command");
+    let added = Command::new("/bin/sh")
+        .args(["-c", &owned_command(directory, printed)])
+        .current_dir(directory.join("forge-1/forgejo"))
+        .output()
+        .expect("printed command");
+    assert!(added.status.success(), "printed add-oauth command failed");
+    for output in [&added.stdout, &added.stderr] {
+        let lower = String::from_utf8_lossy(output).to_lowercase();
+        assert!(!lower.contains("failed") && !lower.contains("error"), "add-oauth reported failure");
+        assert!(!output.windows(secret.len()).any(|part| part == secret), "credential absent from add-oauth output");
+    }
+}
+
+fn public_source(directory: &Path) {
+    for _ in 0..2 {
+        let added = Command::new(skein_scratch::paths::binary("temper"))
+            .args(["forge", "source"])
+            .args(configuration::flags(directory))
+            .arg("1")
+            .current_dir(directory)
+            .output()
+            .expect("public source command");
+        success(&added);
+        assert_eq!(added.stdout, b"source added\n", "{}", String::from_utf8_lossy(&added.stdout));
+    }
+    let list = Command::new(super::owned::binaries().0)
+        .arg("--work-path")
+        .arg(directory.join("forge-1/forgejo"))
+        .arg("--config")
+        .arg(directory.join("forge-1/forgejo/app.ini"))
+        .args(["admin", "auth", "list"])
+        .output()
+        .expect("real auth list");
+    success(&list);
+    assert!(temper_forge_setup::sign_in::source_present(&list.stdout));
+    let renamed = String::from_utf8_lossy(&list.stdout).replace("temper", "temper-other");
+    assert!(!temper_forge_setup::sign_in::source_present(renamed.as_bytes()), "source names are exact columns");
+    let count = String::from_utf8_lossy(&list.stdout)
+        .lines()
+        .filter(|line| line.split_whitespace().nth(1) == Some("temper"))
+        .count();
+    assert_eq!(count, 1, "a second source command keeps exactly one source");
+    eprintln!("public source list: {}", String::from_utf8_lossy(&list.stdout));
+}
+
+fn owner_named(directory: &Path, instance: &skein_throwaway_forgejo::Instance) {
+    let document: Value =
+        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration")).expect("JSON");
+    let person = &document["application"]["machine"]["owned"]["person"];
+    let login = person["login"].as_str().expect("owner login");
+    let email = person["email"].as_str().expect("owner email");
+    let response = instance
+        .exchange(&skein_throwaway_forgejo::Outgoing::get(
+            &format!("/api/v1/users/{login}"),
+            Some(&instance.admin().token),
+        ))
+        .expect("owner API");
+    assert_eq!(response.status, 200);
+    let owner: Value = serde_json::from_slice(&response.body).expect("owner JSON");
+    assert_eq!(owner["login"], login);
+    assert_eq!(owner["email"], email);
+    // Internal accounts keep their password login_name; the provider's claims
+    // are kept with the external identity linked to that account.
+    let linked = Command::new("python3")
+        .args(["-I", "-B", "-c", "import json,sqlite3,sys; c=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True); print(json.dumps(c.execute('select u.name,u.email,e.external_id from external_login_user e join user u on u.id=e.user_id').fetchall()))"])
+        .arg(directory.join("forge-1/forgejo/forgejo.db"))
+        .output()
+        .expect("linked owner claims");
+    success(&linked);
+    let claims: Value = serde_json::from_slice(&linked.stdout).expect("linked identity JSON");
+    assert_eq!(claims, json!([[login, email, format!("1:{email}")]]), "box owner's link claims");
 }
 
 fn sign_in(

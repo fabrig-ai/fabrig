@@ -5,14 +5,14 @@ use crate::{Domain, Grant, HostKind, Request};
 use jig_domain_link::ListOutcome;
 use skein_lib::{List, Queue, Time, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Reads {
     held: List<Held>,
     head: i64,
     tail: i64,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Held {
     read: u64,
     endpoint: u32,
@@ -21,7 +21,7 @@ struct Held {
     state: State,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum State {
     Queued { order: i64 },
     InFlight { channel: Token },

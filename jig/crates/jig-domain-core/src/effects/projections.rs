@@ -17,7 +17,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, length::len_u64};
 
 /// Current tracked-goal facts, independent of executable authority and inboxes.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionGoal {
     pub number: u64,
     pub project: u32,
@@ -27,7 +27,7 @@ pub struct ProjectionGoal {
 }
 
 /// One task in the whole bounded tree, including tasks that already ended.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionTask {
     pub number: u64,
     pub requester: tasks::Party,
@@ -45,7 +45,7 @@ pub enum MilestoneId {
 }
 
 /// One newly recorded milestone; lifecycle details or semantic reason travel together.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionMilestone {
     pub identity: MilestoneId,
     pub phase: Option<tasks::Phase>,
@@ -54,7 +54,7 @@ pub struct ProjectionMilestone {
 }
 
 /// One connector handoff, with the whole plan and milestones since its last feed.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectionFeed {
     pub goal: ProjectionGoal,
     pub plan: Box<[ProjectionTask]>,
@@ -63,7 +63,7 @@ pub struct ProjectionFeed {
 }
 
 /// Durable feed state retained until every connector settles the closing feed.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Projection {
     pub goal: ProjectionGoal,
     pub plan: Box<[ProjectionTask]>,
@@ -87,7 +87,7 @@ pub enum ProjectionKey {
 }
 
 /// One bounded row of a projection; the whole tree is never one journal row.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ProjectionRecord {
     /// Feed metadata, retained through the last closing settlement.
     Goal { goal: ProjectionGoal, pending: Box<[u16]>, changed: bool, fed_at: Option<u64> },

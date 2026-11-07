@@ -28,6 +28,11 @@ charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Settings refusals name the last matching request item's position from 0;
+settings key order agrees with the store, with Model after Application
+and ProjectPolicy. A turn read alone retains call input past `turn_text`
+within its archive bound (`domain/engine.md`, 17.2;
+`protocol/store.md`, 4.1; `client/domain/client.md`, section 10).
 Later pages, changes to a known name's figures and catalogue-number reuse
 remain deferred (`domain/engine.md`, section 16).
 A list read changing only the omitted count leaves `me` unmarked, so the

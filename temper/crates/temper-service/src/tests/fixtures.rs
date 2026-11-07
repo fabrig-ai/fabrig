@@ -1291,6 +1291,7 @@ pub fn restore_forge(engine: &mut crate::engine::Engine, record: temper_engine_d
 pub fn forge_record(number: u16) -> temper_engine_domain_forge::ForgeRecord {
     use temper_engine_domain_forge as forge;
     forge::ForgeRecord {
+        person: None,
         git_program: None,
         number,
         kind: forge::Kind::Forgejo,

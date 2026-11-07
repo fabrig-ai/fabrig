@@ -4,12 +4,12 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum GateLast {
     Exact(Box<[u8]>),
     Open(Box<[u8]>),
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GatePattern {
     pub segments: Box<[Box<[u8]>]>,
     pub last: GateLast,

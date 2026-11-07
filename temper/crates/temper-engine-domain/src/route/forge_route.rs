@@ -191,19 +191,31 @@ fn seeded_role(domain: &Domain, project: u32, permission: skein_forge::api::Perm
 }
 
 /// Who a forge's user is in a project: the one lookup, by forge and user
-/// (domain/forge.md, 4). The party whose key is that pair's subject, with their
-/// role there, else unknown.
+/// (domain/forge.md, 4). The link's person first, else the party whose key names
+/// that pair, with their role there, else unknown.
 pub(super) fn forge_person(domain: &Domain, project: u32, forge: u16, user: u64) -> Option<(u64, people::Role)> {
+    if let Some(link) = domain.forge.link(forge)
+        && link.user == user
+    {
+        let role = domain.core.people.role(link.person, project)?;
+        return Some((link.person, role));
+    }
     domain.core.people.role_for_identity(forge::user_key(forge, user), project)
 }
 
 /// The user a party is on a forge: the one `forge_person` answers them for, else unknown.
 pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, person: u64) -> Option<u64> {
-    let identity = domain.core.people.identity(person)?;
-    let (identity_forge, user) = forge::key_user(&identity.key)?;
-    if identity_forge != forge {
-        return None;
-    }
+    let user = match domain.forge.link(forge) {
+        Some(link) if link.person == person => link.user,
+        Some(_) | None => {
+            let identity = domain.core.people.identity(person)?;
+            let (identity_forge, user) = forge::key_user(&identity.key)?;
+            if identity_forge != forge {
+                return None;
+            }
+            user
+        }
+    };
     let (known, _) = forge_person(domain, project, forge, user)?;
     if known != person {
         return None;
@@ -234,19 +246,13 @@ pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[
     forges.into_boxed()
 }
 
-/// Whether a party counts as a person for approvals in a project: known on a forge
-/// of its repositories, as a user who isn't that forge's retained writer
-/// (domain/forge.md, 4 and 8.9).
-pub(super) fn human_forge_identity(domain: &Domain, project: u32, person: u64) -> bool {
-    for repository in domain.forge.readable_repositories(project) {
-        let forge = repository.provider.forge;
-        if let Some(user) = person_forge_user(domain, project, forge, person)
-            && !domain.forge.is_writer(forge, user)
-        {
-            return true;
-        }
+/// Whether a party counts as a person for approvals on a forge of a project: known
+/// there, as a user who isn't its retained writer (domain/forge.md, 4 and 8.9).
+pub(super) fn forge_human(domain: &Domain, project: u32, forge: u16, person: u64) -> bool {
+    match person_forge_user(domain, project, forge, person) {
+        Some(user) => !domain.forge.is_writer(forge, user),
+        None => false,
     }
-    false
 }
 
 fn append(out: &mut List<u8>, bytes: &[u8]) {
@@ -1254,7 +1260,7 @@ fn check_landing_holder(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct RunWorkspace {
     pub workspace: ForgeWorkspace,
     /// The task holding the workspace: this one, or the change whose branch it inherits.
@@ -4481,6 +4487,9 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::LinkNoted { forge, note } => {
+                super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
+            }
             forge::Request::Decided { to, key, took } => {
                 decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took });
             }
@@ -5131,7 +5140,7 @@ pub(crate) fn outputs(
 }
 
 /// Connector-owned effect data while the core chooses its requirements.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum EffectFlight {
     Call {
         description: Box<EffectDescription>,
@@ -5581,9 +5590,10 @@ fn drop_landing(
 fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidence: &forge::ChangeEvidence) {
     let Some(row) = domain.forge.change(task) else { return };
     let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
-    if domain.forge.keep_review_facts(task, facts) {
-        let mut subjects = List::with_capacity(1);
+    if domain.forge.keep_review_facts(env.wall, task, facts) {
+        let mut subjects = List::with_capacity(2);
         subjects.push(Token::new(task)).expect("one changed panel");
+        subjects.push(Token::new(crate::APPROVALS_SUBJECT)).expect("approvals beside the panel");
         domain
             .work
             .push(Work::Core(jig_domain_core::Event::Marked { connector: domain.config.forge_connector, subjects }));

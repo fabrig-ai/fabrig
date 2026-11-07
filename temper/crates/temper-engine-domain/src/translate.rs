@@ -41,7 +41,7 @@ pub struct Config {
 }
 
 /// What the root keeps of its configuration once its children hold theirs.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct RootConfig {
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
@@ -56,25 +56,25 @@ pub struct LandingRules {
 }
 
 /// A project's landing way and repository checks (protocol/configuration.md, 3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
     pub by: Way,
     pub merge_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,
     pub after: AfterLandingCheck,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Way {
     Queue,
     Turn,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RepositoryChecks {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[GateCheck]>,
     pub tiers: Box<[TierCheck]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateCheck {
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
@@ -82,7 +82,7 @@ pub struct GateCheck {
     pub blocking: bool,
 }
 /// A repository's tier and the branch it follows (domain/after-landing.md, 2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierCheck {
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
@@ -93,7 +93,7 @@ pub struct TierCheck {
     pub span_ms: u64,
 }
 /// A project's verification settings (protocol/configuration.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLandingCheck {
     pub tier_retries: u8,
     pub verification_bound_ms: u64,

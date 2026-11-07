@@ -15,7 +15,7 @@ pub struct VersionKey {
 
 /// Heads besides the newest, and versions besides its overlay. An erased
 /// removal's barrier stays while an older version could otherwise be selected.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Held {
     pub(crate) heads: Map<u32, Head>,
     pub(crate) versions: Map<VersionKey, CharterVersion>,

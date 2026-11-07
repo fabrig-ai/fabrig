@@ -385,7 +385,7 @@ fn see_proposal(world: &mut ClientWorld, person: ClientId) {
 }
 fn rail(world: &ClientWorld, person: ClientId, project: u32) -> u32 {
     let root = world.root(person).person();
-    root.pages().needs().count(root.client(), project).count
+    root.pages().needs().count(root.client(), root.forge().approvals(), project).count
 }
 fn project_inbox(project: u32) -> Address {
     Address::Inbox {

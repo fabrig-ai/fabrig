@@ -1665,6 +1665,10 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 /* ==== ui: needs ==== */
 
+#app :is(.temper-ask-choices, .temper-goal-band) a:is(.temper-recommended, .temper-goal-primary) { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-ink); border-radius: 8px; background: var(--gf-ink); color: #fff; font-weight: 500; text-decoration: none; }
+#app .temper-needs .temper-ask-choices a.temper-recommended { min-height: 54px; padding: 10px 18px; border-radius: 12px; font-size: 16px; }
+
+
 /* A question that needs the person, answered in place. */
 #app > .temper-home .temper-ask { display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .03); }
 #app > .temper-home .temper-ask > p { margin: 0; }

@@ -8,7 +8,7 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_domain_forge_landing as landing;
 
 /// A pull request whose context the connector gathers for a run brief.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefItem {
     /// Its repository in the deployment's adopted set.
     pub repository: u32,
@@ -17,11 +17,11 @@ pub struct BriefItem {
 }
 
 /// A pinned head for one brief read.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefCommit(pub [u8; 32]);
 
 /// A charter's document to gather (temper/docs/design/protocol/configuration.md, 13.7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BriefDocument {
     pub host: Box<[u8]>,
     pub owner: Box<[u8]>,
@@ -33,7 +33,7 @@ pub struct BriefDocument {
 }
 
 /// Which forge context the connector owns for a brief.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BriefSource {
     /// A document at its branch head.
     Document,
@@ -48,7 +48,7 @@ pub enum BriefSource {
 }
 
 /// The connector's bounded section, or a failed gather.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BriefRead {
     /// The bytes the connector rendered, and bytes left out at its read bound.
     Got { bytes: Box<[u8]>, left: u64 },
@@ -76,7 +76,7 @@ pub enum What {
     Issue(u64),
 }
 /// What the project may do on an adopted repository.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Role {
     /// Temper owns the repository.
     Owned,
@@ -89,7 +89,7 @@ pub enum Role {
 }
 /// Capabilities observed when the repository was adopted, narrowed on refusal.
 #[expect(clippy::struct_excessive_bools, reason = "the forge has independent effect kinds")]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Kinds {
     pub read: bool,
     pub push: bool,
@@ -108,7 +108,7 @@ pub const READ_KINDS: [u16; 1] = [1];
 pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
 
 /// One adopted repository, with provider name and project ownership.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
     pub project: u32,
     /// This project's selected repository for goal issue projections and chats' saved work.
@@ -136,7 +136,7 @@ pub struct GitIdentity {
     pub credential: u32,
 }
 /// Protection as observed by this writer at adoption.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Protection {
     /// The writer could not read protection.
     Unknown,
@@ -146,7 +146,7 @@ pub enum Protection {
     Rule(skein_forge::api::Protection),
 }
 /// The caller's request to adopt an existing repository.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Adoption {
     pub project: u32,
     /// Select this repository as the project's home if it has none yet.
@@ -162,7 +162,7 @@ pub struct Adoption {
     pub checks: Box<[u32]>,
 }
 /// A FORGE request admitted by the core (client/README.md, 8).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     DismissMaking {
         forge: u16,
@@ -210,14 +210,14 @@ pub enum Ask {
     },
 }
 /// The first repository requested when connecting a Forgejo (client/README.md, 8).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FirstAsk {
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
 }
 /// The public connect's input; credentials remain carried handles.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum How {
     ForgejoAdmin {
         first: Option<FirstAsk>,
@@ -233,13 +233,13 @@ pub enum How {
     ForgejoTokens,
 }
 /// The App records' provenance since this engine started (client/README.md, 4.6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AppWay {
     Manifest,
     Pasted,
 }
 /// A retained application answer; adoption and making outcomes are durable.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
@@ -257,13 +257,13 @@ pub enum Answered {
     Overturn(crate::OverturnAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge.md, 4.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MakeAnswer {
     Kept,
     Refused(crate::MakeRefusal),
 }
 /// Public forge admission refusals (client/README.md, 8).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRefusal {
     Role,
     NoSuchForge,
@@ -276,38 +276,38 @@ pub enum ForgeRefusal {
     /// share names (protocol/setup.md, 5.5).
     FirstIsBot,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ConnectAnswer {
     Connecting,
     Link(Box<[u8]>),
     Refused(ForgeRefusal),
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum InstallAnswer {
     Link(Box<[u8]>),
     Connecting,
     Refused(ForgeRefusal),
 }
 /// An existing installation, verified and retained by the setup host.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AcceptAnswer {
     Accepted { installation: u64 },
     Refused(ForgeRefusal),
     ForgeRefused(AdoptionRefusal),
 }
 /// A picker answer lives beside the public links, never in the store.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReachableAnswer {
     Page(Page),
     Refused(ForgeRefusal),
     ForgeRefused(AdoptionRefusal),
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Page {
     pub rows: Box<[Reached]>,
     pub more: bool,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Reached {
     pub id: u64,
     pub owner_id: u64,
@@ -317,13 +317,13 @@ pub struct Reached {
 }
 /// The start is answered once both are done, *running*, or at the first that
 /// fails, *start failed*, naming why (protocol/setup.md, 8.4).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartAnswer {
     Running,
     NotOffered,
     Failed(StartFailure),
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartFailure {
     Group { why: Box<[u8]> },
     Account,
@@ -331,31 +331,31 @@ pub enum StartFailure {
     NotConnected,
 }
 /// The playground's scripted provider and start deadline (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlaygroundConfig {
     pub provider: u32,
     pub deadline: skein_lib::Duration,
 }
 /// The reset's acts (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResetAct {
     RemoveProject { project: u32 },
     RemoveAccount { account: u32 },
 }
 /// The setup request's one answer, independent of its later course.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpAnswer {
     SettingUp,
     Refused(SetUpRefusal),
 }
 /// The configured forge provider (domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Forgejo,
     GitHub,
 }
 /// How the deployment connects to its forge.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
     Connected,
     Managed,
@@ -364,14 +364,14 @@ pub enum Mode {
 }
 /// Public owned-forge startup details (protocol/setup.md, 6.5).
 /// The password field is an absolute file path, never the password itself.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Owned {
     pub forgejo: Box<[u8]>,
     pub runner: Option<Box<[u8]>>,
     pub password: Box<[u8]>,
 }
 /// Public startup configuration, without credentials.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Configured {
     /// The records-only managed string form accepts an admin paste.
     pub admin_connect: bool,
@@ -389,21 +389,21 @@ pub struct Configured {
     pub asked: bool,
 }
 /// Where a forge's API is reached (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Address {
     pub host: Box<[u8]>,
     pub port: u16,
     pub tls: Option<Box<[u8]>>,
 }
 /// A forge's API, remote base and pages (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Place {
     pub api: Address,
     pub git: Box<[u8]>,
     pub web: Option<Box<[u8]>>,
 }
 /// The machine's places (temper/docs/design/protocol/configuration.md, 3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Machine {
     /// `application.machine.owned.person`'s login; empty with no owned machine.
     pub owned_person: Box<[u8]>,
@@ -413,14 +413,14 @@ pub struct Machine {
     pub github_git_program: Option<Box<[u8]>>,
 }
 /// The bot's login and commit author (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Bot {
     pub login: Box<[u8]>,
     pub name: Box<[u8]>,
     pub email: Box<[u8]>,
 }
 /// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EmptyIntent {
     pub playground: bool,
     pub org: Box<[u8]>,
@@ -428,28 +428,58 @@ pub struct EmptyIntent {
     pub label: Box<[u8]>,
 }
 /// The set up's durable choice (temper/docs/design/protocol/setup.md, 6.7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FirstIntent {
     Empty(EmptyIntent),
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
 /// The set up's admitted input (temper/docs/design/client/README.md, 4.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpFirst {
     Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
 /// The row's first-repository choice (temper/docs/design/protocol/setup.md, 6.7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartsWith {
     Repository,
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
+/// A forge's link to a box's one person: on this forge, that party is that user
+/// (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Link {
+    /// The forge's user, never 0.
+    pub user: u64,
+    /// Jig's party, never 0.
+    pub person: u64,
+}
+
+/// What setup read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PersonAnswer {
+    /// The person's user: a Forgejo `Reconcile`'s `Person` id or a manifest-made App's `User` account.
+    Is(u64),
+    /// The person's Forgejo account is gone: a `Reconcile`'s `Person` with no id.
+    Gone,
+    /// The App has no matching `AppMade` or its account is not a `User`.
+    NotTheirs,
+}
+
+/// What happened to the forge's link (temper/docs/design/domain/forge.md, 4.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LinkNote {
+    Gone,
+    Writer,
+    Replaced,
+    Cleared,
+}
+
 /// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeRecord {
     pub number: u16,
     pub kind: Kind,
@@ -462,21 +492,23 @@ pub struct ForgeRecord {
     /// The setup entry's `start: asked` (protocol/setup.md, 8).
     pub asked: bool,
     pub first: Option<FirstIntent>,
+    /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge.md, 2.1).
+    pub person: Option<Link>,
 }
 /// Kept, or ended with removal's answers (temper/docs/design/domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeState {
     Kept,
     Ended { secrets_erased: bool, box_removed: bool },
 }
 /// A kept forge or a new one numbered next (temper/docs/design/protocol/forge.md, 2.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Making {
     Kept(u16),
     New(ForgeAsk),
 }
 /// A new forge's input, completed by the machine's places (temper/docs/design/protocol/configuration.md, 3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeAsk {
     GitHub,
     Owned,
@@ -491,13 +523,13 @@ pub enum ForgeAsk {
     },
 }
 /// The box group's kind (temper/docs/design/protocol/setup.md, 7.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoxKind {
     Owned,
     Fake,
 }
 /// The playground's row; no row is none (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Playground {
     pub state: PlaygroundState,
     pub forge: u16,
@@ -505,53 +537,53 @@ pub struct Playground {
     pub account: Option<u32>,
 }
 /// The playground's progress (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PlaygroundState {
     Starting,
     Running,
     Resetting(ResetStep),
 }
 /// The reset's ordered acts (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResetStep {
     Project,
     Forge,
     Account,
 }
 /// Removal's answer (temper/docs/design/domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RemoveAnswer {
     Removed,
     Refused(ForgeRefusal),
 }
 /// Reset's answer (temper/docs/design/protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndAnswer {
     Reset,
     NotOffered,
 }
 
 /// The row's setup offer, also used to admit `SetUp` (domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Offer {
     NotOffered,
     NotUnderTheBox,
     Offered,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum CreateStep {
     Admin,
     Org,
     Repository,
     File,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum FirstState {
     Making,
     Made { id: u64 },
     Failed { step: CreateStep },
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum SetupStage {
     Admin,
     Bot,
@@ -563,14 +595,14 @@ pub enum SetupStage {
     Installation,
     State,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum AdminStop {
     NotAdmin,
     Refused { status: u16, stage: SetupStage },
     Unmarked,
     Other,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
     pub org: Box<[u8]>,
@@ -580,7 +612,7 @@ pub struct First {
 }
 
 /// A repository already adopted on this forge (client/README.md, 4.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AdoptedRow {
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
@@ -588,7 +620,7 @@ pub struct AdoptedRow {
 }
 
 /// One configured forge, including its connection, offer and first repository.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Row {
     pub read_only: bool,
     pub number: u16,
@@ -613,18 +645,18 @@ pub struct Row {
     pub ended_stop: Option<AdminStop>,
 }
 /// The deployment's forges, ordered by number (domain/forge.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
 }
 /// The admitted repository and its observed collaborators.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Adopted {
     pub repository: Repository,
     pub collaborators: Box<[skein_forge::api::Collaborator]>,
 }
 /// The connector's outcome, kept under the people child's application token.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationOutcome {
     Adopted(AdoptedRepository),
     CoreRefused(jig_domain_people::Refusal),
@@ -633,7 +665,7 @@ pub enum ApplicationOutcome {
     MakeRefused(crate::MakeRefusal),
 }
 /// The repository facts shown by the adoption's terminal (client/README.md, 4.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AdoptedRepository {
     pub repository: skein_forge::api::Repository,
     pub owner: Box<[u8]>,
@@ -685,7 +717,7 @@ pub const fn reason(error: skein_forge::api::Error) -> AdoptionRefusal {
     }
 }
 /// Exclusive write hold and its current writer.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Hold {
     pub name: Name,
     pub task: u64,
@@ -695,19 +727,19 @@ pub struct Hold {
 }
 
 /// An outside change and its observation time, retained with the affected hold.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Drift {
     pub at: skein_lib::Wall,
     pub change: DriftChange,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DriftChange {
     Branch { expected: skein_forge::api::Commit, observed: Option<skein_forge::api::Commit> },
     PullClosed { number: u64 },
     Retargeted { number: u64, before: Box<[u8]>, after: Box<[u8]> },
 }
 /// Durable progress while a closing task releases its connector resources.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReleaseRow {
     pub task: u64,
     pub root: u64,
@@ -723,7 +755,7 @@ pub struct ReleaseRow {
     pub releasing: bool,
 }
 /// Terminal task class that determines forge cleanup.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReleaseEnding {
     /// The task finished successfully.
     Done,
@@ -733,13 +765,13 @@ pub enum ReleaseEnding {
     Cancelled,
 }
 /// The last head pushed in one repository by a hosted attempt.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Pushed {
     pub tag: u64,
     pub commit: skein_forge::api::Commit,
 }
 /// A run or connector effect occupying one writer slot.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Writer {
     /// A worker attempt, fenced by the root's activation.
     Run { task: u64, attempt: u64 },
@@ -761,7 +793,7 @@ pub enum Topic {
     Participation { repository: skein_forge::api::Repository, number: u64 },
 }
 /// A subscriber's classification of observed news.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Class {
     /// Start or resume this task when its inbox permits it.
     Wakes,
@@ -771,7 +803,7 @@ pub enum Class {
     Dropped,
 }
 /// News delivered through a topic to task inboxes.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum News {
     /// A branch moved; overlap is decided from bounded file facts.
     Landing {
@@ -791,7 +823,7 @@ pub enum News {
     Red(crate::RedNews),
 }
 /// A live subscription and its known paths for landing overlap.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Subscriber {
     pub task: u64,
     /// Root-issued task subscription, retained across restarts for news delivery.
@@ -803,7 +835,7 @@ pub struct Subscriber {
     pub paths: Box<[Box<[u8]>]>,
 }
 /// Last observed branch tip, used to publish each landing once.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BranchHead {
     pub name: Name,
     pub commit: skein_forge::api::Commit,
@@ -811,7 +843,7 @@ pub struct BranchHead {
     pub owned: bool,
 }
 /// Last published pull state and CI verdict.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PullState {
     pub name: Name,
     pub head: skein_forge::api::Commit,
@@ -819,14 +851,14 @@ pub struct PullState {
     pub state: skein_forge::api::State,
 }
 /// Last CI verdict published to subscribers of one commit.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CiState {
     pub repository: skein_forge::api::Repository,
     pub head: skein_forge::api::Commit,
     pub status: skein_forge::api::Ci,
 }
 /// A goal's issue projection, including an in-flight write and created issue.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct IssueRow {
     pub goal: u64,
     pub repository: skein_forge::api::Repository,
@@ -841,13 +873,13 @@ pub struct IssueRow {
 /// Maximum retained operation, target and outcome text.
 pub const EFFECT_ACCOUNT_BYTES: u32 = 512;
 /// A settled effect's explanation, retained after its outbox entry is retired.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EffectAccount {
     pub entry: u64,
     pub words: Box<[u8]>,
 }
 /// A change task's forge parameters and top-owned procedure state.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
     /// Bounded, durable observations for the landed result.
     pub result: crate::ChangeResult,
@@ -931,14 +963,14 @@ impl ChangeRow {
     }
 }
 /// A project's test gates in configuration order (domain/landing.md, 13.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RepositoryGates {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[landing::Gate]>,
     pub tiers: Box<[Tier]>,
 }
 /// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
@@ -949,7 +981,7 @@ pub struct Tier {
     pub span: Option<skein_lib::Duration>,
 }
 /// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Follows {
     /// The repository's landing branch, its adoption's default.
     Landing,
@@ -959,7 +991,7 @@ pub enum Follows {
     Goals,
 }
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLanding {
     pub verdict: temper_engine_domain_forge_tiers::Settings,
     pub bound: skein_lib::Duration,
@@ -973,20 +1005,20 @@ pub enum LandingRefusal {
     Way,
 }
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEntry {
     pub entry: u64,
     pub member: u16,
     pub gate: u16,
     pub operation: Operation,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
     Dispatch,
     Rerun,
@@ -994,7 +1026,7 @@ pub enum Operation {
     Verdict,
     Merge,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
@@ -1002,7 +1034,7 @@ pub struct LandingHeard {
     pub cancelled: bool,
 }
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
@@ -1010,7 +1042,7 @@ pub struct Receipt {
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptRun {
     pub id: u64,
     pub number: u64,
@@ -1029,7 +1061,7 @@ pub enum Check {
     Tier(Box<[u8]>),
 }
 /// One gate's explanation, retained with its verdict for a repair brief.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateRemark {
     pub number: u64,
     pub head: skein_forge::api::Commit,
@@ -1037,7 +1069,7 @@ pub struct GateRemark {
 }
 /// Coherent provider facts used by the root to check a change effect before
 /// releasing its durable outbox entry.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
@@ -1050,7 +1082,7 @@ pub struct ChangeEvidence {
     pub reviews_complete: bool,
 }
 /// Coherent merge facts for a landing member, read in the landing's step.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEvidence {
     pub change: u64,
     pub facts: ChangeEvidence,
@@ -1081,7 +1113,7 @@ pub enum CallPayload {
         reason = "the durable change row keeps role choices and merge-job state inline"
     )
 )]
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
     /// The connector part of a live named call.
     Call {
@@ -1220,7 +1252,7 @@ pub enum Key {
     Decided { project: u32, number: u32 },
 }
 /// A completed phase of the connector's restart contract.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestartStage {
     /// Durable connector records and entries are restored.
     Restored,
@@ -1230,7 +1262,7 @@ pub enum RestartStage {
     Settled,
 }
 /// Volatile connection information, rebuilt from routing at every start (domain/forge.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
     NotConnected,
     /// An owned forge the box starts when asked, its files absent (protocol/forge.md, 8.1).
@@ -1253,7 +1285,7 @@ pub enum Connection {
     },
 }
 /// The box's word for the step it runs (protocol/setup.md, 7.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpStep {
     Fetch,
     Prepare,
@@ -1261,20 +1293,20 @@ pub enum SetUpStep {
     Source,
 }
 /// The binary named by the box's fetch line (protocol/forge.md, 2.8).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpBinary {
     Forgejo,
     Runner,
 }
 /// The latest fetch line, kept in memory alone (protocol/forge.md, 2.8).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SetUpFetched {
     pub binary: SetUpBinary,
     pub done: u64,
     pub total: Option<u64>,
 }
 /// The held connection's step when setup failed (domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailedStep {
     Fetch,
     Prepare,
@@ -1282,7 +1314,7 @@ pub enum FailedStep {
     Connect,
 }
 /// Why a `SetUp` is refused (protocol/forge.md, 2.8; domain/forge.md, 4.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpRefusal {
     NotOffered,
     NotUnderTheBox,
@@ -1290,7 +1322,7 @@ pub enum SetUpRefusal {
     Invalid,
 }
 /// Installation information for the deployment's page (protocol/forge.md, 2.4).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Installation {
     pub account: Option<(u64, Box<[u8]>)>,
     pub stray: bool,
@@ -1305,7 +1337,7 @@ pub struct ChangeDependencies {
 }
 
 /// A parent or child input to the connector top.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     SetAway {
         request: Token,
@@ -1840,9 +1872,18 @@ pub enum Event {
         forge: u16,
         login: Box<[u8]>,
     },
+    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 9.1).
+    Owner {
+        party: Option<u64>,
+    },
+    /// What a setup run read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+    PersonOf {
+        forge: u16,
+        answer: PersonAnswer,
+    },
 }
 /// The connector's output to the root, including child API calls.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "Save carries the change row and its producer report; changing the request boundary is separate"
@@ -2189,10 +2230,15 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core::Carried,
     },
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    LinkNoted {
+        forge: u16,
+        note: LinkNote,
+    },
 }
 
 /// Whether this member address belongs to the presented Google subject.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BindAnswer {
     Bound,
     Another,
@@ -2201,26 +2247,26 @@ pub enum BindAnswer {
 }
 
 /// A sent entry still without its outcome when the client’s stop bound passed.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
 }
 
 /// A tier task's step (temper/docs/design/domain/after-landing.md, 10).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TierDecision {
     Wait { until: Option<skein_lib::Wall> },
     Held { words: Box<[u8]> },
     Done { words: Box<[u8]> },
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
     pub cancelled: bool,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierGoal {
     /// The goal task holding the branch.
     pub goal: u64,
@@ -2236,7 +2282,7 @@ pub struct TierGoal {
     pub started: Option<skein_lib::Time>,
 }
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
@@ -2261,24 +2307,24 @@ pub struct TierRow {
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLanding {
     pub commit: skein_forge::api::Commit,
     pub key: Option<[u8; 32]>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TierBranch {
     Absent,
     Pending { entry: u64 },
     Made,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierProbeBranch {
     pub landing: u32,
     pub branch: TierBranch,
 }
 /// Durable follower progress; trees and workflow details are read again after restart.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierFlight {
     pub entry: u64,
     pub start: Option<skein_lib::Time>,
@@ -2292,27 +2338,27 @@ pub struct TierFlight {
     pub report: Option<ReceiptRun>,
 }
 /// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Verification {
     pub repository: skein_forge::api::Repository,
     pub commit: skein_forge::api::Commit,
     pub changes: Box<[u64]>,
     pub tiers: Box<[TierVerification]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierVerification {
     pub tier: Box<[u8]>,
     pub verdict: Option<TierVerdict>,
     pub repaired: Option<TierRepair>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierVerdict {
     pub run: u64,
     pub blame: temper_engine_domain_forge_tiers::Blame,
 }
 
 /// The run that passed a landing's blamed failures (client/forge.md, 2.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierRepair {
     pub run: u64,
     pub tip: skein_forge::api::Commit,

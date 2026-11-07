@@ -19,7 +19,7 @@ use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 
 /// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
@@ -37,7 +37,7 @@ pub enum StartStop {
 /// The core owns policy and current proofs; the forge owns connector payloads
 /// and timer decisions. Every outbound envelope passes through the journal
 /// (jig's domain/root.md, sections 2–4).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 #[expect(
     clippy::struct_excessive_bools,
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
@@ -130,7 +130,7 @@ pub struct Domain {
 }
 
 /// Volatile operator queues (temper/docs/design/domain/worker.md, 4.3).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
     pub(crate) failed: Queue<crate::RunDiagnostic>,
@@ -1200,6 +1200,7 @@ fn released_into(
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }
+        | Delivery::Approvals { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
         | Delivery::Public { .. }

@@ -4,6 +4,7 @@
 
 use crate::journal_limits as journal;
 use crate::protocol::{self, Protocol};
+use crate::replay::{same_digest, same_text};
 use crate::store::Store;
 use crate::walking_referee::{FINAL_SPEND, QUESTION, REPORT, TURNS, WalkingReferee};
 use jig_domain_accounts as accounts;
@@ -14,10 +15,7 @@ use jig_domain_link::{Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use std::{
-    collections::{BTreeMap, VecDeque},
-    fmt::Write as _,
-};
+use std::collections::{BTreeMap, VecDeque};
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, JournalLimits, Record, loads};
 
@@ -472,7 +470,7 @@ pub fn charter() -> engine::Charter {
 }
 
 /// Store latency and a lost-completion cut are deterministic world inputs.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Settings {
     /// Deterministic child seed, replayed with the same external stimuli.
     pub seed: u64,
@@ -510,7 +508,7 @@ impl Settings {
 // The outside worker makes two recovery sends in order: its retained answer,
 // then one explicit post-ACK resend. This transport sequence is independent
 // of the person's one authenticated result request.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum TerminalRecovery {
     NotRequested,
     AwaitingRetainedAck,
@@ -520,7 +518,7 @@ enum TerminalRecovery {
 
 /// Complete frozen world state between iterations; only the store and scripts
 /// outlive replacement of the root process (domain/root.md, section 12).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct World {
     settings: Settings,
     domain: engine::Domain,
@@ -971,6 +969,7 @@ impl World {
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
             | Delivery::Trials { .. }
+            | Delivery::Approvals { .. }
             | Delivery::Panel { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
@@ -1041,10 +1040,10 @@ impl World {
 pub fn run_replayed(settings: Settings) -> World {
     let mut first = World::new(settings);
     let mut replay = World::new(settings);
-    let (mut first_state, mut replay_state) = (String::new(), String::new());
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled());
+            same_text(&first, &replay, &format_args!("settled walking: {settings:?}"));
             first.close();
             replay.close();
             return first;
@@ -1056,11 +1055,7 @@ pub fn run_replayed(settings: Settings) -> World {
         let first_trace = std::mem::take(&mut first.trace);
         let replay_trace = std::mem::take(&mut replay.trace);
         assert_eq!(first_trace, replay_trace, "trace at iteration {}", first.iteration);
-        first_state.clear();
-        replay_state.clear();
-        write!(first_state, "{first:?}").expect("write to string");
-        write!(replay_state, "{replay:?}").expect("write to string");
-        assert_eq!(first_state, replay_state, "complete frozen state at iteration {}", first.iteration);
+        same_digest(&first, &replay, &format_args!("walking iteration {}: {settings:?}", first.iteration));
         first.trace = first_trace;
         replay.trace = replay_trace;
     }

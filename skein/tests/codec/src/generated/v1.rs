@@ -350,8 +350,7 @@ impl Report {
         for item_0 in field_fields.as_slice() {
         size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
         }
-        let field_effect = &self.effect;
-        size = size.checked_add(field_effect.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_present = &self.present;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_present.is_some() {
