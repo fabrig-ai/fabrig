@@ -6,11 +6,6 @@ Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
-Section 8 has no known gap in the change body's 3,584-byte maximum:
-the contract keeps the task's smaller words bound, and other texts keep
-their 1,024-byte maximum. The boundary encoding test holds a change at
-the body's maximum and the agent's 4,096-byte ownership limit through
-the hub codec without losing fields. Larger reports remain in section 12.
 Section 8's independent delivery grant for a Finite report is present:
 the policy's `modify` and the root's workspace delivery fact are both
 required, and delivery leaves the report and failure forms unchanged.
@@ -26,7 +21,9 @@ departure below remains.
   `down`), because its manifest does not link `jig-protocol-charter`.
   The code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`. 10: an agent
-  process's tree contained.
+  process's tree contained. 8: `assignment` and `charter` hold a change's
+  and a delivery's `body` at `CHANGE_BODY_MAX`, 3,584
+  (`jig/crates/jig-protocol-charter/src/assignment.rs`).
 - **Departs:** 8: a run with no `deliver` keeps the shell its policy
   grants, where the section has it inspect alone: `charter`
   (`jig/crates/jig-protocol-charter/src/charter.rs`) narrows `modify`
