@@ -229,115 +229,148 @@ fn remake_releases_a_held_entry() {
     assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Made { made: Made::Commented(9), found: false })));
 }
 #[test]
-fn restore_refuses_bad_pages() {
-    for (name, review, page) in [
-        ("comment zero", false, 0),
-        ("comment overflow", false, fixture::EXCESS_INBOX),
-        ("review zero", true, 0),
-        ("review overflow", true, fixture::EXCESS_INBOX),
-    ] {
-        let mut row = fixture::live();
-        if review {
-            row.review_page = page;
-        } else {
-            row.comment_page = page;
-        }
-        fixture::bad_live(name, row);
-    }
-}
-#[test]
-fn restore_refuses_bad_stamps() {
-    for (name, review, count, duplicate) in [
-        ("comments overflow", false, fixture::EXCESS_INBOX, false),
-        ("comments repeated", false, 2, true),
-        ("reviews overflow", true, fixture::EXCESS_INBOX, false),
-        ("reviews repeated", true, 2, true),
-    ] {
-        let mut row = fixture::live();
-        if review {
-            row.reviews = fixture::deliveries(count, duplicate);
-        } else {
-            row.comments = fixture::deliveries(count, duplicate);
-        }
-        fixture::bad_live(name, row);
-    }
-}
-#[test]
-fn restore_refuses_oversized_caches() {
-    for (name, pull, bytes) in [
-        ("item bytes", false, true),
-        ("item rows", false, false),
-        ("pull bytes", true, true),
-        ("pull rows", true, false),
-    ] {
-        let mut row = fixture::live();
-        if pull {
-            let mut value = kept::current();
-            if bytes {
-                value.head = fixture::repeated(b'a', fixture::EXCESS_ANSWER_BYTES);
-            } else {
-                value.reviewers = fixture::repeated(7, fixture::EXCESS_ROWS);
-            }
-            row.cached.pull = Some(value);
-        } else {
-            let mut value = kept::summary();
-            if bytes {
-                value.title = fixture::repeated(b'a', fixture::EXCESS_ANSWER_BYTES);
-            } else {
-                value.labels = fixture::repeated(Box::<[u8]>::default(), fixture::EXCESS_ROWS);
-            }
-            row.cached.item = Some(value);
-        }
-        fixture::bad_live(name, row);
-    }
-}
-#[test]
-fn restore_refuses_oversized_echoes() {
-    let mut row = fixture::live();
-    row.echoes = fixture::repeated(Echo::Comment(1), fixture::EXCESS_ROWS);
-    fixture::bad_live("echo overflow", row);
-}
-#[test]
-fn restore_refuses_unpaired_rows() {
-    fixture::failed_restore("missing repository", Box::new([Stored::Live(fixture::live())]));
-    fixture::failed_restore("missing live", Box::new([Stored::Repository(fixture::repository())]));
-}
-#[test]
-fn restore_refuses_capacity_overflow() {
-    for (name, repositories, count) in
-        [("resources", false, fixture::EXCESS_RESOURCES), ("repositories", true, fixture::EXCESS_REPOSITORIES)]
-    {
-        let mut rows = List::with_capacity(count + 1);
-        for index in 0..count {
-            if repositories {
-                let mut row = fixture::repository();
-                row.repository.repository += index;
-                rows.push(Stored::Repository(row)).expect("fixture capacity");
-            } else {
+#[expect(clippy::too_many_lines, reason = "the named input records share one refusal body")]
+fn invalid_saved_records_leave_restoration_failed_and_busy() {
+    skein_rows::check(
+        [
+            ("restore_refuses_bad_pages: comment zero", {
                 let mut row = fixture::live();
-                row.watch.resource.what = What::Issue(u64::from(index));
-                rows.push(Stored::Live(row)).expect("fixture capacity");
-            }
-        }
-        if !repositories {
-            rows.push(Stored::Repository(fixture::repository())).expect("fixture capacity");
-        }
-        fixture::failed_restore(name, rows.into_boxed());
-    }
+                row.comment_page = 0;
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_pages: comment overflow", {
+                let mut row = fixture::live();
+                row.comment_page = fixture::EXCESS_INBOX;
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_pages: review zero", {
+                let mut row = fixture::live();
+                row.review_page = 0;
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_pages: review overflow", {
+                let mut row = fixture::live();
+                row.review_page = fixture::EXCESS_INBOX;
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_stamps: comments overflow", {
+                let mut row = fixture::live();
+                row.comments = fixture::deliveries(fixture::EXCESS_INBOX, false);
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_stamps: comments repeated", {
+                let mut row = fixture::live();
+                row.comments = fixture::deliveries(2, true);
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_stamps: reviews overflow", {
+                let mut row = fixture::live();
+                row.reviews = fixture::deliveries(fixture::EXCESS_INBOX, false);
+                saved_pair(row)
+            }),
+            ("restore_refuses_bad_stamps: reviews repeated", {
+                let mut row = fixture::live();
+                row.reviews = fixture::deliveries(2, true);
+                saved_pair(row)
+            }),
+            ("restore_refuses_oversized_caches: item bytes", {
+                let mut row = fixture::live();
+                let mut value = kept::summary();
+                value.title = fixture::repeated(b'a', fixture::EXCESS_ANSWER_BYTES);
+                row.cached.item = Some(value);
+                saved_pair(row)
+            }),
+            ("restore_refuses_oversized_caches: item rows", {
+                let mut row = fixture::live();
+                let mut value = kept::summary();
+                value.labels = fixture::repeated(Box::<[u8]>::default(), fixture::EXCESS_ROWS);
+                row.cached.item = Some(value);
+                saved_pair(row)
+            }),
+            ("restore_refuses_oversized_caches: pull bytes", {
+                let mut row = fixture::live();
+                let mut value = kept::current();
+                value.head = fixture::repeated(b'a', fixture::EXCESS_ANSWER_BYTES);
+                row.cached.pull = Some(value);
+                saved_pair(row)
+            }),
+            ("restore_refuses_oversized_caches: pull rows", {
+                let mut row = fixture::live();
+                let mut value = kept::current();
+                value.reviewers = fixture::repeated(7, fixture::EXCESS_ROWS);
+                row.cached.pull = Some(value);
+                saved_pair(row)
+            }),
+            ("restore_refuses_oversized_echoes", {
+                let mut row = fixture::live();
+                row.echoes = fixture::repeated(Echo::Comment(1), fixture::EXCESS_ROWS);
+                saved_pair(row)
+            }),
+            (
+                "restore_refuses_unpaired_rows: missing repository",
+                Box::<[Stored]>::from([Stored::Live(fixture::live())]),
+            ),
+            (
+                "restore_refuses_unpaired_rows: missing live",
+                Box::<[Stored]>::from([Stored::Repository(fixture::repository())]),
+            ),
+            ("restore_refuses_capacity_overflow: resources", {
+                let mut rows = List::with_capacity(fixture::EXCESS_RESOURCES + 1);
+                for index in 0..fixture::EXCESS_RESOURCES {
+                    let mut row = fixture::live();
+                    row.watch.resource.what = What::Issue(u64::from(index));
+                    rows.push(Stored::Live(row)).expect("fixture capacity");
+                }
+                rows.push(Stored::Repository(fixture::repository())).expect("fixture capacity");
+                rows.into_boxed()
+            }),
+            ("restore_refuses_capacity_overflow: repositories", {
+                let mut rows = List::with_capacity(fixture::EXCESS_REPOSITORIES + 1);
+                for index in 0..fixture::EXCESS_REPOSITORIES {
+                    let mut row = fixture::repository();
+                    row.repository.repository += index;
+                    rows.push(Stored::Repository(row)).expect("fixture capacity");
+                }
+                rows.into_boxed()
+            }),
+            ("restore_refuses_invalid_watches: empty branch", {
+                let mut row = fixture::live();
+                row.watch = kept::watch(Resource { repository: REPO, what: What::Branch(Box::new([])) }, false);
+                saved_pair(row)
+            }),
+            ("restore_refuses_invalid_watches: long branch", {
+                let mut row = fixture::live();
+                row.watch = kept::watch(
+                    Resource {
+                        repository: REPO,
+                        what: What::Branch(fixture::repeated(b'a', fixture::EXCESS_OP_BYTES)),
+                    },
+                    false,
+                );
+                saved_pair(row)
+            }),
+            ("restore_refuses_invalid_watches: participating repository", {
+                let mut row = fixture::live();
+                row.watch = kept::watch(Resource { repository: REPO, what: What::Repository }, true);
+                saved_pair(row)
+            }),
+            ("restore_refuses_invalid_watches: participating branch", {
+                let mut row = fixture::live();
+                row.watch = kept::watch(Resource { repository: REPO, what: kept::branch().what }, true);
+                saved_pair(row)
+            }),
+            ("restore_refuses_exact_one_past_cached_bytes", {
+                let mut row = fixture::live();
+                let mut current = kept::current();
+                current.head = fixture::repeated(b'a', fixture::PULL_HEAD_BOUND + 1);
+                row.cached.pull = Some(current);
+                saved_pair(row)
+            }),
+        ],
+        |records| fixture::failed_restore("saved records", records),
+    );
 }
-#[test]
-fn restore_refuses_invalid_watches() {
-    for (name, what, participating) in [
-        ("empty branch", What::Branch(Box::new([])), false),
-        ("long branch", What::Branch(fixture::repeated(b'a', fixture::EXCESS_OP_BYTES)), false),
-        ("participating repository", What::Repository, true),
-        ("participating branch", kept::branch().what, true),
-    ] {
-        let mut row = fixture::live();
-        row.watch = kept::watch(Resource { repository: REPO, what }, participating);
-        fixture::bad_live(name, row);
-    }
-}
+
 #[test]
 fn keep_refuses_invalid_participation() {
     for what in [What::Repository, kept::branch().what] {
@@ -679,64 +712,66 @@ fn uncertain_comment_becomes_held_at_its_deadline() {
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain), (1, Outcome::Held)]);
 }
 #[test]
-fn fresh_paired_restoration_accepts_keep() {
-    fixture::accepted_live("corrected generic", fixture::live());
-}
-#[test]
-fn restore_accepts_exact_page_and_stamp_bounds() {
-    for review in [false, true] {
-        let mut page = fixture::live();
-        if review {
-            page.review_page = LIMITS.inbox;
-        } else {
-            page.comment_page = LIMITS.inbox;
-        }
-        fixture::accepted_live("exact page", page);
-        let mut stamps = fixture::live();
-        if review {
-            stamps.reviews = fixture::deliveries(LIMITS.inbox, false);
-        } else {
-            stamps.comments = fixture::deliveries(LIMITS.inbox, false);
-        }
-        fixture::accepted_live("exact stamps", stamps);
-    }
-}
-#[test]
-fn restore_accepts_exact_cache_and_echo_row_bounds() {
-    let mut item = fixture::live();
-    let mut summary = kept::summary();
-    summary.labels = fixture::repeated(Box::<[u8]>::default(), LIMITS.rows);
-    item.cached.item = Some(summary);
-    fixture::accepted_live("item rows", item);
-    let mut pull = fixture::live();
-    let mut current = kept::current();
-    current.reviewers = fixture::repeated(7, LIMITS.rows);
-    pull.cached.pull = Some(current);
-    fixture::accepted_live("pull rows", pull);
-    let mut echoes = fixture::live();
-    echoes.echoes = fixture::repeated(Echo::Comment(1), LIMITS.rows);
-    fixture::accepted_live("echo rows", echoes);
-}
-#[test]
-fn restore_accepts_exact_cached_byte_bounds() {
-    let mut item = fixture::live();
-    let mut summary = kept::summary();
-    summary.title = fixture::repeated(b'a', LIMITS.answer_bytes);
-    item.cached.item = Some(summary);
-    fixture::accepted_live("item bytes", item);
-    let mut pull = fixture::live();
-    let mut current = kept::current();
-    current.head = fixture::repeated(b'a', fixture::PULL_HEAD_BOUND);
-    pull.cached.pull = Some(current);
-    fixture::accepted_live("pull bytes", pull);
-}
-#[test]
-fn restore_refuses_exact_one_past_cached_bytes() {
-    let mut pull = fixture::live();
-    let mut current = kept::current();
-    current.head = fixture::repeated(b'a', fixture::PULL_HEAD_BOUND + 1);
-    pull.cached.pull = Some(current);
-    fixture::bad_live("pull exact one past bytes", pull);
+fn valid_saved_records_restore_and_admit_resource_keeping() {
+    skein_rows::check(
+        [
+            ("fresh_paired_restoration_accepts_keep", fixture::live()),
+            ("restore_accepts_exact_page_and_stamp_bounds: comment page", {
+                let mut row = fixture::live();
+                row.comment_page = LIMITS.inbox;
+                row
+            }),
+            ("restore_accepts_exact_page_and_stamp_bounds: review page", {
+                let mut row = fixture::live();
+                row.review_page = LIMITS.inbox;
+                row
+            }),
+            ("restore_accepts_exact_page_and_stamp_bounds: comment stamps", {
+                let mut row = fixture::live();
+                row.comments = fixture::deliveries(LIMITS.inbox, false);
+                row
+            }),
+            ("restore_accepts_exact_page_and_stamp_bounds: review stamps", {
+                let mut row = fixture::live();
+                row.reviews = fixture::deliveries(LIMITS.inbox, false);
+                row
+            }),
+            ("restore_accepts_exact_cache_and_echo_row_bounds: item rows", {
+                let mut row = fixture::live();
+                let mut value = kept::summary();
+                value.labels = fixture::repeated(Box::<[u8]>::default(), LIMITS.rows);
+                row.cached.item = Some(value);
+                row
+            }),
+            ("restore_accepts_exact_cache_and_echo_row_bounds: pull rows", {
+                let mut row = fixture::live();
+                let mut value = kept::current();
+                value.reviewers = fixture::repeated(7, LIMITS.rows);
+                row.cached.pull = Some(value);
+                row
+            }),
+            ("restore_accepts_exact_cache_and_echo_row_bounds: echo rows", {
+                let mut row = fixture::live();
+                row.echoes = fixture::repeated(Echo::Comment(1), LIMITS.rows);
+                row
+            }),
+            ("restore_accepts_exact_cached_byte_bounds: item bytes", {
+                let mut row = fixture::live();
+                let mut value = kept::summary();
+                value.title = fixture::repeated(b'a', LIMITS.answer_bytes);
+                row.cached.item = Some(value);
+                row
+            }),
+            ("restore_accepts_exact_cached_byte_bounds: pull bytes", {
+                let mut row = fixture::live();
+                let mut value = kept::current();
+                value.head = fixture::repeated(b'a', fixture::PULL_HEAD_BOUND);
+                row.cached.pull = Some(value);
+                row
+            }),
+        ],
+        |row| fixture::accepted_live("saved record", row),
+    );
 }
 
 fn lost_turn(write: Write) -> writing::Harness {
@@ -829,4 +864,8 @@ fn a_rerun_at_the_saved_attempt_is_held_at_the_deadline() {
     }
     assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Held)));
     assert_eq!(h.writes, 1);
+}
+
+fn saved_pair(row: crate::LiveRecord) -> Box<[Stored]> {
+    Box::new([Stored::Live(row), Stored::Repository(fixture::repository())])
 }

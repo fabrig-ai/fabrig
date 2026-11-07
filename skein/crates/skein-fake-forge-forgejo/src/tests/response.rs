@@ -234,57 +234,60 @@ fn pull_file_responses_carry_x_hasmore() {
     }
 }
 
-#[test]
-fn a_suffix_range_answers_206_with_the_slices_last_bytes() {
-    let request = Request::JobLog { at: at(), job: 1, attempt: 1, step: Some(3) };
-    let mut slice = [b'x'; 112];
-    for (place, byte) in slice[102..].iter_mut().zip(b"0123456789") {
-        *place = *byte;
-    }
-    let reply = response::answer(
-        &config(),
-        &crate::setup::Store::new(&limits()),
-        &limits(),
-        &request,
-        &Select::Raw(Some(Range::Suffix(10))),
-        &a::Answer::File(boxed(&slice)),
-    )
-    .expect("Suffix");
-    assert_eq!((reply.status, &*reply.body), (206, b"0123456789".as_slice()));
-    assert_eq!(header_value(&reply.headers), Some(b"bytes 102-111/112".as_slice()));
+struct SuffixRow {
+    slice: Box<[u8]>,
+    length: u64,
+    body: Box<[u8]>,
+    header: &'static [u8],
 }
-
 #[test]
-fn a_suffix_longer_than_the_slice_answers_it_all() {
-    let request = Request::JobLog { at: at(), job: 1, attempt: 1, step: Some(3) };
-    let slice = [b'x'; 112];
-    let reply = response::answer(
-        &config(),
-        &crate::setup::Store::new(&limits()),
-        &limits(),
-        &request,
-        &Select::Raw(Some(Range::Suffix(100_000))),
-        &a::Answer::File(boxed(&slice)),
-    )
-    .expect("Suffix");
-    assert_eq!((reply.status, &*reply.body), (206, slice.as_slice()));
-    assert_eq!(header_value(&reply.headers), Some(b"bytes 0-111/112".as_slice()));
-}
-
-#[test]
-fn a_suffix_range_over_an_empty_log_names_no_byte() {
-    let request = Request::JobLog { at: at(), job: 1, attempt: 1, step: Some(3) };
-    let reply = response::answer(
-        &config(),
-        &crate::setup::Store::new(&limits()),
-        &limits(),
-        &request,
-        &Select::Raw(Some(Range::Suffix(10))),
-        &a::Answer::File(boxed(b"")),
-    )
-    .expect("Suffix");
-    assert_eq!((reply.status, &*reply.body), (206, b"".as_slice()));
-    assert_eq!(header_value(&reply.headers), Some(b"bytes 0--1/0".as_slice()));
+fn suffix_ranges_return_trailing_bytes_and_literal_coordinates() {
+    skein_rows::check(
+        [
+            (
+                "a_suffix_range_answers_206_with_the_slices_last_bytes",
+                SuffixRow {
+                    slice: {
+                        let mut slice = [b'x'; 112];
+                        for (place, byte) in slice[102..].iter_mut().zip(b"0123456789") {
+                            *place = *byte;
+                        }
+                        boxed(&slice)
+                    },
+                    length: 10,
+                    body: boxed(b"0123456789"),
+                    header: b"bytes 102-111/112",
+                },
+            ),
+            (
+                "a_suffix_longer_than_the_slice_answers_it_all",
+                SuffixRow {
+                    slice: boxed(&[b'x'; 112]),
+                    length: 100_000,
+                    body: boxed(&[b'x'; 112]),
+                    header: b"bytes 0-111/112",
+                },
+            ),
+            (
+                "a_suffix_range_over_an_empty_log_names_no_byte",
+                SuffixRow { slice: boxed(b""), length: 10, body: boxed(b""), header: b"bytes 0--1/0" },
+            ),
+        ],
+        |row| {
+            let request = Request::JobLog { at: at(), job: 1, attempt: 1, step: Some(3) };
+            let reply = response::answer(
+                &config(),
+                &crate::setup::Store::new(&limits()),
+                &limits(),
+                &request,
+                &Select::Raw(Some(Range::Suffix(row.length))),
+                &a::Answer::File(row.slice),
+            )
+            .expect("Suffix");
+            assert_eq!((reply.status, &*reply.body), (206, row.body.as_ref()));
+            assert_eq!(header_value(&reply.headers), Some(row.header));
+        },
+    );
 }
 
 #[test]

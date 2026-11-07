@@ -169,12 +169,14 @@ fn the_lowest_id_of_the_listeners_url_is_kept_and_each_other_deleted() {
     save(run.step(fixtures::rows(Box::new([fixtures::hook(3, &url())]))), Some(3));
 }
 #[test]
-fn a_deleted_duplicate_lists_the_same_page_again() {
-    assert_eq!(phase(5).step(Event::Reply(Reply::Empty)), listing(1));
-}
-#[test]
-fn a_404_on_a_duplicates_delete_is_as_good() {
-    assert_eq!(phase(5).step(Event::Reply(Reply::Status(404))), listing(1));
+fn successful_duplicate_deletions_resume_the_same_page() {
+    skein_rows::check(
+        [
+            ("a_deleted_duplicate_lists_the_same_page_again", Reply::Empty),
+            ("a_404_on_a_duplicates_delete_is_as_good", Reply::Status(404)),
+        ],
+        |reply| assert_eq!(phase(5).step(Event::Reply(reply)), listing(1)),
+    );
 }
 #[test]
 fn the_kept_id_is_remembered_across_pages() {

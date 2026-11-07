@@ -109,7 +109,7 @@ impl Verified {
     }
 }
 
-/// Checks the header, deterministic RS256 signature, then the claims on the
+/// Checks the header, RS256 signature, then the claims on the
 /// forge's clock. Issuance may be at most 60 seconds ahead, and the life
 /// must be positive and at most [`jwt::LIFE`]. Expiry is exclusive.
 pub fn check(token: &[u8], app: &App, now: Wall) -> Result<(), Refused> {
@@ -133,8 +133,8 @@ fn verified_claims(token: &[u8], app: &App) -> Result<Claims, Refused> {
     let signature = base64::decode(base64::Alphabet::Url, token.get(signature_at..).ok_or(Refused::Malformed)?, 256)
         .or(Err(Refused::Malformed))?;
     let input = token.get(..last).ok_or(Refused::Malformed)?;
-    let expected = skein_tls::sign_rs256(app.key, input).ok_or(Refused::Signature)?;
-    if signature.as_ref() != expected {
+    let public = skein_tls::rs256_public_pkcs1(app.key).ok_or(Refused::Signature)?;
+    if !skein_tls::verify_rs256(&public.modulus, &public.exponent, input, &signature) {
         return Err(Refused::Signature);
     }
     let claims = base64::decode(
