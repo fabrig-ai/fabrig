@@ -41,6 +41,7 @@ pub struct MeParty {
 /// Project membership, retained pool and public identifier (jig/docs/design/client/domain/contract.md, 5.1; jig/docs/design/domain/people.md, 13.8).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeProject {
+    pub left_out: u32,
     pub project: u32,
     pub name: DocumentText,
     pub role: HeldRole,

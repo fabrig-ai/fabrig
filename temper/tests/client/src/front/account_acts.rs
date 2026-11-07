@@ -395,8 +395,18 @@ fn fixture_root(
             model.program = Some(b"claude_code".as_slice().into());
             model.endpoint = 2;
             config.core.settings.endpoints = Box::new([
-                jig_domain_core::EndpointFacts { number: 1, dialect: model.dialect, program: None },
-                jig_domain_core::EndpointFacts { number: 2, dialect: model.dialect, program: model.program.clone() },
+                jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: model.dialect,
+                    program: None,
+                },
+                jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 2,
+                    dialect: model.dialect,
+                    program: model.program.clone(),
+                },
             ]);
             config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
             config.core.defaults.charters[1].policy.alternatives = Box::new([model]);

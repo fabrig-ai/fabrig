@@ -252,7 +252,8 @@ fn kept(request: &Ask) -> bool {
     match request {
         Ask::Jig(request) => match request.as_ref() {
             contract::Ask::Seen { .. } => false,
-            contract::Ask::ChangeSettings(_)
+            contract::Ask::ChangeModel(_)
+            | contract::Ask::ChangeSettings(_)
             | contract::Ask::MoveToNewest(_)
             | contract::Ask::Restore { .. }
             | contract::Ask::Create { .. }

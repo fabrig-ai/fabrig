@@ -459,3 +459,14 @@ pub enum ModelSource {
     List,
     Person,
 }
+
+/// A model act uses the newest catalogue (jig/docs/design/domain/engine.md, 17.11).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ModelAct {
+    Picker { number: u32, on: bool },
+    Add { provider: u32, name: Text },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ChangeModel {
+    pub act: ModelAct,
+}

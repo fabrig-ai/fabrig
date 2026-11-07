@@ -347,6 +347,7 @@ pub(crate) fn me(party: u64) -> c::Me {
     let mut projects = List::with_capacity(PROJECTS);
     projects
         .push(c::MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,

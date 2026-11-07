@@ -1480,6 +1480,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
@@ -1572,6 +1573,9 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                number: 1,
+                source: jig_client::contract::ModelSource::Stock,
+                estimated: false,
                 effort: None,
                 shown: None,
                 accounts: List::from_boxed(Box::new([2])),

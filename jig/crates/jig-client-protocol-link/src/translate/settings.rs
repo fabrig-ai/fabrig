@@ -990,3 +990,26 @@ fn restore_catalogue(value: &w::CatalogueEntry) -> Result<c::CatalogueEntry, w::
         },
     })
 }
+
+pub fn wire_change_model(value: &c::ChangeModel, limits: &w::Limits) -> Result<w::ChangeModel, w::Problem> {
+    let act = match &value.act {
+        c::ModelAct::Picker { number, on } => {
+            w::ModelAct::Picker(w::ModelPicker::new(limits, w::ModelPickerParts { number: *number, on: *on })?)
+        }
+        c::ModelAct::Add { provider, name } => w::ModelAct::Add(w::ModelAdd::new(
+            limits,
+            w::ModelAddParts { provider: *provider, name: bytes::copy_of(name.bytes()) },
+        )?),
+    };
+    w::ChangeModel::new(limits, w::ChangeModelParts { act })
+}
+pub fn restore_change_model(value: &w::ChangeModel, limits: &Limits) -> Result<c::ChangeModel, w::Problem> {
+    let act = match value.act() {
+        w::ModelAct::Picker(value) => c::ModelAct::Picker { number: value.number(), on: value.on() },
+        w::ModelAct::Add(value) => c::ModelAct::Add {
+            provider: value.provider(),
+            name: text(value.name(), limits.receiving().model_add_name)?,
+        },
+    };
+    Ok(c::ChangeModel { act })
+}

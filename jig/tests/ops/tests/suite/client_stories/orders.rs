@@ -174,6 +174,7 @@ fn frame(watch: u64) -> w::StreamEvent {
             w::MeProject::new(
                 &w::CEILINGS,
                 w::MeProjectParts {
+                    left_out: 0,
                     defaults: List::with_capacity(0),
                     public: None,
                     project: PROJECT,

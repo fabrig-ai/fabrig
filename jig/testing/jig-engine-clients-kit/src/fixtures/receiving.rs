@@ -29,6 +29,9 @@ fn model() -> core::Model {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = model();
     Box::new([jig_protocol_engine_clients::Model {
+        number: 1,
+        source: jig_domain_core::settings::ModelSource::Stock,
+        estimated: false,
         effort: model.default_effort().map(skein_lib::bytes::copy_of),
         shown: None,
         picker: true,
@@ -78,7 +81,12 @@ fn configuration(limits: &core::Limits) -> core::Config {
         seed_projects: Box::new([]),
         connectors: Box::new([]),
         settings: core::Settings {
-            endpoints: Box::new([core::EndpointFacts { number: 1, dialect: 3, program: None }]),
+            endpoints: Box::new([core::EndpointFacts {
+                providers: Box::new([]),
+                number: 1,
+                dialect: 3,
+                program: None,
+            }]),
             deployment_provider: 2,
             models: Box::new([model()]),
             resume_bytes: 256,

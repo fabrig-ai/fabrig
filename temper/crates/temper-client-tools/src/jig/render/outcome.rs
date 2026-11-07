@@ -59,6 +59,7 @@ impl Operation {
                 c::Ask::Restore { .. } => (b"restore", None),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
+                c::Ask::ChangeModel(_) => (b"change-model", None),
                 c::Ask::ChangeSettings(_) => (b"change-settings", None),
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
                     (creation_word(tasks), None)
@@ -1002,6 +1003,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             c::Ask::Propose { project, .. } => Some(*project),
             c::Ask::Restore { .. }
             | c::Ask::MoveToNewest(_)
+            | c::Ask::ChangeModel(_)
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
             | c::Ask::Withdraw { .. }

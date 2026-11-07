@@ -68,6 +68,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     Ok(match value {
         w::Ask::Restore(value) => super::asks::restore_ask_restore(&value, limits)?,
         w::Ask::MoveToNewest(value) => c::Ask::MoveToNewest(c::MoveToNewest { revision: value.revision() }),
+        w::Ask::ChangeModel(value) => c::Ask::ChangeModel(super::settings::restore_change_model(&value, limits)?),
         w::Ask::ChangeSettings(value) => {
             c::Ask::ChangeSettings(super::settings::restore_change_settings(&value, limits)?)
         }

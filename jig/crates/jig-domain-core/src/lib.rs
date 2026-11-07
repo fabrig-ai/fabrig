@@ -280,7 +280,7 @@ pub struct Core {
     pub(crate) kinds: Box<[settings::Kind]>,
     pub(crate) restoring: settings::Restoring,
     pub(crate) settings_judging: settings::application::Judging,
-    pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
+    pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32, bool)>,
     pub(crate) key_input: Option<Carried>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
     pub(crate) task_capacity_mark: u64,
@@ -622,6 +622,8 @@ pub use effects::connector::PersonSeed;
 /// Endpoint identity used to check model settings (domain/engine.md, 17.11).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct EndpointFacts {
+    /// Providers that name this endpoint for added models (engine.md, 17.11).
+    pub providers: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,
     pub program: Option<Box<[u8]>>,

@@ -21,6 +21,9 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
     let mut rows = List::with_capacity(highest);
     for _ in 0..highest {
         rows.push(Model {
+            number: 0,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             name: Box::default(),
             provider: None,
             window: 0,
@@ -39,6 +42,9 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
         let slot = rows.get_mut(at).expect("catalogue number at most highest");
         let model = &row.model;
         *slot = Model {
+            number: row.number,
+            source: row.source,
+            estimated: row.estimated,
             name: model.name.clone(),
             provider: if model.provider == 0 { None } else { Some(model.provider) },
             window: model.window,
@@ -226,6 +232,13 @@ pub fn models(
         rows.push(w::MeModel::new(
             limits,
             w::MeModelParts {
+                number: model.number,
+                source: match model.source {
+                    jig_domain_core::settings::ModelSource::Stock => w::ModelSource::Stock,
+                    jig_domain_core::settings::ModelSource::List => w::ModelSource::List,
+                    jig_domain_core::settings::ModelSource::Person => w::ModelSource::Person,
+                },
+                estimated: model.estimated,
                 name: bytes::copy_of(&model.name),
                 provider: model.provider,
                 window: model.window,
@@ -308,7 +321,8 @@ pub(crate) fn refused(
         w::Ask::Amend(value) => (None, lacking(value.change().llm().as_ref(), models)),
         w::Ask::Compound(value) => operations(value.operations(), models, limits)?,
         w::Ask::ChangeSettings(value) => (None, settings_items(value.items(), models, limits)?),
-        w::Ask::RemoveProject(_)
+        w::Ask::ChangeModel(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
         | w::Ask::MoveToNewest(_)

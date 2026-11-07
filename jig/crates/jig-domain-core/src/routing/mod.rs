@@ -450,6 +450,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Err(answer) => return answer,
     };
     match event {
+        Event::ChangeModel { reply_to, sign_in, key, digest, act } => settings::dispatch::model_start(
+            core,
+            env,
+            work,
+            party::dispatch::Signed { reply_to, sign_in, key },
+            digest,
+            act,
+        ),
         Event::ChangeSettings { reply_to, sign_in, key, digest, change } => settings::dispatch::start(
             core,
             env,

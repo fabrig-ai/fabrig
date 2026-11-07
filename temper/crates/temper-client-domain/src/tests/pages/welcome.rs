@@ -55,6 +55,7 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     frame
         .projects
         .push(c::MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: f::PROJECT,

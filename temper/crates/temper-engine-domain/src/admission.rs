@@ -34,6 +34,7 @@ pub fn completes(event: &Event) -> bool {
             PartyInput::PublicRead { .. }
             | PartyInput::Whose { .. }
             | PartyInput::ProposeSettings { .. }
+            | PartyInput::ChangeModel { .. }
             | PartyInput::ChangeSettings { .. }
             | PartyInput::SignOut { .. }
             | PartyInput::Application { .. }

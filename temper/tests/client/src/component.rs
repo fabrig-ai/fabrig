@@ -91,6 +91,9 @@ impl Composition {
                 .models
                 .iter()
                 .map(|model| clients::Model {
+                    number: 1,
+                    source: jig_domain_core::settings::ModelSource::Stock,
+                    estimated: false,
                     effort: model.default_effort().map(skein_lib::bytes::copy_of),
                     shown: None,
                     picker: true,
@@ -359,6 +362,7 @@ impl Composition {
         | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. })
         | core::Event::Key { reply_to, .. }
         | core::Event::ProposeSettings { reply_to, .. }
+        | core::Event::ChangeModel { reply_to, .. }
         | core::Event::ChangeSettings { reply_to, .. } = &mut event
         {
             transport.route_reply(reply_token(reply_to), self.pending_reply.take().expect("request correlation"));

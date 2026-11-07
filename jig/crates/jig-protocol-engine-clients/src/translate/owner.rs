@@ -154,6 +154,7 @@ fn project(
     w::MeProject::new(
         limits,
         w::MeProjectParts {
+            left_out: value.left_out,
             public: match names {
                 Some(names) if value.public => Some(names.project(value.project)),
                 Some(_) | None => None,

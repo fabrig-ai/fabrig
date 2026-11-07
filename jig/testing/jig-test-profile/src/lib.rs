@@ -357,7 +357,12 @@ pub fn config(seed: u64) -> root::Config {
             }]),
             connectors: Box::new([1, 2]),
             settings: core::Settings {
-                endpoints: Box::new([core::EndpointFacts { number: 1, dialect: 3, program: None }]),
+                endpoints: Box::new([core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: 3,
+                    program: None,
+                }]),
                 deployment_provider: 3,
                 models: Box::new([scripted_model()]),
                 resume_bytes: 256,

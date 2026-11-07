@@ -128,6 +128,9 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
         .models()
         .iter()
         .map(|model| jig_protocol_engine_clients::Model {
+            number: 1,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             effort: model.default_effort().map(skein_lib::bytes::copy_of),
             shown: None,
             picker: true,

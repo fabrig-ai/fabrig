@@ -102,6 +102,7 @@ pub(in crate::codec) fn wire_me_project(value: &c::MeProject, limits: &w::Limits
     w::MeProject::new(
         limits,
         w::MeProjectParts {
+            left_out: value.left_out,
             public: None,
             project: value.project,
             name: wire_document_text(&value.name, limits)?,

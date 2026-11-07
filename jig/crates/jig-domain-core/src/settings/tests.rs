@@ -886,7 +886,8 @@ fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
 fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
     let config = config(1);
     let mut settings = config.settings;
-    settings.endpoints = Box::new([crate::EndpointFacts { number: 1, dialect: 3, program: None }]);
+    settings.endpoints =
+        Box::new([crate::EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]);
     let value = CatalogueModel {
         number: 9,
         model: settings.models[0].clone(),
@@ -994,11 +995,12 @@ fn resetting_a_model_with_no_default_is_out_of_shape() {
 }
 #[test]
 fn valid_name_takes_the_shapes_a_provider_names_a_model_by() {
+    const NAME_BYTES: u32 = 128;
     for name in [b"claude-opus-5-5".as_slice(), b"openai:gpt_6.1", b"A0", b"-._:"] {
         assert!(catalogue::valid_name(name));
     }
-    let mut name = List::with_capacity(crate::MODEL_NAME_BYTES.checked_add(1).unwrap());
-    for _ in 0..crate::MODEL_NAME_BYTES {
+    let mut name = List::with_capacity(NAME_BYTES.checked_add(1).unwrap());
+    for _ in 0..NAME_BYTES {
         name.push(b'a').unwrap();
     }
     assert!(catalogue::valid_name(name.as_slice()));

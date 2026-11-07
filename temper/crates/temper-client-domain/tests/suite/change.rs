@@ -66,6 +66,7 @@ mod tests {
         let mut projects = List::with_capacity(2);
         projects
             .push(MeProject {
+                left_out: 0,
                 defaults: List::with_capacity(0),
                 public: None,
                 project: 1,
