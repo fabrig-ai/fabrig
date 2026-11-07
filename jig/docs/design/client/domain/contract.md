@@ -663,10 +663,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     (`made`, its record's `created_at`), last activity, and what it
     waits on; the LLM choice its next run takes, what it was given or, given
     none, what its check would take now (`../../domain/accounts.md`, 4.3):
-    its `later`, as the choice's main and sub-agents with `later` none, once
-    the task's reasons hold no `first`, and while they hold it the first
-    choice with its `later` beside it (`../../domain/tasks.md`, section 3
-    and 8.6),
+    its `later`, when present, as the choice's main and sub-agents with
+    `later` none, once the task's reasons hold no `first` and its charter's
+    runs do not resume; otherwise the first choice with its `later`
+    beside it (`../../domain/tasks.md`, section 3 and 8.6),
     and none for a task given none that no account serving its payer can
     run, so that a client names no model it wasn't given, with the creator's
     optional account preference,
@@ -1651,6 +1651,13 @@ designs (`../../protocol/client.md`):
   and bundle, which jig never serves (`../../protocol/service.md`).
 
 ## 11. Open questions
+
+- **Refusal paths within charter parts** (3.2): a malformed part in a
+  settings change is refused at its charter's request item as out of shape
+  or past its count. Naming the part and its `on` member needs a refusal
+  vocabulary beyond the charter-document paths. Default: the item's
+  position and the existing shape or count refusal; configuration keeps
+  its own part paths (`../../protocol/configuration.md`, section 3).
 
 - **Decisions on replaced task proposals** (3.2, 4): automatically
   replacing a task's pending settings proposal keeps no decision record.
