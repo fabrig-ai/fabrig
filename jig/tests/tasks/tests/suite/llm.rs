@@ -14,7 +14,7 @@ fn effort(model: u8, effort: Option<u8>) -> ModelEffort {
 }
 
 fn choice(main: ModelEffort, subagents: &[ModelEffort]) -> LlmChoice {
-    LlmChoice { account: None, main, subagents: subagents.into() }
+    LlmChoice { later: None, account: None, main, subagents: subagents.into() }
 }
 
 fn allowing(models: u64) -> Authority {
@@ -157,8 +157,8 @@ fn a_choice_checked_alone_fits_or_names_an_unoffered_charter() {
 #[test]
 fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
     let mut charters = jig_tasks_world::charters().into_vec();
-    charters.push(CharterModels { number: 1, revision: 2, models: Some(Box::new([1])) });
-    charters.push(CharterModels { number: 2, revision: 2, models: None });
+    charters.push(CharterModels { resumes: false, number: 1, revision: 2, models: Some(Box::new([1])) });
+    charters.push(CharterModels { resumes: false, number: 2, revision: 2, models: None });
     let domain = Domain::new(
         &LIMITS,
         jig_domain_tasks::Kept { revisions: 4, versions: 8 },

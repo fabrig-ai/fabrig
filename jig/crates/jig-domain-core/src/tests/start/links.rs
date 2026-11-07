@@ -229,6 +229,7 @@ fn stored_llm_choice_names_the_task_that_configuration_cannot_hold() {
     let (mut core, env) = loaded();
     let mut row = task();
     row.llm = Some(tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: u8::MAX, effort: None },
         subagents: Box::new([]),

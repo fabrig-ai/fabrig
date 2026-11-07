@@ -159,6 +159,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         retries,
         facts,
         room_refusals,
+        ..
     } = limits;
     let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid } = retries;
     let jig_domain_tasks::Retry { retries: transient_retries, base: transient_base, max: transient_max } = transient;

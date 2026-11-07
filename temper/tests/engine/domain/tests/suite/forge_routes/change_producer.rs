@@ -25,7 +25,12 @@ fn models() -> Box<[engine::Model]> {
 }
 
 fn choice(model: u8) -> tasks::LlmChoice {
-    tasks::LlmChoice { account: None, main: tasks::ModelEffort { model, effort: None }, subagents: Box::new([]) }
+    tasks::LlmChoice {
+        later: None,
+        account: None,
+        main: tasks::ModelEffort { model, effort: None },
+        subagents: Box::new([]),
+    }
 }
 
 fn goal(allow_producer: bool) -> (World, engine::Assignment) {

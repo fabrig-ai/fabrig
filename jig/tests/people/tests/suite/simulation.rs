@@ -842,8 +842,12 @@ fn a_retained_create_distinguishes_its_account_preference() {
     member(&mut world);
     let mut ask = jig_people_world::fixtures::create(b"chosen", None);
     let Ask::Create { batch, .. } = &mut ask else { panic!("create") };
-    batch[0].llm =
-        Some(LlmChoice { account: Some(41), main: ModelEffort { model: 0, effort: None }, subagents: Box::new([]) });
+    batch[0].llm = Some(LlmChoice {
+        later: None,
+        account: Some(41),
+        main: ModelEffort { model: 0, effort: None },
+        subagents: Box::new([]),
+    });
     let first = world.request(SIGN_IN, [CREATE; 16], ask.clone());
     world.commit_all();
     let expected = world.reply(first);

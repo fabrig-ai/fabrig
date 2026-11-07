@@ -747,6 +747,8 @@ mod tests {
         for event in [
             tasks::Event::Prepare { reply_to: to(), task },
             tasks::Event::Claim {
+                offered: jig_domain_tasks::Reasons::ALL,
+                reasons: jig_domain_tasks::Reasons::FIRST,
                 reply_to: to(),
                 task,
                 attempt: FIRST_ATTEMPT,

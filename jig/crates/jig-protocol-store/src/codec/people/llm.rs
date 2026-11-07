@@ -7,7 +7,7 @@ pub(super) fn encode_llm(
     source: Option<&domain::LlmChoice>,
     limits: &wire::Limits,
 ) -> Result<Option<wire::LlmChoice>, wire::Problem> {
-    let Some(domain::LlmChoice { account, main, subagents }) = source else {
+    let Some(domain::LlmChoice { account, main, subagents, .. }) = source else {
         return Ok(None);
     };
     let mut chosen = List::with_capacity(limits.llm_choice_subagents);
@@ -32,7 +32,7 @@ pub(super) fn decode_llm(source: Option<wire::LlmChoice>) -> Option<domain::LlmC
     for subagent in subagents.into_boxed() {
         chosen.push(decode_model_effort(subagent)).expect("same number of sub-agents");
     }
-    Some(domain::LlmChoice { account, main: decode_model_effort(main), subagents: chosen.into_boxed() })
+    Some(domain::LlmChoice { later: None, account, main: decode_model_effort(main), subagents: chosen.into_boxed() })
 }
 fn decode_model_effort(source: wire::ModelEffort) -> domain::ModelEffort {
     let wire::ModelEffortParts { model, effort } = source.into_parts();

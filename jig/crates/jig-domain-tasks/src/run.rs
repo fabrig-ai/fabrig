@@ -68,6 +68,8 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
 }
 
 pub(crate) struct Claiming {
+    pub(crate) reasons: crate::Reasons,
+    pub(crate) offered: crate::Reasons,
     pub(crate) number: u64,
     pub(crate) attempt: u64,
     pub(crate) resumed: bool,
@@ -77,7 +79,7 @@ pub(crate) struct Claiming {
 }
 
 pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
-    let Claiming { number, attempt, resumed, budget, account, writes } = claiming;
+    let Claiming { number, attempt, resumed, budget, account, writes, reasons, offered } = claiming;
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
@@ -118,6 +120,8 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
     if let Some(account) = account {
         task.record.kept_account = Some(account);
     }
+    task.record.reasons = reasons;
+    task.record.offered = offered;
     task.record.attempt = attempt;
     task.record.run_since = None;
     task.record.retry_notice = None;

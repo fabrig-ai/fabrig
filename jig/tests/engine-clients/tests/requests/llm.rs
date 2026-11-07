@@ -123,6 +123,7 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     assert_eq!(
         live_row(&world, created.first()).llm,
         Some(tasks::LlmChoice {
+            later: None,
             account: None,
             main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
             subagents: Box::new([tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) }]),
@@ -160,6 +161,7 @@ fn an_amend_naming_a_choice_changes_the_one_the_task_s_next_run_takes() {
     assert_eq!(route_real_core(&mut peer, &mut world), [[65; 16]], "core reply: {:?}", world.people_answers.last());
     let w::Final::Done(_) = final_answer(&peer, socket) else { panic!("amended") };
     let chosen = tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: SCRIPTED, effort: Some(HIGH) },
         subagents: Box::new([]),
