@@ -1814,6 +1814,12 @@ the newest when it moved.
 
 ## 13. Open questions
 
+- **Replacing at the deployment's proposal bound** (section 9): whether
+  the fresh settings proposal may count the set it replaces as room.
+  Default: the core checks the bound before withdrawing anything; a full
+  bound refuses the fresh proposal and leaves the old one pending
+  (`engine.md`, 16 and 17.6).
+
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
   coordinator wakes. Tuned from use.

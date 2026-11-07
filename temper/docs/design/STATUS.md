@@ -277,8 +277,14 @@ gaining access, and effort refusals name the effort locally only for models
 a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+project's Needs you and rail's count and is accepted on its chat's card. A fresh
+proposal replaces the chat's own pending one; live cards draw application rows
+from the review and its proposal-value key, templates by name and activity as
+"Proposed a change". Latest has its own row on a phone, held by CSS assertions;
+a measured press and the new instructions' real-model proof follow landing.
+Without a review, a card has no application rows; ended cards retain only
+kind 6 and 7 values already read in the session. An accepted card still stays
+on Needs you. No live turn
 names its proposal, so its card stands after the turn that made it; filling the call's
 objects and the real-model proposal-card QA walk remain separate work. The chat's card
 draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
