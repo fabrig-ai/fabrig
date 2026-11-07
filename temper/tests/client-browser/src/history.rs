@@ -18,6 +18,19 @@ impl Tier {
         chat_calls(&temper(), &self.scratch.path().join("client"), first, then)
     }
 
+    /// Start chat `task`, the next number the box gives, waiting for its answer and each following message's.
+    #[must_use]
+    pub fn ctl_next_chat(&self, task: u32, first: &str, then: &[&str]) -> Vec<Step> {
+        next_chat_calls(&temper(), &self.scratch.path().join("client"), task, first, then)
+    }
+
+    /// Send chat `task` each of `words`, each answered before the next; `from` numbers
+    /// the first message's key, past any this chat was sent.
+    #[must_use]
+    pub fn ctl_messages(&self, task: u32, from: u32, words: &[&str]) -> Vec<Step> {
+        message_calls(&temper(), &self.scratch.path().join("client"), task, from, words)
+    }
+
     /// Sign ctl in, finish its calls, then open the spent link to print the reader's fresh link.
     #[must_use]
     pub fn ctl_face(&self, calls: Vec<Step>) -> Script {
@@ -87,16 +100,30 @@ fn ctl_call(program: &Path, directory: &Path, words: &[&str]) -> [Step; 2] {
 
 fn chat_calls(program: &Path, directory: &Path, first: &str, then: &[&str]) -> Vec<Step> {
     let mut calls = Vec::from(ctl_call(program, directory, &["playground", "start", "--key", "history-playground"]));
-    calls.extend(ctl_call(
+    calls.extend(next_chat_calls(program, directory, 1, first, then));
+    calls
+}
+
+fn next_chat_calls(program: &Path, directory: &Path, task: u32, first: &str, then: &[&str]) -> Vec<Step> {
+    let key = format!("history-chat-{task}");
+    let mut calls = Vec::from(ctl_call(
         program,
         directory,
-        &["chat", "start", "--project", "1", "--model", "demo", "--key", "history-chat", first],
+        &["chat", "start", "--project", "1", "--model", "demo", "--key", &key, first],
     ));
-    calls.extend(ctl_call(program, directory, &["task", "show", "1", "--until", "replied"]));
-    for (number, words) in then.iter().enumerate() {
-        let key = format!("history-message-{number}");
-        calls.extend(ctl_call(program, directory, &["task", "message", "1", words, "--key", &key]));
-        calls.extend(ctl_call(program, directory, &["task", "show", "1", "--until", "replied"]));
+    calls.extend(ctl_call(program, directory, &["task", "show", &task.to_string(), "--until", "replied"]));
+    calls.extend(message_calls(program, directory, task, 0, then));
+    calls
+}
+
+fn message_calls(program: &Path, directory: &Path, task: u32, from: u32, words: &[&str]) -> Vec<Step> {
+    let mut calls = Vec::new();
+    let task = task.to_string();
+    for (offset, words) in words.iter().enumerate() {
+        let number = from.checked_add(u32::try_from(offset).expect("message count fits")).expect("message key fits");
+        let key = format!("history-message-{task}-{number}");
+        calls.extend(ctl_call(program, directory, &["task", "message", &task, words, "--key", &key]));
+        calls.extend(ctl_call(program, directory, &["task", "show", &task, "--until", "replied"]));
     }
     calls
 }
@@ -177,5 +204,61 @@ mod tests {
         }
         assert!(!waiting, "the reader opens only after the final answer");
         assert_eq!(messages, MESSAGES, "the first words and both following messages");
+    }
+
+    #[test]
+    fn two_chats_name_their_own_task_and_keep_distinct_keys() {
+        const WORDS: &str = "Repeated words";
+        let program = Path::new("/test/temper");
+        let directory = Path::new("/test/client");
+        let mut keys = BTreeSet::new();
+        let mut starts = 0;
+        let mut messages = 0;
+        let mut waits = 0;
+        for (task, from, calls) in [
+            (1, 0, next_chat_calls(program, directory, 1, WORDS, &[WORDS])),
+            (2, 0, next_chat_calls(program, directory, 2, WORDS, &[WORDS])),
+            (1, 1, message_calls(program, directory, 1, 1, &[WORDS, WORDS])),
+        ] {
+            let task = task.to_string();
+            let mut number = from;
+            let mut waiting = false;
+            for step in calls {
+                if let Step::Run(command) = step {
+                    let words: Vec<_> =
+                        command.args.iter().skip(2).map(|arg| arg.to_str().expect("ctl word")).collect();
+                    match words.as_slice() {
+                        ["chat", "start", "--project", "1", "--model", "demo", "--key", key, WORDS] => {
+                            assert!(!waiting, "the previous answer must finish before another message");
+                            assert_eq!(*key, format!("history-chat-{task}"));
+                            assert!(keys.insert((*key).to_owned()), "a key cannot name two acts");
+                            starts += 1;
+                            waiting = true;
+                        }
+                        ["task", "message", called_task, WORDS, "--key", key] => {
+                            assert!(!waiting, "the previous answer must finish before another message");
+                            assert_eq!(*called_task, task, "a message belongs to its chat");
+                            assert_eq!(*key, format!("history-message-{task}-{number}"));
+                            assert!(keys.insert((*key).to_owned()), "a key cannot name two acts");
+                            number += 1;
+                            messages += 1;
+                            waiting = true;
+                        }
+                        ["task", "show", called_task, "--until", "replied"] => {
+                            assert!(waiting, "a wait belongs to a message");
+                            assert_eq!(*called_task, task, "a wait belongs to its chat");
+                            waits += 1;
+                            waiting = false;
+                        }
+                        _ => panic!("unexpected history call"),
+                    }
+                }
+            }
+            assert!(!waiting, "each batch finishes after its final answer");
+        }
+        assert_eq!(starts, 2);
+        assert_eq!(messages, 4);
+        assert_eq!(waits, 6);
+        assert_eq!(keys.len(), 6);
     }
 }
