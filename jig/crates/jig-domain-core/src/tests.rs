@@ -508,6 +508,7 @@ fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u3
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
         accounts::Stored::Account {
+            list: None,
             number,
             provider,
             holder: accounts::Holder::Deployment,

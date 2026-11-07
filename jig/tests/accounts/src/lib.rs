@@ -132,7 +132,16 @@ pub fn providers(list: Vec<Provider>) -> Providers {
 }
 #[must_use]
 pub fn account(number: u32, provider: u32, holder: Holder, subject: &[u8]) -> Stored {
-    Stored::Account { place: 0, uses: None, number, provider, holder, subject: subject.into(), display: Box::new([]) }
+    Stored::Account {
+        list: None,
+        place: 0,
+        uses: None,
+        number,
+        provider,
+        holder,
+        subject: subject.into(),
+        display: Box::new([]),
+    }
 }
 /// An account of the world's holder with its configured provider.
 #[must_use]

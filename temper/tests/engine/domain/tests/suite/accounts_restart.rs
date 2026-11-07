@@ -198,6 +198,7 @@ fn issued(number: u32) -> accounts::Stored {
 
 fn account(number: u32) -> accounts::Stored {
     accounts::Stored::Account {
+        list: None,
         number,
         provider: CLAUDE,
         holder: accounts::Holder::Party(1),

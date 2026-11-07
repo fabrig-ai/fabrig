@@ -92,6 +92,7 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
 }
 pub(in crate::tests) fn account(number: u32, holder: accounts::Holder) -> accounts::Stored {
     accounts::Stored::Account {
+        list: None,
         place: 0,
         uses: None,
         number,

@@ -536,6 +536,7 @@ fn placement_with_accounts(
     let program_account = if main_holder == login_holder { 0 } else { 2 };
     let mut records = vec![
         accounts::Stored::Account {
+            list: None,
             number: 0,
             provider: 1,
             holder: main_holder,
@@ -571,6 +572,7 @@ fn placement_with_accounts(
         records.insert(
             1,
             accounts::Stored::Account {
+                list: None,
                 number: program_account,
                 provider: 2,
                 holder: login_holder,
@@ -760,6 +762,7 @@ fn a_retained_provider_binds_an_account_the_rule_allows() {
     let mut extra = Vec::new();
     for (number, source, holder) in [(2, 7, accounts::Holder::Deployment), (5, 6, accounts::Holder::Party(OWNER))] {
         extra.push(accounts::Stored::Account {
+            list: None,
             number,
             provider: 2,
             holder,
@@ -814,6 +817,7 @@ fn a_declared_model_s_account_takes_no_program_source() {
         false,
         vec![
             accounts::Stored::Account {
+                list: None,
                 number: 5,
                 provider: 2,
                 holder: accounts::Holder::Party(OWNER),

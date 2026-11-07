@@ -227,6 +227,7 @@ impl Owner {
             let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: child_limits };
             for record in [
                 child::Stored::Account {
+                    list: None,
                     number: account + 1_000,
                     provider: 1,
                     holder: child::Holder::Deployment,
@@ -270,6 +271,7 @@ impl Owner {
         if held {
             for record in [
                 child::Stored::Account {
+                    list: None,
                     number: 1000,
                     provider: 1,
                     holder: child::Holder::Party(7),
