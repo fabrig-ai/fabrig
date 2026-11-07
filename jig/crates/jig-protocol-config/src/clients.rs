@@ -8,7 +8,7 @@ use jig_protocol_engine_clients as kit;
 pub use provider::{Provider, ProviderClient, provider_key};
 use skein_json::Document;
 use skein_lib::{Duration, List, Secret};
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Clients {
     pub heartbeat: Duration,
     pub link: bool,

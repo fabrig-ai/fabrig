@@ -39,27 +39,27 @@ pub(super) fn generated() -> Box<[u8]> {
     panic!("init writes temper.json")
 }
 fn single_model() -> Box<[u8]> {
-    let mut document = generated();
-    for (path, first) in [
-        (b"engine.llm.providers".as_slice(), b"engine.llm.providers[0]".as_slice()),
-        (b"engine.llm.providers[0].models", b"engine.llm.providers[0].models[0]"),
-        (b"engine.llm.endpoints", b"engine.llm.endpoints[0]"),
-        (b"engine.llm.models", b"engine.llm.models[3]"),
-    ] {
-        let one = [b"[".as_slice(), &fixtures::value(&document, first), b"]"].concat();
-        document = fixtures::with(&document, path, &one);
-    }
-    fixtures::with(&document, b"application.demo", b"null")
+    let bytes = generated();
+    let document = fixtures::Json::new(&bytes);
+    let provider = fixtures::Json::new(document.value(b"engine.llm.providers[0]"));
+    let models = [b"[".as_slice(), provider.value(b"models[0]"), b"]"].concat();
+    let provider = provider.with(&[(b"models", &models)]);
+    let providers = [b"[".as_slice(), &provider, b"]"].concat();
+    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
+    let models = [b"[".as_slice(), document.value(b"engine.llm.models[3]"), b"]"].concat();
+    document.with(&[
+        (b"engine.llm.providers", &providers),
+        (b"engine.llm.endpoints", &endpoints),
+        (b"engine.llm.models", &models),
+        (b"application.demo", b"null"),
+    ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     fixtures::parse_engine(&fixtures::value(document, b"engine"))
 }
 fn without_projects() -> Box<[u8]> {
-    let mut document = generated();
-    for (path, value) in [(b"engine.projects".as_slice(), b"[]".as_slice()), (b"application.demo", b"null")] {
-        document = fixtures::with(&document, path, value);
-    }
-    document
+    let document = generated();
+    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
 }
 /// Replace one engine override, keeping every other generated entry.
 pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
