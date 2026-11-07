@@ -30,8 +30,8 @@ fn a_hello_record_becomes_the_hubs_hello_with_its_bounds() {
         hello.hosting.as_ref(),
         &[Hosting { run: Token::new(7), attempt: Token::new(2), phase: Phase::Waiting }]
     );
-    let model = hello.bounds.models.first().expect("one model");
-    assert_eq!(model.name.as_ref(), b"model");
+    let model = hello.bounds.endpoints.first().expect("one model");
+    assert_eq!(model.endpoint, 1);
     assert_eq!(model.window, 8192);
     assert_eq!(model.output, 1024);
     assert_eq!(hello.bounds.turns, 8);

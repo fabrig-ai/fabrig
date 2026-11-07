@@ -32,18 +32,9 @@ impl Memory {
             Config {
                 programs: Box::new([]),
                 endpoints: Box::new([super::Endpoint(0)]),
-                models: Box::new([smith_domain::ConfiguredModel {
-                    efforts: Box::new([]),
-                    prices: smith_domain::run::Prices {
-                        input: 1,
-                        cached: 1,
-                        cache_write: None,
-                        output: 1,
-                        unit: 1_000_000,
-                    },
+                limits: Box::new([smith_domain::EndpointLimits {
                     protocol_allowance: 0,
                     endpoint: super::Endpoint(0),
-                    model: b"m".as_slice().into(),
                     window: 272_000,
                     output: 32_000,
                     head: Duration::from_secs(60),

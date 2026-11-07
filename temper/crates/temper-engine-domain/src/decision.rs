@@ -635,7 +635,8 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
                 crate::WorkerRequest::Host(_) | crate::WorkerRequest::ReadResult { .. },
             )
             | crate::Output::Party(
-                crate::PartyRequest::SignInRefused { .. }
+                crate::PartyRequest::Catalogue { .. }
+                | crate::PartyRequest::SignInRefused { .. }
                 | crate::PartyRequest::WatchRefused { .. }
                 | crate::PartyRequest::RunText { .. },
             )

@@ -2317,14 +2317,24 @@ fn a_stock_goal_can_subscribe_to_main_with_its_held_branches() {
 fn stock_subscription_goal() -> (World, engine::Assignment) {
     let limits = temper_engine_domain_world::forge_routes::box_limits();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: walking::models(),
+        models: (walking::models())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     defaults.rules.ceiling.tools = authority::Tools(1967);
     let policy = defaults.policies.get_mut(&1).expect("project policy");
     policy.policy.ceiling.tools = authority::Tools(1967);

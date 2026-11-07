@@ -10,17 +10,28 @@ const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the 
 fn status_world(allowed: bool, funded: bool) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
-        models: Box::new([model.clone()]),
-        descriptions: Box::new([None]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         endpoints: Box::new([]),
         providers: Box::new([]),
     };
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // The same signed-in person returns for the next sitting.
     limits.people.sign_in_lifetime = Duration::from_secs(7200);
-    let mut defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
         let number = charter.number;

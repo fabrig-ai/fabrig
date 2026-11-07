@@ -383,6 +383,13 @@ delegation's kinds (`../domain/authority.md`, section 3). The accounts family's 
 (`../domain/accounts.md`, section 6). A store at another version of any
 family refuses to open under the format check (5.3).
 
+A `model` setting's value holds no index, so **at open** the store reads the
+settings family's `model` changes by key range, before any family's
+restore, and takes its names as the given defaults' overlaid with them, so
+that a stored vocabulary's model a person added isn't read as gone; and it
+takes each later catalogue from the root, before the commit that makes it
+(`../domain/engine.md`, 17.11).
+
 Settings (`../domain/engine.md`, section 17) are the core's two
 settings families (4.4), under a schema of their own, `settings`, whose
 version the format row names beside the others' (5.3), so that their

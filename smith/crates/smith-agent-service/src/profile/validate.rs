@@ -13,7 +13,7 @@ use super::{Check, Configuration, Layer, Limit, LimitName, Per, Profile, Refusal
 
 /// Check declared relationships before any deriving or provider work.
 pub fn declarations(profile: &Profile, configuration: &Configuration) -> Result<(), Refusal> {
-    configured_models(configuration)?;
+    configured_endpoints(configuration)?;
     if !(1..=smith_domain::session::MAX_PARALLEL).contains(&profile.policy.parallel_tools) {
         return Err(Refusal::Field { limit: LimitName::deployment(Layer::Policy, "parallel_tools") });
     }
@@ -45,38 +45,26 @@ pub fn declarations(profile: &Profile, configuration: &Configuration) -> Result<
             LimitName { layer: Layer::Policy, field: "handshake", per: Per::Endpoint(endpoint.number) },
             endpoint.handshake,
         )?;
-        for (index, model) in endpoint.models.iter().enumerate() {
-            let per = Per::Model {
-                endpoint: endpoint.number,
-                model: u32::try_from(index)
-                    .or(Err(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "configured_models") }))?,
-            };
-            let output = LimitName { layer: Layer::Declared, field: "output", per }
-                .value(Value::Tokens(u64::from(model.output)));
-            let window = LimitName { layer: Layer::Declared, field: "window", per }
-                .value(Value::Tokens(u64::from(model.window)));
-            if model.output >= model.window {
-                return Err(Refusal::Broken { check: Check::OutputInWindow, left: output, right: window });
-            }
-            positive_duration(LimitName { layer: Layer::Declared, field: "head", per }, model.head)?;
-            positive_duration(LimitName { layer: Layer::Declared, field: "idle", per }, model.idle)?;
+        let endpoint_limits = &endpoint.limits;
+        let per = Per::Endpoint(endpoint.number);
+        let output = LimitName { layer: Layer::Declared, field: "output", per }
+            .value(Value::Tokens(u64::from(endpoint_limits.output)));
+        let window = LimitName { layer: Layer::Declared, field: "window", per }
+            .value(Value::Tokens(u64::from(endpoint_limits.window)));
+        if endpoint_limits.output >= endpoint_limits.window {
+            return Err(Refusal::Broken { check: Check::OutputInWindow, left: output, right: window });
         }
+        positive_duration(LimitName { layer: Layer::Declared, field: "head", per }, endpoint_limits.head)?;
+        positive_duration(LimitName { layer: Layer::Declared, field: "idle", per }, endpoint_limits.idle)?;
     }
     Ok(())
 }
 
-/// Refuse missing endpoint or model declarations before their bounds are derived.
+/// Refuse missing endpoint declarations before their bounds are derived.
 /// Contract: smith/docs/design/protocol/agent.md, section 4.
-pub fn configured_models(configuration: &Configuration) -> Result<(), Refusal> {
+pub fn configured_endpoints(configuration: &Configuration) -> Result<(), Refusal> {
     if configuration.endpoints.is_empty() {
         return Err(Refusal::Field { limit: LimitName::deployment(Layer::Declared, "endpoints") });
-    }
-    for endpoint in &configuration.endpoints {
-        if endpoint.models.is_empty() {
-            return Err(Refusal::Field {
-                limit: LimitName { layer: Layer::Declared, field: "models", per: Per::Endpoint(endpoint.number) },
-            });
-        }
     }
     Ok(())
 }
@@ -174,6 +162,15 @@ fn positive_duration(name: LimitName, duration: Duration) -> Result<(), Refusal>
 fn vocabulary(profile: &Profile) -> Result<(), Refusal> {
     let ceilings = smith_charter::CEILINGS;
     let policy = profile.policy;
+    at_most(
+        Check::CeilingsInVocabulary,
+        count(Layer::Declared, "charter_models", profile.declared.charter_models),
+        count(
+            Layer::Channel,
+            "charter_models",
+            ceilings.charter_models.checked_add(1).expect("main beside the codec's children"),
+        ),
+    )?;
     let checks = [
         CountPair {
             field: "sections",
@@ -438,50 +435,46 @@ pub fn window_first(
         super::room::compaction_material(profile.declared.calls_per_response, smith_domain::run::summary_bytes())
             .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Run, "compaction_material") })?;
     for endpoint in &configuration.endpoints {
-        for (index, model) in endpoint.models.iter().enumerate() {
-            let per = Per::Model { endpoint: endpoint.number, model: u32::try_from(index).expect("bounded models") };
-            let refusal = Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "line", per } };
-            let line_bytes = u64::from(model.window)
-                .checked_sub(u64::from(model.output))
-                .ok_or(refusal)?
-                .checked_sub(material)
-                .ok_or(refusal)?
-                .checked_mul(u64::from(skein_llm::TOKEN_BYTES))
-                .ok_or(refusal)?;
-            let bytes = line_bytes
-                .checked_add(reserve)
-                .ok_or(Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "history_bytes", per } })?;
-            at_most(
-                Check::WindowFirst,
-                LimitName { layer: Layer::Session, field: "line", per }.value(Value::Bytes(bytes)),
-                LimitName { layer: Layer::Session, field: "history_bytes", per }
-                    .value(Value::Bytes(limits.history_bytes)),
-            )?;
-            let messages = line_bytes
-                .checked_div(u64::try_from(size_of::<smith_domain::session::llm::Block>()).expect("cell fits"))
-                .expect("nonzero cell")
-                .checked_add(2)
-                .ok_or(Refusal::Derived {
-                    limit: LimitName { layer: Layer::Session, field: "history_messages", per },
-                })?;
-            let blocks = line_bytes
-                .checked_div(u64::try_from(size_of::<smith_domain::session::llm::Block>()).expect("cell fits"))
-                .expect("nonzero cell")
-                .checked_add(u64::from(limits.completion_blocks).checked_mul(2).expect("u32 twice fits u64"))
-                .ok_or(Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "history_blocks", per } })?;
-            at_most(
-                Check::WindowFirst,
-                LimitName { layer: Layer::Session, field: "window_messages", per }.value(Value::Count(messages)),
-                LimitName { layer: Layer::Session, field: "history_messages", per }
-                    .value(Value::Count(u64::from(limits.history_messages))),
-            )?;
-            at_most(
-                Check::WindowFirst,
-                LimitName { layer: Layer::Session, field: "window_blocks", per }.value(Value::Count(blocks)),
-                LimitName { layer: Layer::Session, field: "history_blocks", per }
-                    .value(Value::Count(u64::from(limits.history_blocks))),
-            )?;
-        }
+        let endpoint_limits = &endpoint.limits;
+        let per = Per::Endpoint(endpoint.number);
+        let refusal = Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "line", per } };
+        let line_bytes = u64::from(endpoint_limits.window)
+            .checked_sub(u64::from(endpoint_limits.output))
+            .ok_or(refusal)?
+            .checked_sub(material)
+            .ok_or(refusal)?
+            .checked_mul(u64::from(skein_llm::TOKEN_BYTES))
+            .ok_or(refusal)?;
+        let bytes = line_bytes
+            .checked_add(reserve)
+            .ok_or(Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "history_bytes", per } })?;
+        at_most(
+            Check::WindowFirst,
+            LimitName { layer: Layer::Session, field: "line", per }.value(Value::Bytes(bytes)),
+            LimitName { layer: Layer::Session, field: "history_bytes", per }.value(Value::Bytes(limits.history_bytes)),
+        )?;
+        let messages = line_bytes
+            .checked_div(u64::try_from(size_of::<smith_domain::session::llm::Block>()).expect("cell fits"))
+            .expect("nonzero cell")
+            .checked_add(2)
+            .ok_or(Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "history_messages", per } })?;
+        let blocks = line_bytes
+            .checked_div(u64::try_from(size_of::<smith_domain::session::llm::Block>()).expect("cell fits"))
+            .expect("nonzero cell")
+            .checked_add(u64::from(limits.completion_blocks).checked_mul(2).expect("u32 twice fits u64"))
+            .ok_or(Refusal::Derived { limit: LimitName { layer: Layer::Session, field: "history_blocks", per } })?;
+        at_most(
+            Check::WindowFirst,
+            LimitName { layer: Layer::Session, field: "window_messages", per }.value(Value::Count(messages)),
+            LimitName { layer: Layer::Session, field: "history_messages", per }
+                .value(Value::Count(u64::from(limits.history_messages))),
+        )?;
+        at_most(
+            Check::WindowFirst,
+            LimitName { layer: Layer::Session, field: "window_blocks", per }.value(Value::Count(blocks)),
+            LimitName { layer: Layer::Session, field: "history_blocks", per }
+                .value(Value::Count(u64::from(limits.history_blocks))),
+        )?;
     }
     Ok(())
 }

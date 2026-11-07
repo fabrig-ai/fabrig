@@ -106,7 +106,13 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_
     let mut domain = core::Core::new(jig_test_profile::config(192).core, &limits).expect("fixture core");
     domain.counters = core::Counters::new(domain.counters.deployment());
     let setup = meter.end();
-    let bound = FINISHING_QUERIES_HEAP_CEILING;
+    // The current catalogue adds a boxed default and the resolved charter map;
+    // two run-byte bounds cover their owned model and policy bytes in this fixture.
+    let bound = FINISHING_QUERIES_HEAP_CEILING
+        + skein_lib::Map::<u32, core::Charter>::price(limits.tasks.charters).expect("resolved charter map")
+        + u64::from(limits.run_bytes) * 2
+        + u64::try_from(size_of::<core::settings::CatalogueModel>()).expect("catalogue record")
+        + u64::try_from(size_of::<core::EndpointFacts>()).expect("endpoint facts");
     meter.check(setup, bound, &limits);
     let held = meter.held();
     meter.start();

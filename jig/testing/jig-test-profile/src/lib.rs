@@ -261,6 +261,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {
+        provider: 1,
         dialect: 3,
         endpoint: 1,
         program: None,
@@ -356,6 +357,12 @@ pub fn config(seed: u64) -> root::Config {
             }]),
             connectors: Box::new([1, 2]),
             settings: core::Settings {
+                endpoints: Box::new([core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: 3,
+                    program: None,
+                }]),
                 deployment_provider: 3,
                 models: Box::new([scripted_model()]),
                 resume_bytes: 256,
@@ -369,14 +376,15 @@ pub fn config(seed: u64) -> root::Config {
                         signed_in_plan: true,
                         manage_usage: Some(b"https://usage.example/".as_slice().into()),
                         number: 1,
-                        models: Box::new([b"scripted".as_slice().into()]),
                         offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
                     }]),
                 },
             },
             kinds: Box::default(),
             defaults: core::settings::Defaults {
+                models: Box::default(),
                 charters: Box::new([core::Charter {
+                    rest: false,
                     wake: jig_domain_tasks::WakePolicy::DEFAULT,
                     documents: Box::new([]),
                     number: 1,

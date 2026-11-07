@@ -75,7 +75,7 @@ pub struct Store {
     application: sizes::Application,
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
-    /// The configured models' names, which the people family keeps a role's models by.
+    /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core::settings::ModelName]>,
     stores: Stores,
     phase: Phase,
@@ -183,6 +183,11 @@ impl Store {
         let mut store = Store::over(limits, application, models, stores);
         store.directory.disk = true;
         store
+    }
+
+    /// Today's models, before a commit that holds them (domain/engine.md, 17.11).
+    pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+        self.names = names;
     }
 
     /// The first open failure, with no stored values (store.md, 9).

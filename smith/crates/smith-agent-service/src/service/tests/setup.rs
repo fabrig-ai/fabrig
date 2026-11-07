@@ -36,7 +36,7 @@ pub(crate) fn configuration() -> Config {
     Config {
         program: None,
         limits,
-        domain: domain::Config { programs: Box::new([]), endpoints: Box::new([]), models: Box::new([]) },
+        domain: domain::Config { programs: Box::new([]), endpoints: Box::new([]), limits: Box::new([]) },
         channel_endpoints,
         llm_endpoints,
         environment: machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
@@ -56,11 +56,8 @@ pub(crate) fn domain_configuration(charter: &run::Charter) -> domain::Config {
     domain::Config {
         programs: Box::default(),
         endpoints: Box::new([model.endpoint]),
-        models: Box::new([domain::ConfiguredModel {
+        limits: Box::new([domain::EndpointLimits {
             endpoint: model.endpoint,
-            model: model.model.clone(),
-            efforts: Box::default(),
-            prices: model.prices,
             window: model.window,
             output: model.output,
             protocol_allowance: 0,

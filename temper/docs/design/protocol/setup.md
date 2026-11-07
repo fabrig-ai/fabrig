@@ -2654,9 +2654,9 @@ override.
   5.5). The request keeps its omitted choice; the preview does not turn
   it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
-  their models every model `engine.llm` configures in the stock's order
-  (configuration.md, 13.4), the scripted model last as `temper init --box`
-  writes it; the document names
+  their models first choices and the rest of the catalogue
+  (configuration.md, 13.4), the scripted model last where `demo` is
+  configured; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, with 4 slots (8.1), its `root` `workspaces` in the data

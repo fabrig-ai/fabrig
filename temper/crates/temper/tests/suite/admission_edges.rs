@@ -78,7 +78,7 @@ fn edge(part: Part, name: &str) {
     admit(&document).unwrap_or_else(|why| panic!("{name} at {required} must start: {why}"));
     let short = required - 1;
     set(&mut document, part, name, short);
-    let refusal = admit(&document).expect_err("one byte short must refuse startup");
+    let refusal = admit(&document).expect_err(&format!("one byte short must refuse startup for {name} at {short}"));
     let path = format!("{}.{name}", part.path());
     assert!(refusal.contains(&path), "missing {path}: {refusal}");
     assert!(refusal.contains(&format!("{short} bytes")), "missing configured value: {refusal}");

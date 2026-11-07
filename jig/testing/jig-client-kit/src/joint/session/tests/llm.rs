@@ -13,11 +13,7 @@ fn configuration() -> root::Config {
     blocked.name = Box::from(b"blocked".as_slice());
     config.core.defaults.charters[0].policy.alternatives = Box::new([alternate.clone(), blocked.clone()]);
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), alternate, blocked]);
-    config.core.settings.llm_providers.providers[0].models = Box::new([
-        Box::from(b"scripted".as_slice()),
-        Box::from(b"alternate".as_slice()),
-        Box::from(b"blocked".as_slice()),
-    ]);
+
     config
 }
 

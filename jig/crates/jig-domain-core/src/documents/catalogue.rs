@@ -165,13 +165,23 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
 }
 
 impl Core {
-    /// The offer for `payer` in `project`, in configuration's order
+    /// The offer for `payer` in `project`, in catalogue number order
     /// (jig/docs/design/domain/engine.md, 11.1).
     #[must_use]
     pub fn offer(&self, payer: tasks::Payer, project: u32, models: tasks::Models) -> List<Offered> {
         let coverage = self.account_coverage(payer, Some(project));
         let mut offered = List::with_capacity(tasks::MODELS);
         for (at, model) in self.settings.models.iter().enumerate() {
+            if model.is_hole() {
+                continue;
+            }
+            let number = u32::try_from(at).expect("model position").checked_add(1).expect("model number");
+            if let Some(value) = self.current.value(crate::settings::Setting::Model(number))
+                && let Some(value) = value.as_model()
+                && value.withdrawn
+            {
+                continue;
+            }
             let index = u8::try_from(at).expect("configured models bounded");
             if models.bits() & 1_u64.checked_shl(u32::from(index)).expect("model bit") == 0 {
                 continue;

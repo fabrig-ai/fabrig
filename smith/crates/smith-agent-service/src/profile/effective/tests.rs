@@ -18,24 +18,19 @@ fn names() -> smith_protocol_translate::Endpoints {
 }
 
 #[test]
-fn a_models_head_is_named_by_its_endpoint_and_model_in_milliseconds() {
+fn an_endpoints_head_is_named_in_milliseconds() {
     let limits = derive(&profile(), &declarations()).expect("fixture derives");
     let named =
         effective(&profile(), &declarations(), &limits, &endpoints(&declarations(), &limits)).expect("bounded list");
     let header = header(&named, &names(), &declarations()).expect("names fit");
-    assert_eq!(value(&header, b"declared.head[endpoint=codex,model=one]"), Some(LimitValue::Integer(5_000)));
+    assert_eq!(value(&header, b"declared.head[endpoint=codex]"), Some(LimitValue::Integer(5_000)));
 }
 
 #[test]
-fn effective_names_are_unique_across_two_endpoints_and_models() {
+fn effective_names_are_unique_across_two_endpoints() {
     let mut configuration = declarations();
     let mut second = configuration.endpoints[0].clone();
     second.number = 8;
-    for endpoint in [&mut configuration.endpoints[0], &mut second] {
-        let mut model = endpoint.models[0].clone();
-        model.name = b"two".as_slice().into();
-        endpoint.models = Box::new([endpoint.models[0].clone(), model]);
-    }
     configuration.endpoints = Box::new([configuration.endpoints[0].clone(), second]);
     let limits = derive(&profile(), &configuration).expect("fixture derives");
     let named =
@@ -46,7 +41,7 @@ fn effective_names_are_unique_across_two_endpoints_and_models() {
             assert_ne!(entry.name, other.name);
         }
     }
-    assert_eq!(value(&header, b"declared.output[endpoint=other,model=two]"), Some(LimitValue::Integer(512)));
+    assert_eq!(value(&header, b"declared.output[endpoint=other]"), Some(LimitValue::Integer(512)));
 }
 
 #[test]
@@ -111,7 +106,7 @@ fn endpoints(configuration: &super::super::Configuration, limits: &crate::Limits
                 },
                 connect: endpoint.connect,
                 handshake: endpoint.handshake,
-                models: Box::new([]),
+                oversized_reasoning: endpoint.limits.oversized_reasoning,
             })
             .expect("two endpoints");
     }
@@ -123,7 +118,7 @@ fn each_endpoint_names_its_own_request_bound() {
     let mut configuration = declarations();
     let mut second = configuration.endpoints[0].clone();
     second.number = 8;
-    second.models[0].window = 131_072;
+    second.limits.window = 131_072;
     configuration.endpoints = Box::new([configuration.endpoints[0].clone(), second]);
     let limits = derive(&profile(), &configuration).expect("fixture derives");
     let named =

@@ -164,7 +164,9 @@ pub(crate) fn hello(
         }
         previous = Some(bound.kind);
     }
-    if !crate::valid_program_endpoints(&hello.bounds.program_endpoints) {
+    if !crate::valid_program_endpoints(&hello.bounds.program_endpoints)
+        || hello.bounds.endpoints.len() > skein_lib::length::usize_of(crate::CATALOGUE_MODELS)
+    {
         // Malformed metadata has no charter shortfall: reject the channel without
         // publishing an invented admission dimension.
         domain.facts.push(Fact::Dropped);
@@ -182,9 +184,9 @@ pub(crate) fn hello(
             let host = domain.channels.get_mut(id).expect("engine slots reserved");
             // Drop the construction bits before allocating their replacement.
             host.eligible = Box::new([]);
-            host.eligible = crate::needs::eligibility(&domain.needs, &hello.bounds.models);
-            host.declarations = crate::needs::declarations(&domain.needs, &hello.bounds.models);
-            host.evidence = crate::needs::evidence(&domain.catalogue, &hello.bounds);
+            host.eligible = crate::needs::eligibility(&domain.needs, &hello.bounds.endpoints);
+            host.declarations = crate::needs::declarations(&domain.needs, &hello.bounds.endpoints);
+            host.evidence = crate::needs::evidence(&hello.bounds);
             host.program_endpoints = hello.bounds.program_endpoints;
             host.jobs = hello.jobs;
             domain.engine_hello = crate::domain::EngineHello::Admitted;
@@ -209,12 +211,12 @@ pub(crate) fn hello(
     let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
     let mut worker = Channel {
         jobs,
-        evidence: crate::needs::evidence(&domain.catalogue, &bounds),
+        evidence: crate::needs::evidence(&bounds),
         program_endpoints: bounds.program_endpoints,
-        declarations: crate::needs::declarations(&domain.needs, &bounds.models),
+        declarations: crate::needs::declarations(&domain.needs, &bounds.endpoints),
         worker: Some(worker),
         sources: crate::sources::Sources::new(domain.program_sources.clone(), limits.program_sources, true),
-        eligible: crate::needs::eligibility(&domain.needs, &bounds.models),
+        eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
         kind: HostKind::Worker,
         token: channel,
         slots: slots.min(limits.slots),

@@ -1,7 +1,7 @@
 //! Configured deployment connector references are supplied independently of their
 //! owners' values (`client/domain/pages.md`, 7; `client/domain/root.md`, 6).
 use crate::{documents::Deployment, tests::*};
-use jig_domain_link::{Hello, Login, LoginState, ModelBound, SourceFailure, SourceName};
+use jig_domain_link::{EndpointBound, Hello, Login, LoginState, SourceFailure, SourceName};
 
 fn source(connectors: &[u16], lines: u32) -> (Core, Limits) {
     let mut limits = limits();
@@ -187,7 +187,7 @@ fn the_deployment_document_shows_the_last_fill_and_the_mark() {
 fn a_refused_hello_shows_its_agent_shortfall() {
     let (mut core, limits) = source(&[1], 2);
     let mut bounds = fixtures::bounds();
-    bounds.models = Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
+    bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 8191, output: 1024 }]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -398,7 +398,7 @@ fn a_hellos_reason_reaches_the_held_refusal() {
         figures: Some(fleet::Figures { required: 8192, offered: 8191 }),
     });
     let mut bounds = fixtures::bounds();
-    bounds.models = Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
+    bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 8191, output: 1024 }]);
     let mut out = step(
         &mut core,
         &env,

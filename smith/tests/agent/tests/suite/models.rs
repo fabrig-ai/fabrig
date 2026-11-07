@@ -5,15 +5,16 @@ use smith_agent_world::{Job, Settings, scripted_charter, world};
 use smith_domain::run;
 
 #[test]
-fn a_charter_naming_an_undeclared_model_is_refused_at_the_entrance() {
+fn a_charter_naming_an_undeclared_model_runs() {
     let settings = Settings { job: Job::Reporting, ..Settings::calm(1401) };
     let mut requested = scripted_charter(&settings);
     requested.llm.model = Box::from(&b"not-served"[..]);
     let mut world = world(&settings, requested, &[0]);
     world.run(2000);
-    assert_eq!(world.answer(), &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Llm)));
-    assert!(world.prompts().is_empty());
-    assert!(world.turns().is_empty());
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
+    assert!(!world.prompts().is_empty());
+    assert!(world.prompts().iter().all(|prompt| prompt.model.as_ref() == b"not-served"));
+    assert!(!world.turns().is_empty());
 }
 
 #[test]

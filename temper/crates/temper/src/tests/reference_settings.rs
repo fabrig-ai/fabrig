@@ -209,7 +209,7 @@ fn the_reference_settings_fit_the_reference_profile() {
         .expect("init configuration");
     let engine = reference_engine(&init["engine"]["limits"]);
     let limits = &engine.limits.core.tasks;
-    let stock = temper_service::stock::defaults(&engine.llm, limits.result_bytes);
+    let stock = temper_service::stock::with_models(engine.llm.models.clone(), limits.result_bytes);
     let init_agent: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
             .expect("init agent configuration");
@@ -285,24 +285,36 @@ fn reference_engine(limits: &serde_json::Value) -> jig_protocol_config::Engine {
         serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned JSON");
     let mut engine = owned["engine"].clone();
     engine["limits"] = limits.clone();
-    engine["llm"]["models"][0]["prices"]["unit"] = 1000.into();
-    let mut designer = engine["llm"]["models"][0].clone();
-    designer["name"] = "claude-opus-5-5".into();
-    engine["llm"]["models"].as_array_mut().expect("models").push(designer);
-    engine["llm"]["providers"][0]["models"] = serde_json::json!(["gpt-6.1-sol", "claude-opus-5-5"]);
     let bytes = serde_json::to_vec(&engine).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    jig_protocol_config::engine(
+    let mut engine = jig_protocol_config::engine(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         jig_protocol_config::Defaults::Passed,
     )
-    .expect("reference engine")
+    .expect("reference engine");
+    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut sol =
+        stock.models.into_vec().into_iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").expect("Sol");
+    sol.number = 1;
+    sol.shown = None;
+    sol.model.input_price = 1;
+    sol.model.cached_price = 1;
+    sol.model.output_price = 1;
+    sol.model.price_unit = 1000;
+    sol.model.efforts = Box::default();
+    sol.model.effort = None;
+    let mut designer = sol.clone();
+    designer.number = 2;
+    designer.model.name = b"claude-opus-5-5".as_slice().into();
+    let defaults = temper_service::stock::with_models(Box::new([sol, designer]), engine.limits.core.tasks.result_bytes);
+    jig_protocol_config::pass(&mut engine, defaults).expect("reference defaults");
+    engine
 }
 
 fn core_item(item: &jig_client::contract::SettingItem) -> jig_domain_core::settings::Item {
@@ -382,7 +394,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 4] 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     use jig_client::contract::{Setting, SettingEdit, SettingItem, SettingSet, SettingValue};
     use jig_domain_core::settings;
-    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;

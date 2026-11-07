@@ -99,8 +99,46 @@ pub fn check_change(
     limits: &Limits,
 ) -> Result<(), Failure> {
     super::change_shape(items, limits)?;
+    for item in items {
+        let number = match item.setting {
+            Setting::Model(number) => number,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => continue,
+        };
+        let failure = Failure { setting: item.setting, fault: Fault::Shape, detail: None };
+        match &item.edit {
+            Edit::Reset => {
+                if current.default_value(item.setting).is_none() {
+                    return Err(failure);
+                }
+            }
+            Edit::Removed => {}
+            Edit::Set(value) => {
+                let value = value.as_model().ok_or(failure)?;
+                for previous in [current.default_value(item.setting), current.value(item.setting)] {
+                    if let Some(previous) = previous
+                        && let Some(previous) = previous.as_model()
+                        && previous.model.name != value.model.name
+                    {
+                        return Err(failure);
+                    }
+                }
+                if let Err(fault) = super::catalogue::shape(value, number, settings) {
+                    return Err(Failure { fault, ..failure });
+                }
+            }
+        }
+    }
     check_set(current, false, items, settings, connectors, limits)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the whole-set check judges catalogue, charters, templates, policies and rules"
+)]
 fn check_set(
     current: &Current,
     defaults: bool,
@@ -148,7 +186,19 @@ fn check_set(
     if let Some(fault) = rules_fault(rules, &limits.authority, Fault::Rules) {
         return Err(Failure { setting: Setting::Rules, fault, detail: None });
     }
-    if !authority_refs(current, defaults, items, &rules.ceiling, None, connectors, settings)
+    let mut catalogue = super::catalogue::overlay(current, defaults, items);
+    if catalogue.is_empty() && super::catalogue::entries(current).is_empty() {
+        catalogue = super::catalogue::defaults(settings);
+    }
+    for (at, model) in catalogue.iter().enumerate() {
+        for previous in catalogue.iter().take(at) {
+            if previous.model.name == model.model.name {
+                return Err(Failure { setting: Setting::Model(model.number), fault: Fault::Shape, detail: None });
+            }
+        }
+    }
+    let models = super::catalogue::rows(&catalogue);
+    if !authority_refs(current, defaults, items, &rules.ceiling, None, connectors, &models)
         || !requirement_refs(&rules.requirements, connectors)
     {
         return Err(Failure { setting: Setting::Rules, fault: Fault::Reference, detail: None });
@@ -167,24 +217,32 @@ fn check_set(
             shape(setting, value, limits)?;
         }
     }
+
     for &setting in &names {
         let fault = match overlay_value(current, defaults, items, setting).expect("offered setting") {
             Value::Charter(charter) => {
                 registered_documents(setting, charter, connectors)?;
-                charter_fault(charter, settings, limits)
+                match named_fault(charter, &models, limits) {
+                    Some(fault) => Some(fault),
+                    None => match super::charters::resolved(charter, &catalogue, limits) {
+                        Some(resolved) => charter_fault(&resolved, limits),
+                        None => Some(Fault::Reference),
+                    },
+                }
             }
             Value::Template(template) => {
                 if let Some(fault) = contract_fault(&template.contract, connectors) {
                     return Err(Failure { setting, fault, detail: None });
                 }
-                template_fault(current, defaults, items, template, template.executor, settings, limits)
+                template_fault(current, defaults, items, template, template.executor, &models, limits)
             }
             Value::Policy(policy) => match authority::policy_refusal(rules, &limits.authority, &policy.policy) {
                 Some(authority::PolicyRefusal::AboveRules) => Some(Fault::Rules),
                 Some(authority::PolicyRefusal::Oversized | authority::PolicyRefusal::InvalidRole) => Some(Fault::Shape),
                 Some(authority::PolicyRefusal::Full) => Some(Fault::Count),
-                None => policy_fault(current, defaults, items, policy, settings, connectors, limits),
+                None => policy_fault(current, defaults, items, policy, &models, connectors, limits),
             },
+            Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
             Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
@@ -206,7 +264,11 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
             Setting::ProjectPolicy { project } => project != 0,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Model(_)
+            | Setting::Rules
+            | Setting::Application { .. } => false,
         },
         Value::Rules(value) => {
             if setting == Setting::Rules
@@ -216,6 +278,7 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
             }
             setting == Setting::Rules
         }
+        Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
@@ -262,6 +325,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
+        Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
@@ -454,21 +518,31 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
         }
     }
 }
-fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits) -> Option<Fault> {
-    let policy = &charter.policy;
-    if !model_valid(&policy.model, settings) {
-        return Some(Fault::Reference);
+fn named_fault(charter: &crate::Charter, models: &[crate::Model], limits: &Limits) -> Option<Fault> {
+    if charter.policy.alternatives.len() > skein_lib::length::usize_of(limits.settings.alternatives) {
+        return Some(Fault::Count);
     }
-    for (at, model) in policy.alternatives.iter().enumerate() {
-        if !model_valid(model, settings) {
+    for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
+        let mut found = false;
+        for model in models {
+            found |= !model.is_hole() && model.name == named.name;
+        }
+        if !found {
             return Some(Fault::Reference);
         }
-        for earlier in policy.alternatives.iter().take(at) {
-            if earlier.name == model.name {
+    }
+    for (at, model) in charter.policy.alternatives.iter().enumerate() {
+        for previous in charter.policy.alternatives.iter().take(at) {
+            if model.name == previous.name {
                 return Some(Fault::Shape);
             }
         }
     }
+    None
+}
+
+fn charter_fault(charter: &crate::Charter, limits: &Limits) -> Option<Fault> {
+    let policy = &charter.policy;
     if policy.alternatives.len() > skein_lib::length::usize_of(limits.settings.alternatives.min(tasks::MODELS)) {
         return Some(Fault::Count);
     }
@@ -509,7 +583,7 @@ fn template_fault(
     items: &[Item],
     template: &crate::Template,
     executor: people::TemplateExecutor,
-    settings: &Settings,
+    models: &[crate::Model],
     limits: &Limits,
 ) -> Option<Fault> {
     if let Some(grace) = template.grace
@@ -518,7 +592,7 @@ fn template_fault(
         return Some(Fault::Grace);
     }
     if let Some(choice) = &template.llm
-        && !choice_valid(&settings.models, choice)
+        && !choice_valid(models, choice)
     {
         return Some(Fault::Reference);
     }
@@ -534,15 +608,20 @@ fn template_fault(
                 None => None,
             };
             let Some(charter) = charter else { return Some(Fault::Reference) };
-            if let Some(choice) = &template.llm
-                && !crate::runs::llm::takes(&settings.models, &charter.policy, choice)
-            {
-                return Some(Fault::Reference);
+            if let Some(choice) = &template.llm {
+                let catalogue = super::catalogue::overlay(current, defaults, items);
+                let policy = match super::charters::resolved(charter, &catalogue, limits) {
+                    Some(resolved) => resolved.policy,
+                    None => charter.policy.clone(),
+                };
+                if !crate::runs::llm::takes(models, &policy, choice) {
+                    return Some(Fault::Reference);
+                }
             }
         }
         people::TemplateExecutor::Chosen => {
             if let Some(choice) = &template.llm
-                && !choice_valid(&settings.models, choice)
+                && !choice_valid(models, choice)
             {
                 return Some(Fault::Reference);
             }
@@ -574,7 +653,7 @@ fn policy_fault(
     defaults: bool,
     items: &[Item],
     configured: &crate::ConfiguredPolicy,
-    settings: &Settings,
+    models: &[crate::Model],
     connectors: &[u16],
     limits: &Limits,
 ) -> Option<Fault> {
@@ -584,14 +663,14 @@ fn policy_fault(
         if role.number == people::Role::Owner.number() {
             owner = role.requests.allows(authority::RequestKind::Create);
         }
-        if !authority_refs(current, defaults, items, &role.authority, Some(policy), connectors, settings) {
+        if !authority_refs(current, defaults, items, &role.authority, Some(policy), connectors, models) {
             return Some(Fault::Reference);
         }
     }
     if !owner {
         return Some(Fault::Owner);
     }
-    if !authority_refs(current, defaults, items, &policy.ceiling, Some(policy), connectors, settings)
+    if !authority_refs(current, defaults, items, &policy.ceiling, Some(policy), connectors, models)
         || !requirement_refs(&policy.requirements, connectors)
     {
         return Some(Fault::Reference);
@@ -633,7 +712,7 @@ fn policy_fault(
         if let Some(fault) = contract_fault(&template.contract, connectors) {
             return Some(fault);
         }
-        if let Some(fault) = template_fault(current, defaults, items, template, executor, settings, limits) {
+        if let Some(fault) = template_fault(current, defaults, items, template, executor, models, limits) {
             return Some(fault);
         }
     }
@@ -646,9 +725,9 @@ fn authority_refs(
     value: &authority::Authority,
     policy: Option<&authority::Policy>,
     connectors: &[u16],
-    settings: &Settings,
+    models: &[crate::Model],
 ) -> bool {
-    let count = u32::try_from(settings.models.len()).expect("configured model count");
+    let count = u32::try_from(models.len()).expect("configured model count");
     if !value.models.is_all() && value.models.bits().checked_shr(count).unwrap_or(0) != 0 {
         return false;
     }
@@ -699,39 +778,20 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => return Ok(()),
+        Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+            return Ok(());
+        }
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
     if *count > bound { Err(Failure { setting, fault: Fault::Count, detail: None }) } else { Ok(()) }
 }
 
-fn model_valid(model: &crate::Model, settings: &Settings) -> bool {
-    match super::charters::configured(settings, model) {
-        Some(index) => {
-            let configured = settings.models.get(usize::from(index)).expect("configured model");
-            model.dialect == configured.dialect
-                && model.endpoint == configured.endpoint
-                && model.program == configured.program
-                && model.name == configured.name
-                && model.window == configured.window
-                && model.output == configured.output
-                && model.input_price == configured.input_price
-                && model.cached_price == configured.cached_price
-                && model.cache_write_price == configured.cache_write_price
-                && model.output_price == configured.output_price
-                && model.price_unit == configured.price_unit
-                && model.efforts == configured.efforts
-                && match &model.effort {
-                    Some(effort) => configured.efforts.contains(effort),
-                    None => true,
-                }
-        }
-        None => false,
-    }
-}
 fn effort_valid(models: &[crate::Model], chosen: tasks::ModelEffort) -> bool {
     let Some(model) = models.get(usize::from(chosen.model)) else { return false };
+    if model.is_hole() {
+        return false;
+    }
     match chosen.effort {
         Some(effort) => usize::from(effort) < model.efforts.len(),
         None => model.efforts.is_empty(),
@@ -751,9 +811,11 @@ pub(super) fn admits_change(current: &Current, setting: Setting, limits: &Limits
 pub(crate) fn changed_charters(
     current: &Current,
     items: &[Item],
-    settings: &Settings,
+    _settings: &Settings,
     limits: &Limits,
 ) -> Box<[tasks::CharterModels]> {
+    let catalogue = super::catalogue::overlay(current, false, items);
+    let models = super::catalogue::rows(&catalogue);
     let mut result = skein_lib::List::with_capacity(limits.tasks.charters);
     for &setting in &offered(current, false, items) {
         let value = overlay_value(current, false, items, setting);
@@ -761,7 +823,11 @@ pub(crate) fn changed_charters(
             && let Some(charter) = value.as_charter()
         {
             result
-                .push(super::charters::one_models(charter, current.newest(), settings))
+                .push(super::charters::one_models_rows(
+                    &super::charters::resolved(charter, &catalogue, limits).expect("checked resolution"),
+                    current.newest(),
+                    &models,
+                ))
                 .expect("checked charter count");
         }
     }

@@ -89,6 +89,10 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
     Ok(Chip { number, title, executor, phase, details: Box::new(super::chip_phase::from_row(limits, row)?) })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the frame assembles project offers, chat bounds and template previews together"
+)]
 pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, Missing> {
     let identity = core.people.identity(party).ok_or(Missing::Unknown)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;
@@ -116,9 +120,21 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
         let payer = tasks::Payer::Party(party);
         let offer = core.offer(payer, role.project, allowed);
         let merged = core.project_templates(role.project);
+        let mut left_out = 0;
         let mut defaults = List::with_capacity(limits.templates);
         let mut templates = List::with_capacity(limits.templates);
         for template in merged {
+            let chat = match template.executor {
+                people::TemplateExecutor::Charter(number) if template.number == 1 => core.current.charter(number),
+                people::TemplateExecutor::Charter(_) | people::TemplateExecutor::Chosen => None,
+            };
+            if let Some(charter) = chat {
+                left_out = crate::settings::charters::left_out(
+                    charter,
+                    &crate::settings::catalogue::entries(&core.current),
+                    limits,
+                );
+            }
             let preview = match template.executor {
                 people::TemplateExecutor::Chosen => None,
                 people::TemplateExecutor::Charter(charter) => match &template.llm {
@@ -134,6 +150,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
         }
         projects
             .push(FrameProjectRole {
+                left_out,
                 public: core.public_project(role.project),
                 offer,
                 defaults,

@@ -310,12 +310,19 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
                 templates: Box::new([]),
                 policies: skein_lib::Map::with_capacity(authority_limits().projects),
             },
             settings: jig_domain_core::Settings {
+                endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: 1,
+                    program: None,
+                }]),
                 key_bytes: 256,
                 redirect_bytes: 256,
                 deployment_provider: 1,
@@ -329,7 +336,6 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                         name: Box::from(b"Scripted".as_slice()),
                         signed_in_plan: false,
                         manage_usage: None,
-                        models: Box::new([charter().policy.model.name]),
                         offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
                     }]),
                 },
@@ -392,6 +398,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number: 1,
@@ -404,6 +411,7 @@ pub fn charter() -> engine::Charter {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: engine::Model {
+                provider: 1,
                 program: None,
                 dialect: 1,
                 endpoint: 1,
@@ -690,6 +698,8 @@ impl StartStore {
             if let Some(request) = out.pop() {
                 match request {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
+                    engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
                     }

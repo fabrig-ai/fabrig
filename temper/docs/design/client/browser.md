@@ -1266,6 +1266,7 @@ setup across desktop and phone widths. The twelve test functions in
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
+- **Models switched off and back, and added by name, across reloads:** the client world's `models::a_switch_turned_off_and_back_holds_across_a_reload` and `models::a_model_added_by_name_is_on_the_picker`.
 - **A run of calls' rows and their words:** the client world's
   `suite::call_line::opened_it_holds_one_row_a_call` holds one row a call, its
   first line alone. Test 2 keeps the closed line hiding them and the open line
@@ -1619,6 +1620,12 @@ from the engine's own answers, is where the look is tuned.
 | `forges-failed` | the first run's Forges at step 9: a set up failed, with "Set up again" |
 | `forges-replacing` | the solo world's Forges, a row's Replace open on its private key |
 | `forges-removing` | the first run's Forges at step 7: a row's removal asking first |
+| `models` | Settings, Models: offered models by provider, what pays, default efforts, picker switches and Configure temper |
+| `models-add` | an owner adding a model by provider and name |
+| `models-off` | a model switched off, still in the list |
+| `models-added` | a person's model: "added by you" and "estimated prices" |
+| `models-member` | a member reads On and Off, with no switch or add form |
+| `models-one-account` | Claude alone: OpenAI has its Connect line and no stock rows |
 | `accounts-empty` | the Accounts tab's quiet band, in a world with no account |
 | `accounts-states` | the reference world's accounts, a row in each state of a source |
 | `accounts-key` | the reference world's accounts, a row's key field open |

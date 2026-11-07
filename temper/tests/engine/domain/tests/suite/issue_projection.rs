@@ -1,6 +1,6 @@
 //! A tracked goal's bounded issue is independent of its work and its close.
 use jig_domain_host as host;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_fake_forge_domain::api as raw;
@@ -34,6 +34,7 @@ const WORKER_SLOTS: u32 = 2; // The running goal and one report delegate.
 
 fn model() -> engine::Model {
     engine::Model {
+        provider: 1,
         dialect: 3,
         endpoint: 1,
         program: None,
@@ -52,14 +53,24 @@ fn model() -> engine::Model {
 
 fn defaults() -> jig_domain_core::settings::Defaults {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model()]),
+        models: (Box::new([model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(&llm, OP_BYTES);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), OP_BYTES);
     defaults.rules.period_spend = SPEND;
     defaults.rules.ceiling.budget.spend = SPEND;
     for charter in &mut defaults.charters {
@@ -236,7 +247,8 @@ fn configured_chat(
     world.fail_issue_writes = failing;
     let mut bounds = protocol::bounds();
     bounds.turns = 800;
-    bounds.models = Box::new([ModelBound { name: model().name, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model().endpoint, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
     bounds.spend = defaults.rules.maximum_run_spend;
     bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = limits.tasks.message_bytes.max(limits.tasks.result_bytes);

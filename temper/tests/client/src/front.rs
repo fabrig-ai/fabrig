@@ -10,7 +10,7 @@ use jig_client_kit::{
     harness::{ClientId, Front, FrontFault, Observed},
     joint::transport::Transport,
 };
-use jig_domain_link::{ModelBound, Phase};
+use jig_domain_link::{EndpointBound, Phase};
 use skein_lib::{Duration, RequestEnvelope, Time, Token, Wall};
 use smith_domain_session::llm::Block;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -612,8 +612,8 @@ impl Joint {
         engine_limits.tasks.message_bytes = 512;
         engine_limits.tasks.inbox_bytes = 1024;
         engine_limits.journal.result_bytes = 512;
-        // Stock charter 3's instructions and framed run policy need 8,332 bytes.
-        engine_limits.journal.run_bytes = 8_332;
+        // Stock charter 3's instructions and framed run policy need 8,747 bytes.
+        engine_limits.journal.run_bytes = 8_747;
         engine_limits.documents.text_bytes = 4096;
         let mut config = fixtures::configuring_configuration(seed, member);
         let policy = config.core.seed_projects[0].policy.clone();
@@ -1193,7 +1193,7 @@ impl Joint {
             .settings
             .models
             .iter()
-            .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+            .map(|model| EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
             .collect();
         let mut hello =
             temper_engine_domain_world::protocol::hello_slots(fixtures::QUESTION_WORKER, slots, Box::new([]));
@@ -1203,7 +1203,7 @@ impl Joint {
         else {
             unreachable!("worker hello")
         };
-        value.bounds.models = worker_models;
+        value.bounds.endpoints = worker_models;
         value.bounds.message_bytes = engine_limits.tasks.message_bytes;
         if refuse_hello {
             // The fixture configures only worker zero.
@@ -1985,6 +1985,9 @@ impl Joint {
     }
     fn drain(&mut self) {
         self.settle();
+        for models in std::mem::take(&mut self.engine.protocol.catalogues) {
+            self.packet(engine::Request::Party(engine::PartyRequest::Catalogue { models }));
+        }
         let commit = self.engine.store.header().commits;
         if commit != self.last_commit {
             self.observed.extend(self.truth.applied(jig_core_kit::store_peer::DurableSnapshot {

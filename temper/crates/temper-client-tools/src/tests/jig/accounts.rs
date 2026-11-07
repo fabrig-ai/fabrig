@@ -88,6 +88,9 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         project
             .models
             .push(c::MeModel {
+                number: 1,
+                source: jig_client::contract::ModelSource::Stock,
+                estimated: false,
                 prices: c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 },
                 description: Some(c::Text::new(b"Careful reasoning".as_slice().into(), 64).expect("description")),
                 name: c::Text::new(name.into(), 32).expect("model"),
@@ -351,6 +354,9 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     project
         .models
         .push(c::MeModel {
+            number: 1,
+            source: jig_client::contract::ModelSource::Stock,
+            estimated: false,
             name: c::Text::new(b"reasoner".as_slice().into(), 32).expect("model"),
             provider: Some(f::PROVIDER),
             window: 8192,

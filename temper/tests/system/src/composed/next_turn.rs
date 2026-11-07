@@ -15,8 +15,6 @@ fn config(seed: u64) -> engine::Config {
     second.name = b"fake-2".as_slice().into();
     charter.policy.alternatives = Box::new([second.clone()]);
     config.core.settings.models = Box::new([charter.policy.model.clone(), second]);
-    config.core.settings.llm_providers.providers[0].models =
-        Box::new([b"fake-1".as_slice().into(), b"fake-2".as_slice().into()]);
     config
 }
 

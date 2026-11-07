@@ -7,6 +7,7 @@ mod confirm;
 mod delegation;
 mod document;
 mod model_forge;
+mod models;
 mod new_chat;
 mod reference;
 pub use temper_fixtures::client_documents as documents;

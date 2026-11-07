@@ -16,6 +16,7 @@ pub(super) fn two_projects(front: &mut Scripted, party: u64) {
     let mut frame = fixture::frame(party);
     let membership = frame.projects.get(0).expect("first project").clone();
     frame.projects = list([1, 2].map(|project| jig_client_domain::contract::MeProject {
+        left_out: 0,
         defaults: skein_lib::List::with_capacity(0),
         project,
         name: DocumentText::complete(fixture::text(if project == 1 { b"Tally" } else { b"Project 2" })),

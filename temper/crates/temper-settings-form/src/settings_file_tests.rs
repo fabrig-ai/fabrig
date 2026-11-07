@@ -586,3 +586,40 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
             .expect_err("malformed route");
     }
 }
+
+#[test]
+fn the_settings_form_round_trips_a_model() {
+    const SETTING: &[u8] = br#"{"kind":"model","number":4}"#;
+    const MODEL: &[u8] = br#"{"number":4,"model":{"provider":2,"dialect":1,"endpoint":3,"program":null,"name":"gpt-6.1-terra","window":131072,"output":8192,"input_price":3,"cached_price":1,"cache_write_price":null,"output_price":12,"price_unit":1000000,"efforts":["high"],"effort":"high"},"shown":"GPT-6.1 Terra","description":"For careful work","picker":false,"withdrawn":false,"source":"stock","estimated":false}"#;
+    let bytes = kind_file(SETTING, MODEL);
+    let items = file::decode(&bytes, &Limits::standard()).expect("whole model file");
+    let item = items.get(0).expect("model item");
+    assert_eq!(item.setting, c::Setting::Model(c::SettingNumber { number: 4 }));
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("model set") };
+    let c::SettingValue::Model(model) = &set.value else { panic!("model value") };
+    assert_eq!(model.shown.as_ref().expect("shown name").bytes(), b"GPT-6.1 Terra");
+    assert_eq!(model.model.input_price, 3);
+    assert!(!model.picker);
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: item.setting,
+        revision: 2,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, SETTING, br#","revision":2,"value":"#, MODEL, b"}"]));
+    assert_eq!(
+        file::proposal_items(
+            &joined(&[
+                br#"{"against":1,"reason":"New prices", "items":[{"setting":"#,
+                SETTING,
+                br#","set":"#,
+                MODEL,
+                b"}]}"
+            ]),
+            &Limits::standard()
+        )
+        .expect("inline proposal"),
+        items
+    );
+}

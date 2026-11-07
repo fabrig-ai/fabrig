@@ -5,7 +5,7 @@ use skein_lib::{Duration, List};
 use smith_agent_service as agent;
 use smith_protocol_llm as llm;
 pub(super) fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
-    use agent::profile::{Configuration, Endpoint, Model, OversizedReasoning};
+    use agent::profile::{Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
     Configuration {
         role_bound: None,
         environment_bytes,
@@ -15,16 +15,14 @@ pub(super) fn declarations(environment_bytes: u32) -> agent::profile::Configurat
             option_bytes: 0,
             connect: skein_lib::Duration::from_secs(1),
             handshake: skein_lib::Duration::from_secs(1),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: Box::from(b"fake".as_slice()),
+            limits: DeclaredLimits {
                 window: 1_048_576,
                 output: 512,
                 reasoning_item: 64,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: skein_lib::Duration::from_secs(1),
                 idle: skein_lib::Duration::from_secs(1),
-            }]),
+            },
         }]),
     }
 }
@@ -61,7 +59,7 @@ pub(super) fn derive_limits() -> agent::Limits {
     let mut limits = agent::profile::derive(&profile, &configuration).expect("tiny profile derives");
     // Worlds may lower or specialize a derived limit (smith/docs/design/protocol/limits.md, section 2.2).
     limits.domain.run.models = 2;
-    limits.domain.configured_model_bytes = 4096;
+    limits.domain.configured_endpoint_bytes = 4096;
     limits.llm.connection.endpoints = 1;
     limits.llm.connection.connections = 2;
     limits.llm.connection.calls = 2;
@@ -93,7 +91,7 @@ pub(super) fn configuration_with_limits(provider: skein_llm::Provider, limits: &
                     skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
                 },
             },
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )
@@ -104,15 +102,7 @@ pub(super) fn configuration_with_limits(provider: skein_llm::Provider, limits: &
         domain: smith_domain::Config {
             programs: Box::new([]),
             endpoints: Box::new([smith_domain::run::charter::Endpoint(0)]),
-            models: Box::new([smith_domain::ConfiguredModel {
-                efforts: Box::new([]),
-                prices: smith_domain::run::Prices {
-                    input: 1,
-                    cached: 1,
-                    cache_write: None,
-                    output: 1,
-                    unit: 1_000_000,
-                },
+            limits: Box::new([smith_domain::EndpointLimits {
                 protocol_allowance: agent::profile::endpoint_allowance(
                     &profile(),
                     &declarations(0).endpoints[0],
@@ -120,7 +110,6 @@ pub(super) fn configuration_with_limits(provider: skein_llm::Provider, limits: &
                 )
                 .expect("derived endpoint framing"),
                 endpoint: smith_domain::run::charter::Endpoint(0),
-                model: Box::from(&b"fake"[..]),
                 window: 1_048_576,
                 output: 512,
                 head: Duration::from_secs(2),

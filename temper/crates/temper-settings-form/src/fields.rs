@@ -14,6 +14,7 @@ pub enum Shape {
     Charter,
     Document,
     Model,
+    Catalogue,
     Wake,
     WakeRule,
     WakeBatch,
@@ -127,6 +128,8 @@ pub enum Limit {
     DocumentBranch,
     DocumentPath,
     DocumentHeading,
+    CatalogueEntryShownSome,
+    CatalogueEntryDescriptionSome,
     SettingModelProgramSome,
     SettingModelName,
     SettingModelEffortsItem,
@@ -188,6 +191,8 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
                 .saturating_sub(1),
             Limit::DocumentPath => limits.settings.charter_document_path,
             Limit::DocumentHeading => limits.settings.charter_document_heading_some,
+            Limit::CatalogueEntryShownSome => limits.settings.catalogue_entry_shown_some,
+            Limit::CatalogueEntryDescriptionSome => limits.settings.catalogue_entry_description_some,
             Limit::SettingModelProgramSome => limits.settings.setting_model_program_some,
             Limit::SettingModelName => limits.settings.setting_model_name,
             Limit::SettingModelEffortsItem => limits.settings.setting_model_efforts_item,
@@ -261,6 +266,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
 #[must_use]
 pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
     match kind {
+        b"model" => Some(Shape::Catalogue),
         b"charter" => Some(Shape::Charter),
         b"template" => Some(Shape::Template),
         b"policy" | b"project-policy" => Some(Shape::Policy),

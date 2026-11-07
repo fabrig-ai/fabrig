@@ -57,6 +57,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
@@ -623,6 +624,76 @@ fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels:
             line(b, w, labels.1, &[Hole::Name(name)]);
         }
         None => line(b, w, labels.0, &[Hole::Number(u64::from(account))]),
+    }
+}
+
+pub(crate) fn provider_line(
+    b: &mut Builder,
+    root: &Domain,
+    provider: &c::ProviderOffer,
+    has_rows: bool,
+    w: &Words,
+    bindings: &mut Bindings,
+) {
+    use crate::accounts::words::{self, Word as A};
+    let configured = provider_shown(root, Some(provider.provider), provider.name.bytes(), w);
+    let name = words::provider_words(&configured).0;
+    b.open(Role::Paragraph);
+    b.style(crate::look::ACCOUNT_LINE);
+    b.name(name);
+    b.text(skein_ui::Run::Plain, name);
+    b.close();
+    if has_rows {
+        return;
+    }
+    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
+    let doc = temper_client_domain::pages::accounts::document(root.client());
+    let mut held_account = false;
+    if let Some(doc) = doc {
+        for account in &doc.accounts {
+            if account.provider != Some(provider.provider) || account.holder != c::AccountHolder::Party(me.party.number)
+            {
+                continue;
+            }
+            held_account = true;
+            let Some(source) = account.sources.get(0) else { continue };
+            let fix = match source.state {
+                c::AccountState::SignInAgain => Some(match source.kind {
+                    c::AccountKind::Program => words::say(w, A::CheckAgain, &[]),
+                    c::AccountKind::Key => words::say(w, A::Replace, &[]),
+                    c::AccountKind::SignIn | c::AccountKind::None => w.say(W::WelcomeSignInAgain, &[]),
+                }),
+                c::AccountState::Misconfigured | c::AccountState::Unloaded { .. }
+                    if source.kind == c::AccountKind::Key =>
+                {
+                    Some(words::say(w, A::Replace, &[]))
+                }
+                c::AccountState::Later { .. } => Some(words::say(w, A::Resume, &[])),
+                c::AccountState::Moving
+                | c::AccountState::Asking
+                | c::AccountState::Granted
+                | c::AccountState::Misconfigured
+                | c::AccountState::Unloaded { .. }
+                | c::AccountState::Cancelled
+                | c::AccountState::Closing => None,
+            };
+            if let Some(fix) = fix {
+                account_link(b, bindings, &words::join(&[&fix, " ›".as_bytes()]));
+                return;
+            }
+        }
+    }
+    if held_account {
+        line(b, w, W::AccountReadinessUnknown, &[]);
+    } else {
+        control(
+            b,
+            bindings,
+            Role::Link,
+            &w.say(W::ConnectPlanOrKey, &[]),
+            Act::Go { address: Address::ConnectModel { way: None } },
+            false,
+        );
     }
 }
 

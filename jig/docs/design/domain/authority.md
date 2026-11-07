@@ -111,7 +111,8 @@ Authority
   recall. A procedure has no tools; its authority's tools are empty. On
   a program backend, the program's own tools are these families too,
   each call asked of smith's policy before it runs (8.5).
-- **Models:** the configured models a task's LLM choice may name, for
+- **Models:** the catalogue's models a task's LLM choice may name, bit `i`
+  the setting numbered `i + 1` (engine.md, 17.11), for
   its main model and its sub-agents' (tasks.md, section 3), and so the
   LLM providers whose accounts may pay for its runs (accounts.md, 4.3);
   every configured model, unless the deployment's rules, the project's

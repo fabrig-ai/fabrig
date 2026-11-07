@@ -69,7 +69,7 @@ impl Peer {
                         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     },
                 },
-                models: Box::new([]),
+                oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
             }]),
             limits.connection.endpoints,
         )

@@ -197,7 +197,7 @@ fn exchange(reply: &[u8], against: u32) -> super::Script {
         application: None,
         proposed: None,
     });
-    let text = temper_engine_smith::settings_text(&value, None, &config.core.settings.models).expect("setting text");
+    let text = temper_engine_smith::settings_text(&value, None, &config.core.defaults.models).expect("setting text");
     let (_, json) = std::str::from_utf8(&text).expect("setting text").split_once('\n').expect("setting heading");
     let value: serde_json::Value = serde_json::from_str(json.trim()).expect("setting JSON");
     let input = serde_json::json!({"against":against,"reason":"Keep the agreed configuration explicit.","items":[{"setting":{"kind":"charter","number":1},"set":value}]});

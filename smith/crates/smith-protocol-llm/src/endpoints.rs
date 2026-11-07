@@ -5,7 +5,6 @@
 //! Contract: protocol/agent.md, section 4; protocol/llm.md, sections 2 and 6.
 
 use alloc::boxed::Box;
-use core::mem::size_of;
 
 use skein_lib::{Duration, List, Map};
 use skein_llm::Provider;
@@ -27,13 +26,6 @@ pub fn endpoint_own() -> Result<u64, crate::Error> {
     Ok(0)
 }
 
-/// One declared model's per-call policy, supplied by startup and retained by its endpoint.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ConfiguredModel {
-    pub name: Box<[u8]>,
-    pub oversized_reasoning: OversizedReasoning,
-}
-
 /// One startup-resolved endpoint, named as the domain names it.
 /// The address, TLS trust/name, dialect, path and headers live in destination.
 #[derive(Debug)]
@@ -44,8 +36,8 @@ pub struct ConfiguredEndpoint {
     pub destination: connection::Endpoint,
     pub connect: Duration,
     pub handshake: Duration,
-    /// The models whose per-call reasoning policy this endpoint serves.
-    pub models: Box<[ConfiguredModel]>,
+    /// Policy for any model's oversized reasoning item.
+    pub oversized_reasoning: OversizedReasoning,
 }
 
 /// Per-name options kept after the connection component takes destinations.
@@ -61,23 +53,18 @@ pub struct EndpointOptions {
     pub endpoint: skein_llm::Endpoint,
     /// Native per-endpoint bounds, including its transport pieces and measured head.
     pub client: skein_llm::client::Limits,
-    /// The models whose per-call reasoning policy this endpoint serves.
-    pub models: Box<[ConfiguredModel]>,
+    /// Policy for any model's oversized reasoning item.
+    pub oversized_reasoning: OversizedReasoning,
 }
 
 impl EndpointOptions {
-    /// Select the declared model's per-call policy; an undeclared name keeps the default failure.
+    /// Select this endpoint's reasoning policy for every model.
     #[must_use]
-    pub fn drop_reasoning(&self, requested_model: &[u8]) -> bool {
-        for model in &self.models {
-            if model.name.as_ref() == requested_model {
-                return match model.oversized_reasoning {
-                    OversizedReasoning::Fail => false,
-                    OversizedReasoning::Drop => true,
-                };
-            }
+    pub fn drop_reasoning(&self) -> bool {
+        match self.oversized_reasoning {
+            OversizedReasoning::Fail => false,
+            OversizedReasoning::Drop => true,
         }
-        false
     }
 }
 
@@ -123,7 +110,7 @@ impl Endpoints {
                 provider,
                 endpoint,
                 client,
-                models: configured.models,
+                oversized_reasoning: configured.oversized_reasoning,
             };
             options.insert(configured.name.0, option).or(Err(EndpointError::TooMany))?;
         }
@@ -153,10 +140,6 @@ impl Endpoints {
             for header in &option.endpoint.headers {
                 held = held.checked_add(skein_lib::len_u64(header.name.len()))?;
                 held = held.checked_add(skein_lib::len_u64(header.value.len()))?;
-            }
-            for model in &option.models {
-                held = held.checked_add(u64::try_from(size_of::<ConfiguredModel>()).ok()?)?;
-                held = held.checked_add(skein_lib::len_u64(model.name.len()))?;
             }
         }
         Some(held)

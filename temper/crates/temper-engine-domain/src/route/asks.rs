@@ -102,6 +102,27 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
+        core::Ask::Catalogue { models } => {
+            domain.catalogue_pending = true;
+            let mut names = List::with_capacity(u32::try_from(models.len()).expect("bounded catalogue"));
+            for row in &models {
+                names
+                    .push(core::settings::ModelName {
+                        name: row.model.name.clone(),
+                        efforts: row.model.efforts.clone(),
+                    })
+                    .expect("one name per position");
+            }
+            assert!(
+                super::now(domain, crate::Request::Store(crate::StoreRequest::Catalogue { names: names.into_boxed() })),
+                "catalogue store door reserved"
+            );
+            assert!(
+                super::now(domain, crate::Request::Party(crate::PartyRequest::Catalogue { models })),
+                "catalogue clients door reserved"
+            );
+            None
+        }
         core::Ask::DropDocument { .. } => None,
         core::Ask::DropApplication { owner } => {
             super::applications::drop(domain, owner);
@@ -654,3 +675,8 @@ fn release_reason(domain: &Domain, task: u64, ending: &tasks::Ending) -> Option<
         tasks::Ending::Done(_) | tasks::Ending::Failed { .. } => None,
     }
 }
+
+#[cfg(test)]
+// The private routing seam is tested beside the root's world.
+#[path = "../../../../tests/engine/domain/src/catalogue.rs"]
+mod catalogue_tests;

@@ -684,7 +684,13 @@ impl World {
                     .expect("one stock policy");
                 config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
                 config.core.settings.models = Box::new([model.clone()]);
-                config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
+                config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: model.endpoint,
+                    dialect: model.dialect,
+                    program: model.program.clone(),
+                }]);
+
                 config.core.connectors = Box::new([1]);
                 for rule in &mut landing_rules.deployment {
                     rule.connector = 1;
@@ -1044,7 +1050,7 @@ impl World {
         let mut second = settings.models[0].clone();
         second.name = name.into();
         settings.models = Box::new([settings.models[0].clone(), second.clone()]);
-        settings.llm_providers.providers[0].models = Box::new([settings.models[0].name.clone(), second.name.clone()]);
+
         let producer = self
             .restart_config
             .core
@@ -1297,6 +1303,7 @@ impl World {
             };
             match request {
                 engine::Request::ToChild(released) => self.events.push_back(engine::Event::Released(released)),
+                engine::Request::Store(engine::StoreRequest::Catalogue { names }) => self.store.catalogue(names),
                 engine::Request::Store(engine::StoreRequest::Switch) => {
                     let answer = self.store.switch();
                     self.events.push_back(engine::Event::Store(answer));

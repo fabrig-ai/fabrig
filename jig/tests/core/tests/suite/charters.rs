@@ -201,16 +201,20 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     let (mut config, mut limits) = jig_test_profile::two_charters(151);
     limits.core.fleet.workers = 2;
     config.core.defaults.charters[1].policy.model.name = b"specialist".as_slice().into();
-    config.core.settings.llm_providers.providers[1].models = Box::new([b"specialist".as_slice().into()]);
+    config.core.defaults.charters[1].policy.model.endpoint = 2;
     let specialist = config.core.defaults.charters[1].policy.model.clone();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), specialist]);
+    config.core.settings.endpoints = Box::new([
+        core::EndpointFacts { providers: Box::new([]), number: 1, dialect: 3, program: None },
+        core::EndpointFacts { providers: Box::new([]), number: 2, dialect: 3, program: None },
+    ]);
     let mut world = World::new(Setup { seed: 151, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;
     world.grant_account(2);
     world.delegate_agent(2, b"wait for a specialist host");
     assert_eq!(world.assigned.as_ref().expect("chat stays assigned").task, chat);
     let mut bounds = jig_test_profile::fixtures::bounds();
-    bounds.models[1].name = b"specialist".as_slice().into();
+    bounds.endpoints[0].endpoint = 2;
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 1,
         channel: Token::new(8),

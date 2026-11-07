@@ -22,10 +22,10 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
             "policy":{"max_turns":800,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
-        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
+        "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
             "connect":1000,"handshake":1000,
-            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
+            "limits": {"window":1_048_576,"output":8192,"reasoning_item":64,"head":60000,"idle":30000}}],
         "environment":[]});
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
@@ -94,6 +94,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
+    temper_playground::documents::settings::strip_models(value);
     value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
     value["engine"]["limits"]["overrides"]["core.run_bytes"] = 8192.into();
 }
@@ -147,14 +148,12 @@ pub fn check_document(directory: &Path) -> serde_json::Value {
 pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
     let mut value = check_document(directory);
     let llm = serde_json::json!({
-        "providers":[{"name":"demo", "number":3, "models":["qa"], "sources":{"keys":true}}],
+        "providers":[{"name":"demo", "number":3, "endpoint":"demo", "sources":{"keys":true}}],
         "endpoints":[{"name":"demo", "number":3, "dialect":3, "provider":"demo",
             "address":{"socket":listen}, "transport":"plaintext", "headers":[],
-            "connect_ms":10000, "handshake_ms":10000}],
-        "models":[{"name":"qa", "endpoint":"demo", "window":4096, "output":1024,
-            "prices":{"input":1,"cached":1,"output":1,"unit":1}}]
+            "connect_ms":10000, "handshake_ms":10000}]
     });
-    for field in ["providers", "endpoints", "models"] {
+    for field in ["providers", "endpoints"] {
         value["engine"]["llm"][field]
             .as_array_mut()
             .expect("LLM table")

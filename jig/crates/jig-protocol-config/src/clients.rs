@@ -34,46 +34,10 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Clients { heartbeat: heartbeat?, link: link?, provider })
 }
-/// The configured models as the client protocol names and shows them, in configuration's order,
-/// each with the number of the LLM provider listing it (contract.md, 5.1).
+/// The startup catalogue in the clients' numbered positions (domain/engine.md, 17.11).
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
-    let mut models = List::with_capacity(u32::try_from(llm.models.len()).expect("checked models"));
-    for (at, model) in llm.models.iter().enumerate() {
-        let mut provider = None;
-        for item in &llm.providers {
-            for name in &item.models {
-                if *name == model.name {
-                    provider = Some(item.number);
-                }
-            }
-        }
-        models
-            .push(jig_protocol_engine_clients::Model {
-                name: model.name.clone(),
-                provider,
-                window: model.window,
-                output: model.output,
-                efforts: model.efforts.clone(),
-                effort: match model.default_effort() {
-                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
-                    None => None,
-                },
-                prices: jig_protocol_engine_clients::Prices {
-                    input: model.input_price,
-                    cached: model.cached_price,
-                    cache_write: model.cache_write_price,
-                    output: model.output_price,
-                    unit: model.price_unit,
-                },
-                description: llm.descriptions.get(at).expect("one description per configured model").clone(),
-                shown: llm.shown.get(at).expect("one shown name per configured model").clone(),
-                picker: *llm.pickers.get(at).expect("one picker flag per configured model"),
-            })
-            .expect("one row per model");
-    }
-    models.into_boxed()
+    jig_protocol_engine_clients::translate::llm::catalogue(&llm.models)
 }
 
 /// What an application adds to the clients' settings (protocol/service.md, 11.6).
@@ -198,9 +162,9 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     if core.settings.proposals > wire.settings_document_pending {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
-    // Defaults and changes may name disjoint settings; both belong to the inventory.
+    // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
     let inventory = match jig_domain_core::settings::capacity(core) {
-        Some(count) => double_settings(count),
+        Some(count) => inventory_settings(count),
         None => None,
     };
     if match inventory {
@@ -238,8 +202,8 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         }
     }
 }
-fn double_settings(count: u32) -> Option<u32> {
-    count.checked_mul(2)
+fn inventory_settings(count: u32) -> Option<u32> {
+    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)
 }
 
 #[cfg(test)]
@@ -331,7 +295,7 @@ mod settings_tests {
     }
     #[test]
     fn charter_alternatives_fit_the_wire() {
-        ceiling(b"core.settings.alternatives", 16);
+        ceiling(b"core.settings.alternatives", 63);
     }
     #[test]
     fn charter_instructions_fit_the_wire() {
@@ -356,12 +320,12 @@ mod settings_tests {
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::profile(crate::Profile::Small);
-        // Small has eight templates, two policies and rules: eleven other slots.
-        limits.core.tasks.charters = 117;
+        // Small has eleven other slots in each set and one shared 64-row model range.
+        limits.core.tasks.charters = 85;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 118;
+        limits.core.tasks.charters = 86;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }

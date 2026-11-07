@@ -195,6 +195,7 @@ pub(crate) fn route_forge(
                     | Address::Home { .. }
                     | Address::Changes { .. }
                     | Address::Settings { .. }
+                    | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
                     | Address::Goals { .. }
@@ -507,6 +508,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
         | Address::Repositories { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => false,

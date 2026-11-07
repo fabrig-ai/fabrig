@@ -1,25 +1,15 @@
-//! The shipped init template's Sol model, used only by scripted workers.
+//! The binary's Sol model, used only by scripted workers.
 pub fn box_model() -> temper_engine_domain::Model {
-    let document: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../../crates/temper-init/template/temper.json"))
-            .expect("init document");
-    let model = document["engine"]["llm"]["models"]
-        .as_array()
-        .expect("models")
-        .iter()
-        .find(|model| model["name"] == "gpt-6.1-sol")
-        .expect("init Sol");
-    let mut value = temper_engine_domain_world::walking::models()[0].clone();
-    value.dialect = u32::try_from(document["engine"]["llm"]["endpoints"][0]["dialect"].as_u64().expect("dialect"))
-        .expect("bounded dialect");
-    value.name = model["name"].as_str().expect("model name").as_bytes().into();
-    value.window = u32::try_from(model["window"].as_u64().expect("window")).expect("bounded window");
-    value.output = u32::try_from(model["output"].as_u64().expect("output")).expect("bounded output");
-    value.input_price = model["prices"]["input"].as_u64().expect("input price");
-    value.cached_price = model["prices"]["cached"].as_u64().expect("cache price");
-    value.cache_write_price = model["prices"]["cache_write"].as_u64();
-    value.output_price = model["prices"]["output"].as_u64().expect("output price");
-    value.price_unit =
-        u32::try_from(model["prices"]["unit"].as_u64().expect("price unit")).expect("bounded price unit");
-    value
+    let document = jig_protocol_config::document(
+        include_bytes!("../../../../../crates/temper-init/template/bare.json"),
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .expect("bare document");
+    let at = jig_protocol_config::read::Object::new(&document, 0)
+        .expect("document object")
+        .member(&document, b"engine")
+        .expect("engine member");
+    let engine = temper_service::startup::engine(&document, at, &jig_protocol_config::Directories::working())
+        .expect("stock engine");
+    engine.llm.models.iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").expect("stock Sol").model.clone()
 }

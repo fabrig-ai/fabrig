@@ -133,7 +133,7 @@ pub(super) const CORE: core::Limits = core::Limits {
         versions: 16,
         history: 64,
         proposals: 8,
-        alternatives: 16,
+        alternatives: 63,
         permissions: 32,
     },
     templates: 16,

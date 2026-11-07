@@ -427,18 +427,9 @@ pub fn churn(limits: &Limits, seed: u64, rounds: u32, bound: u64) -> [u32; 18] {
         smith_domain::Config {
             programs: Box::new([]),
             endpoints: Box::new([Endpoint(0)]),
-            models: Box::new([smith_domain::ConfiguredModel {
-                efforts: Box::new([]),
-                prices: smith_domain::run::Prices {
-                    input: 1,
-                    cached: 1,
-                    cache_write: None,
-                    output: 1,
-                    unit: 1_000_000,
-                },
+            limits: Box::new([smith_domain::EndpointLimits {
                 protocol_allowance: 0,
                 endpoint: smith_domain::run::charter::Endpoint(0),
-                model: Box::from(&b"m"[..]),
                 window: 65_536,
                 output: 4096,
                 head: Duration::from_secs(60),

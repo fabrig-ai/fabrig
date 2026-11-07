@@ -151,6 +151,7 @@ fn decode(
         &call.tool,
         &input,
         driver.root.models(),
+        &driver.root.catalogue(),
     )
     .expect("valid host call");
     (to, decoded)
@@ -188,7 +189,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
                 &answer,
                 from,
                 requested,
-                driver.root.models(),
+                &driver.root.catalogue(),
                 application.as_ref(),
                 &repositories,
                 &people,

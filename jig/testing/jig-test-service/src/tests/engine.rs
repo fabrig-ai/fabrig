@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{End, Stop};
 use jig_domain_core as core;
-use jig_domain_link::{Bounds, Hello, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound, Hello};
 use jig_domain_tasks::Cancel;
 use jig_protocol_accounts::table::{Scheme, Value};
 use jig_protocol_engine_workers::{self as engine, GrantValue};
@@ -962,7 +962,7 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
                 hosting: Box::new([]),
                 bounds: Bounds {
                     program_endpoints: Box::new([]),
-                    models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
+                    endpoints: Box::new([EndpointBound { endpoint: 1, window: 8192, output: 1024 }]),
                     turns: u32::MAX,
                     spend: u64::MAX,
                     time: Duration::from_secs(60),

@@ -537,7 +537,10 @@ impl RequestWorld {
                     root::Request::Deliver(root::Delivery::Core(core::Held::PeopleReply { reply: value, .. })) => {
                         assert!(reply.replace(value).is_none(), "one reply per call");
                     }
-                    root::Request::Deliver(_) | root::Request::Now(_) => {}
+                    root::Request::StoreCatalogue { .. }
+                    | root::Request::ClientsCatalogue { .. }
+                    | root::Request::Deliver(_)
+                    | root::Request::Now(_) => {}
                     other @ (root::Request::Stop | root::Request::Busy { .. } | root::Request::ReadResult { .. }) => {
                         panic!("unexpected request: {other:?}");
                     }

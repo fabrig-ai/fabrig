@@ -60,7 +60,7 @@ fn revision_item_sum_and_count_bounds() {
     domain.documents.text_bytes = 65536;
     domain.templates = 0;
     let limits = codec::settings::limits(&domain).unwrap();
-    let count = s::capacity(&domain).unwrap().checked_mul(2).unwrap();
+    let count = s::capacity(&domain).unwrap().checked_mul(2).unwrap().min(jig_domain_tasks::SETTINGS_ITEMS);
     assert_eq!(limits.proposal_items, count);
     let mut value = template();
     value.name = Box::new([]);

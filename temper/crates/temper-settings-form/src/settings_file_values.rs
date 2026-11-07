@@ -8,6 +8,7 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
         &[
+            b"rest",
             b"number",
             b"instructions",
             b"waiting",
@@ -31,6 +32,10 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
         ],
     )?;
     Ok(c::Charter {
+        rest: match optional(&fields, b"rest") {
+            Some(at) => d.boolean(at)?,
+            None => false,
+        },
         documents: documents(d, field(&fields, b"documents")?)?,
         switches: [
             d.boolean(field(&fields, b"resume")?)?,
@@ -429,6 +434,7 @@ fn setting_model(d: &Decoder, at: u32) -> Result<c::SettingModel, Error> {
     let fields = d.object(
         at,
         &[
+            b"provider",
             b"dialect",
             b"endpoint",
             b"program",
@@ -445,6 +451,10 @@ fn setting_model(d: &Decoder, at: u32) -> Result<c::SettingModel, Error> {
         ],
     )?;
     Ok(c::SettingModel {
+        provider: match optional(&fields, b"provider") {
+            Some(at) => u32::try_from(d.number(at)?).or(Err(error(b"provider", b"integer bound")))?,
+            None => 1,
+        },
         dialect: u32::try_from(d.number(field(&fields, b"dialect")?)?)
             .or(Err(error(b"setting_model_dialect", b"integer bound")))?,
         endpoint: u32::try_from(d.number(field(&fields, b"endpoint")?)?)
@@ -1036,4 +1046,31 @@ fn owner_pattern_end(d: &Decoder, at: u32) -> Result<c::PatternEnd, Error> {
         return Ok(c::PatternEnd::Open(d.hex(at, d.limits.pattern_end_open_value, b"pattern_end_open_value")?));
     }
     Err(error(b"owner_pattern_end", b"unknown variant"))
+}
+
+pub(super) fn catalogue(d: &Decoder, at: u32) -> Result<c::CatalogueEntry, Error> {
+    let fields = d.object(
+        at,
+        &[b"number", b"model", b"shown", b"description", b"picker", b"withdrawn", b"source", b"estimated"],
+    )?;
+    let source = match d.string(field(&fields, b"source")?)? {
+        b"stock" => c::ModelSource::Stock,
+        b"list" => c::ModelSource::List,
+        b"person" => c::ModelSource::Person,
+        _ => return Err(error(b"source", b"unknown word")),
+    };
+    Ok(c::CatalogueEntry {
+        number: u32::try_from(d.number(field(&fields, b"number")?)?).or(Err(error(b"number", b"integer bound")))?,
+        model: setting_model(d, field(&fields, b"model")?)?,
+        shown: catalogue_text(d, &fields, b"shown", d.limits.catalogue_entry_shown_some)?,
+        description: catalogue_text(d, &fields, b"description", d.limits.catalogue_entry_description_some)?,
+        picker: d.boolean(field(&fields, b"picker")?)?,
+        withdrawn: d.boolean(field(&fields, b"withdrawn")?)?,
+        source,
+        estimated: d.boolean(field(&fields, b"estimated")?)?,
+    })
+}
+fn catalogue_text(d: &Decoder, fields: &super::Fields, member: &[u8], bound: u32) -> Result<Option<c::Text>, Error> {
+    let at = field(fields, member)?;
+    if d.kind(at)? == Kind::Null { Ok(None) } else { Ok(Some(d.words(at, bound, member)?)) }
 }

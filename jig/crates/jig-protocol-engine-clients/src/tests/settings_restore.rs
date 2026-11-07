@@ -25,6 +25,7 @@ fn charter() -> jig_domain_core::Charter {
     use jig_domain_core as core;
     use skein_lib::Duration;
     core::Charter {
+        rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([
             core::Document {
@@ -56,6 +57,7 @@ fn charter() -> jig_domain_core::Charter {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(5),
             model: core::Model {
+                provider: 1,
                 dialect: 3,
                 endpoint: 4,
                 program: Some(Box::from(b"program".as_slice())),

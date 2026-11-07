@@ -93,6 +93,14 @@ impl Bindings {
                         PageAct::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (PageAct::AmendTracked, skein_ui::Act::Toggle) => PageAct::AmendTracked,
+                    (PageAct::Models(act), skein_ui::Act::Toggle) => PageAct::Models(act.clone()),
+                    (
+                        PageAct::Models(temper_client_domain::pages::models::Act::Name(..)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Models(temper_client_domain::pages::models::Act::Name(value)),
+                    (PageAct::Models(temper_client_domain::pages::models::Act::Name(..)), skein_ui::Act::Submit) => {
+                        PageAct::Models(temper_client_domain::pages::models::Act::Add)
+                    }
                     (
                         PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
                         skein_ui::Act::Toggle,
@@ -798,6 +806,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Adopt { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
@@ -898,6 +907,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
         Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
@@ -934,6 +944,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
@@ -995,6 +1006,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
@@ -1068,6 +1080,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
@@ -1105,6 +1118,7 @@ pub(crate) fn accounts_link(
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }

@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/forge.md, 2 and 11.1;
 //! jig/docs/design/domain/tasks.md, 6.1–6.3).
 use super::*;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 const FORGE_CONNECTOR: u16 = 0;
 const OWN_GOAL_BRANCH: u16 = 1; // forge.md, 2, Symbols.
@@ -54,15 +54,25 @@ fn reference_template() -> jig_domain_core::Template {
 
 fn reference_defaults() -> jig_domain_core::settings::Defaults {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([stock::box_model()]),
+        models: (Box::new([stock::box_model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(
-        &llm,
+    let mut defaults = temper_service::stock::with_models(
+        llm.models.clone(),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
     );
     // Admission needs charter 5; the scripted world takes the stock run policy,
@@ -137,7 +147,8 @@ fn reference_template_four_starts_on_the_configured_forge() {
     hello.bounds = jig_test_profile::fixtures::bounds();
     hello.bounds.time = Duration::from_secs(28_800);
     let model = stock::box_model();
-    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     world.send(event);
     let template = defaults.templates.iter().find(|template| template.number == 4).expect("template 4");
     let request = reference_request(&world, template);

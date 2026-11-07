@@ -9,8 +9,8 @@ pub use kinds::kinds;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
-    Charter, ConfiguredPolicy, RunPolicy, Template,
-    settings::{Defaults, Setting},
+    Charter, ConfiguredPolicy, Model, RunPolicy, Template,
+    settings::{CatalogueModel, Defaults, ModelSource, Setting},
 };
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
@@ -37,6 +37,7 @@ impl Given {
                     policies.insert(*number, policy.clone()).expect("counted policies");
                 }
                 Some(Defaults {
+                    models: own.models.clone(),
                     charters: own.charters.clone(),
                     templates: own.templates.clone(),
                     policies,
@@ -45,6 +46,163 @@ impl Given {
             }
         }
     }
+}
+
+/// The numbered defaults (temper/docs/design/protocol/configuration.md, 13.4).
+struct StockModel {
+    number: u32,
+    provider: u32,
+    name: &'static [u8],
+    shown: Option<&'static [u8]>,
+    effort: Option<&'static [u8]>,
+    efforts: &'static [&'static [u8]],
+    input: u64,
+    output: u64,
+    unit: u32,
+}
+const MODELS: &[StockModel] = &[
+    StockModel {
+        number: 1,
+        provider: 2,
+        name: b"claude-opus-5-5",
+        shown: Some(b"Opus 5.5"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 4_000,
+        output: 20_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 2,
+        provider: 2,
+        name: b"claude-sonnet-5-5",
+        shown: Some(b"Sonnet 5.5"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 2_000,
+        output: 10_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 3,
+        provider: 2,
+        name: b"claude-fable-5-1",
+        shown: Some(b"Fable 5.1"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 10_000,
+        output: 50_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 4,
+        provider: 1,
+        name: b"gpt-6.1-sol",
+        shown: Some(b"GPT-6.1 Sol"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 2_000,
+        output: 10_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 5,
+        provider: 1,
+        name: b"gpt-6-astra",
+        shown: Some(b"GPT-6 Astra"),
+        effort: Some(b"high"),
+        efforts: &[b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 10_000,
+        output: 50_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 6,
+        provider: 1,
+        name: b"gpt-6.1-terra",
+        shown: Some(b"GPT-6.1 Terra"),
+        effort: Some(b"medium"),
+        efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 1_000,
+        output: 5_000,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 7,
+        provider: 1,
+        name: b"gpt-6-luna",
+        shown: Some(b"GPT-6 Luna"),
+        effort: Some(b"medium"),
+        efforts: &[b"none", b"low", b"medium", b"high", b"xhigh", b"max"],
+        input: 100,
+        output: 500,
+        unit: 1_000_000,
+    },
+    StockModel {
+        number: 8,
+        provider: 3,
+        name: b"demo",
+        shown: None,
+        effort: None,
+        efforts: &[],
+        input: 1,
+        output: 1,
+        unit: 1_000,
+    },
+];
+
+pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
+    let mut models = List::with_capacity(u32::try_from(MODELS.len()).expect("stock model count"));
+    for row in MODELS {
+        for provider in &llm.providers {
+            if provider.number != row.provider {
+                continue;
+            }
+            for endpoint in &llm.endpoints {
+                if provider.endpoint.as_deref() != Some(endpoint.name.as_ref()) {
+                    continue;
+                }
+                let mut efforts = List::with_capacity(u32::try_from(row.efforts.len()).expect("stock efforts"));
+                for effort in row.efforts {
+                    efforts.push(bytes::copy_of(effort)).expect("stock effort count");
+                }
+                models
+                    .push(CatalogueModel {
+                        number: row.number,
+                        model: Model {
+                            name: bytes::copy_of(row.name),
+                            provider: row.provider,
+                            endpoint: endpoint.number,
+                            dialect: endpoint.dialect,
+                            program: endpoint.program.clone(),
+                            window: 1_048_576,
+                            output: 8192,
+                            input_price: row.input,
+                            cached_price: row.input,
+                            cache_write_price: None,
+                            output_price: row.output,
+                            price_unit: row.unit,
+                            effort: match row.effort {
+                                Some(effort) => Some(bytes::copy_of(effort)),
+                                None => None,
+                            },
+                            efforts: efforts.into_boxed(),
+                        },
+                        shown: match row.shown {
+                            Some(shown) => Some(bytes::copy_of(shown)),
+                            None => None,
+                        },
+                        description: None,
+                        picker: true,
+                        withdrawn: false,
+                        source: ModelSource::Stock,
+                        estimated: false,
+                    })
+                    .expect("stock model count");
+            }
+        }
+    }
+    models.into_boxed()
 }
 
 const FORGE: u16 = 1;
@@ -163,7 +321,7 @@ fn grant_floors(grants: &[authority::Grant], limits: &authority::Limits, setting
 }
 
 /// The defaults temper passes jig's builder at each start. Each charter offers every
-/// model `llm` configures, with the stock's first choices before the document's rest.
+/// stock model, with the stock's first choices before the catalogue's rest.
 /// # Panics
 /// If `llm` offers no model or its budgets overflow; startup checks both before calling this.
 #[must_use]
@@ -171,22 +329,35 @@ pub fn defaults(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Defaults {
     checked(llm, result_bytes).expect("startup checked the default model and its stock budgets")
 }
 
+/// Stock charters and budgets over an explicitly supplied world's catalogue.
+/// The caller passes these as `Given::Own` (protocol/configuration.md, 13.4).
+/// # Panics
+/// If the supplied catalogue is empty or its budgets overflow.
+#[must_use]
+pub fn with_models(models: Box<[CatalogueModel]>, result_bytes: u32) -> Defaults {
+    checked_with(models, result_bytes).expect("world's catalogue and budgets")
+}
+
 /// Checked stock construction lets startup refuse unrepresentable model-based budgets.
 pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
-    llm.models.first()?;
+    checked_with(models(llm), result_bytes)
+}
+
+pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<Defaults> {
+    models.first()?;
     let mut charters = Box::new([
-        charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), llm, FIRST_CHOICES),
-        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), llm, FIRST_CHOICES),
-        configuring_charter(llm),
-        reviewer(llm),
-        foreman(llm),
-        status(llm),
-        trial(llm),
+        charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
+        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
+        configuring_charter(&models),
+        reviewer(&models),
+        foreman(&models),
+        status(&models),
+        trial(&models),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     let mut completion = 0;
-    for model in &llm.models {
-        completion = completion.max(jig_domain_core::most_costly(model)?);
+    for model in &models {
+        completion = completion.max(jig_domain_core::most_costly(&model.model)?);
     }
     let minimum_run = completion.checked_mul(2)?;
     let mut run = minimum_run.checked_mul(2)?; // K starts at 4C.
@@ -205,6 +376,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
+        models,
         charters,
         templates,
         policies,
@@ -290,21 +462,25 @@ fn charter(
     turns: u32,
     time: Duration,
     instructions: &[u8],
-    llm: &jig_protocol_config::Llm,
+    models: &[CatalogueModel],
     first_choices: &[&[u8]],
 ) -> Charter {
-    let mut ordered = List::with_capacity(u32::try_from(llm.models.len()).expect("model count"));
+    let mut ordered = List::with_capacity(u32::try_from(models.len()).expect("model count"));
     for name in first_choices {
-        for model in &llm.models {
-            if model.name.as_ref() == *name {
-                ordered.push(model.clone()).expect("one per configured model");
+        for model in models {
+            if model.model.name.as_ref() == *name {
+                ordered.push(model.model.clone()).expect("one per configured model");
             }
         }
     }
-    for model in &llm.models {
-        if !first_choices.contains(&model.name.as_ref()) {
-            ordered.push(model.clone()).expect("one per configured model");
+    if ordered.is_empty() {
+        let mut first = models.first().expect("nonempty catalogue");
+        for model in models {
+            if model.number < first.number {
+                first = model;
+            }
         }
+        ordered.push(first.model.clone()).expect("first model");
     }
     let mut ordered = ordered.into_boxed().into_iter();
     let model = ordered.next().expect("parsed llm offers at least one model");
@@ -313,6 +489,7 @@ fn charter(
         alternatives.push(alternative).expect("one per remaining configured model");
     }
     Charter {
+        rest: true,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number,
@@ -346,40 +523,41 @@ fn charter(
         },
     }
 }
-fn configuring_charter(llm: &jig_protocol_config::Llm) -> Charter {
+fn configuring_charter(models: &[CatalogueModel]) -> Charter {
     let mut value =
-        charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), llm, CONFIGURING_FIRST_CHOICES);
+        charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), models, CONFIGURING_FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
-fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(4, WORK_TURNS, WORK_TIME, include_bytes!("stock/review.txt"), llm, FIRST_CHOICES);
+fn reviewer(models: &[CatalogueModel]) -> Charter {
+    let mut value = charter(4, WORK_TURNS, WORK_TIME, include_bytes!("stock/review.txt"), models, FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
-fn foreman(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), llm, FIRST_CHOICES);
+fn foreman(models: &[CatalogueModel]) -> Charter {
+    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), models, FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
-fn status(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), llm, FIRST_CHOICES);
+fn status(models: &[CatalogueModel]) -> Charter {
+    let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), models, FIRST_CHOICES);
     value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
-fn trial(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(10, 2, Duration::from_secs(120), include_bytes!("stock/trial.txt"), llm, FIRST_CHOICES);
+fn trial(models: &[CatalogueModel]) -> Charter {
+    let mut value = charter(10, 2, Duration::from_secs(120), include_bytes!("stock/trial.txt"), models, FIRST_CHOICES);
     value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.agents = false;
     value.policy.resume = false;
     value
 }
+
 fn grants() -> Box<[authority::Grant]> {
     let mut grants = List::with_capacity(14);
     for kind in [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17] {

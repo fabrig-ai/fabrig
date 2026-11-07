@@ -785,6 +785,15 @@ The other confirmations and failures use the same sheet (`README.md`, 3.6);
 their gallery states include Start over, Close, Accept, Reject and
 Release, with its uncertain pair. These add no recorded journey or page.
 
+The `model-picker` request's hand-made `model-picker/01.html` through
+`07.html` are not recorded journeys to reprint or land (section 7). Its
+Settings, Models page is drawn by the gallery's `models`, `models-add`,
+`models-off`, `models-added`, `models-member` and `models-one-account`
+states (`browser.md`, 7.2). The account in `model-catalogue-2/models-proof`'s
+last commit names each page 07 change and Settings overlay rule. The render
+comparison at 1440, 1280, 1000 and 420 px and its screenshots follow landing,
+owned by temper/ui (`../draft/look-requests.md`, 4).
+
 The `connect-flows` request’s hand-made pages 01–23 are not journeys to
 reprint or land (section 7). They draw Accounts, model connection,
 Forges, forge connection and Settings’ “Add repositories” sheet, including

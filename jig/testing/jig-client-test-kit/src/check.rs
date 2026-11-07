@@ -218,6 +218,7 @@ pub fn named(ask: &Ask) -> Vec<(Object, Revision)> {
         | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
+        | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }

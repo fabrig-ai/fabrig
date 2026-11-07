@@ -14,7 +14,7 @@ fn jig() -> config::Engine {
     for provider in jig.providers {
         providers.push(provider).unwrap();
     }
-    providers.push(config::Provider { number: 3, kind: config::ProviderKind::Application }).unwrap();
+    providers.push(config::IdentityProvider { number: 3, kind: config::ProviderKind::Application }).unwrap();
     jig.providers = providers.into_boxed();
     jig.owners[0].identity =
         jig_domain_people::IdentityKey { provider: 3, subject: b"Sam@example.com".as_slice().into() };

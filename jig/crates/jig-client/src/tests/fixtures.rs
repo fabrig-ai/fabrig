@@ -412,6 +412,7 @@ pub fn me() -> contract::Me {
     }
     me.projects
         .push(contract::MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             models: List::with_capacity(0),

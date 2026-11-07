@@ -1,11 +1,11 @@
 //! Shared host bounds for the domain world.
-use jig_domain_link::{Bounds, Form, Grant, Hosting, Membership, ModelBound, Phase, Scheme};
+use jig_domain_link::{Bounds, EndpointBound, Form, Grant, Hosting, Membership, Phase, Scheme};
 #[must_use]
 pub fn bounds() -> Bounds {
     use skein_lib::Duration;
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([]),
+        endpoints: Box::new([]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_secs(3600),
@@ -65,7 +65,12 @@ pub fn model_needs() -> jig_domain_fleet::Needs {
                 kinds: Kinds::Both,
                 models: models
                     .into_iter()
-                    .map(|name| ModelNeed { name: name.into(), window: MODEL_WINDOW, output: MODEL_OUTPUT })
+                    .map(|name| ModelNeed {
+                        endpoint: model_endpoint(name),
+                        name: name.into(),
+                        window: MODEL_WINDOW,
+                        output: MODEL_OUTPUT,
+                    })
                     .collect(),
                 turns: 0,
                 time: skein_lib::Duration::ZERO,
@@ -81,9 +86,9 @@ pub fn model_needs() -> jig_domain_fleet::Needs {
 pub fn model_bounds(names: &[&[u8]]) -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: names
+        endpoints: names
             .iter()
-            .map(|name| ModelBound { name: (*name).into(), window: MODEL_WINDOW, output: MODEL_OUTPUT })
+            .map(|name| EndpointBound { endpoint: model_endpoint(name), window: MODEL_WINDOW, output: MODEL_OUTPUT })
             .collect(),
         ..bounds()
     }
@@ -92,11 +97,22 @@ pub fn model_bounds(names: &[&[u8]]) -> Bounds {
 /// Fixed configured membership for the fleet worlds, independent of live channels.
 #[must_use]
 pub fn domain(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {
-    let mut domain = jig_domain_fleet::Domain::new(limits, 0, needs, Box::new([]));
+    let mut domain = jig_domain_fleet::Domain::new(limits, 0, needs);
     let names =
         (0..limits.configured_workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
     let names =
         Membership::new(names, limits.configured_workers, limits.worker_name_bytes).expect("fixture membership");
     domain.configure_workers(names);
     domain
+}
+
+/// Independent served endpoints for the three model fixtures.
+#[must_use]
+pub fn model_endpoint(name: &[u8]) -> u32 {
+    match name {
+        b"main" => 1,
+        b"alternative" => 2,
+        b"other" => 3,
+        _ => panic!("unknown model fixture"),
+    }
 }

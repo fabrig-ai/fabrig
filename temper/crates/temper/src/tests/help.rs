@@ -507,15 +507,9 @@ fn account_and_deployment_help_explain_offering_another_model() {
     let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(account.contains("temper help deployment"), "{account}");
     assert!(account.contains("Offering another model"), "{account}");
+    assert!(account.contains("The providers are the configuration's and the models are settings"), "{account}");
     let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
-    let examples = deployment.split("```json\n").skip(1).collect::<Vec<_>>();
-    assert_eq!(examples.len(), 2, "engine and agent model declarations");
-    for example in examples {
-        let json = example.split("```").next().expect("JSON fence");
-        let model: serde_json::Value = serde_json::from_str(json).expect("model declaration JSON");
-        assert_eq!(model["name"], "claude-haiku-5-5");
-        assert_eq!(model["efforts"], serde_json::json!(["low", "medium", "high"]));
-    }
+    assert!(!deployment.contains("```json"), "model declarations belong in settings: {deployment}");
     let guidance = deployment
         .split("## Acting on it\n")
         .nth(1)
@@ -528,27 +522,29 @@ fn account_and_deployment_help_explain_offering_another_model() {
         .join(" ");
     for required in [
         "Offering another model",
+        "**Settings**",
+        "**Models**",
+        "Add a model by name",
+        "choose a provider",
+        "model's name",
+        "Prices are estimated until set",
+        "first run shows whether the provider serves it",
+        "Configure temper",
+        "prices, window or efforts",
+        "A task keeps the model it has",
+        "no restart",
+        "local model",
+        "`endpoint` in `engine.llm.providers`",
         "`CONFIG/temper.json`",
-        "`engine.llm.models`",
-        "`engine.llm.providers[].models`",
         "`CONFIG/agent.json`",
-        "`endpoints[].models`",
         "claude-haiku-5-5",
-        "efforts",
-        "high",
-        "medium",
-        "low",
-        "window",
         "output",
         "reasoning_item",
-        "prices",
-        "same model and endpoint names",
-        "illustrative",
-        "provider specifications",
+        "`head`",
+        "`idle`",
         "Preserve",
-        "before the first start",
         "stop",
-        "restart",
+        "restart, then change the model",
         "same `CONFIG`, `DATA` and `CACHE`",
     ] {
         assert!(guidance.contains(required), "deployment help missing {required}: {guidance}");

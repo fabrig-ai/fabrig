@@ -17,7 +17,10 @@ pub(super) fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
         let end = bytes::find(&document, next).unwrap();
         document = fixtures::with(&document, &document[start..end], b"");
     }
-    document
+    document = fixtures::with(&document, br#""models":["small"]"#, br#""endpoint":"fake""#);
+    let first = bytes::find(&document, b",\n\"models\":").unwrap();
+    let after = bytes::find(&document, b"\n},\n\"hosts\":").unwrap();
+    fixtures::with(&document, &document[first..after], b"")
 }
 fn defaults() -> jig_domain_core::settings::Defaults {
     crate::core(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap(), [3; 16], 11).defaults
@@ -112,4 +115,115 @@ fn pass_leaves_the_defaults_own_check_to_the_core() {
     }]);
     assert!(!jig_domain_authority::valid_rules(&given.rules, &engine.limits.core.authority));
     crate::pass(&mut engine, given).expect("the seed fits the rules; the defaults' shape is the core's check");
+}
+
+#[test]
+fn passed_models_are_the_catalogue() {
+    use jig_domain_core::settings::ModelSource;
+    let mut engine = passed();
+    assert!(engine.llm.models.is_empty(), "passed catalogues have no document models");
+    let mut given = defaults();
+    let entry = &mut given.models[0];
+    entry.number = 64;
+    entry.model.name = Box::from(b"passed".as_slice());
+    entry.model.output = 2048;
+    entry.shown = Some(Box::from(b"Passed".as_slice()));
+    entry.description = Some(Box::from(b"Application catalogue".as_slice()));
+    entry.picker = false;
+    entry.withdrawn = true;
+    entry.source = ModelSource::Person;
+    entry.estimated = true;
+    given.charters[0].policy.model = entry.model.clone();
+    let expected = given.models.clone();
+    crate::pass(&mut engine, given).expect("passed catalogue supplies the model defaults");
+    assert_eq!(engine.llm.models, expected);
+    let config = crate::core(&engine, [3; 16], 11);
+    assert_eq!(config.defaults.models, expected);
+    assert_eq!(config.settings.models.len(), 64);
+    for model in &config.settings.models[..63] {
+        assert!(model.is_hole());
+    }
+    assert_eq!(config.settings.models[63], expected[0].model);
+    let models = crate::clients::models(&engine.llm);
+    assert_eq!(models.len(), 64);
+    assert_eq!(models[63].name, expected[0].model.name);
+    assert_eq!(models[63].provider, Some(expected[0].model.provider));
+    assert_eq!(models[63].shown, expected[0].shown);
+    assert_eq!(models[63].description, expected[0].description);
+    assert!(!models[63].picker);
+}
+
+#[test]
+fn a_documents_models_are_numbered_by_position() {
+    use jig_domain_core::settings::ModelSource;
+    let bytes = fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""unit": 1000}
+}]"#,
+        br#""unit": 1000}, "shown":"Small", "picker":false, "description":"First choice"
+}, {"name":"later","description":"Later choice","endpoint":"fake","window":8192,"output":1024,
+"prices":{"input":1,"cached":1,"output":1,"unit":1000}}]"#,
+    );
+    let bytes = fixtures::with(&bytes, br#""models":["small"]"#, br#""models":["small","later"]"#);
+    let engine = fixtures::engine(&bytes).unwrap();
+    let config = crate::core(&engine, [3; 16], 11);
+    assert_eq!(config.defaults.models, engine.llm.models);
+    assert_eq!(config.settings.models.as_ref(), engine.llm.models().as_ref());
+    let rows = &config.defaults.models;
+    for (index, row) in rows.iter().enumerate() {
+        assert_eq!(row.number, u32::try_from(index).unwrap() + 1);
+        assert_eq!(row.source, ModelSource::Stock);
+        assert!(!row.withdrawn);
+        assert!(!row.estimated);
+    }
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].shown.as_deref(), Some(b"Small".as_slice()));
+    assert_eq!(rows[0].description.as_deref(), Some(b"First choice".as_slice()));
+    assert!(!rows[0].picker);
+    assert_eq!(rows[1].shown, None);
+    assert_eq!(rows[1].description.as_deref(), Some(b"Later choice".as_slice()));
+    assert!(rows[1].picker);
+}
+
+#[test]
+fn a_charter_with_no_models_takes_the_rest() {
+    for members in [b"".as_slice(), br#""models":["small"],"rest":true,"#] {
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""model": "small", "alternatives": [],"#, members);
+        let engine = fixtures::engine(&bytes).expect("charter's remaining models come from the catalogue");
+        assert!(engine.charters[0].rest);
+        assert!(crate::core(&engine, [3; 16], 11).defaults.charters[0].rest);
+    }
+    let bytes =
+        fixtures::with(fixtures::ENGINE_SMALL, br#""model": "small", "alternatives": [],"#, br#""models":["small"],"#);
+    assert!(!fixtures::engine(&bytes).unwrap().charters[0].rest);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
+fn a_resolved_charter_of_64_models_fits_run_bytes() {
+    let engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
+    let mut charter = engine.charters[0].clone();
+    charter.policy.instructions = Box::new([b'i'; 8192]);
+    let mut models = skein_lib::List::with_capacity(64);
+    for number in 0_u32..64 {
+        let mut model = engine.llm.models[0].model.clone();
+        model.name = format!("model-{number:03}").into_bytes().into_boxed_slice();
+        model.efforts =
+            Box::new([Box::from(b"low".as_slice()), Box::from(b"medium".as_slice()), Box::from(b"high".as_slice())]);
+        model.effort = Some(Box::from(b"high".as_slice()));
+        models.push(model).unwrap();
+    }
+    let models = models.into_boxed();
+    charter.policy.model = models[0].clone();
+    charter.policy.alternatives = models[1..].into();
+    let bytes = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
+    let standard = crate::profile(crate::Profile::Standard);
+    assert_eq!(standard.core.settings.alternatives, 63);
+    assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::v19::CEILINGS.charter_alternatives, 63);
+    assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
+    assert!(
+        bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),
+        "small leaves models out when its byte bound is reached"
+    );
 }

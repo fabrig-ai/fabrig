@@ -94,6 +94,7 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
             c::Setting::Charter(_)
             | c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Model(_)
             | c::Setting::Rules
             | c::Setting::Application { .. } => {
                 out.put(b" (");
@@ -446,6 +447,7 @@ fn encode_value_result(
             out.object_start();
             out.key(match value {
                 c::SettingValue::Charter(_) => b"charter",
+                c::SettingValue::Model(_) => b"model",
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
                 c::SettingValue::Application(_) => b"application",
@@ -715,6 +717,7 @@ fn in_group(item: &c::ReviewItem, index: usize, reading: &Reading, follows: bool
         c::Setting::Charter(_) => {}
         c::Setting::Template(_)
         | c::Setting::Policy(_)
+        | c::Setting::Model(_)
         | c::Setting::Rules
         | c::Setting::ProjectPolicy { .. }
         | c::Setting::Application { .. } => return !follows,
@@ -741,6 +744,7 @@ fn group_fields(setting: c::Setting, follows: bool) -> &'static [u8] {
             c::Setting::Charter(_) => b"execution settings",
             c::Setting::Template(_)
             | c::Setting::Policy(_)
+            | c::Setting::Model(_)
             | c::Setting::Rules
             | c::Setting::ProjectPolicy { .. }
             | c::Setting::Application { .. } => b"value",

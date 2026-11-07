@@ -1,5 +1,5 @@
 //! Startup for the reference binary (protocol/service.md, 7; configuration.md, 7–8).
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_protocol_config::{self as config, read};
 use jig_test_service::{self as service, Files, Seeds};
 use skein_io::kernel::{Exit, Fd};
@@ -111,12 +111,16 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         calls: host_limits.calls,
     };
     protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).ok_or("agent output bound")?;
-    let mut models = Vec::new();
-    for endpoint in &configuration.declarations.endpoints {
-        for model in &endpoint.models {
-            models.push(ModelBound { name: model.name.clone(), window: model.window, output: model.output });
-        }
-    }
+    let endpoints = configuration
+        .declarations
+        .endpoints
+        .iter()
+        .map(|endpoint| EndpointBound {
+            endpoint: endpoint.number,
+            window: endpoint.limits.window,
+            output: endpoint.limits.output,
+        })
+        .collect();
     let policy = configuration.profile.policy;
     let sources = configuration.program.as_ref().map(|program| {
         let environment = configuration.service.environment.command_entries();
@@ -132,7 +136,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         host_limits,
         bounds: Bounds {
             program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
-            models: models.into_boxed_slice(),
+            endpoints,
             turns: policy.max_turns,
             spend: policy.max_spend,
             time: policy.max_time,

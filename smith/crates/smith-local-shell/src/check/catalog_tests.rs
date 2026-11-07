@@ -114,7 +114,7 @@ fn effective_limits_keep_their_names_values_and_units() {
     // Shipped standard tool payload, model head deadline and product teardown.
     for (name, value, unit) in [
         ("declared.tool_payload", 40_960, "bytes"),
-        ("declared.head[endpoint=openai,model=gpt-6-luna]", 60_000, "ms"),
+        ("declared.head[endpoint=openai]", 60_000, "ms"),
         ("service.teardown", 40_000, "ms"),
     ] {
         let expected = serde_json::json!({"name":name,"value":value,"unit":unit});

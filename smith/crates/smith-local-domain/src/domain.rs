@@ -85,30 +85,35 @@ impl Domain {
     /// Validate local choices and build the agent with the configured endpoints.
     pub fn new(mut config: Config, limits: &Limits, seed: u64) -> Result<Domain, Invalid> {
         config.validate(limits)?;
-        let mut models = List::with_capacity(u32::try_from(config.models.len()).expect("validated models count"));
-        for (index, model) in config.models.iter().enumerate() {
-            let progress = config.progress.get(index).expect("validated per-model progress inventory");
-            models
-                .push(agent::ConfiguredModel {
-                    endpoint: model.endpoint,
-                    model: model.model.clone(),
-                    efforts: config.efforts.get(index).expect("validated per-model efforts").clone(),
-                    prices: model.prices,
-                    window: model.window,
-                    output: model.output,
-                    protocol_allowance: *config
-                        .protocol_allowances
-                        .get(index)
-                        .expect("validated per-model protocol inventory"),
-                    head: progress.head,
-                    idle: progress.idle,
-                })
-                .expect("one cell per configured model");
+        let mut endpoint_limits =
+            List::with_capacity(u32::try_from(limits.endpoints.len()).expect("validated endpoints"));
+        for endpoint in &limits.endpoints {
+            let mut quantities = agent::EndpointLimits {
+                endpoint: *endpoint,
+                window: 0,
+                output: 0,
+                protocol_allowance: 0,
+                head: skein_lib::Duration::ZERO,
+                idle: skein_lib::Duration::ZERO,
+            };
+            for (index, model) in config.models.iter().enumerate() {
+                if model.endpoint == *endpoint {
+                    let progress = config.progress.get(index).expect("validated per-model progress");
+                    quantities.window = quantities.window.max(model.window);
+                    quantities.output = quantities.output.max(model.output);
+                    quantities.protocol_allowance = quantities
+                        .protocol_allowance
+                        .max(*config.protocol_allowances.get(index).expect("validated allowances"));
+                    quantities.head = quantities.head.max(progress.head);
+                    quantities.idle = quantities.idle.max(progress.idle);
+                }
+            }
+            endpoint_limits.push(quantities).expect("one cell per endpoint");
         }
         let agent_config = agent::Config {
             programs: Box::new([]),
             endpoints: Box::from(limits.endpoints.as_ref()),
-            models: models.into_boxed(),
+            limits: endpoint_limits.into_boxed(),
         };
         let child_limits = match limits.agent {
             AgentLimits::Inline(mut child) => {

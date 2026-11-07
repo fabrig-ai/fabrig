@@ -60,6 +60,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::Model(value) => s::Setting::Model(value.number()),
         w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
@@ -70,6 +71,7 @@ fn setting_value(
     limits: &w::Limits,
 ) -> Result<s::Value, Untranslatable> {
     Ok(match value {
+        w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
         w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
         w::SettingValue::Charter(value) => s::Value::Charter(Box::new(charter(*value))),
         w::SettingValue::Template(value) => s::Value::Template(Box::new(template(*value, models, limits)?)),
@@ -80,6 +82,7 @@ fn setting_value(
 fn model(value: w::SettingModel) -> c::Model {
     let v = value.into_parts();
     c::Model {
+        provider: v.provider,
         dialect: v.dialect,
         endpoint: v.endpoint,
         program: v.program,
@@ -120,6 +123,7 @@ fn wake(value: w::WakePolicy) -> t::WakePolicy {
     }
 }
 fn charter(value: w::Charter) -> c::Charter {
+    let rest = value.rest();
     let resume = value.resume();
     let inspect = value.inspect();
     let modify = value.modify();
@@ -143,6 +147,7 @@ fn charter(value: w::Charter) -> c::Charter {
             .expect("same count");
     }
     c::Charter {
+        rest,
         documents: documents.into_boxed(),
         number: v.number,
         hosts: match v.hosts {
@@ -417,4 +422,22 @@ pub(crate) fn proposed(
     };
     let change = change(envelope, models, limits)?;
     Ok(s::Proposed { against: change.against, items: change.items, reason: value.reason })
+}
+
+fn catalogue(value: w::CatalogueEntry) -> s::CatalogueModel {
+    let value = value.into_parts();
+    s::CatalogueModel {
+        number: value.number,
+        model: model(value.model),
+        shown: value.shown,
+        description: value.description,
+        picker: value.picker,
+        withdrawn: value.withdrawn,
+        estimated: value.estimated,
+        source: match value.source {
+            w::ModelSource::Stock => s::ModelSource::Stock,
+            w::ModelSource::List => s::ModelSource::List,
+            w::ModelSource::Person => s::ModelSource::Person,
+        },
+    }
 }

@@ -133,7 +133,7 @@ impl Protocol {
                     transport: skein_llm_connection::Transport::Plaintext,
                     llm: configuration.endpoint,
                 },
-                models: Box::new([]),
+                oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
             }]),
             1,
         )

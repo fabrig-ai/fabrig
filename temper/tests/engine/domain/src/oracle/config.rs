@@ -31,12 +31,14 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             grants: c.grants.clone(),
             kinds: c.kinds.clone(),
             defaults: core::settings::Defaults {
+                models: c.defaults.models.clone(),
                 charters: c.defaults.charters.clone(),
                 templates: c.defaults.templates.clone(),
                 policies,
                 rules: c.defaults.rules.clone(),
             },
             settings: core::Settings {
+                endpoints: s.endpoints.clone(),
                 deployment_provider: s.deployment_provider,
                 models: s.models.clone(),
                 resume_bytes: s.resume_bytes,

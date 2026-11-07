@@ -43,7 +43,7 @@ fn endpoints_with_client(connect: Duration, client: skein_llm::client::Limits) -
                 },
                 llm: shared::Endpoint::openai(),
             },
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )

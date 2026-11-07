@@ -54,13 +54,10 @@ fn withdrawn_endpoint_fields_are_refused_by_name() {
 }
 
 #[test]
-fn empty_endpoint_and_model_lists_name_the_missing_field() {
+fn an_empty_endpoint_list_names_the_missing_field() {
     let mut empty = document();
     empty.endpoints.clear();
     assert_eq!(build(empty).err().as_deref(), Some("field: declared.endpoints must not be empty"));
-    let mut empty = document();
-    empty.endpoints[0].models.clear();
-    assert_eq!(build(empty).err().as_deref(), Some("field: declared.models[endpoint=0] must not be empty"));
 }
 
 #[test]
@@ -134,7 +131,7 @@ fn a_dialect_name_and_number_must_match() {
         let mut endpoint = document().endpoints.remove(0);
         endpoint.provider = provider.into();
         endpoint.dialect = dialect;
-        let refusal = build_models(&endpoint).err().map(ConfigurationRefusal::detail);
+        let refusal = build_limits(&endpoint).err().map(ConfigurationRefusal::detail);
         assert_eq!(refusal.as_deref(), expected, "row {index}");
     }
 }
@@ -216,10 +213,10 @@ fn overflowing_declared_durations_name_the_first_field_and_its_scope() {
     let mut policy = document();
     policy.profile.policy.max_time = Some(u64::MAX);
     assert_eq!(build(policy).err().as_deref(), Some("derived: policy.max_time does not fit its type"));
-    let endpoint = LimitName { layer: Layer::Declared, field: "idle", per: Per::Model { endpoint: 7, model: 3 } };
+    let endpoint = LimitName { layer: Layer::Declared, field: "idle", per: Per::Endpoint(7) };
     assert_eq!(
         duration(u64::MAX, endpoint).err().map(ConfigurationRefusal::detail).as_deref(),
-        Some("derived: declared.idle[endpoint=7,model=3] does not fit its type")
+        Some("derived: declared.idle[endpoint=7] does not fit its type")
     );
 }
 
@@ -258,7 +255,7 @@ fn shaped_document() -> serde_json::Value {
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":256,"read_window":256}},
         "endpoints":[{"name":"local","number":0,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:8080","transport":"plaintext","connect":10000,"handshake":10000,
-            "models":[{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":60000,"idle":30000}]}],
+            "limits": {"window":65536,"output":512,"reasoning_item":64,"head":60000,"idle":30000}}],
         "environment":[]
     })
 }
@@ -315,7 +312,7 @@ fn quantities_override_one_value_and_derive_through_the_service() {
     assert_eq!(limits.domain.run.host_timeout_max, configured.profile.policy.tool_deadline);
     assert_eq!(limits.llm.translation.stated.tool_deadline, configured.profile.policy.tool_deadline);
     assert_eq!(configured.profile.declared.shell_head, service::profile::standard().declared.shell_head);
-    assert_eq!(configured.declarations.endpoints[0].models[0].window, 65536);
+    assert_eq!(configured.declarations.endpoints[0].limits.window, 65536);
 }
 
 #[test]
@@ -337,24 +334,32 @@ fn raw_or_unknown_deployment_fields_are_named() {
 }
 
 #[test]
-fn duplicate_model_declarations_are_refused() {
+fn an_endpoint_with_models_is_refused_naming_the_field() {
     let mut document = shaped_document();
-    let duplicate = document["endpoints"][0]["models"][0].clone();
-    document["endpoints"][0]["models"].as_array_mut().expect("models").push(duplicate);
-    assert_eq!(parse_value(&document).err().as_deref(), Some("duplicate declared model"));
+    document["endpoints"][0]["models"] = serde_json::json!([]);
+    let refusal = parse_value(&document).err().expect("unknown endpoint field");
+    assert!(refusal.contains("unknown field `models`"), "{refusal}");
 }
 
 #[test]
-fn zero_model_quantities_name_the_refused_setting() {
+fn an_endpoint_without_limits_is_refused() {
+    let mut document = shaped_document();
+    document["endpoints"][0].as_object_mut().expect("endpoint").remove("limits");
+    let refusal = parse_value(&document).err().expect("missing endpoint limits");
+    assert!(refusal.contains("missing field `limits`"), "{refusal}");
+}
+
+#[test]
+fn zero_endpoint_quantities_name_the_refused_setting() {
     for (field, expected) in [
-        ("window", "model declaration contains an empty or zero quantity"),
-        ("output", "model declaration contains an empty or zero quantity"),
-        ("reasoning_item", "model declaration contains an empty or zero quantity"),
-        ("head", "deadlines: declared.head[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
-        ("idle", "deadlines: declared.idle[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
+        ("window", "endpoint limits contain a zero quantity"),
+        ("output", "endpoint limits contain a zero quantity"),
+        ("reasoning_item", "endpoint limits contain a zero quantity"),
+        ("head", "deadlines: declared.head[endpoint=0]=0 ns; policy.deadline_minimum=0 ns"),
+        ("idle", "deadlines: declared.idle[endpoint=0]=0 ns; policy.deadline_minimum=0 ns"),
     ] {
         let mut document = shaped_document();
-        document["endpoints"][0]["models"][0][field] = 0.into();
+        document["endpoints"][0]["limits"][field] = 0.into();
         assert_eq!(parse_value(&document).err().as_deref(), Some(expected), "{field}");
     }
 }
@@ -382,40 +387,30 @@ fn oversized_reasoning_defaults_to_fail_and_drop_requires_explicit_selection() {
     let mut document = shaped_document();
     let configured = parse_value(&document).expect("default policy");
     assert_eq!(
-        configured.declarations.endpoints[0].models[0].oversized_reasoning,
+        configured.declarations.endpoints[0].limits.oversized_reasoning,
         service::profile::OversizedReasoning::Fail
     );
-    document["endpoints"][0]["models"][0]["oversized_reasoning"] = "drop".into();
+    document["endpoints"][0]["limits"]["oversized_reasoning"] = "drop".into();
     let configured = parse_value(&document).expect("explicit drop");
     assert_eq!(
-        configured.declarations.endpoints[0].models[0].oversized_reasoning,
+        configured.declarations.endpoints[0].limits.oversized_reasoning,
         service::profile::OversizedReasoning::Drop
     );
-    document["endpoints"][0]["models"][0]["oversized_reasoning"] = "fallback".into();
-    assert_eq!(parse_value(&document).err().as_deref(), Some("model oversized_reasoning must be fail or drop"));
+    document["endpoints"][0]["limits"]["oversized_reasoning"] = "fallback".into();
+    assert_eq!(parse_value(&document).err().as_deref(), Some("endpoint oversized_reasoning must be fail or drop"));
 }
 
 use crate::fixture::product_document;
 
 fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
-    let mut astra = document["endpoints"][0]["models"][0].clone();
-    astra["name"] = "gpt-6-astra".into();
-    document["endpoints"][0]["models"].as_array_mut().unwrap().push(astra);
     let mut anthropic = document["endpoints"][0].clone();
     anthropic["name"] = "anthropic".into();
     anthropic["number"] = 2.into();
     anthropic["dialect"] = 2.into();
     anthropic["provider"] = "anthropic".into();
     anthropic["server_name"] = "api.anthropic.com".into();
-    let mut models = Vec::new();
-    for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] {
-        let mut model = document["endpoints"][0]["models"][0].clone();
-        model["name"] = name.into();
-        model["window"] = 200_000.into();
-        model["idle"] = 120_000.into();
-        models.push(model);
-    }
-    anthropic["models"] = models.into();
+    anthropic["limits"]["window"] = 200_000.into();
+    anthropic["limits"]["idle"] = 120_000.into();
     document["endpoints"].as_array_mut().unwrap().push(anthropic);
     let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
     for endpoint in document["endpoints"].as_array_mut().unwrap() {

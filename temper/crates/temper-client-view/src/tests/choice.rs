@@ -1635,6 +1635,9 @@ fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
 }
 fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     c::MeModel {
+        number: 1,
+        source: jig_client::contract::ModelSource::Stock,
+        estimated: false,
         name: model_text(name),
         provider,
         window: 1024,
@@ -2074,16 +2077,16 @@ fn all_models_finds_by_shown_name_and_name() {
     }
 }
 #[test]
-fn all_models_links_to_accounts_and_says_no_new() {
+fn all_models_links_to_the_projects_models_and_says_no_new() {
     let (mut root, _, _) = picker_fixture(false, true, true);
     edit(&mut root, d::pages::choice::Act::All);
     let mut view = fixtures::page_view(&root);
-    let link = fixtures::find(view.tree(), Role::Link, b"Accounts, in Settings").unwrap();
+    let link = fixtures::find(view.tree(), Role::Link, b"Choose what the list shows, in Settings").unwrap();
     assert_eq!(
         crate::act(&mut view, link, skein_ui::Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+        Some(d::Action::Pages(d::pages::Act::Go { address: Address::Models { project: 1 } }))
     );
-    assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/accounts".as_slice()));
+    assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/settings/models".as_slice()));
     assert!(!chooser_nodes(&view).iter().any(|n| n.name.as_deref() == Some(b"new")));
     assert!(fixtures::find(view.tree(), Role::Button, "‹ Models".as_bytes()).is_some());
 }

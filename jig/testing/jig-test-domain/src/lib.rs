@@ -123,6 +123,10 @@ pub use jig_domain_hub_link::Assignment;
 /// What the root asks its surrounding world to do.
 #[derive(Debug)]
 pub enum Request {
+    /// The store's names, replaced before the catalogue decision commits (domain/engine.md, 17.11).
+    StoreCatalogue { names: Box<[core::settings::ModelName]> },
+    /// The clients' catalogue, after the store's replacement (domain/engine.md, 17.11).
+    ClientsCatalogue { models: Box<[core::settings::CatalogueModel]> },
     /// Read a fenced opaque terminal in the protocol routing.
     ReadResult { payload: Token, outcome: Box<[u8]> },
     /// Return a connector input to its owner during the drain.
@@ -321,6 +325,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "catalogue release and restart progress are independent")]
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
@@ -332,6 +337,7 @@ pub struct Domain {
     second: connector::Domain,
     journal: Journal<Write, Delivery>,
     now: Queue<Request>,
+    catalogue_pending: bool,
     store_answers: Queue<Box<Event>>,
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
@@ -510,6 +516,7 @@ impl Domain {
             second: connector::Domain::new(config.second, &limits.connector),
             journal: Journal::uncapped(limits.journal.release, 0),
             now: Queue::uncapped(),
+            catalogue_pending: false,
             store_answers: Queue::uncapped(),
             busy: Queue::uncapped(),
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
@@ -940,6 +947,13 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             out.push(Request::Stop);
         }
         return;
+    }
+    if domain.catalogue_pending {
+        domain.catalogue_pending = false;
+        for _ in 0..domain.now.len() {
+            let request = domain.now.pop().expect("catalogue output count");
+            out.push(request);
+        }
     }
     if let Some(commit) = domain.journal.commit() {
         out.push(Request::Commit { number: commit.number, writes: commit.writes });

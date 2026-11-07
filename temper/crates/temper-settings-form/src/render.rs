@@ -9,6 +9,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
+        c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));
@@ -72,6 +73,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
+        c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
@@ -139,6 +141,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
+        c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
         c::SettingValue::Policy(v) => values::encode_setting_policy(v, out),
@@ -455,7 +458,11 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
 fn historical_setting(setting: c::Setting) -> bool {
     match setting {
         c::Setting::Charter(_) | c::Setting::Application { .. } => true,
-        c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules | c::Setting::ProjectPolicy { .. } => false,
+        c::Setting::Model(_)
+        | c::Setting::Template(_)
+        | c::Setting::Policy(_)
+        | c::Setting::Rules
+        | c::Setting::ProjectPolicy { .. } => false,
     }
 }
 

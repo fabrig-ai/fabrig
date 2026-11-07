@@ -354,6 +354,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
+            | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
@@ -416,6 +417,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::RemoveProject { .. }
                 | Ask::SetVisibility { .. }
                 | Ask::Rename { .. }
+                | Ask::ChangeModel(_)
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
                 | Ask::Restore { .. }
@@ -508,6 +510,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
+            | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
@@ -649,6 +652,7 @@ fn target(ask: &Ask) -> Option<Target> {
     Some(match ask {
         Ask::SetVisibility { .. }
         | Ask::Lift { .. }
+        | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
         | Ask::Restore { .. }

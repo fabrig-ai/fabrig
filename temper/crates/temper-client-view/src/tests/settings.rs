@@ -67,10 +67,16 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             3,
         ),
         (
+            Address::Models { project: f::PROJECT },
+            "What the picker offers.",
+            "The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has.",
+            4,
+        ),
+        (
             Address::Builders { project: f::PROJECT },
             "Where agents work.",
             "The machines temper’s agents run on, each with its slots and how many are in use.",
-            4,
+            5,
         ),
     ] {
         let root = root(address);
@@ -90,7 +96,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             let links: Vec<_> = nav.iter().filter(|n| n.role == Role::Link).collect();
             assert_eq!(
                 links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Builders"]
+                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Models", b"Builders"]
             );
             let ids: Vec<_> = links
                 .iter()
@@ -105,6 +111,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
                 repositories(),
                 Address::Forges,
                 Address::Accounts,
+                Address::Models { project: f::PROJECT },
                 Address::Builders { project: f::PROJECT },
             ]) {
                 assert_eq!(crate::href(&mut view, id), Some(d::address::print(&address)));

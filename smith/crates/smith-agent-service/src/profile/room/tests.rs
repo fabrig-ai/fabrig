@@ -1,10 +1,11 @@
-//! Independent arithmetic properties for declared model windows.
+//! Independent arithmetic properties for declared endpoint windows.
 
 #![expect(clippy::disallowed_methods, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use super::room;
 use crate::profile::{
-    Check, Configuration, Endpoint, Fraction, Layer, LimitName, Model, OversizedReasoning, Refusal, standard,
+    Check, Configuration, Endpoint, Fraction, Layer, LimitName, Limits as DeclaredLimits, OversizedReasoning, Refusal,
+    standard,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Rng};
@@ -19,22 +20,20 @@ fn declarations(window: u32, output: u32) -> Configuration {
             option_bytes: 0,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: Box::from(b"model".as_slice()),
+            limits: DeclaredLimits {
                 window,
                 output,
                 reasoning_item: 64,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: Duration::from_secs(1),
                 idle: Duration::from_secs(1),
-            }]),
+            },
         }]),
     }
 }
 
 #[test]
-fn the_smallest_declared_model_bounds_every_host_and_offer() {
+fn the_smallest_declared_endpoint_bounds_every_host_and_offer() {
     let mut configuration = declarations(100_000, 1000);
     let second = declarations(20_000, 1000).endpoints.into_vec().pop().expect("one endpoint");
     configuration.endpoints = Box::new([configuration.endpoints.into_vec().pop().expect("one endpoint"), second]);
@@ -48,11 +47,11 @@ fn the_smallest_declared_model_bounds_every_host_and_offer() {
 }
 
 #[test]
-fn smith_filling_the_room_names_the_model_and_seen_threshold() {
+fn smith_filling_the_room_names_the_endpoint_and_seen_threshold() {
     let refusal = room(&standard(), &declarations(10_000, 1000), 6000, 0).expect_err("own fills room");
     assert_eq!(refusal.check(), Some(Check::FreshWindow));
     assert_eq!(crate::profile::words(&refusal).as_ref(),
-        b"fresh-window: session.fresh_window[endpoint=7,model=0]=8000 tokens; declared.window_at_threshold[endpoint=7,model=0]=8000 tokens");
+        b"fresh-window: session.fresh_window[endpoint=7]=8000 tokens; declared.window_at_threshold[endpoint=7]=8000 tokens");
 }
 
 #[test]
@@ -63,7 +62,7 @@ fn compaction_holds_the_summary_instruction_and_one_marker_per_result() {
     let refusal = room(&profile, &declarations(10_000, 1000), 100, 100).expect_err("no compaction marker room");
     assert_eq!(refusal.check(), Some(Check::CompactionHeadroom));
     assert_eq!(crate::profile::words(&refusal).as_ref(),
-        b"compaction-headroom: session.compaction_headroom[endpoint=7,model=0]=1248 tokens; declared.window_above_threshold[endpoint=7,model=0]=1000 tokens");
+        b"compaction-headroom: session.compaction_headroom[endpoint=7]=1248 tokens; declared.window_above_threshold[endpoint=7]=1000 tokens");
 }
 
 #[test]
@@ -117,7 +116,7 @@ fn random_declared_rooms_refuse_by_name_or_hold_a_largest_fresh_window() {
 }
 
 #[test]
-fn fixed_own_measurement_is_checked_and_real_declared_models_leave_room() {
+fn fixed_own_measurement_is_checked_and_real_declared_endpoints_leave_room() {
     let mut profile = standard();
     profile.declared.memory = u64::MAX;
     profile.declared.tool_payload = 256;

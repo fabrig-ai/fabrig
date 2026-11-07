@@ -108,7 +108,7 @@ fn a_declared_models_smaller_window_or_output_refuses_hello() {
     ] {
         let mut fleet = Fleet::new();
         let mut bounds = model_bounds(&[b"alternative", b"main"]);
-        let model = bounds.models.iter_mut().find(|model| model.name.as_ref() == b"main").expect("declared main model");
+        let model = bounds.endpoints.iter_mut().find(|model| model.endpoint == 1).expect("declared main model");
         model.window = window;
         model.output = output;
         let figures = match why {
@@ -207,7 +207,7 @@ fn the_engine_hello_supplies_its_model_eligibility() {
 }
 
 fn main_need() -> fleet::ModelNeed {
-    fleet::ModelNeed { name: b"main".as_slice().into(), window: MODEL_WINDOW, output: MODEL_OUTPUT }
+    fleet::ModelNeed { endpoint: 1, name: b"main".as_slice().into(), window: MODEL_WINDOW, output: MODEL_OUTPUT }
 }
 
 #[test]
@@ -227,7 +227,12 @@ fn a_probe_requires_only_the_models_retained_for_this_run() {
     );
     let retained = [
         main_need(),
-        fleet::ModelNeed { name: b"alternative".as_slice().into(), window: MODEL_WINDOW, output: MODEL_OUTPUT },
+        fleet::ModelNeed {
+            endpoint: 2,
+            name: b"alternative".as_slice().into(),
+            window: MODEL_WINDOW,
+            output: MODEL_OUTPUT,
+        },
     ];
     assert_eq!(
         fleet.domain.probe(

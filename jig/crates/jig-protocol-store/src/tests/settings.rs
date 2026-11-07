@@ -10,6 +10,7 @@ use skein_lib::{Duration, Wall};
 
 fn model() -> core::Model {
     core::Model {
+        provider: 1,
         dialect: 3,
         endpoint: 4,
         program: Some(Box::from(b"program".as_slice())),
@@ -27,6 +28,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        rest: true,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number: 1,
@@ -151,7 +153,8 @@ fn template() -> core::Template {
 #[test]
 #[expect(
     clippy::disallowed_methods,
-    reason = "ordinary codec fixtures translate revision literals while retaining proposal items"
+    clippy::too_many_lines,
+    reason = "one round trip covers current, removed, revision and proposed whole values"
 )]
 fn each_settings_record_round_trips_its_whole_domain_value() {
     let mut domain = fixtures::CORE_LIMITS;
@@ -166,7 +169,7 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         proposal: Some((people::Proposer::Task(8), 9)),
         moved: true,
     };
-    let mut rows = skein_lib::List::with_capacity(28);
+    let mut rows = skein_lib::List::with_capacity(34);
     for row in [
         s::Record::Extent { oldest: 1, keys: 1 },
         s::Record::Revision {
@@ -187,6 +190,19 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         (s::Setting::Template(1), s::Value::Template(Box::new(template()))),
         (s::Setting::Policy(1), s::Value::Policy(Box::new(policy()))),
         (s::Setting::Rules, s::Value::Rules(Box::new(rules()))),
+        (
+            s::Setting::Model(9),
+            s::Value::Model(Box::new(s::CatalogueModel {
+                number: 9,
+                model: model(),
+                shown: Some(b"Shown".as_slice().into()),
+                description: Some(b"Description".as_slice().into()),
+                picker: true,
+                withdrawn: true,
+                source: s::ModelSource::List,
+                estimated: true,
+            })),
+        ),
     ] {
         rows.push(s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } })
             .expect("settings fixture count");
@@ -281,7 +297,9 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.main.model, 1);
                 assert_eq!(choice.subagents[0].model, 0);
             }
-            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Application(_) => panic!("fixture setting"),
+            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Model(_) | s::Value::Application(_) => {
+                panic!("fixture setting")
+            }
         }
     }
 }
@@ -670,3 +688,6 @@ fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
         assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
     }
 }
+
+#[path = "models.rs"]
+mod models;
