@@ -48,3 +48,22 @@ A test each, breaking its rule once by hand, as named in the acceptance. `cargo 
 ## Report
 
 The instructions' lines added, and the figures they moved. That no real model has read them.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/configuring-learns/foreman-1)
+
+rebase by preserving both catalogue fixture behaviors and recalculating combined stock brief figures
+The merge conflicts in four paths; resolve them without choosing either side wholesale.
+In `temper/tests/engine/domain/src/protocol.rs`, combine this task’s changes with `33bb531deb` (“Preserve catalogue updates in the joined client world”):
+- Keep `models` for numbered execution positions, `catalogue` for whole settings-note decoding, and `catalogues` for queued client updates.
+- On `PartyRequest::Catalogue`, clone into `self.catalogue`, rebuild execution models by borrowing entries, then push the owned catalogue into `self.catalogues`.
+- Decode `SettingsNote` with `self.catalogue`; retain one scoped `too_many_lines` expectation.
+Preserve the corresponding client forwarding loop in `temper/tests/client/src/front.rs`.
+The other conflicts overlap `9e4f73d894` (“Tell settings readers which member their kind needs”), which lengthened the settings schemas:
+- `temper/crates/temper-service/src/limits.rs`
+- `temper/crates/temper-service/src/tests/limits.rs`
+- `temper/crates/temper-service/src/tests/stock_brief.rs`
+Retain both main’s explicit required-member descriptions, including model, and this task’s configuring instructions.
+Recalculate the stock figures from the combined code using `every_stock_charter_admits_its_whole_maximal_brief`; neither side’s existing figures cover both changes.
+Update charter 3’s measured row, the room assertion, `STANDARD_BRIEF`’s comment and `brief_bytes`, and the matching brief/journal expectations.
+Verify with the focused stock admission, whole-spec receiving-bound and standard-profile tests, then the task’s model proposal tests, including note-backed acceptance.
+Report the regenerated figures; keep budgets and bounds unchanged.
