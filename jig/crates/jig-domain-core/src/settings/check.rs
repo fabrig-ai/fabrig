@@ -654,14 +654,20 @@ fn template_fault(
     None
 }
 fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
-    if choice.subagents.len() > skein_lib::length::usize_of(tasks::MODELS) {
+    if !agents_valid(models, choice.main, &choice.subagents) {
         return false;
     }
-    if !effort_valid(models, choice.main) {
+    match &choice.later {
+        Some(later) => agents_valid(models, later.main, &later.subagents),
+        None => true,
+    }
+}
+fn agents_valid(models: &[crate::Model], main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
+    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !effort_valid(models, main) {
         return false;
     }
-    for (at, chosen) in choice.subagents.iter().enumerate() {
-        for earlier in choice.subagents.iter().take(at) {
+    for (at, chosen) in subagents.iter().enumerate() {
+        for earlier in subagents.iter().take(at) {
             if earlier.model == chosen.model {
                 return false;
             }
@@ -672,6 +678,7 @@ fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     }
     true
 }
+
 fn policy_fault(
     current: &Current,
     defaults: bool,
