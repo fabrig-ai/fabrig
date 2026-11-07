@@ -45,6 +45,12 @@ alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
 
+- **Not yet:** 17.9: the `stored_policy` member: a charter whose stored
+  policy passes `run_bytes` is refused as `Shape` with no facts
+  (`settings/check.rs`, `parts_fault`), in the client wire 19 and the
+  people family's stored refusals alike.
+- **Not yet:** 17.11: a charter's selected effort; see `tasks.status.md`, 3.
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,

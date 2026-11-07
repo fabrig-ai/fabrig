@@ -10,6 +10,10 @@ for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
 a silent check still has no output to report (section 15).
 
+- **Not yet:** 5.2: a host call asked again waits `host_backoff` before
+  every ask (`smith-domain-run/src/run/relay.rs`, `host_recover`), so a
+  host that stays busy is asked twenty times a second until the caller's
+  deadline.
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
