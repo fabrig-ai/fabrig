@@ -61,6 +61,12 @@ and catalogue-number reuse remain section 16's open questions.
   reason. The offer remains available as this section requires.
 
 
+- **Not yet:** 6.1, 6: a stop's claims settled as interrupted: on
+  `Event::Stopping` the core settles nothing (`routing/stopping.rs`,
+  `start`), so a run on an in-process worker that committed a turn or a
+  call is settled at the next start as lost (`routing/children.rs`,
+  `fleet::Request::Lost`), spending a lost try. The plan
+  `ui-stop-coding-row` builds it.
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
