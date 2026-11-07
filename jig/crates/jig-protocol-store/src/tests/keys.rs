@@ -158,7 +158,11 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         SettingKey::Default(Setting::Template(1)),
         SettingKey::Default(Setting::Policy(1)),
         SettingKey::Default(Setting::Rules),
+        SettingKey::Default(Setting::Application { kind: 1, scope: 0, number: 1 }),
+        SettingKey::Default(Setting::ProjectPolicy { project: 1 }),
+        SettingKey::Default(Setting::Model(1)),
         SettingKey::Changed(Setting::Charter(1)),
+        SettingKey::Changed(Setting::Model(1)),
         SettingKey::Held(1),
         SettingKey::Charter { charter: 1, revision: 2 },
         SettingKey::Proposal { proposer: jig_domain_people::Proposer::Task(1), proposal: 1 },
@@ -169,13 +173,15 @@ fn settings_subfamilies_and_history_follow_their_domain_order() {
         SettingKey::History(256),
         SettingKey::History(u32::MAX),
     ];
-    let mut previous =
-        keys::encode(&Key::Core(CoreKey::EscalationDecision { task: 1, revision: 1 }), fixtures::KEY_LIMIT).unwrap();
+    let mut previous_key = Key::Core(CoreKey::EscalationDecision { task: 1, revision: 1 });
+    let mut previous = keys::encode(&previous_key, fixtures::KEY_LIMIT).unwrap();
     for setting in settings {
         let key = Key::Core(CoreKey::Settings(setting));
         let bytes = keys::encode(&key, fixtures::KEY_LIMIT).unwrap();
         assert!(previous < bytes, "{setting:?} follows its predecessor");
-        assert_eq!(keys::decode(&bytes), Some(key));
+        assert!(previous_key < key, "{key:?} follows {previous_key:?} in derived order");
+        assert_eq!(keys::decode(&bytes), Some(key.clone()));
+        previous_key = key;
         previous = bytes;
     }
 }
