@@ -9,7 +9,9 @@ and `containment: trees` are not built (`domain/README.md`,
 `protocol/agent.md`, `protocol/events.md`, `protocol/hosts.md`,
 `testing.md`). Beside it: live content in one process and a grant
 refreshed while a chat starts (`domain/host.md`), messages mid-work
-and threshold notes (`domain/run.md`), what a program offers read
+and threshold notes (`domain/run.md`), a sub-agent's answer cap of
+1,024 bytes and its cut at a byte (`domain/run.md`,
+`protocol/limits.md`), what a program offers read
 from its `system/init` and a live run on Claude Code 2.1.312
 (`protocol/programs.md`), whether the live refresh story passes on a
 main holding it (`testing.md`), the `--account` flag (`shell.md`,
@@ -35,6 +37,9 @@ Failed checks name their repository, convention path and given time,
 with their exit and retained output tail. A silent check still has no
 output to report; phase messages belong to its repository, and no timeout
 figure changes (`domain/run.md`, 8.1 and 15).
+
+A sub-agent's cut answer is marked without words on how to read the
+rest (`domain/run.md`, `protocol/limits.md`).
 
 Design documents:
 - [`domain/README.md`](domain/README.status.md)
