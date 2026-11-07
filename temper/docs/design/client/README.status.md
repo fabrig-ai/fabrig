@@ -37,14 +37,27 @@ table checks each link paragraph in both shells, with and without a
 configured sign-in way. Cookie fallback and command refusals remain
 section 11's later work.
 
-- **Not yet:** 3.5, *A chat's terminal* (look-round-16): its look kept on `Pages`,
-  ">_", the top line, the conversation's look, the running line, the box and the
-  quiet line (`terminal-frame`); the commands, their lists and notes
-  (`terminal-commands`); full screen, Escape and the kept record `look`
-  (`terminal-browser`); the draft beside it, and a draft's first paragraph read as
-  Markdown in both looks (`terminal-draft`); a goal's question under the box and a
-  proposal's and a delegation's one line (`terminal-cards`). `terminal-close`
-  deletes this entry.
+Section 3.5's terminal frame, commands, kept look, full screen, document,
+questions and compact cards are built (look-round-16). The four request
+accounts are the terminal-close commits carrying their respective trailers;
+compilation and print checks establish no rendered equality. Temper/ui's
+render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
+section 11).
+
+- **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
+  because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
+  `Word::ChatbarSpend`, including the budget, rather than own spend alone.
+  Temper/ui owns this remaining words gap.
+- **Departs:** 3.5, *A chat's terminal*: a settings proposal's compact line
+  keeps "Accept" and "Change something", with Reject on Needs you, rather
+  than the terminal paragraph's "Reject…". `cards/proposal.rs`, `settings`,
+  shares section 5.13's controls; the departure from `ui-chat-accept` is
+  recorded under 5.13 below. Temper/ui owns their reconciliation.
+- **Departs:** 3.5, *A chat's terminal*: command prefixes match case exactly,
+  where the request's `commandsFor` lowercases its query; the domain and view
+  share the command table's literal names. A press on the terminal's background
+  has no handler to focus the box, where the request's click handler does;
+  focus follows the shared web shell. Temper/ui owns both differences.
 - **Design departs:** 5.1, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: the engine remembers the
   last 8 used or expired links only until restart. A forgotten used link
