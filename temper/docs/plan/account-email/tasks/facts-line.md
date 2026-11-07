@@ -74,3 +74,18 @@ As the implementer's text says, with the journeys recorded again and what each p
 2026-11-07 (temper/ui). Accept: generated ids that renumber, with their label references still paired, are recording noise, as times and ports are. Markup, text and attributes being identical otherwise is what matters. Finish.
 
 2026-11-07 (temper/ui). Yes, as answered at 07:40Z: this amends the acceptance. It now reads: a difference beyond times, ports and generated ids is a red. Your read-only comparison already shows nothing else differs. So the journey acceptance is met: don't stop on it again, and finish the task's remaining acceptance. Done, if that's the last.
+
+## Rebase (2026-11-07, step merge, foreman account-email/facts-line/foreman-2)
+
+preserve both accounts tests and regenerate the combined story-a log during rebase
+Rebase onto the landing’s current integration tip; both reported conflicts belong to this branch.
+In `jig/crates/jig-domain-core/src/tests/documents/accounts_document.rs`, retain both appended tests:
+- This branch’s `restored_account_facts_follow_registration_and_audience`, with `fixture_with_roles` and the empty `facts` literal.
+- Integration commit `84d605f411`’s `a_hosts_program_email_is_kept_and_marks_the_holders_accounts`, with `program_host`.
+Also retain `finish`’s `said: jig_domain_accounts::Said::default()` from `aaaa317cde`.
+For `temper/tests/playground/tests/fixtures/story-a.log`, regenerate rather than selecting either side or combining hashes.
+Main’s `2b160c3f7f` changed charter output; `c1caaef855` regenerated its combined hashes. This branch’s `a9487faec6` changes the account wire, so neither existing log represents the combined code.
+Regenerate with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`.
+Then check `walk::story_a_kept_log_replays_natively` alone in the same package and test binary.
+Run both retained accounts tests by name through heavy in `jig-domain-core --lib`.
+Report the regenerated fixture and focused results; preserve the existing journey acceptance for times, ports and paired generated ids.
