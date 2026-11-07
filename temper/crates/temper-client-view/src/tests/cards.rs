@@ -572,7 +572,9 @@ fn proposed_values(root: &mut d::Domain, out: &Queue<d::Request>, drafts: bool, 
             )
             .unwrap();
     }
-    let answer = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let answer =
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
+            .unwrap();
     settings_up(
         root,
         jig_client::Up::ReadDone {
