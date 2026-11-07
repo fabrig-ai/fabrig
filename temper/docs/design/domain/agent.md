@@ -1194,7 +1194,10 @@ and waits in the Needs you of each project it belongs to (jig's
   Missing, inaccessible, moved or malformed sources create no proposal and
   apply nothing. A decided call is replayed before loading the note again;
   later note edits cannot change its proposal. No fragment state is added;
-  the note keeps jig's revision, retention and cleanup rules.
+  the note keeps jig's revision, retention and cleanup rules. One decoder and
+  one answer serve this form and Ask temper's (8.4.2): an inline item's charter
+  document may leave out its `forge` and name its repository `OWNER/NAME`, and the
+  answer says where the card waits and whose decision it is, after its key.
 - **It changes nothing itself.** Its charter's `settings` family reads
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
@@ -1582,6 +1585,82 @@ are its second milestone's (section 10).
   family; the store unchanged by every read. The parser's rows in the root's own
   tests, the token's and the cut's in `temper-engine-smith`'s.
 
+#### 8.4.2 `propose_settings`, its asking form
+
+Ask temper's one act: the configuring agent's `propose_settings` (8.1; jig's
+`domain/engine.md`, 17.6), with what `configuring.txt` teaches a model done by
+the tool instead (`../draft/ask-temper.md`, 5.2). Its declaration is the asking
+form (4.3), with no `note` and with `more`; one decoder takes either form's
+members, so that charter 3's calls decode as they do, and one answer serves both.
+
+- **A repository as the inventory names it:** a charter document that leaves out
+  its `forge` names its `repository` alone, `OWNER/NAME`, and the tool writes its
+  forge's host, port and all, from the chat's project's readable repositories, the
+  identities its inventory gives (8.1): owner and name compared with ASCII case
+  set aside, and written as the inventory spells them. A document that gives its
+  `forge` keeps it, as charter 3's do; a settings file or a note's body (8.1)
+  still names its forge. The decoder is given the identities by the root, as it
+  is given the catalogue, so that the call is checked whole where it is decoded.
+  A repository the project does not have is refused there, in the settings file's
+  words: `settings file item 2: charter.documents[0].repository: no repository
+  acme/widget in this project; its repositories: acme/app · acme/docs`, or `...;
+  it has none`, so that another project's repository is never named.
+- **A large set in parts:** a call with `"more": true` is a part. Its items are
+  decoded and checked as a proposal's are, and held; the next call without `more`
+  proposes the parts held and its own items, in that order, as one proposal
+  against its `against`, with its `reason`.
+  - **Held by the engine,** in its memory, by task, for the run that gave them,
+    and never in a note: the run writes none, and no party sees or corrects them.
+    They are bounded as one proposal's items are (jig's `settings` capacity), and
+    the held map by the runs that may hold them.
+  - **A part answers** what it holds and proposes nothing.
+  - **A part, or a proposing call, that names a setting already held** is refused
+    naming it, as is one past a proposal's bound; what is held stays.
+  - **A stale revision:** a part against another revision than the parts held
+    drops them and starts afresh, and says so; a proposing call against another
+    revision is refused, and drops them.
+  - **The proposing call consumes them,** whatever comes of it, proposed or
+    refused by temper or by jig. One refused at decoding, its own items out of
+    shape, is no proposing call, and the parts wait for one.
+  - **A run's end** drops them; the next run starts with none.
+  - **The engine's restart** loses them. A run of an asking charter that was
+    running across a restart, and has given no part since, has its first
+    proposing call refused, once, so that a set half lost is never proposed.
+  - **Only an asking charter's run** gives parts, the runs the form is declared
+    to; another's `more` is refused.
+- **Approvals at the call:** for an asking charter's run, each landing rule of
+  the set, held or its own, that enforces approvals is judged as acceptance judges
+  it (`../protocol/configuration.md`, 13.2; `forge.md`, 8.9), for the chat's
+  project alone: on a forge of the project's repositories the rule covers, a role
+  with fewer eligible people than it requires refuses the call in acceptance's
+  words, as does a rule covering the playground's fake forge. Another project's
+  eligibility stays acceptance's, which says it to the owner who decides, so that
+  nothing of another project reaches this chat. The inventory says who is eligible
+  and, for anyone who is not, why (8.1). Charter 3's proposals are judged at
+  acceptance alone, as they are.
+- **Its answer,** for either form, says what to tell the person, where the card
+  waits and whose decision it is, after the key ctl names it by
+  (`../client/tools.md`, 5.3): `proposed as t7/13 for the deployment's owners to
+  decide: it waits as a card in this chat and in Needs you, and nothing changes
+  until an owner accepts it. Tell the person so, without t7/13.` With no task
+  known, the key is `proposal 13`.
+- **A part's answers,** not errors:
+  - `propose_settings: holding 3 items for revision 7, 12 in all; nothing is proposed until a call without more.`
+  - starting afresh: `propose_settings: holding 3 items for revision 8, 3 in all; the 9 held for revision 7 were dropped. Nothing is proposed until a call without more.`
+- **Its refusals,** errors that propose nothing:
+  - a setting held already: `propose_settings: charter 4 is held already, from an earlier part; nothing was added.`, the setting named as the inventory names it;
+  - past a proposal's bound: `propose_settings: a proposal holds at most 129 items, and this call would make 140; nothing was added.`
+  - against another revision than the parts held: `propose_settings: the 9 items held are for revision 7, and this call names 8; nothing was proposed, and they were dropped. Give the whole set again against 8.`
+  - after a restart: `propose_settings: temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.`
+  - `more` from another charter: `propose_settings: more is not offered to this charter; give the whole set in one call, or from a note.`
+  - approvals: `propose_settings: not proposed, as acceptance would refuse it: ` and acceptance's words, as `project 1 role 0 on forge forge.example:3847 requires 2 distinct known forge people; currently 1 eligible. Before accepting, ...`.
+- **Its tests** (`testing.md`, 6.4): rows of the engine's domain world's
+  configuring stories, a chat from template 5 beside charter 3's: a document
+  named `OWNER/NAME` accepted with its host written, and one unknown refused; a
+  set in parts proposed whole, with each rule of the parts above as a step of one
+  run; an unsatisfiable approval refused at the call, and charter 3's at
+  acceptance as before; the answer's words as `temper-engine-smith`'s table.
+
 #### 8.4.3 `document`
 
 Ask temper's one document, "How this project works", written by section
@@ -1855,6 +1934,11 @@ host:
   call is refused naming its section, and the run's next call applies it to
   the newest; a retry within the call once jig's notes take a section's splice
   at the write, or leave an application's moved write unrecorded.
+- **Parts of a settings proposal across a restart** (8.4.2): the engine holds
+  them in its memory, so a restart loses them, and a run that was running
+  across it is refused its next proposing call once, even with no part given.
+  Default: as it is; a durable store for them if a real chat meets a restart
+  mid-set often enough to matter.
 - **`see`'s second milestone** (8.4.1): reading as the chat's person, of the
   chat's project alone, through the checks a client's read takes, once jig has
   a run's read as its party (`../draft/ask-temper.md`, 5.1); the addresses that

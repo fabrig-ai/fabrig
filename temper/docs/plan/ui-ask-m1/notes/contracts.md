@@ -480,3 +480,65 @@ pub enum NoteFamily { Note, Recall }
 | `temper/crates/temper-engine-domain/src/archive.rs`, `restart.rs` | `document` | the `Waiting` arm routing its pages |
 | `temper/crates/temper-engine-smith/src/answers.rs` | `document` | one arm, `CallAnswer::Document`, beside `NoteRefused`; `Text`, `note_written` `pub(crate)` |
 | `temper/crates/temper-client-domain/src/pages/chat.rs`, `pages/chat/document.rs`; `temper/crates/temper-client-view/src/pages/document.rs` | `document` | `note` read as `note` or `document` |
+| `temper/crates/temper-engine-domain/src/store.rs` | `propose` | 10.3's `PartsAnswer`, `CallAnswer::Parts`, its `call_answer_bytes` arm |
+| `temper/crates/temper-engine-domain/src/boundary.rs` | `propose` | `Tool::ProposeSettings`' `more` |
+| `temper/crates/temper-engine-domain/src/domain.rs` | `propose` | `repository_identities`; the held parts and the restart guard's set |
+| `temper/crates/temper-engine-domain/src/route/tools.rs`, `route/kinds.rs`; `route/settings_parts.rs` (new) | `propose` | `propose_settings` through the parts; `call_approval_refusal` |
+| `temper/crates/temper-engine-smith/src/calls.rs` | `propose` | `call_in` beside `call_configured`; no `Spec` |
+| `temper/crates/temper-engine-smith/src/answers.rs` | `propose` | `proposed`'s settings words; one arm, `CallAnswer::Parts` |
+| `temper/crates/temper-settings-form/src/file.rs`, `settings_file_values.rs` | `propose` | `Repository`, `proposal_items_in` |
+| `temper/crates/temper-service/src/tools.rs`, `route.rs`; `temper/tests/engine/domain/src/host_tool.rs` | `propose` | the decoder given the task's repositories |
+
+### 10.3 `propose_settings`' asking form (the task `propose`)
+
+In `temper/crates/temper-engine-domain/src/boundary.rs`:
+
+```rust
+ProposeSettings {
+    against: u32,
+    items: Box<[jig_domain_core::settings::Item]>,
+    reason: Box<[u8]>,
+    kinds: Box<[KindValue]>,
+    /// A part to hold: `"more": true` (domain/agent.md, 8.4.2).
+    more: bool,
+},
+```
+
+In `store.rs`, beside `CallAnswer`, exported from `lib.rs`; rendered by
+`temper-engine-smith/src/settings.rs` alone, in 8.4.2's words:
+
+```rust
+/// A `propose_settings` call answered by its parts, or refused before jig decides it
+/// (domain/agent.md, 8.4.2). It has no record.
+CallAnswer::Parts(Box<PartsAnswer>),
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum PartsAnswer {
+    /// A part held: `count` its own items, `total` all held, for revision `against`;
+    /// `dropped`, the count and revision of the parts it replaced.
+    Holding { count: u32, total: u32, against: u32, dropped: Option<(u32, u32)> },
+    /// A setting held already.
+    Held { setting: jig_domain_core::settings::Setting },
+    /// Past one proposal's bound.
+    PastBound { most: u32, would: u32 },
+    /// A proposing call against another revision than the parts held, which it dropped.
+    Revision { held: u32, against: u32, named: u32 },
+    /// The first proposing call of a run that ran across the engine's restart.
+    Restarted,
+    /// `more` from a run whose charter names no asking family.
+    NotOffered,
+    /// Acceptance's approval refusal, judged at the call for the chat's project.
+    Approvals { why: Box<[u8]> },
+}
+```
+
+- `temper_engine_domain::Domain::repository_identities(&self, task: u64) ->
+  Box<[RepositoryIdentity]>`: what `settings_repositories` gives an inventory of the
+  task's project.
+- `temper_engine_smith::call_in(name, tool, input, models, catalogue, repositories:
+  &[temper_engine_domain::RepositoryIdentity]) -> Result<Decoded, Problem>`, beside
+  `call_configured`, which passes none.
+- `temper_settings_form::file::Repository<'a> { host, owner, name }` and
+  `proposal_items_in(bytes, limits, repositories: Option<&[Repository<'_>]>)`;
+  `proposal_items` is it with `None`.
+- **No codec:** nothing of these is stored or crosses a wire.
