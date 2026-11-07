@@ -598,6 +598,11 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
     for wait in [
         R::Credential,
         R::Host,
+        R::Refused(c::TaskWaitRefused::Bounds {
+            kind: c::HostKind::Worker,
+            why: Some(c::AgentShortfall::Turns { charter: 1 }),
+            figures: Some(c::Figures { required: 100_000, offered: 800 }),
+        }),
         R::Refused(c::TaskWaitRefused::Hello {
             kind: c::HostKind::Worker,
             at: skein_lib::Wall::from_nanos(1_791_828_240_000_000_000),

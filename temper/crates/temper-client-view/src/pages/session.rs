@@ -137,17 +137,7 @@ pub(crate) fn over(b: &mut Builder, w: &Words, characters: u64) {
     let line = if characters == 1 {
         w.say(Word::ComposerOverOne, &[])
     } else {
-        let digits = skein_lib::Decimal::of(characters);
-        let digits = digits.as_bytes();
-        let commas = digits.len().checked_sub(1).expect("decimal has digits").checked_div(3).expect("three is nonzero");
-        let mut number = skein_lib::Writer::new(digits.len().checked_add(commas).expect("grouped u64 fits"));
-        for (index, digit) in digits.iter().enumerate() {
-            if index != 0 && digits.len().checked_sub(index).expect("digit is in decimal").checked_rem(3) == Some(0) {
-                number.put(b",").expect("grouped length counted");
-            }
-            number.put(core::slice::from_ref(digit)).expect("grouped length counted");
-        }
-        w.say(Word::ComposerOver, &[Hole::Name(number.finish())])
+        w.say(Word::ComposerOver, &[Hole::Name(crate::words::grouped(characters))])
     };
     text(b, Role::Status, &line, None);
 }
