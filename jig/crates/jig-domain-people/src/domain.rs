@@ -372,6 +372,26 @@ impl Domain {
         Some(self.roles.get(&project)?)
     }
 
+    /// The party holding `owner` on the deployment's roster when no other party
+    /// holds it; `None` with no owner, with several, or when the roster can't be
+    /// read (people.md, 4). Allocates and changes nothing.
+    #[must_use]
+    pub fn sole_owner(&self) -> Option<u64> {
+        let mut owner = None;
+        for holding in self.project_members(crate::DEPLOYMENT)? {
+            match holding.role {
+                Role::Owner => {
+                    if owner.is_some() {
+                        return None;
+                    }
+                    owner = Some(holding.person);
+                }
+                Role::Maintainer | Role::Member | Role::Observer | Role::Policy { .. } => {}
+            }
+        }
+        owner
+    }
+
     /// Resolve a provider-authenticated collaborator to this project's role.
     #[must_use]
     pub fn role_for_identity(&self, key: IdentityKey, project: u32) -> Option<(u64, Role)> {
