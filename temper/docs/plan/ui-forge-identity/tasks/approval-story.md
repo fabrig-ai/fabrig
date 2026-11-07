@@ -64,3 +64,7 @@ This task departs from the implementer's text in one way: one status entry is yo
 ## Report
 
 As the implementer's text says, with the world and forge mode taken, the story's seconds, and any helper shared with another story.
+
+## Answers
+
+2026-11-07 (temper/ui). Yes: add the box setup builder in forge_routes.rs, setting under_box=true and Mode::Owned before bootstrap, and rebuilding bootstrap and root consistently. temper/ui widens your files for it. It's the smaller of the two, and a box's person is what the story is about. Don't extend configuring.rs's world. Keep the existing configurations as they are for the other stories, and add the builder as one more, so no other story's world changes.
