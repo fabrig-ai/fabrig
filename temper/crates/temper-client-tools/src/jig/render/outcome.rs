@@ -22,6 +22,7 @@ pub(crate) struct Operation {
     pub retry: Option<Box<[u8]>>,
     pub value_name: Option<crate::jig::key::Name>,
     pub proposal_project: Option<u32>,
+    pub proposal_decision: bool,
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
 }
@@ -136,6 +137,12 @@ impl Operation {
         Self::with_words(ask, word, task)
     }
     fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
+        let mut proposal_decision = false;
+        if let Ask::Jig(ask) = ask
+            && let c::Ask::Decide { on: c::DecideOn::Proposal { .. }, .. } = ask.as_ref()
+        {
+            proposal_decision = true;
+        }
         Self {
             project: funding_project(ask),
             revision: settings_revision(ask),
@@ -152,6 +159,7 @@ impl Operation {
             retry: None,
             value_name: None,
             proposal_project: proposal_project(ask),
+            proposal_decision,
             settings_scopes: settings_scopes(ask),
         }
     }
@@ -803,6 +811,11 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if operation.proposal_decision && *refusal == c::Refusal::Unknown {
+        out.put(operation.tool_name());
+        out.put(b": this proposal isn't waiting; it may have been decided or replaced");
+        return;
+    }
     if operation.word == b"restore" && restore_refusal(operation, refusal, prefix, out) {
         return;
     }

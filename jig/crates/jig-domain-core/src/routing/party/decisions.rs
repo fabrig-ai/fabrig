@@ -642,15 +642,17 @@ pub(crate) fn proposal_request(
                 task_settings_decide(core, env, routed, party, row, (decision, running));
                 return;
             }
-            if running.is_some() {
-                pool_refused(
-                    &mut routed.work,
-                    request,
-                    Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
-                );
-                return;
-            }
+            // Only a live proposal refuses running here; an ended proposal is
+            // judged by its recorded kind in Now::EndedProposal.
             if core.tasks.proposal(number, proposal).is_some() {
+                if running.is_some() {
+                    pool_refused(
+                        &mut routed.work,
+                        request,
+                        Refusal::NotWellFormed { at: 0, why: people::Malformed::Running },
+                    );
+                    return;
+                }
                 person_proposal_decide(core, env, routed, party, number, proposal, decision);
                 return;
             }

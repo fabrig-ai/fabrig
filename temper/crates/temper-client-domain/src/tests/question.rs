@@ -1,5 +1,5 @@
 use crate::question::{Choice, Parsed, parse};
-use skein_lib::bytes;
+use skein_lib::{Writer, bytes};
 
 const EXAMPLE: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local.\n\nSaw: The box test reproduces it every time.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
 const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?";
@@ -151,6 +151,25 @@ fn choices_at_the_answer_bound_are_accepted_after_trimming() {
     let words = bytes::concat(&[b"Question?\nChoice:  \t", &answer, b" (recommended) \r\nChoice: \nChoice: B"]);
     let parsed = parse(&words, false);
     assert_eq!(&*parsed.choices, &[choice(&answer, true), choice(b"B", false)]);
+}
+
+#[test]
+fn choices_stop_at_sixteen() {
+    for count in [16, 17] {
+        let header = b"Question?\n\nContext.\n";
+        let line = b"Choice: A\n";
+        let mut words = Writer::new(header.len() + line.len() * count);
+        words.put(header).unwrap();
+        for _ in 0..count {
+            words.put(line).unwrap();
+        }
+        let parsed = parse(&words.finish(), false);
+        assert_eq!(parsed.choices.len(), if count == 16 { 16 } else { 0 });
+        assert_eq!(parsed.saw, None);
+        if count == 17 {
+            assert!(parsed.context.ends_with(b"Choice: A"));
+        }
+    }
 }
 
 #[test]

@@ -11,6 +11,11 @@ use std::{
     fs,
     path::Path,
 };
+/// With pending bytes and no demand, `Wire::answer` delivers a fragment on
+/// `chance(700)`: a quiet round can still leave bytes pending, three times in ten.
+/// Sixteen quiet rounds leave about four chances in a billion of stopping early.
+/// Worlds are seeded; an early stop for a seed shows as an undelivered answer.
+pub const QUIET: u32 = 16;
 /// The request's `METHOD target` and its scripted response.
 #[derive(Debug)]
 pub struct Answer {
@@ -342,14 +347,19 @@ impl Machine {
         self.settle();
     }
     fn settle(&mut self) {
+        let mut quiet = 0;
         for _ in 0..1000 {
-            self.tick();
+            let moved = self.tick();
             if self.closed
                 || (!self.settling.is_empty()
                     && self.settling.len() == self.peers.len()
                     && self.below.is_empty()
                     && self.above.is_empty())
             {
+                break;
+            }
+            quiet = if moved { 0 } else { quiet + 1 };
+            if quiet == QUIET {
                 break;
             }
         }
@@ -469,15 +479,16 @@ impl Machine {
             generation.stopped = true;
         }
     }
-    fn tick(&mut self) {
+    fn tick(&mut self) -> bool {
         for peer in self.peers.values_mut() {
             peer.begin_tick();
         }
         if let Some(base) = self.wall_base {
             self.env.wall = Wall::from_nanos(base.as_nanos().saturating_add(self.env.now.as_nanos()));
         }
-        self.events();
+        let mut moved = self.events();
         while let Some(request) = self.below.pop() {
+            moved = true;
             self.io(request);
         }
         let owners: Vec<_> = self.peers.keys().copied().collect();
@@ -487,6 +498,7 @@ impl Machine {
             }
             let request = self.peers.get_mut(&owner).expect("peer").request();
             if let Some(request) = request {
+                moved = true;
                 self.respond(owner, request);
             }
             if self.paused == Some(owner) {
@@ -502,9 +514,11 @@ impl Machine {
                 continue;
             }
             let peer = self.peers.get_mut(&owner).expect("peer");
-            if peer.connected
-                && let Some(up) = peer.answer()
-            {
+            let trace = peer.wire.trace.len();
+            let answer = if peer.connected { peer.answer() } else { None };
+            moved |= trace != peer.wire.trace.len();
+            if let Some(up) = answer {
+                moved = true;
                 peer.answered();
                 if matches!(up, Up::Room) && peer.handshake_flight_delivered() {
                     if self
@@ -533,13 +547,16 @@ impl Machine {
             }
         }
         if self.component.next_deadline().is_some_and(|deadline| deadline <= self.env.now) {
+            moved = true;
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
         while let Some(request) = self.below.pop() {
+            moved = true;
             self.io(request);
         }
-        self.events();
+        moved |= self.events();
         self.component.reclaim();
+        moved
     }
     /// Delays the owner taking events while the component and peer continue.
     pub fn hold_output(&mut self) {
@@ -555,11 +572,13 @@ impl Machine {
     pub fn outputs_before_requests(&self) -> &[u32] {
         &self.outputs_before_requests
     }
-    fn events(&mut self) {
+    fn events(&mut self) -> bool {
         if self.hold_output {
-            return;
+            return false;
         }
+        let mut moved = false;
         while let Some(event) = self.above.pop() {
+            moved = true;
             if let Event::Connected { forge } = event {
                 self.access_event(forge, true);
                 self.connected_forges.push(forge);
@@ -612,6 +631,7 @@ impl Machine {
                 }
             }
         }
+        moved
     }
     fn remember_connection_generation(&mut self, owner: Token, addr: skein_io::Addr) {
         if let Some((_, forge)) = self.forge_addresses.iter().find(|(address, _)| *address == addr)

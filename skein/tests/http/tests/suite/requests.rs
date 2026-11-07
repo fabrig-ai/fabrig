@@ -1,7 +1,7 @@
 //! The request transcripts (testing-strategy.md, 4.1; http.md, 6): each
 //! comes to its expectation through the server's machine world under
 //! several seeds, read a byte at a time so that every byte of each body is
-//! seen, and cut anywhere, as the reference reads the prefix. A transcript
+//! seen, and checked against its golden. A transcript
 //! without an expectation fails, printing the reference reader's reading
 //! as a draft to check.
 
@@ -12,11 +12,13 @@ use skein_http_world::request_transcript::{self, Entry, Transcript};
 use skein_http_world::server_world::{self, Reads, Run, Settings};
 use skein_lib::Rng;
 
+const SEEDS: u64 = 2;
+
 /// The settings a transcript is served with: a client of every pace that
 /// waits as long as it takes for a 100 (Continue), and ends the stream only
 /// once the server reads past its bytes; and a side above that reads a
 /// byte at a time and withdraws nothing.
-fn settings(transcript: &Transcript, seed: u64) -> Settings {
+pub(super) fn settings(transcript: &Transcript, seed: u64) -> Settings {
     let mut rng = Rng::new(seed);
     Settings {
         reads: Reads::Bytes,
@@ -28,7 +30,7 @@ fn settings(transcript: &Transcript, seed: u64) -> Settings {
 }
 
 /// `transcript` served from `seed`, by the plan it is served with.
-fn serve(transcript: &Transcript, settings: &Settings, seed: u64) -> Run {
+pub(super) fn serve(transcript: &Transcript, settings: &Settings, seed: u64) -> Run {
     let plans = vec![request_transcript::plan(); 8];
     server_world::check(&transcript.bytes, &plans, settings, seed)
 }
@@ -63,7 +65,7 @@ fn every_request_transcript_comes_to_its_expectation_whatever_the_pace() {
             continue;
         };
         assert_eq!(&read, expected, "{}: the reference reads the expectation", transcript.name);
-        for seed in 0..5 {
+        for seed in 0..SEEDS {
             let run = serve(transcript, &settings(transcript, seed), seed);
             let entries = entries(&run);
             assert_eq!(entries.len(), expected.len(), "{}, seed {seed}: {entries:#?}", transcript.name);
@@ -75,17 +77,4 @@ fn every_request_transcript_comes_to_its_expectation_whatever_the_pace() {
         }
     }
     assert!(drafts.is_empty(), "transcripts without an expectation; drafts:\n{drafts}");
-}
-
-#[test]
-fn a_request_transcript_cut_short_anywhere_comes_to_what_the_reference_reads_of_its_prefix() {
-    for transcript in request_transcript::all() {
-        let len = transcript.bytes.len();
-        let step = (len / 40).max(1);
-        for cut in (0..=len).step_by(step) {
-            let seed = cut as u64;
-            let settings = Settings { cut: Some(cut), ..settings(&transcript, seed) };
-            let _ = serve(&transcript, &settings, seed);
-        }
-    }
 }

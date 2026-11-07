@@ -14,8 +14,10 @@ const OWNER: Token = Token::new(1);
 const VALUE_BYTES: u32 = 1024;
 const ROW_BYTES: u32 = 1040;
 const BATCH: u64 = 64;
-// About 3.3 MiB, enough to fill three target chunks and leave a fourth.
-const ROWS: u64 = 3300;
+// About 2.5 MiB: two full target chunks and a third, and rows and one whole
+// encoding of them pass every bound these tests hold.
+const ROWS: u64 = 2500;
+const _: () = assert!(2 * ROWS * ROW_BYTES as u64 > (4 * TARGET + TARGET / 2) as u64);
 // Rows and their boxes beside one encoding, with a quarter target of slack.
 const SNAPSHOT_BOUND: u32 = 2 * TARGET + TARGET / 4;
 

@@ -121,30 +121,56 @@ fn github_conformance_renews_the_app_jwt_at_half_life() {
         shutdown(&mut r);
     }
 }
+const EMPTY_LISTING: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n[]";
+const INVALID_LENGTH: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: invalid\r\n\r\n";
+const EPOCH_LISTING: &str = "/repos/acme/widgets/issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=updated&direction=asc&per_page=100&page=1";
+fn epoch_response(status: u16, body: &str) -> Vec<u8> {
+    format!(
+        "HTTP/1.1 {status} Invented\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+        body.len()
+    )
+    .into_bytes()
+}
 #[test]
-fn github_conformance_missing_delivery_fails_only_its_fact() {
-    let out = Temp::new("missing-delivery");
+fn github_conformance_faults_fail_only_their_facts_and_the_run_continues() {
+    let out = Temp::new("faults");
     let mut r = runner(&out.0);
+    let Target::Fake(w) = &mut r.target else { panic!("fake target") };
+    w.null_next_merged_pull_commit = true;
     r.start().expect("start fake run");
-    r.response_override = Some((
-        "log-delivery-whole",
-        "/app/hook/deliveries?per_page=1",
-        b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n[]".to_vec(),
-    ));
+    r.response_overrides = vec![
+        ("log-delivery-whole", "/app/hook/deliveries?per_page=1", EMPTY_LISTING.to_vec()),
+        ("log-lists-failed-deliveries", "/app/hook/deliveries?per_page=100", INVALID_LENGTH.to_vec()),
+        ("issues-since-epoch-empty", EPOCH_LISTING, epoch_response(503, "[]")),
+    ];
     let run = cases::run(&mut r);
-    r.complete(run).expect("missing input permits later cases and cleanup");
-    assert!(r.response_override.is_none(), "empty listing exercised");
+    r.complete(run).expect("faults permit later cases and cleanup");
+    assert!(r.response_overrides.is_empty(), "every response fault exercised");
+    let Target::Fake(w) = &r.target else { panic!("fake target") };
+    assert!(!w.null_next_merged_pull_commit, "merged pull fault was exercised");
     assert_eq!(r.facts.len(), cases::NAMES.len());
     for fact in &r.facts {
-        match fact.name {
-            "log-delivery-whole" => assert_eq!(fact.outcome, Outcome::Fails("input absent: delivery id".into())),
-            "signatures-push-gh013" => match &fact.outcome {
-                Outcome::Unchecked(_) => {}
-                Outcome::Holds | Outcome::Observed(_) | Outcome::Fails(_) => panic!("signature fact must be unchecked"),
-            },
-            _ => assert_eq!(fact.outcome, Outcome::Holds, "earlier and later fact {}", fact.name),
-        }
+        let reason = match fact.name {
+            "log-delivery-whole" => Some("input absent: delivery id"),
+            "log-lists-failed-deliveries" => Some("wire: invalid response length"),
+            "issues-since-epoch-empty" => Some("wire observation differs from the fact"),
+            "merge-repeat-idempotent" => Some("merged pull plan failed: InvalidAnswer"),
+            "signatures-push-gh013" => {
+                assert!(matches!(fact.outcome, Outcome::Unchecked(_)), "signature fact must be unchecked");
+                continue;
+            }
+            _ => None,
+        };
+        let outcome = reason.map_or(Outcome::Holds, |reason| Outcome::Fails(reason.into()));
+        assert_eq!(fact.outcome, outcome, "earlier and later fact {}", fact.name);
     }
+    for name in ["merge-repeat-any-sha-200", "queue-merged-no-merge-commit-sha"] {
+        let fact = r.facts.iter().find(|fact| fact.name == name).expect("later fact recorded");
+        assert_eq!(fact.outcome, Outcome::Holds, "{name}");
+    }
+    let fact = r.facts.iter().find(|fact| fact.name == "merge-repeat-idempotent").expect("repeat merge fact");
+    let facts = fs::read_to_string(out.0.join("facts.txt")).expect("recorded facts");
+    assert!(facts.contains(&fact.line()));
     assert!(r.cleanup && r.journal.pending.is_empty());
     assert!(r.tokens.is_empty() && r.leftover_mints.is_empty());
     scan(&out.0, &r.secrets);
@@ -168,16 +194,16 @@ fn github_conformance_response_framing_records_the_exchange_and_continues() {
         let out = Temp::new(name);
         let mut r = runner(&out.0);
         r.start().expect("start fake run");
-        r.response_override =
-            Some(("log-lists-failed-deliveries", "/app/hook/deliveries?per_page=100", response.to_vec()));
-        let run = cases::run(&mut r);
+        r.response_overrides =
+            vec![("log-lists-failed-deliveries", "/app/hook/deliveries?per_page=100", response.to_vec())];
+        let run = cases::logs(&mut r);
         r.complete(run).expect("framing observation permits later cases and cleanup");
-        assert!(r.response_override.is_none(), "response fault exercised");
-        assert_eq!(r.facts.len(), cases::NAMES.len());
+        assert!(r.response_overrides.is_empty(), "response fault exercised");
+        assert_eq!(r.facts.len(), 6, "only log facts recorded");
         let fact = r.facts.iter().find(|fact| fact.name == "log-lists-failed-deliveries").expect("log fact");
         assert_eq!(fact.outcome, outcome);
         for fact in &r.facts {
-            if fact.name != "log-lists-failed-deliveries" && fact.name != "signatures-push-gh013" {
+            if fact.name != "log-lists-failed-deliveries" {
                 assert_eq!(fact.outcome, Outcome::Holds, "later and earlier fact {}", fact.name);
             }
         }
@@ -208,26 +234,13 @@ fn github_conformance_epoch_refusals_and_non_json_fail_only_the_fact() {
         let out = Temp::new(&format!("epoch-{status}-{}", body.len()));
         let mut r = runner(&out.0);
         r.start().expect("start fake run");
-        let response = format!(
-            "HTTP/1.1 {status} Invented\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
-            body.len()
-        );
-        r.response_override = Some((
-            "issues-since-epoch-empty",
-            "/repos/acme/widgets/issues?state=all&since=1970-01-01T00%3A00%3A00Z&sort=updated&direction=asc&per_page=100&page=1",
-            response.into_bytes(),
-        ));
-        let run = cases::run(&mut r);
+        r.response_overrides = vec![("issues-since-epoch-empty", EPOCH_LISTING, epoch_response(status, body))];
+        let run = cases::issues_since_epoch(&mut r);
         r.complete(run).expect("epoch observation permits later facts and cleanup");
-        assert!(r.response_override.is_none(), "epoch response fault exercised");
-        assert_eq!(r.facts.len(), cases::NAMES.len());
-        for fact in &r.facts {
-            if fact.name == "issues-since-epoch-empty" {
-                assert_eq!(fact.outcome, Outcome::Fails("wire observation differs from the fact".into()));
-            } else if fact.name != "signatures-push-gh013" {
-                assert_eq!(fact.outcome, Outcome::Holds, "{}", fact.name);
-            }
-        }
+        assert!(r.response_overrides.is_empty(), "epoch response fault exercised");
+        assert_eq!(r.facts.len(), 1, "only the epoch fact recorded");
+        let fact = r.facts.iter().find(|fact| fact.name == "issues-since-epoch-empty").expect("epoch fact");
+        assert_eq!(fact.outcome, Outcome::Fails("wire observation differs from the fact".into()));
         assert!(r.cleanup && r.journal.pending.is_empty());
         assert!(r.tokens.is_empty() && r.leftover_mints.is_empty());
         shutdown(&mut r);
@@ -257,42 +270,31 @@ fn github_conformance_close_delimited_waits_for_end_and_bounds_the_body() {
     }
 }
 #[test]
-fn github_conformance_null_merged_commit_fails_the_fact_and_continues() {
-    let out = Temp::new("null-merged-commit");
-    let mut r = runner(&out.0);
-    let Target::Fake(w) = &mut r.target else { panic!("fake target") };
-    w.null_next_merged_pull_commit = true;
-    r.start().expect("start fake run");
-    let run = cases::run(&mut r);
-    r.complete(run).expect("plan error permits later cases and cleanup");
-    let Target::Fake(w) = &r.target else { panic!("fake target") };
-    assert!(!w.null_next_merged_pull_commit, "merged pull fault was exercised");
-    assert_eq!(r.facts.len(), cases::NAMES.len());
-    let fact = r.facts.iter().find(|fact| fact.name == "merge-repeat-idempotent").expect("repeat merge fact");
-    assert_eq!(fact.outcome, Outcome::Fails("merged pull plan failed: InvalidAnswer".into()));
-    for name in ["merge-repeat-any-sha-200", "queue-merged-no-merge-commit-sha"] {
-        let fact = r.facts.iter().find(|fact| fact.name == name).expect("later fact recorded");
-        assert_eq!(fact.outcome, Outcome::Holds, "{name}");
-    }
-    let facts = fs::read_to_string(out.0.join("facts.txt")).expect("recorded facts");
-    assert!(facts.contains(&fact.line()));
-    shutdown(&mut r);
-}
-#[test]
 fn github_conformance_queue_refusals_fail_one_fact() {
-    let rows = [
-        ("enqueue-pending-check-protected", "approval", 0, "queue approval refused: Forbidden"),
-        ("queue-merged-no-merge-commit-sha", "approval", 0, "queue approval refused: Forbidden"),
-        ("queue-merged-no-merge-commit-sha", "checks", 0, "queue ci read failed: Forbidden"),
-        ("queue-merged-no-merge-commit-sha", "enqueue", 0, "queue admission refused: Forbidden"),
-        ("queue-merged-no-merge-commit-sha", "pull", 0, "merged pull read failed: Forbidden"),
-        ("queue-dequeued-delivered", "approval", 0, "queue approval refused: Forbidden"),
-        ("queue-dequeued-delivered", "checks", 0, "queue ci read failed: Forbidden"),
-        ("queue-dequeued-delivered", "raw enqueue", 0, "queue admission refused: invented queue admission refusal"),
-        ("queue-dequeued-delivered", "branches", 0, "queue branches read failed: Forbidden"),
-        ("queue-dequeued-delivered", "group", 0, "queue group read failed: Forbidden"),
+    // Pending approval and merged-pull refusals stay apart: they share a pull.
+    let groups = [
+        vec![
+            ("enqueue-pending-check-protected", "approval", 0, "queue approval refused: Forbidden"),
+            ("queue-dequeued-delivered", "approval", 0, "queue approval refused: Forbidden"),
+        ],
+        vec![
+            ("queue-merged-no-merge-commit-sha", "approval", 0, "queue approval refused: Forbidden"),
+            ("queue-dequeued-delivered", "checks", 0, "queue ci read failed: Forbidden"),
+        ],
+        vec![
+            ("queue-merged-no-merge-commit-sha", "checks", 0, "queue ci read failed: Forbidden"),
+            ("queue-dequeued-delivered", "raw enqueue", 0, "queue admission refused: invented queue admission refusal"),
+        ],
+        vec![
+            ("queue-merged-no-merge-commit-sha", "enqueue", 0, "queue admission refused: Forbidden"),
+            ("queue-dequeued-delivered", "branches", 0, "queue branches read failed: Forbidden"),
+        ],
+        vec![
+            ("queue-merged-no-merge-commit-sha", "pull", 0, "merged pull read failed: Forbidden"),
+            ("queue-dequeued-delivered", "group", 0, "queue group read failed: Forbidden"),
+        ],
         // Four head polls cover 45 seconds; the next checks read is the group's.
-        ("queue-dequeued-delivered", "checks", 4, "queue ci read failed: Forbidden"),
+        vec![("queue-dequeued-delivered", "checks", 4, "queue ci read failed: Forbidden")],
     ];
     let queue_facts = [
         "queue-direct-merge-405",
@@ -301,38 +303,51 @@ fn github_conformance_queue_refusals_fail_one_fact() {
         "queue-merged-no-merge-commit-sha",
         "queue-dequeued-delivered",
     ];
-    for (case, kind, skip, reason) in rows {
-        let row = format!("{case}/{kind}/{skip}");
-        let out = Temp::new(&format!("queue-{case}-{kind}-{skip}"));
+    for (index, rows) in groups.into_iter().enumerate() {
+        let group =
+            rows.iter().map(|(case, kind, skip, _)| format!("{case}/{kind}/{skip}")).collect::<Vec<_>>().join(", ");
+        let out = Temp::new(&format!("queue-refusals-{index}"));
         let mut r = runner(&out.0);
-        r.start().unwrap_or_else(|_| panic!("{row}: start fake run"));
-        if kind == "raw enqueue" {
-            r.enqueue_refusal = Some(case);
-        } else {
-            r.plan_refusal = Some((case, kind, skip));
+        r.start().unwrap_or_else(|_| panic!("{group}: start fake run"));
+        for &(case, kind, skip, _) in &rows {
+            if kind == "raw enqueue" {
+                r.enqueue_refusal = Some(case);
+            } else {
+                r.plan_refusals.push((case, kind, skip));
+            }
         }
         let run = cases::queue(&mut r);
-        r.complete(run).unwrap_or_else(|_| panic!("{row}: queue refusal permits later cases and cleanup"));
-        assert!(r.plan_refusal.is_none() && r.enqueue_refusal.is_none(), "{row}: refusal exercised");
-        assert_eq!(r.facts.len(), queue_facts.len(), "{row}: only queue facts recorded");
-        for name in queue_facts {
-            let fact = r.facts.iter().find(|fact| fact.name == name);
-            assert!(fact.is_some(), "{row}: queue fact {name} recorded");
-        }
-        let fact = r.facts.iter().find(|fact| fact.name == case).unwrap_or_else(|| panic!("{row}: refusal fact"));
-        assert_eq!(fact.outcome, Outcome::Fails(reason.into()), "{row}");
-        if kind == "branches" || kind == "group" {
+        r.complete(run).unwrap_or_else(|_| panic!("{group}: queue refusal permits later cases and cleanup"));
+        for (case, kind, skip, reason) in rows {
+            let row = format!("{case}/{kind}/{skip}");
             assert!(
-                r.provenance.iter().any(|line| line == "# queue-dequeued-delivered group branch reads 1"),
-                "{row}: group branch read count recorded on refusal"
+                !r.plan_refusals
+                    .iter()
+                    .any(|(pending_case, pending_kind, _)| *pending_case == case && *pending_kind == kind)
+                    && (kind != "raw enqueue" || r.enqueue_refusal != Some(case)),
+                "{row}: refusal exercised"
             );
+            assert_eq!(r.facts.len(), queue_facts.len(), "{row}: only queue facts recorded");
+            for name in queue_facts {
+                let fact = r.facts.iter().find(|fact| fact.name == name);
+                assert!(fact.is_some(), "{row}: queue fact {name} recorded");
+            }
+            let fact = r.facts.iter().find(|fact| fact.name == case).unwrap_or_else(|| panic!("{row}: refusal fact"));
+            assert_eq!(fact.outcome, Outcome::Fails(reason.into()), "{row}");
+            if kind == "branches" || kind == "group" {
+                assert!(
+                    r.provenance.iter().any(|line| line == "# queue-dequeued-delivered group branch reads 1"),
+                    "{row}: group branch read count recorded on refusal"
+                );
+            }
+            assert!(r.cleanup, "{row}: cleanup ran");
+            assert!(r.journal.pending.is_empty(), "{row}: all journal intentions cleaned up");
+            assert!(r.tokens.is_empty(), "{row}: all minted tokens revoked");
+            assert!(r.leftover_mints.is_empty(), "{row}: no leftover mints");
         }
-        assert!(r.cleanup, "{row}: cleanup ran");
-        assert!(r.journal.pending.is_empty(), "{row}: all journal intentions cleaned up");
-        assert!(r.tokens.is_empty(), "{row}: all minted tokens revoked");
-        assert!(r.leftover_mints.is_empty(), "{row}: no leftover mints");
-        let Target::Fake(w) = &mut r.target else { panic!("{row}: fake target") };
-        w.shutdown().unwrap_or_else(|_| panic!("{row}: quiescent simulator"));
+        assert!(r.plan_refusals.is_empty() && r.enqueue_refusal.is_none(), "{group}: every refusal exercised");
+        let Target::Fake(w) = &mut r.target else { panic!("{group}: fake target") };
+        w.shutdown().unwrap_or_else(|_| panic!("{group}: quiescent simulator"));
     }
 }
 #[test]
@@ -937,7 +952,7 @@ fn github_conformance_discovers_the_organization_before_minting() {
     assert_eq!(r.repo(r.queue_installation.expect("organization index")).expect("probe"), "globex/gadgets");
     assert!(r.replay.iter().take(2).all(|(_, request)| request.method == Method::Get));
     let mut in_queue = false;
-    cases::run(&mut r).expect("cases");
+    cases::queue(&mut r).expect("cases");
     for (_, request) in &r.replay {
         if request.target.contains("/rulesets") && request.body.windows(11).any(|w| w == b"merge_queue") {
             in_queue = true;

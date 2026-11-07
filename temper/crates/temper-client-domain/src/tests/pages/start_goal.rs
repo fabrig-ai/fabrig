@@ -232,6 +232,15 @@ fn start_needs_name_and_draft() {
         h.act(Act::OpenStart { draft, chat });
         assert!(h.pages.start().is_none(), "only a chat's draft opens the sheet");
     }
+    for path in [b"".as_slice(), b" \t"] {
+        let mut blank = Harness::new(me());
+        blank.act(Act::OpenStart { draft: None, chat: None });
+        blank.act(Act::StartDraft { words: path.into() });
+        blank.act(Act::StartName { words: b"Named".as_slice().into() });
+        blank.act(Act::StartGoal);
+        assert!(blank.pages.start().unwrap().pending.is_none());
+        assert!(blank.out.is_empty());
+    }
     h.open();
     h.act(Act::StartName { words: b" \t".as_slice().into() });
     h.act(Act::StartGoal);
@@ -255,15 +264,17 @@ fn a_double_press_joins_the_pending_request() {
 }
 #[test]
 fn the_words_read_back_through_draft_of() {
-    for chat in [None, Some(CHAT)] {
-        let words = start_goal::words(b"Away mode", PATH, chat, false);
-        let expected: &[u8] = if chat.is_some() {
-            b"Away mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md\nChat: T4"
-        } else {
-            b"Away mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md"
-        };
-        assert_eq!(words.as_ref(), expected);
-        assert_eq!(pages::goal::draft_of(&words), (Some(PATH.into()), chat));
+    for path in [PATH, b" docs/design/draft/away-mode.md "] {
+        for chat in [None, Some(CHAT)] {
+            let words = start_goal::words(b"Away mode", path, chat, false);
+            let expected: &[u8] = if chat.is_some() {
+                b"Away mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md\nChat: T4"
+            } else {
+                b"Away mode\n\nBuild docs/design/draft/away-mode.md.\nDraft: docs/design/draft/away-mode.md"
+            };
+            assert_eq!(words.as_ref(), expected);
+            assert_eq!(pages::goal::draft_of(&words), (Some(PATH.into()), chat));
+        }
     }
 }
 #[test]
@@ -364,14 +375,18 @@ fn way_must_be_a_tracked_template() {
 fn missing_me_does_not_open() {
     let root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
     let mut pages = Pages::new();
-    pages::step(
-        &mut pages,
-        &fixtures::env(&fixtures::limits()),
-        root.client(),
-        Event::Act { act: Act::OpenStart { draft: Some(PATH.into()), chat: Some(CHAT) } },
-        &mut Queue::uncapped(),
-    );
-    assert!(pages.start().is_none());
+    for draft in [None, Some(PATH.into())] {
+        for chat in [None, Some(CHAT)] {
+            pages::step(
+                &mut pages,
+                &fixtures::env(&fixtures::limits()),
+                root.client(),
+                Event::Act { act: Act::OpenStart { draft: draft.clone(), chat } },
+                &mut Queue::uncapped(),
+            );
+            assert!(pages.start().is_none());
+        }
+    }
 }
 
 #[test]
@@ -402,4 +417,82 @@ fn the_default_follows() {
     let mut h = Harness::new(me());
     h.open();
     assert!(!h.pages.start().unwrap().always);
+}
+
+#[test]
+fn name_follows_draft_until_edited() {
+    let mut h = Harness::new(me());
+    h.act(Act::OpenStart { draft: None, chat: None });
+    for (path, name) in [(PATH, b"away-mode".as_slice()), (b" next/file.md ", b"file")] {
+        h.act(Act::StartDraft { words: path.into() });
+        let start = h.pages.start().unwrap();
+        assert_eq!(start.name.as_ref(), name);
+        assert_eq!(start.given, None);
+    }
+    h.act(Act::StartName { words: b"My goal".as_slice().into() });
+    h.act(Act::StartDraft { words: PATH.into() });
+    assert_eq!(h.pages.start().unwrap().name.as_ref(), b"My goal");
+    h.act(Act::StartGoal);
+    h.sent();
+    h.act(Act::StartDraft { words: b"ignored.md".as_slice().into() });
+    assert_eq!(h.pages.start().unwrap().draft.as_ref(), PATH);
+}
+
+#[test]
+fn create_without_chat_sends_and_goes_to_its_goal() {
+    for always in [false, true] {
+        let mut h = Harness::new(me());
+        h.act(Act::OpenStart { draft: None, chat: None });
+        h.act(Act::StartDraft { words: b" docs/design/draft/away-mode.md ".as_slice().into() });
+        h.act(Act::StartAsks { always });
+        h.act(Act::StartGoal);
+        let (key, ask) = h.sent();
+        let c::Ask::Create { tasks, .. } = ask else { panic!("create") };
+        assert_eq!(
+            tasks.get(0).unwrap().spec.words.bytes(),
+            start_goal::words(b"away-mode", PATH, None, always).as_ref()
+        );
+        h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
+        assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
+        assert!(h.out.is_empty(), "no GoalFrom fact without a chat");
+    }
+}
+
+#[test]
+fn no_funds_blocks_unless_the_way_has_an_amount() {
+    for (budget, template, reserved, sends) in [
+        (0, c::TemplateBudget::Given, 0, false),
+        (0, c::TemplateBudget::Given, 1, false),
+        (0, c::TemplateBudget::AsAllowed { cap: None }, 0, false),
+        (0, c::TemplateBudget::AsAllowed { cap: Some(1) }, 1, false),
+        (0, c::TemplateBudget::Amount(1), 1, true),
+        (1, c::TemplateBudget::Given, 1, true),
+    ] {
+        for given in [false, true] {
+            let mut me = me();
+            let member = me.projects.get_mut(0).unwrap();
+            member.creating.as_mut().unwrap().within.budget = budget;
+            member.creating.as_mut().unwrap().beyond = c::Beyond::Proposed { to: c::Recipient::Party(fixtures::PARTY) };
+            member.templates.get_mut(0).unwrap().budget = template;
+            member.pool = Some(c::PoolLedger {
+                source: c::Funder::Pool { project: fixtures::PROJECT, person: fixtures::PARTY, period: 1 },
+                parent: None,
+                numbers: c::Numbers { budget: 1, spent: 0, spent_below: 0, reserved },
+                left: budget,
+                closed: false,
+                began: None,
+                next: None,
+            });
+            let mut h = Harness::new(me);
+            if given {
+                h.open();
+            } else {
+                h.act(Act::OpenStart { draft: None, chat: None });
+                h.act(Act::StartDraft { words: PATH.into() });
+            }
+            h.act(Act::StartGoal);
+            assert_eq!(h.pages.start().unwrap().pending.is_some(), sends, "{budget} {template:?} {reserved} {given}");
+            assert_eq!(h.out.is_empty(), !sends);
+        }
+    }
 }

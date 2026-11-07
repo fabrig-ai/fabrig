@@ -7,6 +7,7 @@ pub use skein_forge_connection::fixtures::{
 use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
 use skein_lib::{Duration, Env, List, Queue, Secret, Time, Wall};
 use std::boxed::Box;
+use std::ops::Bound::{Excluded, Unbounded};
 
 mod forgejo;
 mod github;
@@ -152,13 +153,6 @@ impl Harness {
         }
         found.expect("forge has a connection")
     }
-    fn owners(&self) -> List<skein_lib::Token> {
-        let mut owners = List::with_capacity(32);
-        for (owner, _) in &self.peers {
-            owners.push(*owner).expect("fixture peers fit");
-        }
-        owners
-    }
     #[expect(clippy::manual_map, reason = "the workspace uses exhaustive matches instead of closures")]
     fn start_component(&self) -> Option<skein_heap::Span> {
         match self.component_heap {
@@ -294,6 +288,10 @@ impl Harness {
     fn drain(&mut self) {
         let mut quiet = 0_u32;
         for _ in 0..1024_u32 {
+            if self.peers.is_empty() && self.io.is_empty() {
+                return;
+            }
+            let mut moved = !self.io.is_empty();
             for _ in 0..self.io.len() {
                 match self.io.pop().expect("queued request") {
                     skein_io::Request::Connect { owner, addr } => {
@@ -322,12 +320,10 @@ impl Harness {
                         self.event(skein_io::Event::Connecting { owner, socket });
                     }
                     skein_io::Request::Stream { stream, down } => {
-                        for owner in self.owners().into_boxed() {
-                            let peer = self.peers.get_mut(&owner).expect("fixture peer");
-                            if peer.socket == stream {
-                                peer.wire.take(down);
-                                break;
-                            }
+                        let owner =
+                            self.peers.iter().find_map(|(owner, peer)| (peer.socket == stream).then_some(*owner));
+                        if let Some(owner) = owner {
+                            self.peers.get_mut(&owner).expect("fixture peer").wire.take(down);
                         }
                     }
                     skein_io::Request::Close { entity } | skein_io::Request::Abort { entity } => {
@@ -357,8 +353,9 @@ impl Harness {
                 }
             }
             let mut events = List::with_capacity(32);
-            let mut moved = false;
-            for owner in self.owners().into_boxed() {
+            // Resume by key to borrow each peer in place without a list of keys.
+            let mut next = self.peers.first().map(|(owner, _)| *owner);
+            while let Some(owner) = next {
                 let peer = self.peers.get_mut(&owner).expect("fixture peer");
                 let trace = peer.wire.trace.len();
                 if peer.connected
@@ -370,6 +367,7 @@ impl Harness {
                 // The trace signals progress; retaining it would charge the
                 // scripted peer's transcript to component heap measurements.
                 peer.wire.trace.clear();
+                next = self.peers.range((Excluded(owner), Unbounded)).next().map(|(owner, _)| *owner);
             }
             moved |= !events.is_empty();
             for event in events.into_boxed() {
@@ -377,7 +375,7 @@ impl Harness {
             }
             if !moved && self.io.is_empty() {
                 quiet = quiet.saturating_add(1);
-                if quiet == 32 {
+                if quiet == skein_forge_kit::machine::QUIET {
                     break;
                 }
             } else {

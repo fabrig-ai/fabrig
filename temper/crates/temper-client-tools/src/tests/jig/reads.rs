@@ -754,7 +754,7 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         let answer = root.answer(call).expect("held task or inbox answered");
         assert_eq!(answer.status, 0);
         assert!(skein_lib::bytes::find(&answer.stdout,
-            b"Insufficient activation budget. A release alone holds it again: give task 41 more budget by deciding its budget proposal, then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
+            b"Insufficient activation budget. A release alone holds it again: if a proposal to give task 41 more budget waits for you, accept it, then release it; otherwise close it, and start the work again once your pool has room: closing an open chat makes some.").is_some(), "{:?}", answer.stdout);
     }
 }
 

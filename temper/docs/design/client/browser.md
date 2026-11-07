@@ -1,6 +1,6 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
 `forge.md`). The greenfield mock (`greenfield/README.md`) is the look's
@@ -374,8 +374,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
   `protocol/browser.md`, section 11). The browser sends its cookie with
-  the link's sign-in, as with any exchange: a person still signed in
-  keeps their sign-in, its number and expiry, and the answer sets no
+  the link's sign-in, as with any exchange: with a live link, a person
+  still signed in keeps their sign-in, its number and expiry, and the answer sets no
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
@@ -402,9 +402,15 @@ replay says the same clocks (`README.md`, 5.12).
   usable until it expires (`README.md`, 5.1), full with the deployment's
   room, its earliest end and the link's own. The retry is the person's: opening the
   printed link again sends its secret again, as the first open did, and
-  signs in once there is room; opened past its expiry, it is refused,
-  and `temper serve` prints a fresh one. The page never retries by
-  itself, and keeps no secret: the address already says `/welcome`.
+  signs in once there is room; opened past its expiry, it answers why
+  (expired while remembered), and temper prints a fresh one if no link is
+  live or reserved. The page never retries by itself, and keeps no secret:
+  the address already says `/welcome`.
+- **A used, expired or unknown link** draws the reason's paragraph in
+  place of the sign-in page (`README.md`, 5.1), with no automatic retry.
+  A link forgotten by the engine, after a restart included, is unknown.
+  A cookie still live does not override that paragraph; a reload uses
+  the cookie instead (section 5).
 - **One person, on loopback,** as `README.md`, section 7 says. A browser
   on another machine is open (`README.md`, section 11).
 
@@ -954,9 +960,12 @@ without it.
    `/welcome`, or, where the first run is over, the chats, the
    address reading `/chats` once they do (2.4); a reload on a chat's
    address shows that chat, signed in by the cookie; a link spent shows
-   the browser's signed-out paragraph (2.4). That the secret leaves the
-   address before the first request is held by the shell's start order
-   (2.1), and is not tested.
+   the reason-specific signed-out paragraph (`README.md`, 5.1). After a
+   server restart, reopening the first printed link shows "This link
+   isn't from this temper. Use the one its terminal printed." because a
+   restart forgets retired link digests (jig's `protocol/client.md`, section 8).
+   That the secret leaves the address before the first request is held by
+   the shell's start order (2.1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui-web.md`,
    14.2), from the chats to a chat by its link and back; an address
    that is no page opens the inbox, and the address reads `/` once it
@@ -1005,19 +1014,19 @@ its own sent to the provider's address while the page stays
 a press opening a tab within its gesture, the answer pointing it, the
 provider's redirect followed to the engine's listener in that tab, and
 the page, which stayed, drawing the end.
-- **Against:** `temper serve` with its OpenAI provider's issuer, its
-  authorization, token and key addresses, skein's fake issuer
+- **Against:** `temper serve` with two synthetic providers sharing an issuer,
+  its authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
   harness's loop, each grant a success for one synthetic subject, and
   the provider's redirect port the kernel's (the listener's port
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
-- **The story:** a person on `ConnectModel`'s Choose presses "Continue
-  with ChatGPT"; one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
+- **The story:** a person on `ConnectModel` presses "Sign in to Test provider";
+  one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
   which can't reach its opener by the time it's at the listener, its
   address the listener's; the page's own address reads
-  `/accounts/connect?provider=1&way=sign-in&source=S`, in place of the
-  entry it had; the page shows Ready ("Signed in to ChatGPT"); the fake
+  `/accounts/connect?provider=17&way=sign-in&source=S`, in place of the
+  entry it had; the page shows Ready ("Signed in to Test provider"); the fake
   has taken one authorization and one code exchange. A reload then shows
   Ready again and the issuer has taken no second authorization: the tab
   is pointed once.
@@ -1025,8 +1034,9 @@ the page, which stayed, drawing the end.
   press holds the welcome at `/welcome?at=model`, and it moves on to Ready
   by itself, `/welcome?at=ready`, with one authorization and one code
   exchange of its own. It runs first in this story's test (4.6, 9), on a
-  second provider of the same issuer: the issuer's one subject signing in
-  twice on one provider renews its account, in other words than Ready's
+  second provider of the same issuer, Welcome provider (18), with a model of
+  its own: the issuer's one subject signing in twice on one provider renews
+  its account, in other words than Ready's
   (`README.md`, 5.5), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
@@ -1191,7 +1201,23 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
 over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
-5 another:
+5 another. The twelve test functions in `tests/client-browser/tests/browser_all`
+are:
+
+| Stories below | Module | Test |
+|---|---|---|
+| 1 | `browser_sign_in` | `signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` |
+| 2 and 11 | `browser_pages` | `history_keeps_the_chat_focus_and_filter_across_reload_and_back` |
+| 4 and 5 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
+| 6 | `browser_attacks` | `cross_origin_requests_and_framing_cannot_act_as_the_person` |
+| 7 | `browser_authorize` | `a_cross_site_authorization_returns_a_code_and_the_links_state` |
+| 8 | `browser_accounts` | `the_accounts_page_returns_after_a_key_send` |
+| 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready` |
+| 10 | `browser_github` | `the_manifest_posts_once_and_history_waits_for_continue` |
+| 12 | `browser_playground` | `story_a_walks_on_the_built_playground` |
+| 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
+| 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
+| 15 | `browser_pages` | `closing_project_rename_returns_focus_to_the_summary` |
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1281,6 +1307,11 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **A failed link with a live cookie** (2.4): falling back to the cookie
+  instead of keeping the link's reason is jig's client question
+  (`jig/docs/design/client/domain/client.md`, section 18). Default: the
+  reason remains until another sign-in; reload to use the cookie.
 
 - **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
   the real-box check of the configuring chat's offer and the draft-to-goal
@@ -1380,6 +1411,13 @@ Not in the tier, each in the lowest world that shows it:
   before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **Merged stories after landing** (4.2, 4.3, 4.6): check the call line's
+  open node across a reply, the composer's model picker, both sign-in tabs
+  with the welcome first, and reading's four page loads with anchoring off
+  only for the position story. Default: compile during the plan; run in
+  Chromium after landing, preserving every assertion, the forty-second
+  run deadline and the whole tier's 85 CPU-second budget. A whole-tier
+  run supplies the cost proof; separate story measurements do not.
 - **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
   with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
@@ -1658,7 +1696,7 @@ from the engine's own answers, is where the look is tuned.
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
 | `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
-| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
+| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks done.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
 | `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |
