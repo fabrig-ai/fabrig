@@ -1946,6 +1946,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-settings .temper-models-add > label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Settings' list of models. */
 .temper-settings-body > .temper-settings-section:has(> .temper-models-source, > .temper-models-add) > .temper-settings-section-head { margin-bottom: 6px; }
+.temper-models-source .temper-settings-small { flex-shrink: 0; }
 #app > .temper-settings .temper-models-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 #app > .temper-settings .temper-models-source small, #app > .temper-settings .temper-settings-section > small, #app > .temper-settings .temper-models-ask { font-size: 13px; color: var(--gf-muted); }
 #app > .temper-settings .temper-models-ask a { text-decoration: underline; text-underline-offset: 2px; }

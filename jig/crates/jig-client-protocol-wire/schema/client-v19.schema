@@ -652,7 +652,7 @@ record Needs { questions: u32 proposals: u32 escalations: u32 person_tasks: u32 
 record Template { number: u32 name: DocumentText executor: TemplateExecutor contract: TaskContractDocument shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: TaskFlags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
 enum ModelSource { stock, list, person }
-record MeModel { number: u32 source: ModelSource estimated: bool name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 effort: option text 32 prices: MePrices description: option text 512 shown: option text 256 accounts: list 256 u32 picker: bool }
+record MeModel { new_until: option u64 number: u32 source: ModelSource estimated: bool name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 effort: option text 32 prices: MePrices description: option text 512 shown: option text 256 accounts: list 256 u32 picker: bool }
 record MeDefault { template: u32 choice: LlmChoice }
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
 enum Readiness { usable, unavailable, unknown }

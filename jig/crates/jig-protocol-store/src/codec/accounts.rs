@@ -59,7 +59,7 @@ pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
         domain::Stored::Next { number } => {
             wire::Value::Next(wire::Next::new(limits, wire::NextParts { number: *number })?)
         }
-        domain::Stored::Account { number, provider, holder, place, uses, subject, display } => {
+        domain::Stored::Account { number, provider, holder, place, uses, subject, display, list } => {
             let holder = match holder {
                 domain::Holder::Deployment => wire::Holder::Deployment,
                 domain::Holder::Party(party) => {
@@ -76,6 +76,7 @@ pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
                     uses: encode_uses(uses.as_deref())?,
                     subject: subject.clone(),
                     display: display.clone(),
+                    list: encode_list(*list)?,
                 },
             )?)
         }
@@ -136,12 +137,22 @@ pub fn decode(bytes: &[u8]) -> Result<domain::Stored, wire::Problem> {
             domain::Stored::Next { number }
         }
         wire::Value::Account(account) => {
-            let wire::AccountParts { number, provider, holder, place, uses, subject, display } = account.into_parts();
+            let wire::AccountParts { number, provider, holder, place, uses, subject, display, list } =
+                account.into_parts();
             let holder = match holder {
                 wire::Holder::Deployment => domain::Holder::Deployment,
                 wire::Holder::Party(party) => domain::Holder::Party(party.into_parts().party),
             };
-            domain::Stored::Account { number, provider, holder, place, uses: decode_uses(uses), subject, display }
+            domain::Stored::Account {
+                number,
+                provider,
+                holder,
+                place,
+                uses: decode_uses(uses),
+                subject,
+                display,
+                list: decode_list(list),
+            }
         }
         wire::Value::Source(source) => {
             let wire::SourceParts { account, number, place, kind, name, held } = source.into_parts();
@@ -197,6 +208,65 @@ fn decode_uses(uses: Option<List<wire::Use>>) -> Option<Box<[domain::Use]>> {
         result.push(payer).expect("schema bounds uses");
     }
     Some(result.into_boxed())
+}
+
+fn encode_list(value: Option<domain::ListRecord>) -> Result<Option<wire::ListRecord>, wire::Problem> {
+    let Some(value) = value else { return Ok(None) };
+    let failure = match value.failure {
+        None => None,
+        Some(failure) => Some(match failure {
+            domain::ReadFailure::Refused { status } => {
+                wire::ReadFailure::Refused(wire::Refused::new(&wire::CEILINGS, wire::RefusedParts { status })?)
+            }
+            domain::ReadFailure::Unreachable => wire::ReadFailure::Unreachable,
+            domain::ReadFailure::Unreadable => wire::ReadFailure::Unreadable,
+            domain::ReadFailure::Deadline => wire::ReadFailure::Deadline,
+            domain::ReadFailure::Agent => wire::ReadFailure::Agent,
+            domain::ReadFailure::Room => wire::ReadFailure::Room,
+        }),
+    };
+    Ok(Some(wire::ListRecord::new(
+        &wire::CEILINGS,
+        wire::ListRecordParts {
+            names: value.names,
+            read: match value.read {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            tried: match value.tried {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            failure,
+            left_out: value.left_out,
+        },
+    )?))
+}
+fn decode_list(value: Option<wire::ListRecord>) -> Option<domain::ListRecord> {
+    let value = value?.into_parts();
+    Some(domain::ListRecord {
+        names: value.names,
+        read: match value.read {
+            Some(at) => Some(Wall::from_nanos(at)),
+            None => None,
+        },
+        tried: match value.tried {
+            Some(at) => Some(Wall::from_nanos(at)),
+            None => None,
+        },
+        failure: match value.failure {
+            None => None,
+            Some(failure) => Some(match failure {
+                wire::ReadFailure::Refused(value) => domain::ReadFailure::Refused { status: value.into_parts().status },
+                wire::ReadFailure::Unreachable => domain::ReadFailure::Unreachable,
+                wire::ReadFailure::Unreadable => domain::ReadFailure::Unreadable,
+                wire::ReadFailure::Deadline => domain::ReadFailure::Deadline,
+                wire::ReadFailure::Agent => domain::ReadFailure::Agent,
+                wire::ReadFailure::Room => domain::ReadFailure::Room,
+            }),
+        },
+        left_out: value.left_out,
+    })
 }
 
 fn encode_fact(fact: &domain::AccountFact) -> Result<wire::Fact, wire::Problem> {

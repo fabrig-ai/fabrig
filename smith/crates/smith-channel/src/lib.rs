@@ -54,3 +54,8 @@ pub use v6::{
     UnauthorizedFault, UnauthorizedFaultParts, UnauthorizedParts, Waiting, WaitingParts, Window, WindowBound,
     WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };
+
+pub use v6::{
+    ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
+    ListRow, ListRowParts, ListRows, ListRowsParts,
+};

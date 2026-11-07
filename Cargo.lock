@@ -867,6 +867,7 @@ dependencies = [
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-lib",
+ "skein-llm",
  "skein-sim",
  "skein-world",
  "smith-agent-process-world",
@@ -4336,6 +4337,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-llm",
  "skein-shell",
  "skein-sim",
  "skein-tls-kit",
@@ -5447,6 +5449,7 @@ dependencies = [
 name = "temper-fake"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core",
  "jig-protocol-config",
  "serde_json",
  "skein-fake-forge-domain",
@@ -5636,8 +5639,11 @@ dependencies = [
  "skein-ui",
  "skein-ui-web",
  "skein-world",
+ "smith-agent-shell",
  "smith-channel",
  "smith-charter",
+ "smith-domain",
+ "smith-protocol-llm",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",

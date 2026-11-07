@@ -29,6 +29,7 @@ fn model() -> core::Model {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = model();
     Box::new([jig_protocol_engine_clients::Model {
+        new_until: None,
         number: 1,
         source: jig_domain_core::settings::ModelSource::Stock,
         estimated: false,
@@ -96,6 +97,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
             redirect_bytes: 4096,
             llm_providers: jig_domain_accounts::Providers {
                 providers: Box::new([jig_domain_accounts::Provider {
+                    list: None,
                     number: 1,
                     name: b"Fake".as_slice().into(),
                     signed_in_plan: false,

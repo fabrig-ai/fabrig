@@ -3,8 +3,8 @@
 2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 
 Sections 3.2 and 5.1 have no known gap in `ChangeModel`, numbered model
-settings, source and estimated-price facts, or the project's omitted count.
-Per-account provider-list narrowing remains section 11's deferred work.
+settings, source and estimated-price facts, the project's omitted count,
+per-account provider-list narrowing, list history or new-label deadlines.
 Section 5.1 has no known gap in either account row's bounded facts,
 registered-kind filtering or application of each kind's audience. The
 client wire and contract carry their values and reject oversized shares.

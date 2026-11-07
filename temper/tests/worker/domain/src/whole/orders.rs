@@ -98,7 +98,9 @@ fn collect(
                 report.crossed.push(Crossing::Answer { run, idle: world.domain.checkout().idle() });
             }
             Request::Hello(_) | Request::Link(_) => {}
-            other @ (Request::Source { .. }
+            other @ (Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
             | Request::SourceFault
             | Request::Stop
             | Request::CancelIo { .. }

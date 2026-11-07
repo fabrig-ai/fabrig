@@ -105,6 +105,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut times = crate::words::Times::new(wall);
     view.forge.begin();
     view.pages.begin();
+    view.pages.model_times = crate::words::Times::new(wall);
     view.accounts.begin(root.pages().accounts().is_none());
     let mut builder = view.render.builder();
     builder.open(Role::Page);
@@ -282,7 +283,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             wall,
         );
     } else if let temper_client_domain::Address::Models { project } = root.pages().address() {
-        crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+        crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Repositories { project }
@@ -362,7 +363,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::start_goal::sheet(&mut builder, root, start, &view.forge_words, &mut view.pages);
     }
     builder.close();
-    view.next_change = times.next;
+    view.next_change = [times.next, view.pages.model_times.next].into_iter().flatten().min();
     view.render.finish(builder, shown, out);
     view.revision = Some(shown);
 }

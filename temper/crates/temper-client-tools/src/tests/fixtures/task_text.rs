@@ -101,6 +101,7 @@ pub(crate) fn source_summary(
     for model in &core.settings.models {
         models
             .push(jig_protocol_engine_clients::Model {
+                new_until: None,
                 number: 1,
                 source: jig_domain_core::settings::ModelSource::Stock,
                 estimated: false,

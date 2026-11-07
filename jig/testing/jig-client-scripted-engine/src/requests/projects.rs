@@ -15,6 +15,7 @@ impl<A: Application> Engine<A> {
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
             Ask::SetVisibility { .. }
+            | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)

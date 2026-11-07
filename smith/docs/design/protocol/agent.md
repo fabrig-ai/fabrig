@@ -339,6 +339,31 @@ spawns one (hosts.md, section 5.2).
   teardown bound (limits.md, section 4). A forced exit after an accepted
   answer is a warning for operators, not the run's failure.
 
+### 6.1 Reading a list
+
+The agent also reads an endpoint's list of models, when a host starts it to
+(`hosts.md`, section 2). This is no run, and no record of the channel's: it has
+no charter, turn, budget or event stream, and starts none of the components a
+run has.
+
+- **Its flag:** `--list`, in place of a run, with the same configuration. It
+  reads the configuration and resolves the endpoints' names, as a startup does,
+  and refuses as one does, on standard error, with failure.
+- **Standard input** carries `ListAsk`, one record of `smith-channel`'s codec,
+  and then ends: the endpoint, by the number a charter's LLM names it by; its
+  credential, scheme and bytes, or none. This is the channel's grant value, kept
+  from argv and the environment as a run's is, and goes nowhere but the request.
+- **The request** is skein's (`skein/docs/design/llm-connection.md`, 4.3), under
+  the endpoint's connect and handshake deadlines and a whole deadline the host
+  bounds by stopping it.
+- **Standard output** carries `ListAnswer`, one record, then ends: the rows of
+  `skein_llm::list::Listed`, at most 256, or its failure, as
+  `skein_llm_connection::list::ListAnswer` says it, with a status alone.
+- **An endpoint** the configuration doesn't hold, a scheme its dialect doesn't
+  take or an ask that doesn't read answers `Unreadable`, with no request. An
+  endpoint that names a program is read as any other, with a key.
+- **It exits** with success once it has answered, whatever the answer.
+
 ## 7. What the domain is owed, and what skein owes
 
 - **The domain is owed** its operations carried out as asked, each answered

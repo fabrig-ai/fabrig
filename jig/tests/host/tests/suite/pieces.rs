@@ -24,7 +24,8 @@ fn pieces(world: &World) -> Vec<(Token, Token, Piece)> {
         .iter()
         .filter_map(|record| match record {
             LinkUp::Piece { run, attempt, piece } => Some((*run, *attempt, piece.clone())),
-            LinkUp::Logins { .. }
+            LinkUp::ListRead { .. }
+            | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Activity { .. }
             | LinkUp::Unauthorized { .. }

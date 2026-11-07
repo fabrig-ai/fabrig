@@ -25,6 +25,7 @@ impl Story {
             initial.identity.subject = owner.to_be_bytes().into();
         }
         let provider = |number| accounts::Provider {
+            list: None,
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -171,6 +172,7 @@ impl Story {
         config.core.worker_names = Box::new([b"unavailable".as_slice().into()]);
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {
+                list: None,
                 number: 3,
                 name: b"Fake".as_slice().into(),
                 signed_in_plan: false,

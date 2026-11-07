@@ -127,6 +127,20 @@ its default. A stored change still wins over a changed default.
   project and is set alone. The tool reads a named project's policy,
   though the inventory omits it.
 
+### Models
+
+On Settings, Models, temper reads each provider's list where it can: as an
+account becomes usable, once a day and when you choose **Read again**.
+A new model starts off the picker, marked “new” for a week. Its prices are
+estimated until the configuring chat sets them. A failed read says so on
+Models and changes nothing.
+
+A Claude subscription has no list to read: use **Add a model by name** for
+a new model there, or any model a provider's list doesn't show. Choose its
+provider and enter its name; the first run shows whether it is served.
+An owner can turn models on or off in the picker. Tell **Configure temper**
+to change prices, a default or a role's models, or other settings.
+
 ### Recovering from a check reserve refusal
 
 A worker's check timeout must fit every applicable modifying charter's
@@ -160,7 +174,6 @@ Changing the current reserve alone leaves incompatible held versions.
 For members needing a restart, read `temper help configuration`.
 
 - temper does not patch a member: an item sets a whole value.
-- On Settings, Models, the person's client changes models; tell Configure temper about other settings.
 - ctl sends values within `temper help settings-fields` bounds; the
   deployment may refuse them past its own limits.
 - Providers, listeners, workers and limits are configured at start;

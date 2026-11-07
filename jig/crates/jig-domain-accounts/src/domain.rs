@@ -11,6 +11,7 @@ use skein_lib::{Deadlines, Duration, Env, List, Map, Queue, Time, Wall};
 /// order, with its explicit payers or the default uses (4.2).
 #[derive(Hash, Debug)]
 pub struct Account {
+    pub(crate) list: Option<crate::ListRecord>,
     pub(crate) provider: u32,
     pub(crate) holder: Holder,
     pub(crate) subject: Box<[u8]>,
@@ -132,6 +133,13 @@ enum Choice {
     Held(u32),
     Empty,
 }
+/// Where a catalogue model came from (jig/docs/design/domain/accounts.md, 3.7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ModelKind {
+    Stock,
+    List,
+    Person,
+}
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
@@ -145,6 +153,9 @@ pub struct Domain {
     pub(crate) kept: u32,
     /// The configuration's, sized by it and outside the child's bound, as the core's settings are.
     pub(crate) providers: Providers,
+    pub(crate) list_reads: Map<u32, crate::lists::Reading>,
+    pub(crate) list_alarms: Deadlines<u32>,
+    pub(crate) next_read: u64,
     credentials: Map<u32, Granted>,
     credential_alarms: Deadlines<u32>,
     pub(crate) alarms: Deadlines<u32>,
@@ -162,10 +173,64 @@ pub struct Domain {
     ended: Queue<Ended>,
     lost: u64,
     pub(crate) restore_failure: Option<crate::RestoreLimit>,
-    now: Time,
+    pub(crate) now: Time,
     phase: Phase,
 }
 impl Domain {
+    /// The account's last list reads (jig/docs/design/domain/accounts.md, 3.7).
+    #[must_use]
+    pub fn list(&self, account: u32) -> Option<&crate::ListRecord> {
+        self.accounts.get(&account)?.list.as_ref()
+    }
+
+    /// Whether the provider and the first source give this account a list (accounts.md, 3.7).
+    #[must_use]
+    pub fn has_list(&self, account: u32) -> bool {
+        let Some(entry) = self.accounts.get(&account) else { return false };
+        let Some(provider) = self.providers.get(entry.provider) else { return false };
+        if provider.list.is_none() {
+            return false;
+        }
+        let Some((_, source)) = entry.sources.first() else { return false };
+        match self.sources.get(source).expect("an account's first source is kept").kind {
+            Kind::SignIn | Kind::Key => true,
+            Kind::Program | Kind::None => false,
+        }
+    }
+    /// A person's models always pass; a good read decides the rest (accounts.md, 3.7).
+    #[must_use]
+    pub fn allows(&self, account: u32, number: u32, kind: ModelKind) -> bool {
+        match kind {
+            ModelKind::Person => return true,
+            ModelKind::Stock | ModelKind::List => {}
+        }
+        if let Some(record) = self.list(account)
+            && record.read.is_some()
+        {
+            let Some(bit) = number.checked_sub(1) else { return false };
+            return match 1_u64.checked_shl(bit) {
+                Some(bit) => record.names & bit != 0,
+                None => false,
+            };
+        }
+        kind == ModelKind::Stock
+    }
+    /// The other accounts' good reads for one provider (accounts.md, 3.7).
+    #[must_use]
+    pub fn listed_names(&self, provider: u32, except: u32) -> u64 {
+        let mut names = 0;
+        for (number, account) in &self.accounts {
+            if *number != except
+                && account.provider == provider
+                && let Some(record) = account.list
+                && record.read.is_some()
+            {
+                names |= record.names;
+            }
+        }
+        names
+    }
+
     /// Providers are configuration; accounts and sources are durable runtime records.
     #[must_use]
     pub fn new(limits: &Limits, providers: Providers) -> Domain {
@@ -180,6 +245,9 @@ impl Domain {
             next: 0,
             kept: 0,
             providers,
+            list_reads: Map::with_capacity(limits.accounts),
+            list_alarms: Deadlines::with_capacity(limits.accounts),
+            next_read: 0,
             credentials: Map::with_capacity(limits.credentials),
             credential_alarms: Deadlines::with_capacity(limits.credentials),
             alarms: Deadlines::with_capacity(sources),
@@ -377,7 +445,10 @@ impl Domain {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = None;
-        for at in [self.alarms.next(), self.credential_alarms.next(), self.move_alarms.next()].into_iter().flatten() {
+        for at in [self.alarms.next(), self.credential_alarms.next(), self.move_alarms.next(), self.list_alarms.next()]
+            .into_iter()
+            .flatten()
+        {
             next = Some(match next {
                 Some(old) => at.min(old),
                 None => at,
@@ -460,7 +531,7 @@ impl Domain {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive account vocabulary dispatches each bounded event")]
+#[expect(clippy::too_many_lines, reason = "the accounts boundary dispatches each event in one exhaustive match")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
     match event {
@@ -498,6 +569,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::signing::adopted(domain, env, source, kept, out);
         }
         Event::Withdrawn { .. } | Event::Opened { .. } | Event::NotOurs { .. } | Event::Adopted { .. } => {}
+        Event::Listed { read, names, left_out, at } => {
+            if domain.wanted() {
+                crate::lists::listed(domain, read, names, left_out, at, out);
+            }
+        }
+        Event::ListFailed { read, failure, at } => {
+            if domain.wanted() {
+                crate::lists::failed(domain, read, failure, at, out);
+            }
+        }
         Event::Close => close(domain, env, out),
         Event::Component(FromComponent::Closed) => {
             if domain.phase != Phase::Closing {
@@ -587,6 +668,7 @@ fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         return;
     }
     domain.phase = Phase::Wanted;
+    crate::lists::start(domain, env, out);
     none_accounts(domain, env, out);
     domain.counted(out);
     for (number, source) in &domain.sources {
@@ -666,6 +748,7 @@ fn none_accounts(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         let mut places = Map::with_capacity(env.limits.sources);
         assert!(places.insert(0, source) == Ok(None), "a first place");
         let entry = Account {
+            list: None,
             provider,
             holder: Holder::Deployment,
             subject: Box::new([]),
@@ -684,6 +767,7 @@ fn none_accounts(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         assert!(domain.sources.insert(source, entry) == Ok(None), "a new number, within the sources' bound");
         out.push(Request::Save {
             record: Stored::Account {
+                list: None,
                 number: account,
                 provider,
                 holder: Holder::Deployment,
@@ -787,6 +871,8 @@ fn close(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         Phase::Closing | Phase::Closed => return,
         Phase::New | Phase::Wanted => domain.phase = Phase::Closing,
     }
+    domain.list_reads = Map::with_capacity(env.limits.accounts);
+    domain.list_alarms = Deadlines::with_capacity(env.limits.accounts);
     crate::signing::close(domain, out);
     crate::keys::close(domain, out);
     crate::signing::close_moves(domain, out);
@@ -964,6 +1050,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         crate::signing::cancel_move(domain, env, source, out);
         return;
     }
+    if let Some(account) = domain.list_alarms.expire(env.now) {
+        crate::lists::due(domain, account, out);
+        return;
+    }
     let Some(source) = domain.alarms.expire(env.now) else { return };
     let entry = domain.sources.get_mut(&source).expect("alarm names a kept source");
     let before = entry.hold;
@@ -1039,6 +1129,7 @@ pub(crate) fn changed(
 ) {
     program_grant(domain, source, out);
     let view = settle(domain, env, source);
+    crate::lists::settled(domain, view.account, out);
     if domain.facts.try_push(view).is_err() {
         domain.lost = domain.lost.saturating_add(1);
     }

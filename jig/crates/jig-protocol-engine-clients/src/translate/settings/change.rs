@@ -427,6 +427,7 @@ pub(crate) fn proposed(
 fn catalogue(value: w::CatalogueEntry) -> s::CatalogueModel {
     let value = value.into_parts();
     s::CatalogueModel {
+        first_read: None,
         number: value.number,
         model: model(value.model),
         shown: value.shown,
