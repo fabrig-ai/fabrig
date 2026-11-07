@@ -413,6 +413,7 @@ fn demo_accounts() -> contract::Accounts {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            facts: List::with_capacity(0),
             number: 1,
             place: 1,
             uses: None,

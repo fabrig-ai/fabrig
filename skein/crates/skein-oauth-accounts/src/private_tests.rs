@@ -391,6 +391,7 @@ fn assert_visit(event: Option<Event>) {
         Some(
             Event::Removed { .. }
             | Event::Taken { .. }
+            | Event::Refreshed { .. }
             | Event::SignedIn { .. }
             | Event::Lock { .. }
             | Event::Unlock { .. }

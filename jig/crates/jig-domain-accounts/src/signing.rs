@@ -169,6 +169,7 @@ fn startable(domain: &Domain, limits: &Limits, holder: Holder, provider: u32) ->
 }
 
 /// The component's sign-in decides what the subject does (accounts.md, 3.3).
+#[expect(clippy::too_many_arguments, reason = "the sign-in boundary carries the subject, display and report together")]
 pub(crate) fn signed_in(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -176,6 +177,7 @@ pub(crate) fn signed_in(
     subject: Box<[u8]>,
     display: Box<[u8]>,
     declined: bool,
+    said: crate::Said,
     out: &mut Queue<Request>,
 ) {
     let Some(under_way) = domain.signing.remove(&source) else { return };
@@ -192,10 +194,13 @@ pub(crate) fn signed_in(
     let end = match decided {
         Ok(None) => {
             let made = Made { holder: under_way.holder, provider: under_way.provider, subject, display };
-            End::Made { account: make(domain, env, source, made, hold, out), declined }
+            let account = make(domain, env, source, made, hold, out);
+            crate::facts::report(domain, env, account, source, crate::ORIGIN_SIGN_IN, said, out);
+            End::Made { account, declined }
         }
         Ok(Some((account, place))) => {
             renew(domain, env, account, place, source, hold, out);
+            crate::facts::report(domain, env, account, source, crate::ORIGIN_SIGN_IN, said, out);
             End::Renewed { account, declined }
         }
         Err(refusal) => {

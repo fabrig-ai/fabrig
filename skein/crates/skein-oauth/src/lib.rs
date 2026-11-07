@@ -30,7 +30,9 @@ pub use machine::{
 };
 pub use pkce::challenge;
 pub use record::{ClaimSelector, RefreshState, SavedToken, decode_record, encode_record, rotate, secret_ref};
-pub use redirect::{OpenId, Parameter, Sent, Terms, missing_scopes, redirect_address, validate_registration};
+pub use redirect::{
+    OpenId, Parameter, Profile, ProfileClaims, Sent, Terms, missing_scopes, redirect_address, validate_registration,
+};
 
 #[cfg(test)]
 mod machine_tests;

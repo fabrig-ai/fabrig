@@ -1289,7 +1289,7 @@ fn an_agents_page_has_no_dots() {
 }
 #[test]
 fn an_agents_page_has_latest_in_a_browser() {
-    let root = f::agent_root(f::delegate(), None, true);
+    let mut root = amend_root(false);
     let view = fixtures::browser_page_view(&root);
     let tree = view.tree();
     let pill = index_of(tree, Role::Button, b"Latest");
@@ -1297,6 +1297,14 @@ fn an_agents_page_has_latest_in_a_browser() {
     assert_eq!(pill, log + usize::try_from(tree.nodes()[log].size).unwrap());
     assert!(tree.nodes()[pill].styles.as_slice().contains(&look::LATEST));
     assert!(tree.nodes()[pill].states.as_slice().contains(&skein_ui::State::ToLogEnd));
+    let brief = styled(tree, look::AGENT_BRIEF);
+    let run = styled(tree, look::AGENT_RUN);
+    let foot = styled(tree, look::AGENT_FOOT);
+    assert!(log < brief && brief < run && run < foot && foot < pill);
+    press_button(&mut root, b"Amend");
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    assert!(styled(tree, look::TASK_AMEND) < index_of(tree, Role::Log, b"Conversation"));
 }
 #[test]
 fn latest_binds_where_the_window_let_its_end_go() {
@@ -1408,6 +1416,7 @@ fn an_agents_task_has_its_parts_in_order() {
     let run = styled(tree, look::AGENT_RUN);
     let log = index_of(tree, Role::Log, b"Conversation");
     assert!(lineage < bar && bar < brief && brief < run && run < log);
+    assert_eq!(styled(tree, look::AGENT_FOOT), log + usize::try_from(tree.nodes()[log].size).unwrap());
     for name in [b"Task details".as_slice(), b"What was asked", b"Latest activity", b"Budget and authority"] {
         assert!(!named(tree.nodes(), Role::Heading { level: 2 }, name));
     }
@@ -1701,7 +1710,8 @@ fn an_ended_agents_task_shows_its_result() {
     f::phase(&mut task, c::ChipPhase::Ended);
     let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(f::document_words(b"Tokens rotated safely."))));
-    let view = agent(task);
+    let root = f::agent_root(task, None, true);
+    let view = fixtures::page_view(&root);
     let tree = view.tree();
     let result = region_index(tree, b"Result");
     assert_eq!(tree.nodes()[result].styles.as_slice(), [look::AGENT_RESULT]);
@@ -1709,6 +1719,10 @@ fn an_ended_agents_task_shows_its_result() {
     assert!(skein_lib::bytes::find(&fixtures::node_text(tree, result), b"Tokens rotated safely.").is_some());
     assert!(index_of(tree, Role::Log, b"Conversation") < result);
     assert!(!named(agent(f::delegate()).tree().nodes(), Role::Region, b"Result"));
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    let log = index_of(tree, Role::Log, b"Conversation");
+    assert!(named(subtree(tree, log), Role::Region, b"Result"));
 }
 #[test]
 fn an_agents_plan_shows_only_with_a_delegate_or_a_card() {

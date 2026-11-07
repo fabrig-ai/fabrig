@@ -19,16 +19,16 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
 #[test]
 fn the_worker_cap_for_one_slot_is_the_hand_summed_bytes() {
     // Hello393 (109 + endpoint count4 + 64 * 4 + jobs count4 + bound20) + turn71 + answer136 + call85 + unauthorized28 + limited29
-    // + account refused60; seven headers56. Sources add Logins158 + two SignedOut66.
-    // Mandatory1148 + reserve390 =1538; reserve fits fifteen shortest facts25.
-    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 1538, frames: 25 }, facts: 390 }));
+    // + account refused60; seven headers56. Sources add Logins678 + two SignedOut66 (two optional emails add520).
+    // Mandatory1668 + reserve390 =2058; reserve fits fifteen shortest facts25.
+    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 2058, frames: 25 }, facts: 390 }));
 }
 
 #[test]
 fn the_worker_cap_reserves_the_facts_share_last() {
     let sizes = Sizes { facts: 75, ..SIZES_ONE_SLOT };
-    // Mandatory frames1148 bytes + reserve75 =1223; three shortest facts25 each.
-    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1223, frames: 13 }, facts: 75 }));
+    // Mandatory frames1668 bytes + reserve75 =1743; three shortest facts25 each.
+    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1743, frames: 13 }, facts: 75 }));
 }
 
 #[test]

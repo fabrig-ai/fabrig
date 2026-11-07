@@ -99,7 +99,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v9::Limits) -> Optio
                         return None;
                     }
                 }
-                rows.push(Login { name, state: login_state(row.state)? }).ok()?;
+                rows.push(Login { name, state: login_state(row.state)?, email: row.email }).ok()?;
             }
             Some(Up::Source(host::LinkUp::Logins { logins: rows.into_boxed() }))
         }

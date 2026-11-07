@@ -49,8 +49,10 @@ name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
 its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
 again. The domain, checkout and real-loop stories use scripted models and
-fake forge/git; stock and reference workflow words, larger calls and
-reports, and a saved start overtaken by a repair remain separate work
+fake forge/git. Calls, briefs, batches and reports have their configured
+room: the reference takes payload 63,740 and output 48,000 after smith
+refuses the 128 KB pair at the transcript ceiling. Stock and reference
+workflow words and a saved start overtaken by a repair remain separate work
 (`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
 `draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
@@ -304,9 +306,9 @@ listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
-(`domain/root.md`). Ready and the Model step name no email for a
-ChatGPT sign-in, which waits on jig's account-facts draft, and Ready
-draws no words for a
+(`domain/root.md`). The render check of `ready-account-email` on a real
+sign-in and a real Claude Code login follows landing, owned by temper/ui
+(`client/README.md`, 3.5). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its

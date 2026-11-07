@@ -1,9 +1,9 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format};
 use skein_io::{self as io, kernel};
 use skein_lib::{List, Queue, Time, Token, stream};
 
 use crate::{
-    Command, Ended, Error, Launch, Method, Programs, Status, configuration_directory, environment, keeps, status,
+    Command, Ended, Error, Launch, Method, Programs, Status, configuration_directory, email, environment, keeps, status,
 };
 
 fn programs(directory: &[u8]) -> Programs {
@@ -139,6 +139,50 @@ fn each_status_reads_as_programs_md_says() {
     assert!(Method::new(b"\x7f").is_none());
     assert!(Method::new(b"\x80").is_none());
     assert_eq!(Method::new(&[b'x'; 32]).expect("maximum method").as_bytes(), &[b'x'; 32]);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "test fixtures format JSON independently of the production collector")]
+#[expect(clippy::type_complexity, reason = "each table row carries the exit, output, email and unchanged status")]
+fn an_email_is_optional_bounded_text_from_a_usable_status() {
+    const EMAIL_BYTES: usize = 255; // protocol/programs.md, section 3.
+    let maximum = "x".repeat(EMAIL_BYTES);
+    let overlong = "x".repeat(EMAIL_BYTES.checked_add(1).expect("one past"));
+    let long = "x".repeat(EMAIL_BYTES.checked_add(2).expect("past collector cap"));
+    let maximum_status = format!(r#"{{"loggedIn":true,"authMethod":"claude.ai","email":"{maximum}"}}"#);
+    let overlong_status = format!(r#"{{"loggedIn":true,"authMethod":"claude.ai","email":"{overlong}"}}"#);
+    let long_status = format!(r#"{{"loggedIn":true,"authMethod":"claude.ai","email":"{long}"}}"#);
+    let cases: &[(u8, &[u8], Option<&[u8]>, Status)] = &[
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you@example.com"}"#,
+            Some(b"you@example.com"),
+            Status::Usable,
+        ),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai"}"#, None, Status::Usable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":42}"#, None, Status::Usable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":""}"#, None, Status::Usable),
+        (0, maximum_status.as_bytes(), Some(maximum.as_bytes()), Status::Usable),
+        (0, overlong_status.as_bytes(), None, Status::Usable),
+        (0, long_status.as_bytes(), None, Status::Usable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you\u0000@example.com"}"#, None, Status::Usable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you\n@example.com"}"#, None, Status::Usable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you\u007f@example.com"}"#, None, Status::Usable),
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"api_key","email":"you@example.com"}"#,
+            None,
+            Status::Otherwise(Method::new(b"api_key").expect("method")),
+        ),
+        (0, br#"{"loggedIn":false,"authMethod":"none","email":"you@example.com"}"#, None, Status::NotSignedIn),
+        (1, br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you@example.com"}"#, None, Status::NotSignedIn),
+        (0, br#"{"loggedIn":true,"email":"you@example.com"}"#, None, Status::Unreadable),
+        (0, br#"{"loggedIn":true,"authMethod":"claude.ai","email":"you@example.com""#, None, Status::Unreadable),
+    ];
+    for (code, stdout, expected, expected_status) in cases {
+        assert_eq!(email(*code, stdout).as_deref(), *expected, "{code}: {stdout:?}");
+        assert_eq!(status(*code, stdout), *expected_status, "{code}: {stdout:?}");
+    }
 }
 
 const OWNER: Token = Token::new(100);

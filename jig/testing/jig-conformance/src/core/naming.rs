@@ -88,7 +88,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             accounts::Key::Next
             | accounts::Key::Issued { .. }
             | accounts::Key::Account { .. }
-            | accounts::Key::Source { .. } => {}
+            | accounts::Key::Source { .. }
+            | accounts::Key::Facts { .. } => {}
         },
     }
     record_names(record, &mut name);
@@ -193,7 +194,10 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                     }
                 }
             }
-            accounts::Stored::Next { .. } | accounts::Stored::Issued { .. } | accounts::Stored::Source { .. } => {}
+            accounts::Stored::Next { .. }
+            | accounts::Stored::Issued { .. }
+            | accounts::Stored::Source { .. }
+            | accounts::Stored::Facts { .. } => {}
         },
     }
 }

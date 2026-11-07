@@ -4,6 +4,57 @@ use alloc::boxed::Box;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use skein_lib::{List, Writer};
+pub fn facts(value: &List<a::AccountFact>, limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
+    let mut rows = List::with_capacity(value.len());
+    for fact in value {
+        let value = match &fact.value {
+            a::FactValue::Text(text) => w::AccountFactValue::Text(w::AccountFactText::new(
+                limits,
+                w::AccountFactTextParts { text: text.clone() },
+            )?),
+            a::FactValue::Count(count) => w::AccountFactValue::Count(w::AccountFactCount::new(
+                limits,
+                w::AccountFactCountParts { count: *count },
+            )?),
+            a::FactValue::Instant(at) => w::AccountFactValue::Instant(w::AccountFactInstant::new(
+                limits,
+                w::AccountFactInstantParts { at: at.as_nanos() },
+            )?),
+            a::FactValue::Span(nanos) => {
+                w::AccountFactValue::Span(w::AccountFactSpan::new(limits, w::AccountFactSpanParts { nanos: *nanos })?)
+            }
+            a::FactValue::Share(basis) => w::AccountFactValue::Share(w::AccountFactShare::new(
+                limits,
+                w::AccountFactShareParts { basis: *basis },
+            )?),
+            a::FactValue::Window(window) => w::AccountFactValue::Window(w::AccountWindow::new(
+                limits,
+                w::AccountWindowParts {
+                    length: window.length,
+                    used: window.used,
+                    resets: match window.resets {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                    state: window.state,
+                },
+            )?),
+        };
+        let row = w::AccountFact::new(
+            limits,
+            w::AccountFactParts {
+                kind: fact.kind,
+                label: fact.label.clone(),
+                value,
+                seen: fact.seen.as_nanos(),
+                source: fact.source,
+                origin: fact.origin,
+            },
+        )?;
+        rows.push(row).expect("supplied facts fit");
+    }
+    Ok(rows)
+}
 pub fn payer(value: a::Use, limits: &w::Limits) -> Result<w::AccountUse, w::Problem> {
     Ok(match value {
         a::Use::Party(party) => {
@@ -164,6 +215,7 @@ pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::AccountLine
     w::AccountLine::new(
         limits,
         w::AccountLineParts {
+            facts: facts(&value.facts, limits)?,
             number: value.number,
             place: value.place,
             uses: uses(value.uses.as_ref(), limits)?,

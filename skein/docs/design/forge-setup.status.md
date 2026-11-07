@@ -1,6 +1,6 @@
 # forge-setup: status
 
-2026-11-06. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
+2026-11-07. Where skein's code lags or departs from [forge-setup.md](forge-setup.md).
 
 - **Not yet:** 8: `setup-actions-reads-forgejo-workflows-alone-when-both-are-there`
   stands `unchecked` in `skein/tests/forge/conformance/facts.txt`: the

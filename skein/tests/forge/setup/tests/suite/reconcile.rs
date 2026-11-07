@@ -213,3 +213,18 @@ fn the_three_scope_admin_token_is_refused_at_the_first_owned_org_read() {
     assert_eq!(world.tally().routes.get(&Route::CreateOrg), None);
     assert!(world.secrets_absent());
 }
+
+#[test]
+fn a_given_person_is_answered_by_id_and_one_gone_by_none() {
+    use core::num::NonZeroU64;
+    use skein_forge_setup::reconcile::Outcome;
+    for present in [true, false] {
+        let mut world = HostWorld::new(7, &[]);
+        let id = if present { NonZeroU64::new(world.store_mut().account(b"ada", false, b"Ada")) } else { None };
+        world.person(Some(b"ada"));
+        assert_eq!(world.reconcile(), Ended::Done);
+        assert_eq!(world.outcome(), Some(&Outcome::Person { id }));
+        assert_eq!(world.requests().last(), Some(&Request::UserOf { login: b"ada".as_slice().into() }));
+        assert!(world.secrets_absent());
+    }
+}

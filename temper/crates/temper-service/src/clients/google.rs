@@ -273,6 +273,7 @@ impl Google {
                     Box::new([])
                 },
                 openid: Some(oauth::OpenId {
+                    profile: skein_oauth::Profile::default(),
                     issuer: self.settings.issuer.clone(),
                     key_set: Some(self.settings.keys.clone()),
                 }),
@@ -693,7 +694,7 @@ impl Clients {
                 google.http.push((exchange, request));
                 google.keep_pending(exchange, pending);
             }
-            oauth::Request::Tokens { record, missing: _ } => {
+            oauth::Request::Tokens { record, missing: _, profile: _ } => {
                 let claims = match &record.id_token {
                     Some(token) => claims_from(token.expose(), &limits::client(google.limits).document),
                     None => None,

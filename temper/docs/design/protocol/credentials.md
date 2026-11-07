@@ -136,6 +136,7 @@ setup.md's (section 9). What is open is listed in section 8.
   | 9 | `Accepted` | the accepted installations' ids, at most `forges.installations` | GitHub |
   | 10 | `Origin` | the forge's kind and `api` address the records were made for | both |
   | 11 | `Pasted` | a pasted App key's PEM, in a pasted bundle alone (2.2), never a record: a row under 11 is unreadable | GitHub |
+  | 12 | `AppMade` | the id of the App the manifest flow made, written first by `Convert` (setup.md, 17.2) and kept with `AppId`, since no write spans this store and the forge's record. A pasted App never writes it | GitHub, when a manifest made the App |
 
   Code 0 is never written, and a code never changes its meaning. temper
   maps skein's setup items to these codes; on GitHub, `User` is the
@@ -146,7 +147,7 @@ setup.md's (section 9). What is open is listed in section 8.
   table's:
   - the tokens (`AdminToken`, `ApiToken`, `GitToken`, `WebhookSecret`):
     a secret, at most `token_bytes`;
-  - `User` and `AppId`: a `u64`, never 0;
+  - `User`, `AppId` and `AppMade`: a `u64`, never 0;
   - `AppSlug`: text, at most `name_bytes`;
   - `AppKey`: a secret holding PKCS#1 DER, at most `key_bytes`;
   - `Accepted`: the installations' ids, a list of `u64`s, ascending,
@@ -193,7 +194,7 @@ setup.md's (section 9). What is open is listed in section 8.
 - **An incomplete set** (a crash inside a conversion: an `AppId` kept, no
   `AppKey`): the forge is not connected; the next Connect overwrites it.
 - **Erased with the forge, at once:** its removal erases each of its
-  rows, `AdminToken` through `Origin`, one after another, each durable
+  rows, `AdminToken` through `Origin`, then `AppMade`, one after another, each durable
   before the next, an absent row among them, since a run may have had a
   write in flight; a removal a restart cut erases again at the next
   start (forge.md, 2.3). The setup host forgets the forge first, and

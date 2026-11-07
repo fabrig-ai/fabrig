@@ -121,6 +121,10 @@ pub(crate) fn tag_fleet(
     for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
+            fleet::Request::ProgramEmail { name, email } => {
+                append_account(core, env, accounts::Event::ProgramSaid { name, email }, &mut out);
+                continue;
+            }
             fleet::Request::ProgramTargets { source, workers } => {
                 work.push(Work::Event(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers })));
                 continue;
@@ -571,6 +575,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::SignedIn { .. }
@@ -600,11 +605,77 @@ pub(crate) fn route_account(
     event: accounts::Event,
 ) -> Queue<Request> {
     let party = account_party(core, &event);
+    let refresh = match &event {
+        accounts::Event::ProgramSaid { .. } => true,
+        accounts::Event::Component(event) => match event {
+            accounts::FromComponent::Refreshed { .. } => true,
+            accounts::FromComponent::Granted { .. }
+            | accounts::FromComponent::Expiring { .. }
+            | accounts::FromComponent::Failed { .. }
+            | accounts::FromComponent::KeepFailed { .. }
+            | accounts::FromComponent::Closed => false,
+        },
+        accounts::Event::ForgetProject { .. }
+        | accounts::Event::Restore { .. }
+        | accounts::Event::Want
+        | accounts::Event::ProgramTargets { .. }
+        | accounts::Event::ProgramSignedOut { .. }
+        | accounts::Event::Unauthorized { .. }
+        | accounts::Event::Limited { .. }
+        | accounts::Event::Refused { .. }
+        | accounts::Event::RunFailed { .. }
+        | accounts::Event::Change { .. }
+        | accounts::Event::Credential { .. }
+        | accounts::Event::SignIn { .. }
+        | accounts::Event::SignOut { .. }
+        | accounts::Event::Visited { .. }
+        | accounts::Event::Finishing { .. }
+        | accounts::Event::FinishRefused { .. }
+        | accounts::Event::SignedIn { .. }
+        | accounts::Event::SignInFailed { .. }
+        | accounts::Event::SignedOut { .. }
+        | accounts::Event::Withdrawn { .. }
+        | accounts::Event::Opened { .. }
+        | accounts::Event::NotOurs { .. }
+        | accounts::Event::Adopted { .. }
+        | accounts::Event::Close => false,
+    };
     let mut out = Queue::uncapped();
     super::step::step_accounts(core, env, event, &mut out);
-    core.touch_deployment();
-    core.touch_run_waits();
-    core.touch_accounts(party);
+    let mut facts_changed = false;
+    for request in &out {
+        match request {
+            accounts::Request::Save { record: accounts::Stored::Facts { .. } }
+            | accounts::Request::Erase { key: accounts::Key::Facts { .. } } => facts_changed = true,
+            accounts::Request::Programs { .. }
+            | accounts::Request::CheckProgram { .. }
+            | accounts::Request::SignOutProgram { .. }
+            | accounts::Request::Component(_)
+            | accounts::Request::Signing(_)
+            | accounts::Request::Answer { .. }
+            | accounts::Request::Granted { .. }
+            | accounts::Request::Save {
+                record:
+                    accounts::Stored::Next { .. }
+                    | accounts::Stored::Account { .. }
+                    | accounts::Stored::Source { .. }
+                    | accounts::Stored::Issued { .. },
+            }
+            | accounts::Request::Erase {
+                key:
+                    accounts::Key::Next
+                    | accounts::Key::Account { .. }
+                    | accounts::Key::Source { .. }
+                    | accounts::Key::Issued { .. },
+            }
+            | accounts::Request::Closed => {}
+        }
+    }
+    if !refresh || facts_changed {
+        core.touch_deployment();
+        core.touch_run_waits();
+        core.touch_accounts(party);
+    }
     tag_account(core, env, work, out)
 }
 

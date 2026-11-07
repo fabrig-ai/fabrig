@@ -33,11 +33,12 @@ pub enum Sent {
     NewRegistration,
 }
 
-/// The ID token's issuer and, where configured, its published key set.
+/// The ID token's issuer, published key set and requested profile claims (oauth.md, 2.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenId {
     pub issuer: Box<[u8]>,
     pub key_set: Option<Box<[u8]>>,
+    pub profile: Profile,
 }
 
 /// Validates an owner's registration before an exchange or component starts.
@@ -500,4 +501,46 @@ pub fn missing_scopes(registration: &Registration, record: &crate::SavedToken) -
         }
     }
     writer.finish()
+}
+
+/// The profile claims a registration asks to read of an ID token (oauth.md, 2.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Profile {
+    pub email: bool,
+    pub name: bool,
+}
+
+/// What an ID token said, of what was asked: words to show, no proof of anything.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProfileClaims {
+    pub email: Option<Box<[u8]>>,
+    pub name: Option<Box<[u8]>>,
+}
+
+impl ProfileClaims {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.email.is_none() && self.name.is_none()
+    }
+}
+
+// The profile contract requires empty defaults; step code's lint forbids the derive.
+#[expect(
+    clippy::derivable_impls,
+    reason = "the profile contract requires Default; its derive is forbidden in step code"
+)]
+impl Default for Profile {
+    fn default() -> Self {
+        Self { email: false, name: false }
+    }
+}
+
+#[expect(
+    clippy::derivable_impls,
+    reason = "the profile contract requires Default; its derive is forbidden in step code"
+)]
+impl Default for ProfileClaims {
+    fn default() -> Self {
+        Self { email: None, name: None }
+    }
 }

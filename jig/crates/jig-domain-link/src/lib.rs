@@ -190,6 +190,7 @@ impl LoginState {
 pub struct Login {
     pub name: SourceName,
     pub state: LoginState,
+    pub email: Option<Box<[u8]>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SignOutResult {

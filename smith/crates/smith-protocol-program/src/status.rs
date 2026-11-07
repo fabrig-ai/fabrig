@@ -1,6 +1,7 @@
 //! Reading status records (protocol/programs.md, section 3). The bounded
-//! JSON walk retains only the two status fields, never any login file.
+//! JSON walk retains only loggedIn, authMethod and email, never any login file.
 
+use alloc::boxed::Box;
 use skein_json::{Document, Kind, collector as json, tokenizer};
 use skein_lib::{Env, Intake, Queue, Time, Wall, stream};
 
@@ -18,6 +19,9 @@ pub const SUBSCRIPTION: &[u8] = b"claude.ai";
 
 /// Maximum status standard output, in bytes.
 pub const STATUS_BYTES: u32 = 4096;
+
+/// Maximum email text in a usable status, in bytes.
+pub const EMAIL_BYTES: u32 = 255;
 
 /// A program's status record, read by the host or agent (smith/docs/design/protocol/programs.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,6 +84,7 @@ const FILTER: json::Filter = json::Filter {
     root: json::Keep::Into(&[
         json::Node { key: json::Key::Field(b"loggedIn"), keep: json::Keep::Value },
         json::Node { key: json::Key::Field(b"authMethod"), keep: json::Keep::Text(json::Cap::new(0)) },
+        json::Node { key: json::Key::Field(b"email"), keep: json::Keep::Text(json::Cap::new(1)) },
     ]),
 };
 
@@ -96,6 +101,36 @@ pub fn status(code: u8, stdout: &[u8]) -> Status {
         Some(status) => status,
         None => Status::Unreadable,
     }
+}
+
+/// The email a usable status names, where it names one that reads.
+#[must_use]
+pub fn email(code: u8, stdout: &[u8]) -> Option<Box<[u8]>> {
+    if status(code, stdout) != Status::Usable {
+        return None;
+    }
+    let document = collect(stdout)?;
+    for index in 0..document.len() {
+        let key = document.token(index)?;
+        if key.kind != Kind::Key || document.text(key)? != b"email" {
+            continue;
+        }
+        let value = document.token(index.checked_add(1)?)?;
+        if value.kind != Kind::String {
+            return None;
+        }
+        let text = document.text(value)?;
+        if text.is_empty() || u32::try_from(text.len()).ok()? > EMAIL_BYTES {
+            return None;
+        }
+        for byte in text {
+            if byte.is_ascii_control() {
+                return None;
+            }
+        }
+        return Some(text.into());
+    }
+    None
 }
 
 fn read(bytes: &[u8]) -> Option<Status> {
@@ -152,7 +187,7 @@ fn collect(bytes: &[u8]) -> Option<Document> {
         return None;
     }
     let limits = limits();
-    let mut collector = json::Collector::new(FILTER, &limits, &[32]).ok()?;
+    let mut collector = json::Collector::new(FILTER, &limits, &[32, EMAIL_BYTES.saturating_add(1)]).ok()?;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::with_capacity(1);
     let mut below = Queue::with_capacity(1);
@@ -188,7 +223,7 @@ fn limits() -> json::Limits {
             chunk: STATUS_BYTES,
             length: STATUS_BYTES,
         },
-        tokens: 16,
+        tokens: 24,
         text: STATUS_BYTES,
         skip: u64::from(STATUS_BYTES),
     }

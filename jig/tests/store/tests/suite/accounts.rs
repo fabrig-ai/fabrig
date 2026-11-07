@@ -35,8 +35,28 @@ fn source() -> core::Record {
     })
 }
 
+fn facts() -> core::Record {
+    core::Record::Accounts(Stored::Facts {
+        account: 1,
+        facts: Box::new([jig_domain_accounts::AccountFact {
+            kind: 1,
+            label: Box::new([]),
+            value: jig_domain_accounts::FactValue::Text(b"you@example.com".as_slice().into()),
+            seen: Wall::EPOCH,
+            source: Some(2),
+            origin: 1,
+        }]),
+    })
+}
+
 fn saves(number: u64) -> Box<[Write]> {
-    Box::new([Write::Save(root::header(number)), Write::Save(next(3)), Write::Save(account()), Write::Save(source())])
+    Box::new([
+        Write::Save(root::header(number)),
+        Write::Save(next(3)),
+        Write::Save(account()),
+        Write::Save(source()),
+        Write::Save(facts()),
+    ])
 }
 
 fn erases(number: u64) -> Box<[Write]> {
@@ -44,6 +64,7 @@ fn erases(number: u64) -> Box<[Write]> {
         Write::Save(root::header(number)),
         Write::Erase(core::Key::Accounts(Key::Source { account: 1, number: 2 })),
         Write::Erase(core::Key::Accounts(Key::Account { number: 1 })),
+        Write::Erase(core::Key::Accounts(Key::Facts { account: 1 })),
     ])
 }
 
@@ -82,7 +103,7 @@ fn the_accounts_rows_survive_a_crash_at_each_operation_of_the_commit_that_saves_
         let restored = world.reopen();
         Referee::check(&world.model, &restored).unwrap_or_else(|error| panic!("cut {at}: {error:?}"));
         assert!(acknowledged.is_none() || restored.last == 2, "an acknowledged save is durable, cut {at}");
-        let expected = if restored.last == 2 { vec![next(3), account(), source()] } else { Vec::new() };
+        let expected = if restored.last == 2 { vec![next(3), account(), source(), facts()] } else { Vec::new() };
         assert_eq!(rows(&restored), expected, "the counter, account and source whole, cut {at}");
     }
 }
@@ -97,7 +118,7 @@ fn the_accounts_rows_go_whole_at_a_crash_at_each_operation_of_the_commit_that_er
         let restored = world.reopen();
         Referee::check(&world.model, &restored).unwrap_or_else(|error| panic!("cut {at}: {error:?}"));
         assert!(acknowledged.is_none() || restored.last == 3, "an acknowledged erase is durable, cut {at}");
-        let expected = if restored.last == 3 { vec![next(3)] } else { vec![next(3), account(), source()] };
+        let expected = if restored.last == 3 { vec![next(3)] } else { vec![next(3), account(), source(), facts()] };
         assert_eq!(rows(&restored), expected, "the account and source go together, cut {at}");
     }
 }

@@ -4,6 +4,9 @@ use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{List, Reader, Writer};
+// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+const EMAIL_BYTES: usize = 255;
+
 fn world() -> World {
     let mut world = World::new(&fixtures::limits(), 19);
     world.engine(fixtures::engine_accepting());
@@ -57,20 +60,28 @@ fn host_wide_source_records_cross_bytes_without_an_assignment() {
             &host::LinkDown::SignOut { name: alice }
         ]
     );
-    world.down(Event::Up {
-        up: host::LinkUp::Logins { logins: Box::new([Login { name: alice, state: LoginState::Usable }]) },
-        parts: Box::new([]),
-    });
+    let emails = [Some(b"you@example.com".as_slice().into()), None, Some(Box::from([b'e'; EMAIL_BYTES]))];
+    for email in emails.clone() {
+        world.down(Event::Up {
+            up: host::LinkUp::Logins { logins: Box::new([Login { name: alice, state: LoginState::Usable, email }]) },
+            parts: Box::new([]),
+        });
+    }
     world.down(Event::Up {
         up: host::LinkUp::SignedOut { name: alice, result: SignOutResult::SignedOut },
         parts: Box::new([]),
     });
     let records = world.records();
     let records = &records[0];
-    let logins = records.iter().find(|record| record.kind == 0x0108).expect("login notice");
-    let logins = wire::Logins::decode(&fixtures::codec(), &mut Reader::new(&logins.body)).expect("encoded logins");
-    assert_eq!(logins.logins().len(), 1);
-    assert_eq!(logins.logins().get(0).expect("row").name(), b"alice");
+    let logins = records.iter().filter(|record| record.kind == 0x0108).collect::<Vec<_>>();
+    assert_eq!(logins.len(), emails.len());
+    for (record, email) in logins.into_iter().zip(emails) {
+        let logins = wire::Logins::decode(&fixtures::codec(), &mut Reader::new(&record.body)).expect("encoded logins");
+        assert_eq!(logins.logins().len(), 1);
+        let row = logins.logins().get(0).expect("row");
+        assert_eq!(row.name(), b"alice");
+        assert_eq!(row.email(), &email);
+    }
     assert!(records.iter().any(|record| record.kind == 0x0109));
 }
 #[test]
@@ -90,7 +101,7 @@ fn backpressure_keeps_only_the_latest_inventory_until_the_queue_is_empty() {
     let latest = SourceName::new(b"latest").expect("name");
     for name in [alice, alice, SourceName::new(b"middle").expect("name"), latest] {
         world.down(Event::Up {
-            up: host::LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable }]) },
+            up: host::LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable, email: None }]) },
             parts: Box::new([]),
         });
     }
@@ -115,7 +126,9 @@ fn a_lost_channel_drops_held_inventories_before_redial() {
     let alice = SourceName::new(b"alice").expect("name");
     for _ in 0..3 {
         world.down(Event::Up {
-            up: host::LinkUp::Logins { logins: Box::new([Login { name: alice, state: LoginState::Usable }]) },
+            up: host::LinkUp::Logins {
+                logins: Box::new([Login { name: alice, state: LoginState::Usable, email: None }]),
+            },
             parts: Box::new([]),
         });
     }
@@ -133,4 +146,23 @@ fn a_lost_channel_drops_held_inventories_before_redial() {
             .logins()
             .is_empty()
     );
+}
+
+#[test]
+fn invalid_login_email_is_dropped_and_counted() {
+    for email in [Box::from([b'e'; EMAIL_BYTES + 1].as_slice()), Box::from([0xff].as_slice())] {
+        let mut world = world();
+        world.down(Event::Up {
+            up: host::LinkUp::Logins {
+                logins: Box::new([Login {
+                    name: SourceName::new(b"alice").expect("name"),
+                    state: LoginState::Usable,
+                    email: Some(email),
+                }]),
+            },
+            parts: Box::new([]),
+        });
+        assert_eq!(world.dropped_records(), 1);
+        assert!(!world.records()[0].iter().any(|record| record.kind == wire::Kind::Logins.number()));
+    }
 }

@@ -87,6 +87,7 @@ fn zero_limits_are_refused_in_design_order() {
             | Place::Orgs
             | Place::Org(_)
             | Place::OrgOwner
+            | Place::Person
             | Place::Repositories
             | Place::Repository(_)
             | Place::FilesLimit

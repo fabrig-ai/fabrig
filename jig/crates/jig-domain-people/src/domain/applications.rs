@@ -124,7 +124,8 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
 /// Whether this party is the holder an account request names: a person for their own, a first
 /// owner for the deployment's (domain/accounts.md, 3.2; domain/people.md, section 3). A service
 /// holds no account and decides none of the deployment's.
-pub(super) fn holds(domain: &Domain, person: u64, holder: crate::AccountHolder) -> bool {
+#[must_use]
+pub fn holds(domain: &Domain, person: u64, holder: crate::AccountHolder) -> bool {
     if domain.kind(person) != Some(Kind::Person) {
         return false;
     }

@@ -225,7 +225,7 @@ pub enum RestoreRange {
     Deployment,
     /// The live settings, before the children restore.
     Settings,
-    /// The accounts' counter, accounts and sources, before the child starts.
+    /// The accounts' counter, accounts, sources and facts, before the child starts.
     Accounts,
     /// All people's live families.
     People,

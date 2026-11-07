@@ -2,7 +2,7 @@
 use crate::{
     frame::Bindings,
     look,
-    words::{Times, Word, Words},
+    words::{Shell, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::{Latest, contract as c};
@@ -80,6 +80,12 @@ pub(crate) fn main(
         b.open(Role::Slot);
         b.style(look::THREAD);
         super::task::amendment(b, root, words, bindings);
+        // A browser's log is the one scroller, holding the column (client/README.md, 5.9);
+        // a terminal prints the column around its log.
+        let scroller = words.shell == Shell::Browser;
+        if scroller {
+            super::chat::open_log(b, &page.thread, words, bindings);
+        }
         brief(b, task, me, words, bindings);
         if let Some(run) = task::run(task) {
             run_heading(b, run, words);
@@ -88,21 +94,32 @@ pub(crate) fn main(
             super::task::controls(b, &task.chip, root, words, bindings, rows);
         }
         super::chat::older(b, &page.thread, words);
-        super::chat::conversation(
+        if !scroller {
+            super::chat::open_log(b, &page.thread, words, bindings);
+        }
+        super::chat::conversation_lines(
             b,
             &page.thread,
             words,
             (rows, page.thread.limits.text),
             super::chat::speakers(task, me),
-            match task::run(task) {
-                Some(task::Run::Live { .. }) => super::chat::Drawn::AgentRun { current: page.current_call() },
-                Some(task::Run::Waiting { .. } | task::Run::Ended { .. } | task::Run::NoRun) | None => {
-                    super::chat::Drawn::Lines
-                }
-            },
+            (
+                match task::run(task) {
+                    Some(task::Run::Live { .. }) => super::chat::Drawn::AgentRun { current: page.current_call() },
+                    Some(task::Run::Waiting { .. } | task::Run::Ended { .. } | task::Run::NoRun) | None => {
+                        super::chat::Drawn::Lines
+                    }
+                },
+                None,
+            ),
             bindings,
         );
-        super::chat::latest(b, &page.thread, words, bindings);
+        if !scroller {
+            b.close();
+        }
+        b.open(Role::Slot);
+        b.style(look::AGENT_FOOT);
+        b.key(super::chat::fixed_key(56));
         super::task::outcome(b, root, words);
         super::task::result(b, task, words, look::AGENT_RESULT);
         if let Some(document) = root.client().document(page.tree)
@@ -136,6 +153,11 @@ pub(crate) fn main(
                 );
             }
         }
+        b.close();
+        if scroller {
+            b.close();
+        }
+        super::chat::latest(b, &page.thread, words, bindings);
         b.close();
         composer(b, root, page, task, words, bindings, times);
     }

@@ -4,7 +4,9 @@ use crate::{
     item::Item,
 };
 use alloc::boxed::Box;
+use core::num::NonZeroU64;
 use skein_forge::forgejo::document::{Document, Row};
+use skein_forge::github::document::AppOwner;
 use skein_lib::{Secret, bytes};
 /// One effect for the host, or the run's terminal outcome.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -29,13 +31,17 @@ pub enum Outcome {
     /// Nothing to serve or show.
     Nothing,
     /// The first repository, ready for adoption (4.9).
-    Created { id: core::num::NonZeroU64, branch: Box<[u8]> },
+    Created { id: NonZeroU64, branch: Box<[u8]> },
     /// A public repository copied and ready for adoption (4.10).
-    Copied { id: core::num::NonZeroU64, branch: Box<[u8]> },
+    Copied { id: NonZeroU64, branch: Box<[u8]> },
     /// The form target, manifest JSON and the host-given state they were made for (5.1).
     Manifest { state: Box<[u8]>, target: Box<[u8]>, manifest: Box<[u8]> },
-    /// The App's missing wanted access, possibly empty (5.6 and 5.8).
-    Lacking { lacking: Box<[crate::github::Lacking]> },
+    /// The App's missing wanted access, possibly empty, and its account (5.6 and 5.8).
+    Lacking { lacking: Box<[crate::github::Lacking]>, owner: Option<AppOwner> },
+    /// The App a manifest made, and its account (5.2).
+    Made { owner: Option<AppOwner> },
+    /// The given person's user id; none when the account is gone (4.3, step 7).
+    Person { id: Option<NonZeroU64> },
     /// The install link and its host-issued Accept state (5.4 and 5.7).
     Install { state: Box<[u8]>, url: Box<[u8]> },
     /// The user a connected Forgejo's tokens belong to (4.6).
@@ -90,6 +96,7 @@ pub enum Stage {
     App,
     Installation,
     State,
+    Person,
 }
 /// Why the forge could not be reconciled.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

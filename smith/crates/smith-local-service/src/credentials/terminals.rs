@@ -81,7 +81,7 @@ impl Accounts {
                     self.entries.get_mut(index).expect("account index").loading = false;
                     self.remember(index, Settled::SignedOut { revoked });
                 }
-                Some(oauth::Event::Removed { .. }) => {}
+                Some(oauth::Event::Removed { .. } | oauth::Event::Refreshed { .. }) => {}
                 Some(oauth::Event::Keep { .. }) => {
                     unreachable!("private keepers own their durable records")
                 }

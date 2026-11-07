@@ -12,4 +12,4 @@ account 43 · provider 9 · Scripted · Work · yours
   verify: account verify 43 --source program
   forget: account forget 43
 
-digest: accounts 6dc46867f246c182
+digest: accounts 60b501a1d74533dd

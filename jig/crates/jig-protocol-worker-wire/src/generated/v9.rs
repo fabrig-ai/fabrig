@@ -61,6 +61,7 @@ pub struct Limits {
     pub source_failed_detail: u32,
     pub login_otherwise_method: u32,
     pub login_name: u32,
+    pub login_email_some: u32,
     pub logins_logins: u32,
     pub signed_out_name: u32,
 }
@@ -122,6 +123,7 @@ pub const CEILINGS: Limits = Limits {
     source_failed_detail: 4_096,
     login_otherwise_method: 32,
     login_name: 32,
+    login_email_some: 255,
     logins_logins: 65_536,
     signed_out_name: 32,
 };
@@ -701,6 +703,8 @@ pub enum Path {
     LoginName,
     /// The `state` field of `Login`.
     LoginState,
+    /// The `email` field of `Login`.
+    LoginEmail,
     /// Bytes after `Login`.
     LoginTail,
     /// The `logins` field of `Logins`.
@@ -786,6 +790,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.source_failed_detail > CEILINGS.source_failed_detail { return Err(Problem { path: Path::SourceFailedDetail, reason: skein_codec::Reason::Bound }); }
     if limits.login_otherwise_method > CEILINGS.login_otherwise_method { return Err(Problem { path: Path::LoginOtherwiseMethod, reason: skein_codec::Reason::Bound }); }
     if limits.login_name > CEILINGS.login_name { return Err(Problem { path: Path::LoginName, reason: skein_codec::Reason::Bound }); }
+    if limits.login_email_some > CEILINGS.login_email_some { return Err(Problem { path: Path::LoginEmail, reason: skein_codec::Reason::Bound }); }
     if limits.logins_logins > CEILINGS.logins_logins { return Err(Problem { path: Path::LoginsLogins, reason: skein_codec::Reason::Bound }); }
     if limits.signed_out_name > CEILINGS.signed_out_name { return Err(Problem { path: Path::SignedOutName, reason: skein_codec::Reason::Bound }); }
     Ok(())
@@ -4746,6 +4751,8 @@ pub struct LoginParts {
     pub name: Box<[u8]>,
     /// The `state` field.
     pub state: LoginState,
+    /// The `email` field.
+    pub email: Option<Box<[u8]>>,
 }
 
 /// `Login` in this codec family.
@@ -4753,13 +4760,14 @@ pub struct LoginParts {
 pub struct Login {
     name: Box<[u8]>,
     state: LoginState,
+    email: Option<Box<[u8]>>,
 }
 
 impl Login {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LoginParts) -> Result<Self, Problem> {
-        let LoginParts { name, state } = parts;
-        let value = Self { name, state };
+        let LoginParts { name, state, email } = parts;
+        let value = Self { name, state, email };
         value.check(limits)?;
         Ok(value)
     }
@@ -4772,14 +4780,22 @@ impl Login {
     #[must_use]
     pub fn state(&self) -> &LoginState { &self.state }
 
+    /// Reads the `email` field.
+    #[must_use]
+    pub fn email(&self) -> &Option<Box<[u8]>> { &self.email }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LoginParts { LoginParts { name: self.name, state: self.state } }
+    pub fn into_parts(self) -> LoginParts { LoginParts { name: self.name, state: self.state, email: self.email } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.name.len() > usize::try_from(limits.login_name.min(CEILINGS.login_name)).expect("u32 fits usize") { return Err(Problem { path: Path::LoginName, reason: skein_codec::Reason::Bound }); }
         if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::LoginName, reason: skein_codec::Reason::Utf8 }); }
         self.state.check(limits)?;
+        if let Some(some_0) = self.email.as_ref() {
+        if some_0.len() > usize::try_from(limits.login_email_some.min(CEILINGS.login_email_some)).expect("u32 fits usize") { return Err(Problem { path: Path::LoginEmail, reason: skein_codec::Reason::Bound }); }
+        if !skein_codec::text_is_valid(some_0.as_ref()) { return Err(Problem { path: Path::LoginEmail, reason: skein_codec::Reason::Utf8 }); }
+        }
         Ok(())
     }
 }
@@ -8799,6 +8815,12 @@ impl Login {
         size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         let field_state = &self.state;
         size = size.checked_add(field_state.measure()).expect("schema ceilings fit u32");
+        let field_email = &self.email;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_email {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -8809,6 +8831,15 @@ impl Login {
         writer.put(field_name.as_ref())?;
         let field_state = &self.state;
         field_state.encode(writer)?;
+        let field_email = &self.email;
+        match field_email {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.as_ref())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -8822,7 +8853,8 @@ impl Login {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_name = match skein_codec::read_text(reader, limits.login_name.min(CEILINGS.login_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LoginName, reason }), };
         let decoded_state = LoginState::decode_from(limits, reader)?;
-        Ok(Self { name: decoded_name, state: decoded_state })
+        let decoded_email = match reader.u8().ok_or(Problem { path: Path::LoginEmail, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match skein_codec::read_text(reader, limits.login_email_some.min(CEILINGS.login_email_some)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::LoginEmail, reason }), }), _ => return Err(Problem { path: Path::LoginEmail, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { name: decoded_name, state: decoded_state, email: decoded_email })
     }
 }
 
@@ -8857,7 +8889,7 @@ impl Logins {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_logins = { let count = match skein_codec::read_count(reader, limits.logins_logins.min(CEILINGS.logins_logins)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoginsLogins, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::LoginsLogins, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Login::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_logins = { let count = match skein_codec::read_count(reader, limits.logins_logins.min(CEILINGS.logins_logins)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoginsLogins, reason }), }; if count > reader.remaining() / 6 { return Err(Problem { path: Path::LoginsLogins, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Login::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { logins: decoded_logins })
     }
 }
@@ -11667,6 +11699,7 @@ impl Login {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.login_name))?)?.checked_add(LoginState::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.login_email_some))?)?)?;
         size.checked_add(0)
     }
 
@@ -11680,6 +11713,7 @@ impl Login {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(u64::from(limits.login_name))?.checked_add(LoginState::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(u64::from(limits.login_email_some))?;
         heap.checked_add(0)
     }
 }
@@ -12428,10 +12462,10 @@ mod golden_tests {
         ("enum_login_state_signed_in_otherwise_full", || { let value = LoginState::SignedInOtherwise(LoginOtherwise::new(&CEILINGS, LoginOtherwiseParts { method: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LoginState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_login_state_failed_smallest", || { let value = LoginState::Failed(SourceFailed::new(&CEILINGS, SourceFailedParts { reason: SourceFailure::Missing, detail: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LoginState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_login_state_failed_full", || { let value = LoginState::Failed(SourceFailed::new(&CEILINGS, SourceFailedParts { reason: SourceFailure::Missing, detail: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LoginState::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_login_smallest", || { let value = Login::new(&CEILINGS, LoginParts { name: Box::from([].as_slice()), state: LoginState::Usable }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Login::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_login_full", || { let value = Login::new(&CEILINGS, LoginParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), state: LoginState::Usable }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Login::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_login_smallest", || { let value = Login::new(&CEILINGS, LoginParts { name: Box::from([].as_slice()), state: LoginState::Usable, email: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Login::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_login_full", || { let value = Login::new(&CEILINGS, LoginParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), state: LoginState::Usable, email: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Login::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_logins_smallest", || { let value = Logins::new(&CEILINGS, LoginsParts { logins: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Logins::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_logins_full", || { let value = Logins::new(&CEILINGS, LoginsParts { logins: { let mut items = skein_lib::List::with_capacity(1); items.push(Login::new(&CEILINGS, LoginParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), state: LoginState::Usable }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Logins::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_logins_full", || { let value = Logins::new(&CEILINGS, LoginsParts { logins: { let mut items = skein_lib::List::with_capacity(1); items.push(Login::new(&CEILINGS, LoginParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), state: LoginState::Usable, email: Some(Box::from([97_u8, 98_u8, 99_u8].as_slice())) }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 1, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Logins::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_sign_out_result_signed_out_smallest", || { let value = SignOutResult::SignedOut; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignOutResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_sign_out_result_signed_out_full", || { let value = SignOutResult::SignedOut; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignOutResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_sign_out_result_failed_smallest", || { let value = SignOutResult::Failed(SourceFailed::new(&CEILINGS, SourceFailedParts { reason: SourceFailure::Missing, detail: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SignOutResult::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -12445,7 +12479,7 @@ mod golden_tests {
         table(&GOLDEN_0);
     }
 
-    static BOUNDS_0: [Case; 57] = [
+    static BOUNDS_0: [Case; 58] = [
         ("bound_credential_name", || bound((Path::CredentialName, skein_codec::Reason::Bound), &Limits { credential_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Credential::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_credential_secret", || bound((Path::CredentialSecret, skein_codec::Reason::Bound), &Limits { credential_secret: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Credential::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_bounds_endpoints", || bound((Path::BoundsEndpoints, skein_codec::Reason::Bound), &Limits { bounds_endpoints: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Bounds::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -12500,8 +12534,9 @@ mod golden_tests {
         ("bound_sign_out_name", || bound((Path::SignOutName, skein_codec::Reason::Bound), &Limits { sign_out_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match SignOut::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_source_failed_detail", || bound((Path::SourceFailedDetail, skein_codec::Reason::Bound), &Limits { source_failed_detail: 3, ..CEILINGS }, &[0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match SourceFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_login_otherwise_method", || bound((Path::LoginOtherwiseMethod, skein_codec::Reason::Bound), &Limits { login_otherwise_method: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match LoginOtherwise::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_login_name", || bound((Path::LoginName, skein_codec::Reason::Bound), &Limits { login_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match Login::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_logins_logins", || bound((Path::LoginsLogins, skein_codec::Reason::Bound), &Limits { logins_logins: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Logins::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_login_name", || bound((Path::LoginName, skein_codec::Reason::Bound), &Limits { login_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0], |limits, bytes| match Login::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_login_email_some", || bound((Path::LoginEmail, skein_codec::Reason::Bound), &Limits { login_email_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Login::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_logins_logins", || bound((Path::LoginsLogins, skein_codec::Reason::Bound), &Limits { logins_logins: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Logins::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_signed_out_name", || bound((Path::SignedOutName, skein_codec::Reason::Bound), &Limits { signed_out_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match SignedOut::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 

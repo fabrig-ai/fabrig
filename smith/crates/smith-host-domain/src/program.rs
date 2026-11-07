@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
     /// The program is signed in through the person's subscription.
-    Usable,
+    Usable { email: Option<Box<[u8]>> },
     /// The source is not signed in.
     NotSignedIn,
     /// The source is signed in through the named other method.

@@ -155,6 +155,11 @@ impl Peer {
         self.issuer.queue(plan)
     }
 
+    /// Selects the account the issuer signs in for subsequent authorizations.
+    pub fn sign_in_as(&mut self, account: issuer::Account) -> Result<(), issuer::Error> {
+        self.issuer.sign_in_as(account)
+    }
+
     /// The scripted access tokens, for the LLM peer's list at start.
     #[must_use]
     pub fn granted(&self) -> Box<[Box<[u8]>]> {
