@@ -15,8 +15,6 @@ combined default-box proof remain unverified as recorded in
   the `Age` it keeps and the stale copy it never serves, what it keeps,
   its upstream stopped, two deployments behind it with one path, and a
   refused `Host` with a copy cached.
-- **Not yet:** 9.9: the start doesn't refuse `machine.owned.sign_in` beside an
-  `application.sign_in` that isn't `null`.
 - **Not yet:** 9.9: the real-box process story
   `a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`
   (`temper/crates/temper/tests/process.rs`) awaits after-landing execution;
