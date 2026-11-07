@@ -681,15 +681,20 @@ enum HostKind { worker, engine }
 record AgentShortfallModel { charter: u32 model: u32 }
 record AgentShortfallWindow { charter: u32 model: u32 }
 record AgentShortfallOutput { charter: u32 model: u32 }
+record AgentShortfallTurns { charter: u32 }
+record AgentShortfallTime { charter: u32 }
+record AgentShortfallWaiting { charter: u32 }
 record AgentShortfallChecks { charter: u32 }
-enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns, spend, time, waiting, checks: AgentShortfallChecks, message, inbox, unacknowledged }
+enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns: AgentShortfallTurns, spend, time: AgentShortfallTime, waiting: AgentShortfallWaiting, checks: AgentShortfallChecks, message, inbox, unacknowledged }
 record HelloRefusalAgent { why: AgentShortfall }
 record HelloRefusalWorkers { limit: u32 }
 record HelloRefusalPosition { worker: u32 }
 record HelloRefusalStopBound { grace: duration }
 enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition, job_kinds }
-record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal }
-enum TaskWaitRefused { hello: TaskWaitHello }
+record ShortfallFigures { required: u64 offered: u64 }
+record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal figures: option ShortfallFigures }
+record TaskWaitBounds { kind: HostKind why: option AgentShortfall figures: option ShortfallFigures }
+enum TaskWaitRefused { hello: TaskWaitHello, bounds: TaskWaitBounds }
 record TaskRunWaitRefused { value: TaskWaitRefused }
 enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused }
 record TaskSettings { task: u32 run: option u32 newest: u32 }

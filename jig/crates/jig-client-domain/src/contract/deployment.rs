@@ -515,10 +515,10 @@ pub enum AgentShortfall {
     Model { charter: u32, model: u32 },
     Window { charter: u32, model: u32 },
     Output { charter: u32, model: u32 },
-    Turns,
+    Turns { charter: u32 },
     Spend,
-    Time,
-    Waiting,
+    Time { charter: u32 },
+    Waiting { charter: u32 },
     Checks { charter: u32 },
     Message,
     Inbox,
@@ -583,4 +583,11 @@ pub struct ProgramHost {
     pub awaiting_logins: bool,
     pub programs: List<ProgramLogin>,
     pub cut: bool,
+}
+
+/// Required and offered amounts, durations in milliseconds (client/domain/contract.md, 5.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Figures {
+    pub required: u64,
+    pub offered: u64,
 }

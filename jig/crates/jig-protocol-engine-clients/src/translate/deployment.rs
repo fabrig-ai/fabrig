@@ -27,8 +27,7 @@ fn attempt(value: fleet::AttemptState) -> w::AttemptState {
         fleet::AttemptState::Closed => w::AttemptState::Closed,
     }
 }
-// Turns, time and waiting report their dimensions without charter numbers.
-fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
+pub(super) fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::AgentShortfall, w::Problem> {
     Ok(match value {
         fleet::AgentShortfall::Model { charter, model } => w::AgentShortfall::Model(w::AgentShortfallModel::new(
             limits,
@@ -42,10 +41,17 @@ fn shortfall(value: fleet::AgentShortfall, limits: &w::Limits) -> Result<w::Agen
             limits,
             w::AgentShortfallOutputParts { charter, model },
         )?),
-        fleet::AgentShortfall::Turns { charter: _ } => w::AgentShortfall::Turns,
+        fleet::AgentShortfall::Turns { charter } => {
+            w::AgentShortfall::Turns(w::AgentShortfallTurns::new(limits, w::AgentShortfallTurnsParts { charter })?)
+        }
         fleet::AgentShortfall::Spend => w::AgentShortfall::Spend,
-        fleet::AgentShortfall::Time { charter: _ } => w::AgentShortfall::Time,
-        fleet::AgentShortfall::Waiting { charter: _ } => w::AgentShortfall::Waiting,
+        fleet::AgentShortfall::Time { charter } => {
+            w::AgentShortfall::Time(w::AgentShortfallTime::new(limits, w::AgentShortfallTimeParts { charter })?)
+        }
+        fleet::AgentShortfall::Waiting { charter } => w::AgentShortfall::Waiting(w::AgentShortfallWaiting::new(
+            limits,
+            w::AgentShortfallWaitingParts { charter },
+        )?),
         fleet::AgentShortfall::Checks { charter } => {
             w::AgentShortfall::Checks(w::AgentShortfallChecks::new(limits, w::AgentShortfallChecksParts { charter })?)
         }

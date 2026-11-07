@@ -84,13 +84,27 @@ impl Words {
     fn host_refused(&self, b: &mut Builder, why: jig_client::contract::TaskWaitRefused) {
         use jig_client::contract::{HostKind, TaskWaitRefused as R};
         match why {
-            R::Hello { kind, at, why } => {
+            R::Hello { kind, at, why, .. } => {
                 let phrase = match kind {
                     HostKind::Engine => P::RefusedEngineAt,
                     HostKind::Worker => P::RefusedWorkerAt,
                 };
                 self.text(b, phrase, &[Hole::Wall(self.adjusted_wall(at))]);
                 crate::tree::fragments::deployment::hello_refusal(b, self, why);
+            }
+            R::Bounds { kind, why, .. } => {
+                let phrase = match kind {
+                    HostKind::Engine => P::BoundsEngine,
+                    HostKind::Worker => P::BoundsWorker,
+                };
+                self.text(b, phrase, &[]);
+                if let Some(why) = why {
+                    crate::tree::fragments::deployment::hello_refusal(
+                        b,
+                        self,
+                        jig_client::contract::HelloRefusal::Agent { why },
+                    );
+                }
             }
         }
     }
