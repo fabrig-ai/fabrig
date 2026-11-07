@@ -1,5 +1,78 @@
 use super::*;
 
+fn survey_limits(tool_payload: u32) -> Limits {
+    crate::derive(&crate::Derivation {
+        conversations: LIMITS.conversations,
+        calls_per_response: LIMITS.calls,
+        inbox: LIMITS.messages,
+        max_waiting: LIMITS.waiting,
+        max_turns: LIMITS.budget.turns,
+        max_spend: LIMITS.budget.spend,
+        max_time: LIMITS.budget.time,
+        check_timeout: LIMITS.check_timeout,
+        wrap_up: LIMITS.wrap_up,
+        sections: LIMITS.brief_sections,
+        host_tools: LIMITS.host_tools,
+        verdicts: LIMITS.verdicts,
+        guide: LIMITS.guide_bytes,
+        shell_tail: LIMITS.check_tail,
+        tool_payload,
+        tool_deadline: LIMITS.host_timeout_max,
+        host: LIMITS.host_part,
+        offer: u64::from(LIMITS.offer_bytes),
+        message: LIMITS.message_bytes,
+        room: LIMITS.room,
+        compaction_threshold: LIMITS.compaction_threshold,
+        compaction_material: LIMITS.compaction_material,
+        effort_bytes: LIMITS.effort_bytes,
+        schema_costs: LIMITS.schema_costs,
+    })
+    .expect("survey declarations derive")
+}
+
+#[test]
+fn derived_child_answer_allowance_preserves_a_survey() {
+    const PAYLOAD: u32 = 16_384;
+    const RECORDED_SURVEY: usize = 1_047;
+    const LARGER_SURVEY: usize = 8_192;
+    const AT_ALLOWANCE: usize = 16_384;
+    const OVER_ALLOWANCE: usize = 16_385;
+    const FINAL_SENTENCE: &str = "The survey ends here: café.";
+    for (length, kept, omitted) in [
+        (RECORDED_SURVEY, RECORDED_SURVEY, 0),
+        (LARGER_SURVEY, LARGER_SURVEY, 0),
+        (AT_ALLOWANCE, AT_ALLOWANCE, 0),
+        (OVER_ALLOWANCE, AT_ALLOWANCE, 1),
+    ] {
+        let mut harness = Harness::new(survey_limits(PAYLOAD));
+        let (_, main) = harness.running_on(1, 100, agents());
+        let (child, opening) = harness.child(main, 7, families(true, false, false), 101);
+        let mut survey = "s".repeat(length - FINAL_SENTENCE.len());
+        survey.push_str(FINAL_SENTENCE);
+        let survey = survey.into_bytes();
+        drop(harness.step(Event::Used { conversation: child, spend: spend(50) }));
+        assert_eq!(
+            harness.step(Event::Yielded { conversation: child, stop: Stop::EndTurn, text: bytes(&survey) }).as_ref(),
+            &[Request::Close { peer: Token::new(101) }]
+        );
+        let requests = harness.step(ended(child, End::Closed, spend(50)));
+        let [Request::Return { call, result: Returned::Answered { text, cut, stop, used, left }, spent }] =
+            requests.as_ref()
+        else {
+            panic!("one settled survey answer: {requests:?}");
+        };
+        assert_eq!(text.len(), kept, "survey answer retained bytes");
+        assert_eq!(text.as_ref(), &survey[..kept]);
+        assert_eq!((*cut, *stop, *call, *spent), (omitted, Stop::EndTurn, Token::new(7), 50));
+        assert_eq!(*used, crate::facts::Used { turns: 1, time: Duration::ZERO, spend: 50 });
+        assert_eq!(*left, Budget { turns: 9, spend: 9_950, ..BUDGET });
+        assert!(skein_lib::bytes::find(&opening.system, b"16384").is_some(), "advertised answer cap");
+        assert!(harness.step(ended(child, End::Closed, spend(50))).is_empty(), "survey settles once");
+        harness.domain.reclaim();
+        assert_eq!((harness.domain.conversations(), harness.domain.calls()), (1, 0));
+    }
+}
+
 #[test]
 fn a_child_closed_after_its_last_charge_tells_the_budget_of_its_return() {
     let mut harness = Harness::new(LIMITS);
