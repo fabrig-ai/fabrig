@@ -7,5 +7,3 @@ pub mod journey;
 pub mod limits;
 pub mod run;
 
-#[cfg(test)]
-mod tests;

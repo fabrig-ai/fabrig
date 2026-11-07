@@ -257,3 +257,7 @@ impl Host {
         if self.closed { None } else { root::next_deadline(&self.root) }
     }
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
