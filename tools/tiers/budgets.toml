@@ -2,7 +2,7 @@
 # Live pairs and other default/fuzzy suites have no entry yet: the user has not set their CPU budgets here.
 # Hearth's focused suite: the user's 11-04 ruling (hearth/docs/design/domain/testing.md, 9.1).
 # Hearth's fuzzy suite: 120 s of the strategy's section 8, on as CPU seconds; whether that is its figure stays open (hearth/docs/design/domain/testing.md, 11).
-# Smith's focused and fuzzy suites: 30 s and 120 s of the strategy's section 8, on as CPU seconds; whether those are their figures stays open.
+# Smith's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Skein's focused and fuzzy suites: 30 s and 120 s of the strategy's section 8, on as CPU seconds; whether those are their figures stays open.
 # Jig's fuzzy suite: 120 s of the strategy's section 8, on as CPU seconds; whether that is its figure stays open.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
