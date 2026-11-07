@@ -647,6 +647,13 @@ nodes by a bounded reader of skein-ui's own:
   which a flow is a drawing (10.1); lists,
   nested to the limit; quotes; tables (below); links whose target is a
   checked `http` or `https` URL, shown as text otherwise;
+- **emphasis and strong,** by either delimiter: `*` or `_` around words
+  is emphasis, `**` or `__` strong. A delimiter closes only a run its own
+  byte opened, so `*soft_` stays text. An `_` or `__` with a word's
+  character on both sides, an ASCII letter or digit or a byte of a
+  character past ASCII, is a character, as CommonMark has it, so
+  `snake_case`, `read_branch` and `a__b` stay as written; `*` keeps its
+  reading within a word, `un*frigging*believable`;
 - **the rest is text:** HTML, images, a delimiter never closed, a list
   nested too deep, a table's lines that make no table are shown as the
   characters they are, never dropped, and nothing is ever made into
