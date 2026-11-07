@@ -419,7 +419,13 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         return refused(to, Some(number), Refusal::Unknown, out);
     };
     if old.last_answer == Some(attempt) {
-        return out.push(Request::Acknowledged { reply_to: to, task: number, attempt, accepted: Accepted::Already });
+        return out.push(Request::Acknowledged {
+            reply_to: to,
+            task: number,
+            attempt,
+            accepted: Accepted::Already,
+            parked: false,
+        });
     }
     if run_attempt(&old.phase) != Some(attempt) {
         return refused(to, Some(number), Refusal::Attempt, out);
@@ -507,6 +513,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }
     };
+    let terminal_parks = end == End::Parked;
     let next = if let Some(mut closing) = closing {
         closing.stage = Stage::Delegates;
         match &mut closing.ending {
@@ -619,7 +626,13 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     {
         crate::domain::activate(domain, number, out);
     }
-    out.push(Request::Acknowledged { reply_to: to, task: number, attempt, accepted: Accepted::New });
+    out.push(Request::Acknowledged {
+        reply_to: to,
+        task: number,
+        attempt,
+        accepted: Accepted::New,
+        parked: terminal_parks,
+    });
 }
 
 pub(crate) fn was(phase: Phase) -> Was {

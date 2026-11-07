@@ -2430,3 +2430,17 @@ fn finite_final_choice_keeps_wait_only_when_granted() {
         assert_eq!(tools.contains(&Served::Wait), wait);
     }
 }
+
+#[test]
+fn the_charters_effort_reaches_the_sessions_first_request() {
+    for effort in [None, Some(b"low".as_slice()), Some(b"high".as_slice())] {
+        let mut harness = Harness::new();
+        let mut requested = charter();
+        requested.llm.effort = match effort {
+            Some(name) => Some(name.into()),
+            None => None,
+        };
+        let (_, _, prompt) = harness.admit(7, requested);
+        assert_eq!(prompt.effort.as_deref(), effort);
+    }
+}
