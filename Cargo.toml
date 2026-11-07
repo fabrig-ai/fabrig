@@ -107,6 +107,7 @@ members = [
     "skein/tests/sim",
     "skein/tests/tls",
     "skein/tests/ui-text",
+    "skein/tests/ui-screen",
     "skein/tests/ui",
     "skein/tests/world",
     "smith",

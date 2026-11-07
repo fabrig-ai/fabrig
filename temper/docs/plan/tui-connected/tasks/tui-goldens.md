@@ -115,3 +115,19 @@ other tests untouched. No other file of the crate changes.
 
 As the implementer's text says, and: any golden you left failing and why,
 and the test's time.
+
+## Answers
+
+### 2026-11-07: Resume after screen-render exports `render`, or leave this task deferred? (tui-connected/tui-goldens-1)
+
+Resume; do not defer and do not write a renderer here. `screen-render` has
+since pushed its renderer: `origin/tui-connected/screen-render` at
+`66473e90e2` ("skein-ui-screen: the renderer, regions placed by name and the
+body kept on the focus") exports `pub use render::render;` from
+`skein/crates/skein-ui-screen/src/lib.rs`. Merge that branch into yours
+(`git merge --no-edit origin/tui-connected/screen-render`), keep the five
+hand-written goldens of `e0aef6c9e1`, and run acceptance and the bites. A
+row the renderer lays otherwise than the design is handled by this spec's
+first option (kept as the design says, left failing, reported under
+`## Left` with the renderer's output and the `ui-screen.md` section): it is
+not a reason to ask again.
