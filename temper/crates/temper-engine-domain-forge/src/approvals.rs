@@ -27,7 +27,7 @@ pub struct ApprovalWait {
 }
 
 impl Domain {
-    /// Every live change in state `Queued`, `First` or `Landing`, with a pull request, whose review facts
+    /// Every live change in state `First` or `Landing`, with a pull request, whose review facts
     /// are at its last head, with an approval still short and none refused; oldest `since`
     /// first, then by task. Allocates; changes nothing.
     #[must_use]
@@ -38,7 +38,7 @@ impl Domain {
                 continue;
             }
             match row.change.state {
-                State::Queued { .. } | State::First { .. } | State::Landing { .. } => {}
+                State::First { .. } | State::Landing { .. } => {}
                 State::Producing { .. }
                 | State::Opening { .. }
                 | State::Recreating { .. }
@@ -48,6 +48,7 @@ impl Domain {
                 | State::Ready { .. }
                 | State::Preparing { .. }
                 | State::CancellingGates { .. }
+                | State::Queued { .. }
                 | State::Updating { .. }
                 | State::Resolving { .. }
                 | State::Repairing { .. }

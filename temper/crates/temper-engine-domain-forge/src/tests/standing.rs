@@ -409,14 +409,12 @@ fn approval_panel_distinguishes_unread_incomplete_and_counted_reviews() {
 fn approval_waits_are_live_changes_short_of_an_approval_at_their_last_head() {
     use change::State;
     let first = State::First { head: HEAD, ready_since: env().wall };
-    let queued = State::Queued { head: HEAD, ready_since: env().wall };
     let approved = reviewers()[0];
     let refused = Reviewer { verdict: skein_forge::api::Verdict::RequestChanges, ..approved };
     for (state, pull, head, complete, reviews, expected) in [
         (first.clone(), Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
         (State::Landing { head: HEAD }, Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
-        (queued.clone(), Some(1), Some(Some(HEAD)), true, [].as_slice(), Some((true, 1))),
-        (queued, Some(1), Some(Some(HEAD)), true, [approved].as_slice(), None),
+        (State::Queued { head: HEAD, ready_since: env().wall }, Some(1), Some(Some(HEAD)), true, [].as_slice(), None),
         (
             State::Held { was: Box::new(first.clone()), why: change::Hold::Stalled },
             Some(1),
