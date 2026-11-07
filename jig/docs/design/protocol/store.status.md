@@ -2,6 +2,11 @@
 
 2026-11-07. Where jig's code lags or departs from [store.md](store.md).
 
+Section 5 has no known gap in stored charter parts, task reasons and
+claimed offered kinds, or `later` in task, people and template choices.
+Their codecs and bounded restore checks carry these fields in the
+existing family versions, under the pre-release format rule.
+
 Sections 4.1 and 7.2 have no known gap in settings key order:
 `Setting` orders Application, ProjectPolicy and Model as their stored
 tags 4, 5 and 6 do. Stored bytes are unchanged. The cursor and key
