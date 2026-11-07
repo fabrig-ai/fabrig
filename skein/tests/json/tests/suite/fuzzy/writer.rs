@@ -89,3 +89,70 @@ fn a_number_is_written_exactly_when_the_grammar_reads_one() {
     }
     assert!(written > 10_000, "most numbers are numbers: {written}");
 }
+
+fn naive_spelling(text: &[u8]) -> Vec<u8> {
+    let mut spelling = Vec::from(b"\"".as_slice());
+    for &byte in text {
+        match byte {
+            b'"' => spelling.extend_from_slice(br#"\""#),
+            b'\\' => spelling.extend_from_slice(br"\\"),
+            0x08 => spelling.extend_from_slice(br"\b"),
+            0x0C => spelling.extend_from_slice(br"\f"),
+            b'\n' => spelling.extend_from_slice(br"\n"),
+            b'\r' => spelling.extend_from_slice(br"\r"),
+            b'\t' => spelling.extend_from_slice(br"\t"),
+            0x00..=0x1F => spelling.extend_from_slice(format!("\\u{byte:04x}").as_bytes()),
+            _ => spelling.push(byte),
+        }
+    }
+    spelling.push(b'"');
+    spelling
+}
+
+#[test]
+fn text_in_runs_is_written_as_a_naive_reading_has_it() {
+    const VALID: &[&[u8]] =
+        &[b"\"", b"\\", b"\n", b"\x08", b"\x00", b"\x1f", "é".as_bytes(), "€".as_bytes(), "😀".as_bytes()];
+    const MIXED: &[&[u8]] = &[
+        b"\"",
+        b"\\",
+        b"\n",
+        b"\x08",
+        b"\x00",
+        b"\x1f",
+        "é".as_bytes(),
+        "€".as_bytes(),
+        "😀".as_bytes(),
+        b"\x80",
+        b"\xc3",
+        b"\xc0\x80",
+        b"\xed\xa0\x80",
+        b"\xf5",
+    ];
+    // json.md, 6: a small sweep with over 1,000 accepted and refused texts.
+    const ROUNDS: u64 = 5_000;
+    let mut written = 0;
+    let mut refused = 0;
+    for round in 0..ROUNDS {
+        let seed = 0x005A_0000 + round;
+        let mut rng = Rng::new(seed);
+        let pieces = u32::try_from(rng.below(6)).unwrap();
+        let longest = u32::try_from(rng.below(48)).unwrap();
+        let text = generate::runs(&mut rng, if round % 2 == 0 { VALID } else { MIXED }, pieces, longest);
+        let tokens = [Token::String(text.clone().into_boxed_slice())];
+        match write(&tokens, &WRITER) {
+            Ok(document) => {
+                assert!(std::str::from_utf8(&text).is_ok(), "seed {seed}: {text:?}");
+                assert_eq!(document.as_ref(), naive_spelling(&text), "seed {seed}: {text:?}");
+                written += 1;
+            }
+            Err(refusal) => {
+                assert_eq!(refusal, Refusal::Text, "seed {seed}");
+                assert!(std::str::from_utf8(&text).is_err(), "seed {seed}: {text:?}");
+                refused += 1;
+            }
+        }
+    }
+    assert!(written > 1_000, "valid text fell: {written}");
+    assert!(refused > 1_000, "invalid text fell: {refused}");
+}

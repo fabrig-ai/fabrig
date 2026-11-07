@@ -869,6 +869,7 @@ pub enum Word {
     TimeNovember,
     TimeDecember,
 
+    BylineTask,
     UsingModel,
     UsingDefault,
     UsingKey,
@@ -909,6 +910,7 @@ pub enum Word {
     WaitEmptyModel,
     WaitCredential,
     WaitCapacity,
+    WaitCapacityBox,
     Usage,
     TaskHeader,
     Plan,
@@ -958,6 +960,9 @@ pub enum Word {
     WorkReadPage,
     WorkSearched,
     WorkCheckedSettings,
+    WorkProposedChange,
+    WorkProposedChangeCount,
+    WorkProposingChange,
     WorkCheckedSettingsCount,
     WorkChecked,
     WorkReading,
@@ -1404,7 +1409,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
-const PHRASES: u32 = 1886;
+const PHRASES: u32 = 1891;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1431,10 +1436,10 @@ const PHRASES: u32 = 1886;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3287;
+const SEGMENTS: u32 = 3298;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46122;
-const ALL: [Word; 1285] = [
+const ENGLISH_BYTES: u32 = 46236;
+const ALL: [Word; 1290] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2270,6 +2275,7 @@ const ALL: [Word; 1285] = [
     Word::TimeOctober,
     Word::TimeNovember,
     Word::TimeDecember,
+    Word::BylineTask,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
@@ -2309,6 +2315,7 @@ const ALL: [Word; 1285] = [
     Word::WaitEmptyModel,
     Word::WaitCredential,
     Word::WaitCapacity,
+    Word::WaitCapacityBox,
     Word::Usage,
     Word::TaskHeader,
     Word::Plan,
@@ -2357,6 +2364,9 @@ const ALL: [Word; 1285] = [
     Word::WorkReadPage,
     Word::WorkSearched,
     Word::WorkCheckedSettings,
+    Word::WorkProposedChange,
+    Word::WorkProposedChangeCount,
+    Word::WorkProposingChange,
     Word::WorkCheckedSettingsCount,
     Word::WorkChecked,
     Word::WorkReading,
@@ -3563,6 +3573,7 @@ impl Word {
             Self::SignInBusy => 1908,
             Self::SignInNotReady => 1909,
             Self::OutOfDateMain => 183,
+            Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
@@ -3602,6 +3613,7 @@ impl Word {
             Self::WaitEmptyModel => 1078,
             Self::WaitCredential => 1015,
             Self::WaitCapacity => 1016,
+            Self::WaitCapacityBox => 3964,
             Self::Usage => 1017,
             Self::TaskHeader => 161,
             Self::Plan => 163,
@@ -3659,6 +3671,9 @@ impl Word {
             Self::WorkReadPage => 3766,
             Self::WorkSearched => 3767,
             Self::WorkCheckedSettings => 3768,
+            Self::WorkProposedChange => 3882,
+            Self::WorkProposedChangeCount => 3883,
+            Self::WorkProposingChange => 3884,
             Self::WorkCheckedSettingsCount => 3769,
             Self::WorkChecked => 3770,
             Self::WorkReading => 3771,
@@ -4174,6 +4189,11 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         || word == Word::PlaygroundAdoptionFailed
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
+    }
+    if word == Word::BylineTask && kind == HoleKind::Name {
+        // Two shown names, the Anthropic prefix, and the effort separator.
+        let names = joined.min(crate::choice::MODEL_SHOWN).checked_mul(2).ok_or(Invalid::Overflow)?;
+        return names.checked_add(12).ok_or(Invalid::Overflow);
     }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
@@ -5092,6 +5112,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Count => (&[b"", b""], &[Number]),
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
+        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),
@@ -5130,6 +5151,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
+        Word::WaitCapacityBox => (&[b"Waiting for other work to finish. It starts by itself."], &[]),
         Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),
         Word::Usage => (&[b"Manage usage"], &[]),
         Word::TaskHeader => (&[b"Task details"], &[]),
@@ -5178,6 +5200,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkReadDoc => (&[b"read ", b" doc"], &[Number]),
         Word::WorkReadPage => (&[b"read the page ", b""], &[Name]),
         Word::WorkSearched => (&[b"searched the docs for ", b""], &[Name]),
+        Word::WorkProposedChange => (&[b"proposed a change"], &[]),
+        Word::WorkProposedChangeCount => (&[b"proposed a change ", b"\xc3\x97"], &[Number]),
+        Word::WorkProposingChange => (&[b"proposing a change"], &[]),
         Word::WorkCheckedSettings => (&[b"checked settings"], &[]),
         Word::WorkCheckedSettingsCount => (&[b"checked settings ", b"\xc3\x97"], &[Number]),
         Word::WorkChecked => (&[b"checked ", b""], &[Name]),

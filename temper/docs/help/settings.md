@@ -14,8 +14,8 @@ or project for ways and questions; rules have no number: `charter 2`, `template 
 
 - A project's ways say whether chats can write drafts and whether Goals,
   Changes and the Away switch show, and which offered template with
-  `tracked` set a goal starts by; 0 takes the first. The stock hides all
-  four and uses 0.
+  `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
+  other three and uses 0.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
 - A landing rule governs changes landing on matching branches, for the

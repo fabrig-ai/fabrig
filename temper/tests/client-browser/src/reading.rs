@@ -1,4 +1,4 @@
-//! Reading's histories and anchoring steps (temper/docs/design/client/browser.md, 4.3 and 4.6, 14).
+//! Reading's histories and anchoring steps (temper/docs/design/client/browser.md, 4.3 and 4.6, item 14).
 use skein_fake_person_browser::Step;
 
 pub const LONG_MESSAGES: u32 = 8;

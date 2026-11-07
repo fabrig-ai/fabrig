@@ -1218,6 +1218,8 @@ and the project's name. Their records, and each field's source, are
   "Anything said in this project's chats may show on its public pages,
   in the titles of its goals and tasks. On a public repository, a
   change's pull request shows what its agent wrote too."
+  Its help and completed answer carry these words; an acknowledgement
+  before publication is deferred in temper's `client/tools.md`, section 14.
 - **No internal number:** a project or a task is named by its public
   identifier alone (13.8), in every field and every route.
 - **An application's own public documents** are its connectors' (the

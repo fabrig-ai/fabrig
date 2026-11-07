@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
 ><title
->The local goal wrote its report. · temper</title
+>Let us design Away mode. · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -21,6 +21,10 @@
 ><span
 >temper</span
 ></a
+><details data-folds-away="" class="temper-rail-unfold"
+><summary
+>Show the rail</summary
+></details
 ><details class="temper-projects"
 ><summary
 >Hello</summary
@@ -29,7 +33,7 @@
 ><button type="button" aria-pressed="true"
 >Hello</button
 ><span class="temper-projects-repo"
-><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:42939/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
+><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:37339/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
 ><span
 >work/hello ↗</span
 ></a
@@ -39,9 +43,9 @@
 ><button type="button" class="temper-project-rename"
 >Rename Hello</button
 ><form aria-label="New project" class="temper-project-new"
-><label for="skein-ui-label-724"
+><label for="skein-ui-label-804"
 >New project</label
-><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-724"
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-804"
 ><button type="button"
 >Create</button
 ></form
@@ -61,11 +65,7 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Goals" aria-current="page" href="/projects/1/goals"
-><span
->Goals</span
-></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Chats" aria-current="page" href="/chats"
 ><span
 >Chats</span
 ></a
@@ -117,101 +117,335 @@
 ></div
 ></div
 ></nav
-><main class="temper-main temper-goal"
-><header class="temper-goal-head"
-><p class="temper-goal-meta"
+><main class="temper-mode-chat temper-session"
+><div class="temper-session-top"
+><nav aria-label="Where" class="temper-crumbs"
+><a aria-label="Chats" class="temper-back" href="/chats"
 ><span
-><strong
->away-mode</strong
-></span
-><span aria-label="·"
->·</span
-><span class="temper-goals-state-landed"
->landed</span
-><span aria-label="·"
->·</span
+>Chats</span
+></a
+><div class="temper-trail"
+><a aria-label="Hello" href="/projects/1"
 ><span
->48 of 1046016 spent</span
-><span aria-label="·"
->·</span
+>Hello</span
+></a
+><a aria-label="Chats" href="/chats"
 ><span
->since 21:12</span
-></p
-><h1 aria-label="The local goal wrote its report."
-><span
->The local goal wrote its report.</span
-></h1
-><p class="temper-goal-byline"
-><span
->Written by its agent at 21:12</span
-></p
-><div class="temper-goal-acts"
-><a aria-label="Draft" class="temper-goal-btn temper-goal-small" href="/chats/2"
-><span
->Draft</span
+>Chats</span
 ></a
 ></div
-></header
-><div class="temper-goal-two"
-><section aria-label="Report" class="temper-goal-report"
-><h2 aria-label="Report" class="temper-goal-title"
+><h1 aria-label="T2 · Let us design Away mode."
 ><span
->Report</span
-></h2
-><p aria-label="I wrote this report on the local fake box."
+>Let us design Away mode.</span
+></h1
+></nav
+><div class="temper-session-right"
+><p aria-label="T2" class="temper-byline"
 ><span
->I wrote this report on the local fake box.</span
+>T2</span
 ></p
-><p
-><span
-><strong
->Left: </strong
->Nothing remains in this demonstration.</span
-></p
-><p
-><span
-><strong
->Risk: </strong
->This scripted model does not change a repository.</span
-></p
-><p class="temper-goal-byline"
-><span
->By its agent at 21:12</span
-></p
-></section
-><aside class="temper-goal-side"
-><section aria-label="Tasks" class="temper-goal-section"
-><h2 class="temper-goal-title"
-><span
->Tasks</span
-></h2
-><p class="temper-goal-facts"
-><span
->No tasks.</span
-></p
-></section
-><section aria-label="Landing" class="temper-goal-section"
-><h2 class="temper-goal-title"
-><span
->Landing</span
-></h2
-><p class="temper-goal-facts"
-><span
->Landed at 21:12.</span
-></p
-></section
-><section aria-label="How it runs" class="temper-goal-section"
-><h2 class="temper-goal-title"
-><span
->How it runs</span
-></h2
-><p class="temper-goal-facts"
-><span
->Task by task · follows the away switch</span
-></p
-></section
-></aside
+><div role="group" aria-label="The draft" class="temper-seg"
+><button type="button" aria-pressed="true"
+>Chat</button
+><button type="button" class="temper-seg-split" aria-keyshortcuts="Control+\"
+>Split</button
+><button type="button"
+>Draft</button
 ></div
+><div role="status" aria-label="waiting on your words" class="temper-status-waiting temper-state-needs"
+><span
+>waiting on your words</span
+></div
+><button type="button"
+>Pause</button
+><button type="button"
+>Close</button
+><p aria-label="123 spent · of 1046016"
+><span
+>123 spent · of 1046016</span
+></p
+></div
+></div
+><section aria-label="Conversation" class="temper-convo"
+><div class="temper-thread"
+><div role="log" aria-label="Conversation"
+><div class="temper-thread-inner"
+><div aria-label="Today · Saturday 7 November" class="temper-day"
+><p aria-label="Today · Saturday 7 November"
+><span
+>Today · Saturday 7 November</span
+></p
+></div
+><section class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Let us design Away mode."
+><span
+>Let us design Away mode.</span
+></p
+></div
+></div
+></section
+></section
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>Hello from the local fake model.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Write this up as a draft beside us."
+><span
+>Write this up as a draft beside us.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><div class="temper-who"
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-turn-tool"
+><p
+><span
+>Wrote</span
+></p
+><p class="temper-tool-file"
+><span
+>away-mode.md</span
+></p
+><p class="temper-details"
+><span
+>29 lines</span
+></p
+><button type="button"
+>Show</button
+></div
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>I wrote an Away mode draft with its purpose, return flow and open questions.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Add what happens to a running goal."
+><span
+>Add what happens to a running goal.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><div class="temper-who"
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-turn-tool"
+><p
+><span
+>Edited</span
+></p
+><p class="temper-tool-file"
+><span
+>away-mode.md</span
+></p
+><p class="temper-details"
+><span
+>+7 −0</span
+></p
+><button type="button"
+>Show</button
+></div
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="02:02"
+><span
+>02:02</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>I added how a running goal continues and waits for your decisions.</span
+></p
+></div
+></div
+></section
+></div
+></div
+></div
+><button type="button" data-to-log-end="" class="temper-latest"
+>Latest</button
+></div
+><div class="temper-choice"
+></div
+><form aria-label="Message" class="temper-session-foot"
+><div class="temper-session-composer"
+><textarea aria-label="Message" placeholder="Reply to T2" enterkeyhint="send"
+></textarea
+><button type="button" disabled=""
+>Send</button
+></div
+><div class="temper-foot-row"
+><p aria-label="Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft" class="temper-session-hint"
+><span
+>Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft</span
+></p
+><details data-folds-away="" class="temper-model"
+><summary
+>Model<span id="skein-ui-description-851"
+> GPT-6.1 Sol · high</span
+></summary
+><div class="temper-model-menu"
+><p aria-label="A change applies from the next turn." class="temper-model-note"
+><span
+>A change applies from the next turn.</span
+></p
+><div class="temper-model-from"
+><span
+><strong
+>OpenAI</strong
+></span
+><span
+>your ChatGPT plan</span
+></div
+><ul
+><li
+><button type="button" aria-pressed="true"
+>GPT-6.1 Sol<div class="temper-model-tag"
+><span
+>default</span
+></div
+></button
+></li
+><li
+><button type="button"
+>GPT-6 Astra</button
+></li
+><li
+><button type="button"
+>GPT-6.1 Terra</button
+></li
+><li
+><button type="button"
+>GPT-6 Luna</button
+></li
+></ul
+><div class="temper-model-from"
+><span
+><strong
+>Claude</strong
+></span
+><a aria-label="Connect a plan or key ›" href="/accounts/connect"
+><span
+>Connect a plan or key ›</span
+></a
+></div
+><div role="group" aria-label="Effort" class="temper-model-effort"
+><span
+>Effort</span
+><div
+><button type="button"
+>low</button
+><button type="button"
+>medium</button
+><button type="button" aria-pressed="true"
+>high</button
+><button type="button"
+>xhigh</button
+><button type="button"
+>max</button
+></div
+></div
+></div
+></details
+></div
+></form
+></section
 ></main
 ><nav aria-label="Sections" class="temper-tabbar"
 ><a aria-label="Home" href="/projects/1"
@@ -222,13 +456,13 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Goals" aria-current="page" href="/projects/1/goals"
-><span
->Goals</span
-></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Chats" aria-current="page" href="/chats"
 ><span
 >Chats</span
+></a
+><a aria-label="Settings" href="/projects/1/settings"
+><span
+>Settings</span
 ></a
 ></nav
 ></div

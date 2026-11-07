@@ -14,7 +14,7 @@ use temper_client_browser_world::{
 /// Sending keeps the focus in the composer, by a press or a key (client/README.md, 3.5).
 #[test]
 fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
-    let tier = Tier::new("composer").with_model().with_second_model();
+    let tier = Tier::new("composer").with_model().with_model_picker();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let message = || Find::exactly_named(Role::TextArea, b"Message");
@@ -201,18 +201,19 @@ fn call_line_steps() -> Vec<Step> {
 fn model_picker_steps() -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
+    let picker = || Step::Person(PersonStep::Press { find: Find::named(Role::Disclosure, b"Model") });
     let folded = |open| keep(if open { "details.temper-model[open]" } else { "details.temper-model:not([open])" });
     vec![
         Step::Viewport { width: 420, height: 900 },
-        press(Role::Disclosure, b"Model"),
+        picker(),
         folded(true),
         see(Find::text(b"A change applies from the next turn.")),
         press(Role::Button, b"other"),
         see(Find::text(b"other \xc2\xb7 high")),
         // A single press changes the line; no Apply control is involved.
-        press(Role::Disclosure, b"Model"),
+        picker(),
         folded(false),
-        press(Role::Disclosure, b"Model"),
+        picker(),
         folded(true),
         keep(".temper-model-menu li > button[aria-pressed=true]"),
         press(Role::Button, b"low"),
@@ -221,7 +222,7 @@ fn model_picker_steps() -> Vec<Step> {
         Step::Viewport { width: 1440, height: 900 },
         press(Role::TextArea, b"Message"),
         folded(false),
-        press(Role::Disclosure, b"Model"),
+        picker(),
         folded(true),
         Step::Key(Key::Escape),
         folded(false),
@@ -299,7 +300,7 @@ fn closing_project_rename_returns_focus_to_the_summary() {
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
-/// One `temper box`, three chats through ctl, a page load for each story (client/browser.md, 4.6, 14).
+/// One `temper box`, three chats through ctl, a page load for each story (client/browser.md, 4.6, item 14).
 #[test]
 fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     let tier = Tier::reading("reading");

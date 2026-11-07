@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod long_chat;
+mod next_turn;
 mod parked;
 mod process;
 mod review;
@@ -232,6 +233,9 @@ fn worker_limits() -> worker::Limits {
     limits.agent.no_progress = Duration::from_secs(120);
     limits.bounds = crate::world::bounds();
     limits.bounds.models[0].window = 1_048_576;
+    let mut second = limits.bounds.models[0].clone();
+    second.name = b"fake-2".as_slice().into();
+    limits.bounds.models = Box::new([limits.bounds.models[0].clone(), second]);
     limits.bounds.inbox = 4;
     limits.bounds.message_bytes = 1024;
     limits.bounds.unacknowledged = 2;
@@ -1054,6 +1058,9 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        if next_turn::picked(to, &reply) {
+            return;
+        }
         if agreement::answered(to, &reply) {
             return;
         }
@@ -1441,7 +1448,7 @@ fn signed_in_party() -> parties::Party {
         parties::Role::Owner,
         400,
         Box::new([
-            parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            parties::Act::SignIn { provider: 0, subject: temper_engine_domain_forge::user_key(1, 7).subject },
             parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: Box::from(&b"@system"[..]) } },
         ]),
     )

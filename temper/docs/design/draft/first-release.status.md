@@ -1,8 +1,15 @@
 # first-release: status
 
-2026-11-06. Where the design lags or departs from [first-release.md](first-release.md).
+2026-11-07. Where the design lags or departs from [first-release.md](first-release.md).
 
 `../release.md` carries the download (9). `../protocol/sign-in.md`, 2 carries a deployment at a name of its own behind a TLS proxy (2). Reading without signing in (5.3) is carried by jig's `domain/people.md`, section 13 (the public party, a project's visibility, the public documents, who sees what, the admission, which tasks are public, public identifiers, the public index and a read under way), jig's `protocol/client.md`, 17.5 and section 19 (the public reads and their `GET`) and `client/domain/contract.md`, section 12 (jig's public records), and by temper's `../client/forge.md`, section 11 (the forge's public documents), `../client/browser.md`, section 8 (the pages' anonymous mode), `../protocol/sign-in.md`, 2.4 and 2.5 (the proxy, the figures and the negative walk) and `../client/tools.md`, 5.3 (`project amend --visibility`); the deployment's proxy configuration and public figures still lag, and the negative walk plays the proxy's own rules against scripted upstreams rather than temper's service, as `../protocol/sign-in.status.md`, Not yet records. The security review of that design, of 2026-11-03, is settled in it.
+
+The title condition in 5.3 is expressed in ctl's help and completed answer,
+and in the help walk before its command. A person can bypass that help and
+publish without first seeing the words; a preceding acknowledgement is
+Later (`../client/tools.md`, section 14). The configuring chat offers no
+visibility act or proposal, and its instructions give the words when asked
+(`../domain/agent.md`, 8.1).
 
 - **Design lags:**
   - 3: the site has no design.

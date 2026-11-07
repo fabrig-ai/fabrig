@@ -72,6 +72,75 @@ fn reading_older_lets_the_newest_go_and_reading_newer_the_oldest() {
     }
 }
 #[test]
+fn the_latest_llm_is_the_newest_turn_at_the_live_end() {
+    let older = ModelEffort { model: text(b"older-model"), effort: None };
+    let newest = ModelEffort { model: text(b"newest-model"), effort: Some(text(b"high")) };
+    for (has_turns, decodes, named, expected) in [
+        (true, true, true, Some(newest.clone())),
+        (true, false, false, Some(older.clone())),
+        (true, true, false, Some(older.clone())),
+        (false, true, false, None),
+    ] {
+        let mut thread = bounded_window(65536, 2);
+        assert_eq!(thread.latest_llm, None);
+        let mut page =
+            if has_turns { sized_page(&[6, 5], Some(b"older"), None) } else { page(&[6, 5], Some(b"older"), None) };
+        if has_turns {
+            for (at, llm) in [(0, named.then_some(newest.clone())), (1, Some(older.clone()))] {
+                let archive = page.rows.get_mut(at).unwrap().decoded.as_mut().unwrap();
+                let TurnRead::Decoded(turn) = &mut archive.turn else { panic!("decoded fixture") };
+                turn.llm = llm;
+            }
+            if !decodes {
+                page.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn =
+                    TurnRead::Undecodable { why: TurnProblem::Malformed };
+            }
+        }
+        assert!(thread.moved(6).is_some());
+        assert_eq!(thread.page(page), None);
+        assert_eq!(thread.latest_llm, expected);
+        assert!(thread.older().is_some());
+        let mut older_page = sized_page(&[4, 3], None, Some(b"newer"));
+        let TurnRead::Decoded(turn) = &mut older_page.rows.get_mut(0).unwrap().decoded.as_mut().unwrap().turn else {
+            panic!("decoded fixture")
+        };
+        turn.llm = Some(ModelEffort { model: text(b"history"), effort: None });
+        assert_eq!(thread.page(older_page), None);
+        assert_eq!(positions(&thread).as_ref(), &[4, 3]);
+        assert_eq!(thread.latest_llm, expected, "older pages leave the latest model alone");
+        assert!(thread.newer().is_some());
+        let mut returned = sized_page(&[5, 6], None, None);
+        let TurnRead::Decoded(turn) = &mut returned.rows.get_mut(1).unwrap().decoded.as_mut().unwrap().turn else {
+            panic!("decoded fixture")
+        };
+        turn.llm = Some(newest.clone());
+        assert_eq!(thread.page(returned), None);
+        assert_eq!(thread.latest_llm, Some(newest.clone()), "reading newer to the live end takes its model");
+    }
+}
+#[test]
+fn caught_up_follows_the_announced_position() {
+    let mut thread = bounded_window(65536, 2);
+    assert!(thread.caught_up(), "nothing announced");
+    let mut task = fixtures::facts_task();
+    task.chip.task = fixtures::SUBJECT_TASK;
+    task.activity = 6;
+    assert!(thread.document(&task).is_some());
+    assert!(!thread.caught_up(), "announced page unread");
+    assert_eq!(thread.page(sized_page(&[6, 5], Some(b"older"), None)), None);
+    assert!(thread.caught_up());
+    assert!(thread.older().is_some());
+    assert!(thread.caught_up(), "reading history leaves the loaded position alone");
+    assert_eq!(thread.page(sized_page(&[4, 3], None, None)), None);
+    assert!(thread.caught_up());
+    task.activity = 7;
+    assert_eq!(thread.document(&task), None);
+    assert!(!thread.caught_up(), "a new announcement while in history remains unread");
+    assert!(thread.latest().is_some());
+    assert_eq!(thread.page(sized_page(&[7], None, None)), None);
+    assert!(thread.caught_up());
+}
+#[test]
 fn the_end_comes_back_after_enough_older() {
     // Three forward pages return two lines each.
     const RETURNED_LINES: u32 = 6;
@@ -211,6 +280,13 @@ fn a_line_weighs_its_bytes_and_its_room() {
     let line = page.rows.get_mut(0).unwrap();
     assert_eq!(line.weight(), 193);
     let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
+    turn.llm = Some(ModelEffort { model: text(b"model"), effort: None });
+    assert_eq!(line.weight(), 198);
+    let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
+    turn.llm.as_mut().unwrap().effort = Some(text(b"high"));
+    assert_eq!(line.weight(), 202);
+    let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
+    turn.llm = None;
     let mut blocks = List::with_capacity(3);
     blocks.push(Block::Text(text(b"ab"))).unwrap();
     blocks.push(Block::Text(text(b"cd"))).unwrap();
@@ -380,6 +456,7 @@ fn a_committed_turn_replaces_its_provisional_text() {
         used: Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut: false,
     };
     commit(&mut thread, TurnRead::Decoded(turn.clone()));
@@ -580,6 +657,7 @@ fn empty_turn() -> Turn {
         used: Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut: false,
     }
 }

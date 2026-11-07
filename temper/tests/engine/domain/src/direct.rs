@@ -64,6 +64,11 @@ impl Driver {
         self.broken("cold-cut fixture transfers its store to the receiving root");
         std::mem::take(&mut self.store)
     }
+    /// Consume a cold-cut driver without opening a replacement store for its destructor.
+    pub(crate) fn into_store(mut self) -> Store {
+        self.broken("cold-cut fixture transfers its store to the receiving root");
+        self.store.take_for_drop()
+    }
     #[must_use]
     pub fn new(store: Store) -> Driver {
         Driver::configured(store, [config(91), config(91)], &limits())
@@ -406,7 +411,7 @@ impl Driver {
             held: None,
             reply_to: ReplyTo::new(Token::new(self.serial)),
             identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },

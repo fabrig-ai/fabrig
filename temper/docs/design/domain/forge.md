@@ -256,7 +256,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **People the forge knows.** Adoption reads the repository's
   collaborators, each with its permission (read, write or admin), and
   gives the human collaborators to the core as parties known by their forge
-  user's id. temper's own writer is excluded. The
+  account: provider 0, with the subject of the repository's forge and the
+  collaborator's user (`../protocol/store.md`, section 2). temper's own writer
+  is excluded. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people.md`, section 4):
   temper's usual mapping is admin to maintainer, write to member, read to
@@ -264,6 +266,16 @@ temper-engine-domain-forge              the connector's top: resources and holds
   owner). Re-adoption seeds people still without a role; it does not replace
   existing project roles. After that, roles are the core's: a permission that changes
   on the forge changes no role.
+- **Who a forge's user is: one lookup, by forge and user.** A user's number
+  means nothing without its forge: GitHub's user 3 isn't Forgejo's, and anyone
+  may post a review on a public repository's pull request. The root's
+  `forge_person` answers the party whose key is provider 0's subject for that
+  pair, with their role in the project, else unknown. Every reader of a
+  person's forge account goes through it: the reviews counted (8.7), the people
+  eligible (8.9) and the inventory's people (`agent.md`, 8.1). Going the other
+  way, `person_forge_user` answers the user a party is on a forge only where
+  `forge_person` answers that party for that user. The subject's form is known
+  to the forge's `user_key` and `key_user` alone.
 - **Access is given per repository, at adoption.** On a managed or
   owned Forgejo, the adoption asks for it first: temper's user made a
   collaborator with write, and the repository's hook made when the
@@ -1397,9 +1409,10 @@ branch. Its parameters:
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes; or, held by its
-  requester and not by the task, its requester's held branch, the
-  requester's own goal branch (11.1), which the change lands whole
-  (below);
+  requester and not by the task, its requester's held branch: the
+  requester's own goal branch (11.1), which the change lands whole, or
+  its own run branch (section 11), which the change lands as its
+  deliveries left it (below);
 - **what to produce,** when nothing is pushed yet: the spec of its
   producing task, and its producer's charter, which its repairs,
   resolutions and checks' gates run under too: the one `change` names,
@@ -1506,9 +1519,11 @@ A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
 **A change on its requester's held branch** (`change`'s `"branch":
-"mine"`, `agent.md`, 4.3.1) is how a goal lands its own branch: the
-goal's landing, a change into the base whose branch is the goal's own
-(11.1). It is an ordinary change, but for the branch:
+"mine"` or `"run"`, `agent.md`, 4.3.1) is how a goal lands what it holds:
+the goal's landing, a change into the base whose branch is the goal's own
+(11.1); or what its runs delivered, a change whose branch is the goal's
+run branch, usually into g (11.1). It is an ordinary change, but for the
+branch:
 
 - **No producing step,** as for a branch handed over: it starts at
   opening, its head the branch's tip as read then. Its pull request is
@@ -1529,6 +1544,11 @@ goal's landing, a change into the base whose branch is the goal's own
   leaves the branch its requester's, deleted or kept as its requester
   closes (section 11). Cancelled, its pull request is closed as any
   (8.6), and its requester may make another.
+- **Beside the run that made it:** a change on a run branch is made by a
+  run that goes on, its requester's run in the branch's writer slot. That
+  doesn't stop the change, which steps at the head it reads (8.5). A run
+  branch nothing has reached holds the change at its opening, as a branch
+  missing does (8.5), and its requester cancels it and makes another.
 
 The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
 absent means `none`. The root writes it only for `foreman` or `up`. Any
@@ -2097,6 +2117,15 @@ released, and the release takes the head as it then is, checked again.
 A move with no writer of its requester's subtree in the slot, by
 another identity, or not forward, is drift, as above.
 
+**Its requester's own run in the slot** (a goal's run, on its run branch:
+11.1) is the one writer the change doesn't wait for. A forward move by
+temper's identity is that run's delivery, and the change's new head as it
+reads it, checked again as above, while the run goes on; a move by another
+identity, or not forward, is drift. The change's own delegates, its repairs,
+its resolution and its merge job, wait for the slot as any claim does (jig's
+`domain/tasks.md`, 6.3), until that run answers, parks included. So do its
+updates. The change's stall counts that wait.
+
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
 known change's pull request or branch wakes its procedure, which holds
@@ -2156,8 +2185,10 @@ merge, kind 4, on a pattern of landing branches (jig's
   pull request on the forge, as themselves, apart from a person's gate
   answered in the client (8.3). The forge reads the pull request's
   reviews, keeps each author's latest, and counts the distinct people
-  among them whom the core knows by their forge user's id with the role
-  in the project (section 4); a review that only comments counts for
+  among them whom the lookup by forge and user (section 4) knows on the
+  pull request's forge, with the role in the project; the same user's number
+  on another forge is another account, shown as one unmapped. A review that
+  only comments counts for
   nothing. temper's retained forge writer never counts as a human, even if
   an existing identity holds the required project role, including after restart.
   It is the one thing temper reads of what people write on its pull
@@ -2306,7 +2337,8 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   For each project in the setting's scope with an adopted writable
   repository whose branch names overlap the pattern, each enforcing
   approval needs at least its required count of distinct project members
-  with the named role and a forge user id known to the core. The root
+  with the named role and a forge account known to the core on a forge of
+  that project (section 4). The root
   joins the people's identities and roles with the forge's rule; a
   deployment login or display name supplies no forge identity. A refusal
   names the project, role, required and eligible counts, and asks for
@@ -2319,7 +2351,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   temper's retained forge writer is ineligible even with an existing role. No rule
   or accompanying settings become effective on refusal. Later membership
   changes can leave a held rule waiting; the merge still counts only
-  people known by forge user id (8.7).
+  people known on the review's forge (8.7).
 - **It holds them** decoded, the deployment's rules and each project's,
   within `landing_rules` per scope and `judge_projects` projects, keeps
   their values in its family `Setting`, and replaces a scope's whole
@@ -2792,10 +2824,11 @@ instead (`landing.md`, section 5).
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
-    as a chat making a small fix does: `temper/<root>/r<task>`, in each
-    repository its runs may write, the project's home among them, which
-    the task holds from the commit that makes it and hands to the change
-    task that lands it.
+    as a chat making a small fix does and a goal's runs do:
+    `temper/<root>/r<task>`, in each repository its runs may write, the
+    project's home among them, which the task holds from the commit that
+    makes it. A chat hands it to the change task that lands it; a goal
+    keeps it, and a change on it lands what it holds (8.1, 11.1).
 
   A task made before its project's home was adopted holds no run branch
   there: its runs read the home without pushing, and its brief says why.
@@ -2830,7 +2863,9 @@ instead (`landing.md`, section 5).
   read, until deleted by hand or by the deployment's retention. A change
   on its requester's held branch (8.1) holds no branch and deletes none
   as it closes: the goal's landing leaves its goal's branch to the
-  goal's own close. A release waits for a lost
+  goal's own close, and a change on a run branch leaves it to its goal. A
+  goal's run branch goes as its goal closes, what it holds that g lacks
+  with it (section 20). A release waits for a lost
   writer's reread, and fails only if that reread fails.
 
 A goal's release recognises its branch as landed from a change in the same
@@ -2881,10 +2916,24 @@ own, never a change's:
 - **Written by change alone:** each of the goal's changes lands into it
   as its landing branch, its merge ordered by the branch's queue (section
   9) and taking the branch's writer slot while in flight; the goal's own
-  runs inspect it and take no writer slot (jig's `domain/tasks.md`, 6.3).
+  runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
+  so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is
   neither that goal nor one of its subtree, is refused at its batch,
   naming the goal.
+- **What a goal writes goes by its run branch,** where its charter's
+  `modify` is set (`agent.md`, 4.3). Its run pushes to its own run branch
+  (section 11), taking that branch's writer slot and never g's. A change
+  with `"branch": "run"` lands what that branch holds into g, by g's queue,
+  like any change (8.1), and a conflict goes to the merge job and a
+  resolution. A change `after` it starts early on the branch's pushed head
+  (8.11). The first run starts at g's tip; with the run branch at a head, a
+  later run starts from g's tip with that head merged in (`worker.md`,
+  section 5), so its delivery fast-forwards the run branch: a head g holds
+  is no merge, one that merges cleanly is committed before the run starts,
+  and a conflict is left in its checkout for it to settle. A run resuming
+  saved work starts from it, as any does. A charter without `modify` leaves
+  its goal's run to inspect its confirmed branch, as it starts there.
 - **Landed whole** by a change into the base whose branch is the goal's
   own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
   (section 11); otherwise kept as the goal closes. It takes the base's
@@ -2954,7 +3003,9 @@ Off by default: a project's setting turns it on.
   words (jig's `domain/people.md`, section 8), addressed to a party
   whose forge account adoption mapped (section 4), is projected as an
   issue in the repository it concerns (its goal's changes' repository,
-  else the project's home), labelled `waiting-on-person`, carrying the
+  else the project's home), provided that account is on that repository's
+  forge: a party known on another has no mapped account here. It is
+  labelled `waiting-on-person`, carrying the
   question's words and the asking task, keyed by the person task (a
   purpose of tag 10: the task, 8 bytes).
 - **The person answers in a comment.** A comment on that issue by the
@@ -3244,6 +3295,22 @@ whole.
 
 ## 20. Open questions
 
+- **A person's link to a forge's user, and eligibility per forge** (section 4,
+  8.9; `../draft/forge-identity.md`, sections 3, 4 and 7): the lookup knows
+  only what adoption seeded, and eligibility counts an account on any forge of
+  the project. The draft's link would answer first in `forge_person`, and its
+  count asks for an account on the forge of each repository the rule covers.
+  Default: as it stands, until the plans that carry those sections.
+- **A goal closing with a run branch g lacks** (section 11): the branch goes
+  with its goal, what it held with it. A goal's own branch is kept where no
+  change landed it. Retaining unlanded run work on close would need a
+  retention rule of its own. Default: the run branch goes.
+- **A saved start a change overtook** (11.1): a goal's run that parked with
+  edits resumes from them. If a repair or a resolution has since moved the run
+  branch, its delivery finds the branch moved and the run ends stale, and its
+  next run resumes from the same saved tree. Recovery from this case, with
+  a parked edit and a live change's repair on one branch, is left for later.
+  Default: the stale end and the saved tree remain.
 - **Saved branches outside the task's saved set** (11): a terminal the
   engine never heard, a repository no longer in the set, or full holds at
   close can leave a branch on the forge. Finding these needs a branch
