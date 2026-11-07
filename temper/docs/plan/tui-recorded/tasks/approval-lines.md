@@ -3,7 +3,7 @@ id = "approval-lines"
 part = "tui-approval-flow"
 kind = "feature"
 needs = ["tui-surface"]
-files = ["temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/**"]
+files = ["temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/**", "jig/crates/jig-client/src/client.rs", "jig/crates/jig-client/src/tests/sign_in.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -48,3 +48,7 @@ Acceptance:
 ## Report
 
 The implementer's report, with: each phrase added; the goldens written and how each was checked against the design; the rows and their broken-rule failures; any line of another crate's test repaired.
+
+## Answers
+
+2026-11-07. *Q: an approval take's loss leaves `not_signed_in` `None`, as a take not yet answered; expose it as `NotSignedIn::Busy` in jig-client, or a separate lost fact in the surface's contract?* As `Busy`, the run's option 1, and this task's to make (widened to the two jig files above). In `Client::signing` (`jig/crates/jig-client/src/client.rs`), `link::Signing::Lost` while `signing_link` and the send-again is `SendAgain::Approval` gives `Some(NotSignedIn::Busy)`; a link's loss stays `None`, as today (its host tells loss itself: `Signing::Answered { lost: true }`). jig's design says so now: `jig/docs/design/client/domain/client.md`, section 12, *`Approval { secret }`*. `a_take_not_ready_busy_or_lost_uses_the_existing_backoff` in `jig/crates/jig-client/src/tests/sign_in.rs` changes its lost row from `(None, None)` to `(None, Some(NotSignedIn::Busy))`, that alone; run it by name with `heavy cargo nextest run -p jig-client --lib -E 'test(=tests::sign_in::a_take_not_ready_busy_or_lost_uses_the_existing_backoff)'`, and the link's lost rows in the same file stay as they are. No surface or contract change: the view draws "temper is busy; still trying…" from `Busy`, `NotReady` or (for the not-asked lines) `NotAsked(..)`, and `Asked` with `None` or `Approval(Waiting)` is waiting, as drawn. Add `-p jig-client` to step 3's clippy and nextest runs.
