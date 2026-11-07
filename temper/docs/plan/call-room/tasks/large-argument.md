@@ -3,7 +3,7 @@ id = "large-argument"
 part = "argument"
 kind = "feature"
 needs = []
-files = ["smith/tests/agent-process/**", "smith/tests/fake-claude/src/**"]
+files = ["smith/tests/agent-process/**", "smith/tests/fake-claude/src/**", "smith/crates/smith-domain-run/src/host.rs", "smith/crates/smith-protocol-program/src/backend/conversation.rs", "temper/crates/temper-engine-smith/src/tests/settings.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -80,3 +80,17 @@ Each pinned rule breaks once by hand: a refused row's limit raised shows the row
 ## Report
 
 The table's rows as they ended, with the limit each size meets first, by name and file. Whether a product limit had to move, and which. The table's CPU cost. That the live story was compiled and not run, and what it would name if the model's own output stops it.
+
+## Answers
+
+2026-11-07. **Extend this task to raise `HostInput`'s cap and repair program input admission, or lower the acceptance to 65,536?** Extend it; the acceptance stays at 131,072. The request asks for 64 to 128 KB, and the rows fail on two limits in smith's own path, not on a generated codec's ceiling, so neither is a `Question:` (`notes/common.md`). The branch's checkpoint, `83c2a34adf`, stands: go on from it. You may also change the three files named here, for this alone:
+
+- **`smith/crates/smith-domain-run/src/host.rs`:** `HostInput::CAPACITY` goes to 1,048,576, the generated ceiling of channel `host_ask_input` and transcript `call_input`. It is a cap on the vocabulary: `host_input_bytes` stays the per-deployment receiving bound, and no heap is sized from the constant. Say in its doc line that it matches those ceilings. Leave `HostAnswer::CAPACITY` as it is: this world holds its replies at 512 bytes, and temper renders to that constant.
+- **`smith/crates/smith-protocol-program/src/backend/conversation.rs`:** admit a tool input against `translation.client.input`, not `.answer`, at `assistant` (line 177) and at the structured output (line 216), which also becomes a transcript call. Then an input past the transcript's `call_input` is a `Rejection::Limit` of `Bound::Input`, "tool input bytes", rather than a run that can't send its record. `Turns::new`'s raw bound stays on `.answer`. Hold it with a row in that crate's lowest-tier test: an input past `client.input` and within `client.answer` names `Bound::Input`. If an existing fixture's input is past its own `client.input`, raise that fixture's figure and report it. Don't change what a test expects.
+- **`temper/crates/temper-engine-smith/src/tests/settings.rs`,** `a_large_settings_decoder_error_is_bounded_host_feedback`: this test sizes its key from `HostInput::CAPACITY`, and `temper-engine-smith/src/json.rs`, line 21, refuses past 65,536. Size the key from 65,536 less 128, so the input and the expected answer stay as they are. Change nothing else in temper.
+
+The row `(10_662, 65_536)` is refused when the run ends with `Bound::Input`'s failure and no host call arrives. Name in the table's comment the bound that failure shows. The run's report read 65,532, where 10,662 × 6 is 63,972, so check which `tool_payload` that row derives from.
+
+Leave these for the plan's later tasks, and list them under `## Left`, since this task's acceptance doesn't need them: `temper-engine-smith/src/json.rs`'s fixed 65,536 stops any temper tool's input past it, and `smith-domain-run/src/limits.rs` derives `host_reply_bytes` from `tool_payload`, so a deployment declaring past 65,536 is refused by `valid_host_tools` against `HostAnswer::CAPACITY` unless its replies are set lower.
+
+Beside the Steps' checks, run `heavy cargo nextest run -p smith-domain-run -p smith-protocol-llm -p smith-protocol-program -p smith-agent-service -p temper-engine-smith` and clippy for those packages, then `heavy cargo nextest run -p temper-service --lib -E 'test(each_invalid_call_names_its_problem)'`. Report the heap ceilings as unmoved, or measure before and after if one moves.
