@@ -25,6 +25,7 @@ pub fn limits() -> root::Limits {
 fn profile() -> root::Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {
+        charter_parts: 8,
         placed_holds: 1,
         project_placed_holds: 1,
         party_placed_holds: 1,
@@ -386,6 +387,7 @@ pub fn config(seed: u64) -> root::Config {
             defaults: core::settings::Defaults {
                 models: Box::default(),
                 charters: Box::new([core::Charter {
+                    parts: Box::new([]),
                     rest: false,
                     wake: jig_domain_tasks::WakePolicy::DEFAULT,
                     documents: Box::new([]),
@@ -421,7 +423,7 @@ pub fn config(seed: u64) -> root::Config {
 mod charters;
 mod connector;
 pub mod fixtures;
-pub use charters::{research_charter, two_charters};
+pub use charters::{per_wake_charter, research_charter, two_charters};
 mod credentials;
 pub use credentials::with_workspace_credential;
 

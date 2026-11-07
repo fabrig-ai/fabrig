@@ -26,7 +26,7 @@ pub(crate) fn model_effort(model: &[u8], effort: Option<&[u8]>) -> c::ModelEffor
 pub(crate) fn prior_choice() -> c::LlmChoice {
     let mut subagents = List::with_capacity(1);
     subagents.push(model_effort(b"small-model", Some(b"low"))).expect("one sub-agent choice");
-    c::LlmChoice { account: Some(43), main: model_effort(b"template-model", Some(b"low")), subagents }
+    c::LlmChoice { later: None, account: Some(43), main: model_effort(b"template-model", Some(b"low")), subagents }
 }
 pub(crate) fn choice_me(budget: u64) -> c::Me {
     let mut me = chat_me(budget);

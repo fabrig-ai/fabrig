@@ -12,6 +12,7 @@ fn preparing() -> Harness {
     let mut new = task(TASK, &[]);
     new.authority.models = Models::Named(1);
     new.llm = Some(LlmChoice {
+        later: None,
         account: Some(PREFERENCE),
         main: ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),
@@ -22,6 +23,8 @@ fn preparing() -> Harness {
 }
 fn claim(h: &mut Harness, attempt: u64, account: u32, budget: u64) {
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         reply_to: to(),
         task: TASK,
         attempt,

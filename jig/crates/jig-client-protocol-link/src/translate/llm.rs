@@ -17,8 +17,23 @@ pub(crate) fn wire_choice(
     }
     Ok(Some(w::LlmChoice::new(
         limits,
-        w::LlmChoiceParts { account: value.account, main: wire_model_effort(&value.main, limits)?, subagents },
+        w::LlmChoiceParts {
+            account: value.account,
+            main: wire_model_effort(&value.main, limits)?,
+            subagents,
+            later: match &value.later {
+                Some(later) => Some(wire_later(later, limits)?),
+                None => None,
+            },
+        },
     )?))
+}
+fn wire_later(value: &c::LlmLater, limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
+    let mut subagents = List::with_capacity(value.subagents.len());
+    for item in &value.subagents {
+        subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
+    }
+    w::LlmLater::new(limits, w::LlmLaterParts { main: wire_model_effort(&value.main, limits)?, subagents })
 }
 fn wire_model_effort(value: &c::ModelEffort, limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
     w::ModelEffort::new(
@@ -40,7 +55,22 @@ pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Op
     for item in value.subagents() {
         subagents.push(model_effort(item, limits)?).expect("same capacity");
     }
-    Ok(Some(c::LlmChoice { account: *value.account(), main: model_effort(value.main(), limits)?, subagents }))
+    Ok(Some(c::LlmChoice {
+        account: *value.account(),
+        main: model_effort(value.main(), limits)?,
+        subagents,
+        later: match value.later() {
+            Some(later) => Some(restore_later(later, limits)?),
+            None => None,
+        },
+    }))
+}
+fn restore_later(value: &w::LlmLater, limits: &Limits) -> Result<c::LlmLater, w::Problem> {
+    let mut subagents = List::with_capacity(value.subagents().len());
+    for item in value.subagents() {
+        subagents.push(model_effort(item, limits)?).expect("same capacity");
+    }
+    Ok(c::LlmLater { main: model_effort(value.main(), limits)?, subagents })
 }
 fn model_effort(value: &w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
     Ok(c::ModelEffort {

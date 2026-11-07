@@ -52,6 +52,7 @@ pub fn note_line() -> jig_domain_notes::Line {
 }
 
 pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
+    charter_parts: 8,
     placed_holds: 1,
     project_placed_holds: 1,
     party_placed_holds: 1,
@@ -209,6 +210,7 @@ pub fn creation_spec() -> jig_domain_tasks::Spec {
 pub fn task_llm() -> jig_domain_tasks::LlmChoice {
     use jig_domain_tasks::ModelEffort;
     jig_domain_tasks::LlmChoice {
+        later: None,
         account: Some(u32::MAX),
         main: ModelEffort { model: 63, effort: Some(u8::MAX) },
         subagents: Box::new([ModelEffort { model: 0, effort: None }, ModelEffort { model: 7, effort: Some(1) }]),

@@ -186,9 +186,19 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
             )?)
             .expect("document count");
     }
+    let mut parts = List::with_capacity(super::count(value.parts.len())?);
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on.0, instructions: item.instructions.clone() },
+            )?)
+            .expect("part count");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            parts,
             documents,
             skein_bools: [value.rest, policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
             number: value.number,

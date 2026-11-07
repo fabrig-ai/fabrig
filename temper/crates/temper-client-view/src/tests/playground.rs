@@ -141,6 +141,7 @@ fn the_playground_names_default_for_a_resolved_model() {
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: c::Text::new(b"selected".as_slice().into(), 32).unwrap(), effort: None },
                 subagents: skein_lib::List::with_capacity(0),

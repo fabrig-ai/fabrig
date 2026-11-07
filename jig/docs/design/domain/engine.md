@@ -701,15 +701,22 @@ has its claim refused, its preparation abandoned with no try spent; it
 is due again once its dependencies are done.
 
 1. **Checks** that the run may start, and with what budget
-   (authority.md, 8.3), takes its models where its task was given none,
-   the first it can use its main (accounts.md, 4.3), and chooses the
+   (authority.md, 8.3), takes its task's LLM choice: its `later` when the
+   task's reasons hold no `first` and its charter doesn't resume, its first
+   choice otherwise (tasks.md, section 3 and 8.6); takes its models where
+   its task was given none, the first it can use its main (accounts.md,
+   4.3), and chooses the
    accounts that pay for it: one
    for its main model's LLM provider, kept by its task, and one for each
    other LLM provider its sub-agents' models use, each with its first
    source usable on a host with room (accounts.md, 4.3).
 2. **Prepares it,** the task preparing over as many steps as it takes:
-   gathers its brief (section 9), for why it runs: its first activation,
-   or what woke it; has each connector that owns a resource the task
+   takes its reasons, `first` and the kinds that woke it, which the tasks
+   child gives with the activation (tasks.md, 8.6), and chooses its
+   charter's parts those reasons meet, at the revision its preparation
+   began under (17.3), which make its instructions (step 4) and the kinds
+   it is offered; gathers its brief (section 9), for why it runs; has each
+   connector that owns a resource the task
    names gather its workspace items, and name the application's
    credentials they need (connectors.md, section 10); and loads its
    transcript's saved window when it has one, for resuming or for the
@@ -721,8 +728,9 @@ is due again once its dependencies are done.
 3. **Commits the claim:** the task claimed, with its new attempt number,
    the revision its preparation began under (17.3), the host kind it is placed on, the accounts and sources its check
    chose, the task's kept account among them (accounts.md, 4.3), the
-   writer slots of the holds its workspace writes (tasks.md, 6.3), and
-   the messages its start carries (tasks.md, 8.2).
+   writer slots of the holds its workspace writes (tasks.md, 6.3), its
+   reasons and the kinds it is offered (tasks.md, 8.6), and the messages
+   its start carries, those it is offered (tasks.md, 8.2).
 4. **Places it** through the fleet, once the claim is durable, on a host
    its charter allows, where its sources are usable and the host rule
    allows it (section 8), with an assignment the root puts together
@@ -735,8 +743,8 @@ is due again once its dependencies are done.
    - its workspace: the connectors' items, and a workstream key, the
      number of the task that holds the resources written, so that the
      runs of one piece of work find their workspace cached;
-   - its start's messages, named, oldest first; the rest are relayed as
-     the run reads (7.4);
+   - its start's messages, those it is offered, named, oldest first; the
+     rest it is offered are relayed as the run reads (7.4);
    - its **ask** for live content (`hosts.md`, section 2): `text` set when
      its task is flagged conversation (tasks.md, section 3), and `input`
      set by the same rule; `reasoning` is false. The core sets it with the
@@ -744,7 +752,9 @@ is due again once its dependencies are done.
      the root copies it, kind by kind, and no host decides it. A task a
      conversation delegates is not flagged, so its run is not asked
      (`hosts.md`, section 12);
-   - its charter, in the core's terms: the task's instructions, the
+   - its charter, in the core's terms: the task's instructions, its own
+     or else its charter's followed by each part its reasons meet, in the
+     charter's order, each after a blank line (`\n\n`; tasks.md, 8.6); the
      brief, the tools of each host family its charter names and its
      authority holds (the charter's `tools`, a `ToolFamilies` mask, the
      same type as an authority's: a family neither names is not offered,
@@ -828,8 +838,10 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
 - **Committed turn by turn.** A run sends each turn up as it ends: what
   the LLM said and the calls it made, their results, what it spent, the
   last inbox message it read, and whether it opens a window. The core
-  commits the turn with its spend, with the messages up to that one
-  taken but those it says the run refused (hosts.md, 6.4), and, when it
+  commits the turn with its spend, with the messages offered to its
+  attempt up to that one taken but those it says the run refused
+  (hosts.md, 6.4): a message its attempt wasn't offered, by its parts or
+  a pace, stays, whatever the fence passes (tasks.md, 8.2 and 8.6); and, when it
   opens a window, with its task's current window starting there; then
   it acknowledges it. A host keeps each turn until it is acknowledged,
   and a run with too many unacknowledged turns waits (hosts.md, 6.4).
@@ -944,6 +956,9 @@ JSON names models and efforts by their configured indices; account numbers
 are durable names. Omitting the choice keeps the delegate's charter default
 or the amended task's existing choice. A choice grants no additional models:
 the core checks inherited authority and the prospective financial payer.
+A run's choice names no `later` (tasks.md, section 3): a delegate it makes
+takes one choice for every run, and an amendment it makes replaces the
+amended task's choice whole, leaving it none.
 
 | Tool | What it does | Answers |
 |---|---|---|
@@ -1075,9 +1090,20 @@ call writes over a change its run was not shown.
   fresh, its brief
   carrying its goal, its plan's state and its notes, and its start the
   messages that woke it (7.1).
-- **Messages to a live run** are relayed as the run reads, named, in
-  order, never more relayed and unread than the run's inbox takes; a
-  turn that reads one takes it (7.2; tasks.md, 8.2).
+- **Messages to a live run,** those it is offered (tasks.md, 8.6), are
+  relayed as the run reads, named, in order, never more relayed and
+  unread than the run's inbox takes; a turn that reads one takes it (7.2;
+  tasks.md, 8.2).
+- **Not offered, a message stays** in the task's inbox, never relayed to
+  the run, and is judged again when the run ends, waking the task if its
+  kind does (tasks.md, 8.2 and 8.6).
+- **An entry left undecided** when a run ends, a proposal or an
+  escalation still waiting for the task's decision, wakes the task again,
+  its reasons that entry's kind (tasks.md, 8.6).
+- **The first activation ends** when a run parks idle or finishes: the
+  task's next runs hold no `first` among their reasons and take its
+  `later` (tasks.md, 8.6). A run parked kept, and a failed attempt, leave it
+  as it was.
 - **Refused or unread, a message stays** in the task's inbox, untaken,
   and wakes the task again when the run ends (hosts.md, section 9;
   tasks.md, 8.2 and 8.3). A turn's commit never takes a message the run
@@ -1302,7 +1328,8 @@ until the host establishes absence.
 
 The brief child domain builds every run's brief from sections, each
 within a budget, the brief within its own: sections follow why the run
-runs, those it runs for are required, the rest optional; what does not
+runs, its reasons (7.1, step 2; tasks.md, 8.6), those it runs for are
+required, the rest optional; what does not
 fit is cut in its kind's order and says how much; sections are gathered
 within one deadline, while the task is preparing, and a required one
 missing fails the brief, which pauses the task or counts a failure by
@@ -1337,7 +1364,8 @@ whom; its delegates, their states, and the
 - **Its charter's documents' (17.9),** gathered by the connector that
   owns each document's resource as it is when the run is prepared,
   each optional, titled by the document, after the core's sections and
-  before the task's resources'.
+  before the task's resources', for every run whatever its charter's
+  parts.
 - **Its connectors',** which it plans by kind, priority and budget but
   never holds (core.md, section 5): for each resource the task names, and
   for each dependency or input whose result is a connector's, the
@@ -1350,8 +1378,10 @@ A section is loaded or read as it is cut, asking for no more than it
 keeps. The host's protocol layer renders the whole as text, in order.
 
 A brief has no inbox section. The messages waiting in the task's inbox
-go with the assignment as its start's messages, and the run reads them
-as messages, whole (7.1; tasks.md, 8.2).
+that the run is offered go with the assignment as its start's messages,
+and the run reads them as messages, whole (7.1; tasks.md, 8.2 and 8.6).
+Nor has it a section for its charter's parts: they are its instructions
+(7.1, step 4).
 
 ### 9.1 A brief that fails
 
@@ -2065,6 +2095,10 @@ section 5).
 
 ## 16. Open questions
 
+- **A run's `later`** (7.3): a run's `delegate` and `amend` name no
+  `later`, so only a party's request or a template gives one. A tool member
+  for it waits for a planning agent that needs a delegate's later runs on
+  other models.
 - **A number freed:** a catalogue's 64 numbers last the deployment's life, a
   withdrawn model keeping its own (17.11). A number no held revision and no
   live task reads could be given again, should a provider's lists come to

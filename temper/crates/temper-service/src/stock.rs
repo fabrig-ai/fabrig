@@ -490,6 +490,7 @@ fn charter(
         alternatives.push(alternative).expect("one per remaining configured model");
     }
     Charter {
+        parts: Box::new([]),
         rest: true,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),

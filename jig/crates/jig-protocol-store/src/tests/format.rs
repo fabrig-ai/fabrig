@@ -73,24 +73,25 @@ fn a_value_limit_below_the_largest_task_record_is_refused() {
     let mut limits = store();
     limits.value = 1;
     // The settings revision includes both whole sets of model values.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_651_060, has: 1 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_651_892, has: 1 }));
 }
 fn a_value_limit_below_the_largest_core_turn_is_refused() {
     let mut limits = store();
     limits.value = 80_948;
     // The settings revision includes both whole sets of model values.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_651_060, has: 80_948 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Value { needs: 1_651_892, has: 80_948 }));
 }
 fn a_page_smaller_than_one_row_is_refused() {
     let mut limits = store();
     limits.page.bytes = 81_060;
     // The page holds a settings revision and its 112-byte key.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_651_172, has: 81_060 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_652_004, has: 81_060 }));
 }
 #[test]
 fn fixture_limits_fit_their_store() {
-    // The largest value is a settings revision with whole model values.
-    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 112, value: 1_651_060, ops: 11, commit: 17_741 }));
+    // The settings revision holds two sets: each adds two 16-byte parts slices
+    // and eight templates with 24-byte later choices in both Template and New.
+    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 112, value: 1_651_892, ops: 11, commit: 17_741 }));
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
@@ -205,7 +206,7 @@ fn a_journal_whose_operation_count_overflows_is_refused() {
 fn a_map_budget_past_the_commit_envelope_is_refused() {
     // The value includes the tasks row's models; the commit adds framing to the map budget.
     for (label, budget, expected) in [
-        ("exact_u32_commit", 4_294_965_938, Ok(sizes::Sizes { key: 112, value: 1_651_060, ops: 11, commit: u32::MAX })),
+        ("exact_u32_commit", 4_294_965_938, Ok(sizes::Sizes { key: 112, value: 1_651_892, ops: 11, commit: u32::MAX })),
         ("one_byte_past_u32", 4_294_965_939, Err(sizes::SizeRefusal::Ceiling)),
         ("u64_sum_overflows", u64::MAX, Err(sizes::SizeRefusal::Ceiling)),
     ] {

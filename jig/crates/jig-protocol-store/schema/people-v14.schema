@@ -95,7 +95,8 @@ record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: Re
 record TrackingTracked { priority: u32 }
 enum Tracking { tracked: TrackingTracked, untracked }
 record ModelEffort { model: u8 effort: option u8 }
-record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Amendment { tracked: option Tracking addressed: option AddressChange instructions: option bytes 135168 spec: option Spec wake: option WakePolicy dependencies: option bytes 405504 pieces Number64 authority: option Authority llm: option LlmChoice reason: bytes 8192 }
 record TaskExecutorAgent { charter: u32 }
 record TaskExecutorProcedure { connector: u16 code: u32 }

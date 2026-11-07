@@ -51,6 +51,7 @@ fn has_playground(w: World) -> bool {
 }
 fn model(w: World) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: Some(1),
         main: c::ModelEffort {
             model: text(if has_playground(w) { "Scripted model" } else { "Opus" }),
@@ -172,6 +173,7 @@ fn template_preview(member: &mut c::MeProject) {
         .push(c::MeDefault {
             template: jig_client::shapes::CHAT,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
                 subagents: List::with_capacity(0),
@@ -2531,6 +2533,7 @@ fn document(w: World, number: u64) -> c::Task {
         None
     } else {
         Some(c::LlmChoice {
+            later: None,
             account: Some(f.account),
             main: c::ModelEffort { model: text(f.model), effort: f.effort.map(text) },
             subagents: List::with_capacity(0),
@@ -5430,6 +5433,7 @@ fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelS
     member.defaults = List::from_boxed(Box::new([c::MeDefault {
         template: jig_client::shapes::CHAT,
         choice: c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
             subagents: List::with_capacity(0),

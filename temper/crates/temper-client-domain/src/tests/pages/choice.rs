@@ -10,6 +10,7 @@ const SERIAL: u64 = 13;
 const OUTPUTS: u32 = 16;
 fn choice(model: &[u8]) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: Some(7),
         main: c::ModelEffort { model: fixtures::acts::text(model), effort: None },
         subagents: List::with_capacity(0),

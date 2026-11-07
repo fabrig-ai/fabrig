@@ -33,6 +33,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     approval_state: 0,
     choices_choices: 0,
     llm_choice_subagents: 0,
+    llm_later_subagents: 0,
     authority_segment_bytes: 0,
     pattern_segments: 0,
     delegation_kinds: 0,
@@ -175,6 +176,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         approval_state: domain.result_bytes,
         choices_choices: domain.contract_choices,
         llm_choice_subagents: domain::MODELS,
+        llm_later_subagents: domain::MODELS,
         authority_segment_bytes: domain.authority_bytes,
         pattern_segments: domain.authority_segments,
         authority_grants: u32::try_from(

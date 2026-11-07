@@ -227,7 +227,7 @@ fn template_requests(
     let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set") };
     let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
     template.number = 4;
-    template.llm = Some(c::LlmChoice { account: None, main, subagents });
+    template.llm = Some(c::LlmChoice { later: None, account: None, main, subagents });
     let change =
         c::ChangeSettings { against: 5, running: c::Running::Stays, items: List::from_boxed(Box::new([item])) };
     let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &f::wire()).unwrap();

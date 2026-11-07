@@ -207,7 +207,7 @@ const UNKNOWN_EFFORT: u8 = 2;
 const UNKNOWN_MODEL: u8 = 2;
 
 fn choice(main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> tasks::LlmChoice {
-    tasks::LlmChoice { account: None, main, subagents: subagents.into() }
+    tasks::LlmChoice { later: None, account: None, main, subagents: subagents.into() }
 }
 
 fn template_settings() -> Config {
@@ -270,35 +270,79 @@ fn compatible_merged_template_choices_are_accepted() {
     }
 }
 
+fn with_later(main: tasks::ModelEffort, later: tasks::ModelEffort) -> tasks::LlmChoice {
+    tasks::LlmChoice {
+        later: Some(tasks::LlmLater { main: later, subagents: Box::new([]) }),
+        ..choice(main, NO_SUBAGENTS)
+    }
+}
+
 #[test]
 fn merged_template_choices_outside_the_effective_charter_are_refused() {
-    for (name, main, subagents, executor) in [
-        ("missing main effort", tasks::ModelEffort { effort: None, ..FIRST_CHOICE }, NO_SUBAGENTS, PROJECT),
-        ("unknown main model", tasks::ModelEffort { model: UNKNOWN_MODEL, effort: None }, NO_SUBAGENTS, PROJECT),
+    for (name, llm, executor, resumes) in [
+        (
+            "missing main effort",
+            choice(tasks::ModelEffort { effort: None, ..FIRST_CHOICE }, NO_SUBAGENTS),
+            PROJECT,
+            false,
+        ),
+        (
+            "unknown main model",
+            choice(tasks::ModelEffort { model: UNKNOWN_MODEL, effort: None }, NO_SUBAGENTS),
+            PROJECT,
+            false,
+        ),
         (
             "main effort past end",
-            tasks::ModelEffort { effort: Some(UNKNOWN_EFFORT), ..FIRST_CHOICE },
-            NO_SUBAGENTS,
+            choice(tasks::ModelEffort { effort: Some(UNKNOWN_EFFORT), ..FIRST_CHOICE }, NO_SUBAGENTS),
             PROJECT,
+            false,
         ),
-        ("main outside charter", FIRST_CHOICE, NO_SUBAGENTS, OTHER_CHARTER),
-        ("sub-agent outside charter", OTHER_CHOICE, &[FIRST_CHOICE], OTHER_CHARTER),
-        ("sub-agent missing effort", FIRST_CHOICE, &[tasks::ModelEffort { effort: None, ..FIRST_CHOICE }], PROJECT),
+        ("main outside charter", choice(FIRST_CHOICE, NO_SUBAGENTS), OTHER_CHARTER, false),
+        ("sub-agent outside charter", choice(OTHER_CHOICE, &[FIRST_CHOICE]), OTHER_CHARTER, false),
+        (
+            "sub-agent missing effort",
+            choice(FIRST_CHOICE, &[tasks::ModelEffort { effort: None, ..FIRST_CHOICE }]),
+            PROJECT,
+            false,
+        ),
         (
             "sub-agent effort past end",
-            FIRST_CHOICE,
-            &[tasks::ModelEffort { effort: Some(UNKNOWN_EFFORT), ..FIRST_CHOICE }],
+            choice(FIRST_CHOICE, &[tasks::ModelEffort { effort: Some(UNKNOWN_EFFORT), ..FIRST_CHOICE }]),
             PROJECT,
+            false,
         ),
         (
             "sub-agent takes no effort",
-            FIRST_CHOICE,
-            &[tasks::ModelEffort { effort: Some(LOW), ..OTHER_CHOICE }],
+            choice(FIRST_CHOICE, &[tasks::ModelEffort { effort: Some(LOW), ..OTHER_CHOICE }]),
             PROJECT,
+            false,
         ),
-        ("unknown executor", FIRST_CHOICE, NO_SUBAGENTS, UNKNOWN),
+        ("unknown executor", choice(FIRST_CHOICE, NO_SUBAGENTS), UNKNOWN, false),
+        ("later outside charter", with_later(OTHER_CHOICE, FIRST_CHOICE), OTHER_CHARTER, false),
+        ("later under resuming charter", with_later(FIRST_CHOICE, OTHER_CHOICE), PROJECT, true),
     ] {
-        assert!(!choice_fits(main, subagents, executor), "{name}");
+        let mut settings = template_settings();
+        for charter in &mut settings.defaults.charters {
+            charter.policy.resume = resumes;
+        }
+        let template = settings.defaults.templates.first_mut().unwrap();
+        template.llm = Some(llm);
+        template.executor = people::TemplateExecutor::Charter(executor);
+        let mut limits = limits();
+        limits.tasks.charters = OTHER_CHARTER;
+        limits.run_bytes = 4096;
+        let current = crate::settings::Current::new(settings.defaults, &limits, &[]);
+        assert!(!templates::valid(&current, &settings.settings, &[executor_override(executor)]), "{name}: policy");
+        assert_eq!(
+            crate::settings::check(&current, &settings.settings, &[1], &limits),
+            Err(crate::settings::Failure {
+                setting: crate::settings::Setting::Template(PROJECT),
+                fault: crate::settings::Fault::Reference,
+                detail: None
+            }),
+            "{name}: configuration"
+        );
     }
 }
 
