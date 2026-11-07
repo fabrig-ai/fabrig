@@ -601,6 +601,10 @@ impl Composition {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));
                 let message = match message {
+                    link::Message::ApprovalAsk(bytes) => clients::Message::ApprovalAsk(bytes),
+                    link::Message::ApprovalRead(bytes) => clients::Message::ApprovalRead(bytes),
+                    link::Message::ApprovalDecide(bytes) => clients::Message::ApprovalDecide(bytes),
+                    link::Message::SignInApproval(bytes) => clients::Message::SignInApproval(bytes),
                     link::Message::Authorize(bytes) => clients::Message::Authorize(bytes),
                     link::Message::Request(bytes) => clients::Message::Request(bytes),
                     link::Message::Read(bytes) => clients::Message::Read(bytes),
@@ -648,7 +652,8 @@ impl Composition {
                             why: people::Again::Full { held: sign_ins, room_at: earliest },
                         });
                     }
-                    link::Signing::LinkUsed
+                    link::Signing::Approval(_)
+                    | link::Signing::LinkUsed
                     | link::Signing::LinkExpired
                     | link::Signing::LinkUnknown
                     | link::Signing::Refused
@@ -689,7 +694,8 @@ impl Composition {
                 return;
             }
             link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
-            link::Request::Authorized(_)
+            link::Request::Approval(_)
+            | link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
