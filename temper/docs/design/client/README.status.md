@@ -69,6 +69,12 @@ section 11).
   share the command table's literal names. A press on the terminal's background
   has no handler to focus the box, where the request's click handler does;
   focus follows the shared web shell. Temper/ui owns both differences.
+- **Not yet:** 3.5, *A chat's terminal*, *Entered* (`look-round-17`,
+  `chat-terminal`): `terminal::Act::Enter`, "Exit"'s `Leave`, `Theme` and `Font`
+  as presses, and a list closed by Esc or by leaving full screen with no "/" in
+  the box change the page without moving the pages' shown count, so the view
+  keeps the browser's look, or the list, until the next change: ">_" enters full
+  screen over the ordinary chat.
 - **Design departs:** 5.1, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: the engine remembers the
   last 8 used or expired links only until restart. A forgotten used link
