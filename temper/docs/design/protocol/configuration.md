@@ -1324,13 +1324,12 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   by four agent processes and their programs on a laptop. Default: four
   slots, with the after-landing measurement in `setup.md`, section 15;
   a person's existing document keeps its configured concurrency.
-- **The model catalogue's provider lists** (13.4): reading lists, keeping
-  names per account and deciding their catalogue changes are the lists
-  step (`../draft/model-catalogue.md`, sections 5 and 7). Default: the
-  binary's seven stock models and model settings added by name, without
-  provider discovery. Release defaults reach settings that still follow
-  them; a person's change, including a picker switched off, stays over the
-  default. Charters resolve their model names through that catalogue.
+- **A real provider's list** (13.1): checking the configured patterns and
+  account grant against a real provider follows landing. Default: fake
+  lists through the worker and agent, with the account's retained names,
+  catalogue decision and unchanged accounting checked together. A fake
+  establishes no real-provider result. Later pages and changes to a known
+  model's figures remain jig's `domain/engine.md`, section 16's work.
 - **The real-browser check of watch sizing.** The domain story uses the
   pages' watch sets without HTTP, a browser or a kernel (section 7).
   Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
@@ -2654,11 +2653,16 @@ that changes the stock changes nothing of them.
     document before its first start, member by member, an object's
     members over the document's and any other value replacing it, as
     `jq -s '.[0] * .[1]'` merges two files;
-  - `room.json`, what such a merge can't reach, a call's room (13.8): its
-    `agent` member, `tool_payload` and `output`, which `jq` sets on the
-    box's `agent.json`, the output on every endpoint; and its `worker`
-    member, merged over each worker of the document's array, as its
-    `README.md` gives both commands. All of it before the first start;
+  - `room.json`, a call's room (13.8), mostly what such a merge can't
+    reach: its `agent` member, `tool_payload` and `output`, which `jq`
+    sets on the box's `agent.json`, the output on every endpoint; its
+    `worker` member, merged over each worker of the document's array;
+    and its `application` member, `root.journal.run_bytes` 65,536,
+    merged over the document's `application` as `limits.json` is: the
+    journal's bound on a run's stored policy, which a charter's whole
+    policy must fit, so that the box's 20,480 refuses a charter of
+    31 KB. Its `README.md` gives the commands. All of it before the
+    first start;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
@@ -2691,7 +2695,8 @@ that changes the stock changes nothing of them.
   (80), the executors and charters (16 and 12), and the agent's turns
   (800); so `limits.json` holds `tasks.tree_tasks`,
   `forge.change_policy.questions` and its engine's and application's
-  share of 13.8's room, and `room.json` the agent's and the workers'.
+  share of 13.8's room, and `room.json` the agent's, the workers' and
+  the journal's run bound a charter's policy needs.
 
   The settings file sizes its charters and template to the box: charters
   2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),

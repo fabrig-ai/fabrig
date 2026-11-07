@@ -223,6 +223,7 @@ fn rows() -> Box<[Row]> {
                 kind: HostKind::Worker,
                 at: skein_lib::Wall::EPOCH,
                 why: HelloRefusal::Position { worker: 7 },
+                figures: None,
             })),
             expected: || ChatStatus::Parked,
         },
@@ -235,6 +236,7 @@ fn rows() -> Box<[Row]> {
                 kind: HostKind::Worker,
                 at: skein_lib::Wall::EPOCH,
                 why: HelloRefusal::Position { worker: 7 },
+                figures: None,
             })),
             expected: || ChatStatus::Tool { tool: Box::from(b"search".as_slice()), since: OBSERVED_SINCE },
         },
@@ -346,6 +348,7 @@ fn refusal_status_only_replaces_an_unplaced_starting_chat() {
         kind: HostKind::Worker,
         at: skein_lib::Wall::EPOCH,
         why: HelloRefusal::Position { worker: 7 },
+        figures: None,
     };
     let wait = TaskRunWait::Refused(cause);
     for row in &rows() {

@@ -27,6 +27,7 @@ pub struct Attribute {
     pub source: Option<Source>,
     pub description: Option<Box<[u8]>>,
     pub placeholder: Option<Box<[u8]>>,
+    pub hint: Option<Box<[u8]>>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
@@ -55,6 +56,7 @@ impl Attribute {
             source: node.source.clone(),
             description: node.description.clone(),
             placeholder: node.placeholder.clone(),
+            hint: node.hint.clone(),
             entry: node.entry,
             focus: node.focus,
             end_request: node.end_request,
@@ -286,6 +288,7 @@ fn attributes(old: &Node, new: &Node, out: &mut Queue<Patch>) {
         || old.source != new.source
         || old.description != new.description
         || old.placeholder != new.placeholder
+        || old.hint != new.hint
         || old.entry != new.entry
         || old.focus != new.focus
         || old.end_request != new.end_request

@@ -1,6 +1,7 @@
 //! One exclusive checked snapshot for final and mid-run delivery (smith/docs/design/domain/run.md,
 //! sections 8 and 10). State keeps opaque fields, durable name, caller deadline
-//! and whether this is a finishing Change. It never knows receipt encoding,
+//! and whether this is a finishing Change; a running check keeps its given span.
+//! It never knows receipt encoding,
 //! provider ids, callback identity or host delivery policy. Main's write batch
 //! waits while jobs settle, through checks and submission; children have already returned.
 //! Before submission withdrawal aborts checks. Afterwards no cancellation is
@@ -17,7 +18,7 @@ use crate::run::Run;
 use crate::workspace::{self, Directory};
 use core::mem;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Env, Id, Queue, Time, Token};
+use skein_lib::{Duration, Env, Id, Queue, Time, Token};
 
 #[derive(Debug)]
 pub(crate) struct Landing {
@@ -31,7 +32,7 @@ pub(crate) struct Landing {
 #[derive(Debug)]
 enum Stage {
     Cancelling { why: Option<Withdrawal> },
-    Checking { check: u32 },
+    Checking { check: u32, given: Duration },
     Aborting { why: Withdrawal },
     Delivering,
     Closed,
@@ -97,7 +98,7 @@ pub(crate) fn checked(
 ) -> Settled {
     let stage = mem::replace(&mut landing.stage, Stage::Closed);
     match stage {
-        Stage::Checking { check } => {
+        Stage::Checking { check, given } => {
             let passed = match ran.exit {
                 Exit::Code { code: 0 } => true,
                 Exit::Code { .. } | Exit::Signalled { .. } | Exit::TimedOut | Exit::Unstarted | Exit::Cancelled => {
@@ -110,7 +111,8 @@ pub(crate) fn checked(
             };
             if !passed && required {
                 let repository = copy_of(&repository(run, check).name);
-                back(owner, Returned::ChecksFailed { repository, ran }, Settled::Refused, out)
+                let check = copy_of(conventions::checks(&run.charter));
+                back(owner, Returned::ChecksFailed { repository, check, given, ran }, Settled::Refused, out)
             } else if env.now >= landing.deadline {
                 back(owner, Returned::TimedOut, Settled::Cancelled, out)
             } else if !may_finish {
@@ -247,7 +249,7 @@ fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits
     let program = Place { root, path: copy_of(conventions::checks(&run.charter)) };
     out.push(Request::Check { owner: id.token(), program, deadline, tail: env.limits.check_tail });
     out.push(Request::Checking { host_run: run.host_name, deadline });
-    Stage::Checking { check }
+    Stage::Checking { check, given: deadline.saturating_since(env.now) }
 }
 
 fn back(owner: Token, result: Returned, settled: Settled, out: &mut Queue<Request>) -> Settled {

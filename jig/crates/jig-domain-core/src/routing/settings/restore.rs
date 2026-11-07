@@ -181,7 +181,7 @@ fn page(
 }
 
 fn count_failure(setting: s::Setting) -> people::Refusal {
-    super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Count, detail: None })
+    super::dispatch::malformed_refusal(&[], s::Failure { setting, fault: s::Fault::Count, detail: None })
 }
 fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreEdit) -> Result<(), people::Refusal> {
     let pending = core.restoring.pending.as_mut().expect("active restore");
@@ -564,5 +564,5 @@ fn reason(revision: u32, words: &[u8], bound: u32) -> Box<[u8]> {
 }
 
 fn shape_refusal(setting: s::Setting) -> people::Refusal {
-    super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Shape, detail: None })
+    super::dispatch::malformed_refusal(&[], s::Failure { setting, fault: s::Fault::Shape, detail: None })
 }

@@ -1,13 +1,13 @@
 # model-check: status
 
-2026-11-06. Where the design lags or departs from [model-check.md](model-check.md).
+2026-11-07. Where the design lags or departs from [model-check.md](model-check.md).
 
 - **Design lags:**
   - 2, *Who pays*: `../client/README.md`, 3.5, *The try*, describes the person's cost but gives the pane no "one short message" line once the trial goes. The running line in `temper-client-view/src/pages/model_check.rs` draws "Trying: STEP" alone; the draft's spend notice is absent from both design and code.
   - 3: `../client/README.md`, 3.5: the Model step's region, named "Forge", holds the forge's line alone, and Model's line stands in Ready's pane, named "Forge and model", where 3 has the pane hold both lines from the Model step on. The request `model-check-pane` draws Ready alone.
 - **Design departs:**
   - 2, *Leaving*: `../domain/trial.md`, 3.1 and 5: leaving a page cancels nothing, but a restart cancels every live trial before any run can be claimed and restores no row. This keeps a page's departure from spending or stopping work, and meets the request that a restart spend no second turn; its cost is losing a failed trial's line. Decided by the model-check plan's cut.
-  - 2: `../domain/trial.md`, 2, 6.2 and 8: a second account's trial may answer as another account, since it names no model and must select as a new chat does. Its `took` names the account that answered; that account's row holds the line. Decided by the model-check plan's cut.
+  - 2: `../domain/trial.md`, 2 and 4: a later account's trial names its account and the charter's first model offered with it, else the first it serves, where 2 has every trial name no `llm`. The first usable account's still names none, for 2's reason, and is the one a new chat takes; a later one would otherwise answer as an earlier account, giving no proof of the account just connected (the user, 2026-11-07, the request `ui-trial-account`). Each retry judges the offer again, so it stays on the account retried even when another has since become usable. Decided by the ui-trial-account plan's cut.
   - 2: `../domain/trial.md`, 8: a deployment's accounts aren't tried, since only the accounts page watches their document and the trigger reads the person's accounts on the welcome or Connect a model. Decided by the model-check plan's cut.
   - 2, *Its end*, and 3: `../domain/trial.md`, 3.2: "first committed text" is the first committed turn, since a trial's run has no tools and the root reads turns without their bytes. Decided by the model-check plan's cut.
   - 2: `../domain/trial.md`, 6: the client starts the trial, since the engine sees no "became usable" and ctl must not spend a turn. Decided by the model-check plan's cut.

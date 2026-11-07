@@ -860,6 +860,7 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
         for worker in document["workers"].as_array_mut().expect("init workers") {
             merge_profile(worker, room["worker"].clone());
         }
+        merge_profile(&mut document["application"], room["application"].clone());
         super::write_private(&document_path, &serde_json::to_vec(&document).expect("reference document JSON"));
     }
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));

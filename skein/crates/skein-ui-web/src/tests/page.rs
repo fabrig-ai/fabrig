@@ -983,26 +983,53 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
     }
 }
 
-fn placeholder_field(builder: &mut Builder, placeholder: Option<&[u8]>) {
+#[derive(Clone, Copy)]
+enum WordsAttribute {
+    Placeholder,
+    Hint,
+}
+
+fn placeholder_or_hint_field(builder: &mut Builder, attribute: WordsAttribute, words: Option<&[u8]>) {
     builder.open(Role::TextArea);
     builder.name(b"Message");
-    if let Some(placeholder) = placeholder {
-        builder.placeholder(placeholder);
+    if let Some(words) = words {
+        match attribute {
+            WordsAttribute::Placeholder => builder.placeholder(words),
+            WordsAttribute::Hint => builder.hint(words),
+        }
     }
     builder.close();
 }
 
 #[test]
-fn setting_then_clearing_a_placeholder_updates_its_attributes() {
+fn setting_then_clearing_a_placeholder_or_hint_updates_its_attributes() {
     const FIELD: NodeId = NodeId(1); // The text area is the root.
     let (mut page, mut view) = (page(), View::new(&LIMITS));
-    page.apply(&fixtures::patches(&mut view, 0, |b| placeholder_field(b, None)), &mut Vec::new());
-    for (revision, placeholder, expected) in [
-        (1, Some(b"Hint".as_slice()), r#"<textarea data-node="1" aria-label="Message" placeholder="Hint"></textarea>"#),
-        (2, None, r#"<textarea data-node="1" aria-label="Message"></textarea>"#),
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| placeholder_or_hint_field(b, WordsAttribute::Placeholder, None)),
+        &mut Vec::new(),
+    );
+    for (revision, attribute, words, expected) in [
+        (
+            1,
+            WordsAttribute::Placeholder,
+            Some(b"Hint".as_slice()),
+            r#"<textarea data-node="1" aria-label="Message" placeholder="Hint"></textarea>"#,
+        ),
+        (2, WordsAttribute::Placeholder, None, r#"<textarea data-node="1" aria-label="Message"></textarea>"#),
+        (
+            3,
+            WordsAttribute::Hint,
+            Some(b"Hint".as_slice()),
+            r#"<textarea data-node="1" aria-label="Message" title="Hint"></textarea>"#,
+        ),
+        (4, WordsAttribute::Hint, None, r#"<textarea data-node="1" aria-label="Message"></textarea>"#),
     ] {
         let mut ops = Vec::new();
-        page.apply(&fixtures::patches(&mut view, revision, |b| placeholder_field(b, placeholder)), &mut ops);
+        page.apply(
+            &fixtures::patches(&mut view, revision, |b| placeholder_or_hint_field(b, attribute, words)),
+            &mut ops,
+        );
         assert_eq!(ops.len(), 1);
         match &ops[0] {
             Op::Attributes { node, element } => {
@@ -1024,7 +1051,7 @@ fn setting_then_clearing_a_placeholder_updates_its_attributes() {
             | Op::PutView { .. }
             | Op::Measure { .. }
             | Op::ScrollScreen { .. }
-            | Op::Component { .. } => unreachable!("only the placeholder changed"),
+            | Op::Component { .. } => unreachable!("only the placeholder or hint changed"),
         }
     }
 }

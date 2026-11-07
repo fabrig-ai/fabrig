@@ -456,11 +456,10 @@ fn accepted(
         if let Some(item) = translate(item) {
             let kind = kind_of(&core.kinds, item.kind).expect("checked kind");
             if size > kind.value_bytes || charters.len() > usize::from(kind.charters) {
-                return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
-                    setting: setting_of(&item),
-                    fault: Fault::Shape,
-                    detail: None,
-                }));
+                return Err(crate::routing::settings::dispatch::malformed_refusal(
+                    &change.items,
+                    Failure { setting: setting_of(&item), fault: Fault::Shape, detail: None },
+                ));
             }
             let revision = core.current.newest().checked_add(1).expect("revision preflighted");
             let state = match item.edit {
@@ -688,20 +687,15 @@ pub(crate) fn proposal_change(
     }
     for item in set.applications {
         let setting = Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
-        let kind =
-            kind_of(&core.kinds, item.kind).ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure {
-                setting,
-                fault: Fault::Shape,
-                detail: None,
-            }))?;
+        let refusal = people::Refusal::NotWellFormed {
+            at: items.len(),
+            why: people::Malformed::Settings { setting, fault: Fault::Shape, detail: None },
+        };
+        let Some(kind) = kind_of(&core.kinds, item.kind) else { return Err(refusal) };
         let edit = match item.edit {
             SizedEdit::Set { size } => {
                 if size > kind.value_bytes {
-                    return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
-                        setting,
-                        fault: Fault::Shape,
-                        detail: None,
-                    }));
+                    return Err(refusal);
                 }
                 super::Edit::Set(super::Value::Application(Box::default()))
             }

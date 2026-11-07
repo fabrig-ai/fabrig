@@ -146,8 +146,12 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
 #[test]
 fn refused_chat_header_shows_the_supplied_cause_and_receipt_time() {
     let mut goldens = Goldens::new("tree/cards_objects/task_contract/refused_chat_header");
-    let cause =
-        TaskWaitRefused::Hello { kind: HostKind::Worker, at: Wall::EPOCH, why: HelloRefusal::Position { worker: 7 } };
+    let cause = TaskWaitRefused::Hello {
+        kind: HostKind::Worker,
+        at: Wall::EPOCH,
+        why: HelloRefusal::Position { worker: 7 },
+        figures: None,
+    };
     let mut row = task_doc(&[]);
     row.flags.conversation = true;
     row.waits_on = WaitsOn::Nothing;

@@ -6,9 +6,9 @@
 pub struct Limits {
     pub nodes: u32,
     pub depth: u32,
-    /// Name, description, placeholder, image address, runs, field value and external target together on a node.
+    /// Name, description, placeholder, hint, image address, runs, field value and external target together on a node.
     pub text_per_node: u32,
-    /// Name, description, placeholder, image address, runs, field value and external target together across the tree.
+    /// Name, description, placeholder, hint, image address, runs, field value and external target together across the tree.
     pub text_bytes: u32,
     pub drawing_bytes: u32,
     pub styles_per_node: u32,

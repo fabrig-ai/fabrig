@@ -5,6 +5,11 @@
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
 
+Section 5.1 has no known implementation gap in serializing list reads
+with source checks and sign-outs, giving smith the grant's value below
+the hub, or cancelling a read on link loss without an answer. A read
+takes neither a slot nor a workspace.
+
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its

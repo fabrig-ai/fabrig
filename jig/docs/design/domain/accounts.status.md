@@ -6,6 +6,19 @@ Section 3.7 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
 Reports for kinds 3 to 7 remain section 7's deferred work.
 
+Section 4.3's `Core::account_llm` is present: it names the charter's
+first offered model for the account, else its first serving candidate,
+at the model's default effort. A task made with that choice keeps the
+named account and waits for it when unusable; no serving candidate
+returns no choice. The core's table covers both provider orders, a
+second account of one provider, default efforts, an unusable source
+and a key covering only a project. It uses fake providers.
+
+Section 3.7's lists have no known implementation gap in first-source
+eligibility, reads on usability, daily and explicit reads, retained good
+names after failure, or offer narrowing with stock and personal-name
+fallbacks. Restored attempt times govern the next daily read.
+
 - **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request
   `first-usable-model` of 2026-11-06 asks one. temper's stories on the stock

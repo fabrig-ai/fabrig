@@ -795,6 +795,13 @@ last commit names each page 07 change and Settings overlay rule. The render
 comparison at 1440, 1280, 1000 and 420 px and its screenshots follow landing,
 owned by temper/ui (`../draft/look-requests.md`, 4).
 
+The `chat-title` request's `chat-title/01.html` is a recorded chat with its
+heading changed by hand, not a journey to reprint or land (section 7). No
+recorded journey has a first prompt past its first sentence, so no print
+changes with it; the view's table holds the states its message names in
+words (`README.md`, 3.5, *A chat's heading is short*). temper/ui's render
+check follows landing (`../draft/look-requests.md`, 4).
+
 The `connect-flows` request’s hand-made pages 01–23 are not journeys to
 reprint or land (section 7). They draw Accounts, model connection,
 Forges, forge connection and Settings’ “Add repositories” sheet, including
@@ -806,6 +813,14 @@ plan. temper/ui compares the request with main after landing, at the
 widths and open states in `../draft/look-requests.md`, 4.
 
 ## 10. Open questions
+
+- **The chat heading's comparison** (9): temper/ui compares `chat-title`'s
+  hand-made page 01 and the request's named states against the shipped
+  view after landing, at 1440, 1000 and 420 px, including open disclosures
+  and menus (`../draft/look-requests.md`, section 4). Default: unchanged
+  journey prints and the view's short-title and heading tables; they
+  establish no rendered equality. Screenshots and findings belong to
+  that comparison.
 
 - **The Models page's comparison** (9): temper/ui compares `model-picker`'s
   hand-made page 07 with the gallery's Models states after landing, with

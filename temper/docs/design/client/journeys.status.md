@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9's `chat-title` has no known implementation gap. Its hand-made
+heading page is a request reference; no recorded journey's heading
+changes, so no recording or print needs regeneration. The account is
+commit `4283afdd91`; temper/ui's rendered comparison remains section
+10's after-landing work.
+
 Section 9 has the Models gallery states and the picker link to that
 project's Models tab. The page 07 account is commit `415e659c54`; its
 render comparison remains temper/ui's later work (section 10).
