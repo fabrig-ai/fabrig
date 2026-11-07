@@ -2768,6 +2768,12 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **Reference obligations for a goal that designs** (6.5.1): fold
+  `../draft/goal-as-designer.md`'s workflow into the reference, its charters
+  and stage one's judge together. Goal-delivery stories use test charters;
+  they do not establish the reference's roles, models, efforts or wakes.
+  Default: keep the current reference obligations until that change.
+
 - **Tests that release a port and bind it again** (2.4): the fake-backend
   test `peer_reservations_transfer_once_and_close_with_preparation` binds
   the released addresses to check closure and retained reuse. Another
