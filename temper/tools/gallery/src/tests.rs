@@ -129,7 +129,7 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
-const HOLDS: [Holds; samples::N + 11] = [
+const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "approve-typing",
         heading: "Sign in a terminal?",
@@ -192,7 +192,7 @@ const HOLDS: [Holds; samples::N + 11] = [
         name: "approve-signed-out",
         heading: "Sign in first",
         parts: &[Part::Text {
-            text: "Open the sign-in link temper printed first, then open this page’s address again: your terminal shows it.",
+            text: "This browser isn’t signed in to temper. Open the sign-in link temper printed first, then open this page’s address again: your terminal shows it.",
         }],
     },
     Holds {
