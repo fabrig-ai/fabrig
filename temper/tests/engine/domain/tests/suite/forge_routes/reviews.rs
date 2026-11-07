@@ -494,6 +494,78 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
 }
 
 #[test]
+fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
+    // temper/docs/design/domain/forge.md, 5.3: each answer reaches the read that asked.
+    let (mut world, reviewer, head) = review_read_budget(2, 0);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"other", b"base moved", 1)
+        .expect("wake the live review's change");
+    let step = hold_step_commits(&mut world);
+    let held = occupy_read_capacity(&mut world);
+    let before = world.answers.len();
+    let file = Read::File { head, path: FILE.into(), max_bytes: 1024 };
+    // The base crosses at attempt 10 (zero based); 64 sweeps past twice that attempt.
+    for attempt in 0..64 {
+        let busy = world.busy_calls;
+        ask_read(&mut world, &reviewer, 10, forge_world::REPO, file.clone());
+        for _ in 0..MAX_TICKS {
+            world.tick();
+            if world.busy_calls != busy {
+                break;
+            }
+        }
+        if world.busy_calls == busy {
+            // Release the step too, so a crossing reports both the lost Busy and its foreign answer.
+            world.send(step);
+            for _ in 0..MAX_TICKS {
+                world.tick();
+                if world.answers.len() != before {
+                    break;
+                }
+            }
+            assert_eq!(world.busy_calls, busy + 1,
+                "attempt {attempt}: the run hears its own Busy; answers: {:?}", &world.answers[before..]);
+            return;
+        }
+        assert_eq!(world.busy_calls, busy + 1, "attempt {attempt}: the run hears its own Busy");
+    }
+    assert_eq!(world.answers.len(), before, "Busy has no model-visible answer");
+    world.send(step);
+    assert!(world.pending.values().any(|op| matches!(op,
+        skein_forge::api::Op::Read(Read::Reviews { number: 1, .. }))),
+        "the change consumes its Commits and continues its own gather");
+    for event in held {
+        world.send(event);
+    }
+    let answer = read(&mut world, &reviewer, 10, forge_world::REPO, file);
+    assert!(matches!(answer, Ok(Answer::File { .. })), "the run gets its File: {answer:?}");
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert!(world.answers[before..].iter().all(|answer| matches!(answer,
+        engine::CallAnswer::ForgeRead(result) if matches!(result.as_ref(), Ok(Answer::File { .. })))),
+        "no run answer belongs to another read: {:?}", &world.answers[before..]);
+    assert_ne!(change_row(&world, requester(&world, reviewer.task)).effect,
+        temper_engine_domain_forge_change::EffectResult::Failed);
+    assert!(!matches!(live_task(&world, requester(&world, reviewer.task)).phase,
+        tasks::Phase::Held { why: tasks::Hold::ResourceUnavailable, .. }),
+        "the change has no InvalidAnswer refusal");
+}
+
+fn hold_step_commits(world: &mut World) -> engine::Event {
+    for _ in 0..500 {
+        world.tick();
+        if let Some(index) = world.events.iter().position(|event| matches!(event,
+            engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(
+                skein_forge_client::Event::Answered { result: Ok(Answer::Commits { .. }), .. }
+            ))))
+        {
+            return world.events.remove(index).expect("held step's ancestry terminal");
+        }
+    }
+    panic!("the live review's change reads containment");
+}
+
+#[test]
 fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
     let (mut world, reviewer, _) = review_read_budget(2, 0);
     let held = occupy_read_capacity(&mut world);
