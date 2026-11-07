@@ -1,13 +1,14 @@
 # forge: status
 
-2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 5.4, *A repository's link*, has no known gap in leaving an empty
 OWNER or NAME without an address, for plain and signed-in links alike.
 Unlisted sections, including public documents (11), have no known gap:
 queue merges read from the landing log as landed lines and as landings
-through their changes, filtered by jig's handed tasks. Older public
-history and omitting zero stale proofs remain deferred in section 10.
+through their changes, filtered by jig's handed tasks. A landing's zero
+stale-proof count draws nothing; a positive count remains (`browser.md`,
+8.3). Older public history remains deferred in section 10.
 
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:

@@ -29,6 +29,7 @@ fn producing() -> Domain {
 
 fn seed(saved: bool) -> items::Seed {
     items::Seed {
+        modify: false,
         task: CHILD,
         parent: Some(fixtures::CHANGE),
         repository: REPO,
