@@ -1,6 +1,7 @@
 //! Bands, bounded row buffers and the preorder walk (skein/docs/design/ui-screen.md, section 5).
 
 mod canvas;
+mod roles;
 mod words;
 
 use skein_lib::{List, Stack};
@@ -149,7 +150,7 @@ fn focus_requests(tree: &Tree, focus: &mut Focus) {
     }
     if let Some(id) = focus.node {
         let valid = match tree.find(id) {
-            Some(node) => actionable(node.role),
+            Some(node) => actionable(node.role) && tree.bound(node.id).is_some() && !tree.disabled(node.id),
             None => false,
         };
         if !valid {
@@ -256,6 +257,7 @@ struct Parent {
     region: Option<RegionLook>,
 }
 
+#[expect(clippy::too_many_lines, reason = "the preorder walk keeps region entry, role layout and region exit together")]
 fn walk(
     tree: &Tree,
     info: &List<Info>,
@@ -334,17 +336,24 @@ fn walk(
                 *next = next.saturating_add(1);
             }
         }
+        let within_item = out.within_item();
+        let description_indent = out.description_indent();
         let child_indent = node(tree, at, info, theme, focus, number, out, frame);
         match child_indent {
             Some(indent) => {
-                if n.role != Role::Item {
-                    descriptions(tree, at, at.saturating_add(1), indent, info, theme, focus, out, frame);
+                if !(n.role.is_list_item() || n.role == Role::Disclosure && n.name.is_some()) {
+                    let described_indent = if within_item { description_indent } else { indent };
+                    descriptions(tree, at, at.saturating_add(1), described_indent, info, theme, focus, out, frame);
                 }
                 let next = ordered(n);
                 parents.push(Parent { end: until, indent, next, region }).expect("parents fit nodes");
             }
             None => {
-                let indent = out.description_indent();
+                let indent = if n.role == Role::Row && roles::empty_header_row(tree, at) {
+                    out.indent()
+                } else {
+                    description_indent
+                };
                 descriptions(tree, at, until, indent, info, theme, focus, out, frame);
                 if let Some(look) = region.take() {
                     out.leave_region(look, frame);
@@ -379,6 +388,7 @@ fn title_node(tree: &Tree, at: u32, look: RegionLook) -> Option<u32> {
 }
 
 #[expect(clippy::too_many_arguments, reason = "role rendering borrows the walk's inputs")]
+#[expect(clippy::match_same_arms, reason = "the role contract keeps one arm per newly mapped role")]
 fn node(
     tree: &Tree,
     at: u32,
@@ -395,36 +405,37 @@ fn node(
     out.tag_focus(focused);
     let indent = out.indent();
     match n.role {
-        Role::Page
-        | Role::Group
-        | Role::Slot
-        | Role::Table
-        | Role::Row
-        | Role::Cell
-        | Role::ColumnHeader
-        | Role::RowHeader
-        | Role::Select
-        | Role::Option
-        | Role::Term
-        | Role::Description
-        | Role::Choice
-        | Role::ChoiceGroup
-        | Role::Check
-        | Role::Dialog
-        | Role::Log
-        | Role::Tree
-        | Role::TreeItem
-        | Role::Tabs
-        | Role::Tab
-        | Role::Progress
-        | Role::Code
-        | Role::Quote
-        | Role::Menu
-        | Role::MenuItem
-        | Role::Disclosure
-        | Role::Image
-        | Role::Figure
-        | Role::Drawing => Some(indent),
+        Role::Page | Role::Group | Role::Slot => Some(indent),
+        Role::Table => Some(indent),
+        Role::Row => {
+            roles::row(tree, at, info, theme, focused, out, frame);
+            None
+        }
+        Role::Cell => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::ColumnHeader => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::RowHeader => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Term => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Description => Some(indent.saturating_add(2)),
+        Role::Tree => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::TreeItem => Some(roles::item(tree, at, info, theme, focused, None, out, frame)),
+        Role::Menu => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::MenuItem => control(tree, at, info, theme, focus, out, frame),
+        Role::ChoiceGroup => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Choice => control(tree, at, info, theme, focus, out, frame),
+        Role::Select => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Option => control(tree, at, info, theme, focus, out, frame),
+        Role::Check => control(tree, at, info, theme, focus, out, frame),
+        Role::Tabs => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Tab => control(tree, at, info, theme, focus, out, frame),
+        Role::Log => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Progress => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Code => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Quote => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Figure => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Dialog => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Disclosure => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Drawing => Some(roles::named(tree, at, info, focused, out, frame)),
+        Role::Image => roles::line(tree, at, info, theme, focused, out, frame),
         Role::Banner
         | Role::Navigation
         | Role::Main
@@ -444,21 +455,7 @@ fn node(
                 Some(indent)
             }
         }
-        Role::Item => {
-            if let Some(number) = number {
-                out.safe(skein_lib::Decimal::of(number).as_bytes(), paint, focused, frame);
-                out.safe(b". ", paint, focused, frame);
-            } else {
-                out.safe(b"- ", paint, focused, frame);
-            }
-            out.continuation(indent.saturating_add(2));
-            if n.size == 1 {
-                content(tree, at, info, theme, focused, out, frame);
-            }
-            // A list item's first child shares its mark's line.
-            out.item_annotation(at);
-            Some(indent.saturating_add(2))
-        }
+        Role::Item => Some(roles::item(tree, at, info, theme, focused, number, out, frame)),
         Role::Heading { level } => {
             for _mark in 0..level {
                 out.safe(b"#", paint, focused, frame);
@@ -484,8 +481,7 @@ fn node(
             None
         }
         Role::Button | Role::Link | Role::TextField | Role::TextArea => {
-            control(tree, at, info, theme, focus, out, frame);
-            None
+            control(tree, at, info, theme, focus, out, frame)
         }
     }
 }
@@ -510,23 +506,28 @@ fn control(
     focus: &Focus,
     out: &mut Canvas,
     frame: &mut Frame,
-) {
+) -> Option<u16> {
     let n = tree.get(at).expect("control exists");
     let paint = info.get(at).expect("control information exists").paint;
     let focused = focus.node == Some(n.id);
     let paint = if focused { theme.focus.over(paint) } else { paint };
     out.clip_line(n.role == Role::TextField);
     out.control(focused, theme.glyphs.focus, paint, frame);
+    words::mark(n, paint, out, frame);
     content(tree, at, info, theme, focused, out, frame);
     if n.role.is_text_field() {
         out.safe(b": ", paint, focused, frame);
         out.field(n, focus, theme, paint, frame);
         words::entry(n, paint, out, frame);
     }
+    if tree.disabled(n.id) && !n.states.as_slice().contains(&skein_ui::State::Disabled) {
+        out.safe(words::DISABLED, paint, focused, frame);
+    }
     words::states(n, paint, out, frame);
     out.finish_annotated(tree, info, frame);
     out.clip_line(false);
     out.tag_focus(false);
+    None
 }
 
 fn content(
@@ -559,12 +560,12 @@ fn content(
             found = true;
             match run.run {
                 skein_ui::Run::Code => {
-                    out.safe(b"`", paint, focused, frame);
-                    out.safe(&run.text, paint, focused, frame);
-                    out.safe(b"`", paint, focused, frame);
+                    out.content(b"`", paint, focused, tree, info, frame);
+                    out.content(&run.text, paint, focused, tree, info, frame);
+                    out.content(b"`", paint, focused, tree, info, frame);
                 }
                 skein_ui::Run::Plain | skein_ui::Run::Emphasis | skein_ui::Run::Strong | skein_ui::Run::Link { .. } => {
-                    out.safe(&run.text, paint, focused, frame);
+                    out.content(&run.text, paint, focused, tree, info, frame);
                 }
             }
         }
@@ -572,12 +573,15 @@ fn content(
             external.push(index).expect("links fit nodes");
         }
     }
-    if !found && let Some(name) = &root.name {
+    if !found
+        && root.role != Role::Progress
+        && let Some(name) = &root.name
+    {
         let mut paint = info.get(at).expect("node information exists").paint;
         if focused {
             paint = theme.focus.over(paint);
         }
-        out.safe(name, paint, focused, frame);
+        out.content(name, paint, focused, tree, info, frame);
     }
     for _link in 0..external.len() {
         external_url(tree, external.pop().expect("link exists"), info, theme, focused, out, frame);
@@ -718,10 +722,23 @@ fn first_child_line(
                 *next = next.saturating_add(1);
             }
         }
+        let within_item = out.within_item();
+        let description_indent = out.description_indent();
         match node(tree, child, info, theme, focus, number, out, frame) {
             Some(indent) => {
-                if n.role != Role::Item {
-                    descriptions(tree, child, child.saturating_add(1), indent, info, theme, focus, out, frame);
+                if !(n.role.is_list_item() || n.role == Role::Disclosure && n.name.is_some()) {
+                    let described_indent = if within_item { description_indent } else { indent };
+                    descriptions(
+                        tree,
+                        child,
+                        child.saturating_add(1),
+                        described_indent,
+                        info,
+                        theme,
+                        focus,
+                        out,
+                        frame,
+                    );
                 }
                 let next = ordered(n);
                 parents
@@ -729,7 +746,11 @@ fn first_child_line(
                     .expect("ancestors fit nodes");
             }
             None => {
-                let indent = out.description_indent();
+                let indent = if n.role == Role::Row && roles::empty_header_row(tree, child) {
+                    out.indent()
+                } else {
+                    description_indent
+                };
                 descriptions(tree, child, child.saturating_add(n.size), indent, info, theme, focus, out, frame);
                 skip = child.saturating_add(n.size);
             }

@@ -1,6 +1,6 @@
 use super::fixtures::{self, LIMITS};
 use crate::{Cell, Focus, Frame, Paint, Position, Size, render};
-use skein_ui::{Builder, EntryKind, Role, Tree};
+use skein_ui::{Builder, EntryKind, Role, State, Tree};
 
 // The specification's frame sizes; the extra narrow case leaves only borders.
 const BANDS: Size = Size { columns: 40, rows: 12 };
@@ -17,6 +17,31 @@ const NO_ROWS: Size = Size { columns: 30, rows: 0 };
 const NO_COLUMNS: Size = Size { columns: 0, rows: 8 };
 // Ten cells force the area onto three rows, leaving the fourth for Tail.
 const FIELD_EDGE: Size = Size { columns: 10, rows: 4 };
+// ui-screen.md, section 9, and the task's whole-tree frame at six 24-row pages.
+const EVERY: Size = Size { columns: 80, rows: 24 };
+const EVERY_TALL: Size = Size { columns: 80, rows: 144 };
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "hand-written frames are the independent every-role oracle")]
+#[expect(clippy::disallowed_types, reason = "lossy strings make the golden's failed byte comparison readable")]
+fn every_role_state_and_property_is_laid() {
+    let tree = fixtures::every();
+    let theme = fixtures::theme();
+    let check = fixtures::selected_check(&tree);
+    for (name, size, expected) in [
+        ("every", EVERY, include_bytes!("golden/every.txt").as_slice()),
+        ("every-tall", EVERY_TALL, include_bytes!("golden/every-tall.txt").as_slice()),
+    ] {
+        // Keep the check in view in the short frame; the fixture's field request
+        // has already been honoured. The tall frame shows the same focus in context.
+        let mut focus = Focus { node: Some(check), honoured: 1, ..Focus::default() };
+        let mut frame = Frame::new(size);
+        render(&tree, &theme, size, &mut focus, &mut frame);
+        let printed = frame.print();
+        assert_eq!(String::from_utf8_lossy(&printed), String::from_utf8_lossy(expected), "{name}");
+        assert_eq!(printed.as_ref(), expected, "{name}");
+    }
+}
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "hand-written frames are the renderer's independent oracle")]
@@ -334,4 +359,72 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
     let mut frame = Frame::new(one_row);
     render(&footers, &theme, one_row, &mut Focus::default(), &mut frame);
     assert_eq!(frame.text().as_ref(), b"Last\n");
+
+    // The option uses its select's disabled state; every other control owns it.
+    let control_size = Size { columns: 40, rows: 2 };
+    for (role, state, disabled, bound, available, expected) in [
+        (Role::Choice, State::Selected, false, true, true, "> (*) Choose\n\n"),
+        (Role::Choice, State::Current, false, true, true, "> ( ) Choose (current)\n\n"),
+        (Role::Check, State::Selected, false, true, true, "> [x] Choose\n\n"),
+        (Role::Check, State::Pressed, false, true, true, "> [x] Choose\n\n"),
+        (Role::Check, State::Required, false, true, true, "> [ ] Choose (required)\n\n"),
+        (Role::Option, State::Selected, false, true, true, "Select:\n  > (*) Choose\n"),
+        (Role::Option, State::Current, false, true, true, "Select:\n  > ( ) Choose (current)\n"),
+        (Role::Tab, State::Selected, false, true, true, "> Choose (selected)\n\n"),
+        (Role::MenuItem, State::Pressed, false, true, true, "> Choose (pressed)\n\n"),
+        (Role::Check, State::Pressed, true, true, false, "  [x] Choose (disabled)\n\n"),
+        (Role::Option, State::Selected, true, true, false, "Select: (disabled)\n    (*) Choose (disabled)\n"),
+        (Role::Option, State::Selected, false, false, false, "Select:\n    (*) Choose\n"),
+    ] {
+        let tree = fixtures::role_control(role, state, disabled, bound);
+        let id = fixtures::id(&tree, b"Choose");
+        let mut focus = Focus { node: Some(id), ..Focus::default() };
+        let mut frame = Frame::new(control_size);
+        render(&tree, &theme, control_size, &mut focus, &mut frame);
+        assert_eq!(focus.node, available.then_some(id), "{role:?} {state:?} disabled={disabled} bound={bound}");
+        assert_eq!(frame.text().as_ref(), expected.as_bytes(), "{role:?} {state:?} disabled={disabled} bound={bound}");
+        assert_eq!(frame.cursor(), None, "non-field controls have no caret");
+        let text_column = if role == Role::Option { 4 } else { 2 };
+        let text_row = u16::from(role == Role::Option);
+        let cell = frame.row(text_row).expect("control row exists").get(text_column).expect("mark or name exists");
+        assert_eq!(cell.paint.reverse, available, "the focused mark and text take the focus paint");
+    }
+
+    // Rows name semantic edges; sizes expose each complete layout with no padding rows.
+    for (name, tree, size, expected) in [
+        (
+            "disclosure descriptions",
+            fixtures::disclosures(),
+            Size { columns: 20, rows: 5 },
+            "unnamed description\nchild\nMore? first\n  next (expanded)\n  child\n",
+        ),
+        (
+            "empty headers and data, outside headers",
+            fixtures::table_edges(),
+            Size { columns: 40, rows: 8 },
+            "table\nheader row\nempty header\n |\ndata (selected) (2 of 9)\ncontinued\nSorted (descending)\noutside row\n",
+        ),
+        (
+            "row wraps at its room",
+            fixtures::wrapped_row(),
+            Size { columns: 20, rows: 2 },
+            "alpha beta gamma\ndelta | epsilon\n",
+        ),
+        (
+            "code cuts, quote marks repeat, progress and unnamed fallback",
+            fixtures::blocks(),
+            Size { columns: 12, rows: 7 },
+            "    12345678\n    abcdefg\n    ok\n> one\n> two\nWork:\nfallback\n",
+        ),
+        (
+            "whole log, menu, nested tree positions and first-line states",
+            fixtures::log_menu_tree(),
+            Size { columns: 40, rows: 11 },
+            "Log:\n  oldest\n  newest\nMenu:\n    Run\n- branch (expanded) (2 of 3)\n  continued\n  item description\n  - inner (1)\n- Details: (expanded) (3 of 3)\n    detail\n",
+        ),
+    ] {
+        let mut frame = Frame::new(size);
+        render(&tree, &theme, size, &mut Focus::default(), &mut frame);
+        assert_eq!(frame.text().as_ref(), expected.as_bytes(), "{name}");
+    }
 }
