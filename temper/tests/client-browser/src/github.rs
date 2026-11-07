@@ -12,9 +12,9 @@ const CONNECTIONS: u32 = 1 + 1 + 2;
 // The forge's Full and Contents tokens, plus two desktop pages and one phone page.
 const INSTALLATION_TOKENS: u32 = 2 + 2 + 1;
 // Browser navigation (3), connect/conversion (4), reconcile/accept (5),
-// forge token/identity reads (4), two picker pages (4), and adoption's seven read stages.
+// forge token/identity reads (4), three picker pages (6), and adoption's seven read stages.
 // Each adoption stage may use two HTTP requests (metadata/protection or pagination).
-const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 4 + 2 * 7;
+const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 6 + 2 * 7;
 const SEED: u64 = 23;
 const ACCOUNT: u64 = 10;
 const BOT: u64 = 11;
@@ -65,8 +65,7 @@ pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u3
 
 fn observation_bytes(http: &skein_http::server::Limits) -> u32 {
     // Each retained head owns at most its wire-head bytes and its Header array.
-    http
-        .head
+    http.head
         .checked_add(
             http.headers
                 .checked_mul(u32::try_from(core::mem::size_of::<skein_http::Header>()).expect("header size"))

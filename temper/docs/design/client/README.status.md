@@ -57,7 +57,8 @@ work; no new real-model or phone press outcome is supplied.
 - **Not yet:** 4.4, 5.2: temper/ui’s after-landing render check of
   `connect-flows` pages 01–23, open disclosures and menus at 1440, 1000
   and 420 px, and screenshots also at 1280 px (`../draft/look-requests.md`,
-  4). The browser sheet stories are compiled within the plan, not run.
+  4). The browser sheet story covers scrolling, search, adoption and phone
+  geometry on the fake forge (`browser.md`, 4.6).
   Home’s own sheet and the two unmocked entry paths remain as described in
   `../draft/repository-copies.status.md`, 9; they are not new drawings.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
