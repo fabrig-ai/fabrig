@@ -214,10 +214,13 @@ pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal>;
   before one (the print's link); `None` for the mark key's and the end.
 - `Stale.recorded` and `asked` are lines as the file writes them; only
   the reprint, whose recordings passed the scan, prints them.
-- `run::Settings` gains `pub record: bool` (`tui-record`): true has the
-  run make a `Recorder` at `Start` and save to `recording` in its
-  directory (`tui/journeys.md`, 3.1); `temper`'s `tui.rs` sets it to
-  `cfg!(feature = "record")`.
+- `run::Settings` gains `pub record: Option<skein_io::kernel::Fd>`
+  (`tui-record`): a root the binary opens on the TUI's directory's
+  parent for the recording alone (the native shell keeps its own), so
+  that the run makes a `Recorder` at `Start` and stores `tui/recording`
+  through a skein-io file layer of its own (`tui/journeys.md`, 3.1).
+  `temper`'s `tui.rs` opens it only `#[cfg(feature = "record")]`, and
+  gives `None` otherwise.
 
 ## 7. The TUI's redaction and scan (`journey`), task `tui-redact`
 
