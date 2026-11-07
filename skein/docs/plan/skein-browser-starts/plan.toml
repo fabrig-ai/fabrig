@@ -22,8 +22,22 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui-web.md, 14.2"
 
+[[part]]
+id = "kit-facts"
+title = "One Chromium holds the kit's facts, and the page part's stories share a run"
+mode = "direct"
+needs = ["in-turn"]
+design = "skein/docs/design/browser.md, 9"
+
+[[part]]
+id = "example-tier"
+title = "The example's stories share a start, and the tab's press looks first"
+mode = "direct"
+needs = ["in-turn"]
+design = "skein/docs/design/ui-web.md, 14.3"
+
 [[slice]]
 id = 1
 story = "skein's browser tier starts one Chromium where many stories can share it, and holds only what a browser shows"
-parts = ["in-turn", "harness-world"]
+parts = ["in-turn", "harness-world", "kit-facts", "example-tier"]
 walk = false
