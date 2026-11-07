@@ -67,10 +67,13 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
     member.models = List::uncapped();
     member.models.push(model("claude-opus-5-5", 17, "Opus 5.5")).unwrap();
     let mut sonnet = model("claude-sonnet-5-5", 17, "Sonnet 5.5");
+    sonnet.number = 2;
     sonnet.picker = false;
     member.models.push(sonnet).unwrap();
     if openai {
-        member.models.push(model("gpt-6.1-sol", 18, "GPT-6.1 Sol")).unwrap();
+        let mut sol = model("gpt-6.1-sol", 18, "GPT-6.1 Sol");
+        sol.number = 4;
+        member.models.push(sol).unwrap();
     }
     member.defaults = List::from_boxed(Box::new([
         c::MeDefault {
@@ -180,7 +183,6 @@ fn a_row_says_name_effort_and_the_default() {
             ]
         };
         assert_eq!(words, expected);
-        assert!(rows.iter().flat_map(|n| subtree(tree, n)).all(|n| n.role != Role::Check && n.binding.is_none()));
         let id = named(tree, "Configure temper.").id;
         assert_eq!(crate::href(&mut view, id).unwrap().as_ref(), b"/projects/1/settings/configure");
     }
@@ -309,5 +311,96 @@ fn each_section_says_what_pays() {
             main(view.tree()).iter().filter(|n| n.name.as_deref() == Some(b"These come with temper.")).count(),
             2
         );
+    }
+}
+
+#[test]
+fn an_owner_has_the_switch_and_a_member_the_word() {
+    let (mut root, watch, _) = fixture(true);
+    for role in [Some(c::HeldRole::Owner), Some(c::HeldRole::Policy { role: 1 }), None] {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.deployment_role = role;
+        change_me(&mut root, watch, me);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            assert_eq!(skein_ui::outline::check(tree), None);
+            let checks: Vec<_> = main(tree).iter().filter(|n| n.role == Role::Check).collect();
+            if role == Some(c::HeldRole::Owner) {
+                assert_eq!(checks.len(), 3);
+                let switch = named(tree, "Opus 5.5 in the picker");
+                assert!(switch.styles.as_slice().contains(&look::SETTINGS_SWITCH));
+                assert!(switch.states.as_slice().contains(&State::Pressed));
+                assert!(!named(tree, "Sonnet 5.5 in the picker").states.as_slice().contains(&State::Pressed));
+                let id = switch.id;
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Toggle),
+                    Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Picker {
+                        number: 1,
+                        on: false
+                    })))
+                );
+            } else {
+                assert!(checks.is_empty());
+            }
+            named(view.tree(), "On");
+            named(view.tree(), "Off");
+        }
+    }
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.deployment_role = Some(c::HeldRole::Owner);
+    change_me(&mut root, watch, me);
+    f::root_event(
+        &mut root,
+        d::Event::Act {
+            action: d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Picker { number: 1, on: false })),
+        },
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let switch = named(view.tree(), "Opus 5.5 in the picker");
+        assert!(switch.states.as_slice().contains(&State::Pressed));
+        assert!(switch.states.as_slice().contains(&State::Disabled));
+    }
+}
+
+#[test]
+fn a_row_says_where_it_came_from() {
+    let (mut root, watch, _) = fixture(true);
+    for (source, estimated, suffix) in [
+        (c::ModelSource::Person, true, " · added by you · estimated prices"),
+        (c::ModelSource::Person, false, " · added by you"),
+        (c::ModelSource::List, true, " · estimated prices"),
+        (c::ModelSource::Stock, false, ""),
+    ] {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
+        model.source = source;
+        model.estimated = estimated;
+        change_me(&mut root, watch, me);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            named(view.tree(), &["claude-opus-5-5 · high · the default", suffix].concat());
+        }
+    }
+}
+#[test]
+fn left_out_says_how_many() {
+    let (mut root, watch, _) = fixture(true);
+    for count in [3, 0] {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.projects.get_mut(0).unwrap().left_out = count;
+        change_me(&mut root, watch, me);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let facts: Vec<_> =
+                main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_FACTS)).collect();
+            let text = facts
+                .iter()
+                .map(|n| String::from_utf8(f::nodes_text(subtree(view.tree(), n)).into_vec()).unwrap())
+                .collect::<Vec<_>>();
+            let omitted: Vec<_> = text.iter().filter(|s| s.contains("more models")).map(String::as_str).collect();
+            if count == 0 {
+                assert!(omitted.is_empty());
+            } else {
+                assert_eq!(omitted.as_slice(), ["3 more models don't fit the catalogue."]);
+            }
+        }
     }
 }

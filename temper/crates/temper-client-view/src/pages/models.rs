@@ -9,10 +9,10 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::List;
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
-    pages::{Act, accounts, choice},
+    pages::{Act, accounts, choice, models},
 };
 
 pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
@@ -42,6 +42,14 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
                 }
             }
             section(b, root, w, bindings, provider, offered.as_slice(), default);
+        }
+        for member in &me.projects {
+            if member.project == project && member.left_out != 0 {
+                b.open(Role::Paragraph);
+                b.style(look::SETTINGS_FACTS);
+                w.text(b, Word::ModelsLeftOut, &[Hole::Number(u64::from(member.left_out))]);
+                b.close();
+            }
         }
         ask(b, w, bindings, project);
         b.close();
@@ -86,7 +94,7 @@ fn section(
         b.close();
         b.close();
         for model in models {
-            row(b, w, model, default == Some(model.name.bytes()));
+            row(b, root, w, bindings, model, default == Some(model.name.bytes()));
         }
     }
     b.close();
@@ -125,7 +133,7 @@ fn pays(root: &Domain, provider: u32, w: &Words) -> Box<[u8]> {
     clauses
 }
 
-fn row(b: &mut Builder, w: &Words, model: &c::MeModel, is_default: bool) {
+fn row(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, model: &c::MeModel, is_default: bool) {
     let terminal = w.shell == Shell::Terminal;
     b.open(if terminal { Role::Paragraph } else { Role::Slot });
     b.style(look::SETTINGS_SETTING);
@@ -147,6 +155,13 @@ fn row(b: &mut Builder, w: &Words, model: &c::MeModel, is_default: bool) {
     if is_default {
         detail = join(&[&detail, &w.say(Word::ModelsDefault, &[])]);
     }
+    match model.source {
+        c::ModelSource::Person => detail = join(&[&detail, &w.say(Word::ModelsAdded, &[])]),
+        c::ModelSource::Stock | c::ModelSource::List => {}
+    }
+    if model.estimated {
+        detail = join(&[&detail, &w.say(Word::ModelsEstimated, &[])]);
+    }
     b.open(Role::Text);
     b.style(look::SETTINGS_DETAIL);
     b.name(&detail);
@@ -159,7 +174,28 @@ fn row(b: &mut Builder, w: &Words, model: &c::MeModel, is_default: bool) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_TOGGLE_ROW);
     crate::cards::text(b, Role::Text, &w.say(if model.picker { Word::SettingsOn } else { Word::SettingsOff }, &[]));
+    if let Some(me) = root.pages().me(root.client())
+        && me.deployment_role == Some(c::HeldRole::Owner)
+    {
+        b.open(Role::Check);
+        b.name(&w.say(Word::ModelsPicker, &[Hole::Name(shown.into())]));
+        b.style(look::SETTINGS_SWITCH);
+        b.bind(bindings.insert(Act::Models(models::Act::Picker { number: model.number, on: !model.picker })));
+        if model.picker {
+            b.state(State::Pressed);
+        }
+        if root.pages().models().pending(model.number) {
+            b.state(State::Disabled);
+        }
+        b.close();
+    }
     b.close();
+    if let Some(outcome) = root.pages().models().refused_at(model.number) {
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_REFUSAL);
+        crate::confirm::outcome_words(b, w, outcome);
+        b.close();
+    }
     b.close();
 }
 

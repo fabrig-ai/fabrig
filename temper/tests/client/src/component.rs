@@ -85,33 +85,37 @@ impl Composition {
             providers: list([0]),
             seed: Secret::new(Box::new([7; 32])),
             stream: 31,
-            models: configuration
-                .core
-                .settings
-                .models
-                .iter()
-                .map(|model| clients::Model {
-                    number: 1,
-                    source: jig_domain_core::settings::ModelSource::Stock,
-                    estimated: false,
-                    effort: model.default_effort().map(skein_lib::bytes::copy_of),
-                    shown: None,
-                    picker: true,
-                    name: model.name.clone(),
-                    provider: None,
-                    window: model.window,
-                    output: model.output,
-                    efforts: model.efforts.clone(),
-                    prices: clients::Prices {
-                        input: model.input_price,
-                        cached: model.cached_price,
-                        cache_write: model.cache_write_price,
-                        output: model.output_price,
-                        unit: model.price_unit,
-                    },
-                    description: None,
-                })
-                .collect(),
+            models: if configuration.core.defaults.models.is_empty() {
+                configuration
+                    .core
+                    .settings
+                    .models
+                    .iter()
+                    .map(|model| clients::Model {
+                        number: 1,
+                        source: jig_domain_core::settings::ModelSource::Stock,
+                        estimated: false,
+                        effort: model.default_effort().map(skein_lib::bytes::copy_of),
+                        shown: None,
+                        picker: true,
+                        name: model.name.clone(),
+                        provider: None,
+                        window: model.window,
+                        output: model.output,
+                        efforts: model.efforts.clone(),
+                        prices: clients::Prices {
+                            input: model.input_price,
+                            cached: model.cached_price,
+                            cache_write: model.cache_write_price,
+                            output: model.output_price,
+                            unit: model.price_unit,
+                        },
+                        description: None,
+                    })
+                    .collect()
+            } else {
+                clients::translate::llm::catalogue(&configuration.core.defaults.models)
+            },
             key_bytes: configuration.core.settings.key_bytes,
             redirect_bytes: configuration.core.settings.redirect_bytes,
             moved_bytes: u64::from(configuration.core.settings.key_bytes).max(70000),
