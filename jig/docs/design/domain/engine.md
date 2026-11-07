@@ -2504,6 +2504,12 @@ adds no slot (decided 2026-11-03).
   each pending proposal of settings made against an older one, as no
   longer applying (tasks.md, section 9), and its proposer hears so; a
   fresh proposal names the newest.
+- **A run's fresh one replaces its own.** A run whose task's proposal of
+  settings waits may propose settings again: admitted, it withdraws the
+  one that waits in the same commit, whose set goes as any withdrawn
+  set does (tasks.md, section 9). Refused, by a stale revision, a bad
+  item or a full bound, it changes nothing. A party's proposal is not
+  replaced.
 - **Reviewed against its own revision.** A pending proposal is always
   against the newest, the stale ones withdrawn, so the core serves its
   review from the current settings: for each item, the setting, what
