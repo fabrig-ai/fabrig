@@ -99,10 +99,6 @@ establish no rendered equality.
   menu also has no mousemove selection handler, so hovering an option
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
-- **Not yet:** 2.5, *A chat's terminal*, *The draft beside it*
-  (`look-round-17`, `chat-terminal-draft`): the pane keeps the shell's
-  `scrollbar-gutter: stable both-edges` and the browser's own scrollbar width,
-  so its text is 20 px narrower and 15 px further right at 1440 and 1000.
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples

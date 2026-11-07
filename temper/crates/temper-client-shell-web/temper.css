@@ -1672,6 +1672,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
   --gf-mono: 'IBM Plex Mono', ui-monospace, monospace;
   border-left: 1px solid var(--line); padding: 36px 44px 72px; background: var(--doc-bg); color: var(--doc-ink);
   font: 400 15.5px/1.7 var(--gf-sans); font-variant-ligatures: normal; scrollbar-color: var(--doc-line) transparent;
+  scrollbar-width: thin; scrollbar-gutter: auto;
 }
 #app > .temper-session.temper-terminal-light > .temper-doc {
   --doc-bg: #f8f6f1; --doc-ink: #34312c; --doc-title: #26241f; --doc-muted: #7a736a; --doc-faint: #a09889; --doc-line: #e9e4db;
