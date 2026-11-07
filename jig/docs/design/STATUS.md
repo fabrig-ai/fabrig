@@ -20,7 +20,13 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 between hosts and contained process trees for workers' agents are not
 built (the protocol documents). The reference test service still aborts
 workers without first cancelling their runs; temper's service implements
-that ordering (`protocol/service.md`, section 10). The store's retention,
+that ordering (`protocol/service.md`, section 10). An orderly engine stop
+settles its in-process agent claims as interrupted before draining,
+keeping their committed work and spending no try; crash recovery still
+settles claims as lost or not started (`domain/engine.md`, sections 6
+and 6.1; `domain/tasks.md`, 5.2). A worker stopped in another process
+still spends an agent try on its Shutdown cancel; changing that remains
+deferred (`protocol/service.md`, section 9). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
 `protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of

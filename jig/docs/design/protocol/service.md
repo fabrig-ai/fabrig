@@ -227,9 +227,9 @@ down:  released and door outputs → components → io submissions
   1. **The listeners stop admitting:** workers' openings refused as
      stopping, clients' requests answered not ready.
   2. **The core hears that the engine is stopping,** settles the claims
-     of its runs in this process as interrupted, spending no try, in one
-     decision, and from then on takes nothing that would make a commit,
-     and ends every watch saying so (`../domain/engine.md`, 6.1).
+     of its agent runs in this process as interrupted, spending no try,
+     in one decision, and from then on takes nothing that would make a
+     commit, and ends every watch saying so (`../domain/engine.md`, 6.1).
   3. **What is in flight finishes:** the commits made before are answered,
      and their held outputs released, until nothing waits for a commit,
      which the core says.
@@ -250,10 +250,12 @@ down:  released and door outputs → components → io submissions
 
   A second signal turns the drain into an abort: what is in flight is
   dropped, which a restart recovers from, as from a crash.
-- **Runs in the engine** die with it: a drain has settled their claims as
-  interrupted (step 2); after a crash the next start settles them
-  (`../domain/engine.md`, section 6). Runs on workers go on for the
-  engine's grace and are adopted when their workers dial in again.
+- **Runs in the engine** die with it: a drain has settled its agent
+  claims as interrupted (step 2), leaving job claims for the next start
+  to settle, since their effects may have happened. After a crash the
+  next start settles both (`../domain/engine.md`, section 6). Runs on
+  workers in other processes go on for the engine's grace and are
+  adopted when their workers dial in again.
 
 ## 6. A worker's service
 
@@ -444,6 +446,12 @@ Each within jig's suites' budgets.
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
+- **A worker stopping in another process** (section 6): its Shutdown
+  cancel reaches the running engine, where an agent's cancelled answer
+  counts as `Failed(Agent)` and spends an agent try. Whether an orderly
+  worker restart should instead interrupt that attempt is left for
+  workers apart. Default: the no-try interruption applies only when
+  the engine stops its own in-process agent claims (section 5).
 - **Programs after a forced agent stop** (section 10): a second signal
   kills an agent's group, leaving a program in its own group outside the
   kill. Contained trees (README.md, section 10) must cover both, including
