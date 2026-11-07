@@ -3192,6 +3192,7 @@ version = "0.0.0"
 dependencies = [
  "skein-json",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]

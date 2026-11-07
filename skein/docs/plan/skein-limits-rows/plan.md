@@ -62,7 +62,155 @@ To be filled by the task.
 
 ### rows-forge
 
-To be filled by the task.
+Counts are from before and after nextest package listings. Tables and rows
+count these folds, including labelled inner cases; retained tables are not
+recounted. Floor saved uses the request's 1.9 ms setup and 1.7 ms forge floors.
+
+| Binary | Module | Tests before | Tests after | Tables | Rows | Floor saved, ms |
+|---|---|---:|---:|---:|---:|---:|
+| `skein-forge-setup` | `github::key` | 1 | 1 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `host` | 51 | 43 | 5 | 17 | 15.2 |
+| `skein-forge-setup` | `tests::adopt` | 19 | 19 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::call` | 4 | 4 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::check` | 16 | 13 | 3 | 9 | 5.7 |
+| `skein-forge-setup` | `tests::copy` | 12 | 12 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::create` | 4 | 4 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::create_bounds` | 16 | 10 | 2 | 8 | 11.4 |
+| `skein-forge-setup` | `tests::create_file` | 2 | 2 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::create_repository` | 4 | 4 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_accept` | 6 | 6 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_checks` | 3 | 3 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_convert` | 13 | 13 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_given` | 11 | 10 | 1 | 2 | 1.9 |
+| `skein-forge-setup` | `tests::github_hook` | 10 | 7 | 1 | 15 | 5.7 |
+| `skein-forge-setup` | `tests::github_install` | 2 | 2 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_installations` | 23 | 22 | 1 | 12 | 1.9 |
+| `skein-forge-setup` | `tests::github_manifest` | 9 | 8 | 1 | 6 | 1.9 |
+| `skein-forge-setup` | `tests::github_paste` | 11 | 11 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::github_picker` | 23 | 22 | 1 | 2 | 1.9 |
+| `skein-forge-setup` | `tests::github_reconcile` | 24 | 14 | 1 | 11 | 19.0 |
+| `skein-forge-setup` | `tests::github_send` | 19 | 19 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::given` | 24 | 20 | 3 | 7 | 7.6 |
+| `skein-forge-setup` | `tests::hooks` | 24 | 23 | 1 | 2 | 1.9 |
+| `skein-forge-setup` | `tests::host` | 94 | 76 | 9 | 54 | 34.2 |
+| `skein-forge-setup` | `tests::item` | 13 | 13 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::limits` | 5 | 5 | 0 | 0 | 0.0 |
+| `skein-forge-setup` | `tests::reachable` | 38 | 25 | 13 | 98 | 24.7 |
+| `skein-forge-setup` | `tests::reconcile` | 30 | 25 | 5 | 18 | 9.5 |
+| `skein-forge-setup` | `tests::steps` | 21 | 18 | 2 | 25 | 5.7 |
+| `skein-forge-setup` | `tests::take_over` | 20 | 18 | 2 | 4 | 3.8 |
+| `skein-forge` | `forgejo` | 247 | 219 | 24 | 81 | 47.6 |
+| `skein-forge` | `github` | 231 | 227 | 4 | 25 | 6.8 |
+| `skein-forge` | `tests` | 32 | 20 | 3 | 34 | 20.4 |
+
+All 49 listed setup groups and 30 listed forge groups fold. Two additional
+setup folds join GitHub hook failure diagnostics and timing relation bounds;
+a further forge fold joins GitHub App name and collection bounds. Setup
+replaces 131 tests with 51 tables holding 290 rows, saving 80 processes
+(152.0 ms by its floor). Forge replaces 75 tests with 31 tables holding
+140 rows, saving 44 processes (74.8 ms by its floor).
+
+Every removed name remains a row label: 206 removed, 206 found. The explicit
+out-of-order picker table keeps all 32 invalid pairs: 20 admin-path pairs
+and 12 connected-path pairs, before and after. The host settings table
+keeps its 13 existing cases and 11 further refusal cases. The halted-plan
+table keeps all 23 phases, including seven hook phases.
+
+The shared bodies preserve every assertion. Checks that also hold for all
+rows are extended to them: stored identity completion, raw-file targets
+and decoder absence, owner-wait completion and late answers, and zero
+listing-row admission. Invalid etags carry their expected retained header
+bytes separately: an empty etag is retained internally but is not a usable
+validator. App bounds retain both the decoder result and error classification.
+
+Left apart:
+
+- `github::key`, 1 test: private-key framing has its own grammar checks.
+- `host`, 38 tests: connection abort and capacity, callback state bindings,
+  state allocation ceilings, runtime removal and GitHub lifecycle contracts
+  have different assertions; process-local meters remain separate.
+- `tests::host`, 67 tests: retries, redaction, shutdown, admission, runtime
+  changes and bounds have distinct sequences or additional invariants;
+  the eight runtime tests and four TLS fixture readers stay separate.
+- `tests::reachable`, 12 tests: token-selection sequences, retained-token
+  checks, dropped-row pagination and diagnostic redaction have different
+  assertions or are existing tables.
+- `tests::adopt`, 19 tests: admin, repository, permission, collaborator,
+  routing, redaction and terminal-phase checks have separate contracts.
+- `tests::call`, 4 tests: dialect pairing, authentication ownership and
+  diagnostic redaction inspect different types and invariants.
+- `tests::check`, 10 tests: token order, matching identity, user admission,
+  reply failures and terminal phases have different checks or existing tables.
+- `tests::copy`, 12 tests: migration, markers, organization and file
+  transitions, admission and host integration have different sequences.
+- `tests::create`, 4 tests: creation races, empty-file completion, halt
+  and the initial owner request have different assertions.
+- `tests::create_bounds`, 8 tests: path/name grammar, decoder limits,
+  namespace rules and zero limits are existing tables; the heap meter
+  remains a process of its own.
+- `tests::create_file`, 2 tests, and `tests::create_repository`, 4 tests:
+  HTTP refusals, successful documents, malformed replies and transport loss
+  have different checks.
+- `tests::github_accept`, 6 tests: accepted-set ordering, persistence,
+  capacity, installation validation and terminal phases are separate contracts.
+- `tests::github_checks`, 3 tests: missing grants, access strength and
+  extra names each have their own assertions and existing rows.
+- `tests::github_convert`, 13 tests: PEM bounds, identity, persistence,
+  failures, admission, halt and redaction use different checks.
+- `tests::github_given`, 9 tests: grammar, origins, URL bounds, limit
+  precedence, state lifetime and redaction have different assertions.
+- `tests::github_hook`, 6 tests: repair permission, URL generation, child
+  forwarding, unasked events and redaction each show another contract.
+- `tests::github_install`, 2 tests: state-link completion and refusal
+  paths have different checks and existing rows.
+- `tests::github_installations`, 21 tests: listing order, accepted-set
+  pruning, age/capacity rules, wrong replies, persistence and end states
+  each carry different assertions or existing tables.
+- `tests::github_manifest`, 7 tests: JSON, target/state admission,
+  grammar and terminal diagnostics have separate checks or existing rows.
+- `tests::github_paste`, 11 tests: PEM, app/bot identity, item persistence,
+  hook repair, failures and terminal redaction have different sequences.
+- `tests::github_picker`, 21 tests: accepted installations, minting,
+  listing validation, token release and end states have different checks.
+- `tests::github_reconcile`, 13 tests: app/hook/install sequences,
+  persistence, matching reconciliation and diagnostics have different checks.
+- `tests::github_send`, 19 tests: authentication, signing, HTTP transport,
+  timeout and redaction assertions differ across their exchange states.
+- `tests::given`, 17 tests: names, ownership, ordering, duplicate ids,
+  precedence and constructor admission have distinct checks or existing rows.
+- `tests::hooks`, 22 tests: secret creation, hook selection, pagination,
+  patching, redaction and end states have different sequences or existing tables.
+- `tests::item`, 13 tests: each item has its own decoding, encoding,
+  byte grammar, bound and diagnostic checks, many already tables.
+- `tests::limits`, 5 tests: relation admission, pair diagnostics and
+  precedence are different rules; existing tables remain.
+- `tests::reconcile`, 20 tests: bot creation, identity and permission
+  checks, organization/repository work, reply failures and redaction
+  have different assertions or existing tables.
+- `tests::steps`, 16 tests: reconciliation, access, hooks, terminal
+  machines and unasked events have different sequences and checks.
+- `tests::take_over`, 16 tests: admin checks, pagination, repeat deletion,
+  token redaction and terminal states have separate checks or existing rows.
+- `skein-forge::tests`, 17 tests: locate, marker, cache, vocabulary,
+  credential and validator contracts have different assertions or existing rows.
+- `forgejo`, 195 tests: wire grammars, routing, streamed decoding, plan
+  calls, exchanges, recovery and bounds have different assertions, many
+  already tables; the moved repository UTF8 row and removed-file spellings
+  are retained in the shared tables.
+- `github`, 223 tests: request/document contracts, delivery, App facts,
+  pull/check/job resolution, pagination, writes, replay and redaction
+  have different sequences, fields or additional assertions, many already tables.
+
+One table for every changed test file is checked by deliberately wrong
+expectations; the UTF8 table also checks its row moved from repositories.
+Each mutation reports at least two failed row names in one run, then the
+restored table passes. No listed group is left apart.
+
+The focused package run passes all 472 setup tests and 466 forge tests.
+With one process at a time, all 82 folded tables take 6–19 ms on their
+PASS lines, within the 40 ms guide. The 24-case host settings table takes
+14 ms, the eleven-phase secret-release table 14 ms and the 23-phase
+halted-plan table 7 ms.
 
 ### rows-codec
 
