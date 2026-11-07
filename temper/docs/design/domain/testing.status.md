@@ -299,5 +299,3 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   sitting kills the box; and a `stat` of the record's path disarms it,
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
-- **Not yet:** 6.3: the TUI's host does not run in the joint world: its front carries no
-  linked root's exchanges, and its component makes no printed link (`tests/client/src/component.rs`).
