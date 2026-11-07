@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/look-round-15/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/crates/temper-client-view/src/pages/chat.rs", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "node-hint"
+title = "skein-ui gains a node's hint, which the web shell shows on hover as title"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 3.2"
+
+[[part]]
+id = "chat-title"
+title = "A chat's heading shows its title's first sentence or line, cut on a word past 72 characters, whole on hover"
+mode = "direct"
+needs = ["node-hint"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A chat with a long first prompt shows its first sentence in the bar, cut on a word past 72 characters, the whole prompt on hover and in its name, and the bar's controls keep its row"
+parts = ["node-hint", "chat-title"]
+walk = false

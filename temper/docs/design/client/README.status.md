@@ -155,6 +155,8 @@ checks remain section 11's deferred work, with no outcome supplied here.
   refusal in the domain (`a_refused_message_to_a_paused_chat_stays_in_the_composer_s_refusal`) and by jig's all-or-none:
   no world moves a hold's revision between the read and the send. "Paused" on Home is seen by reading: the view's tests
   draw it on a Chats row (`a_paused_chat_s_row_says_paused`) and none on Home.
+- **Not yet:** 3.5, *A chat's heading is short*: the view shows a chat's title whole, with no hint, and the crumbs
+  don't yield to the bar's right part (`look-round-15`, `chat-title`).
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
   alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.

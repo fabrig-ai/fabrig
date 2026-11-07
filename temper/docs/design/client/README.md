@@ -397,9 +397,9 @@ keeps (`../protocol/configuration.md`, section 2).
   chat's path is "PROJECT / Chats /", "‹" on a phone a
   link to `Chats`; a configuring chat's is still through `Settings`, the
   rail current on Settings.
-- **A chat's bar** holds its path, its level-1 heading "TN · TITLE", the
-  chat's task number and its title (a chat's first message), of which a
-  browser shows the title, and at its right, in this order:
+- **A chat's bar** holds its path, its level-1 heading named "TN · TITLE", the
+  chat's task number and its title (a chat's first message, whole), and at its
+  right, in this order:
   1. *Its number:* "T4", the same pixels as the mock's `.byline`. The browser
      alone draws it, as the terminal's heading says it; on a phone it goes.
      The model and effort are the composer's, and the account leaves the bar
@@ -422,6 +422,33 @@ keeps (`../protocol/configuration.md`, section 2).
   After the number, once a chat has a document, its mode group; with none,
   "+ Draft"; then "Start goal…" or its goal's link; on a configuring chat
   "Start over" (*A chat's document,* below).
+- **A chat's heading is short** (the request `chat-title`): it shows its
+  title's short form, which a browser draws alone and the terminal after
+  "TN · ". The short form is worked out in the view, in one function
+  (`pages/chat.rs`):
+  - *its words:* the title from its first character that isn't white space
+    (a space, a tab, a carriage return or a line feed), up to its first line
+    feed or through its first sentence's end, whichever comes first, with the
+    white space at its end dropped. A sentence ends at a `.`, `!` or `?`
+    followed by white space or by the title's end, so a `.` inside a word
+    ("3.5", "lib.rs") ends none;
+  - *its length:* at most 72 characters, counted as Unicode scalar values.
+    Past that, it is cut on a word: the words before the last space or tab
+    within its first 72 characters, with any `,`, `;`, `:` and white space at
+    their end dropped, then "…", so that the heading is at most 72 characters.
+    Where that leaves no words, a first word of more than 71 characters, it is
+    cut within it after its 71st character;
+  - *the whole title* stays in the heading's name, "TN · TITLE", and where
+    the short form isn't the whole title it is the heading's hint as well,
+    which a browser shows on hover (`skein/docs/design/ui.md`, 3.2); a title
+    shown whole has no hint. The person's message, the task card and the stored title keep it
+    whole. Only a chat's heading is short: an agent's page keeps "TN ·
+    TITLE" whole.
+
+  The path yields to the right part: the crumbs take `flex: 1 1 320px`, so
+  the right part keeps the bar's row while the path has 320 px, and the
+  heading's ellipsis takes up the rest. Below that the row wraps, and a
+  phone keeps the heading above the controls.
 - **A person's pause** is a chat held by a placed hold of that person's own,
   mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
   its owner the party reading (jig's `client/domain/contract.md`, 5.6). Nothing
