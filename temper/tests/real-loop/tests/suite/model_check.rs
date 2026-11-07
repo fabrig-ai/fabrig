@@ -78,6 +78,10 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
     let bytes = std::fs::read(ran.path().join("programs").join(SOURCE).join(smith_fake_claude::OBSERVATIONS_FILE))
         .expect("fake program observations");
     let prints = smith_fake_claude::observations(&bytes);
+    assert!(
+        prints.iter().any(|seen| seen.arguments.windows(2).any(|args| args == ["--model", "claude-opus-5-5"])),
+        "the fake program runs a stock model name"
+    );
     assert_eq!(prints.iter().filter(|seen| seen.arguments.first().is_some_and(|arg| arg == "-p")).count(), 1);
     assert_eq!(
         smith_fake_claude::selections(&bytes).first(),

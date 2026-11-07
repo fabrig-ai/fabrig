@@ -7,6 +7,7 @@ use skein_io::kernel::Fd;
 
 fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
     let mut document = value.clone();
+    temper_playground::documents::settings::strip_models(&mut document);
     document.as_object_mut().expect("deployment object").remove("world_settings");
     temper_service::startup::with_setup_given(
         &serde_json::to_vec(&document).expect("deployment JSON"),

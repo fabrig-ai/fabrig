@@ -287,7 +287,11 @@ mod tests {
     fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
-        let prepared = temper::prepare_in(&crate::service::directories(scratch.path())).expect("prepared service");
+        let prepared = temper::prepare_in_with(
+            &crate::service::directories(scratch.path()),
+            &crate::fixtures::given(scratch.path()),
+        )
+        .expect("prepared service");
         let first = format!("{:?}", prepared.pending(Time::ZERO));
         let second = format!("{:?}", prepared.pending(Time::ZERO));
         assert_eq!(first, second, "taking the snapshot never advances the service");

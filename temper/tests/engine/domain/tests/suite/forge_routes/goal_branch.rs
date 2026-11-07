@@ -71,8 +71,8 @@ fn reference_defaults() -> jig_domain_core::settings::Defaults {
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(
-        &llm,
+    let mut defaults = temper_service::stock::with_models(
+        llm.models.clone(),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
     );
     // Admission needs charter 5; the scripted world takes the stock run policy,

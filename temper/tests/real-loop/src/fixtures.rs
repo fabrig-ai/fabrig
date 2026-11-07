@@ -76,7 +76,7 @@ pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io
     let path = directory.join("temper.json");
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
     config["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "models":["fake"],
+        "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
         "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
     }]);
     private(&path, &serde_json::to_vec(&config)?)
@@ -125,12 +125,12 @@ fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &m
     endpoint["program"] = "claude_code".into();
     llm["endpoints"].as_array_mut().expect("engine endpoints").push(endpoint);
     let mut model = llm["models"][0].clone();
-    model["name"] = "fake-claude".into();
+    model["name"] = "claude-opus-5-5".into();
     model["endpoint"] = "fake-claude".into();
     llm["models"].as_array_mut().expect("engine models").push(model);
     llm["providers"].as_array_mut().expect("providers").push(serde_json::json!({
         "name":"anthropic", "number":2, "signed_in_plan":false,
-        "manage_usage":"https://claude.ai/settings/usage", "models":["fake-claude"],
+        "manage_usage":"https://claude.ai/settings/usage", "models":["claude-opus-5-5"],
         "sources":{"programs":["claude_code"]}
     }));
     turn_bounds::apply(config, turn_bounds::turn_body(agent));
@@ -377,6 +377,7 @@ pub fn listed(value: &mut serde_json::Value) {
 }
 pub(crate) fn finish_configuration(directory: &Path, value: &mut serde_json::Value) -> std::io::Result<()> {
     stock_document(value);
+    temper_playground::documents::settings::strip_models(value);
     let mut flags =
         value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));
     if directory.join("standing-chats").exists() {
@@ -387,7 +388,7 @@ pub(crate) fn finish_configuration(directory: &Path, value: &mut serde_json::Val
 }
 #[must_use]
 pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
-    let value: serde_json::Value =
+    let mut value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(directory.join("temper.json")).expect("deployment document"))
             .expect("deployment JSON");
     let flags = if directory.join("world-settings.json").exists() {
@@ -396,6 +397,7 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
     } else {
         serde_json::json!({})
     };
+    value["world_settings"] = flags.clone();
     let stock = crate::settings::stock(&value);
     let mut charter = stock["charter"].clone();
     charter["modify"] = true.into();
@@ -411,14 +413,15 @@ pub fn setup_items(directory: &Path) -> Option<serde_json::Value> {
         // direct-model alternative available to the coder and reviewer.
         let model = std::iter::once(&charter["model"])
             .chain(charter["alternatives"].as_array().expect("charter alternatives"))
-            .find(|model| model["name"] == "fake-claude")
+            .find(|model| model["name"] == "claude-opus-5-5")
             .expect("program model offered by stock")
             .clone();
         charter["model"] = model;
         charter["alternatives"] = serde_json::json!([]);
+        charter["rest"] = false.into();
         template["flags"]["ended_by"] = "requester".into();
         template["llm"] = serde_json::json!({
-            "account":null, "main":{"model":"fake-claude","effort":null}, "subagents":[]
+            "account":null, "main":{"model":"claude-opus-5-5","effort":null}, "subagents":[]
         });
     }
     if flags["listed"] == true {
@@ -451,16 +454,19 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
         let temper_service::stock::Given::Own { jig: defaults, .. } = &mut given else {
             panic!("the real loop supplies its own defaults")
         };
-        let engine = crate::settings::configuration(&deployment);
+        let mut values = deployment.clone();
+        values["world_settings"] = flags.clone();
+        let engine = crate::settings::configuration(&values);
         let model = engine
             .llm
             .models
             .iter()
-            .position(|model| model.model.name.as_ref() == b"fake-claude")
+            .position(|model| model.model.name.as_ref() == b"claude-opus-5-5")
             .expect("program fixture model");
         // A template's choice does not bind the charters of its delegated coder and reviewer.
         for charter in &mut defaults.charters {
             charter.policy.model = engine.llm.models[model].model.clone();
+            charter.rest = false;
             charter.policy.alternatives = Box::new([]);
         }
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Requester;
@@ -482,7 +488,8 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     let mut values = deployment.clone();
     values["world_settings"] = flags.clone();
     let engine = crate::settings::configuration(&values);
-    let mut defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults =
+        temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let stock_period_spend = defaults.rules.period_spend;
     // Charter 1 also produces finite changes in this world; the Smith boundary keeps Open chats inspecting.
     defaults.charters[0].policy.modify = true;

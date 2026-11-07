@@ -15,7 +15,7 @@ const ENGINE_OVERRIDES: &str = r#""tasks.charters":7,"core.templates":3,"authori
 const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {
-    let found = match crate::startup(
+    let found = match fixtures::start(
         document,
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),

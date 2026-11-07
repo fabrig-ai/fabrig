@@ -46,9 +46,15 @@ fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
 
 fn accepted(path: &str, engine: bool) -> bool {
     if engine {
-        for stored in
-            ["engine.charters", "engine.templates", "engine.policies", "engine.rules", "engine.projects[].policy"]
-        {
+        for stored in [
+            "engine.charters",
+            "engine.templates",
+            "engine.policies",
+            "engine.rules",
+            "engine.projects[].policy",
+            "engine.llm.models",
+            "engine.llm.providers[].models",
+        ] {
             if path == stored
                 || path.starts_with(stored) && path.as_bytes().get(stored.len()) == Some(&b'.')
                 || path.starts_with(stored) && path.as_bytes().get(stored.len()) == Some(&b'[')
@@ -108,6 +114,9 @@ fn render_row(
     engine: bool,
     out: &mut Writer,
 ) -> Result<(), Overflow> {
+    if engine && row.name == "models" && (shape.name == "llm" || shape.name == "llm-provider") {
+        return Ok(());
+    }
     out.put(b"- `")?;
     out.put(row.name.as_bytes())?;
     out.put(b"`: ")?;
@@ -121,7 +130,8 @@ fn render_row(
         out.put(b", ")?;
         out.put(row.bound.as_bytes())?;
     }
-    out.put(if row.required { b"; required; " } else { b"; optional; " })?;
+    let required = row.required || engine && shape.name == "llm-provider" && row.name == "endpoint";
+    out.put(if required { b"; required; " } else { b"; optional; " })?;
     let whole = row.name == "overrides" || row.kind == "address";
     let mut values = List::with_capacity(document.len());
     for path in &paths(shape, engine) {

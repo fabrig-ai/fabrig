@@ -47,7 +47,7 @@ pub(super) fn config() -> engine::Config {
 
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::defaults(&llm, limits().tasks.result_bytes);
+    config.core.defaults = temper_service::stock::with_models(llm.models.clone(), limits().tasks.result_bytes);
     config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy 1").clone();
     let project_owner = config.core.owners[0].clone();
     let mut deployment_owner = project_owner.clone();
