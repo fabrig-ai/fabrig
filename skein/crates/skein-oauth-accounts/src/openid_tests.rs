@@ -12,7 +12,11 @@ fn openid_owner() -> private::Owner {
         registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         registration.terms = Some(skein_oauth::Terms {
-            openid: Some(skein_oauth::OpenId { issuer: bytes::copy_of(b"http://127.0.0.1:31001"), key_set: None }),
+            openid: Some(skein_oauth::OpenId {
+                profile: skein_oauth::Profile::default(),
+                issuer: bytes::copy_of(b"http://127.0.0.1:31001"),
+                key_set: None,
+            }),
             ..terms()
         });
         for (uri, port) in [(b"http://127.0.0.1:31001".as_slice(), 31001), (b"http://127.0.0.1:31002", 31002)] {

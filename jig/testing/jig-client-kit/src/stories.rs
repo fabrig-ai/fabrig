@@ -479,6 +479,7 @@ pub fn deployment() -> Deployment {
         grace_until: Some(Wall::EPOCH),
     };
     let account = |number| Account {
+        facts: skein_lib::List::with_capacity(0),
         number,
         place: 0,
         uses: None,

@@ -836,37 +836,49 @@ fn choose_offers_no_entry_for_another_computer() {
 }
 #[test]
 fn the_connected_model_offers_continue_as_a_terminal_command() {
-    let mut root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
-    fixtures::root_event(
-        &mut root,
-        d::Event::Went {
-            place: d::Place::Address(d::Address::Welcome {
-                step: d::Step::Model {
-                    way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: None }),
-                },
-            }),
-        },
-    );
-    let mut view = fixtures::page_view(&root);
-    let control = view
-        .tree()
-        .nodes()
-        .iter()
-        .rev()
-        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Continue"))
-        .unwrap()
-        .id;
-    let (node, first) = fixtures::terminal_command(
-        view.tree(),
-        &view.limits().tree,
-        control,
-        b"Continue",
-        "✓ ChatGPT plan · alice@example.com".as_bytes(),
-    );
-    assert_eq!(
-        crate::act(&mut view, node, first),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Welcome { step: d::Step::Ready } }))
-    );
+    for (email, display, status) in [
+        (None, b"Legacy".as_slice(), "ChatGPT plan · Legacy"),
+        (Some(b"alice@example.com".as_slice()), b"", "ChatGPT plan · alice@example.com"),
+        (Some(b"alice@example.com".as_slice()), b"Different display", "ChatGPT plan · alice@example.com"),
+    ] {
+        let (mut root, watch) = super::welcome::model_with_forge(d::WayKind::SignIn);
+        let mut doc = super::accounts::card_document(b"openai", display, c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().facts = super::accounts::email_facts(email);
+        super::accounts::deliver(&mut root, watch, doc);
+        fixtures::root_event(
+            &mut root,
+            d::Event::Went {
+                place: d::Place::Address(d::Address::Welcome {
+                    step: d::Step::Model {
+                        way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: None }),
+                    },
+                }),
+            },
+        );
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            assert!(fixtures::find(view.tree(), Role::Status, status.as_bytes()).is_some());
+        }
+        let mut view = fixtures::page_view(&root);
+        let control = view
+            .tree()
+            .nodes()
+            .iter()
+            .rev()
+            .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Continue"))
+            .unwrap()
+            .id;
+        let (node, first) = fixtures::terminal_command(
+            view.tree(),
+            &view.limits().tree,
+            control,
+            b"Continue",
+            format!("✓ {status}").as_bytes(),
+        );
+        assert_eq!(
+            crate::act(&mut view, node, first),
+            Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Welcome { step: d::Step::Ready } }))
+        );
+    }
 }
 
 pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper";

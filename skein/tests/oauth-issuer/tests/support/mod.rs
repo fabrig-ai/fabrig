@@ -142,7 +142,11 @@ fn registration(public: bool) -> oauth::Registration {
         metadata_claim: None,
         terms: Some(oauth::Terms {
             parameters: Box::new([]),
-            openid: Some(oauth::OpenId { issuer: boxed(ISSUER), key_set: None }),
+            openid: Some(oauth::OpenId {
+                profile: skein_oauth::Profile::default(),
+                issuer: boxed(ISSUER),
+                key_set: None,
+            }),
             issued_client_id: false,
             varying_port: false,
             resource: None,
@@ -529,7 +533,7 @@ fn request_bytes(request: Option<&oauth::Request>) -> usize {
             request.endpoint.len().checked_add(request.body.len()).expect("request bytes")
         }
         Some(oauth::Request::Visit { url }) => url.len(),
-        Some(oauth::Request::Tokens { record, missing }) => record
+        Some(oauth::Request::Tokens { record, missing, .. }) => record
             .access_token
             .len()
             .checked_add(record.id_token.as_ref().map_or(0, skein_lib::Secret::len))
@@ -586,7 +590,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
             Some(oauth::Request::Visit { url }) => {
                 event = world.authorize(url.expose());
             }
-            Some(oauth::Request::Tokens { record, missing }) => {
+            Some(oauth::Request::Tokens { record, missing, .. }) => {
                 world.terminal += 1;
                 assert!(missing.is_empty(), "all requested scopes");
                 world.check_record(&record);

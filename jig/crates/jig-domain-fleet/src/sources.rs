@@ -138,6 +138,11 @@ pub(crate) fn logins(
     }
     let mut bounded = rows.len() <= skein_lib::length::usize_of(env.limits.program_sources);
     for row in &rows {
+        if let Some(email) = &row.email
+            && email.len() > 255
+        {
+            bounded = false;
+        }
         match &row.state {
             LoginState::Failed { detail, .. } => {
                 if detail.len() > skein_lib::length::usize_of(env.limits.source_detail_bytes) {
@@ -154,6 +159,16 @@ pub(crate) fn logins(
             }
         }
         sources.logins = rows;
+        for row in &sources.logins {
+            if row.state == LoginState::Usable
+                && let Some(email) = &row.email
+            {
+                out.push(Request::ProgramEmail {
+                    name: skein_lib::bytes::copy_of(row.name.as_bytes()),
+                    email: email.clone(),
+                });
+            }
+        }
         sources.waiting = false;
         sources.previous = None;
         send(sources, channel, out);

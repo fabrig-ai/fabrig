@@ -49,6 +49,7 @@ fn a_tools_connect_wait_settles_at_the_sign_in_end() {
         subject: b"subject".as_slice().into(),
         display: b"Test".as_slice().into(),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(&mut front, &mut root);
     assert_eq!(root.agent().printed(2).expect("settled watch").status, 0);

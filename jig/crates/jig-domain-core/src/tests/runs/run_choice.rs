@@ -563,7 +563,7 @@ const OWNER: u64 = 1;
 const OTHER_PERSON: u64 = 2;
 const PERSONAL_SOURCE: u32 = 3;
 pub(in crate::tests) fn login(name: &[u8], state: LoginState) -> Login {
-    Login { name: SourceName::new(name).unwrap(), state }
+    Login { name: SourceName::new(name).unwrap(), state, email: None }
 }
 pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[Login]>) {
     let mut out = Queue::uncapped();

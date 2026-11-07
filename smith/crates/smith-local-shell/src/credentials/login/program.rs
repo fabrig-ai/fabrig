@@ -50,7 +50,7 @@ pub(in crate::credentials) fn run(
         }
     }
     match program_source::run(SourceAsk::Check, &program, name, &directory, clock, &base)? {
-        SourceAnswer::Check(ProgramCheck::Usable) => {
+        SourceAnswer::Check(ProgramCheck::Usable { .. }) => {
             eprintln!("account {name}: usable");
             Ok(if logout { LoginOutcome::Unavailable } else { LoginOutcome::Usable })
         }

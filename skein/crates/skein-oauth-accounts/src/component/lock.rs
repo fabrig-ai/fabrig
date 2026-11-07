@@ -139,7 +139,7 @@ impl Component {
             self.collect(env, id, up, io);
             return;
         }
-        if let Some((candidate, _)) = &mut exchange.lock_candidate {
+        if let Some((candidate, _, _)) = &mut exchange.lock_candidate {
             if record.is_none() {
                 entry.state = State::Empty;
             }
@@ -206,7 +206,7 @@ impl Component {
         io: &mut Queue<Lower>,
     ) {
         let exchange = self.exchanges.get_mut(id).expect("bound exchange");
-        let (record, missing) = exchange.lock_candidate.take().expect("candidate waiting to keep");
+        let (record, missing, profile) = exchange.lock_candidate.take().expect("candidate waiting to keep");
         if let Some(subject) = &exchange.subject
             && record.subject.as_ref() != Some(subject)
         {
@@ -225,7 +225,7 @@ impl Component {
                 exchange.file_active = true;
             }
         }
-        exchange.stage = Stage::Keeping { candidate: record, missing };
+        exchange.stage = Stage::Keeping { candidate: record, missing, profile };
     }
 
     pub(super) fn start_refresh(

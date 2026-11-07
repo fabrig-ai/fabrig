@@ -6,6 +6,9 @@ use crate::{
 };
 use skein_lib::{List, Reader, Writer};
 
+// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+const EMAIL_BYTES: usize = 255;
+
 #[test]
 fn source_caps_are_measured_without_run_slots() {
     let sizes = Sizes { slots: 0, ..SIZES_ONE_SLOT };
@@ -18,7 +21,7 @@ fn source_record_bodies_are_measured() {
         (wire::Kind::Sources, 76),
         (wire::Kind::Check, 36),
         (wire::Kind::SignOut, 36),
-        (wire::Kind::Logins, 150),
+        (wire::Kind::Logins, 670),
         (wire::Kind::SignedOut, 58),
     ] {
         assert_eq!(sizes::largest_body(&sizes, kind), Some(bytes));
@@ -40,7 +43,11 @@ fn source_record_fields_refuse_one_byte_past_each_bound() {
             length == 32
         );
         assert_eq!(
-            wire::Login::new(&limits, wire::LoginParts { name: name.clone(), state: wire::LoginState::Usable }).is_ok(),
+            wire::Login::new(
+                &limits,
+                wire::LoginParts { name: name.clone(), state: wire::LoginState::Usable, email: None }
+            )
+            .is_ok(),
             length == 32
         );
         assert_eq!(
@@ -48,6 +55,25 @@ fn source_record_fields_refuse_one_byte_past_each_bound() {
                 .is_ok(),
             length == 32
         );
+    }
+    // channel.md, 5.1: optional UTF-8 email, at most 255 bytes.
+    for (email, valid) in [
+        (None, true),
+        (Some(Box::from(b"you@example.com".as_slice())), true),
+        (Some(Box::from([b'e'; EMAIL_BYTES])), true),
+        (Some(Box::from([b'e'; EMAIL_BYTES + 1])), false),
+        (Some(Box::from([0xff])), false),
+    ] {
+        let row = wire::Login::new(
+            &limits,
+            wire::LoginParts { name: b"a".as_slice().into(), state: wire::LoginState::Usable, email },
+        );
+        assert_eq!(row.is_ok(), valid);
+        if let Ok(row) = row {
+            let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
+            row.encode(&mut writer).expect("encode login");
+            assert_eq!(wire::Login::decode(&limits, &mut Reader::new(&writer.finish())), Ok(row));
+        }
     }
     for length in [16, 17] {
         assert_eq!(
@@ -76,8 +102,11 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
                 .expect("list");
             logins
                 .push(
-                    wire::Login::new(&limits, wire::LoginParts { name, state: wire::LoginState::NotSignedIn })
-                        .expect("row"),
+                    wire::Login::new(
+                        &limits,
+                        wire::LoginParts { name, state: wire::LoginState::NotSignedIn, email: None },
+                    )
+                    .expect("row"),
                 )
                 .expect("list");
         }

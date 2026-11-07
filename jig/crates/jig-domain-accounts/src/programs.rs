@@ -126,6 +126,15 @@ pub fn name(domain: &Domain, source: u32, holder: Holder) -> Option<&[u8]> {
     }
     Some(issued.name.as_bytes())
 }
+/// A report names only a live source, never a retired reservation (accounts.md, 3.7).
+pub(crate) fn source_named(domain: &Domain, name: &[u8]) -> Option<u32> {
+    for (number, issued) in &domain.issued {
+        if issued.name.as_bytes() == name && domain.sources.contains_key(number) {
+            return Some(*number);
+        }
+    }
+    None
+}
 pub(crate) fn publish(domain: &Domain, out: &mut Queue<Request>) {
     if domain.issued.is_empty() {
         return;

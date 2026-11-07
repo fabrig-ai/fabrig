@@ -521,6 +521,7 @@ fn refusal_of(event: Option<Event>) -> Option<(u32, Asked, Refusal)> {
         Some(
             Event::Visit { .. }
             | Event::Taken { .. }
+            | Event::Refreshed { .. }
             | Event::SignedIn { .. }
             | Event::Lock { .. }
             | Event::Unlock { .. }
@@ -547,6 +548,7 @@ fn failure_of(event: Option<Event>) -> Option<Failed> {
         Some(
             Event::Visit { .. }
             | Event::Taken { .. }
+            | Event::Refreshed { .. }
             | Event::SignedIn { .. }
             | Event::Lock { .. }
             | Event::Unlock { .. }

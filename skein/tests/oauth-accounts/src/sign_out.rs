@@ -137,6 +137,7 @@ pub(crate) fn observe(client: &mut world::Client, env: &Env<accounts::Limits>) {
         | accounts::Event::Visit { .. }
         | accounts::Event::Taken { .. }
         | accounts::Event::SignedIn { .. }
+        | accounts::Event::Refreshed { .. }
         | accounts::Event::Granted { .. }
         | accounts::Event::Expiring { .. }
         | accounts::Event::Keep { .. }

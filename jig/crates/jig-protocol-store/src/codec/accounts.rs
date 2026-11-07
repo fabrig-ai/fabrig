@@ -1,9 +1,9 @@
 //! The accounts family's rows (protocol/store.md, 4.4): the installation's
-//! identifier, and the accounts child's counter, accounts and sources (item 9).
+//! identifier, and the accounts child's counter, accounts, sources and facts (item 9).
 use crate::accounts_v2 as wire;
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
-use skein_lib::{List, Reader, Wall, Writer};
+use skein_lib::{Duration, List, Reader, Wall, Writer};
 
 /// The installation's identifier, drawn at the first start (configuration.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -35,6 +35,15 @@ impl Installation {
 pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
     let limits = &wire::CEILINGS;
     let value = match row {
+        domain::Stored::Facts { account, facts } => {
+            let mut values = List::with_capacity(domain::FACTS);
+            for fact in facts {
+                if values.push(encode_fact(fact)?).is_err() {
+                    return Err(wire::Problem { path: wire::Path::FactsFacts, reason: skein_codec::Reason::Bound });
+                }
+            }
+            wire::Value::Facts(wire::Facts::new(limits, wire::FactsParts { account: *account, facts: values })?)
+        }
         domain::Stored::Issued { number, holder, name, signed_out } => {
             let holder = match holder {
                 domain::Holder::Deployment => wire::Holder::Deployment,
@@ -106,6 +115,14 @@ pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
 pub fn decode(bytes: &[u8]) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
     Ok(match value {
+        wire::Value::Facts(facts) => {
+            let wire::FactsParts { account, facts } = facts.into_parts();
+            let mut values = List::with_capacity(domain::FACTS);
+            for fact in facts.into_boxed() {
+                values.push(decode_fact(fact)?).expect("schema bounds facts");
+            }
+            domain::Stored::Facts { account, facts: values.into_boxed() }
+        }
         wire::Value::Issued(issued) => {
             let wire::IssuedParts { number, holder, name, signed_out } = issued.into_parts();
             let holder = match holder {
@@ -180,4 +197,85 @@ fn decode_uses(uses: Option<List<wire::Use>>) -> Option<Box<[domain::Use]>> {
         result.push(payer).expect("schema bounds uses");
     }
     Some(result.into_boxed())
+}
+
+fn encode_fact(fact: &domain::AccountFact) -> Result<wire::Fact, wire::Problem> {
+    let limits = &wire::CEILINGS;
+    let value = match &fact.value {
+        domain::FactValue::Text(text) => {
+            wire::FactValue::Text(wire::FactText::new(limits, wire::FactTextParts { text: text.clone() })?)
+        }
+        domain::FactValue::Count(count) => {
+            wire::FactValue::Count(wire::FactCount::new(limits, wire::FactCountParts { count: *count })?)
+        }
+        domain::FactValue::Instant(at) => {
+            wire::FactValue::Instant(wire::FactInstant::new(limits, wire::FactInstantParts { at: at.as_nanos() })?)
+        }
+        domain::FactValue::Span(span) => {
+            wire::FactValue::Span(wire::FactSpan::new(limits, wire::FactSpanParts { nanos: span.as_nanos() })?)
+        }
+        domain::FactValue::Share(basis) => {
+            wire::FactValue::Share(wire::FactShare::new(limits, wire::FactShareParts { basis: *basis })?)
+        }
+        domain::FactValue::Window(window) => {
+            let length = match window.length {
+                Some(length) => Some(length.as_nanos()),
+                None => None,
+            };
+            let resets = match window.resets {
+                Some(resets) => Some(resets.as_nanos()),
+                None => None,
+            };
+            wire::FactValue::Window(wire::FactWindow::new(
+                limits,
+                wire::FactWindowParts { length, used: window.used, resets, state: window.state },
+            )?)
+        }
+    };
+    wire::Fact::new(
+        limits,
+        wire::FactParts {
+            kind: fact.kind,
+            label: fact.label.clone(),
+            value,
+            seen: fact.seen.as_nanos(),
+            source: fact.source,
+            origin: fact.origin,
+        },
+    )
+}
+
+fn decode_fact(fact: wire::Fact) -> Result<domain::AccountFact, wire::Problem> {
+    let wire::FactParts { kind, label, value, seen, source, origin } = fact.into_parts();
+    let value = match value {
+        wire::FactValue::Text(text) => domain::FactValue::Text(text.into_parts().text),
+        wire::FactValue::Count(count) => domain::FactValue::Count(count.into_parts().count),
+        wire::FactValue::Instant(at) => domain::FactValue::Instant(Wall::from_nanos(at.into_parts().at)),
+        wire::FactValue::Span(span) => domain::FactValue::Span(Duration::from_nanos(span.into_parts().nanos)),
+        wire::FactValue::Share(share) => {
+            let basis = share.into_parts().basis;
+            if basis > domain::SHARE_WHOLE {
+                return Err(wire::Problem { path: wire::Path::FactShareBasis, reason: skein_codec::Reason::Bound });
+            }
+            domain::FactValue::Share(basis)
+        }
+        wire::FactValue::Window(window) => {
+            let wire::FactWindowParts { length, used, resets, state } = window.into_parts();
+            if let Some(used) = used
+                && used > domain::SHARE_WHOLE
+            {
+                return Err(wire::Problem { path: wire::Path::FactWindowUsed, reason: skein_codec::Reason::Bound });
+            }
+            let length = match length {
+                Some(length) => Some(Duration::from_nanos(length)),
+                None => None,
+            };
+            let resets = match resets {
+                Some(resets) => Some(Wall::from_nanos(resets)),
+                None => None,
+            };
+            domain::FactValue::Window(domain::FactWindow { length, used, resets, state })
+        }
+    };
+    Ok(domain::AccountFact { kind, label, value, seen: Wall::from_nanos(seen), source, origin })
 }
