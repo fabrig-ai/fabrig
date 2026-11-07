@@ -144,8 +144,13 @@ pub(crate) fn main(
     if show_start {
         b.close();
     }
+    if terminal {
+        super::terminal::notes(b, root, w);
+    }
     b.close();
-    crate::choice::above_composer(b, root, None, w, bindings, times);
+    if !terminal || !super::terminal::commands::typing(root) {
+        crate::choice::above_composer(b, root, None, w, bindings, times);
+    }
     composer(b, root, w, bindings, text_limit);
     b.close();
     if draft {
@@ -175,9 +180,9 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     b.placeholder(&name);
     b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
     if root.pages().switcher().renaming().is_none() {
-        b.focus(0);
+        b.focus(if terminal { temper_client_domain::pages::shown(root.pages()) } else { 0 });
     }
-    if ready {
+    if ready || (terminal && super::terminal::commands::typing(root)) {
         b.state(State::SubmitsOnEnter);
     } else {
         bindings.block_submissions();

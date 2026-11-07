@@ -1,5 +1,6 @@
 //! A chat's pages as a terminal (temper/docs/design/client/README.md, 3.5, A chat's terminal;
 //! temper/docs/design/client/browser.md, 2.5, A chat's terminal).
+pub(crate) mod commands;
 pub(crate) mod words;
 use crate::{
     frame::Bindings,
@@ -151,6 +152,9 @@ pub(crate) fn under(
     bindings: &mut Bindings,
     hint: Hint,
 ) {
+    if commands::under(b, root, task, w, bindings) {
+        return;
+    }
     b.open(Role::Slot);
     b.style(look::TERMINAL_LINE);
     let hint = say(
@@ -166,7 +170,9 @@ pub(crate) fn under(
     b.text(Run::Plain, &hint);
     b.close();
     b.open(Role::Slot);
-    crate::choice::picker(b, root, task, w, bindings);
+    let line = crate::choice::closed_line(root, task, w);
+    button(b, bindings, &line, Act::Terminal(terminal::Act::Run { command: terminal::Command::Model }));
+    b.close();
     if let Some(task) = task {
         let spend = w.say(
             Word::ChatbarSpend,
@@ -180,7 +186,9 @@ pub(crate) fn under(
     b.close();
     b.close();
 }
-pub(crate) fn notes(_b: &mut Builder, _root: &Domain, _w: &Words) {}
+pub(crate) fn notes(b: &mut Builder, root: &Domain, _w: &Words) {
+    commands::notes(b, root);
+}
 pub(crate) fn prompt(b: &mut Builder, w: &Words) {
     text(b, &say(w, T::Prompt), look::TERMINAL_STAR);
 }
