@@ -1725,9 +1725,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../client/README.md`, 5.13):
   `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
-  can write drafts and whether the rail shows Goals, Changes and the
-  Away switch; and `way`, a template's number, the way a goal starts by,
-  0 for the first the project offers with `tracked` set. Its bound, the
+  offer drafts and whether the rail offers Goals, Changes and the
+  Away switch. A configuring chat offers a draft regardless, and Goals
+  stays shown for a current Goals or goal page or a project holding a goal
+  (`../client/README.md`, 3.5 and 5.3). The `way` is a template's number,
+  the way a goal starts by, 0 for the first the project offers with
+  `tracked` set. Its bound, the
   kind's, is its encoding; the engine decides nothing by it. A value of
   a project's questions is its route alone, a `ProjectQuestions` record.
 - **A landing rule's value** is a `LandingRule` record in temper's

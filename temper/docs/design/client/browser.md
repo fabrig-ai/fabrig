@@ -1231,6 +1231,12 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
+  the real-box check of the configuring chat's offer and the draft-to-goal
+  flow, including Goals in the phone tab bar, is after-landing work
+  (`README.md`, section 11). Default: the view tables and fake-model
+  `chat-draft` journey, with no browser or render check during the plan.
+
 - **Kept work in the browser** (`README.md`, 3.4 and 6.6): another
   party's kept work, and kept work dropped at start, which the terminal
   says in lines of its own. Default: not shown; the small store lives

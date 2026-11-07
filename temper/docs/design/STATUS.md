@@ -2,7 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Fresh box documents admit four
+milestone stands in the code (`README.md`). Fresh projects offer drafts;
+configuring chats offer one even with drafts off, and a project holding a
+goal shows Goals in its bar. Home can still show To begin and Chats, so
+the bar supplies the goal's entry. The mock's drafts-off default remains
+a recorded departure; the fake-model `chat-draft` journey starts with
+drafts on, and the real-box checks follow landing (`client/README.md`,
+`client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
 on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
