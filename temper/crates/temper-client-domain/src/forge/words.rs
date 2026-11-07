@@ -37,6 +37,14 @@ pub enum Word {
     Private,
     InProject,
     Copying,
+    MakingOn,
+    CopyingOn,
+    MakeFailedOn,
+    CopyFailedOn,
+    ForgeSaid,
+    CopyAgain,
+    MakeAgain,
+    DismissMaking,
     SoFar,
     Searching,
     Found,
@@ -275,6 +283,9 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
         Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
+        Word::ForgeSaid => 768,
+        Word::MakingOn | Word::CopyingOn | Word::MakeFailedOn | Word::CopyFailedOn => 256,
+        Word::CopyAgain | Word::MakeAgain | Word::DismissMaking => 0,
         Word::CopyOne => text.checked_mul(3).expect("lossy address fits").max(513),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,

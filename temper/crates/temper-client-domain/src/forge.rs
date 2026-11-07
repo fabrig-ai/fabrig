@@ -95,6 +95,8 @@ pub struct Side {
     served: Served,
     form: Option<Form>,
     sheet: Option<sheet::Sheet>,
+    sheet_again: Option<sheet::Act>,
+    sheet_dismissals: skein_lib::List<sheet::Dismissal>,
     serial: u64,
     party: Option<u64>,
     me: bool,
@@ -130,6 +132,8 @@ impl Side {
             served: Served::Unknown,
             form: None,
             sheet: None,
+            sheet_again: None,
+            sheet_dismissals: skein_lib::List::uncapped(),
             serial: skein_lib::Rng::new(seed).next_u64(),
             party: None,
             me: false,
@@ -148,6 +152,10 @@ impl Side {
     #[must_use]
     pub const fn sheet(&self) -> Option<&sheet::Sheet> {
         self.sheet.as_ref()
+    }
+    #[must_use]
+    pub fn making_dismissal(&self, forge: u16, org: &[u8], name: &[u8]) -> Option<&sheet::Dismissal> {
+        sheet::dismissal(self, forge, org, name)
     }
     #[must_use]
     pub const fn form(&self) -> Option<&Form> {
@@ -298,6 +306,9 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             draft.confirmed = side.party.is_some();
             side.form = Some(draft);
             side.sheet = Some(sheet::Sheet::new(project, &side.forges));
+            if let Some(act) = side.sheet_again.take() {
+                sheet::again(side, env.limits, act, out);
+            }
             sheet::progress(side, env.limits, out);
             side.changed();
         }
