@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::{Link, NotSignedIn};
-use skein_lib::{Queue, Writer, bytes::copy_of};
+use skein_lib::{Queue, Wall, Writer, bytes::copy_of};
 use skein_ui::phrases::Hole;
 use skein_ui::{Act, Binding, Builder, EntryKind, Modifier, NodeId, Patch, Role, Run, Shortcut, State, Style, Tree};
 use temper_client_domain::Domain;
@@ -21,6 +21,10 @@ impl View {
     #[must_use]
     pub fn new(limits: &skein_ui::Limits, words: Words) -> View {
         View { render: skein_ui::View::new(limits), words, built: None }
+    }
+    #[must_use]
+    pub fn tick(&self) -> Option<Wall> {
+        None
     }
     #[must_use]
     pub fn tree(&self) -> &Tree {
@@ -149,11 +153,15 @@ fn state(root: &Domain) -> (Shared, Style) {
         Link::SignedOut => (Shared::SignedOut, look::DOWN),
     }
 }
-/// Rebuild when the root's shown count or the TUI's revision changes.
-pub fn build(view: &mut View, tui: &Tui, root: &Domain, out: &mut Queue<Patch>) {
+/// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
+pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
     let root_shown = temper_client_domain::shown(root);
     let revision = tui.revision();
-    if view.built == Some((root_shown, revision)) {
+    let ticked = match view.tick() {
+        Some(tick) => wall >= tick,
+        None => false,
+    };
+    if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
     let shown = root_shown.saturating_add(revision);

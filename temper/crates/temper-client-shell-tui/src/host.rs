@@ -131,7 +131,13 @@ impl Host {
             duties.address = Some(self.state().address().into());
             self.addressed = true;
         }
-        tui::build(&mut self.view, self.state.as_ref().expect("started TUI"), &self.root, &mut self.patches);
+        tui::build(
+            &mut self.view,
+            self.state.as_ref().expect("started TUI"),
+            &self.root,
+            self.env.wall,
+            &mut self.patches,
+        );
         self.patches.clear();
         duties
     }

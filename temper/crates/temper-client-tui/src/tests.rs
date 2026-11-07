@@ -1,3 +1,4 @@
+mod approval;
 mod event;
 mod fixtures;
 mod goldens;
