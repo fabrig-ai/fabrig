@@ -276,6 +276,8 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    Screen { on: bool },
+    KeepLook { look: terminal::Look },
     OpenTab { provider: u32 },
     Client(jig_client::Event),
     Show { address: Address },

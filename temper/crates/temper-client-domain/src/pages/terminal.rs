@@ -35,9 +35,9 @@ pub enum Act {
     Dismiss,
 }
 impl Look {
-    pub(crate) fn act(&mut self, act: Act) {
+    pub(crate) fn act(&mut self, act: Act, out: &mut skein_lib::Queue<super::Request>) {
         match act {
-            Act::Run { .. } | Act::Dismiss => {}
+            Act::Run { .. } | Act::Dismiss => return,
             Act::Enter => self.terminal = true,
             Act::Leave => self.terminal = false,
             Act::Theme => {
@@ -52,6 +52,12 @@ impl Look {
                     Font::Plex => Font::DejaVu,
                 }
             }
+        }
+        out.push(super::Request::KeepLook { look: *self });
+        match act {
+            Act::Enter => out.push(super::Request::Screen { on: true }),
+            Act::Leave => out.push(super::Request::Screen { on: false }),
+            Act::Theme | Act::Font | Act::Run { .. } | Act::Dismiss => {}
         }
     }
 }
@@ -191,6 +197,9 @@ pub(super) fn command_words(words: &[u8]) -> bool {
     true
 }
 impl super::Pages {
+    pub(crate) fn restore_look(&mut self, look: Look) {
+        self.look = look;
+    }
     /// The list a command opened, while it is open.
     #[must_use]
     pub fn listing(&self) -> Option<Listing> {
@@ -250,7 +259,7 @@ impl super::Pages {
             }
             Act::Enter | Act::Leave | Act::Theme | Act::Font => {
                 let font = act == Act::Font;
-                self.look.act(act);
+                self.look.act(act, out);
                 if font {
                     self.terminal_note(Note::Font { font: self.look.font });
                 }
@@ -314,11 +323,11 @@ impl super::Pages {
             }
             Command::New => P::Go { address: crate::Address::NewChat { draft: false } },
             Command::Theme => {
-                self.look.act(Act::Theme);
+                self.look.act(Act::Theme, out);
                 return None;
             }
             Command::Font => {
-                self.look.act(Act::Font);
+                self.look.act(Act::Font, out);
                 self.terminal_note(Note::Font { font: self.look.font });
                 return None;
             }
@@ -327,7 +336,7 @@ impl super::Pages {
                 return None;
             }
             Command::Exit => {
-                self.look.act(Act::Leave);
+                self.look.act(Act::Leave, out);
                 return None;
             }
         };
