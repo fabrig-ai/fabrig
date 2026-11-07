@@ -14,6 +14,9 @@ pub enum Kind {
     Stored,
     Typed,
     Given,
+    Approval,
+    Credential,
+    Bearer,
 }
 
 /// One original, sought everywhere. Its Debug prints its kind and length alone.
@@ -130,12 +133,17 @@ impl Originals {
                 | Line::End(_) => {}
             }
         }
+        Self::new(candidates, given)
+    }
+    /// The originals of the candidates given, then each given text (journeys.md, 3.6).
+    #[must_use]
+    pub fn new(mut candidates: Vec<(Kind, Box<[u8]>)>, given: &[Box<[u8]>]) -> Self {
         candidates.extend(given.iter().map(|value| (Kind::Given, value.clone())));
         let mut result = Self { sought: Vec::new(), counted: Vec::new() };
         for (kind, value) in &candidates {
             let bytes = match kind {
                 Kind::Typed | Kind::Given => trim(value),
-                Kind::Link | Kind::Stored => value,
+                Kind::Link | Kind::Stored | Kind::Approval | Kind::Credential | Kind::Bearer => value,
             };
             if bytes.iter().all(|byte| *byte == b'x') {
                 continue;
