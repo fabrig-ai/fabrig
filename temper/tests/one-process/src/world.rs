@@ -288,10 +288,10 @@ impl Observe for ServiceObserver {
     }
     fn drain(&mut self, service: &mut temper_service::Service, now: Time) {
         assert!(
-            service.is_empty()
+            !self.in_flight.is_empty()
+                || service.is_empty()
                 || service.work_pending(now)
-                || service.next_deadline().is_some()
-                || !self.in_flight.is_empty(),
+                || service.next_deadline().is_some(),
             "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
             service.end(),
             service.wait_state(),
