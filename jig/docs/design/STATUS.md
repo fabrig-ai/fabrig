@@ -15,7 +15,10 @@ settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a
 project's owner alone reads no row of it, and the
 core world's restore stories are ignored (`domain/engine.md`,
-`domain/connectors.md`). A start does not check an application's declared
+`domain/connectors.md`). A run's fresh settings proposal replaces its own
+pending one atomically, preserving it on refusal; at the deployment
+proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
+`domain/engine.md`, 17.6). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,

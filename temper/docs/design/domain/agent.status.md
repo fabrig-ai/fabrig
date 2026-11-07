@@ -38,6 +38,12 @@ Section 7 has no known gap in fresh preparation from unusable history or in
 retaining an unidentified startup fault through cleanup. The joined service
 regression uses scripted peers and valid saved history at 470,054 bytes;
 the trigger of the reported configuring-chat failure remains unobserved.
+Section 8.1 has no known implementation gap in revising a pending proposal
+through a fresh `propose_settings`, preserving it on refusal, or directing a
+person with no account for a requested model to browser Settings, Accounts.
+The engine and joined client stories use scripted tool calls; no supplied
+real-model outcome establishes either instruction in use. That observation
+is deferred to after landing in section 10.
 Section 8.1 has no gap in settings pagination using the host answer allowance.
 Section 8.1 has no gap in note-backed whole settings proposals and decided-call replay.
 Section 8.1 has no gap in discovery of project repository identities for
