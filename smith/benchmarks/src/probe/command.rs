@@ -21,7 +21,7 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
     };
     refuse_if(flags.len() % 2 != 0, Input, "options require values")?;
     let allowed: &[&str] = match command {
-        "probe" => &["--agent", "--attempts", "--commit", "--arm"],
+        "probe" => &["--agent", "--attempts", "--commit", "--arm", "--shared-temporary"],
         "calibrate" => &["--attempts", "--passes", "--control", "--commit", "--arm"],
         "fix" => &["--parent", "--commit"],
         "suite" => &["--attempts", "--seed", "--commit", "--arm", "--include", "--parent", "--parent-arm"],
@@ -82,7 +82,13 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
         value.parse::<u32>().map_err(|error| input(error.to_string()))
     })?;
     refuse_if(attempts == 0 || attempts > 12, Input, "attempts must be between one and twelve")?;
-    let order = Order { probe: name.clone(), agent, attempts, source };
+    let order = Order {
+        probe: name.clone(),
+        agent,
+        attempts,
+        source,
+        shared_temporary: super::plan::planned_temporary(options.get("--shared-temporary").copied()),
+    };
     match command {
         "probe" => {
             let planned = plan(repository, &order, &arm)?;
@@ -126,7 +132,15 @@ fn suite_command(
     } else {
         None
     };
-    let planned = prepare(repository, name, &value, (arm, parent.as_ref()), false, asked)?;
+    let planned = prepare(
+        repository,
+        name,
+        &value,
+        (arm, parent.as_ref()),
+        false,
+        asked,
+        Path::new(crate::run::MACHINE_TEMPORARY),
+    )?;
     if name == "smoke" && planned.requests.is_empty() {
         println!("summary {} attempts=0 verdict=incomplete", planned.run);
         return Ok(Judgment::Incomplete);
@@ -261,8 +275,13 @@ fn comparison(
                 return Err(input("control must differ from the changed arm"));
             }
             let ceiling = if command == "calibrate" { 2 } else { 1 };
-            let one =
-                Order { probe: order.probe.clone(), agent: ProbeAgent::Smith, attempts: ceiling, source: Source::Head };
+            let one = Order {
+                probe: order.probe.clone(),
+                agent: ProbeAgent::Smith,
+                attempts: ceiling,
+                source: Source::Head,
+                shared_temporary: order.shared_temporary.clone(),
+            };
             let planned = plan(repository, &one, &before_arm)?;
             let before_build = crate::fix::prepared(&planned.suite, &planned.directory, seed, &order.probe, ceiling)?;
             let batch = if command == "calibrate" {

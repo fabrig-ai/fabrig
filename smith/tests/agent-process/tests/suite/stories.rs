@@ -258,6 +258,19 @@ fn a_reasoning_turn_that_stops_after_a_read_is_told_and_nudged() {
     assert!(queries[2].messages.iter().flat_map(|message| &message.parts).any(|part| {
         matches!(part, skein_fake_llm_domain::api::Part::Text { text } if skein_lib::bytes::find(text, b"You stopped without calling `finish`").is_some())
     }));
+    for id in ["r2", "r3"] {
+        assert!(
+            queries[2].messages.iter().flat_map(|message| &message.parts).any(|part| {
+                let skein_fake_llm_domain::api::Part::Opaque { bytes } = part else { return false };
+                let item: serde_json::Value = serde_json::from_slice(bytes).expect("observed reasoning item");
+                item["id"] == id
+                    && item["encrypted_content"]
+                        .as_str()
+                        .is_some_and(|text| text.len() == 5_461 && text.bytes().all(|byte| byte == b'r'))
+            }),
+            "the nudge request replays reasoning item {id}"
+        );
+    }
     let answer = world.answer().expect("the finish answered");
     assert!(matches!(answer.result(), RunResult::Accepted(_)));
     assert_eq!(answer.turns(), 3);

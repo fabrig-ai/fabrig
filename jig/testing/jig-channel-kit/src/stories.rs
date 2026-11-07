@@ -50,6 +50,14 @@ pub fn run(seed: u64, story: Story) -> Outcome {
     world::run(fixtures::calm(seed), script(story))
 }
 
+/// Run a named story looking for grant values at every root step.
+#[must_use]
+pub fn every_root_step(seed: u64, story: Story) -> Outcome {
+    let mut settings = fixtures::calm(seed);
+    settings.roots_every_step = true;
+    world::run(settings, script(story))
+}
+
 fn script(story: Story) -> crate::world::Script {
     let mut script = fixtures::one_chat(b"Hello");
     script.story = story;
@@ -91,6 +99,7 @@ fn script(story: Story) -> crate::world::Script {
 pub fn drawn(seed: u64) -> Outcome {
     let mut draw = skein_lib::Rng::new(seed);
     let mut settings = fixtures::calm(seed);
+    settings.roots_every_step = true;
     settings.config = skein_sim::Config::chaos();
     settings.config.buffer = u32::try_from(draw.between(256, 4096)).expect("small buffer");
     settings.config.faults = skein_sim::Faults {

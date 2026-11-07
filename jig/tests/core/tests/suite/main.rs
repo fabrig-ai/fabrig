@@ -87,6 +87,8 @@ mod templates;
 mod topics;
 
 mod fuzzy {
+    mod decision_reads;
+    mod deletion;
     mod faults;
     mod reads;
     mod settings;

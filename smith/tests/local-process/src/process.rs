@@ -25,11 +25,11 @@ mod agent_process;
 mod configuration;
 pub use agent_process::AgentProcess;
 
+use configuration::{Parsed, configuration_for_launch, specialize};
 pub use configuration::{
     agent_document, configuration, configuration_with, configuration_with_tools, lower_configuration,
     lower_configuration_with, prepared_accounts,
 };
-use configuration::{configuration_for_launch, specialize};
 
 // Observe emitted trace bytes at the public kernel boundary, preserving every submission.
 fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
@@ -530,7 +530,13 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
 #[must_use]
 pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let launch = Launch::read(spawn);
-    let (mut config, mut lower) = configuration_for_launch(root(inherited, b"launch"), &launch);
+    let document = agent_document(&launch);
+    let document_path = launch.token_directory.parent().unwrap().join("agent.json");
+    if launch.placement == crate::Placement::Spawned {
+        std::fs::write(&document_path, serde_json::to_vec(&document).unwrap()).unwrap();
+        std::fs::write(document_path.with_file_name("launch.json"), serde_json::to_vec(&launch).unwrap()).unwrap();
+    }
+    let (mut config, mut lower, parsed) = configuration_for_launch(root(inherited, b"launch"), &launch, document);
     if launch.choices {
         configure_choices(&mut config, &mut lower);
     }
@@ -548,12 +554,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         crate::Placement::InProcess => smith_local_shell::compose::AgentKind::Inline,
         crate::Placement::Spawned => smith_local_shell::compose::AgentKind::Spawned { program: "smith-agent".into() },
     };
-    let document = launch.token_directory.parent().unwrap().join("agent.json");
-    if launch.placement == crate::Placement::Spawned {
-        std::fs::write(&document, serde_json::to_vec(&agent_document(&launch)).unwrap()).unwrap();
-        std::fs::write(document.with_file_name("launch.json"), serde_json::to_vec(&launch).unwrap()).unwrap();
-    }
-    config.launch = kind.launch(config.launch.root, &document);
+    config.launch = kind.launch(config.launch.root, &document_path);
     if launch.traced {
         lower.limits.events = Some(
             smith_agent_service::event_limits(
@@ -568,7 +569,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         );
     }
     let (lower, header) = if launch.traced || launch.interactive {
-        let (lower, header) = product_header(&mut config, lower, &launch);
+        let (lower, header) = product_header(&mut config, lower, &launch, parsed);
         (lower, Some(header))
     } else {
         (lower, None)
@@ -644,6 +645,7 @@ fn product_header(
     config: &mut service::Config,
     lower: agent::Config,
     launch: &Launch,
+    parsed: Parsed,
 ) -> (agent::Config, smith_events::SessionStarted) {
     if launch.placement == crate::Placement::InProcess {
         let cancel = match config.limits.local.agent {
@@ -658,10 +660,15 @@ fn product_header(
         )
         .expect("inline startup bounds");
     }
-    let mut configuration =
-        smith_agent_shell::config::from_value(agent_document(launch)).expect("generated fixture JSON");
-    configuration.service = lower;
-    configuration.trace = None;
+    let mut configuration = smith_agent_shell::config::Configuration {
+        program: None,
+        program_endpoints: std::collections::BTreeSet::new(),
+        service: lower,
+        memory: parsed.memory,
+        trace: None,
+        profile: parsed.profile,
+        declarations: parsed.declarations,
+    };
     let trace = smith_agent_shell::trace::TraceConfig {
         path: launch.root_path.join("events.jsonl"),
         capture: smith_protocol_events::sinks::Capture::Everything,

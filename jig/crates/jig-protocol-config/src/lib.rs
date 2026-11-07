@@ -54,7 +54,7 @@ pub enum Defaults {
     Passed,
 }
 /// The engine's protocol configuration (configuration.md, 3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Engine {
     /// With `Passed`, the four settings fields are empty until `pass` gives them.
     pub defaults: Defaults,

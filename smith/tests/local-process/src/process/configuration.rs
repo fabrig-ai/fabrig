@@ -68,8 +68,21 @@ pub fn configuration_with_tools(
     configuration_for(root, change, tools, lower_configuration_with(tls))
 }
 
-pub(super) fn configuration_for_launch(root: kernel::Fd, launch: &Launch) -> (service::Config, agent::Config) {
-    let configured = smith_agent_shell::config::from_value(agent_document(launch)).expect("generated fixture JSON");
+/// What the product's header reads of the launch's document, beside its final service.
+pub(super) struct Parsed {
+    pub(super) memory: u64,
+    pub(super) profile: agent::profile::Profile,
+    pub(super) declarations: agent::profile::Configuration,
+}
+
+pub(super) fn configuration_for_launch(
+    root: kernel::Fd,
+    launch: &Launch,
+    document: serde_json::Value,
+) -> (service::Config, agent::Config, Parsed) {
+    let configured = smith_agent_shell::config::from_value(document).expect("generated fixture JSON");
+    let parsed =
+        Parsed { memory: configured.memory, profile: configured.profile, declarations: configured.declarations };
     let (mut local, lower) = configuration_for(root, launch.change, launch.tools, specialize(configured.service));
     if launch.lending == Some(crate::world::Lending::Key) {
         for model in &mut local.local.models {
@@ -94,7 +107,7 @@ pub(super) fn configuration_for_launch(root: kernel::Fd, launch: &Launch) -> (se
         workspace.directories = directories.into();
         local.paths = [local.paths.as_ref(), &[host]].concat().into();
     }
-    (local, lower)
+    (local, lower, parsed)
 }
 
 fn configuration_for(

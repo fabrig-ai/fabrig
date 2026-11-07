@@ -242,6 +242,16 @@ fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
 }
 
 #[test]
+fn readback_of_agrees_with_readback() {
+    let (mut store, _) = transcript_store();
+    let inventory = store.retained();
+    let expected = store.readback();
+    assert_eq!(store.readback_of(&inventory), expected);
+    assert_eq!(expected, store.rows);
+    assert_eq!(store.retained(), inventory, "readback preserves the supplied inventory");
+}
+
+#[test]
 fn readback_transcripts_compare_both_frame_orders_with_independent_turns() {
     let (mut store, expected) = transcript_store();
     let mirror = store.rows.clone();
