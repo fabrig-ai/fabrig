@@ -99,3 +99,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: each row's red at step 1 and the bite; each row's CPU time alone; the fleet surface and the decision's place as taken; each oracle repaired and why; any state left to the next start (options); temper's reader under `## Left`.
+
+## Answers
+
+2026-11-07 (temper/ui). Allow the one arm: your first option. Add | Event::Interrupt { .. } beside Event::Cross in fleet_delivery_within's group returning false, in temper/crates/temper-engine-domain/src/decision.rs, as its own commit, and name it in the report. Nothing else changes in temper, smith or skein. The branch must compile across the tree.

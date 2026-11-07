@@ -23,3 +23,16 @@ id = 1
 story = "A signal mid-run drains, and the next start finds the run's task due with no try spent, where a crash still spends one"
 parts = ["stop-interrupts"]
 walk = false
+
+[[part]]
+id = "coding-stop"
+title = "temper's one-process drain table holds a coding run stopped mid-turn: after the restart it is due again, no try spent, its change's counts and saved work as before, its slot and checkout serving the new attempt"
+mode = "direct"
+needs = ["stop-interrupts"]
+design = "temper/docs/design/protocol/README.md, 8"
+
+[[slice]]
+id = 2
+story = "A coding run's agent held mid-turn at serve's first signal is taken again by the next start, its task's tries, saved work and change's counts as before the stop"
+parts = ["coding-stop"]
+walk = false
