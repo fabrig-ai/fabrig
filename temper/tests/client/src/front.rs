@@ -18,6 +18,19 @@ use temper_client_domain::{self as client, Event as RootEvent, Request};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
+pub const PRINTED: [u8; 32] = [9; 32];
+
+#[must_use]
+pub fn printed_link() -> Box<[u8]> {
+    use skein_lib::base64::{self, Alphabet};
+    let prefix = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=";
+    let encoded = base64::encoded_len(Alphabet::Url, 32).expect("printed secret size");
+    let mut out = skein_lib::Writer::new(prefix.len() + usize::try_from(encoded).expect("short encoding"));
+    out.put(prefix).expect("measured prefix");
+    base64::encode(Alphabet::Url, &PRINTED, &mut out).expect("measured secret");
+    out.finish()
+}
+
 /// The common client Front backed by temper's own engine root.
 #[expect(clippy::struct_excessive_bools, reason = "independent fixture switches keep existing worlds unchanged")]
 pub struct Joint {
@@ -78,12 +91,13 @@ pub struct Joint {
     callbacks: Vec<(ClientId, Event)>,
     parked: BTreeMap<ClientId, Vec<Request>>,
     offline_until: Option<Time>,
+    linked_heard: BTreeMap<ClientId, Vec<jig_client::Event>>,
     due: Option<Time>,
     observed: Vec<Observed>,
     lose_answers: u32,
     lost_answer: Option<(ClientId, Token)>,
     hosting: BTreeMap<u64, u64>,
-    seed: u64,
+    pub(crate) seed: u64,
     now: Time,
     last_commit: u64,
     sign_outs: BTreeMap<ClientId, VecDeque<Option<u64>>>,
@@ -508,6 +522,59 @@ impl Joint {
             &engine_limits,
             1,
         )
+    }
+
+    #[must_use]
+    pub fn with_printed_link(seed: u64, limits: client::Limits) -> Joint {
+        let mut joint = Self::new(seed, limits);
+        joint.component = crate::component::Composition::with_printed_link(
+            &walking::config(seed),
+            limits.client.domain,
+            jig_domain_people::Identity {
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+            skein_lib::Secret::new(Box::new(PRINTED)),
+        );
+        joint
+    }
+
+    pub fn link_client(&mut self, who: ClientId, limits: jig_client::DomainLimits) {
+        self.advance(self.now);
+        self.component.link_client(who, limits);
+        self.linked_heard.entry(who).or_default();
+    }
+
+    pub fn carry(&mut self, who: ClientId, now: Time, request: jig_client::Request) {
+        self.advance(now);
+        if self.offline_until.is_some_and(|until| now < until) {
+            let heard = self.linked_heard.get_mut(&who).expect("linked client");
+            heard.extend(self.component.heard(who));
+            match request {
+                jig_client::Request::Exchange { exchange, .. } => heard.push(jig_client::Event::Lost { exchange }),
+                jig_client::Request::OpenStream { .. } => heard.push(jig_client::Event::StreamGone),
+                jig_client::Request::Save { .. } | jig_client::Request::Erase { .. } => {
+                    heard.push(jig_client::Event::Stored);
+                }
+                jig_client::Request::CloseStream
+                | jig_client::Request::Told { .. }
+                | jig_client::Request::Authorized(_)
+                | jig_client::Request::ServiceCredential { .. } => {}
+            }
+            return;
+        }
+        self.component.carry(who, request);
+        self.pump_component();
+    }
+
+    pub fn heard(&mut self, who: ClientId, now: Time) -> Vec<jig_client::Event> {
+        self.advance(now);
+        self.pump_component();
+        self.drain();
+        let mut heard = std::mem::take(self.linked_heard.get_mut(&who).expect("linked client"));
+        heard.extend(self.component.heard(who));
+        heard
     }
     /// A chat with authority to write its document, read through the real client component.
     #[must_use]
@@ -1315,6 +1382,7 @@ impl Joint {
             callbacks: Vec::new(),
             parked: BTreeMap::new(),
             offline_until: None,
+            linked_heard: BTreeMap::new(),
             due: None,
             observed: vec![Observed::Reachable { live: true }],
             lose_answers: 0,
