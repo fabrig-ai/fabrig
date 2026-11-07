@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 4.3.1 has no known gap in a change's role choice carrying no
+`later`: the change-choice parser constructs each choice with none,
+so producers, repairs, resolutions and agent gates keep one choice.
+The goal template's first/later choice is separate, as
+`../protocol/configuration.md`, 13.9 specifies.
+
 Sections 4.3 and 4.3.2 have no known implementation gap in `goal`'s
 156-byte declaration, the nonempty branch-prefix description or the
 next reads named by `read_branches` `Empty` and `read_branch` `Missing`.
