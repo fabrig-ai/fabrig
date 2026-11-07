@@ -15,9 +15,6 @@ through their changes, filtered by jig's handed tasks. A landing's zero
 stale-proof count draws nothing; a positive count remains (`browser.md`,
 8.3). Older public history remains deferred in section 10.
 
-- **Not yet:** 5.1: a search that finds nothing says "Nothing matches. Try
-  another name, or use Not listed." and shows "0 of N repositories"
-  (`look-round-14`).
 - **Departs:** 5.1: GitHub's installation records carry no repository selection
   mode, so the client cannot tell selected repositories from all repositories.
   "Not listed" asks the person to check that the repository exists and grant it
