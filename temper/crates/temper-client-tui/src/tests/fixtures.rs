@@ -248,6 +248,6 @@ pub fn find<'a>(tree: &'a skein_ui::Tree, role: skein_ui::Role, words: &[u8]) ->
 }
 pub fn build(view: &mut crate::View, tui: &crate::Tui, root: &Domain) -> Queue<skein_ui::Patch> {
     let mut out = Queue::with_capacity(crate::limits(&limits(), 512).unwrap().patches);
-    crate::build(view, tui, root, &mut out);
+    crate::build(view, tui, root, NOW, &mut out);
     out
 }
