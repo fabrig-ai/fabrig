@@ -50,8 +50,17 @@ a parent-death signal is the designed limit, deferred in section 15.
   story on Claude Code (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) failed
   at `21a9819cc3` on `no surviving children`, its box having exited 0.
-  Which process survived, and why, is unknown: the story's evidence holds
-  process ids alone. The plan `ui-box-children` repairs it.
+  Which process survived, and why, remains unproved. The live judge now
+  snapshots descendants before stopping and, at the box's exit, reports
+  each survivor's command line, parent, process group and session, or
+  that it is gone, plus retained rows for its parent and group leader,
+  through the live log's filter. Its table test covers the rendering and
+  process-stat parsing; the live assertion is unchanged. No lifetime fix
+  or live rerun is established. Temper/ui's answer of 2026-11-07, to the
+  plan `ui-box-children`, authorizes the recorder alone because no held
+  login reaches a worker; diagnosis and repair await the next
+  after-landing red (section 15). The runner's forced shutdown of a
+  recent job is a lead, not an identified survivor.
 
 - **Not yet:** 13.4: the hangup/rebind and Linux killed-box stories in
   `crates/temper/tests/suite/box_lifetime.rs` are present in the process
