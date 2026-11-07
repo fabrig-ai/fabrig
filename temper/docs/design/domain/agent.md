@@ -1394,8 +1394,11 @@ host:
   only they could meet (`forge.md`, 8.9). It proposes, says what acceptance
   checks and, refused, who to add on the forge before adopting again, in
   the browser the adoption form typed afresh (`../client/README.md`, 4.4).
-  Default: as it stands, until a walk shows whether that asks too much of
-  the person.
+  The box owner's link and its setup evidence, the per-forge eligibility
+  check and the approval card are separate work
+  (`../draft/forge-identity.md`, sections 3, 4, 7, 8 and 9).
+  Default: adoption's seeds and the refusal above; a configured login alone
+  supplies no verified forge identity.
 - **Which host tools a charter offers.** jig's charter carries the host
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in
