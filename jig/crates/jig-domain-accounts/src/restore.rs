@@ -76,13 +76,14 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     }
     match record {
         Stored::Next { .. } => {}
-        Stored::Account { number, provider, holder, place, uses, subject, display } => {
+        Stored::Account { number, provider, holder, place, uses, subject, display, list } => {
             assert!(!domain.accounts.contains_key(&number), "duplicate account record {key:?}");
             if domain.accounts.len() >= env.limits.accounts.min(domain.accounts.capacity()) {
                 refuse(domain, key, RestoreSet::Accounts, env.limits.accounts.min(domain.accounts.capacity()));
                 return;
             }
             let entry = Account {
+                list,
                 provider,
                 holder,
                 place,

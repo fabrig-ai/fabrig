@@ -173,6 +173,7 @@ fn two_accounts() -> (Core, Limits) {
     let (mut core, limits) = fixture();
     for record in [
         accounts::Stored::Account {
+            list: None,
             number: SECOND,
             provider: PROVIDER,
             holder: accounts::Holder::Party(PARTY),
