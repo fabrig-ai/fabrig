@@ -6,6 +6,7 @@ extern crate alloc;
 mod boundary;
 mod carried;
 pub mod contract;
+pub use contract::REASON_NAMES;
 mod domain;
 pub mod limits;
 mod link;

@@ -69,6 +69,7 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        parts: List::with_capacity(0),
         rest: v.rest,
         documents: {
             let mut out = List::with_capacity(v.documents.len());
@@ -153,6 +154,7 @@ pub fn form_llm_choice(v: &c::LlmChoice) -> n::LlmChoice {
 }
 pub fn client_llm_choice(v: &n::LlmChoice) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: client_optional_u32(v.account.as_ref()),
         main: client_model_effort(&v.main),
         subagents: {

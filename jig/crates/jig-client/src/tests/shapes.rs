@@ -191,6 +191,7 @@ fn choice(model: &[u8], effort: Option<&[u8]>) -> LlmChoice {
     let mut subagents = List::with_capacity(1);
     subagents.push(ModelEffort { model: Text::new(b"quick".as_slice().into(), 32).unwrap(), effort: None }).unwrap();
     LlmChoice {
+        later: None,
         account: None,
         main: ModelEffort {
             model: Text::new(model.into(), 32).unwrap(),

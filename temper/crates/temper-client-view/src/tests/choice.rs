@@ -210,6 +210,7 @@ pub(super) fn provider_byline_root(
                     jig_client::shapes::CHAT
                 },
                 choice: c::LlmChoice {
+                    later: None,
                     account: None,
                     main: c::ModelEffort { model: model_text(preview), effort: None },
                     subagents: List::with_capacity(0),
@@ -308,6 +309,7 @@ fn line_fixture(
         task.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
     }
     task.llm = Some(c::LlmChoice {
+        later: None,
         account: preference,
         main: c::ModelEffort {
             model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(),
@@ -1121,6 +1123,7 @@ fn a_new_chats_default_comes_from_its_supplied_preview() {
             .push(c::MeDefault {
                 template,
                 choice: c::LlmChoice {
+                    later: None,
                     account: None,
                     main: c::ModelEffort { model: model_text(name), effort },
                     subagents: List::with_capacity(0),
@@ -1977,6 +1980,7 @@ fn an_empty_wait_names_only_a_choice_the_task_holds() {
         (None, "No account can run this chat yet."),
         (
             Some(c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: model_text(b"explicit"), effort: None },
                 subagents: List::with_capacity(0),
@@ -2043,6 +2047,7 @@ fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Token, T
     project.defaults = List::from_boxed(Box::new([c::MeDefault {
         template: jig_client::shapes::CHAT,
         choice: c::LlmChoice {
+            later: None,
             account: None,
             main: c::ModelEffort { model: model_text(b"claude-opus-5-5"), effort: Some(model_text(b"high")) },
             subagents: List::with_capacity(0),

@@ -72,6 +72,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         wire.accounts = if populated { list([42, 7]) } else { List::with_capacity(0) };
         let mut defaults = List::with_capacity(1);
         let preview = jig_domain_tasks::LlmChoice {
+            later: None,
             account: None,
             main: jig_domain_tasks::ModelEffort { model: 0, effort: if populated { Some(1) } else { None } },
             subagents: if populated {
@@ -121,6 +122,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             &c::MeDefault {
                 template: 9,
                 choice: c::LlmChoice {
+                    later: None,
                     account: None,
                     main: c::ModelEffort {
                         model: text(b"chosen"),

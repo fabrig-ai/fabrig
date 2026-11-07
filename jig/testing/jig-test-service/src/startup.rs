@@ -416,12 +416,36 @@ pub(super) fn engine_startup(
 ) -> Result<(Engine, skein_io::Limits), Problems> {
     parsed.workers |= own_workers;
     check_files(&parsed, files)?;
-    for charter in &mut parsed.engine.charters {
+    for (index, charter) in parsed.engine.charters.iter_mut().enumerate() {
         for (name, contents) in &files.entries {
             if *name == charter.policy.instructions {
                 charter.policy.instructions = bytes::copy_of(contents.expose());
                 break;
             }
+        }
+        for part in &mut charter.parts {
+            for (name, contents) in &files.entries {
+                if *name == part.instructions {
+                    part.instructions = bytes::copy_of(contents.expose());
+                    break;
+                }
+            }
+        }
+        let bytes = match (
+            jig_domain_core::policy_owned_bytes(&charter.policy),
+            jig_domain_core::parts_owned_bytes(&charter.parts),
+        ) {
+            (Some(policy), Some(parts)) => policy.checked_add(parts),
+            (Some(_), None) | (None, Some(_) | None) => None,
+        };
+        let fits = match bytes {
+            Some(bytes) => bytes <= u64::from(parsed.engine.limits.core.run_bytes),
+            None => false,
+        };
+        if !fits {
+            let at =
+                Path::root().member(b"charters").child(Segment::Index(u32::try_from(index).expect("bounded charters")));
+            return Err(problem(engine_path(&at), What::Bound));
         }
     }
     let store_limits = configured_store_limits(&parsed)?;

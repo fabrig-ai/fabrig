@@ -74,6 +74,7 @@ fn both(name: &str) -> bool {
 }
 fn chosen() -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
         subagents: List::with_capacity(0),

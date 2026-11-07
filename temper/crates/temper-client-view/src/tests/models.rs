@@ -81,6 +81,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
         c::MeDefault {
             template: 3,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: text("claude-sonnet-5-5"), effort: Some(text("low")) },
                 subagents: List::with_capacity(0),
@@ -89,6 +90,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
         c::MeDefault {
             template: 1,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("low")) },
                 subagents: List::with_capacity(0),

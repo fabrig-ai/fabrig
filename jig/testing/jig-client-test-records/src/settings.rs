@@ -1,13 +1,13 @@
 //! Independent whole settings fixtures (client/domain/contract.md, 3–7).
 use jig_client_domain::contract::{
-    Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, Delegation, DocumentText, EndedBy, Grant,
-    HeldRevision, KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard,
-    PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
-    RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty,
-    RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts,
-    SettingItem, SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument,
-    Size, TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor,
-    TemplateOverride, Text,
+    Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, CharterPart, Delegation, DocumentText,
+    EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Pattern, PatternEnd,
+    PolicyEditRole, PolicyGuard, PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention,
+    RevisionDecider, RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead,
+    RevisionParty, RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows,
+    SettingHosts, SettingItem, SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue,
+    SettingsDocument, Size, TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline,
+    TemplateExecutor, TemplateOverride, Text,
 };
 use skein_lib::{Duration, List, Wall};
 fn text(value: &[u8]) -> Text {
@@ -70,6 +70,10 @@ pub fn settings_values() -> List<SettingValue> {
     alternatives.push(other).expect("one alternative");
     values
         .push(SettingValue::Charter(Box::new(Charter {
+            parts: List::from_boxed(Box::new([
+                CharterPart { on: 1, instructions: text(b"first part") },
+                CharterPart { on: 2050, instructions: text("later part λ".as_bytes()) },
+            ])),
             rest: false,
             documents: {
                 let mut documents = List::with_capacity(2);
@@ -86,7 +90,7 @@ pub fn settings_values() -> List<SettingValue> {
             number: 2,
             instructions: text("instructions λ".as_bytes()),
             waiting: Duration::from_secs(11),
-            resume: true,
+            resume: false,
             turns: 12,
             time: Duration::from_secs(13),
             reserve_turns: 2,
@@ -132,6 +136,13 @@ pub fn settings_values() -> List<SettingValue> {
             label: 17,
             grace: Some(Duration::from_secs(18)),
             llm: Some(LlmChoice {
+                later: Some(LlmLater {
+                    main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    subagents: List::from_boxed(Box::new([ModelEffort {
+                        model: text(b"model"),
+                        effort: Some(text(b"high")),
+                    }])),
+                }),
                 account: Some(21),
                 main: ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
                 subagents: List::with_capacity(0),

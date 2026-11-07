@@ -133,6 +133,7 @@ fn plan_coverage_rechecks_current_project_membership() {
 
 fn preferred(number: u32) -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: Some(number),
         main: tasks::ModelEffort { model: 0, effort: Some(0) },
         subagents: Box::new([]),

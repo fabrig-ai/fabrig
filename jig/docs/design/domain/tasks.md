@@ -136,9 +136,11 @@ it is live:
   instructions, the models it allows, in order, its resolution in the
   catalogue (engine.md, 17.11), the tools, the outcome it must produce, its default wake policy
   and waiting time, whether a run resumes its transcript or starts
-  fresh, and which hosts may run it (engine.md, 7.1). It names no
-  effort: each model declares its efforts, in order, in its `model` setting
-  (engine.md, 17.1).
+  fresh, and which hosts may run it (engine.md, 7.1); and its **parts**, in
+  order, each with instructions of its own for some of the reasons a run
+  runs, which a run those reasons meet reads after the charter's (8.6). It
+  names no effort: each model declares its efforts, in order, in its `model`
+  setting (engine.md, 17.1).
 - **Its revision:** the settings' revision it was made in, the newest
   then, whatever its parent's (engine.md, 17.3). An agent task's runs
   read its charter from it, until a move sets it to a newer one
@@ -154,7 +156,15 @@ it is live:
     effort, among which smith chooses within a run (smith's
     `domain/run.md`, 5.3);
   - *account:* optionally, one LLM account its creator wants in
-    particular, within the account's uses (accounts.md, 4.3).
+    particular, within the account's uses (accounts.md, 4.3);
+  - *later:* optionally, a second main model with its effort and the
+    sub-agents' models with theirs, which every run whose reasons hold no
+    `first` takes (8.6), the first choice going to the runs of its first
+    activation. It names no account: the task's preference covers both.
+    Without it, every run takes the one choice. A task whose charter resumes
+    takes none (8.6): a batch or an amendment giving one there is refused as
+    `Llm` with the fault `Charter`, naming its main model, and a run of a task
+    whose charter has come to resume since takes the first choice.
 
   Its creator gives it, or a template does
   (`../protocol/configuration.md`, 3.1), each model within the task's
@@ -167,15 +177,20 @@ it is live:
   (`../client/domain/contract.md`, 5.1). A batch or an amendment that
   leaves such a task with an authority allowing none of its charter's
   models is refused, naming the charter's first.
-  A task keeps the choice it was given, and only an amendment changes it
-  (section 7).
+  A `later` is checked as the first choice is, model by model: within the
+  task's authority at its batch or amendment, within its charter's models
+  and their declared efforts at each run's check, and again on a restore.
+  A task keeps the choice it was given, and only an amendment changes it,
+  whole, its `later` with it: one giving a choice without `later` leaves the
+  task none (section 7).
   Configuration templates choose models and efforts; they never name an
   account. Runtime requests supply the optional account preference.
 - **Its account:** the LLM account its runs use for its main model's LLM
   provider, chosen at its first run's check and kept from run to run,
   so that a conversation stays on one account's cache and replay, until
   a change of its payer or of that LLM provider chooses again
-  (accounts.md, 4.3). The accounts its sub-agents use are each run's,
+  (accounts.md, 4.3), as its first run to take a `later` on another LLM
+  provider does. The accounts its sub-agents use are each run's,
   recorded in its claim (engine.md, 7.1, step 3). This kept number is separate
   from the creator's optional preference. Only a successful claim changes it,
   in the same decision as its reservation and phase; a refused claim leaves
@@ -234,6 +249,11 @@ it is live:
 - **Its phase** (section 5) and why, if held; its **attempt number,**
   which only grows, fencing stale runs; and its **tries** per class of
   failure, which a release resets.
+- **Its reasons** (8.6): why its activation runs, `first` until a run of it
+  parks idle or finishes, with the kinds that woke its runs since; and, with
+  its claim, the kinds its attempt is offered. They are kept on the task
+  across its attempts, so a retry and a continuation run for what the
+  attempt before them ran for.
 - **Its result,** once it has one.
 
 What the store keeps beside it, and the engine loads only when wanted:
@@ -1102,7 +1122,9 @@ circle, each for another of the set, so that none of them could end.
 - **A new LLM choice is for the next run.** A run in flight keeps its
   own models and account; the next run's check uses the new choice and
   chooses its account again when its main model's LLM provider changed
-  (accounts.md, 4.3). A conversation that moves to another LLM provider
+  (accounts.md, 4.3). The new choice replaces the old whole, its `later`
+  with it (section 3): one given without `later` leaves the task none, and
+  the next run takes its first choice or its `later` by its reasons (8.6). A conversation that moves to another LLM provider
   or another account is carried over, its text, calls and results kept
   and the provider's opaque replay dropped (smith's
   `protocol/transcript.md`, section 4). An amendment naming another
@@ -1215,7 +1237,9 @@ circle, each for another of the set, so that none of them could end.
   empty ones leave it with none, not with its charter's; an amendment
   that leaves them out changes nothing of them. Its history records the
   instructions as the task held them, its own or none of its own, never
-  which charter's text was in effect.
+  which charter's text was in effect. A task with instructions of its own
+  reads them alone, none of its charter's parts with them, and its runs are
+  offered every message, as under a charter with no parts (8.6).
 - **An amendment is a message** to the task's executor, committed with
   the change: it wakes an agent, steps a procedure, and shows a person
   what changed. One that keeps an idle agent task (5.7) wakes it only
@@ -1378,12 +1402,13 @@ are entries of its own (section 9), which always wake it.
   (`../protocol/configuration.md`, section 6), and the fleet admits no
   host whose agent takes less (engine.md, section 8).
 - **Carried whole and read oldest first,** within the run's inbox. A
-  run's start carries the messages waiting in its task's inbox, each
-  whole, oldest first, as many as the run's inbox takes (smith's
-  `protocol/limits.md`, 2.3); a person's words are never cut. The rest
-  wait in the inbox, in order, and are relayed as the run reads, as what
-  its policy lets through while it runs is, never more relayed and
-  unread than the run's inbox takes (engine.md, 7.1 and 7.4).
+  run's start carries the messages waiting in its task's inbox that the
+  run is offered (8.6), each whole, oldest first, as many as the run's
+  inbox takes (smith's `protocol/limits.md`, 2.3); a person's words are
+  never cut. The rest wait in the inbox, in order, and those it is offered
+  are relayed as the run reads, as what its policy lets through while it
+  runs is, never more relayed and unread than the run's inbox takes
+  (engine.md, 7.1 and 7.4).
 - **Entries are read as messages are.** A proposal or an escalation
   waiting for a task shows in its inbox as an entry (section 9), relayed
   and read in order with its messages, and taking none of their room.
@@ -1395,6 +1420,12 @@ are entries of its own (section 9), which always wake it.
   unread (after the answer's fence, the last message it read), stays in
   the inbox, untaken, and wakes the task again when the run ends, as it
   would had it arrived then (8.3).
+- **Not offered, a message stays too.** A message the run isn't offered
+  (8.6) is neither carried at its start nor relayed to it; it keeps its
+  place in the inbox, untaken, and is judged again when the run ends, as a
+  message refused or left unread is (8.3). A turn takes only the messages
+  offered to its attempt up to its fence, so a fence that passes one kept
+  back takes nothing of it, nor of one a pace holds (8.3).
 
 ### 8.3 Wake policies
 
@@ -1425,17 +1456,18 @@ A wake policy is data, from a closed vocabulary:
   waits until the span since that start has passed, and what arrived
   meanwhile wakes it once. A run started for any other message carries
   what the pace holds, as every run carries its inbox (8.2); a message
-  the pace holds is not relayed to a live run. A pace is not a delay:
-  the first message after a quiet span wakes at once;
+  the pace holds is not relayed to a live run, nor taken by a turn's
+  fence that passes it, and is judged again when the run ends. A pace is
+  not a delay: the first message after a quiet span wakes at once;
 - **timers:** wake at a time, or every period.
 
 A proposal or an escalation waiting for its decision always wakes a
 task, as a cancel does: no policy may keep a decision from whoever must
 make it.
 
-A message a run refused or left unread (8.2) is judged again when the
-run ends, as if it arrived then: it wakes the task if its kind does, and
-otherwise waits for the next activation.
+A message a run refused, left unread or wasn't offered (8.2 and 8.6) is
+judged again when the run ends, as if it arrived then: it wakes the task
+if its kind does, and otherwise waits for the next activation.
 
 Each charter brings a default policy, named with the charter in
 configuration (`../protocol/configuration.md`, section 3) and kept with
@@ -1491,6 +1523,68 @@ connectors offer for goals are the core's to keep, not its executor's
   (people.md, section 8), which its charter's authority allows, an
   entry of that party's inbox, whose answer reaches the conversation
   as that delegate's result.
+
+### 8.6 Why a run runs, and what it is offered
+
+An agent task's charter may hold parts, each with instructions for some of
+the reasons a run runs (section 3), so that a run reads the charter's own
+instructions and the parts for why it runs, and is offered the messages
+those parts are for.
+
+- **A run's reasons** are `first`, its task's first activation, and the
+  kinds of message that woke it, each named as jig's store names it
+  (`../protocol/store.md`, section 5). `first` lasts until a run of the task
+  parks idle or finishes: a run parked kept, by its own question, a question
+  it owes or a dependency (5.7), leaves the run that continues it `first`
+  too, and so does a failed attempt for its retry (5.5). A first run's
+  reasons are `first` plus the kinds that woke it, such as a person's words
+  waiting at its start.
+- **The kinds that woke it:** each kind of a message waiting in its inbox,
+  or of an entry waiting for its decision (section 9), that its wake policy
+  lets wake it when it is activated (8.3). A kind that rides along without
+  waking it is no reason: a non-last result under `last_or_failure`, or
+  news a pace holds, gives none.
+- **A continuation and a retry** run for the reasons of the attempt before
+  them, kept with the task (section 3), plus the kinds that wake them at
+  their own activation. A retry is due by its backoff, not by a message, and
+  its start carries what is waiting then, not what the failed attempt read.
+- **The kinds that choose parts:** `question`, `question_answered`,
+  `question_ended`, `question_owed`, `escalation`, `proposal`,
+  `person_stalled`, `result`, `notice`, `nothing_awaited`, `news`, `timer`
+  and `words`. The others choose none and are **always offered**, each a
+  reply to the task's own act or a change to what its run does: `answer`,
+  `proposal_decision`, `settings_decision`, `effect_not_made`, `met`,
+  `amendment` and `finish_requested`. A person's `words`, which no batch
+  holds (8.3), and the entries waiting for the task's decision, which are
+  relayed to a live run whatever its parts (section 9), are always offered
+  too, though their kinds choose parts.
+- **A part** is for the reasons in its `on`, a nonempty set of `first` and
+  the kinds that choose parts, and has instructions of its own. A run reads
+  its charter's instructions, then each part whose `on` meets its reasons,
+  in the charter's order, each part once (engine.md, 7.1); a run no part is
+  for reads the charter's instructions alone. A charter holds at most
+  `tasks.charter_parts` parts (`../protocol/configuration.md`, section 6),
+  and one whose runs resume holds none: a resumed run keeps the
+  instructions its conversation began with, which changing would lose its
+  cache and leave its earlier turns read under other words.
+- **What a run is offered:** under a charter with parts, the always-offered
+  and every kind named in the `on` of a part it reads; under a charter with
+  none, or for a task with instructions of its own (section 7), every
+  message, as a charter with no parts gave every run before. The parts are
+  those its preparation chose (engine.md, 7.1, step 2), so a message that
+  arrives between its preparation and its claim is offered or kept by them.
+- **What isn't offered keeps its place** (8.2): it is neither carried at the
+  run's start nor relayed to it, no fence takes it, and when the run ends it
+  is judged again as if it arrived then (8.3), when it may wake the next run,
+  which then runs for its kind.
+- **An entry left undecided wakes the next run.** Entries are not inbox
+  messages, so nothing judges one again when a run ends: when a run ends
+  with a proposal or an escalation still waiting for its task's decision,
+  the task is woken again for it, its reasons that entry's kind, as an
+  unread message would wake it.
+- **The set,** as the store keeps it, is bits: bit 0 for `first`, then
+  bits 1 to 13 for the kinds that choose parts, in the order above; no
+  other bit is set (`../protocol/store.md`, section 5).
 
 ## 9. Proposals and escalations
 
@@ -1579,9 +1673,10 @@ proposed, what an action needs, and what an acceptance funds.
   refused in its decision. A proposal already pending waits as this
   section says.
 - **Waking.** It always wakes the task it waits for (8.3), is relayed to
-  that task's live run as messages are, and is in the brief of its next
-  run (engine.md, section 9); for a party, it appears in their inbox at
-  once.
+  that task's live run as messages are, whatever the run's parts (8.6), and
+  is in the brief of its next run (engine.md, section 9); left undecided
+  when that run ends, it wakes the task again, for its kind (8.6); for a
+  party, it appears in their inbox at once.
 - **Deciding.** A holder accepts, rejects with a reason, or passes it up
   to the next holder that covers it. An accepted proposal is made as the
   proposer's action, with the accepter's authority funding what it
@@ -1823,6 +1918,16 @@ the newest when it moved.
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
   coordinator wakes. Tuned from use.
+- **An entry its part's run leaves undecided** (8.6): it wakes the next run
+  again, as an unread message would, so a holder whose run reads the part
+  for it and still leaves it waiting spends a run at each wake until the
+  entry stalls (section 11). Whether such an entry should wait for something
+  else to wake the task is left to use.
+- **Later, for parts:** a part given as a message when a resumed run first
+  meets its kind, so that a charter whose runs resume may have parts;
+  documents chosen per part (engine.md, 17.9); an LLM choice per kind of
+  wake, if `later` proves too coarse; and offering a run a message with its
+  part rather than keeping it for the next run.
 - **Dependencies on a failure:** whether a task should be able to depend
   on another's ending, whatever its result, for clean-ups; until wanted,
   a requester makes the clean-up task itself.

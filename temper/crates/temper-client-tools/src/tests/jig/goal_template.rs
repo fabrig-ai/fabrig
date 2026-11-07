@@ -39,7 +39,12 @@ pub(super) fn goal_me() -> c::Me {
     draft.executor = c::TemplateExecutor::Charter(5);
     let mut subagents = List::with_capacity(1);
     subagents.push(f::model_effort(b"gpt-6.1-sol", Some(b"medium"))).unwrap();
-    draft.llm = Some(c::LlmChoice { account: None, main: f::model_effort(b"gpt-6.1-sol", Some(b"high")), subagents });
+    draft.llm = Some(c::LlmChoice {
+        later: None,
+        account: None,
+        main: f::model_effort(b"gpt-6.1-sol", Some(b"high")),
+        subagents,
+    });
     draft.resources = List::with_capacity(1);
     draft.resources.push(c::Symbol { connector: 1, symbol: 1 }).unwrap();
     let mut templates = List::with_capacity(2);

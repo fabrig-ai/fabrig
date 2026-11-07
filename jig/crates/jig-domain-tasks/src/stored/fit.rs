@@ -189,7 +189,11 @@ fn phase(value: &Phase, limits: &Limits) -> Result<(), RestoreCause> {
 }
 
 fn shape(choice: &crate::LlmChoice) -> Result<(), RestoreCause> {
-    count(RestoreBound::Subagents, choice.subagents.len(), crate::MODELS)
+    count(RestoreBound::Subagents, choice.subagents.len(), crate::MODELS)?;
+    if let Some(later) = &choice.later {
+        count(RestoreBound::Subagents, later.subagents.len(), crate::MODELS)?;
+    }
+    Ok(())
 }
 
 fn member(value: &New, limits: &Limits) -> Result<(), RestoreCause> {
@@ -570,6 +574,12 @@ pub(super) fn choice(domain: &Domain, value: &TaskRecord) -> Result<(), RestoreC
     model(domain, models, choice.main)?;
     for chosen in &choice.subagents {
         model(domain, models, *chosen)?;
+    }
+    if let Some(later) = &choice.later {
+        model(domain, models, later.main)?;
+        for chosen in &later.subagents {
+            model(domain, models, *chosen)?;
+        }
     }
     Ok(())
 }

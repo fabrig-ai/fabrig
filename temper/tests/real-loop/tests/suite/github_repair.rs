@@ -358,7 +358,13 @@ fn replacement_acts() -> Vec<Step> {
 
 #[test]
 fn a_replacement_github_repair_after_release_receives_the_job_log_again() {
-    let ran = run_github(repair_fixture(), refused_repair_scripts, replacement_acts);
+    let mut fixture = repair_fixture();
+    fixture.configure = |value, agent, at| {
+        (repair_fixture().configure)(value, agent, at);
+        // The person releases the hold; the chat reports it and waits.
+        value["world_settings"]["requester"] = true.into();
+    };
+    let ran = run_github(fixture, refused_repair_scripts, replacement_acts);
     let prompts: Vec<_> = ran
         .llm()
         .iter()

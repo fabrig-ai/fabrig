@@ -294,10 +294,10 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
             if let Some(detail) = documents_fit(value, limits) {
                 return Err(document_failure(setting, detail));
             }
-            match crate::limits::policy_owned_bytes(&value.policy) {
-                Some(bytes) => bytes <= u64::from(limits.run_bytes),
-                None => false,
+            if let Some(fault) = parts_fault(value, limits) {
+                return Err(Failure { setting, fault, detail: None });
             }
+            true
         }
         Value::Template(value) => {
             value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
@@ -555,10 +555,34 @@ fn charter_fault(charter: &crate::Charter, limits: &Limits) -> Option<Fault> {
     } {
         return Some(Fault::Budget);
     }
-    if crate::limits::policy_owned_bytes(policy)? > u64::from(limits.run_bytes) {
+    parts_fault(charter, limits)
+}
+
+/// The parts' shape and stored policy bound also hold for restored values
+/// (jig/docs/design/protocol/configuration.md, 6; jig/docs/design/domain/tasks.md, 8.6).
+fn parts_fault(charter: &crate::Charter, limits: &Limits) -> Option<Fault> {
+    if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
+        return Some(Fault::Count);
+    }
+    if charter.policy.resume && !charter.parts.is_empty() {
         return Some(Fault::Shape);
     }
-    None
+    for part in &charter.parts {
+        if part.on.is_empty() || !part.on.is_known() {
+            return Some(Fault::Shape);
+        }
+    }
+    let bytes = match crate::limits::policy_owned_bytes(&charter.policy) {
+        Some(policy) => match crate::limits::parts_owned_bytes(&charter.parts) {
+            Some(parts) => policy.checked_add(parts),
+            None => None,
+        },
+        None => None,
+    };
+    match bytes {
+        Some(bytes) if bytes <= u64::from(limits.run_bytes) => None,
+        Some(_) | None => Some(Fault::Shape),
+    }
 }
 fn contract_fault(contract: &tasks::Contract, connectors: &[u16]) -> Option<Fault> {
     match contract {
@@ -630,14 +654,20 @@ fn template_fault(
     None
 }
 fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
-    if choice.subagents.len() > skein_lib::length::usize_of(tasks::MODELS) {
+    if !agents_valid(models, choice.main, &choice.subagents) {
         return false;
     }
-    if !effort_valid(models, choice.main) {
+    match &choice.later {
+        Some(later) => agents_valid(models, later.main, &later.subagents),
+        None => true,
+    }
+}
+fn agents_valid(models: &[crate::Model], main: tasks::ModelEffort, subagents: &[tasks::ModelEffort]) -> bool {
+    if subagents.len() > skein_lib::length::usize_of(tasks::MODELS) || !effort_valid(models, main) {
         return false;
     }
-    for (at, chosen) in choice.subagents.iter().enumerate() {
-        for earlier in choice.subagents.iter().take(at) {
+    for (at, chosen) in subagents.iter().enumerate() {
+        for earlier in subagents.iter().take(at) {
             if earlier.model == chosen.model {
                 return false;
             }
@@ -648,6 +678,7 @@ fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     }
     true
 }
+
 fn policy_fault(
     current: &Current,
     defaults: bool,

@@ -1834,8 +1834,10 @@ temper box
 - **Its environment:** each step gets the box's; `temper forge run`
   clears it for Forgejo (6.4).
 - **Its children** are skein-io's (skein's `io.md`, section 6), each in a
-  process group of its own; closing one kills its group, so nothing the
-  box started outlives its stop, nor, on Linux, its death (7.1).
+  process group of its own; closing one kills its group. A descendant
+  that starts another group or session is outside that kill. Nothing the
+  box starts may outlive its stop, nor, on Linux, its death (7.1); each
+  spawning owner must end descendants outside its group too.
 
 ### 7.3 What it names
 
@@ -3946,6 +3948,14 @@ Each is intended; what it needs is named with it.
   the process tier, within its standing budget. The separate killed-test
   story checks another ownership link; it does not replace killing a
   box whose playground steps run (`../domain/testing.md`, 2.6 and 11).
+
+- **A box's surviving descendant** (7.2): use the owned-forge
+  Claude Code landing story's survivor rows and stop snapshot to identify
+  the spawning owner, then repair that lifetime at its lowest place
+  under a failing test. The next after-landing red supplies the evidence;
+  a runner job's forced shutdown alone does not identify the survivor.
+  A coding run's own child belongs to the run's sandbox lifetime. Keep
+  the live no-survivor assertion and the box's stop bounds unchanged.
 
 - **Four agents on a laptop** (8.1, 8.3): measure their combined resident
   memory, including any program an agent launches, after landing. The

@@ -293,8 +293,23 @@ pub fn choice(
     }
     Ok(Some(w::LlmChoice::new(
         limits,
-        w::LlmChoiceParts { account: value.account, main: model_effort(value.main, models, limits)?, subagents },
+        w::LlmChoiceParts {
+            account: value.account,
+            main: model_effort(value.main, models, limits)?,
+            subagents,
+            later: match &value.later {
+                Some(later) => Some(later_choice(later, models, limits)?),
+                None => None,
+            },
+        },
     )?))
+}
+fn later_choice(value: &t::LlmLater, models: &[Model], limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
+    let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded sub-agents"));
+    for item in &value.subagents {
+        subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
+    }
+    w::LlmLater::new(limits, w::LlmLaterParts { main: model_effort(value.main, models, limits)?, subagents })
 }
 fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
     let unknown = w::Problem { path: w::Path::ModelEffortModel, reason: skein_codec::Reason::Bound };
@@ -423,6 +438,16 @@ fn lacking(choice: Option<&w::LlmChoice>, models: &[Model]) -> Option<Lacking> {
             return Some(Lacking { model: bytes::copy_of(item.model()), why });
         }
     }
+    if let Some(later) = choice.later() {
+        if let Err(why) = indices(later.main(), models) {
+            return Some(Lacking { model: bytes::copy_of(later.main().model()), why });
+        }
+        for item in later.subagents() {
+            if let Err(why) = indices(item, models) {
+                return Some(Lacking { model: bytes::copy_of(item.model()), why });
+            }
+        }
+    }
     None
 }
 
@@ -446,7 +471,28 @@ pub(crate) fn people(
         };
         subagents.push(item).expect("same capacity");
     }
-    Ok(Some(p::LlmChoice { account: *value.account(), main, subagents: subagents.into_boxed() }))
+    Ok(Some(p::LlmChoice {
+        later: match value.later() {
+            Some(later) => Some(people_later(later, models, path)?),
+            None => None,
+        },
+        account: *value.account(),
+        main,
+        subagents: subagents.into_boxed(),
+    }))
+}
+fn people_later(value: &w::LlmLater, models: &[Model], path: w::Path) -> Result<p::LlmLater, super::Untranslatable> {
+    let Ok(main) = indices(value.main(), models) else {
+        return Err(super::Untranslatable { path });
+    };
+    let mut subagents = List::with_capacity(value.subagents().len());
+    for item in value.subagents() {
+        let Ok(item) = indices(item, models) else {
+            return Err(super::Untranslatable { path });
+        };
+        subagents.push(item).expect("same capacity");
+    }
+    Ok(p::LlmLater { main, subagents: subagents.into_boxed() })
 }
 fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w::LlmWhy> {
     let mut found = None;

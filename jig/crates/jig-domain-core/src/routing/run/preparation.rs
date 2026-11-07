@@ -86,11 +86,10 @@ pub(crate) fn workspace_prepared(
         return out;
     }
     drop(core.workspace_credentials.insert(task, credentials).expect("live task credential room"));
-    let Some(current) = core.tasks.run_context(task) else { return wait_for_account(core, work, context) };
-    if current != context {
+    let Some(current) = super::parts::preparation_facts(core, &context) else {
         drop(core.workspace_credentials.remove(&task));
-        return wait_for_account(core, work, current);
-    }
+        return wait_for_account(core, work, context);
+    };
     match context.executor {
         tasks::Executor::Job { .. } => {
             if let Some(items) = &workspace
@@ -164,7 +163,11 @@ pub(crate) fn workspace_prepared(
         && context.tries.transient == 0
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
     let conversation = if resume && transcript.last.is_some() { transcript.from } else { attempt };
-    let messages = start_messages(context.inbox, env.limits.tasks.run_inbox);
+    let charter = core.charter_of(task);
+    let own = core.tasks.task(task).expect("live task").instructions.as_deref();
+    let instructions = super::parts::run_instructions(charter, own, context.reasons);
+    let offered = super::parts::offered_kinds(charter, own.is_some(), context.reasons);
+    let messages = start_messages(context.inbox, env.limits.tasks.run_inbox, offered);
     let mut proof = start_proof(core, task, attempt, conversation, &messages);
     proof.host = allowance.choice.placement.kind;
     proof.placement = Some(allowance.choice.placement.channel);
@@ -204,9 +207,7 @@ pub(crate) fn workspace_prepared(
         sources.push(grant).expect("one grant per retained model");
     }
     let mut policy = allowance.choice.policy;
-    if let Some(instructions) = &core.tasks.task(task).expect("live task").instructions {
-        policy.instructions.clone_from(instructions);
-    }
+    policy.instructions = instructions;
     policy.resume = resume;
     let run = RunCharter {
         revision: core.tasks.task(task).expect("prepared task").settings.run.expect("prepared revision"),
@@ -219,7 +220,7 @@ pub(crate) fn workspace_prepared(
         authority: context.authority,
         budget: allowance.spend,
     };
-    assert!(core.claiming.insert(task, attempt) == Ok(None), "one pending claim per task");
+    assert!(core.claiming.insert(task, (attempt, offered)) == Ok(None), "one pending claim per task");
     out.push(Request::Now(Box::new(Now::RunPrepared {
         live: crate::LiveAsk {
             text: core.tasks.task(task).expect("live task").flags.conversation,
@@ -267,9 +268,12 @@ fn answered_calls(core: &Core, task: u64, attempt: u64, limit: u32) -> Box<[crat
     answered.into_boxed()
 }
 
-fn start_messages(inbox: Box<[tasks::Word]>, most: u32) -> Box<[tasks::Word]> {
+fn start_messages(inbox: Box<[tasks::Word]>, most: u32, offered: tasks::Reasons) -> Box<[tasks::Word]> {
     let mut messages = List::with_capacity(most);
     for word in inbox {
+        if !tasks::offered(&word, offered) {
+            continue;
+        }
         if messages.len() == most {
             break;
         }
@@ -322,9 +326,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     let Some(current) = core.tasks.task(task) else {
         return out;
     };
-    if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
-        || core.tasks.run_message(task) != Some(context.last_message)
-    {
+    if !super::parts::preparation_current(core, context) {
         return out;
     }
     if !core.dependency_results.contains_key(&task)
@@ -376,12 +378,7 @@ pub(crate) fn plan_brief(
     let Some(context) = core.contexts.get(&task) else {
         return out;
     };
-    let Some(current) = core.tasks.task(task) else {
-        return out;
-    };
-    if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
-        || core.tasks.run_message(task) != Some(context.last_message)
-    {
+    if !super::parts::preparation_current(core, context) {
         return out;
     }
     let text_limits = crate::BriefTextLimits {
@@ -698,10 +695,14 @@ pub(crate) fn route_claim_prepared(
     budget: u64,
     writes: Box<[tasks::Name]>,
 ) -> Queue<Request> {
-    if core.claiming.get(&task) == Some(&attempt) {
+    if let Some(&(prepared, offered)) = core.claiming.get(&task)
+        && prepared == attempt
+    {
+        let mut reasons = tasks::Reasons::FIRST;
         if let Some(context) = core.contexts.remove(&task) {
-            let valid = match core.tasks.run_context(task) {
-                Some(current) if current == context => match core.run_admission(&current, env.wall, Box::new([])) {
+            reasons = context.reasons;
+            let valid = match super::parts::preparation_facts(core, &context) {
+                Some(current) => match core.run_admission(&current, env.wall, Box::new([])) {
                     crate::RunAdmission::Allow(allowance) => {
                         let proof = core.proofs.get(&task).expect("pending proof");
                         allowance.spend == budget
@@ -710,10 +711,10 @@ pub(crate) fn route_claim_prepared(
                     }
                     crate::RunAdmission::Wait(_) | crate::RunAdmission::Hold(_) => false,
                 },
-                Some(_) | None => false,
+                None => false,
             };
             if !valid {
-                let _: Option<u64> = core.claiming.remove(&task);
+                let _: Option<(u64, tasks::Reasons)> = core.claiming.remove(&task);
                 core.restore_replaced_proof(task);
                 work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
                 let mut out = Queue::uncapped();
@@ -732,6 +733,8 @@ pub(crate) fn route_claim_prepared(
         };
         let resumed = earlier_transcript && turned;
         work.push(Work::Event(Event::Tasks(tasks::Event::Claim {
+            offered,
+            reasons,
             account: match core.proofs.get(&task) {
                 Some(proof) => match proof.accounts.first() {
                     Some(binding) => Some(binding.account),

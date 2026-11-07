@@ -96,6 +96,8 @@ pub struct Limits {
     pub charters: u32,
     /// Maximum documents per charter (domain/engine.md, 17.9).
     pub charter_documents: u32,
+    /// Bounds parts per charter (jig/docs/design/protocol/configuration.md, 6).
+    pub charter_parts: u32,
     /// Maximum resource grants per task authority carrier.
     pub authority_grants: u32,
     /// Maximum base segments per carried grant pattern.
