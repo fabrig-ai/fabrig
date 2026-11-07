@@ -161,13 +161,9 @@ pub(crate) fn loaded(
         }
         ReadFor::Preparation { task, last_message } => {
             let current = match core.contexts.get(&task) {
-                Some(context) if context.last_message == last_message => match core.tasks.task(task) {
-                    Some(row) => {
-                        row.phase == tasks::Phase::Active(tasks::Active::Preparing)
-                            && core.tasks.run_message(task) == Some(last_message)
-                    }
-                    None => false,
-                },
+                Some(context) if context.last_message == last_message => {
+                    super::parts::preparation_current(core, context)
+                }
                 Some(_) | None => false,
             };
             if !current {

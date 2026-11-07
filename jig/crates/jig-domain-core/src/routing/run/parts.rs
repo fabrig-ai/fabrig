@@ -1,9 +1,66 @@
 //! Instructions and offered kinds chosen by run reasons (jig/docs/design/domain/tasks.md, 8.6;
 //! jig/docs/design/domain/engine.md, 7.1).
-use crate::Charter;
+use crate::{Charter, Core};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::Writer;
+use skein_lib::{List, Writer};
+
+/// A preparing run keeps its selected parts while every newer word is kept by them.
+pub(crate) fn preparation_current(core: &Core, context: &tasks::RunContext) -> bool {
+    let Some(task) = core.tasks.task(context.task) else { return false };
+    if task.phase != tasks::Phase::Active(tasks::Active::Preparing) {
+        return false;
+    }
+    if core.tasks.run_message(context.task) == Some(context.last_message) {
+        return true;
+    }
+    let offered = match task.executor {
+        tasks::Executor::Agent { .. } => {
+            offered_kinds(core.charter_of(context.task), task.instructions.is_some(), context.reasons)
+        }
+        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
+            tasks::Reasons::ALL
+        }
+    };
+    let Some(current) = core.tasks.run_context(context.task) else { return false };
+    for word in &current.inbox {
+        if word.number > context.last_message && tasks::offered(word, offered) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Compare fresh preparation facts after excluding newer kept words and only the reasons
+/// they add. All other changes still abandon the prepared snapshot before admission.
+pub(crate) fn preparation_facts(core: &Core, context: &tasks::RunContext) -> Option<Box<tasks::RunContext>> {
+    if !preparation_current(core, context) {
+        return None;
+    }
+    let mut current = core.tasks.run_context(context.task)?;
+    let mut inbox = List::with_capacity(u32::try_from(current.inbox.len()).expect("bounded preparation inbox"));
+    let mut kept_reasons = tasks::Reasons::EMPTY;
+    for word in current.inbox {
+        if word.number > context.last_message {
+            kept_reasons = kept_reasons.union(tasks::Reasons::of(&word.kind));
+        } else {
+            inbox.push(word).expect("current inbox counted");
+        }
+    }
+    current.inbox = inbox.into_boxed();
+    if current.last_message > context.last_message {
+        current.last_message = context.last_message;
+    }
+    if current.reasons.contains(context.reasons)
+        && current.reasons.union(kept_reasons) == context.reasons.union(kept_reasons)
+    {
+        current.reasons = context.reasons;
+    }
+    if current.as_ref() != context {
+        return None;
+    }
+    Some(current)
+}
 
 /// The task's own instructions, or its charter's followed by the parts its reasons meet.
 pub(crate) fn run_instructions(charter: &Charter, own: Option<&[u8]>, reasons: tasks::Reasons) -> Box<[u8]> {

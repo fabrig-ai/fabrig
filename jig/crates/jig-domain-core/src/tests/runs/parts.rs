@@ -4,6 +4,7 @@ use crate::routing::run::{
     preparation,
 };
 use crate::tests::*;
+use jig_domain_brief as brief;
 use jig_domain_link::{Form, Scheme};
 use tasks::Reasons;
 
@@ -152,4 +153,236 @@ fn preparation_offers_person_words_and_keeps_an_uncovered_question() {
     };
     assert_eq!(claimed, reasons);
     assert_eq!(offered, Reasons::EMPTY);
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Arrival {
+    BeforeBrief,
+    DuringResult,
+    DuringNotes,
+    BeforeComplete,
+    BeforeWorkspace,
+}
+
+fn preparing_parts(parts: bool) -> (Core, Limits) {
+    let (mut core, limits) = make_tree();
+    let charter = core.current.test_charter_mut(1);
+    charter.policy.resume = false;
+    charter.policy.instructions = b"S".as_slice().into();
+    if parts {
+        charter.parts = Box::new([part(Reasons::FIRST, b"F"), part(Reasons::QUESTION, b"Q")]);
+    }
+    runs::run_choice::host(&mut core, &limits, Token::new(7), &[b"scripted"]);
+    runs::run_choice::account(&mut core, &limits, accounts::Event::Want);
+    runs::run_choice::granted(&mut core, &limits, 1);
+    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
+    core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
+    core.begin_transcript(1, 0, None);
+    (core, limits)
+}
+
+fn arrive(core: &mut Core, limits: &Limits, kind: tasks::MessageKind) {
+    let from = if kind == tasks::MessageKind::Question { tasks::Party::Task(2) } else { tasks::Party::Person(1) };
+    watch_outputs(
+        core,
+        limits,
+        Event::Tasks(tasks::Event::Message {
+            reply_to: ReplyTo::new(Token::new(1)),
+            project: 1,
+            operation: tasks::Message {
+                task: 1,
+                word: tasks::Word {
+                    number: 1,
+                    from,
+                    kind,
+                    words: b"arriving".as_slice().into(),
+                    at: Wall::EPOCH,
+                    hits: 1,
+                    eligible: true,
+                },
+            },
+        }),
+    );
+}
+
+fn notes_load(out: &[Request]) -> Token {
+    for request in out {
+        if let Request::Held(held) = request
+            && let Held::NotesLoad { owner, .. } = held.as_ref()
+        {
+            return *owner;
+        }
+    }
+    panic!("preparation loads notes");
+}
+
+fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
+    let mut out: Box<[Request]> = Box::new([]);
+    // The fixture reads its goal, project and deployment scopes.
+    for _ in 0..3 {
+        out = watch_outputs(
+            core,
+            limits,
+            Event::Notes(notes::Event::Loaded {
+                owner,
+                rows: notes::Rows { records: List::with_capacity(limits.notes.load_rows) },
+                more: false,
+            }),
+        );
+        for request in &out {
+            if let Request::Held(held) = request
+                && let Held::NotesLoad { owner: next, .. } = held.as_ref()
+            {
+                owner = *next;
+            }
+        }
+    }
+    let mut planned = false;
+    for request in &out {
+        if let Request::Now(now) = request
+            && let Now::BriefCorePlanned { task: 1, .. } = now.as_ref()
+        {
+            planned = true;
+        }
+    }
+    assert!(planned, "preparation plans its brief");
+    watch_outputs(
+        core,
+        limits,
+        Event::Brief(brief::GatherEvent::Plan {
+            brief: Token::new(1),
+            budget: 128,
+            deadline: Time::from_nanos(100),
+            sections: Box::new([brief::Planned::Connector {
+                name: b"context",
+                connector: 1,
+                kind: 1,
+                token: Token::new(19),
+                size: 0,
+                limit: 128,
+                priority: 0,
+                required: true,
+            }]),
+        }),
+    );
+}
+
+#[test]
+fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
+    for arrival in [
+        Arrival::BeforeBrief,
+        Arrival::DuringResult,
+        Arrival::DuringNotes,
+        Arrival::BeforeComplete,
+        Arrival::BeforeWorkspace,
+    ] {
+        for (name, parts, kind, kept) in [
+            ("kept question", true, tasks::MessageKind::Question, true),
+            ("person words", true, tasks::MessageKind::Words, false),
+            ("no parts", false, tasks::MessageKind::Question, false),
+        ] {
+            let (mut core, limits) = preparing_parts(parts);
+            let prepared = core.contexts.get(&1).unwrap().clone();
+            let mut result = None;
+            if arrival == Arrival::DuringResult {
+                let mut out = crate::routing::run::results::begin(&mut core, &mut Queue::uncapped(), 1, Box::new([12]));
+                let mut requests = List::with_capacity(out.len());
+                while let Some(request) = out.pop() {
+                    requests.push(request).unwrap();
+                }
+                result = Some(runs::result_reads::requested(requests.as_slice(), 12));
+            }
+            let mut owner = None;
+            if arrival != Arrival::BeforeBrief && arrival != Arrival::DuringResult {
+                let out = watch_outputs(
+                    &mut core,
+                    &limits,
+                    Event::TranscriptLoaded { task: 1, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
+                );
+                owner = Some(notes_load(&out));
+            }
+            if arrival == Arrival::BeforeComplete || arrival == Arrival::BeforeWorkspace {
+                finish_brief(&mut core, &limits, owner.unwrap());
+            }
+            if arrival == Arrival::BeforeWorkspace {
+                watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+            }
+            arrive(&mut core, &limits, kind);
+            assert_eq!(core.contexts.contains_key(&1), kept, "{arrival:?}: {name}: context current");
+            if !kept {
+                let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = core.tasks.task(1).unwrap().phase else {
+                    panic!("{arrival:?}: {name}: stale preparation backs off");
+                };
+                assert!(!core.claiming.contains_key(&1));
+                continue;
+            }
+            assert_eq!(core.contexts.get(&1), Some(&prepared), "{arrival:?}: prepared facts retained");
+            if arrival == Arrival::BeforeBrief || arrival == Arrival::DuringResult {
+                let event = match result {
+                    Some(request) => Event::EndedTaskLoaded {
+                        request,
+                        row: Some(Box::new(fixtures::ended_report(12, tasks::Party::Person(1)))),
+                        busy: false,
+                    },
+                    None => Event::TranscriptLoaded {
+                        task: 1,
+                        load: TranscriptLoad::Page { rows: Box::new([]), done: true },
+                    },
+                };
+                let out = watch_outputs(&mut core, &limits, event);
+                owner = Some(notes_load(&out));
+            }
+            if arrival != Arrival::BeforeComplete && arrival != Arrival::BeforeWorkspace {
+                finish_brief(&mut core, &limits, owner.unwrap());
+            }
+            let out = watch_outputs(
+                &mut core,
+                &limits,
+                Event::Brief(brief::GatherEvent::Ready { brief: Token::new(1), section: Token::new(19), size: 1 }),
+            );
+            let mut complete = false;
+            for request in &out {
+                if let Request::Now(now) = request
+                    && let Now::CompleteBrief { .. } = now.as_ref()
+                {
+                    complete = true;
+                }
+            }
+            assert!(complete, "{arrival:?}: completes brief");
+            if arrival != Arrival::BeforeWorkspace {
+                watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
+            }
+            let attempt = core.workspace_flight(1).unwrap().1;
+            let out = watch_outputs(
+                &mut core,
+                &limits,
+                Event::WorkspacePrepared {
+                    task: 1,
+                    attempt,
+                    holds: Box::new([]),
+                    writes: Some(Box::new([])),
+                    credentials: Box::new([]),
+                    workspace: None,
+                },
+            );
+            let mut budget = None;
+            for request in &out {
+                if let Request::Now(now) = request
+                    && let Now::RunPrepared { run, messages, .. } = now.as_ref()
+                {
+                    assert_eq!(run.policy.instructions.as_ref(), b"S\n\nF", "{arrival:?}: prepared instructions");
+                    assert!(messages.is_empty(), "{arrival:?}: kept question absent at start");
+                    budget = Some(run.budget);
+                }
+            }
+            let budget = budget.expect("prepared run reaches claim");
+            watch_outputs(&mut core, &limits, Event::ClaimPrepared { task: 1, attempt, budget, writes: Box::new([]) });
+            let row = core.tasks.task(1).unwrap();
+            assert_eq!(row.attempt, attempt, "{arrival:?}: claim made");
+            assert_eq!(row.reasons, prepared.reasons, "{arrival:?}: prepared reasons claimed");
+            assert_eq!(row.offered, Reasons::EMPTY);
+            assert_eq!(row.refusals, 0);
+            assert_eq!(row.inbox.len(), 1, "{arrival:?}: question keeps its place");
+        }
+    }
 }
