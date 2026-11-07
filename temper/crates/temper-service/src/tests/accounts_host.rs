@@ -20,7 +20,8 @@ use skein_oauth_accounts as driver;
 // temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth.md, 6.5.
 // The host runs over scripted streams; the independent issuer checks OAuth.
 struct SignInWorld {
-    service: crate::Service,
+    store: crate::store::Store,
+    values: Values,
     accounts: Accounts,
     issuer: fake::Issuer,
     sockets: Vec<SignInSocket>,
@@ -128,12 +129,13 @@ impl SignInWorld {
             },
         )
         .unwrap();
-        let mut service = fixtures::started();
-        fixtures::restart(&mut service);
-        let mut accounts = host(&config, runtime);
-        pump_accounts(&mut accounts, service.engine.as_mut().unwrap());
-        Self {
-            service,
+        // This host uses the durable secrets store and values, without a forge root.
+        let store = fixtures::marked_store();
+        let values = Values::new(config.limits.driver.accounts, crate::values::credential_bytes(&config));
+        let accounts = host(&config, runtime);
+        let mut world = Self {
+            store,
+            values,
             accounts,
             issuer,
             sockets: Vec::new(),
@@ -142,21 +144,23 @@ impl SignInWorld {
             now: Time::from_nanos(1),
             exchanges: 0,
             closed_listeners: 0,
-        }
+        };
+        world.settle();
+        while world.events.pop().is_some() {}
+        world
     }
 
     fn turn(&mut self) {
-        let engine = self.service.engine.as_mut().unwrap();
-        while let Some(event) = engine.store.host.above.pop() {
-            engine.store.host.sources.push(event);
+        while let Some(event) = self.store.host.above.pop() {
+            self.store.host.sources.push(event);
         }
         iterate(
             &mut self.accounts,
             self.now,
             Wall::from_nanos(self.now.as_nanos()),
-            &mut engine.values,
+            &mut self.values,
             &mut self.events,
-            &mut engine.store,
+            &mut self.store,
         );
         // Each turn consumes only the io it began with.
         for _ in 0..self.accounts.io.len() {
@@ -245,6 +249,12 @@ impl SignInWorld {
         // Each bounded HTTP document and its body take fewer than 512 host steps.
         for _ in 0_u32..512 {
             self.turn();
+            if !self.accounts.work_pending(self.now, true)
+                && self.store.host.above.is_empty()
+                && self.store.host.sources.is_empty()
+            {
+                break;
+            }
         }
         assert!(!self.accounts.work_pending(self.now, true), "the host settles at the supplied instant");
     }
@@ -284,23 +294,23 @@ impl SignInWorld {
     }
 
     fn paste(&mut self, source: u32, callback: Box<[u8]>) -> u64 {
-        let engine = self.service.engine.as_mut().unwrap();
-        let number = carried(engine, store::Secrets::Hold { value: Secret::new(callback) });
+        let _later = self.store.secrets(Token::new(123), store::Secrets::Hold { value: Secret::new(callback) });
+        let Some(store::Event::Carried { number, .. }) = self.store.host.above.pop() else {
+            panic!("carried callback")
+        };
         self.accounts.request(domain::Request::Signing(domain::Signing::Redirected { source, carried: number }));
         number
     }
 
     fn forget_paste(&mut self, number: u64) {
-        let engine = self.service.engine.as_mut().unwrap();
         // The clients component owns this erase after the finish's terminal.
-        let _erased = engine
+        let _erased = self
             .store
             .secrets(Token::new(123), store::Secrets::Erase { owner: store::SecretOwner::Application, number });
-        let Some(store::Event::Erased { .. }) = engine.store.host.above.pop() else { panic!("held address erased") };
-        assert!(engine.store.host.above.is_empty());
-        let Some(store::Event::Secret { value: None, .. }) = engine
-            .store
-            .secrets(Token::new(124), store::Secrets::Get { owner: store::SecretOwner::Application, number })
+        let Some(store::Event::Erased { .. }) = self.store.host.above.pop() else { panic!("held address erased") };
+        assert!(self.store.host.above.is_empty());
+        let Some(store::Event::Secret { value: None, .. }) =
+            self.store.secrets(Token::new(124), store::Secrets::Get { owner: store::SecretOwner::Application, number })
         else {
             panic!("no carried address remains")
         };

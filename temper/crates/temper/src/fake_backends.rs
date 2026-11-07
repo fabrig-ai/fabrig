@@ -525,15 +525,24 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     Ok(())
 }
 // The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
-#[expect(
-    clippy::too_many_lines,
-    reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
-)]
 fn prepare(
     source_dirs: &Directories,
     bundle: Option<&Path>,
     adapter: &Path,
     chosen: Option<&Chosen>,
+) -> Result<Prepared, String> {
+    prepare_with_environment(source_dirs, bundle, adapter, chosen, &skein_shell::environment())
+}
+#[expect(
+    clippy::too_many_lines,
+    reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
+)]
+fn prepare_with_environment(
+    source_dirs: &Directories,
+    bundle: Option<&Path>,
+    adapter: &Path,
+    chosen: Option<&Chosen>,
+    environment: &[crate::EnvironmentEntry],
 ) -> Result<Prepared, String> {
     let (root, effective) = directories(source_dirs)?;
     let source_config = resolved(Path::new("/"), &source_dirs.config)?;
@@ -555,12 +564,7 @@ fn prepare(
     let provisioned = if exists {
         None
     } else {
-        let limits = if let Some((document, _)) = &source.documents {
-            crate::setup::check(&document.encode()?, &source_dirs.jig())?.named.bundle_limits
-        } else {
-            temper_service::limits::profile(temper_service::limits::Profile::Small).clients
-        };
-        Some(provisioned_bundle(bundle.or(source.bundle.as_deref()), limits)?)
+        Some(provisioned_bundle(bundle.or(source.bundle.as_deref()), source.bundle_limits)?)
     };
     if !exists {
         provisioned_program(adapter)?;
@@ -595,7 +599,7 @@ fn prepare(
     }
     let written = crate::init::write_with_program(
         &effective,
-        &skein_shell::environment(),
+        environment,
         &binary,
         chosen.map_or([0; 5], |ports| ports.listeners),
         Some(adapter),
