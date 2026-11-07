@@ -866,8 +866,11 @@ keeps (`../protocol/configuration.md`, section 2).
     browser's bar after the mode group or "+ Draft" and before "Start goal…" or
     "Start over", on every chat, `NewChat` and `Configure`, on a phone too:
     `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
-    screen in the same step (skein's `ui-web.md`, 11, *Full screen*). Full screen
-    refused, the terminal stays, not full screen.
+    screen in the same step (skein's `ui-web.md`, 11, *Full screen*). The press
+    draws the terminal in that step, before the browser answers: every terminal
+    act, and a list's closing on any event, moves the pages' shown count, as
+    each change the view draws does (section 3). Full screen refused, the
+    terminal stays, not full screen.
   - *Left:* "Exit" and `/exit`, `terminal::Act::Leave`: `terminal` unset, full
     screen left. The browser leaving full screen (its Escape, a long Escape where
     the terminal holds the key, its own control) leaves the look as it is: the
@@ -7257,7 +7260,10 @@ own tests:
   with menus and disclosures open and every state their messages name
   (`../draft/look-requests.md`, sections 4 and 5). Include both themes
   and fonts, the draft and its figure, questions, compact cards and
-  closed chats. Real keys check Chromium's short and long Escape,
+  closed chats. Check that pressing `>_` draws the terminal before any
+  further input, including when full screen is refused, and that Exit
+  and closing a list redraw at once with no command words in the box.
+  Real keys check Chromium's short and long Escape,
   Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,
   and unavailable or refused keyboard lock, including insecure contexts.
   Default: the shared page's acts, bounded notes, kept look, focused

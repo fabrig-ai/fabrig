@@ -175,7 +175,9 @@ pub(crate) fn under(
     b.close();
     b.open(Role::Slot);
     let line = crate::choice::closed_line(root, task, w);
-    button(b, bindings, &line, Act::Terminal(terminal::Act::Run { command: terminal::Command::Model }));
+    b.open(Role::Button);
+    b.name(&line);
+    b.bind(bindings.insert(Act::Terminal(terminal::Act::Run { command: terminal::Command::Model })));
     b.close();
     if let Some(task) = task {
         let spend = w.say(
