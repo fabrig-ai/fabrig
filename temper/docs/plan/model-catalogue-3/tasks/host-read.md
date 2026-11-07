@@ -57,3 +57,14 @@ Then `cargo fmt`; `python3 -I -B jig/scripts/old_forms.py`; `heavy cargo clippy 
 ## Report
 
 As the implementer's text says.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-3/host-read/foreman-1)
+
+Resolve hosts.status.md by removing the completed 5.1 gap and preserving main’s endpoint/model status.
+Rebase onto the landing trunk and resolve `jig/docs/design/domain/hosts.status.md`.
+Task commit `d84a6d3a09` removes the obsolete “Not yet: 5.1: reading an account’s list” paragraph.
+Main commit `77727e6f22`, incorporated by integration merge `5c55e8e3d2`, adds the adjacent paragraph:
+“Sections 2 and 8 have no known gap in endpoint bounds at hello and
+charter-supplied model names; the host keeps no model allowlist.”
+Keep that paragraph, remove the 5.1 gap as the task requires, and preserve all other status text.
+The refusal reports only this content conflict; no code change is needed for this merge failure.
