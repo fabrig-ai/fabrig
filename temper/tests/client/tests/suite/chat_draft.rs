@@ -252,18 +252,24 @@ fn a_goal_starts_from_a_document() {
 
 #[test]
 fn a_goal_from_the_sheet_asks_its_person_who_answers_under_needs_you() {
+    let (mut front, _, goal, mut probe) = goal_from_document();
+    answer_person_task(&mut front, goal, &mut probe);
+}
+
+fn answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe) {
     use jig_client::contract::ObjectKey;
     use jig_domain_tasks as tasks;
     use temper_client_domain::{Address, address::Filter, pages::needs};
     use temper_engine_domain as engine;
-    let (mut front, _, goal, mut probe) = goal_from_document();
     // The note's host tool defers rendering; typed driver calls render their own replies.
     front.engine.protocol.defer_render = false;
     let attempt = front.engine.task(goal).expect("running goal").attempt;
-    let mut child = temper_engine_domain_world::fixtures::report_delegate(
-        b"Which colour?\n\nChoose the colour for the work.\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
-        Box::new([]),
+    let question = format!(
+        "Which colour?\n\n{}\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
+        "Choose the colour for the work, keeping both options available. ".repeat(10),
     );
+    assert!(question.len() > usize::try_from(limits().client.domain.text).expect("document text bound fits usize"));
+    let mut child = temper_engine_domain_world::fixtures::report_delegate(question.as_bytes(), Box::new([]));
     child.executor = tasks::Executor::Person(tasks::PersonAddress::Person(fixtures::PARTY));
     child.contract = tasks::Contract::Report { words: 4096 };
     child.authority.tools = tasks::Tools(0);
@@ -283,18 +289,46 @@ fn a_goal_from_the_sheet_asks_its_person_who_answers_under_needs_you() {
     front.engine.answer(WORKER, goal, attempt, 0, tasks::End::Parked, engine::Parts::none());
     front.engine.settle();
     Temper::step(&mut probe.0, &env(), Temper::went(Address::Inbox { filter: Filter::ALL }), &mut probe.1);
-    pump(&mut front, &mut probe);
+    pump(front, probe);
     let root = probe.0.person();
     let card = root.pages().needs().shown(root.pages().inbox().expect("inbox")).expect("person question");
     let object = ObjectKey::PersonTask(child);
     assert_eq!(card.object, object);
-    act(&mut front, &mut probe, Act::Needs(needs::Act::Choose { object, words: Box::from(*b"Blue") }));
+    let Some(jig_client::contract::ReadValue::PersonTask(person)) = &card.page else { panic!("person question") };
+    assert!(person.spec.specification.words.cut, "the engine bounded the document's words");
+    let limits = limits();
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit");
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    let mut blue = None;
+    for _ in 0..ROUNDS {
+        temper_client_view::build(&mut view, probe.0.person(), env().wall, &mut Queue::uncapped());
+        blue = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Blue"))
+            .map(|node| node.id);
+        if blue.is_some() {
+            break;
+        }
+        pump(front, probe);
+    }
+    let action = temper_client_view::act(&mut view, blue.expect("whole question's Blue button"), skein_ui::Act::Press)
+        .expect("choice press");
+    Temper::step(&mut probe.0, &env(), Event::Act { action }.into(), &mut probe.1);
+    pump(front, probe);
     assert!(probe.0.person().pages().needs().held(object));
     let mut due = env();
     due.now = due.now.saturating_add(needs::HOLD);
     due.wall = Wall::from_nanos(needs::HOLD.as_nanos());
     Temper::fire(&mut probe.0, &due, &mut probe.1);
-    pump_at(&mut front, &mut probe, &due);
+    pump_at(front, probe, &due);
     let stored = front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
     let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
         panic!("completed person task: {stored:?}");
@@ -313,4 +347,44 @@ fn a_goal_from_the_sheet_asks_its_person_who_answers_under_needs_you() {
         "goal wake: {:?}",
         resumed.messages
     );
+}
+
+#[test]
+fn a_goal_from_goals_asks_its_person_and_the_answer_wakes_it() {
+    let (mut front, _, mut probe) = opened_with_goal(true);
+    Temper::step(
+        &mut probe.0,
+        &env(),
+        Temper::went(temper_client_domain::Address::Goals {
+            project: PROJECT,
+            filter: temper_client_domain::GoalsFilter::All,
+        }),
+        &mut probe.1,
+    );
+    pump(&mut front, &mut probe);
+    let limits = limits();
+    let words = fixtures::phrasebooks(&limits);
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    temper_client_view::build(&mut view, probe.0.person(), env().wall, &mut Queue::uncapped());
+    let button = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Start one from a draft"))
+        .expect("Goals start button")
+        .id;
+    let action = temper_client_view::act(&mut view, button, skein_ui::Act::Press).expect("start action");
+    assert_eq!(action, Action::Pages(Act::OpenStart { draft: None, chat: None }));
+    Temper::step(&mut probe.0, &env(), Event::Act { action }.into(), &mut probe.1);
+    pump(&mut front, &mut probe);
+    assert_eq!(probe.0.person().pages().start().expect("sheet").project, PROJECT);
+    act(&mut front, &mut probe, Act::StartDraft { words: b" docs/design/draft/our-draft.md ".as_slice().into() });
+    act(&mut front, &mut probe, Act::StartGoal);
+    let goal = probe.0.person().pages().task().expect("goal page").number;
+    assert_eq!(
+        front.engine.task(goal).expect("goal").spec.words.as_ref(),
+        b"our-draft\n\nBuild docs/design/draft/our-draft.md.\nDraft: docs/design/draft/our-draft.md"
+    );
+    answer_person_task(&mut front, goal, &mut probe);
 }

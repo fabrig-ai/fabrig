@@ -1,6 +1,9 @@
 # design: status
 
-2026-11-05. Where the slow tier runner's code lags or departs from [design.md](design.md).
+2026-11-07. Where the slow tier runner's code lags or departs from [design.md](design.md).
+
+7.3's Smith gate entries and their validation have no known gap. Whether
+their figures are CPU seconds per tree is deferred in section 8.
 
 - **Not yet:** 4: a `df` that fails in `run --cpu`'s last disk wait, the one before nextest, is no failed disk check: `subprocess.CalledProcessError` passes `main`'s handler, so the run ends in a traceback and exit 1, not 2. `step` and `list_tests` catch it. 7.5: the same `df` before `cpu-run`'s build passes that launcher's handler too, with exit 1 in place of a failed build's 2. The request for plain commands names neither, so its plan left both.
 - **Design departs:** from the user's request for plain commands, and the code with it. The plan's cut decided each; no signature of section 10 changes.

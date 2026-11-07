@@ -481,7 +481,54 @@ fn holds_branch_requires_equal_goal_numbers() {
 }
 #[test]
 fn line_uses_the_notes_precedence_in_every_case() {
-    for (ending, expected) in [(done(), Some(Line::Landed)), (failed(), Some(Line::Failed)), (cancelled(), None)] {
+    let words = f::document_text(b"Done.");
+    let part = c::Part { connector: 1, kind: c::PartKind::Result, key: c::PartKey::Number(1) };
+    for (ending, expected) in [
+        (
+            c::ChipEnding::Done(c::ResultValue::Change { kind: 1, part: part.clone(), words: words.clone() }),
+            Some(Line::Landed),
+        ),
+        (c::ChipEnding::Done(c::ResultValue::Change { kind: 2, part, words: words.clone() }), Some(Line::Done)),
+        (done(), Some(Line::Done)),
+        (c::ChipEnding::Done(c::ResultValue::Words(words.clone())), Some(Line::Done)),
+        (c::ChipEnding::Done(c::ResultValue::Failure(words.clone())), Some(Line::Done)),
+        (c::ChipEnding::Done(c::ResultValue::Approved { state: Box::default(), words: None }), Some(Line::Done)),
+        (
+            c::ChipEnding::Done(c::ResultValue::OwnerVerdict {
+                verdict: 1,
+                words: words.clone(),
+                fields: List::uncapped(),
+            }),
+            Some(Line::Done),
+        ),
+        (
+            c::ChipEnding::Done(c::ResultValue::Verdict {
+                verdict: 1,
+                words: words.clone(),
+                fields: List::uncapped(),
+                tasks: List::uncapped(),
+                proposal: None,
+            }),
+            Some(Line::Done),
+        ),
+        (
+            c::ChipEnding::Done(c::ResultValue::Connector {
+                summary: words.clone(),
+                part: c::ApplicationPart::Result { connector: 1, task: 1 },
+            }),
+            Some(Line::Done),
+        ),
+        (
+            c::ChipEnding::Done(c::ResultValue::Choice {
+                option: 1,
+                by: c::Party { number: 1, kind: c::PartyKind::Person, name: acts::text(b"Person") },
+                reason: words,
+            }),
+            Some(Line::Done),
+        ),
+        (failed(), Some(Line::Failed)),
+        (cancelled(), None),
+    ] {
         let chip = ended_row(1, ending).chip;
         assert_eq!(goal::line(&chip, true), expected);
     }
@@ -710,6 +757,7 @@ fn resume_is_refused_unless_paused() {
         .unwrap()
         .cards
         .push(pages::inbox::Card {
+            whole: None,
             object: c::ObjectKey::Proposal(acts::PROPOSAL),
             group: c::InboxGroup::Proposals,
             project: Some(fixtures::PROJECT),

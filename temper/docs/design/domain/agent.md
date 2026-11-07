@@ -1380,6 +1380,12 @@ host:
 
 ## 10. Open questions
 
+- **The approval warning in a real configuring chat** (8.1): whether a
+  model keeps forge-identity advice to an approval being asked about or
+  proposed. Default: the conditional stock instruction and its phrase
+  assertions; observation on a real model follows landing. The inventory's
+  identity fact stays, and building the owner's identity is separate work.
+
 - **A real model asking its person** (8.2; the request `ui-goal-asks`):
   the client world's sheet-to-answer story supplies a typed `delegate`
   call, and the stock and host-answer tests hold the instructions. They

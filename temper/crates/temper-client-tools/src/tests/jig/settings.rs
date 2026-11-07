@@ -1895,6 +1895,57 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
     }
 }
 
+#[test]
+fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
+    for (proposer, name) in [(c::Proposer::Task(73), "t73/7"), (c::Proposer::Party(73), "p73/7")] {
+        for (extra, expected) in [
+            (&[][..], c::Running::Stays),
+            (&["--running", "stays"][..], c::Running::Stays),
+            (&["--running", "moves"][..], c::Running::Moves),
+        ] {
+            for json in [false, true] {
+                let mut root = fixtures::signed_in(fixtures::PARTY);
+                let mut argv = vec!["proposal", "decide", name, "accept", "--key", "late"];
+                argv.extend(extra);
+                let call = root.submit_prepared(fixtures::call(&argv), json, None);
+                let mut history = retained_proposal(
+                    c::ProposalKey { proposer, number: 7 },
+                    c::RetainedAction::Settings(c::RetainedActionSettings {
+                        projects: List::with_capacity(0),
+                        against: 5,
+                        items: list([]),
+                        made: None,
+                    }),
+                );
+                let c::ReadValue::Ended(history_row) = &mut history else { unreachable!() };
+                let c::EndedValue::Proposal(proposal) = &mut history_row.value else { unreachable!() };
+                proposal.state = c::ProposalHistoryState::Withdrawn;
+                root.serve(call, c::ReadResult::Value(history));
+                let c::Ask::Decide { on: c::DecideOn::Proposal { running, .. }, .. } = fixtures::act_ask(&root, call)
+                else {
+                    panic!("settings decision")
+                };
+                assert_eq!(*running, Some(expected.clone()));
+                root.answered(call, c::Answer::Refused { refusal: c::Refusal::Unknown, at: None });
+                let answer = root.answer(call).expect("engine refusal");
+                assert_eq!(answer.status, 2);
+                assert!(answer.stdout.is_empty());
+                if json {
+                    let output = core::str::from_utf8(&answer.stderr).expect("JSON refusal");
+                    assert!(output.contains("\"operation\":\"decide\""), "{output}");
+                    assert!(output.contains("\"unknown\""), "{output}");
+                    assert!(!output.contains("isn't waiting"), "{output}");
+                } else {
+                    assert_eq!(
+                        answer.stderr.as_ref(),
+                        b"proposal decide: this proposal isn't waiting; it may have been decided or replaced\n"
+                    );
+                }
+            }
+        }
+    }
+}
+
 fn forge_value(kind: u32) -> Box<[u8]> {
     let json = if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()

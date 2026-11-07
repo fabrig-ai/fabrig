@@ -332,12 +332,16 @@ active for hard-wall supervision.
 
 `tools/tiers/budgets.toml` contains optional per-pair tables with finite positive
 seconds: `cpu_suite_s`, `cpu_test_s`, `wall_hard_s`. The tables record the
-user's approved limits; absent tables have no limits set here. `[tools]`
+limits, with comments distinguishing the user's approved limits from
+provisional figures whose interpretation stays open; absent tables have
+no limits set here. `[tools]`
 reserves the suite namespace in section 7.5. `[gate.<tree>.<profile>]`
 reserves a tree's share of a gate suite, such as `[gate.hearth.default]`,
 with the same three keys and no `auto_reap`. It is no pair: no tier reads
 it, and whatever measures that share reads its verdict there, recording
 a run that goes over rather than refusing it.
+Smith's `default` and `fuzzy` entries use `cpu_suite_s` alone, at 30 and
+120 respectively; whether those are its CPU figures remains open (section 8).
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -569,6 +573,11 @@ own trees' branches.
 `budgets.toml`'s first comment cites the user's decision on its figures
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
+
+Whether Smith's focused and fuzzy figures, 30 s and 120 s from
+`skein/docs/foundation/testing-strategy.md`, section 8, are CPU seconds
+per tree remains open. Their `cpu_suite_s` entries settle no such decision,
+and no measurement establishes them here.
 
 `budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
 beyond that (7.3): what measures a tree's share of a gate suite and records

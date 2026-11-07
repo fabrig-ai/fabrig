@@ -24,7 +24,7 @@ Tasks:
   Review the change · waits on you
   Write the release notes · waits on Review the change
   1 landed:
-    Advise on the change · 00:00
+    Implement the change · 00:00
 Landing:
   ## Landing
   Each task lands on its own once checked.

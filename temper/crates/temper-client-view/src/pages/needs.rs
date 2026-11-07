@@ -162,22 +162,15 @@ fn card_main(
     ask::meta(b, &asked, project.as_deref(), session.later(card.object), w, bindings, times);
     let question = match asked.kind {
         ask::Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
-        ask::Kind::Question | ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
+        ask::Kind::Question => match &asked.parsed {
+            Some(parsed) => parsed.question.clone(),
+            None => asked.short.clone(),
+        },
+        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
     context(b, &asked, w, rows);
-    if let Some(parsed) = &asked.parsed {
-        if !parsed.context.is_empty() {
-            ask::text(b, Role::Paragraph, &parsed.context, look::ASK_CONTEXT);
-        }
-        if let Some(saw) = &parsed.saw {
-            b.open(Role::Disclosure);
-            b.style(look::ASK_SAW);
-            b.name(&w.say(Word::NeedsSaw, &[]));
-            ask::text(b, Role::Paragraph, saw, look::ASK_CONTEXT);
-            b.close();
-        }
-    }
+    ask::whole_parts(b, &asked, w, bindings);
     if let Some(outcome) = session.refused(card.object) {
         crate::confirm::outcome_words(b, w, outcome);
     }

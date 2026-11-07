@@ -11,7 +11,7 @@ use temper_client_domain::{
     Address, Domain,
     pages::{
         Act, goal,
-        start_goal::{Failure, StartGoal},
+        start_goal::{self, Failure, StartGoal, Unfunded},
     },
 };
 
@@ -27,11 +27,28 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &W
     b.name(&title);
     b.open(Role::Slot);
     crate::cards::text(b, Role::Heading { level: 2 }, &title);
-    b.open(Role::Paragraph);
-    b.style(look::SHEET_MUTED);
-    words.text(b, Word::StartGoalLead, &[]);
+    if start.given.is_some() {
+        b.open(Role::Paragraph);
+        b.style(look::SHEET_MUTED);
+        words.text(b, Word::StartGoalLead, &[]);
+        b.close();
+    }
     b.close();
-    b.close();
+    if start.given.is_none() {
+        b.open(Role::Slot);
+        b.style(look::GOAL_FIELD);
+        b.open(Role::TextField);
+        b.style(look::GOAL_TEXT);
+        b.name(&words.say(Word::StartGoalDraft, &[]));
+        b.placeholder(&words.say(Word::StartGoalDraftHint, &[]));
+        b.value(&start.draft, temper_client_domain::pages::shown(root.pages()));
+        b.bind(bindings.insert(Act::StartDraft { words: Box::default() }));
+        if start.pending.is_some() {
+            b.state(State::Disabled);
+        }
+        b.close();
+        b.close();
+    }
     b.open(Role::Slot);
     b.style(look::GOAL_FIELD);
     b.open(Role::TextField);
@@ -49,6 +66,20 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &W
     if let Some(error) = &start.error {
         failure(b, words, error);
     }
+    let unfunded = match root.pages().me(root.client()) {
+        Some(me) => start_goal::unfunded(me, start.project, start.way),
+        None => None,
+    };
+    if let Some(why) = unfunded {
+        b.open(Role::Slot);
+        b.style(look::SHEET_ERROR);
+        let word = match why {
+            Unfunded::Held => Word::StartGoalNoFundsHeld,
+            Unfunded::Empty => Word::StartGoalNoFunds,
+        };
+        words.text(b, word, &[]);
+        b.close();
+    }
     b.open(Role::Slot);
     b.style(look::SHEET_FOOT);
     b.open(Role::Button);
@@ -63,7 +94,11 @@ pub(crate) fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &W
     b.style(look::GOAL_PRIMARY);
     b.name(&words.say(Word::StartGoalRun, &[]));
     b.bind(bindings.insert(Act::StartGoal));
-    if start.name.trim_ascii().is_empty() || start.draft.trim_ascii().is_empty() || start.pending.is_some() {
+    if start.name.trim_ascii().is_empty()
+        || start.draft.trim_ascii().is_empty()
+        || start.pending.is_some()
+        || unfunded.is_some()
+    {
         b.state(State::Disabled);
     }
     b.close();

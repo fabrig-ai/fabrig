@@ -1048,6 +1048,7 @@ impl Task {
         self.next = self.next.checked_add(1).expect("task handles fit");
         self.cards
             .push(Card {
+                whole: None,
                 object,
                 group: c::InboxGroup::Escalations,
                 project: None,

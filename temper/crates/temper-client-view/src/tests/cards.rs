@@ -382,7 +382,7 @@ fn a_budget_held_card_names_the_task_to_amend_and_explains_release() {
     crate::cards::proposal(&mut builder, &c::ReadValue::Task(Box::new(task)), &fixtures::words(), 4);
     let text = fixtures::text(&builder.finish());
     assert!(skein_lib::bytes::find(&text,
-        b"Insufficient activation budget. A release alone holds it again: give task 12 more budget by deciding its budget proposal, then release it; or cancel it.").is_some(), "{text:?}");
+        b"Insufficient activation budget. A release alone holds it again: if a proposal to give task 12 more budget waits for you, accept it, then release it; otherwise close it, and start the work again once your pool has room: closing an open chat makes some.").is_some(), "{text:?}");
 }
 
 use skein_lib::{List, Queue, Writer};
