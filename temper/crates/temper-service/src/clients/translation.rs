@@ -155,6 +155,9 @@ fn kind_values(items: &[core::settings::Item]) -> Result<Box<[root::KindValue]>,
 #[must_use]
 pub fn to_component(request: root::PartyRequest) -> Option<kit::Event> {
     match request {
+        root::PartyRequest::Catalogue { models } => {
+            Some(kit::Event::Catalogue { models: kit::translate::llm::catalogue(&models) })
+        }
         root::PartyRequest::SignInRefused { to } => Some(kit::Event::SignInRefused { to }),
         root::PartyRequest::WatchRefused { watcher, why } => Some(kit::Event::WatchRefused { watcher, why }),
         root::PartyRequest::RunText { watcher, turn, from, to, text, cut, call, writing } => {

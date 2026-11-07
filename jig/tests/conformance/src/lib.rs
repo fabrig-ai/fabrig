@@ -465,6 +465,7 @@ impl Application for Testing {
         let mut read_afresh = None;
         while let Some(request) = queue.pop() {
             outputs.push(match request {
+                root::Request::StoreCatalogue { .. } | root::Request::ClientsCatalogue { .. } => continue,
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();
                     while let Some(write) = writes.pop() {

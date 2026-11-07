@@ -34,53 +34,10 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Clients { heartbeat: heartbeat?, link: link?, provider })
 }
-/// The catalogue as the client protocol names and shows it, in each number's position
-/// (jig/docs/design/domain/engine.md, 17.11; client/domain/contract.md, 5.1).
+/// The startup catalogue in the clients' numbered positions (domain/engine.md, 17.11).
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
-    let run_models = llm.models();
-    let mut models = List::with_capacity(u32::try_from(run_models.len()).expect("checked models"));
-    for (at, model) in run_models.iter().enumerate() {
-        let number = u32::try_from(at).expect("bounded model position").checked_add(1).expect("model number");
-        let mut description = None;
-        let mut shown = None;
-        let mut picker = false;
-        let mut provider = None;
-        for entry in &llm.models {
-            if entry.number == number {
-                description.clone_from(&entry.description);
-                shown.clone_from(&entry.shown);
-                picker = entry.picker;
-                provider = Some(model.provider);
-                break;
-            }
-        }
-        models
-            .push(jig_protocol_engine_clients::Model {
-                name: model.name.clone(),
-                provider,
-                window: model.window,
-                output: model.output,
-                efforts: model.efforts.clone(),
-                effort: match model.default_effort() {
-                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
-                    None => None,
-                },
-                prices: jig_protocol_engine_clients::Prices {
-                    input: model.input_price,
-                    cached: model.cached_price,
-                    cache_write: model.cache_write_price,
-                    output: model.output_price,
-                    unit: model.price_unit,
-                },
-                description,
-                shown,
-                picker,
-            })
-            .expect("one row per model");
-    }
-    models.into_boxed()
+    jig_protocol_engine_clients::translate::llm::catalogue(&llm.models)
 }
 
 /// What an application adds to the clients' settings (protocol/service.md, 11.6).

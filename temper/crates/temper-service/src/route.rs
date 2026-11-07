@@ -232,7 +232,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         None => Some(jig_protocol_engine_clients::Event::Abort),
                     }
                 }
-                request @ (root::PartyRequest::SignInRefused { .. }
+                request @ (root::PartyRequest::Catalogue { .. }
+                | root::PartyRequest::SignInRefused { .. }
                 | root::PartyRequest::WatchRefused { .. }
                 | root::PartyRequest::RunText { .. }
                 | root::PartyRequest::Deliver(_)) => crate::clients::translation::to_component(request),

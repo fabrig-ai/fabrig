@@ -755,6 +755,8 @@ impl World {
             Err(request) => *request,
         };
         match request {
+            engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+            | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
             engine::Request::Store(engine::StoreRequest::Switch) => {
                 let answer = self.store.switch();
