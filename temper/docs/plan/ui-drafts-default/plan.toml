@@ -1,3 +1,22 @@
 draft = "ui-drafts-default"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-drafts-default/inputs/request.md", "temper/crates/temper-client-domain/src/pages/chat/sheet.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# One request, two tasks in a chain: the configuring chat's offer, then the default and what it moves. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "configuring-offer"
+title = "The configuring chat offers \"+ Draft\" whatever the project's drafts says"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "With drafts off, a person on a configuring chat, after its first message, presses \"+ Draft\" and the document opens; another chat still follows drafts"
+parts = ["configuring-offer"]
+walk = false

@@ -718,8 +718,11 @@ keeps (`../protocol/configuration.md`, section 2).
   `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
-    `drafts` (5.13), false in the stock. It gates "+ Draft", the Drafts filter, the
-    Chats lede's words, "Start goal…" and the rail's "Goal".
+    `drafts` (5.13), false in the stock. It gates the Drafts filter, the Chats
+    lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is
+    no configuring chat. A configuring chat offers "+ Draft" whatever `drafts` says:
+    `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
+    the act both read, is true on a configuring chat and otherwise `drafts_offered`.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -746,8 +749,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `doc.svg`), the chosen `aria-pressed`. `Ctrl+\`, skein's primary key (⌘ on a Mac), steps through
     those shown, the next mode's button carrying the shortcut. On
     a phone, Chat and Draft alone; Split left on a wide screen shows as Draft. With
-    no document, while `drafts_offered` and the chat hasn't ended: `.btn.small`
-    "+ Draft". `.btn.primary.small` "Start goal…" once the document has a section,
+    no document, while `chat_offers_draft` and the chat hasn't ended: `.btn.small`
+    "+ Draft", which follows the first message: `Configure`, before a configuring
+    chat's first message, has nothing to write up and draws none. `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
     linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
     configuring chat, which has "Start over": it asks "Start over?", "A new
