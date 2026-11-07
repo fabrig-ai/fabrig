@@ -21,3 +21,73 @@ id = 1
 story = "The reference goal's per-wake story passes its three rows and the world's restart oracle, unignored"
 parts = ["catalogue"]
 walk = false
+
+[[part]]
+id = "size-refusal"
+title = "A change of settings refused for a charter's stored size names the charter, its size and the bound, across jig's refusal facts and temper's words"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.9"
+
+[[slice]]
+id = 2
+story = "ctl's refusal of a charter past root.journal.run_bytes reads charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536"
+parts = ["size-refusal"]
+walk = false
+
+[[part]]
+id = "subscribe"
+title = "The reference goal's cut asks no subscription to its changes' landings, which the core already makes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 3
+story = "Charter 5's cut says the core subscribes the goal to its changes' landings and asks no subscribe_forge of its own"
+parts = ["subscribe"]
+walk = false
+
+[[part]]
+id = "task-read"
+title = "A task read refused as unknown says what may be missing and what to read instead"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/llm.md, 4"
+
+[[slice]]
+id = 4
+story = "A run reading a running delegate's result hears that it has none until it ends, and to read its specification"
+parts = ["task-read"]
+walk = false
+
+[[part]]
+id = "busy"
+title = "A host call answered busy is asked again after a backoff that doubles to a cap, within the caller's deadline"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/run.md, 5.2"
+
+[[slice]]
+id = 5
+story = "A host read answered busy eight times is asked again after 1, 2, 4 ... 64, 64 backoffs, then answered"
+parts = ["busy"]
+walk = false
+
+[[part]]
+id = "foreman"
+title = "A task given no LLM choice, a change's foreman among them, takes the effort its charter selects"
+mode = "direct"
+needs = ["size-refusal"]
+design = "jig/docs/design/domain/tasks.md, 3"
+
+[[slice]]
+id = 6
+story = "A charter selecting medium for a model whose default is high runs a task given no choice at medium"
+parts = ["foreman"]
+walk = false
+
+[[question]]
+id = "too-large-facts"
+text = "Request item 3 asks a forge read refused as too large to name the bound it met and the size it measured. skein's `api::Error::TooLarge` is fieldless and `Copy` (skein/crates/skein-forge/src/api.rs), and temper stores it: a named call's read answer is kept in temper's store-v11 as `Error` tag 6 with no payload (temper/crates/temper-protocol-store/schema/store-v11.schema; temper-engine-domain-forge/src/boundary.rs, `CallPayload::Refused` and `Read`), so a host asked again answers from that record (smith/docs/design/domain/run.md, 5.2). Carrying the facts is a public-interface change in skein and a stored-format change in temper, which the request makes a question first, and temper's design already says those decisions are their owners' (temper/docs/design/domain/forge.md, section 20, 'A forge read past its bound'). The heads-up: `TooLarge` is produced across skein-forge's dialects (about 300 lines, many where no client bound is known) and skein-forge-client's eleven admission and answer checks, and read in skein-forge, skein-forge-client, temper-engine-domain, temper-engine-domain-forge, temper-engine-smith and temper-protocol-store, with test readers in skein-forge-connection, skein's forge dialect, machine and client worlds, temper's engine forge world and temper's system world. Options: (a, recommended) yes, in place before v0.1.0, as a plan of its own of three tasks: skein's `TooLarge` gains `{ bound, measured }` (the bound one of forge.client.rows, answer_bytes, op_bytes or none known, the measure exact or absent), every producer and reader in skein and temper's forced patterns; temper's store-v11 `Error::TooLarge` keeps them, schema and goldens regenerated; then temper's words name them in `read_pull_files`, `read_compare` and a review's held reason; (b) the forge client alone reports them beside a bare `TooLarge` on a fresh read, temper words them live and stores nothing new, so an answer asked again after a restart words the size as unknown, breaking 'answered from its record'; (c) no: keep forge.md's default, the files-omitted notice and the unknown measure."
+parts = []

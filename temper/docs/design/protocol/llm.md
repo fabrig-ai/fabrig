@@ -130,6 +130,13 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   interest; changing it requires unsubscribing its number first. These
   checks precede a backend subscription. Settled named calls retain
   their rendered feedback for replay (`../domain/root.md`, 5.2).
+- **A task read refused as unknown says what to read instead.** jig
+  refuses `read_task` as `unknown` for a task it has no row of, an offset
+  outside the text, and a `result` no ended task kept, a running one's
+  among them (jig's `domain/engine.md`, 7.3). The words say each, that a
+  task's result reaches its requester as a `result` message when it
+  ends, and that its specification, `field` left out, shows a running
+  task's state, holds and questions. The other refusals keep their words.
 - **Decoded in the routing** (jig's `protocol/channel.md`, 6.3), in the
   step that routes the call, keeping no state:
   1. the fleet fences the call, and the root hands it out as

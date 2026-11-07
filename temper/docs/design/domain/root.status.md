@@ -13,6 +13,10 @@ known in that room; the settings-answer bound gap remains below.
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
 
+- **Not yet:** 10: a change of settings refused for a charter's stored
+  size names neither the size nor the bound: jig's refusal carries no facts
+  for it (`jig-domain-core/src/settings/check.rs`, `parts_fault`), and ctl
+  prints `charter 5: shape`.
 - **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
   counted its `read_task` calls since the room landed, where the request
   `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.

@@ -138,9 +138,10 @@ it is live:
   and waiting time, whether a run resumes its transcript or starts
   fresh, and which hosts may run it (engine.md, 7.1); and its **parts**, in
   order, each with instructions of its own for some of the reasons a run
-  runs, which a run those reasons meet reads after the charter's (8.6). It
-  names no effort: each model declares its efforts, in order, in its `model`
-  setting (engine.md, 17.1).
+  runs, which a run those reasons meet reads after the charter's (8.6).
+  Each model declares its efforts, in order, in its `model` setting
+  (engine.md, 17.1); a charter's model is that row but for its `effort`,
+  which selects one of them or none, for the row's own default.
 - **Its revision:** the settings' revision it was made in, the newest
   then, whatever its parent's (engine.md, 17.3). An agent task's runs
   read its charter from it, until a move sets it to a newer one
