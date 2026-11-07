@@ -271,14 +271,18 @@ fn a_templates_llm_choice_names_configured_models_and_their_efforts() {
     let document = with_models(
         br#""alternatives": ["large"]"#,
         br#""grace_ms": 5000, "llm": {"main": {"model": "small", "effort": "high"},
-            "sub_agents": [{"model": "large", "effort": null}]}"#,
+            "sub_agents": [{"model": "large", "effort": null}],
+            "later":{"main":{"model":"large","effort":null},"sub_agents":[{"model":"small","effort":"low"}]}}"#,
     );
     let engine = fixtures::engine(&document).expect("template choice");
     let chat = engine.templates.first().expect("chat");
     assert_eq!(
         chat.llm,
         Some(LlmChoice {
-            later: None,
+            later: Some(jig_domain_tasks::LlmLater {
+                main: ModelEffort { model: 1, effort: None },
+                subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }])
+            }),
             account: None,
             main: ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::from([ModelEffort { model: 1, effort: None }]),
@@ -362,6 +366,10 @@ fn sub_agents_that_are_not_a_list_are_refused() {
 #[test]
 fn a_templates_llm_choice_problems_name_the_invalid_fields() {
     table([
+        (
+            "a_later_choice_naming_an_unconfigured_model_is_refused",
+            a_later_choice_naming_an_unconfigured_model_is_refused,
+        ),
         ("a_template_without_an_llm_member_is_refused", a_template_without_an_llm_member_is_refused),
         ("a_choice_that_is_not_an_object_is_refused", a_choice_that_is_not_an_object_is_refused),
         ("a_choice_naming_an_unconfigured_model_is_refused", a_choice_naming_an_unconfigured_model_is_refused),
@@ -496,5 +504,15 @@ fn a_misspelled_requester_ending_refuses_the_template_at_ended_by() {
             path: fixtures::path(&[b"templates"]).child(Segment::Index(0)).member(b"ended_by"),
             what: What::Form,
         }),
+    );
+}
+
+fn a_later_choice_naming_an_unconfigured_model_is_refused() {
+    refuses_choice(
+        br#""alternatives": []"#,
+        br#""grace_ms":5000,"llm":{"main":{"model":"small","effort":"low"},"sub_agents":[],
+        "later":{"main":{"model":"absent","effort":null},"sub_agents":[]}}"#,
+        chat_llm().member(b"later").member(b"main").member(b"model"),
+        What::Refers,
     );
 }

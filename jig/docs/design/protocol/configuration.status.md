@@ -16,12 +16,6 @@ Section 6 has no known gap in standard's `authority.batch` of 32,
 Small keeps its charter and outcome figures. The larger batch sizes
 aggregate bounds without reserving their capacity ahead.
 
-- **Not yet:** 3, 6: a charter has no `parts` member and there is no
-  `tasks.charter_parts` limit (`jig/crates/jig-protocol-config/src/charters.rs`,
-  `names.rs`).
-- **Not yet:** 3.1: a template's LLM choice has no `later`
-  (`jig/crates/jig-protocol-config/src/templates.rs`); the core's check of it
-  against its charter is `../domain/tasks.status.md`, 3.
 - **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 7: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4). 6: the people envelope diagnostics' words name `people-v13`, where the people family is v14 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
 - **Departs:** 6: the public index's memory check uses 128 bytes per line
   and a `u32` byte ceiling (`jig/crates/jig-protocol-config/src/clients.rs`,

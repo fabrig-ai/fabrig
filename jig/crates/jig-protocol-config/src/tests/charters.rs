@@ -17,6 +17,7 @@ fn a_charter_whose_budget_holds_its_reserve_is_read() {
     assert_eq!(engine.charters.len(), 1);
     assert_eq!(engine.charters[0].spend, 20);
     assert!(engine.charters[0].documents.is_empty());
+    assert!(engine.charters[0].parts.is_empty());
     assert!(engine.charters[0].rest);
     let document = fixtures::with(
         fixtures::ENGINE_SMALL,
@@ -76,6 +77,7 @@ fn a_charters_documents_are_read_whole_in_order() {
 
 #[test]
 fn malformed_charter_documents_are_refused_at_their_paths() {
+    malformed_parts_are_refused_at_their_paths();
     let documents = fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"documents");
     let item = documents.child(crate::Segment::Index(0));
     for (value, path, what) in [
@@ -99,6 +101,164 @@ fn malformed_charter_documents_are_refused_at_their_paths() {
         let problems = fixtures::engine(&with_documents(value)).expect_err("malformed document");
         let problem = problems.problems.get(0).unwrap();
         assert_eq!((&problem.path, problem.what), (&path, what), "{value:?}");
+    }
+}
+
+fn with_parts(value: &[u8]) -> Box<[u8]> {
+    let member = skein_lib::bytes::concat(&[br#""parts":"#, value, br#","instructions": "charters/chat.txt""#]);
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""instructions": "charters/chat.txt""#, &member);
+    fixtures::with(&document, br#""resume": true"#, br#""resume": false"#)
+}
+
+fn part_path() -> crate::Path {
+    fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"parts")
+}
+
+fn refuses_parts(value: &[u8], path: crate::Path, what: What) {
+    let problems = fixtures::engine(&with_parts(value)).expect_err("refused parts");
+    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path, what }));
+}
+
+fn a_part_refuses_an_unknown_reason() {
+    refuses_parts(
+        br#"[{"on":["unknown"],"instructions":"a.md"}]"#,
+        part_path().child(crate::Segment::Index(0)).member(b"on").child(crate::Segment::Index(0)),
+        What::Unknown,
+    );
+}
+
+fn a_part_refuses_always_offered_reasons() {
+    for name in jig_domain_tasks::ALWAYS_OFFERED_NAMES {
+        let value = skein_lib::bytes::concat(&[br#"[{"on":[""#, name, br#""],"instructions":"a.md"}]"#]);
+        refuses_parts(
+            &value,
+            part_path().child(crate::Segment::Index(0)).member(b"on").child(crate::Segment::Index(0)),
+            What::Unknown,
+        );
+    }
+}
+
+fn a_part_refuses_a_repeated_reason() {
+    refuses_parts(
+        br#"[{"on":["first","first"],"instructions":"a.md"}]"#,
+        part_path().child(crate::Segment::Index(0)).member(b"on").child(crate::Segment::Index(1)),
+        What::Unique,
+    );
+}
+
+fn a_part_refuses_no_reasons() {
+    refuses_parts(
+        br#"[{"on":[],"instructions":"a.md"}]"#,
+        part_path().child(crate::Segment::Index(0)).member(b"on"),
+        What::Bound,
+    );
+}
+
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "test fixture lists are ordinary Rust (programming-model.md, 10.2)"
+)]
+fn a_charter_refuses_parts_past_its_limit() {
+    let count = crate::profile(crate::Profile::Small).core.tasks.charter_parts;
+    let parts =
+        vec![r#"{"on":["first"],"instructions":"a.md"}"#; usize::try_from(count.checked_add(1).unwrap()).unwrap()];
+    let value = format!("[{}]", parts.join(","));
+    refuses_parts(value.as_bytes(), part_path().child(crate::Segment::Index(count)), What::Bound);
+}
+
+fn a_resuming_charter_refuses_parts() {
+    let document = with_parts(br#"[{"on":["first"],"instructions":"a.md"}]"#);
+    let document = fixtures::with(&document, br#""resume": false"#, br#""resume": true"#);
+    let problems = fixtures::engine(&document).expect_err("resuming charter with parts");
+    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: part_path(), what: What::Form }));
+}
+
+fn a_charter_refuses_policy_and_parts_past_run_bytes() {
+    let document = with_parts(br#"[{"on":["first"],"instructions":"a.md"}]"#);
+    let engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
+    let max = jig_domain_core::policy_owned_bytes(&engine.charters[0].policy).unwrap();
+    let max = skein_lib::Decimal::of(max);
+    let limits =
+        skein_lib::bytes::concat(&[br#""profile": "small", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
+    let document = fixtures::with(&document, br#""profile": "small""#, &limits);
+    let problems = fixtures::engine(&document).expect_err("parts exceed remaining run bytes");
+    assert_eq!(
+        problems.problems.get(0),
+        Some(&crate::Problem {
+            path: fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)),
+            what: What::Bound
+        })
+    );
+}
+
+fn a_charter_reads_two_parts_and_their_files_in_order() {
+    let document = with_parts(
+        br#"[{"on":["first","question"],"instructions":"a.md"},
+        {"on":["news","words"],"instructions":"b.md"}]"#,
+    );
+    let engine = fixtures::engine(&document).expect("two charter parts");
+    let charter = &engine.charters[0];
+    assert_eq!(
+        charter.parts.as_ref(),
+        &[
+            jig_domain_core::CharterPart {
+                on: jig_domain_tasks::Reasons::FIRST.union(jig_domain_tasks::Reasons::QUESTION),
+                instructions: b"a.md".as_slice().into()
+            },
+            jig_domain_core::CharterPart {
+                on: jig_domain_tasks::Reasons::NEWS.union(jig_domain_tasks::Reasons::WORDS),
+                instructions: b"b.md".as_slice().into()
+            },
+        ]
+    );
+    let files = crate::files(&engine);
+    assert_eq!(
+        files.len(),
+        crate::files(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap()).len().checked_add(2).unwrap()
+    );
+    let owned = jig_domain_core::policy_owned_bytes(&charter.policy)
+        .unwrap()
+        .checked_add(jig_domain_core::parts_owned_bytes(&charter.parts).unwrap())
+        .unwrap();
+    for (file, (path, at)) in files.iter().zip([
+        (
+            charter.policy.instructions.as_ref(),
+            fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"instructions"),
+        ),
+        (b"a.md".as_slice(), part_path().child(crate::Segment::Index(0)).member(b"instructions")),
+        (b"b.md".as_slice(), part_path().child(crate::Segment::Index(1)).member(b"instructions")),
+    ]) {
+        assert_eq!(file.path.as_ref(), path);
+        assert_eq!(file.at, at);
+        assert!(!file.private);
+        assert_eq!(
+            u64::from(file.max),
+            u64::from(engine.limits.core.run_bytes)
+                .checked_sub(owned)
+                .unwrap()
+                .checked_add(u64::try_from(path.len()).unwrap())
+                .unwrap()
+        );
+    }
+}
+
+fn malformed_parts_are_refused_at_their_paths() {
+    let parts = part_path();
+    let item = parts.child(crate::Segment::Index(0));
+    for (value, path, what) in [
+        (b"{}".as_slice(), parts, What::Kind),
+        (b"[false]", item.clone(), What::Kind),
+        (br#"[{"instructions":"a.md"}]"#, item.member(b"on"), What::Missing),
+        (br#"[{"on":"first","instructions":"a.md"}]"#, item.member(b"on"), What::Kind),
+        (br#"[{"on":[false],"instructions":"a.md"}]"#, item.member(b"on").child(crate::Segment::Index(0)), What::Kind),
+        (br#"[{"on":["first"]}]"#, item.member(b"instructions"), What::Missing),
+        (br#"[{"on":["first"],"instructions":false}]"#, item.member(b"instructions"), What::Kind),
+        (br#"[{"on":["first"],"instructions":"../a.md"}]"#, item.member(b"instructions"), What::Relative),
+        (br#"[{"on":["first"],"instructions":"a.md","extra":true}]"#, item.member(b"extra"), What::Unknown),
+        (br#"[{"on":["first"],"on":["news"],"instructions":"a.md"}]"#, item.member(b"on"), What::Duplicate),
+    ] {
+        refuses_parts(value, path, what);
     }
 }
 
@@ -132,6 +292,14 @@ fn a_charter_may_name_models_at_two_endpoints() {
 #[test]
 fn charters_configuration_problems_name_the_invalid_fields() {
     table([
+        ("a_part_refuses_an_unknown_reason", a_part_refuses_an_unknown_reason),
+        ("a_part_refuses_always_offered_reasons", a_part_refuses_always_offered_reasons),
+        ("a_part_refuses_a_repeated_reason", a_part_refuses_a_repeated_reason),
+        ("a_part_refuses_no_reasons", a_part_refuses_no_reasons),
+        ("a_charter_refuses_parts_past_its_limit", a_charter_refuses_parts_past_its_limit),
+        ("a_resuming_charter_refuses_parts", a_resuming_charter_refuses_parts),
+        ("a_charter_refuses_policy_and_parts_past_run_bytes", a_charter_refuses_policy_and_parts_past_run_bytes),
+        ("a_charter_reads_two_parts_and_their_files_in_order", a_charter_reads_two_parts_and_their_files_in_order),
         (
             "a_charter_whose_budget_cannot_hold_its_reserve_is_refused",
             a_charter_whose_budget_cannot_hold_its_reserve_is_refused,

@@ -527,6 +527,13 @@ pub enum Fact {
 }
 
 #[derive(Debug)]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "the worker boundary carries the decoded call whole, its later choice with it"
+    )
+)]
 pub enum WorkerInput {
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
