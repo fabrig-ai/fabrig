@@ -693,11 +693,12 @@ changing nothing.
 `goal`'s declaration says when a run calls it, as `delegate`'s says
 to call `change` for a change to a repository, since a run chooses
 among its tools by what their declarations say as much as by its
-instructions: "Have one goal in your words tracked and reported; it
-may plan, ask you and call change. Call it only for work your person
-wants agreed first (set agree) or a survey that changes nothing; with
-advisor set, it reads and reports and changes nothing. For a change to
-a repository, call change." The root decides a chat's `goal` without
+instructions: "Have one goal tracked, only for work your person wants
+agreed first (set agree) or a survey that changes nothing. For a change
+to a repository, call change." It fits a declaration's 160 bytes
+(`../protocol/documentation.md`, 8), so it says when alone: what a goal
+may do is its charter's, and what `advisor` does is that member's
+description. The root decides a chat's `goal` without
 `agree` as before: a goal made for a plain change still makes its
 change, and the change lands, at a goal's run more than the chat's own
 `change` would take.
