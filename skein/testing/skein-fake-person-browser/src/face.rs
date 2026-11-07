@@ -386,6 +386,9 @@ impl<'a> BrowserFace<'a> {
     pub(crate) fn focused(&self, node: NodeId) -> bool {
         self.seen.get(usize::try_from(node.0).expect("node fits")).is_some_and(|(seen, _)| seen.states.focused)
     }
+    pub(crate) fn pressed(&self, node: NodeId) -> bool {
+        self.seen.get(usize::try_from(node.0).expect("node fits")).is_some_and(|(seen, _)| seen.states.pressed)
+    }
     pub(crate) fn field_is(&self, node: NodeId, words: &[u8]) -> bool {
         self.seen
             .get(usize::try_from(node.0).expect("node fits"))

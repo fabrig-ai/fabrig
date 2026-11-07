@@ -586,8 +586,41 @@ impl Worker {
         );
         self.answered(settled);
     }
+    fn list_launch(&self) -> Option<host::ListLaunch> {
+        let [internal, agent, configuration] = self.arguments.as_ref() else { return None };
+        if internal.as_ref() != b"internal" || agent.as_ref() != b"agent" || !configuration.starts_with(b"/") {
+            return None;
+        }
+        Some(host::ListLaunch {
+            program: self.program.clone(),
+            arguments: Box::new([
+                Box::from(b"internal".as_slice()),
+                Box::from(b"agent-list".as_slice()),
+                configuration.clone(),
+            ]),
+            environment: self.environment.clone(),
+            root: self.directory.expect("prepared worker root"),
+            directory: Box::from(b".".as_slice()),
+        })
+    }
+    fn read_list(&mut self, read: u64, endpoint: u32, grant: jig_domain_link::Grant) {
+        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+        self.next = self.next.checked_add(1).expect("source owner sequence");
+        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+        let credential = list_credential(&self.values, grant, self.env.now);
+        let deadline = self.env.now.saturating_add(self.env.limits.host.source_timeout);
+        let launch = self.list_launch();
+        self.sources.list_launch(launch);
+        let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
+        self.answered(settled);
+    }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
+            root::Request::CancelRead { read } => {
+                let settled = self.sources.cancel_read(read, &mut self.io);
+                self.answered(settled);
+            }
             root::Request::Source { owner, name, operation, deadline } => {
                 self.start_source(owner, name, operation, deadline);
             }
@@ -753,7 +786,13 @@ impl Worker {
     fn process_reap() {}
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
-            self.events.push(root::Event::SourceAnswered { owner, answer });
+            let event = match answer {
+                hub::sources::Answer::Read(outcome) => root::Event::ListRead { read: owner.raw(), outcome },
+                answer @ (hub::sources::Answer::Checked { .. } | hub::sources::Answer::SignedOut(_)) => {
+                    root::Event::SourceAnswered { owner, answer }
+                }
+            };
+            self.events.push(event);
         }
     }
     pub fn iterate(&mut self, now: Time, wall: Wall) {
@@ -967,6 +1006,28 @@ impl Worker {
     pub fn operations(&self) -> u32 {
         worker_settings::operations(self.git.component.limits()).expect("checked worker operations")
     }
+}
+fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> Option<smith_channel::CredentialValue> {
+    let scheme = match grant.form {
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer) => Scheme::Bearer,
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key) => Scheme::Key,
+        jig_domain_link::Form::Program(_) | jig_domain_link::Form::Application => return None,
+    };
+    let value = table.value(grant.account, grant.generation, now)?;
+    if value.scheme != scheme {
+        return None;
+    }
+    smith_channel::CredentialValue::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CredentialValueParts {
+            scheme: match scheme {
+                Scheme::Bearer => smith_channel::Scheme::Bearer,
+                Scheme::Key => smith_channel::Scheme::Key,
+            },
+            bytes: value.token.clone(),
+        },
+    )
+    .ok()
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;

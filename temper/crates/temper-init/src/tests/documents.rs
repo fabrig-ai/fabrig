@@ -69,6 +69,8 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
         json!([{
             "name": "openai", "number": 1_u32, "signed_in_plan": true,
             "manage_usage": "https://chatgpt.com/settings/usage",
+            "keep": ["gpt-*"],
+            "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
             "endpoint": "openai", "sources": {"keys": true, "sign_in": {
                 "issuer": "https://auth.openai.com", "client": "dynamic_agent_client", "name_hint": "temper",
                 "authorization": "https://auth.openai.com/api/accounts/authorize",
@@ -637,7 +639,7 @@ fn agent_limits(endpoint: &str) -> Value {
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
-            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","sources":{"programs":["claude_code"]}}"#)
+            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","keep":["claude-*"],"drop":["*-20??????"],"sources":{"programs":["claude_code"]}}"#)
         }
         "endpoints" => {
             parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)

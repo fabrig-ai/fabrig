@@ -9,6 +9,7 @@ mod children;
 pub(crate) mod effect;
 pub(crate) mod ended_marks;
 pub(crate) mod flight;
+mod lists;
 pub(crate) mod party;
 pub(crate) mod refusals;
 pub(crate) mod run;
@@ -744,9 +745,27 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         Timer::Account => {
             let mut out = Queue::uncapped();
             step::fire_accounts(core, env, &mut out);
-            core.touch_deployment();
-            core.touch_run_waits();
-            core.touch_accounts(None);
+            let mut changed = false;
+            for request in &out {
+                match request {
+                    accounts::Request::ReadList { .. } => {}
+                    accounts::Request::Answer { .. }
+                    | accounts::Request::Programs { .. }
+                    | accounts::Request::CheckProgram { .. }
+                    | accounts::Request::SignOutProgram { .. }
+                    | accounts::Request::Component(_)
+                    | accounts::Request::Signing(_)
+                    | accounts::Request::Granted { .. }
+                    | accounts::Request::Save { .. }
+                    | accounts::Request::Erase { .. }
+                    | accounts::Request::Closed => changed = true,
+                }
+            }
+            if changed {
+                core.touch_deployment();
+                core.touch_run_waits();
+                core.touch_accounts(None);
+            }
             let mut work = Queue::uncapped();
             let requests = tag_account(core, env, &mut work, out);
             assert!(work.is_empty(), "an account's alarm answers no party");

@@ -221,6 +221,24 @@ fn demo_acceptance() {
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
+        let route = crate::wire::llm_config(demo.llm().models());
+        let body = route.list.expect("the fake route serves its advertised list");
+        assert_eq!(
+            serde_json::from_slice::<Value>(&body).unwrap(),
+            json!({"models":[{"slug":"demo","display_name":"demo","visibility":"list"}]})
+        );
+        let listed = skein_llm::list::parse(skein_llm::Provider::OpenAi, &body, &skein_llm::list::Limits::DEFAULT)
+            .expect("the fake's plan list reads");
+        assert_eq!(
+            listed.as_ref(),
+            &[skein_llm::list::Listed {
+                name: b"demo".as_slice().into(),
+                shown: Some(b"demo".as_slice().into()),
+                window: None,
+                output: None,
+                efforts: Box::new([]),
+            }]
+        );
         let bytes = serde_json::to_vec(&value).unwrap();
         let document =
             config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();

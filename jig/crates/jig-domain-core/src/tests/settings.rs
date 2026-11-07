@@ -2,6 +2,7 @@
 mod application;
 mod application_proposals;
 mod application_start;
+mod catalogue;
 pub(in crate::tests) mod charters;
 pub(in crate::tests) mod documents;
 pub(in crate::tests) mod kept_models;

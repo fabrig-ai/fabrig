@@ -130,6 +130,7 @@ pub struct World {
     pub fail_move_open: bool,
     moved: std::collections::BTreeMap<u32, skein_lib::Secret>,
     account_generations: std::collections::BTreeMap<u32, u64>,
+    kept_llm_keys: std::collections::BTreeSet<u32>,
     move_provider: Option<u32>,
     pub assignments: Vec<(u64, u64)>,
     /// Job assignments released after their claim is durable.
@@ -141,6 +142,7 @@ pub struct World {
     pub busy_events: Vec<root::Event>,
     pub stop_deliveries: Vec<core::Held>,
     pub commits: Vec<Vec<root::Write>>,
+    pub list_reads: Vec<crate::lists::Reading>,
     pub projections: Vec<(usize, u16, core::ProjectionFeed)>,
     pub hold_projection_settlements: bool,
     pub sign_in: Option<u64>,

@@ -375,6 +375,7 @@ pub(crate) fn reads(
     me: Handle,
     limits: &Limits,
     vocabulary: &dyn Parts,
+    wall: skein_lib::Wall,
 ) -> Printed {
     let party = match client.document(me) {
         Some(document) => match document.latest {
@@ -441,7 +442,7 @@ pub(crate) fn reads(
             let Ok(project) = crate::jig::runner::reads::model_project(&reading.called.call, party) else {
                 return failure(b"unknown project", reading.called.json, 1);
             };
-            Some((party, project))
+            Some((party, project, wall))
         } else {
             None
         };

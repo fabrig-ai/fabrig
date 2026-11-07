@@ -216,6 +216,7 @@ pub enum RevisionDecider {
     FirstStart,
     Release,
     Party(RevisionParty),
+    List { provider: u32 },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RevisionHead {

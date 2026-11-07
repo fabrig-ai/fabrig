@@ -213,6 +213,9 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
         w::Outcome::Restored(value) => restore_outcome_restored(value)?,
+        w::Outcome::Account(value) => c::Outcome::Account(match value.answer() {
+            w::AccountAnswer::Reading(row) => c::AccountAnswer::Reading { count: row.count() },
+        }),
         w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
         w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what())? },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {

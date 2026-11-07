@@ -233,6 +233,7 @@ fn restart_preserves_desired_program_absence() {
         .filter_map(|request| match request {
             Request::Save { record } => Some(record),
             Request::Programs { .. }
+            | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }
             | Request::Component(_)

@@ -26,6 +26,14 @@ pub enum Event {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    ReadList {
+        read: u64,
+        endpoint: u32,
+        grant: jig_domain_link::Grant,
+    },
+    CancelRead {
+        read: u64,
+    },
     Source {
         owner: Token,
         name: SourceName,

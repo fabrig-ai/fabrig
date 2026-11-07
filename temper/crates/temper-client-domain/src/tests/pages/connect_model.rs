@@ -390,6 +390,7 @@ fn program_document(root: &mut crate::Domain, watch: Token, settled: bool, usabl
     doc.accounts = skein_lib::List::with_capacity(1);
     doc.accounts
         .push(c::AccountLine {
+            list: None,
             facts: skein_lib::List::with_capacity(0),
             number: 29,
             place: 0,

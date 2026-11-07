@@ -123,6 +123,7 @@ fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
     }
     config.core.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
+            list: None,
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),

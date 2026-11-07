@@ -313,6 +313,19 @@ vouches for nothing outside a test: its key is in the tree.
   attribution entry per input item, sized by configuration, so worlds
   exercise a client that keeps only what it reads (llm.md, section 4.4).
 
+### 3.2 A list
+
+- **The route's `list`,** bytes its configuration gives, answer `GET /v1/models`
+  (and with a query) as a provider's body, under the same credentials as a
+  call (section 3). A route with none answers `404`, as a local model's server
+  may. The bytes are the world's own, so that a parser's reading of them is
+  proved and not assumed.
+- **A failure:** `list_status`, a status it answers in place of them, so a world
+  can have a read fail and then succeed, by `Peer::set_list` between requests.
+- **Its observation:** `Observation::List`, the route and the credential it
+  presented, as `Observation::Credential` says it. A list spends no script, and
+  counts no call.
+
 ## 4. Shared codec and replay
 
 `skein-llm::DocumentLimits` is the neutral document-bound vocabulary. Native

@@ -8,6 +8,7 @@ use crate::documents;
 mod credentials;
 mod failure;
 mod inflate;
+mod list;
 pub use inflate::inflate;
 pub(crate) mod public;
 pub use credentials::{MAX_CREDENTIALS, Presented, route};
@@ -49,11 +50,15 @@ pub struct Limits {
     pub documents: documents::Limits,
 }
 
-/// Immutable scripted peer configuration supplied by the byte world; it contains no live IO.
+/// Scripted peer configuration supplied by the byte world; it contains no live IO.
 ///
 /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
 #[expect(missing_debug_implementations, reason = "configured header values must not enter traces")]
 pub struct Config {
+    /// World-supplied model-list body; absent lists answer 404 (fake-llm.md, 3.2).
+    pub list: Option<Box<[u8]>>,
+    /// Status answered instead of the list body.
+    pub list_status: Option<u16>,
     /// Accepts requests with no credential field on public or Anthropic routes.
     pub without_credential: bool,
     /// Responses metadata echoes; off unless the world explicitly selects them.
@@ -64,7 +69,7 @@ pub struct Config {
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     pub provider: documents::Provider,
-    /// Exact configured HTTP request target accepted by this peer.
+    /// Exact configured inference target accepted by this peer.
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     pub path: Box<[u8]>,
@@ -105,6 +110,8 @@ pub enum Event {
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     Domain(domain::Event),
+    /// A model-list request, with no credential bytes (fake-llm.md, 3.2).
+    List { presented: Presented },
     /// The owner requests connection closure; the lower layer still supplies Closed.
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -128,6 +135,12 @@ enum State {
     Closed,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum RequestKind {
+    Call,
+    List,
+}
+
 struct Call {
     server: Token,
     active: bool,
@@ -141,6 +154,7 @@ pub struct Service {
     config: Config,
     calls: Slab<Call>,
     count: u64,
+    responses: u64,
 }
 
 impl Service {
@@ -190,7 +204,7 @@ impl Service {
         if encoded > usize_of(limits.http.head) {
             return Err(Error::Limits);
         }
-        Ok(Service { config, calls: Slab::with_capacity(limits.calls), count: 0 })
+        Ok(Service { config, calls: Slab::with_capacity(limits.calls), count: 0, responses: 0 })
     }
 
     /// Validates a credential list against the configured route and scripts before serving.
@@ -202,13 +216,19 @@ impl Service {
         credentials: &[skein_llm::Credential],
         scripts: &[api::Script],
     ) -> Result<(), Error> {
-        if self.count != 0 {
+        if self.responses != 0 {
             return Err(Error::Limits);
         }
         self::scripts(&self.config, credentials, scripts)
     }
 
-    /// Number of fake provider requests observed since service construction.
+    /// Replaces the model-list answer between requests (fake-llm.md, 3.2).
+    pub fn set_list(&mut self, list: Option<Box<[u8]>>, status: Option<u16>) {
+        self.config.list = list;
+        self.config.list_status = status;
+    }
+
+    /// Number of fake provider calls observed since service construction.
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
@@ -283,6 +303,7 @@ pub struct Server {
     reply_offset: usize,
     refused: Option<api::Error>,
     credential: Option<u32>,
+    kind: RequestKind,
     route: skein_llm::Provider,
     writer_closed: bool,
 }
@@ -329,6 +350,7 @@ impl Server {
             reply_offset: 0,
             refused: None,
             credential: None,
+            kind: RequestKind::Call,
             route: skein_llm::Provider::OpenAi,
             writer_closed: false,
         })
@@ -567,9 +589,21 @@ fn entrance(
         Err(Error::Limits | Error::Malformed | Error::TooLarge) => return Err(api::Error::InvalidRequest),
     };
     server.credential = None;
-    let identity = next_response(&mut service.count);
+    server.kind = if call.method == Method::Get
+        && (call.target.as_ref() == b"/v1/models" || call.target.starts_with(b"/v1/models?"))
+    {
+        RequestKind::List
+    } else {
+        RequestKind::Call
+    };
+    let identity = next_response(&mut service.responses);
+    if server.kind == RequestKind::Call && next_response(&mut service.count).is_none() {
+        return Err(api::Error::InvalidRequest);
+    }
     server.response_id = identity.unwrap_or(0);
-    server.refused = if identity.is_some() && call.method == Method::Post && call.target == service.config.path {
+    server.refused = if identity.is_some()
+        && (server.kind == RequestKind::List || (call.method == Method::Post && call.target == service.config.path))
+    {
         None
     } else {
         Some(api::Error::InvalidRequest)
@@ -596,7 +630,7 @@ fn entrance(
             }
         }
     }
-    if content_type != 1 {
+    if server.kind == RequestKind::Call && content_type != 1 {
         server.refused = Some(api::Error::InvalidRequest);
     }
     let auth = credentials::authorize(server.route, credentials, &fields, service.config.without_credential);
@@ -629,6 +663,9 @@ fn entrance(
     };
     let presented = fields.presented(server.route, credentials, auth);
     above.push(Event::Head { headers: credentials::observed_headers(call.headers), presented });
+    if server.kind == RequestKind::List {
+        above.push(Event::List { presented });
+    }
     demand_body(server, limits);
     match server.refused {
         Some(error) => Err(error),
@@ -763,6 +800,11 @@ fn requested(server: &mut Server, service: &mut Service, env: &Env<Limits>, abov
     if let Some(error) = server.refused.take() {
         server.body.clear();
         response_error(server, service, env, error.into());
+        return;
+    }
+    if server.kind == RequestKind::List {
+        server.body.clear();
+        list::answer(server, service, env);
         return;
     }
     if server.gzip {

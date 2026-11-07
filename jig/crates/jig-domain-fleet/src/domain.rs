@@ -23,6 +23,7 @@ pub(crate) enum EngineHello {
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) versions: u32,
+    pub(crate) reads: crate::reads::Reads,
     pub(crate) program_sources: Box<[crate::SourceName]>,
     pub(crate) cleanup_programs: Box<[crate::SourceName]>,
     pub(crate) worker_names: crate::Membership,
@@ -157,6 +158,7 @@ impl Domain {
         }
         Domain {
             versions,
+            reads: crate::reads::Reads::new(limits.reads),
             program_sources: Box::new([]),
             worker_names: crate::Membership::empty(),
             cleanup_programs: Box::new([]),
@@ -431,12 +433,12 @@ impl Domain {
         }
     }
 
-    /// Whether placement or a held turn may make progress. While it may,
+    /// Whether placement, a read or a held turn may make progress. While it may,
     /// the loop resumes the root domain, which calls [`resume`], at the
     /// start of the domain's stage, before its input events.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        self.placing || self.turning || crate::programs::ready(self)
+        self.placing || self.turning || crate::programs::ready(self) || crate::reads::ready(self)
     }
 
     /// The oldest fact not yet drained. The parent drains them at its own
@@ -470,6 +472,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::CheckProgram { name } => crate::programs::check(domain, name, out),
         Event::SignOutProgram { source, name } => crate::programs::sign_out(domain, source, name, out),
+        Event::ReadList { read, endpoint, grant } => domain.reads.push(read, endpoint, grant, env.now),
+        Event::ListRead { channel, read, outcome } => domain.reads.answered(channel, read, outcome, out),
         Event::Sources { sources } => crate::sources::replace(domain, env, sources, out),
         Event::Check { channel, name } => crate::sources::check(domain, channel, name, out),
         Event::SignOut { to, channel, name } => crate::sources::sign_out(domain, to, channel, name, out),
@@ -572,11 +576,13 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
 }
 
-/// Releases one held turn or places a waiting attempt; with none, waits
+/// Releases one held turn or places a queued read or waiting attempt; with none, waits
 /// until something changes.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if crate::programs::ready(domain) {
         crate::programs::resume(domain, out);
+    } else if crate::reads::ready(domain) {
+        crate::reads::resume(domain, env.now, out);
     } else if domain.turning {
         turn::resume(domain, out);
     } else if domain.placing {

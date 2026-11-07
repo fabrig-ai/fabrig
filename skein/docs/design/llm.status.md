@@ -1,6 +1,6 @@
 # llm: status
 
-2026-11-05. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-07. Where skein's code lags or departs from [llm.md](llm.md).
 
 - **Not yet:** 5: `skein-live`, the live suite's logins on the routes that
   stay, has no design: the suite calls the public route with a lent login's

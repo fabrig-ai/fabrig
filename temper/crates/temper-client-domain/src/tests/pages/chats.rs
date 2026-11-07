@@ -270,6 +270,7 @@ fn a_start_from_configure_keeps_its_templates_models() {
         let mut models = List::with_capacity(MODELS);
         models
             .push(MeModel {
+                new_until: None,
                 number: 1,
                 source: ModelSource::Stock,
                 estimated: false,

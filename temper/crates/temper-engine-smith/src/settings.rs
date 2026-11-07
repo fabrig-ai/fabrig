@@ -617,6 +617,7 @@ mod catalogue_tests {
         model.provider = 2;
         model.name = Box::from(b"gpt-6.1-terra".as_slice());
         let entry = s::CatalogueModel {
+            first_read: None,
             number: 4,
             model,
             shown: Some(Box::from(b"GPT-6.1 Terra".as_slice())),

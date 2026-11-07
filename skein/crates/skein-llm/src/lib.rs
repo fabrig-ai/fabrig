@@ -15,11 +15,16 @@ mod derive;
 mod dialect;
 mod document;
 mod filter;
+pub mod list;
 pub mod openai;
 mod replay;
 mod translate;
 mod types;
 mod wire;
+
+#[cfg(test)]
+#[path = "tests/list.rs"]
+mod tests;
 
 pub use derive::{Declared, ESCAPE, Limits, Rule, TOKEN_BYTES, Violation};
 pub use document::DocumentLimits;

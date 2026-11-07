@@ -592,7 +592,7 @@ fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsSt
         };
     }
     if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
-        c::Outcome::SettingsChanged(_),
+        c::Outcome::Account(_) | c::Outcome::SettingsChanged(_),
     )))) = &card.outcome
     {
         return SettingsState::Accepted;

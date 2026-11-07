@@ -10,7 +10,10 @@ record Party { party: u64 }
 enum Holder { deployment, party: Party }
 record Project { project: u32 }
 enum Use { party: Party, project: Project }
-record Account { number: u32 provider: u32 holder: Holder place: u32 uses: option list 16 Use subject: bytes 255 display: bytes 64 }
+record Refused { status: u16 }
+enum ReadFailure { refused: Refused, unreachable, unreadable, deadline, agent, room }
+record ListRecord { names: u64 read: option u64 tried: option u64 failure: option ReadFailure left_out: u32 }
+record Account { number: u32 provider: u32 holder: Holder place: u32 uses: option list 16 Use subject: bytes 255 display: bytes 64 list: option ListRecord }
 enum Kind { sign_in, key, program, none }
 record Limited { reset: option u64 }
 enum Held { limited: Limited, refused, moving }

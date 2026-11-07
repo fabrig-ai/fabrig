@@ -47,6 +47,8 @@ mod source_name;
 
 mod program;
 
+mod list;
+
 #[cfg(test)]
 mod tests;
 
@@ -66,6 +68,8 @@ pub use delivery::{
 pub use domain::{Domain, fire, step};
 
 pub use facts::Fact;
+
+pub use list::{ListFailure, ListOutcome, ListedModel};
 
 pub use program::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod, ProgramSignOut};
 
