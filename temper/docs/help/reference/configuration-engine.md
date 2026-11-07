@@ -167,6 +167,7 @@ Shape: `clients`. Paths: `engine.clients`. Client stream heartbeats and sign-in 
 
 - `heartbeat_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Sets the heartbeat interval of clients' streams.
 - `link`: true or false; required; init writes true. Offers the printed link's one-time secret at start when true.
+- `approval`: true or false; optional; init leaves it out. Enables browser-approved sign-ins when true, with false when absent.
 - `provider`: client-provider or null; optional; init writes object. Configures the deployment's OpenID provider, with none when absent or null.
 
 ## engine.clients.provider

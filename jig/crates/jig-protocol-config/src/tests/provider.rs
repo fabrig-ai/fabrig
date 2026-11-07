@@ -43,12 +43,8 @@ fn the_approval_is_off_unless_configured() {
                     public: skein_lib::List::with_capacity(0),
                     moved_bytes: 0,
                 };
-                let settings = crate::clients::settings(
-                    &engine,
-                    &application,
-                    skein_lib::Secret::new(Box::new([7; 32])),
-                    1,
-                );
+                let settings =
+                    crate::clients::settings(&engine, &application, skein_lib::Secret::new(Box::new([7; 32])), 1);
                 assert_eq!(settings.approval, *expected, "{clients:?}");
             }
             Err(what) => {

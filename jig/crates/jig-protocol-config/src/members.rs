@@ -333,7 +333,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 265] = [
+pub static MEMBERS: [Member; 266] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1187,6 +1187,15 @@ pub static MEMBERS: [Member; 265] = [
         bound: "",
         required: true,
         line: "Offers the printed link's one-time secret at start when true.",
+        gone: None,
+    },
+    Member {
+        shape: "clients",
+        name: "approval",
+        kind: "true or false",
+        bound: "",
+        required: false,
+        line: "Enables browser-approved sign-ins when true, with false when absent.",
         gone: None,
     },
     Member {

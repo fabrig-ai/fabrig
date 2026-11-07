@@ -47,12 +47,10 @@ fn a_service_whose_operations_cannot_close_a_conversation_is_refused() {
 }
 
 #[test]
+#[expect(clippy::type_complexity, reason = "the table pairs enabled clients with their diagnostic paths")]
 fn a_link_on_a_non_loopback_listener_refuses_the_start() {
     let rows: &[(&[u8], &[&[&[u8]]])] = &[
-        (
-            br#""link": true"#,
-            &[&[b"application", b"server", b"listener"], &[b"engine", b"clients", b"link"]],
-        ),
+        (br#""link": true"#, &[&[b"application", b"server", b"listener"], &[b"engine", b"clients", b"link"]]),
         (
             br#""link": false, "approval": true"#,
             &[&[b"application", b"server", b"listener"], &[b"engine", b"clients", b"approval"]],
@@ -68,14 +66,17 @@ fn a_link_on_a_non_loopback_listener_refuses_the_start() {
     ];
     for listener in [br#"{"socket":"[::]:7100"}"#.as_slice(), br#"{"socket":"192.0.2.1:7100"}"#] {
         for (clients, paths) in rows {
-        let document = fixtures::with_server_listener(listener);
-        let document = fixtures::with(&document, br#""link": true"#, clients);
-        let found = crate::startup::parse(&document).expect_err("off-loopback link");
-        let expected: Vec<_> = paths.iter().map(|path| fixtures::path(path)).collect();
-        assert_eq!(fixtures::paths(&found).as_ref(), expected.as_slice(), "{listener:?}, {clients:?}");
-        for problem in &found.problems {
-            assert_eq!(problem.what, What::Plaintext);
-        }
+            let document = fixtures::with_server_listener(listener);
+            let document = fixtures::with(&document, br#""link": true"#, clients);
+            let found = crate::startup::parse(&document).expect_err("off-loopback link");
+            let actual = fixtures::paths(&found);
+            assert_eq!(actual.len(), paths.len(), "{listener:?}, {clients:?}");
+            for (actual, expected) in actual.iter().zip(*paths) {
+                assert_eq!(*actual, fixtures::path(expected), "{listener:?}, {clients:?}");
+            }
+            for problem in &found.problems {
+                assert_eq!(problem.what, What::Plaintext);
+            }
         }
     }
 }
