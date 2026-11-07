@@ -24,13 +24,26 @@ pub fn challenge(verifier: &[u8]) -> Result<Box<[u8]>, DecodeError> {
 mod tests {
     use super::challenge;
     #[test]
-    fn rfc_7636_example_uses_s256_without_padding() {
-        let verifier = b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-        assert_eq!(challenge(verifier).expect("valid").as_ref(), b"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
-    }
-    #[test]
-    fn max_length_verifier_spans_three_hash_blocks() {
-        assert_eq!(challenge(&[b'A'; 64]).expect("valid").as_ref(), b"1T7aemN8mcx_tWbZbp-hCb8VxHhBCj9etNTE4mzQgfY");
-        assert_eq!(challenge(&[b'B'; 128]).expect("valid").as_ref(), b"erqnAab0u42eo4cqMVWX628sz9AzktjRBWCDf2E20Go");
+    fn pkce_verifiers_produce_their_expected_unpadded_s256_challenges() {
+        skein_rows::check(
+            [
+                (
+                    "rfc_7636_example_uses_s256_without_padding",
+                    (
+                        b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk".as_slice(),
+                        b"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM".as_slice(),
+                    ),
+                ),
+                (
+                    "max_length_verifier_spans_three_hash_blocks: 64",
+                    (&[b'A'; 64][..], b"1T7aemN8mcx_tWbZbp-hCb8VxHhBCj9etNTE4mzQgfY".as_slice()),
+                ),
+                (
+                    "max_length_verifier_spans_three_hash_blocks: 128",
+                    (&[b'B'; 128][..], b"erqnAab0u42eo4cqMVWX628sz9AzktjRBWCDf2E20Go".as_slice()),
+                ),
+            ],
+            |(verifier, digest)| assert_eq!(challenge(verifier).expect("valid").as_ref(), digest),
+        );
     }
 }

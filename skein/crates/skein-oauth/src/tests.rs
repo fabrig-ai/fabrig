@@ -232,10 +232,29 @@ fn base64url_mutations_and_claim_shape_errors_are_refused_without_authentication
 }
 
 #[test]
-fn a_record_with_every_option_absent_round_trips() {
-    let record = SavedToken { refresh_token: None, ..byte_record() };
-    let encoded = encode_record(&record, &limits()).expect("access-only encoding");
-    assert!(decode_record(&encoded, &limits()).expect("access-only record") == record);
+fn saved_token_records_round_trip_with_optional_fields() {
+    skein_rows::check(
+        [
+            ("a_record_with_every_option_absent_round_trips", SavedToken { refresh_token: None, ..byte_record() }),
+            ("a_record_round_trips_each_addition: issued", additions([true, false, false, false, false])),
+            ("a_record_round_trips_each_addition: granted", additions([false, true, false, false, false])),
+            ("a_record_round_trips_each_addition: subject", additions([false, false, true, false, false])),
+            ("a_record_round_trips_each_addition: id", additions([false, false, false, true, false])),
+            ("a_record_round_trips_each_addition: earliest", additions([false, false, false, false, true])),
+            ("a_record_round_trips_each_addition: all", additions([true; 5])),
+            ("a_record_round_trips_each_addition: none", additions([false; 5])),
+            ("a_record_round_trips_each_addition: granted empty", {
+                let mut value = additions([false; 5]);
+                value.granted_scopes = Some(boxed(b""));
+                value
+            }),
+            ("a_full_record_round_trips", SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) }),
+        ],
+        |record| {
+            let encoded = encode_record(&record, &limits()).expect("encoding");
+            assert!(decode_record(&encoded, &limits()).expect("record") == record);
+        },
+    );
 }
 
 #[test]
@@ -281,22 +300,32 @@ fn a_record_decodes_the_independent_schema_bytes() {
 }
 
 #[test]
-fn a_record_cut_short_is_malformed() {
-    for length in 0..RECORD_BYTES.len() {
-        assert!(
-            decode_record(RECORD_BYTES.get(..length).expect("prefix"), &limits()) == Err(DecodeError::Malformed),
-            "prefix length {length}"
-        );
-    }
-}
-
-#[test]
-fn a_record_with_a_trailing_byte_is_malformed() {
-    let mut writer = skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
-    writer.put(RECORD_BYTES).expect("room for record");
-    writer.put(&[0]).expect("room for trailing byte");
-    let trailing = writer.finish();
-    assert!(decode_record(&trailing, &limits()) == Err(DecodeError::Malformed));
+fn incomplete_or_trailing_record_bytes_decode_as_malformed() {
+    skein_rows::check(
+        [
+            ("a_record_cut_short_is_malformed", {
+                let mut inputs =
+                    skein_lib::List::with_capacity(u32::try_from(RECORD_BYTES.len()).expect("fixture length"));
+                for length in 0..RECORD_BYTES.len() {
+                    inputs.push(boxed(RECORD_BYTES.get(..length).expect("prefix"))).expect("prefix fixture");
+                }
+                inputs.into_boxed()
+            }),
+            ("a_record_with_a_trailing_byte_is_malformed", {
+                let mut writer =
+                    skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
+                writer.put(RECORD_BYTES).expect("room for record");
+                writer.put(&[0]).expect("room for trailing byte");
+                let trailing = writer.finish();
+                Box::<[Box<[u8]>]>::from([trailing])
+            }),
+        ],
+        |inputs| {
+            for input in inputs {
+                assert!(decode_record(&input, &limits()) == Err(DecodeError::Malformed), "length {}", input.len());
+            }
+        },
+    );
 }
 
 #[test]
@@ -391,26 +420,7 @@ fn additions(present: [bool; 5]) -> SavedToken {
     value.earliest_refresh_at = present[4].then_some(wall(90));
     value
 }
-#[test]
-fn a_record_round_trips_each_addition() {
-    for (name, present) in [
-        ("issued", [true, false, false, false, false]),
-        ("granted", [false, true, false, false, false]),
-        ("subject", [false, false, true, false, false]),
-        ("id", [false, false, false, true, false]),
-        ("earliest", [false, false, false, false, true]),
-        ("all", [true; 5]),
-        ("none", [false; 5]),
-        ("granted empty", [false; 5]),
-    ] {
-        let mut value = additions(present);
-        if name == "granted empty" {
-            value.granted_scopes = Some(boxed(b""));
-        }
-        let encoded = encode_record(&value, &limits()).expect("encoded");
-        assert!(decode_record(&encoded, &limits()).expect("decoded") == value, "{name}");
-    }
-}
+
 const VERSION_TWO: &[u8] = b"SKOT\x00\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00";
 fn byte_record() -> SavedToken {
     SavedToken {
@@ -428,32 +438,17 @@ fn byte_record() -> SavedToken {
     }
 }
 #[test]
-fn a_version_two_record_is_unreadable() {
-    for input in [VERSION_TWO, b"\x00\x02".as_slice()] {
-        assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
-    }
-}
-
-#[test]
-fn the_hand_written_form_is_unreadable() {
-    let input = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
-}
-
-#[test]
-fn a_record_of_another_version_is_refused() {
-    for version in [1, 4] {
-        let mut input = boxed(RECORD_BYTES);
-        *input.get_mut(1).expect("version low byte") = version;
-        assert!(decode_record(&input, &limits()) == Err(DecodeError::Version), "version {version}");
-    }
-}
-
-#[test]
-fn a_full_record_round_trips() {
-    let record = SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) };
-    let encoded = encode_record(&record, &limits()).expect("full encoding");
-    assert!(decode_record(&encoded, &limits()).expect("full decoding") == record);
+fn unsupported_record_versions_consistently_produce_the_version_error() {
+    skein_rows::check(
+        [
+            ("a_version_two_record_is_unreadable: full", boxed(VERSION_TWO)),
+            ("a_version_two_record_is_unreadable: short", boxed(b"\x00\x02")),
+            ("the_hand_written_form_is_unreadable", boxed(b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00")),
+            ("a_record_of_another_version_is_refused: 1", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 1; input }),
+            ("a_record_of_another_version_is_refused: 4", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 4; input }),
+        ],
+        |input| assert!(decode_record(&input, &limits()) == Err(DecodeError::Version)),
+    );
 }
 
 // Schema ceilings in oauth.md, 6.4; token_bytes also bounds refresh and metadata.

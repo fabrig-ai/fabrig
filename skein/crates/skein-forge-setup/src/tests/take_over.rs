@@ -94,18 +94,25 @@ fn a_token_that_is_not_the_taken_one_is_deleted_by_id() {
 }
 
 #[test]
-fn the_taken_tokens_own_row_is_never_deleted() {
-    assert_eq!(at(LISTING).step(fixtures::rows(Box::new([take_over_row(8, TAKEN_SUFFIX)]))), done());
+fn short_token_pages_without_deletable_rows_finish_takeover() {
+    skein_rows::check(
+        [
+            ("the_taken_tokens_own_row_is_never_deleted", Box::from([take_over_row(8, TAKEN_SUFFIX)])),
+            ("a_short_page_with_nothing_to_delete_ends_done", Box::<[_]>::from([])),
+        ],
+        |rows| assert_eq!(at(LISTING).step(fixtures::rows(rows)), done()),
+    );
 }
 
 #[test]
-fn a_deleted_token_lists_the_same_page_again() {
-    assert_eq!(at(DELETING).step(Event::Reply(Reply::Empty)), listing(1));
-}
-
-#[test]
-fn a_delete_answered_not_found_counts_as_deleted() {
-    assert_eq!(at(DELETING).step(Event::Reply(Reply::Status(404))), listing(1));
+fn successful_token_deletions_resume_the_same_page() {
+    skein_rows::check(
+        [
+            ("a_deleted_token_lists_the_same_page_again", Reply::Empty),
+            ("a_delete_answered_not_found_counts_as_deleted", Reply::Status(404)),
+        ],
+        |reply| assert_eq!(at(DELETING).step(Event::Reply(reply)), listing(1)),
+    );
 }
 
 #[test]
@@ -120,11 +127,6 @@ fn a_full_page_with_nothing_to_delete_reads_the_next_page() {
         send(Request::DeleteToken { login: b"root".as_slice().into(), id: 10 })
     );
     assert_eq!(run.step(Event::Reply(Reply::Empty)), listing(2));
-}
-
-#[test]
-fn a_short_page_with_nothing_to_delete_ends_done() {
-    assert_eq!(at(LISTING).step(fixtures::rows(Box::new([]))), done());
 }
 
 #[test]

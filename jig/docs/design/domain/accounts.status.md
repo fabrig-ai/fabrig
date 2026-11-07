@@ -2,6 +2,10 @@
 
 2026-11-07. Where jig's code lags or departs from [accounts.md](accounts.md).
 
+Section 3.7 has no known implementation gap in the separate facts record,
+sign-in and refresh reports, program-status email, or audience filtering.
+Reports for kinds 3 to 7 remain section 7's deferred work.
+
 - **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request
   `first-usable-model` of 2026-11-06 asks one. temper's stories on the stock

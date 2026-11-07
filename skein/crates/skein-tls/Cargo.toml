@@ -17,3 +17,6 @@ rustls-pki-types = { workspace = true, features = ["web"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+skein-rows.workspace = true

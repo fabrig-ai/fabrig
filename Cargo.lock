@@ -2843,6 +2843,7 @@ name = "skein-channel"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -2859,6 +2860,7 @@ name = "skein-codec"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3022,6 +3024,7 @@ name = "skein-fake-forge-domain"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3035,6 +3038,7 @@ dependencies = [
  "skein-http",
  "skein-json",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3047,6 +3051,7 @@ dependencies = [
  "skein-http",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls",
 ]
 
@@ -3192,6 +3197,7 @@ version = "0.0.0"
 dependencies = [
  "skein-json",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3200,6 +3206,7 @@ version = "0.0.0"
 dependencies = [
  "skein-forge",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3234,6 +3241,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-link",
+ "skein-rows",
  "skein-tls",
  "skein-world",
 ]
@@ -3281,6 +3289,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
@@ -3314,6 +3323,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-link",
+ "skein-rows",
  "skein-tls",
 ]
 
@@ -3331,6 +3341,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls-kit",
 ]
 
@@ -3357,6 +3368,7 @@ name = "skein-http"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -3493,6 +3505,7 @@ dependencies = [
  "skein-json",
  "skein-json-kit",
  "skein-lib",
+ "skein-rows",
  "skein-scratch",
 ]
 
@@ -3505,6 +3518,7 @@ dependencies = [
  "skein-lib",
  "skein-link",
  "skein-llm",
+ "skein-rows",
  "skein-tls",
 ]
 
@@ -3563,6 +3577,7 @@ dependencies = [
  "skein-codec",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls",
 ]
 
@@ -3575,6 +3590,7 @@ dependencies = [
  "skein-lib",
  "skein-link",
  "skein-oauth",
+ "skein-rows",
  "skein-tls",
 ]
 
@@ -3714,6 +3730,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-rows"
+version = "0.0.0"
+
+[[package]]
 name = "skein-scratch"
 version = "0.0.0"
 
@@ -3779,6 +3799,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]

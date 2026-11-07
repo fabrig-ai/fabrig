@@ -124,37 +124,40 @@ fn labelled_row() -> crate::LiveRecord {
 }
 
 #[test]
-fn repository_measure_has_no_payload() {
-    let repository = Stored::Repository(RepositoryRecord { repository: REPO, mark: None, clock: at(100) });
-    assert_eq!(crate::measure::stored(&repository), Some(0));
-}
-
-#[test]
-fn branch_measure_counts_its_name() {
-    let row = super::fixtures::keep::measure_row();
-    assert_eq!(crate::measure::stored(&Stored::Live(row)), Some(u64::from(BRANCH_BYTES)));
-}
-
-#[test]
-fn stored_measure_counts_comment_and_echo_stamps() {
-    assert_eq!(crate::measure::stored(&Stored::Live(stamped_row())), Some(STAMP_BYTES));
-}
-
-#[test]
-fn stored_measure_counts_review_stamps() {
-    assert_eq!(crate::measure::stored(&Stored::Live(reviewed_row())), Some(REVIEW_BYTES));
-}
-
-#[test]
-fn stored_measure_counts_cached_label_width() {
-    assert_eq!(crate::measure::stored(&Stored::Live(labelled_row())), Some(LABEL_BYTES));
-}
-
-#[test]
-fn stored_measure_counts_cached_pull_reviewers() {
-    let mut row = labelled_row();
-    row.cached.pull = Some(super::fixtures::keep::reviewed_pull(Box::new(REVIEWERS)));
-    assert_eq!(crate::measure::stored(&Stored::Live(row)), Some(CACHED_PULL_BYTES));
+fn stored_record_measurements_count_their_variable_payload_bytes() {
+    skein_rows::check(
+        [
+            (
+                "repository_measure_has_no_payload",
+                (Stored::Repository(RepositoryRecord { repository: REPO, mark: None, clock: at(100) }), 0),
+            ),
+            (
+                "branch_measure_counts_its_name",
+                (
+                    {
+                        let row = super::fixtures::keep::measure_row();
+                        Stored::Live(row)
+                    },
+                    u64::from(BRANCH_BYTES),
+                ),
+            ),
+            ("stored_measure_counts_comment_and_echo_stamps", ({ Stored::Live(stamped_row()) }, STAMP_BYTES)),
+            ("stored_measure_counts_review_stamps", ({ Stored::Live(reviewed_row()) }, REVIEW_BYTES)),
+            ("stored_measure_counts_cached_label_width", ({ Stored::Live(labelled_row()) }, LABEL_BYTES)),
+            (
+                "stored_measure_counts_cached_pull_reviewers",
+                (
+                    {
+                        let mut row = labelled_row();
+                        row.cached.pull = Some(super::fixtures::keep::reviewed_pull(Box::new(REVIEWERS)));
+                        Stored::Live(row)
+                    },
+                    CACHED_PULL_BYTES,
+                ),
+            ),
+        ],
+        |(record, bytes)| assert_eq!(crate::measure::stored(&record), Some(bytes)),
+    );
 }
 
 #[test]
@@ -223,33 +226,26 @@ fn job_answer() -> Answer {
 }
 
 #[test]
-fn items_measure_uses_fixed_summary_width() {
-    assert_eq!(skein_forge::measure::answer(&items_answer()), Some(u64::from(ITEMS_BYTES)));
-}
-
-#[test]
-fn item_measure_uses_fixed_comment_width() {
-    assert_eq!(skein_forge::measure::answer(&item_answer()), Some(u64::from(ITEM_BYTES)));
-}
-
-#[test]
-fn pull_measure_uses_fixed_reviewer_width() {
-    assert_eq!(skein_forge::measure::answer(&pull_answer()), Some(u64::from(PULL_BYTES)));
-}
-
-#[test]
-fn job_measure_counts_step_and_log() {
-    assert_eq!(skein_forge::measure::answer(&job_answer()), Some(u64::from(JOB_BYTES)));
+fn answer_measurements_count_fixed_slots_and_variable_payloads() {
+    skein_rows::check(
+        [
+            ("items_measure_uses_fixed_summary_width", (items_answer(), ITEMS_BYTES)),
+            ("item_measure_uses_fixed_comment_width", (item_answer(), ITEM_BYTES)),
+            ("pull_measure_uses_fixed_reviewer_width", (pull_answer(), PULL_BYTES)),
+            ("job_measure_counts_step_and_log", (job_answer(), JOB_BYTES)),
+        ],
+        |(answer, bytes)| assert_eq!(skein_forge::measure::answer(&answer), Some(u64::from(bytes))),
+    );
 }
 
 const BYTE_CASES: usize = 4; // items, item, pull, job
-type ByteCase = (&'static str, Read, fn() -> Answer, u32);
+type ByteCase = (&'static str, Read, Answer, u32);
 fn byte_cases() -> [ByteCase; BYTE_CASES] {
     [
-        ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer, ITEMS_BYTES),
-        ("item", Read::Item { number: 9, after: 0 }, item_answer, ITEM_BYTES),
-        ("pull", Read::Pull { number: 9 }, pull_answer, PULL_BYTES),
-        ("job", Read::Job { attempt: ATTEMPT, max_bytes: JOB_LOG_ROOM }, job_answer, JOB_BYTES),
+        ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
+        ("item", Read::Item { number: 9, after: 0 }, item_answer(), ITEM_BYTES),
+        ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
+        ("job", Read::Job { attempt: ATTEMPT, max_bytes: JOB_LOG_ROOM }, job_answer(), JOB_BYTES),
     ]
 }
 
@@ -261,21 +257,44 @@ fn admitted(read: Read, answer: Answer, cap: u32) -> Box<[Request]> {
 }
 
 #[test]
-fn answer_bytes_at_bound_are_admitted() {
-    for (name, read, answer, bytes) in byte_cases() {
-        let answer = answer();
-        let expected = Request::Read { owner: Token::new(1), result: Ok(answer.clone()) };
-        assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
-    }
+fn answers_within_configured_admission_bounds_are_forwarded_unchanged() {
+    skein_rows::check(
+        [
+            ("answer_bytes_at_bound_are_admitted", byte_cases()),
+            (
+                "row_answers_at_bound_are_admitted",
+                row_cases(ROW_BOUND).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
+            ),
+        ],
+        |cases| {
+            for (name, read, answer, bytes) in cases {
+                let expected = Request::Read { owner: Token::new(1), result: Ok(answer.clone()) };
+                assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
+            }
+        },
+    );
 }
 
 #[test]
-fn answer_bytes_past_bound_are_refused() {
-    for (name, read, answer, bytes) in byte_cases() {
-        let answer = answer();
-        let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
-        assert_eq!(admitted(read, answer, bytes - 1).as_ref(), &[expected], "{name}");
-    }
+fn answers_exceeding_configured_admission_bounds_are_refused_consistently() {
+    skein_rows::check(
+        [
+            (
+                "answer_bytes_past_bound_are_refused",
+                byte_cases().map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1)),
+            ),
+            (
+                "row_answers_past_bound_are_refused",
+                row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
+            ),
+        ],
+        |cases| {
+            for (name, read, answer, bytes) in cases {
+                let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
+                assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
+            }
+        },
+    );
 }
 
 fn empty_rows(rows: u32) -> Box<[Box<[u8]>]> {
@@ -341,22 +360,6 @@ fn answer_rows_at_bound_fit() {
 fn answer_rows_past_bound_do_not_fit() {
     for (name, _, answer) in row_cases(OVER_ROWS) {
         assert!(!crate::measure::answer_rows(&answer, ROW_BOUND), "{name}");
-    }
-}
-
-#[test]
-fn row_answers_at_bound_are_admitted() {
-    for (name, read, answer) in row_cases(ROW_BOUND) {
-        let expected = Request::Read { owner: Token::new(1), result: Ok(answer.clone()) };
-        assert_eq!(admitted(read, answer, ROW_BYTE_ROOM).as_ref(), &[expected], "{name}");
-    }
-}
-
-#[test]
-fn row_answers_past_bound_are_refused() {
-    for (name, read, answer) in row_cases(OVER_ROWS) {
-        let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
-        assert_eq!(admitted(read, answer, ROW_BYTE_ROOM).as_ref(), &[expected], "{name}");
     }
 }
 

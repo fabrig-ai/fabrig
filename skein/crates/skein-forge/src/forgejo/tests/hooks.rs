@@ -6,21 +6,25 @@ use crate::forgejo::{
     request::{Method, Request},
 };
 use alloc::boxed::Box;
-#[test]
-fn a_hook_request_writes_type_config_events_and_active() {
-    let request = Request::CreateOrgHook { org: Box::from(*b"ensemble"), hook: fixtures::hook_spec() };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Post);
-    assert_eq!(&*encoded.target, b"/api/v1/orgs/ensemble/hooks");
-    assert_eq!(encoded.body.as_deref(), Some(br#"{"type":"forgejo","config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json","secret":"0123456789abcdef"},"events":["push"],"active":true}"#.as_slice()));
+struct HookWrite {
+    request: Request,
+    method: Method,
+    target: &'static [u8],
+    json: Box<[u8]>,
 }
 #[test]
-fn a_hook_patch_carries_the_config_and_the_secret_again() {
-    let request = Request::EditOrgHook { org: Box::from(*b"ensemble"), id: 1, hook: fixtures::hook_spec() };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Patch);
-    assert_eq!(&*encoded.target, b"/api/v1/orgs/ensemble/hooks/1");
-    assert_eq!(encoded.body.as_deref(), Some(br#"{"config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json","secret":"0123456789abcdef"},"events":["push"],"active":true}"#.as_slice()));
+fn hook_writes_encode_method_target_and_configuration() {
+    skein_rows::check(
+        [
+            ("a_hook_request_writes_type_config_events_and_active", HookWrite { request: Request::CreateOrgHook { org: Box::from(*b"ensemble"), hook: fixtures::hook_spec() }, method: Method::Post, target: b"/api/v1/orgs/ensemble/hooks", json: Box::from(br#"{"type":"forgejo","config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json","secret":"0123456789abcdef"},"events":["push"],"active":true}"#.as_slice()) }),
+            ("a_hook_patch_carries_the_config_and_the_secret_again", HookWrite { request: Request::EditOrgHook { org: Box::from(*b"ensemble"), id: 1, hook: fixtures::hook_spec() }, method: Method::Patch, target: b"/api/v1/orgs/ensemble/hooks/1", json: Box::from(br#"{"config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json","secret":"0123456789abcdef"},"events":["push"],"active":true}"#.as_slice()) }),
+            ("forgejo_hook_repo_create_encodes_target_and_body", HookWrite { request: Request::CreateRepoHook { at: repo(), hook: repo_spec() }, method: Method::Post, target: b"/api/v1/repos/acme/widgets/hooks", json: Box::from((fixtures::hook_body().replace("http://127.0.0.1:3000/hooks/1", "https://hooks.example/")).as_bytes()) }),
+            ("forgejo_hook_repo_edit_carries_the_config_and_the_secret_again", HookWrite { request: Request::EditRepoHook { at: repo(), id: 7, hook: repo_spec() }, method: Method::Patch, target: b"/api/v1/repos/acme/widgets/hooks/7", json: Box::from((fixtures::hook_body()
+        .replace("http://127.0.0.1:3000/hooks/1", "https://hooks.example/")
+        .replace(r#""type":"forgejo","#, "")).as_bytes()) }),
+        ],
+        |case| { let encoded = client::encode(&case.request, &fixtures::limits()).unwrap(); assert_eq!(encoded.method, case.method); assert_eq!(encoded.target.as_ref(), case.target); assert_eq!(encoded.body.as_deref(), Some(case.json.as_ref())); },
+    );
 }
 #[test]
 fn a_hook_requests_secret_shows_only_its_length() {
@@ -30,12 +34,14 @@ fn a_hook_requests_secret_shows_only_its_length() {
     assert_eq!(fixtures::debug(&hook.secret).as_ref(), b"Secret { len: 16 }");
 }
 #[test]
-fn a_hook_answer_reads_its_target_from_config_url() {
-    let limits = fixtures::limits();
-    let request = Request::CreateOrgHook { org: Box::from(*b"ensemble"), hook: fixtures::hook_spec() };
-    let decoder = client::decoder(&request, &limits).unwrap();
-    assert_eq!(fixtures::decode(decoder, br#"{"id":1,"url":"http://wrong.invalid/","config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json"},"events":["push"],"active":true}"#, &limits).document,
-        Ok(Document::Hook(Hook { id: 1, url: Box::from(*b"http://127.0.0.1:3000/hooks/1"), events: Box::from([Box::<[u8]>::from(*b"push")]), active: true })));
+fn hook_answers_retain_the_url_from_their_configuration() {
+    skein_rows::check(
+        [
+            ("a_hook_answer_reads_its_target_from_config_url", (Request::CreateOrgHook { org: Box::from(*b"ensemble"), hook: fixtures::hook_spec() }, br#"{"id":1,"url":"http://wrong.invalid/","config":{"url":"http://127.0.0.1:3000/hooks/1","content_type":"json"},"events":["push"],"active":true}"#.as_slice(), Ok(Document::Hook(Hook { id: 1, url: Box::from(*b"http://127.0.0.1:3000/hooks/1"), events: Box::from([Box::<[u8]>::from(*b"push")]), active: true })))),
+            ("forgejo_hook_repo_answer_reads_its_url_from_config", (Request::CreateRepoHook { at: repo(), hook: repo_spec() }, REPO_ANSWER.as_bytes(), Ok(Document::Hook(Hook { id: 1, url: repo_spec().url, events: repo_spec().events, active: true })))),
+        ],
+        |(request, body, expected)| { let limits = fixtures::limits(); let decoder = client::decoder(&request, &limits).unwrap(); assert_eq!(fixtures::decode(decoder, body, &limits).document, expected); },
+    );
 }
 fn refused(body: &str, limits: &crate::forgejo::limits::Limits, expected: Malformed) {
     assert_eq!(fixtures::request(Method::Post, b"/api/v1/orgs/ensemble/hooks", body.as_bytes(), limits), Err(expected));
@@ -55,13 +61,30 @@ fn a_hook_body_with_a_content_type_other_than_json_is_refused() {
     refused(&body, &fixtures::limits(), Malformed::Value { field: b"content_type" });
 }
 #[test]
-fn a_hook_delete_is_a_delete_with_no_body_and_no_answer() {
-    let request = Request::DeleteOrgHook { org: Box::from(*b"ensemble"), id: 1 };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Delete);
-    assert_eq!(&*encoded.target, b"/api/v1/orgs/ensemble/hooks/1");
-    assert_eq!(encoded.body, None);
-    assert!(client::decoder(&request, &fixtures::limits()).is_none());
+fn hook_deletion_encodes_no_body_and_needs_no_decoder() {
+    skein_rows::check(
+        [
+            (
+                "a_hook_delete_is_a_delete_with_no_body_and_no_answer",
+                (
+                    Request::DeleteOrgHook { org: Box::from(*b"ensemble"), id: 1 },
+                    b"/api/v1/orgs/ensemble/hooks/1".as_slice(),
+                ),
+            ),
+            (
+                "forgejo_hook_repo_delete_has_no_body_and_no_decoder",
+                (Request::DeleteRepoHook { at: repo(), id: 7 }, b"/api/v1/repos/acme/widgets/hooks/7".as_slice()),
+            ),
+        ],
+        |(request, target)| {
+            let limits = fixtures::limits();
+            let encoded = client::encode(&request, &limits).unwrap();
+            assert_eq!(encoded.method, Method::Delete);
+            assert_eq!(encoded.target.as_ref(), target);
+            assert_eq!(encoded.body, None);
+            assert!(client::decoder(&request, &limits).is_none());
+        },
+    );
 }
 
 fn repo() -> crate::forgejo::request::Repo {
@@ -71,15 +94,6 @@ fn repo_spec() -> crate::forgejo::request::HookSpec {
     crate::forgejo::request::HookSpec { url: Box::from(*b"https://hooks.example/"), ..fixtures::hook_spec() }
 }
 const REPO_ANSWER: &str = r#"{"id":1,"url":"https://hooks.example/wrong","config":{"url":"https://hooks.example/","content_type":"json"},"events":["push"],"active":true}"#;
-#[test]
-fn forgejo_hook_repo_create_encodes_target_and_body() {
-    let request = Request::CreateRepoHook { at: repo(), hook: repo_spec() };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Post);
-    assert_eq!(encoded.target.as_ref(), b"/api/v1/repos/acme/widgets/hooks");
-    let expected = fixtures::hook_body().replace("http://127.0.0.1:3000/hooks/1", "https://hooks.example/");
-    assert_eq!(encoded.body.as_deref(), Some(expected.as_bytes()));
-}
 #[test]
 fn forgejo_hook_repo_list_encodes_page_and_limit() {
     use crate::forgejo::request::Page;
@@ -95,39 +109,12 @@ fn forgejo_hook_repo_list_encodes_page_and_limit() {
         assert!(encoded.body.is_none());
     }
 }
-#[test]
-fn forgejo_hook_repo_edit_carries_the_config_and_the_secret_again() {
-    let request = Request::EditRepoHook { at: repo(), id: 7, hook: repo_spec() };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Patch);
-    assert_eq!(encoded.target.as_ref(), b"/api/v1/repos/acme/widgets/hooks/7");
-    let expected = fixtures::hook_body()
-        .replace("http://127.0.0.1:3000/hooks/1", "https://hooks.example/")
-        .replace(r#""type":"forgejo","#, "");
-    assert_eq!(encoded.body.as_deref(), Some(expected.as_bytes()));
-}
-#[test]
-fn forgejo_hook_repo_delete_has_no_body_and_no_decoder() {
-    let request = Request::DeleteRepoHook { at: repo(), id: 7 };
-    let encoded = client::encode(&request, &fixtures::limits()).unwrap();
-    assert_eq!(encoded.method, Method::Delete);
-    assert_eq!(encoded.target.as_ref(), b"/api/v1/repos/acme/widgets/hooks/7");
-    assert!(encoded.body.is_none());
-    assert!(client::decoder(&request, &fixtures::limits()).is_none());
-}
 fn decode_repo(body: &[u8], limits: &crate::forgejo::limits::Limits) -> fixtures::Decoded {
     fixtures::decode(
         client::decoder(&Request::CreateRepoHook { at: repo(), hook: repo_spec() }, limits).unwrap(),
         body,
         limits,
     )
-}
-#[test]
-fn forgejo_hook_repo_answer_reads_its_url_from_config() {
-    assert_eq!(
-        decode_repo(REPO_ANSWER.as_bytes(), &fixtures::limits()).document,
-        Ok(Document::Hook(Hook { id: 1, url: repo_spec().url, events: repo_spec().events, active: true }))
-    );
 }
 #[test]
 fn forgejo_hook_repo_content_type_other_than_json_is_malformed() {

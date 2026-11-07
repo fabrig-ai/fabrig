@@ -117,16 +117,43 @@ fn a_revoked_token_is_made_again() {
     assert_eq!(world.store().token_user(replacement.expose()), Some(3));
 }
 #[test]
-fn a_person_under_the_bots_login_is_refused() {
-    use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = HostWorld::owned(7);
-    world.store_mut().account(b"kit", false, b"A person");
-    assert_eq!(
-        world.reconcile(),
-        Ended::Stop(Failure { forge: 1, step: Stage::Bot, subject: b"kit".as_slice().into(), why: Why::Unmarked })
+fn unmarked_accounts_under_the_bot_login_are_refused() {
+    skein_rows::check(
+        [
+            (
+                "a_person_under_the_bots_login_is_refused",
+                (
+                    {
+                        let mut settings = fixtures::host_settings();
+                        settings.forges.get_mut(0).expect("one forge").kind =
+                            skein_forge_setup::host::Kind::Forgejo(fixtures::given(true));
+                        settings
+                    },
+                    b"A person".as_slice(),
+                ),
+            ),
+            ("another_services_bot_is_unmarked", (fixtures::host_settings(), b"other:bot".as_slice())),
+        ],
+        |(settings, marker)| {
+            use skein_forge_setup::reconcile::{Failure, Stage, Why};
+            let mut world = HostWorld::with_settings(7, &[], fixtures::config(), settings);
+            world.store_mut().account(b"kit", false, marker);
+            assert_eq!(
+                world.reconcile(),
+                Ended::Stop(Failure {
+                    forge: 1,
+                    step: Stage::Bot,
+                    subject: b"kit".as_slice().into(),
+                    why: Why::Unmarked
+                })
+            );
+            assert_eq!(world.requests().last(), Some(&Request::UserOf { login: b"kit".as_slice().into() }));
+            for route in [Route::CreateUser, Route::CreateToken, Route::DeleteToken] {
+                assert_eq!(world.tally().routes.get(&route), None);
+            }
+            assert!(world.secrets_absent());
+        },
     );
-    assert_eq!(world.requests().last(), Some(&Request::UserOf { login: b"kit".as_slice().into() }));
-    assert!(world.secrets_absent());
 }
 #[test]
 fn no_secret_is_in_any_failure_debug_or_trace() {
@@ -176,21 +203,6 @@ fn a_token_on_the_second_page_is_replaced() {
             page: Page { page: Some(2), limit: Some(2) },
         })
     );
-    assert!(world.secrets_absent());
-}
-#[test]
-fn another_services_bot_is_unmarked() {
-    use skein_forge_setup::reconcile::{Failure, Stage, Why};
-    let mut world = HostWorld::new(7, &[]);
-    world.store_mut().account(b"kit", false, b"other:bot");
-    assert_eq!(
-        world.reconcile(),
-        Ended::Stop(Failure { forge: 1, step: Stage::Bot, subject: b"kit".as_slice().into(), why: Why::Unmarked })
-    );
-    assert_eq!(world.requests().last(), Some(&Request::UserOf { login: b"kit".as_slice().into() }));
-    for route in [Route::CreateUser, Route::CreateToken, Route::DeleteToken] {
-        assert_eq!(world.tally().routes.get(&route), None);
-    }
     assert!(world.secrets_absent());
 }
 

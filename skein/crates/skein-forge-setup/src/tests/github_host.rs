@@ -367,50 +367,90 @@ fn a_github_reconcile_with_adopted_ids_sends_nothing() {
 }
 
 #[test]
-fn a_second_github_writer_is_busy_beside_a_running_picker() {
-    let mut world = ReconcileHost::new();
-    world.reconcile(RECONCILE_RUN, &[]);
-    world.read(RECONCILE_RUN, Item::AppId);
-    world.down(Request::Run {
-        run: PICKER_RUN,
-        plan: Plan::Reachable { forge: 4, installation: Some(2), page: core::num::NonZeroU32::new(1).expect("page") },
-    });
-    world.read(PICKER_RUN, Item::Accepted);
-    world.reconcile(OTHER_WRITER, &[]);
-    assert_eq!(
-        world.up.pop(),
-        Some(Event::Stop {
-            run: OTHER_WRITER,
-            failure: Failure { forge: 4, step: Stage::App, subject: b"reconcile".as_slice().into(), why: Why::Busy },
-        })
+fn another_github_writer_stops_busy_beside_a_picker() {
+    skein_rows::check(
+        [
+            (
+                "a_second_github_writer_is_busy_beside_a_running_picker",
+                (Plan::Reconcile { forge: 4, adopted: Box::new([]) }, Item::AppId, b"reconcile".as_slice()),
+            ),
+            ("paste_occupies_the_writing_slot_beside_a_picker", (paste_plan(4), Item::Pasted, b"paste".as_slice())),
+        ],
+        |(plan, item, subject)| {
+            let mut world = ReconcileHost::new();
+            world.down(Request::Run { run: RECONCILE_RUN, plan: plan.clone() });
+            world.read(RECONCILE_RUN, item);
+            world.down(Request::Run {
+                run: PICKER_RUN,
+                plan: Plan::Reachable {
+                    forge: 4,
+                    installation: Some(2),
+                    page: core::num::NonZeroU32::new(1).expect("page"),
+                },
+            });
+            world.read(PICKER_RUN, Item::Accepted);
+            world.down(Request::Run { run: OTHER_WRITER, plan });
+            assert_eq!(
+                world.up.pop(),
+                Some(Event::Stop {
+                    run: OTHER_WRITER,
+                    failure: Failure { forge: 4, step: Stage::App, subject: subject.into(), why: Why::Busy }
+                })
+            );
+            assert!(world.up.is_empty());
+            world.close();
+        },
     );
-    assert!(world.up.is_empty());
-    world.close();
 }
 
+struct OwnerWait {
+    plan: Plan,
+    item: Item,
+    subject: &'static [u8],
+    late: Answer,
+}
 #[test]
-fn a_github_reconcile_uses_its_forges_deadline_and_ends_once() {
-    let mut world = ReconcileHost::new();
-    world.reconcile(RECONCILE_RUN, &[]);
-    world.read(RECONCILE_RUN, Item::AppId);
-    assert_eq!(world.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(7))));
-    world.fire(6);
-    assert!(world.up.is_empty());
-    world.fire(7);
-    assert_eq!(
-        world.up.pop(),
-        Some(Event::Stop {
-            run: RECONCILE_RUN,
-            failure: Failure { forge: 4, step: Stage::App, subject: b"id".as_slice().into(), why: Why::Down },
-        })
+fn github_owner_waits_use_the_forge_deadline_once() {
+    skein_rows::check(
+        [
+            (
+                "a_github_reconcile_uses_its_forges_deadline_and_ends_once",
+                OwnerWait {
+                    plan: Plan::Reconcile { forge: 4, adopted: Box::new([]) },
+                    item: Item::AppId,
+                    subject: b"id",
+                    late: Answer::Read(Some(secret(&19u64.to_le_bytes()))),
+                },
+            ),
+            (
+                "paste_uses_its_forges_deadline_and_close_ends_once",
+                OwnerWait { plan: paste_plan(4), item: Item::Pasted, subject: b"key", late: Answer::Read(None) },
+            ),
+        ],
+        |case| {
+            let mut world = ReconcileHost::new();
+            world.down(Request::Run { run: RECONCILE_RUN, plan: case.plan });
+            world.read(RECONCILE_RUN, case.item);
+            assert_eq!(world.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(7))));
+            world.fire(6);
+            assert!(world.up.is_empty());
+            world.fire(7);
+            assert_eq!(
+                world.up.pop(),
+                Some(Event::Stop {
+                    run: RECONCILE_RUN,
+                    failure: Failure { forge: 4, step: Stage::App, subject: case.subject.into(), why: Why::Down }
+                })
+            );
+            assert!(world.up.is_empty());
+            assert_eq!(world.host.next_deadline(), None);
+            world.down(Request::Answer { run: RECONCILE_RUN, answer: case.late });
+            assert!(world.up.is_empty());
+            world.fire(30);
+            assert!(world.up.is_empty());
+            world.close();
+        },
     );
-    assert!(world.up.is_empty());
-    assert_eq!(world.host.next_deadline(), None);
-    world.down(Request::Answer { run: RECONCILE_RUN, answer: Answer::Read(Some(secret(&19u64.to_le_bytes()))) });
-    assert!(world.up.is_empty());
-    world.fire(30);
-    assert!(world.up.is_empty());
-    world.close();
 }
 
 #[test]
@@ -453,48 +493,6 @@ fn paste_is_github_only_and_needs_no_callback_state() {
         world.host.states.take(4, Purpose::Convert, b"absent", Time::ZERO).expect_err("no callback state").why,
         Why::Unknown
     );
-    world.close();
-}
-#[test]
-fn paste_occupies_the_writing_slot_beside_a_picker() {
-    let mut world = ReconcileHost::new();
-    world.down(Request::Run { run: RECONCILE_RUN, plan: paste_plan(4) });
-    world.read(RECONCILE_RUN, Item::Pasted);
-    world.down(Request::Run {
-        run: PICKER_RUN,
-        plan: Plan::Reachable { forge: 4, installation: Some(2), page: core::num::NonZeroU32::new(1).expect("page") },
-    });
-    world.read(PICKER_RUN, Item::Accepted);
-    world.down(Request::Run { run: OTHER_WRITER, plan: paste_plan(4) });
-    assert_eq!(
-        world.up.pop(),
-        Some(Event::Stop {
-            run: OTHER_WRITER,
-            failure: Failure { forge: 4, step: Stage::App, subject: b"paste".as_slice().into(), why: Why::Busy }
-        })
-    );
-    world.close();
-}
-#[test]
-fn paste_uses_its_forges_deadline_and_close_ends_once() {
-    let mut world = ReconcileHost::new();
-    world.down(Request::Run { run: RECONCILE_RUN, plan: paste_plan(4) });
-    world.read(RECONCILE_RUN, Item::Pasted);
-    assert_eq!(world.host.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(7))));
-    world.fire(6);
-    assert!(world.up.is_empty());
-    world.fire(7);
-    assert_eq!(
-        world.up.pop(),
-        Some(Event::Stop {
-            run: RECONCILE_RUN,
-            failure: Failure { forge: 4, step: Stage::App, subject: b"key".as_slice().into(), why: Why::Down }
-        })
-    );
-    world.down(Request::Answer { run: RECONCILE_RUN, answer: Answer::Read(None) });
-    assert!(world.up.is_empty());
-    world.fire(30);
-    assert!(world.up.is_empty());
     world.close();
 }
 

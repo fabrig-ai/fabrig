@@ -169,13 +169,13 @@ fn github_either_mint_401_stops_with_key_refused() {
     }
 }
 #[test]
-fn github_mint_403_or_404_reads_installations_again() {
-    mint_reread(403);
+fn mint_access_refusals_wait_before_reading_installations_again() {
+    skein_rows::check(
+        [("github_mint_403_or_404_reads_installations_again", 403), ("github_mint_404_reads_installations_again", 404)],
+        mint_reread,
+    );
 }
-#[test]
-fn github_mint_404_reads_installations_again() {
-    mint_reread(404);
-}
+
 fn mint_reread(status: u16) {
     let mut h = at(Stage::Full);
     h.answer(FORGE, &fixtures::status(status));
@@ -190,13 +190,16 @@ fn mint_reread(status: u16) {
     assert_eq!(h.start(FORGE), Start::Minting { next: Duration::from_secs(2) });
 }
 #[test]
-fn github_mint_refusal_fresh_table_removes_or_suspends_the_row() {
-    fresh_table(404, b"[]");
+fn fresh_installation_listings_suppress_minting_for_ineligible_rows() {
+    skein_rows::check(
+        [
+            ("github_mint_refusal_fresh_table_removes_or_suspends_the_row", (404, b"[]".as_slice())),
+            ("github_mint_refusal_fresh_table_suspends_the_row", (403, SUSPENDED)),
+        ],
+        |(v0, v1)| fresh_table(v0, v1),
+    );
 }
-#[test]
-fn github_mint_refusal_fresh_table_suspends_the_row() {
-    fresh_table(403, SUSPENDED);
-}
+
 fn fresh_table(status: u16, table: &[u8]) {
     let mut h = at(Stage::Contents);
     h.answer(FORGE, &fixtures::status(status));
@@ -227,13 +230,19 @@ fn github_accepted_ids_past_the_bound_are_ignored() {
     assert_eq!(h.start(FORGE), Start::Ready { cap: 100 });
 }
 #[test]
-fn github_nontransient_start_refusals_name_the_read_or_installation() {
-    refused_read(Stage::Listing, StartRead::Installations, &[403, 422]);
+fn nontransient_read_refusals_report_their_stage_and_status() {
+    skein_rows::check(
+        [
+            (
+                "github_nontransient_start_refusals_name_the_read_or_installation",
+                (Stage::Listing, StartRead::Installations, &[403, 422]),
+            ),
+            ("github_nontransient_viewer_refusals_name_the_read", (Stage::Identity, StartRead::Viewer, &[401, 422])),
+        ],
+        |(v0, v1, v2)| refused_read(v0, v1, v2),
+    );
 }
-#[test]
-fn github_nontransient_viewer_refusals_name_the_read() {
-    refused_read(Stage::Identity, StartRead::Viewer, &[401, 422]);
-}
+
 fn refused_read(stage: Stage, read: StartRead, statuses: &[u16]) {
     for status in statuses {
         let mut h = at(stage);
@@ -278,37 +287,36 @@ fn transient(stage: Stage, cases: &[(&str, u16, &[u8])]) {
     }
 }
 #[test]
-fn github_transient_start_failures_back_off_to_listing() {
-    transient(Stage::Listing, TRANSPORT_OR_RATE);
+fn transient_start_failures_back_off_and_restart_listing() {
+    skein_rows::check(
+        [
+            ("github_start_server_or_malformed_failures_back_off_to_listing", (Stage::Listing, SERVER_OR_MALFORMED)),
+            (
+                "github_full_mint_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Full, MINT_SERVER_OR_MALFORMED),
+            ),
+            (
+                "github_contents_mint_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Contents, MINT_SERVER_OR_MALFORMED),
+            ),
+            (
+                "github_identity_server_or_malformed_failures_back_off_to_listing",
+                (Stage::Identity, SERVER_OR_MALFORMED),
+            ),
+        ],
+        |(stage, cases)| {
+            for &(label, status, body) in cases {
+                let mut h = at(stage);
+                h.answer(FORGE, &fixtures::response(status, body));
+                waiting(&h, 1, 2);
+                assert_eq!(h.stopped(), None, "{stage:?}/{label}");
+                h.run(SECOND);
+                assert_eq!(h.start(FORGE), Start::Listing { next: Duration::from_secs(2) }, "{stage:?}/{label}");
+            }
+        },
+    );
 }
-#[test]
-fn github_start_server_or_malformed_failures_back_off_to_listing() {
-    transient(Stage::Listing, SERVER_OR_MALFORMED);
-}
-#[test]
-fn github_transient_full_mint_failures_back_off_to_listing() {
-    transient(Stage::Full, TRANSPORT_OR_RATE);
-}
-#[test]
-fn github_full_mint_server_or_malformed_failures_back_off_to_listing() {
-    transient(Stage::Full, MINT_SERVER_OR_MALFORMED);
-}
-#[test]
-fn github_transient_contents_mint_failures_back_off_to_listing() {
-    transient(Stage::Contents, TRANSPORT_OR_RATE);
-}
-#[test]
-fn github_contents_mint_server_or_malformed_failures_back_off_to_listing() {
-    transient(Stage::Contents, MINT_SERVER_OR_MALFORMED);
-}
-#[test]
-fn github_transient_identity_failures_back_off_to_listing() {
-    transient(Stage::Identity, TRANSPORT_OR_RATE);
-}
-#[test]
-fn github_identity_server_or_malformed_failures_back_off_to_listing() {
-    transient(Stage::Identity, SERVER_OR_MALFORMED);
-}
+
 #[test]
 fn github_wait_doubles_without_reset_at_a_successful_page() {
     let mut h = harness();
@@ -350,25 +358,26 @@ fn github_each_send_has_a_fresh_deadline() {
     waiting(&h, 47, 2);
 }
 #[test]
-fn github_mint_tokens_must_be_safe_nonempty_bounded_and_future() {
-    for (label, token, expires) in
-        [("empty", Box::from(b"".as_slice()), EXPIRES), ("unsafe", Box::from(b"bad\\nvalue".as_slice()), EXPIRES)]
-    {
-        let mut h = at(Stage::Full);
-        h.answer(FORGE, &mint(&token, expires));
-        waiting(&h, 1, 2);
-        h.run(Duration::ZERO);
-        assert!(tokens(&h).is_empty(), "{label}");
-    }
+fn invalid_minted_tokens_publish_nothing_and_trigger_backoff() {
+    skein_rows::check(
+        [
+            ("github_mint_tokens_must_be_safe_nonempty_bounded_and_future: empty", (b"".as_slice(), EXPIRES)),
+            (
+                "github_mint_tokens_must_be_safe_nonempty_bounded_and_future: unsafe",
+                (b"bad\\nvalue".as_slice(), EXPIRES),
+            ),
+            ("github_expired_mint_token_is_malformed", (FULL, b"1970-01-01T00:00:00Z".as_slice())),
+        ],
+        |(token, expires)| {
+            let mut h = at(Stage::Full);
+            h.answer(FORGE, &mint(token, expires));
+            waiting(&h, 1, 2);
+            h.run(Duration::ZERO);
+            assert!(tokens(&h).is_empty());
+        },
+    );
 }
-#[test]
-fn github_expired_mint_token_is_malformed() {
-    let mut h = at(Stage::Full);
-    h.answer(FORGE, &mint(FULL, b"1970-01-01T00:00:00Z"));
-    waiting(&h, 1, 2);
-    h.run(Duration::ZERO);
-    assert!(tokens(&h).is_empty());
-}
+
 #[test]
 fn github_mint_token_at_the_bound_is_accepted() {
     let mut h = at(Stage::Full);
@@ -478,22 +487,19 @@ fn github_own_connection_is_reserved_while_forgejo_calls_run() {
 }
 
 #[test]
-fn github_replacement_discards_the_old_start_and_tokens() {
-    replacement(Stage::Listing);
+fn replacement_discards_old_startup_work_across_every_phase() {
+    skein_rows::check(
+        [
+            ("github_replacement_discards_the_old_start_and_tokens", (Stage::Listing, 0)),
+            ("github_replacement_discards_the_old_full_mint", (Stage::Full, 0)),
+            ("github_replacement_discards_the_old_contents_mint", (Stage::Contents, 0)),
+            ("github_replacement_discards_the_old_identity", (Stage::Identity, 1)),
+        ],
+        |(stage, count)| replacement(stage, count),
+    );
 }
-#[test]
-fn github_replacement_discards_the_old_full_mint() {
-    replacement(Stage::Full);
-}
-#[test]
-fn github_replacement_discards_the_old_contents_mint() {
-    replacement(Stage::Contents);
-}
-#[test]
-fn github_replacement_discards_the_old_identity() {
-    replacement(Stage::Identity);
-}
-fn replacement(stage: Stage) {
+
+fn replacement(stage: Stage, expected_tokens: usize) {
     let mut h = at(stage);
     let owner = *h.peers.first().expect("old peer").0;
     h.send(Request::Connect {
@@ -513,25 +519,21 @@ fn replacement(stage: Stage) {
     listed(&mut h);
     h.run(Duration::ZERO);
     assert_eq!(h.connected_count, 1, "{stage:?}");
-    let expected_tokens = if let Stage::Identity = stage { 1 } else { 0 };
     assert_eq!(tokens(&h).len(), expected_tokens, "{stage:?}: no old mint published");
 }
 #[test]
-fn github_close_ends_each_start_phase() {
-    close_phase(Stage::Listing);
+fn closing_startup_phases_prevents_all_subsequent_private_work() {
+    skein_rows::check(
+        [
+            ("github_close_ends_each_start_phase", Stage::Listing),
+            ("github_close_ends_the_full_mint_phase", Stage::Full),
+            ("github_close_ends_the_contents_mint_phase", Stage::Contents),
+            ("github_close_ends_the_identity_phase", Stage::Identity),
+        ],
+        close_phase,
+    );
 }
-#[test]
-fn github_close_ends_the_full_mint_phase() {
-    close_phase(Stage::Full);
-}
-#[test]
-fn github_close_ends_the_contents_mint_phase() {
-    close_phase(Stage::Contents);
-}
-#[test]
-fn github_close_ends_the_identity_phase() {
-    close_phase(Stage::Identity);
-}
+
 fn close_phase(stage: Stage) {
     let mut h = at(stage);
     h.send(Request::Close);
@@ -600,4 +602,17 @@ fn github_bot_permission_waits_for_the_first_full_mint() {
     for line in h.request_lines(FORGE).as_slice() {
         assert!(!contains(line, b"/collaborators/"));
     }
+}
+
+#[test]
+fn transport_and_rate_start_failures_restart_listing() {
+    skein_rows::check(
+        [
+            ("github_transient_start_failures_back_off_to_listing", Stage::Listing),
+            ("github_transient_full_mint_failures_back_off_to_listing", Stage::Full),
+            ("github_transient_contents_mint_failures_back_off_to_listing", Stage::Contents),
+            ("github_transient_identity_failures_back_off_to_listing", Stage::Identity),
+        ],
+        |stage| transient(stage, TRANSPORT_OR_RATE),
+    );
 }

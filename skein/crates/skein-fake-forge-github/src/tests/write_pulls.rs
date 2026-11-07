@@ -221,45 +221,68 @@ fn github_fake_review_refuses_approving_own_pull() {
     assert!(skein_lib::bytes::find(&response.body, br#""errors":[""#).is_some());
 }
 #[test]
-fn github_fake_pull_writes_outside_installation_are_missing() {
-    let mut h = w::harness();
-    let token = r::token(&mut h);
-    for request in [
-        Request::OpenPull {
-            owner: f::boxed(b"acme"),
-            name: f::boxed(b"absent"),
-            title: Box::from([]),
-            body: Box::from([]),
-            head: Box::from([]),
-            base: Box::from([]),
+fn repository_writes_outside_installation_never_call_domain() {
+    skein_rows::check(
+        [
+            (
+                "github_fake_pull_writes_outside_installation_are_missing",
+                Box::<[Request]>::from([
+                    Request::OpenPull {
+                        owner: f::boxed(b"acme"),
+                        name: f::boxed(b"absent"),
+                        title: Box::from([]),
+                        body: Box::from([]),
+                        head: Box::from([]),
+                        base: Box::from([]),
+                    },
+                    Request::Update {
+                        owner: f::boxed(b"acme"),
+                        name: f::boxed(b"absent"),
+                        number: 1,
+                        head: r::object(1),
+                    },
+                    Request::Review {
+                        owner: f::boxed(b"acme"),
+                        name: f::boxed(b"absent"),
+                        number: 1,
+                        verdict: api::Verdict::Comment,
+                        body: Box::from([]),
+                    },
+                    Request::Reviewers {
+                        owner: f::boxed(b"acme"),
+                        name: f::boxed(b"absent"),
+                        number: 1,
+                        add: true,
+                        logins: Box::from([]),
+                    },
+                    Request::Reviewers {
+                        owner: f::boxed(b"acme"),
+                        name: f::boxed(b"absent"),
+                        number: 1,
+                        add: false,
+                        logins: Box::from([]),
+                    },
+                ]),
+            ),
+            (
+                "github_fake_branch_and_status_writes_refuse_outside_installation",
+                super::write_branches::outside_installation_requests(),
+            ),
+            (
+                "github_fake_merge_outside_installation_is_missing_before_domain_calls",
+                super::write_merge::outside_installation_requests(),
+            ),
+        ],
+        |requests| {
+            let mut h = w::harness();
+            let token = r::token(&mut h);
+            for request in requests {
+                let response = w::ask(&mut h, &token, &request);
+                f::refusal(&h, &response, 404, b"Not Found");
+            }
+            assert_eq!(h.calls, 0);
         },
-        Request::Update { owner: f::boxed(b"acme"), name: f::boxed(b"absent"), number: 1, head: r::object(1) },
-        Request::Review {
-            owner: f::boxed(b"acme"),
-            name: f::boxed(b"absent"),
-            number: 1,
-            verdict: api::Verdict::Comment,
-            body: Box::from([]),
-        },
-        Request::Reviewers {
-            owner: f::boxed(b"acme"),
-            name: f::boxed(b"absent"),
-            number: 1,
-            add: true,
-            logins: Box::from([]),
-        },
-        Request::Reviewers {
-            owner: f::boxed(b"acme"),
-            name: f::boxed(b"absent"),
-            number: 1,
-            add: false,
-            logins: Box::from([]),
-        },
-    ] {
-        let response = w::ask(&mut h, &token, &request);
-        f::refusal(&h, &response, 404, b"Not Found");
-    }
-    assert_eq!(h.calls, 0);
+    );
 }
 
 #[test]
