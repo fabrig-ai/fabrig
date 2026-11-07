@@ -11,8 +11,8 @@
   effort amendment can leave the next run using the previous model. The
   `model-picker` proof stored and reloaded GPT-6 Astra at low, but four
   fake-provider requests still named `gpt-6.1-sol` (`1d82a937df`). The
-  `ui-model-next-turn` plan owns the runtime repair, by the answer in
-  `temper/docs/plan/look-round-11/tasks/picker-proof.md`; no repair is on record.
+  `ui-model-next-turn` plan owns the runtime repair, by the answer of 2026-11-06
+  to the `look-round-11` task `picker-proof`; no repair is on record.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the

@@ -22,7 +22,7 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
-- **Not yet:** 4.6, 16: `the_model_picker_at_the_composer` is written and
+- **Not yet:** 4.6: test 16, `the_model_picker_at_the_composer`, is written and
   compiled, not run, under the plan's focused-and-fuzzy-only rule. Its
   retained 420 px, one-press model and effort, outside and Escape checks
   await the browser tier after landing. The look's separate render and
