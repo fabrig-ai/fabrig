@@ -23,12 +23,22 @@ fn configured() -> (Driver, engine::Event) {
     let configs = std::array::from_fn(|_| {
         let mut config = world::config(904);
         let llm = jig_protocol_config::Llm {
-            shown: Box::new([None]),
-            pickers: Box::new([true]),
             endpoints: Box::new([]),
             providers: Box::new([]),
-            descriptions: Box::new([None]),
-            models: config.core.settings.models.clone(),
+            models: (config.core.settings.models.clone())
+                .into_iter()
+                .enumerate()
+                .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                    number: u32::try_from(at).expect("bounded fixture models") + 1,
+                    model,
+                    shown: None,
+                    description: None,
+                    picker: true,
+                    withdrawn: false,
+                    source: jig_domain_core::settings::ModelSource::Stock,
+                    estimated: false,
+                })
+                .collect(),
         };
         config.core.defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
         config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();

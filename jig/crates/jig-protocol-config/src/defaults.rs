@@ -10,6 +10,7 @@ use skein_lib::List;
 /// The document's problems against the defaults, at the document's paths.
 pub fn pass(engine: &mut Engine, defaults: jig_domain_core::settings::Defaults) -> Result<(), Problems> {
     assert_eq!(engine.defaults, crate::Defaults::Passed, "pass requires passed defaults");
+    engine.llm.models = defaults.models;
     engine.charters = defaults.charters;
     engine.templates = defaults.templates;
     engine.rules = defaults.rules;
@@ -91,8 +92,8 @@ pub(crate) fn offers(
         charters = crate::charters::parse(document, at, &path.member(b"charters"), llm, limits, directories, problems);
     }
     let configured = match llm {
-        Some(llm) => &*llm.models,
-        None => &[],
+        Some(llm) => llm.models(),
+        None => Box::default(),
     };
     let mut templates = None;
     if let Some(at) = object.required(document, b"templates", &path, problems) {
@@ -101,7 +102,7 @@ pub(crate) fn offers(
             at,
             &path.member(b"templates"),
             charters.as_deref().unwrap_or(&[]),
-            configured,
+            &configured,
             limits,
             problems,
         );

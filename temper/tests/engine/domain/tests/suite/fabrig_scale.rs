@@ -27,16 +27,26 @@ const LEAVES: [u32; 4] = [95, 95, 95, 94]; // Goal + four coordinators + 379 rep
 
 fn stock_world() -> (World, core::settings::Defaults) {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([super::stock::box_model()]),
+        models: (Box::new([super::stock::box_model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let limits = box_limits();
     let stock = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
-    let mut world = World::configured_stock_limits(&stock, &llm.models[0], &limits);
+    let mut world = World::configured_stock_limits(&stock, &llm.models[0].model, &limits);
     world.sign_in();
     (world, stock)
 }

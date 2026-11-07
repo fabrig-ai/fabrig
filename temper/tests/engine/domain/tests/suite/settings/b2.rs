@@ -17,15 +17,31 @@ fn configuration() -> engine::Config {
     let mut config = stock_config();
     let model = box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: Box::new([model.clone()]),
-        descriptions: Box::new([None]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
     config.core.defaults = temper_service::stock::defaults(&llm, stock_limits().tasks.result_bytes);
 
+    config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        number: model.endpoint,
+        dialect: model.dialect,
+        program: model.program.clone(),
+    }]);
     config.core.settings.models = Box::new([model]);
     config.core.seed_projects = walking::config(SEED).core.seed_projects;
     config.core.seed_projects[0].policy =

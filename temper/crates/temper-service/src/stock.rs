@@ -187,7 +187,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     let mut completion = 0;
     for model in &llm.models {
-        completion = completion.max(jig_domain_core::most_costly(model)?);
+        completion = completion.max(jig_domain_core::most_costly(&model.model)?);
     }
     let minimum_run = completion.checked_mul(2)?;
     let mut run = minimum_run.checked_mul(2)?; // K starts at 4C.
@@ -206,7 +206,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
-        models: Box::default(),
+        models: llm.models.clone(),
         charters,
         templates,
         policies,
@@ -283,14 +283,14 @@ fn charter(
     let mut ordered = List::with_capacity(u32::try_from(llm.models.len()).expect("model count"));
     for name in first_choices {
         for model in &llm.models {
-            if model.name.as_ref() == *name {
-                ordered.push(model.clone()).expect("one per configured model");
+            if model.model.name.as_ref() == *name {
+                ordered.push(model.model.clone()).expect("one per configured model");
             }
         }
     }
     for model in &llm.models {
-        if !first_choices.contains(&model.name.as_ref()) {
-            ordered.push(model.clone()).expect("one per configured model");
+        if !first_choices.contains(&model.model.name.as_ref()) {
+            ordered.push(model.model.clone()).expect("one per configured model");
         }
     }
     let mut ordered = ordered.into_boxed().into_iter();

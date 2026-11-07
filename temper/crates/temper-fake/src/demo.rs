@@ -146,8 +146,8 @@ fn models(number: u32, listen: SocketAddr, llm: &config::Llm, p: &Path) -> Resul
     for name in &provider.models {
         let mut found = None;
         for model in &llm.models {
-            if model.name == *name {
-                found = Some(model);
+            if model.model.name == *name {
+                found = Some(&model.model);
             }
         }
         let model = found.expect("checked provider's model");

@@ -70,7 +70,7 @@ pub(crate) fn check_overrides(
                     template,
                     executor,
                     &engine.charters,
-                    &engine.llm.models,
+                    &engine.llm.models(),
                 ) {
                     problems.push(path.member(b"executor"), What::Refers);
                 }

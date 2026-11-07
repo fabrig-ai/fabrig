@@ -456,11 +456,11 @@ pub fn given(directory: &Path) -> temper_service::stock::Given {
             .llm
             .models
             .iter()
-            .position(|model| model.name.as_ref() == b"fake-claude")
+            .position(|model| model.model.name.as_ref() == b"fake-claude")
             .expect("program fixture model");
         // A template's choice does not bind the charters of its delegated coder and reviewer.
         for charter in &mut defaults.charters {
-            charter.policy.model = engine.llm.models[model].clone();
+            charter.policy.model = engine.llm.models[model].model.clone();
             charter.policy.alternatives = Box::new([]);
         }
         defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Requester;

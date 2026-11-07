@@ -105,7 +105,7 @@ fn charter(
                     }
                 },
                 None => match llm.models.first() {
-                    Some(model) => Some(model.clone()),
+                    Some(model) => Some(model.model.clone()),
                     None => {
                         problems.push(path.member(b"models"), What::Refers);
                         None
@@ -249,8 +249,8 @@ fn alternatives(
 }
 fn model(name: &[u8], llm: &Llm, path: &Path, problems: &mut Problems) -> Option<Model> {
     for model in &llm.models {
-        if model.name.as_ref() == name {
-            return Some(model.clone());
+        if model.model.name.as_ref() == name {
+            return Some(model.model.clone());
         }
     }
     problems.push(path.clone(), What::Refers);

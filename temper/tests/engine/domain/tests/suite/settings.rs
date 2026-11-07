@@ -256,11 +256,22 @@ fn a_stored_project_policy_at_the_byte_bound_is_admitted() {
 fn stock_config() -> engine::Config {
     let mut config = walking::config(SEED);
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: walking::models(),
-        descriptions: Box::new([None]),
+        models: (walking::models())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
     config.core.defaults = temper_service::stock::defaults(&llm, stock_limits().tasks.result_bytes);
@@ -306,11 +317,22 @@ fn set_policy_tools(policy: &mut authority::Policy, tools: authority::Tools) {
 fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     let mut driver = deployment_without_projects();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: walking::models(),
-        descriptions: Box::new([None]),
+        models: (walking::models())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
     let defaults = temper_service::stock::defaults(&llm, stock_limits().tasks.result_bytes);

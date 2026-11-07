@@ -14,7 +14,10 @@ mod defaults;
 mod domain;
 pub use defaults::pass;
 mod projects;
-pub use domain::{Deployment, Provider, ProviderKind, amendment_bytes_max, check_effective_limits, policy_bytes_max};
+pub use domain::{
+    Deployment, Provider as IdentityProvider, ProviderKind, amendment_bytes_max, check_effective_limits,
+    policy_bytes_max,
+};
 pub use projects::{Policy, Project};
 mod check;
 mod worker;
@@ -26,7 +29,7 @@ pub mod llm;
 pub use clients::Clients;
 pub use files::{File, Files, files, worker_files};
 pub use hosts::{Hosts, WorkerName};
-pub use llm::{Endpoint, Header, Llm, Transport};
+pub use llm::{Endpoint, Header, Llm, Provider, Transport};
 pub mod address;
 mod document;
 pub mod members;
@@ -58,7 +61,7 @@ pub struct Engine {
     pub deployment: Deployment,
     pub owners: Box<[jig_domain_people::InitialOwner]>,
     pub acts: Box<[jig_domain_people::ActGrant]>,
-    pub providers: Box<[Provider]>,
+    pub providers: Box<[IdentityProvider]>,
     pub rules: jig_domain_authority::Rules,
     pub projects: Box<[Project]>,
     /// Policy numbers awaiting defaults, by seed index; empty once the copy is resolved.
@@ -108,8 +111,8 @@ pub fn engine(
     }
     let offers = defaults::offers(document, &mut object, llm.as_ref(), &limits, directories, defaults, &mut problems);
     let configured = match &llm {
-        Some(llm) => &*llm.models,
-        None => &[],
+        Some(llm) => llm.models(),
+        None => Box::default(),
     };
     let mut deployment = None;
     if let Some(at) = object.required(document, b"deployment", &path, &mut problems) {
@@ -124,14 +127,14 @@ pub fn engine(
         && let Some(at) = object.required(document, b"rules", &path, &mut problems)
     {
         let authority = &limits.core.authority;
-        rules = projects::rules(document, at, &path.member(b"rules"), authority, configured, &mut problems);
+        rules = projects::rules(document, at, &path.member(b"rules"), authority, &configured, &mut problems);
     }
     let mut projects = None;
     if let Some(at) = object.required(document, b"projects", &path, &mut problems) {
-        projects = projects::projects(document, at, &path.member(b"projects"), &limits, configured, &mut problems);
+        projects = projects::projects(document, at, &path.member(b"projects"), &limits, &configured, &mut problems);
     }
     let policies = if defaults == Defaults::Document {
-        projects::configured_policies(&mut object, document, &limits, configured, &mut problems)
+        projects::configured_policies(&mut object, document, &limits, &configured, &mut problems)
     } else {
         Some(Box::default())
     };

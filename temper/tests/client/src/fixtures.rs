@@ -1594,11 +1594,22 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
             .collect();
     config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: config.core.settings.models.clone(),
-        descriptions: Box::new([]),
+        models: (config.core.settings.models.clone())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
     let stock =

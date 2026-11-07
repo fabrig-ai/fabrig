@@ -2,7 +2,7 @@
 //! the sources it offers (configuration.md, 3 and 7; accounts.md, 3.4). No account, key or record.
 use crate::{Directories, Path, Problems, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::Model;
+use jig_domain_core::settings::CatalogueModel;
 use skein_json::Document;
 use skein_lib::List;
 
@@ -12,6 +12,8 @@ pub struct Provider {
     /// Its name for showing.
     pub name: Box<[u8]>,
     pub number: u32,
+    /// The endpoint its added models take (configuration.md, 3).
+    pub endpoint: Option<Box<[u8]>>,
     pub signed_in_plan: bool,
     pub manage_usage: Option<Box<[u8]>>,
     /// Configured models' names; each configured model is in one provider.
@@ -58,7 +60,7 @@ pub(super) fn parse(
     object: &mut read::Object,
     document: &Document,
     path: &Path,
-    models: &[Model],
+    models: &[CatalogueModel],
     directories: &Directories,
     problems: &mut Problems,
 ) -> List<Provider> {
@@ -106,7 +108,7 @@ fn provider(
     document: &Document,
     at: u32,
     path: &Path,
-    models: &[Model],
+    models: &[CatalogueModel],
     claimed: &mut List<bool>,
     directories: &Directories,
     problems: &mut Problems,
@@ -147,6 +149,7 @@ fn provider(
     if let Some(at) = object.required(document, b"sources", path, problems) {
         offered = sources(document, at, &path.member(b"sources"), directories, problems);
     }
+    let endpoint = super::optional_text(&mut object, document, b"endpoint", path, problems);
     object.finish(document, path, problems);
     let offered = offered?;
     if offered.sign_in.is_some() && signed_at.is_none() {
@@ -161,6 +164,7 @@ fn provider(
     Some(Provider {
         name: name?,
         number: number?,
+        endpoint,
         signed_in_plan,
         manage_usage,
         models: served?,
@@ -175,7 +179,7 @@ fn served_models(
     document: &Document,
     items: &List<u32>,
     path: &Path,
-    models: &[Model],
+    models: &[CatalogueModel],
     claimed: &mut List<bool>,
     problems: &mut Problems,
 ) -> Option<Box<[Box<[u8]>]>> {
@@ -193,7 +197,7 @@ fn served_models(
         };
         let mut found = None;
         for (model, value) in models.iter().enumerate() {
-            if value.name == name {
+            if value.model.name == name {
                 found = Some(u32::try_from(model).expect("models bounded by u32"));
                 break;
             }

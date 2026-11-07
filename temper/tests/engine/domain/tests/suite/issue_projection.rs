@@ -53,12 +53,22 @@ fn model() -> engine::Model {
 
 fn defaults() -> jig_domain_core::settings::Defaults {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model()]),
+        models: (Box::new([model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let mut defaults = temper_service::stock::defaults(&llm, OP_BYTES);
     defaults.rules.period_spend = SPEND;
