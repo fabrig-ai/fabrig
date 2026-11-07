@@ -21,8 +21,8 @@ Step 2 of `temper/docs/design/draft/model-catalogue.md`, section 7: its sections
 | `page` | `models-switch` | `models-tab`, `model-act` | 110 | the switch; "added by you"; "estimated prices"; left out |
 | `page` | `models-add` | `models-switch` | 80 | "Add a model by name" |
 | `help` | `models-help` | `stock-models`, `models-add` | 45 | "Offering another model" |
-| `page` | `models-story` | `models-add`, `stock-models` | 45 | the browser story, compiled, not run |
-| `proof` | `models-proof` | everything it closes | 80 | the render check, screenshots, the account, status files |
+| `page` | `models-story` | `models-add`, `stock-models` | 45 | switch and add stories in the client world, by the task's answer |
+| `proof` | `models-proof` | everything it closes | 80 | reprints, the account and status files; render check after landing |
 
 ## Critical path
 
@@ -51,7 +51,7 @@ Step 2 of `temper/docs/design/draft/model-catalogue.md`, section 7: its sections
 
 Not avoidable. The order keeps early work off `look-round-11`'s and `ui-proposal-card`'s files where it can: the jig tasks touch their files only for a literal's new field.
 
-- **`look-round-11`** isn't on main at this cut, and its All models link stays on Accounts. If it's on main when `models-proof` runs, that task moves the link to Settings, Models; otherwise it moves at the catch-up of whichever lands second. `temper.css` and `choice.rs`: `models-tab` makes two functions `pub(crate)`, and new rules are under the settings marker. The gallery conflicts are regenerated.
+- **`look-round-11`** is on main when `models-proof` starts. That task moves All models' link to the picker's `Models { project }`, with "Choose what the list shows, in Settings", and updates its view test and client design. `temper.css` and `choice.rs`: `models-tab` makes two functions `pub(crate)`, and new rules are under the settings marker. The gallery conflicts are regenerated.
 - **`ui-proposal-card`:** `client-v19.schema`, `settings.rs` of the client's contract, `tasks-v9.schema`, `cards/proposal.rs`, `words.rs`, `README.status.md`. `model-surface` and `configuring-learns` are the hunks; generated code and goldens are regenerated at catch-up.
 - **`model-check`:** `stock.rs` (its trial charter takes `rest: true` at catch-up), `client-wire-v1.schema`, `pages/accounts.rs`, `words.rs`, and `chat-draft`'s prints, regenerated, not merged.
 - **`browser-budget`:** `browser_pages.rs`; `models-story` has a file of its own.
@@ -59,4 +59,4 @@ Not avoidable. The order keeps early work off `look-round-11`'s and `ui-proposal
 
 ## Slices
 
-No walk: `walk = false` throughout, since only focused and fuzzy run in the plan; the browser story is compiled, and after-landing runs it. `models-proof` renders the page with a throwaway driver and leaves its screenshots on the builder.
+No walk: `walk = false` throughout, since only focused and fuzzy run in the plan. The `models-story` answer places switches and adding across reloads in the client world; the existing browser suite is compiled, not run. `models-proof` accounts for the page and reprints the journeys without a render driver. The user's answer of 2026-11-06 defers page 07's render comparison and screenshots at 1440, 1280, 1000 and 420 px to temper/ui after landing.

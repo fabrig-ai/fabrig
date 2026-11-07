@@ -2,8 +2,6 @@
 
 2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
-- **Not yet:** the agent's bounds name each model it declares, not each endpoint it serves.
-
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its

@@ -2632,9 +2632,9 @@ keeps (`../protocol/configuration.md`, section 2).
     - "All models" and how many the offer holds, where the picker shows fewer.
   - *All models* takes the menu's place: "‹ Models", back to it; a field "Find a
     model", matching any part of a shown name or a name, in any case; every model
-    of the offer, by account as above; and "Accounts, in Settings", a link to
-    `Accounts`. Settings has no list of models yet, and nothing reads a
-    provider's list (`../draft/model-catalogue.status.md`).
+    of the offer, by account as above; and "Choose what the list shows, in Settings",
+    a link to `Models { project }` for the picker's project. Provider-list reads
+    remain the catalogue's lists step (`../draft/model-catalogue.status.md`).
   - *A started chat:* the menu opens with "A change applies from the next turn."
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
@@ -6669,12 +6669,11 @@ own tests:
   account, even beside a usable account of that provider, remains the catalogue's
   requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
   line until those account rows are designed.
-- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
-  switches, adding by name and direction to Configure temper for a default
-  change belong to the catalogue's store step. Provider-list reads, "Read again",
-  failed-read words, estimated prices and "new" on All models belong to its
-  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
-  no "new", and All models links to Accounts with "Accounts, in Settings".
+- **Provider-list reads on Models** (3.5): "Read again", failed-read words,
+  "Read from OpenAI 2 hours ago" and "new" belong to the catalogue's lists step
+  (`../draft/model-catalogue.md`, section 7). Default: the stock and models added
+  by name, with "estimated prices" where prices are unknown; no provider read
+  or "new" tag.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

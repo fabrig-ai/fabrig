@@ -1520,6 +1520,12 @@ from the engine's own answers, is where the look is tuned.
 | `forges-failed` | the first run's Forges at step 9: a set up failed, with "Set up again" |
 | `forges-replacing` | the solo world's Forges, a row's Replace open on its private key |
 | `forges-removing` | the first run's Forges at step 7: a row's removal asking first |
+| `models` | Settings, Models: offered models by provider, what pays, default efforts, picker switches and Configure temper |
+| `models-add` | an owner adding a model by provider and name |
+| `models-off` | a model switched off, still in the list |
+| `models-added` | a person's model: "added by you" and "estimated prices" |
+| `models-member` | a member reads On and Off, with no switch or add form |
+| `models-one-account` | Claude alone: OpenAI has its Connect line and no stock rows |
 | `accounts-empty` | the Accounts tab's quiet band, in a world with no account |
 | `accounts-states` | the reference world's accounts, a row in each state of a source |
 | `accounts-key` | the reference world's accounts, a row's key field open |

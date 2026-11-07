@@ -1,11 +1,10 @@
 # contract: status
 
-2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.
 
-- **Not yet:** 3.2, 5.1: `ChangeModel`; a model's `number`, `source` and `estimated`, and a project's `left_out`, in `me`; the `model` setting's address and value.
 - **Departs:** 5.1: an omitted template's preview and its new task's next-run
   model can differ while no supporting worker is ready. `Core::preview_llm`
   (`jig-domain-core/src/runs/llm.rs`) takes the first of `Core::offer`, which

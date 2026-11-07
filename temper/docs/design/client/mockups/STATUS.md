@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-06. How far temper's client is from its mockups
+Revised 2026-11-07. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -76,9 +76,9 @@ Where the client does otherwise:
   names the repository and project with no act; refused, its words
   precede "Adopt" again. The terminal keeps the heading and says the
   numbers and "Done.". Connected is absent on every Home; rename stays
-  in the switcher, Forges and Accounts in Settings, and the model line
-  awaits Settings' design (`../README.md`, 11). The empty Needs you and
-  Chats sections are left out while To begin shows; a need or chat
+  in the switcher; Forges, Accounts and Models are in Settings. Models has
+  the offered list, picker switches and adding by name (`../README.md`, 3.5).
+  The empty Needs you and Chats sections are left out while To begin shows; a need or chat
   appears under it once present. Skip hides the card at once and is
   kept per person and project across devices; refused or lost, the
   card returns with "temper couldn't keep that. Try Skip again."
@@ -365,3 +365,25 @@ retirement the banner selects the surviving project, hello, as client
 README 4.8 requires; the history remains the retired task's. Other-state
 galleries below mockup pages remain
 examples of separate states, not extra content appended to a page.
+
+### 2.6 Settings, Models
+
+Settings has Models between Accounts and Builders, following `model-picker`'s
+hand-made page 07 at `47c23ff6ed` (`../journeys.md`, 9). Its offered rows,
+what pays, default effort, picker switches, adding by name and Configure
+temper link are built; unknown prices read "estimated prices". A provider
+without a usable account has its Connect or fix line and no model rows.
+
+Where the client does otherwise: the address is under the project; one
+row says "the default", with no "the default without Claude"; the lede
+explains the available models and picker without promising list reads;
+and the placeholder is `model-name`, independent of the selected provider.
+`../README.status.md`, 3.5 records the reasons and the after-landing render
+check, owned by temper/ui, at 1440, 1280, 1000 and 420 px. No geometry or
+screenshot proof is supplied by this plan.
+
+What the client doesn't draw yet: "Read again", "Couldn't read OpenAI's
+list · 2 hours ago", "new" and "Read from OpenAI 2 hours ago" belong to
+`model-catalogue-3` (`../../draft/model-catalogue.status.md`, 5, 7). Separate
+unusable-account rows beside a usable account of the same provider remain
+that draft's section 3 gap.
