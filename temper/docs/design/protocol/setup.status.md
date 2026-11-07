@@ -56,11 +56,11 @@ a parent-death signal is the designed limit, deferred in section 15.
   that it is gone, plus retained rows for its parent and group leader,
   through the live log's filter. Its table test covers the rendering and
   process-stat parsing; the live assertion is unchanged. No lifetime fix
-  or live rerun is established. Temper/ui's answer in
-  `../../plan/ui-box-children/tasks/box-survivor.md` authorizes the
-  recorder alone because no held login reaches a worker; diagnosis and
-  repair await the next after-landing red (section 15). The runner's
-  forced shutdown of a recent job is a lead, not an identified survivor.
+  or live rerun is established. Temper/ui's answer of 2026-11-07, to the
+  plan `ui-box-children`, authorizes the recorder alone because no held
+  login reaches a worker; diagnosis and repair await the next
+  after-landing red (section 15). The runner's forced shutdown of a
+  recent job is a lead, not an identified survivor.
 
 - **Not yet:** 13.4: the hangup/rebind and Linux killed-box stories in
   `crates/temper/tests/suite/box_lifetime.rs` are present in the process
