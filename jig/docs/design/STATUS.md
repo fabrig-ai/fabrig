@@ -31,6 +31,16 @@ charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Run reasons, ordered charter parts and first/later LLM choices are built
+through configuration, store and client records. A run takes the parts
+its reasons meet, and its fences leave unoffered or paced messages for
+the next run; an undecided entry wakes it again. The core-world table
+holds the per-wake story, including an arrival between preparation and
+claim (`domain/tasks.md`, 8.6; `domain/engine.md`, 7.1, 7.2 and 7.4;
+`domain/hosts.md`, 6.4). Resumed parts, documents per part and choices
+per wake kind remain deferred (`domain/tasks.md`, section 13), as do
+tool access to `later` and client refusal paths within parts
+(`domain/engine.md`, section 16; `client/domain/contract.md`, section 11).
 Settings refusals name the last matching request item's position from 0;
 settings key order agrees with the store, with Model after Application
 and ProjectPolicy. A turn read alone retains call input past `turn_text`

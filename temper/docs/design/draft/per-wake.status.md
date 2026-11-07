@@ -2,6 +2,9 @@
 
 2026-11-07. Where the design lags or departs from [per-wake.md](per-wake.md).
 
+Sections 2 to 5 have no remaining jig design gap beyond the departures
+below. The remaining design lags belong to temper's half (9, item 2).
+
 - **Design lags:**
   - 3: `../client/tools.md`, 5.3: temper's settings form and `temper ctl settings` carry no parts.
   - 5: `../protocol/configuration.md`, 13.9: template 4 takes one LLM choice, so the goal is amended by hand after its first run (`goal-as-designer.md`, section 8); `../domain/agent.md`, 4.3.1 doesn't say a change's `llm` carries no `later`.

@@ -20,7 +20,7 @@ A write.
 
 ## goal
 
-Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.
+Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change.
 
 A write.
 
@@ -331,7 +331,7 @@ List the branches whose names start with a prefix.
 A read.
 
 - `repository`: text; optional. The repository, as owner/name; leave it out, or empty, when the project has one.
-- `prefix`: text; required. The names' prefix.
+- `prefix`: text; required. A nonempty prefix of the names, as temper/.
 
 ## read_pull_files
 

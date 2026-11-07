@@ -1394,7 +1394,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  355,022, is what the host part leaves charter 3 at init's models, a
+  354,988, is what the host part leaves charter 3 at init's models, a
   whole spec among it, past the largest fabrig's development has had,
   200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no

@@ -1270,17 +1270,34 @@ impl LiveModel<'_> {
         }
     }
 
+    /// The model every charter the story selects runs, and the chat's `--model`.
     #[must_use]
     pub const fn name(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "gpt-6-luna",
+            Self::ClaudeCode { .. } => "claude-haiku-5-5",
+        }
+    }
+    /// The stock row read after startup: the selected model's own, or the
+    /// provider's dearest, whose figures a model taken by name copies
+    /// (jig's `domain/engine.md`, 17.11).
+    const fn number(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "7",
+            Self::ClaudeCode { .. } => "3",
+        }
+    }
+    const fn row(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
             Self::ClaudeCode { .. } => "claude-fable-5-1",
         }
     }
-    const fn number(self) -> &'static str {
+    /// A model taken by name: its default effort; `None` for a stock row.
+    const fn by_name(self) -> Option<&'static str> {
         match self {
-            Self::ChatGpt { .. } => "7",
-            Self::ClaudeCode { .. } => "3",
+            Self::ChatGpt { .. } => None,
+            Self::ClaudeCode { .. } => Some("low"),
         }
     }
     const fn unavailable(self) -> &'static str {
@@ -1410,6 +1427,53 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
 }
 
+/// The settings change a fresh sitting applies (domain/testing.md, 2.7):
+/// charters 1 and 2 name the story's model alone. A model taken by name is
+/// added in the same change, at the highest model number the inventory
+/// leaves free, from the stock row it copies.
+pub fn live_settings(
+    model: LiveModel<'_>,
+    inventory: &serde_json::Value,
+    charters: [&serde_json::Value; 2],
+    row: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    require(row["value"]["model"]["name"] == model.row(), &format!("the selected live stock model: {}", model.row()))?;
+    let mut value = row["value"].clone();
+    let mut items = Vec::new();
+    if let Some(effort) = model.by_name() {
+        let settings = inventory["settings"].as_array().ok_or("settings inventory missing")?;
+        let number = (1..=jig_domain_tasks::MODELS)
+            .rev()
+            .find(|number| {
+                !settings.iter().any(|line| line["setting"]["kind"] == "model" && line["setting"]["number"] == *number)
+            })
+            .ok_or_else(|| format!("no free model number for {}", model.name()))?;
+        require(
+            value["model"]["efforts"].as_array().is_some_and(|efforts| efforts.iter().any(|offered| offered == effort)),
+            &format!("the selected live stock model {} offers no {effort} effort for {}", model.row(), model.name()),
+        )?;
+        value["number"] = number.into();
+        value["model"]["name"] = model.name().into();
+        value["model"]["effort"] = effort.into();
+        value["shown"] = serde_json::Value::Null;
+        value["description"] = serde_json::Value::Null;
+        value["picker"] = true.into();
+        value["withdrawn"] = false.into();
+        value["source"] = "person".into();
+        value["estimated"] = true.into();
+        items.push(serde_json::json!({"setting":{"kind":"model","number":number},"set":value}));
+    }
+    for charter in charters {
+        let mut charter_value = charter["value"].clone();
+        charter_value["model"] = value["model"].clone();
+        charter_value["alternatives"] = serde_json::json!([]);
+        charter_value["rest"] = false.into();
+        charter_value["time"] = 240_000_000_000_u64.into();
+        items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
+    }
+    Ok(serde_json::json!({"items":items}))
+}
+
 pub struct LivePlan<'a> {
     pub paths: &'a [PathBuf; 3],
     pub client: &'a std::path::Path,
@@ -1502,12 +1566,57 @@ pub fn replies_after(
     Ok(replies)
 }
 
+/// domain/testing.md, 2.7: the chat's one delegate is its change; an agent's
+/// task, as a goal is, fails the story at once, naming it.
+pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
+    let task = row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?;
+    let (kind, executor) = row["chip"]["executor"]
+        .as_object()
+        .and_then(|executor| executor.iter().next())
+        .ok_or("delegate executor missing (chip.executor)")?;
+    if kind == "procedure" {
+        return Ok(task);
+    }
+    let description = if kind == "agent" {
+        let charter = executor["charter"].as_u64().ok_or("delegate charter missing (chip.executor.agent.charter)")?;
+        format!("an agent's on charter {charter}")
+    } else {
+        format!("a {kind}'s")
+    };
+    Err(format!(
+        "the chat's delegate task {task} is {description}, not a change: the shipped chat chooses change (testing.md 2.7)"
+    ))
+}
+
+/// domain/testing.md, 2.7: the landing check's words name the chat's
+/// committed calls, those that succeeded and those that failed.
+pub fn require_chat_change(evidence: &conversation::Evidence) -> Result<(), String> {
+    let succeeded = evidence.tools.iter().cloned().collect::<Vec<_>>().join(", ");
+    let failed = evidence.failed.iter().cloned().collect::<Vec<_>>().join(", ");
+    require(
+        evidence.tools.contains("change"),
+        &format!(
+            "the chat's committed change call succeeded: its committed calls succeeded [{succeeded}] and failed [{failed}]"
+        ),
+    )
+}
+
 /// Names from actual committed call blocks, never from the model's prose.
 #[must_use]
 pub fn successful_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
     let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
     committed_tools(rows)
         .filter(|call| call["failed"] == false && !call["outcome"].is_null())
+        .filter_map(|call| call["tool"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// Names of the chat's failed committed calls from detailed activity.
+#[must_use]
+pub fn failed_tools(activity: &serde_json::Value) -> std::collections::BTreeSet<String> {
+    let Some(rows) = activity["rows"].as_array() else { return std::collections::BTreeSet::new() };
+    committed_tools(rows)
+        .filter(|call| call["failed"] == true)
         .filter_map(|call| call["tool"].as_str().map(str::to_owned))
         .collect()
 }
@@ -1789,22 +1898,12 @@ impl LiveJudge<'_> {
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {
         let reads = &calls.ends()[calls.ends().len() - 4..];
-        let revision = live_json(&reads[0])?["newest"].as_u64().ok_or("settings revision missing")?;
+        let inventory = live_json(&reads[0])?;
+        let revision = inventory["newest"].as_u64().ok_or("settings revision missing")?;
         let catalogue = live_json(&reads[3])?;
-        let model = &catalogue["value"]["model"];
-        require(model["name"] == self.plan.model.name(), "the selected live stock model")?;
-        let mut items = Vec::new();
-        for read in &reads[1..3] {
-            let setting = live_json(read)?;
-            let mut value = setting["value"].clone();
-            value["model"] = model.clone();
-            value["alternatives"] = serde_json::json!([]);
-            value["rest"] = false.into();
-            value["time"] = 240_000_000_000_u64.into();
-            items.push(serde_json::json!({"setting":setting["setting"],"set":value}));
-        }
+        let charters = [live_json(&reads[1])?, live_json(&reads[2])?];
+        let change = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
         let file = self.plan.client.join("settings.json");
-        let change = serde_json::json!({"items":items});
         fs::write(&file, serde_json::to_vec(&change).map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
         self.queue(&[
@@ -1827,7 +1926,7 @@ impl LiveJudge<'_> {
     ) -> Result<(), String> {
         let mut delegates = Vec::new();
         for row in last["live"].as_array().ok_or("live delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("delegate number missing")?);
+            delegates.push(row);
         }
         let ended = &last["ended"]["rows"];
         require(
@@ -1835,7 +1934,7 @@ impl LiveJudge<'_> {
             "whole chat delegation set",
         )?;
         for row in ended["rows"].as_array().ok_or("ended delegates missing")? {
-            delegates.push(row["chip"]["task"].as_u64().ok_or("ended delegate number missing")?);
+            delegates.push(row);
         }
         if delegates.is_empty() {
             let chat = live_json(calls.ends().iter().rev().nth(1).ok_or("chat snapshot missing")?)?;
@@ -1857,7 +1956,7 @@ impl LiveJudge<'_> {
             self.queue_delegates();
         } else {
             require(delegates.len() == 1, "one change delegated by the new chat")?;
-            self.tasks.change = delegates[0];
+            self.tasks.change = change_delegate(delegates[0])?;
             super::live::notice(&format!(
                 "CHANGE task={} chat={} project={}",
                 self.tasks.change, self.tasks.chat, self.tasks.project
@@ -1938,7 +2037,7 @@ impl LiveJudge<'_> {
             require_closed_roots(&last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
-        require(self.conversation.tools.contains("change"), "the chat's committed change call succeeded")?;
+        require_chat_change(&self.conversation)?;
         let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.conversation.tools.contains("delegate"), "no raw delegate started the task")?;
