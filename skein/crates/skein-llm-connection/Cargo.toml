@@ -13,8 +13,6 @@ skein-io.workspace = true
 skein-link.workspace = true
 skein-tls.workspace = true
 skein-llm.workspace = true
-
-[dev-dependencies]
 skein-http.workspace = true
 
 [lints]
