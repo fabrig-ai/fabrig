@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where skein's code lags or departs from its design, and its
+2026-11-07. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -31,6 +31,10 @@ styles in the worlds; a merge update already holding its base and a
 rebase overtaking a later push still lack real-Forgejo conformance
 (`forge-client.md`, `forge.md`). The viewport story awaits its runtime
 check after landing (`browser.md`).
+The shared world helpers preserve heap accounting and failure traces with
+less work; their six individual instruction measurements establish no
+whole-suite CPU total, and remaining allocator, fixture, product and
+startup cost work is deferred (`testing.md`, sections 5, 7 and 9).
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
 llm-connection depart from
