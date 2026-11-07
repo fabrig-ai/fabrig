@@ -201,8 +201,10 @@ quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds its twelve tests, four of them merged and compiled, with
-no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+The browser tier holds its twelve tests, with the call line, model picker,
+welcome sign-in and four reading stories in four merged tests, compiled
+with story labels for failed steps but with no run in Chromium yet. Reading's
+four stories, apart, passed with ctl history
 and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
