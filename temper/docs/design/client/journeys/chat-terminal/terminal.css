@@ -17,6 +17,8 @@ body.in-terminal { overflow: hidden; }
 .tt {
   --bg: #191816; --ink: #e8e3da; --dim: #9a9388; --faint: #6a655c; --line: #2f2d29; --sel: #2a2825;
   --accent: #e08a68; --good: #8fc28f; --bold: 700;
+  --doc-bg: #22201c; --doc-ink: #e3ded5; --doc-title: #f0ebe2; --doc-muted: #a39d92; --doc-faint: #7d776d; --doc-line: #3a3732;
+  --doc-box: #2c2a25; --doc-box-line: #4b473f; --doc-pale: rgba(224, 138, 104, .08); --doc-note: #e08a68;
   position: fixed; inset: 0; z-index: 100;
   display: grid; grid-template-rows: auto minmax(0, 1fr);
   background: var(--bg); color: var(--ink);
@@ -27,6 +29,8 @@ body.in-terminal { overflow: hidden; }
 .tt[data-theme="light"] {
   --bg: #fffefd; --ink: #34312c; --dim: #7a736a; --faint: #b5aea3; --line: #e9e4db; --sel: #f4f0e9;
   --accent: #b8664e; --good: #3f7d4e;
+  --doc-bg: #f8f6f1; --doc-ink: #34312c; --doc-title: #26241f; --doc-muted: #7a736a; --doc-faint: #a09889; --doc-line: #e9e4db;
+  --doc-box: #fffefd; --doc-box-line: #d9d3c8; --doc-pale: rgba(184, 102, 78, .1); --doc-note: #9c573f;
 }
 .tt *, .tt *::before, .tt *::after { box-sizing: border-box; }
 .tt ::selection { background: var(--accent); color: var(--bg); }
@@ -125,23 +129,31 @@ body.in-terminal { overflow: hidden; }
 .tt-list [role="option"][aria-selected="true"] { background: var(--sel); }
 .tt-list [role="option"][aria-selected="true"] > span:first-child { color: var(--accent); }
 
-/* The draft, beside. */
-.tt-doc { border-left: 1px solid var(--line); padding: 22px 4ch 40px; }
+/* The draft, beside: a document in temper's own type and figures, on a ground of its own.
+   The figure's rules are temper.css's, and take these tokens. */
+.tt .tt-doc {
+  --gf-ink: var(--doc-ink); --gf-surface: var(--doc-bg); --gf-paper: var(--doc-box); --gf-line-2: var(--doc-box-line);
+  --gf-muted: var(--doc-muted); --gf-faint: var(--doc-faint); --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+  border-left: 1px solid var(--line); padding: 36px 44px 72px; background: var(--doc-bg); color: var(--doc-ink);
+  font: 400 15.5px/1.7 var(--gf-sans); font-variant-ligatures: normal; scrollbar-color: var(--doc-line) transparent;
+}
 .tt-doc[hidden] { display: none; }
-.tt-doc-inner { max-width: 84ch; }
-.tt-doc-path { display: flex; justify-content: space-between; gap: 2ch; color: var(--dim); margin-bottom: 1.6em; }
-.tt-doc h1 { font-weight: var(--bold); color: var(--ink); }
-.tt-doc .tt-muted { color: var(--dim); margin-bottom: 1.1em; }
-.tt-doc section { margin-top: 1.5em; }
-.tt-doc h2 { font-weight: var(--bold); color: var(--accent); margin-bottom: .35em; }
-.tt-doc p + p, .tt-doc pre + p, .tt-doc p + pre { margin-top: .75em; }
-.tt-doc li { position: relative; padding-left: 2ch; margin-top: .3em; }
-.tt-doc li::before { content: '-'; position: absolute; left: 0; color: var(--dim); }
-.tt-doc pre { overflow-x: auto; color: var(--dim); margin: .5em 0 .9em; }
-.tt-doc pre b { font-weight: 400; color: var(--ink); }
-.tt-doc pre em { font-style: normal; color: var(--accent); }
-.tt-doc .tt-changed { border-left: 2px solid var(--accent); margin-left: calc(-2ch - 2px); padding-left: 2ch; }
-.tt-doc .tt-by { color: var(--dim); margin-top: .4em; }
+.tt .tt-doc .temper-doc-inner { max-width: 640px; margin: 0 auto; }
+.tt .tt-doc p { margin: 0 0 8px; }
+.tt .tt-doc .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px; font: 400 12px/1.7 'IBM Plex Mono', ui-monospace, monospace; color: var(--doc-faint); }
+.tt .tt-doc h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--doc-title); }
+.tt .tt-doc h3 { margin: 26px 0 8px; font: 600 17px/1.7 var(--gf-sans); color: var(--doc-title); }
+.tt .tt-doc .temper-doc-muted { font-size: 14px; color: var(--doc-muted); }
+.tt .tt-doc strong { font-weight: 600; color: inherit; }
+.tt .tt-doc code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: .92em; color: inherit; }
+.tt .tt-doc ul { margin: 0; padding-left: 20px; list-style: disc; }
+.tt .tt-doc li + li { margin-top: 4px; }
+.tt .tt-doc li::marker { color: var(--doc-faint); }
+.tt .tt-doc .temper-doc-changed { margin-inline: -14px; padding: 1px 14px 8px; border-radius: 8px; background: var(--doc-pale); }
+.tt .tt-doc .temper-doc-changed > h3:first-child { margin-top: 12px; }
+.tt .tt-doc .temper-doc-note { font-size: 12px; color: var(--doc-note); }
+.tt .tt-doc figure { margin: 10px 0 14px; }
+.tt .tt-doc figure > svg { max-width: 100%; height: auto; }
 
 @media (max-width: 760px) {
   .tt { font-size: 13px; }
@@ -154,9 +166,8 @@ body.in-terminal { overflow: hidden; }
   .tt.with-draft .tt-panes { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .tt.with-draft .tt-left { display: contents; }
   .tt.with-draft .tt-log { display: none; }
-  .tt.with-draft .tt-doc { grid-row: 1; border-left: 0; padding: 16px 2ch 24px; }
+  .tt.with-draft .tt-doc { grid-row: 1; border-left: 0; padding: 24px 16px 32px; }
   .tt.with-draft .tt-foot { grid-row: 2; border-top: 1px solid var(--line); padding-top: 8px; }
-  .tt-doc .tt-changed { margin-left: 0; }
   .tt-list.tt-choices [role="option"] { grid-template-columns: 18ch minmax(0, 1fr); }
   .tt-list [role="option"] { grid-template-columns: 11ch minmax(0, 1fr); }
   .tt-line .tt-right-extra { display: none; }

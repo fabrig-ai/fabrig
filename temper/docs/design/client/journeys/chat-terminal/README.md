@@ -16,5 +16,8 @@ The pages are live: the buttons, `Ctrl+\`, the commands and PgUp work, and a mes
 a line saying nobody answers. The look is `terminal.css`, the behaviour `terminal.js`. `/theme`, between dark and
 light, and `/font`, between DejaVu Sans Mono and IBM Plex Mono, are there to compare them.
 
+The draft keeps temper's own markup and figure, recorded, on a ground of its own: `terminal.css` restates the shell's
+document rules for it and gives the figure its tokens.
+
 `fonts/` holds the two weights of DejaVu Sans Mono, which a landing moves to the shell's `files/fonts/`. Its
 `README.txt` says where they come from and how they were cut.
