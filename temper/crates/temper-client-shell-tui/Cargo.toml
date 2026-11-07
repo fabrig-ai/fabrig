@@ -6,6 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+record = []
+
 [dependencies]
 skein-io.workspace = true
 skein-shell.workspace = true
