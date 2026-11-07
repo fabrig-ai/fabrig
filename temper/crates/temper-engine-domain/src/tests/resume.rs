@@ -643,12 +643,27 @@ fn repository() -> temper_engine_domain_forge::Repository {
     }
 }
 
-#[test]
-fn a_project_live_task_and_forge_repository_open_together() {
+fn restored_start_store() -> (super::resume_fixture::StartStore, Env<Limits>) {
     let (mut first, env) = cold();
     let mut store = super::resume_fixture::StartStore::new();
     crate::step(&mut first, &env, Event::Restart { pending: false });
     store.run(&mut first, &env, false);
+    (store, env)
+}
+
+fn stored_deployment(store: &mut super::resume_fixture::StartStore) -> &mut jig_domain_core::Deployment {
+    let header = crate::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
+    let crate::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(deployment))) =
+        store.rows.get_mut(&header).unwrap()
+    else {
+        panic!("deployment row");
+    };
+    deployment
+}
+
+#[test]
+fn a_project_live_task_and_forge_repository_open_together() {
+    let (mut store, env) = restored_start_store();
     let (source, _, goal) = super::projection_settled::live_goal(None);
     let task = source.tasks().task(goal).unwrap().clone();
     let funding = *source.tasks().funding(task.funder).unwrap();
@@ -660,13 +675,7 @@ fn a_project_live_task_and_forge_repository_open_together() {
     ] {
         store.rows.insert(row.key(), row);
     }
-    let header = crate::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment));
-    let crate::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(deployment))) =
-        store.rows.get_mut(&header).unwrap()
-    else {
-        panic!("deployment row");
-    };
-    deployment.tasks = goal;
+    stored_deployment(&mut store).tasks = goal;
     let (mut domain, _) = cold();
     crate::step(&mut domain, &env, Event::Restart { pending: true });
     store.run(&mut domain, &env, false);
@@ -675,6 +684,78 @@ fn a_project_live_task_and_forge_repository_open_together() {
     assert_eq!(domain.forge.repository(repo.provider), Some(&repo));
     assert_eq!(domain.core.projects.as_slice(), [1]);
     assert_eq!((store.switches, store.wires), (1, 2));
+}
+
+#[test]
+fn a_restored_forge_link_follows_the_deployments_sole_owner() {
+    use jig_domain_people as people;
+    use temper_engine_domain_forge as forge;
+    const P: u64 = 1;
+    const Q: u64 = 2;
+    const FORGE: u16 = 1;
+    const LINK: Option<forge::Link> = Some(forge::Link { user: 7, person: P });
+    const P_OWNER: people::Holding = people::Holding { person: P, role: people::Role::Owner };
+    const Q_OWNER: people::Holding = people::Holding { person: Q, role: people::Role::Owner };
+    const Q_MEMBER: people::Holding = people::Holding { person: Q, role: people::Role::Member };
+    let (mut restored, env) = restored_start_store();
+    stored_deployment(&mut restored).people = Q;
+    for row in [
+        crate::Record::Core(jig_domain_core::Record::People(people::Stored::Person {
+            number: Q,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Q.to_be_bytes().into() },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        })),
+        crate::Record::Forge {
+            row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                number: FORGE,
+                kind: forge::Kind::Forgejo,
+                mode: forge::Mode::Owned,
+                state: forge::ForgeState::Kept,
+                place: forge::Place {
+                    api: forge::Address { host: b"forge.invalid".as_slice().into(), port: 80, tls: None },
+                    git: Box::new([]),
+                    web: None,
+                },
+                git_program: None,
+                read_only: false,
+                bot: forge::Bot { login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+                asked: false,
+                first: None,
+                person: LINK,
+            })),
+        },
+    ] {
+        restored.rows.insert(row.key(), row);
+    }
+    let mut failures = List::uncapped();
+    for (name, holdings, expected) in [
+        ("P owner", Box::from([P_OWNER].as_slice()), LINK),
+        ("P and Q owners", Box::from([P_OWNER, Q_OWNER].as_slice()), None),
+        ("Q owner", Box::from([Q_OWNER].as_slice()), None),
+        ("P owner and Q member", Box::from([P_OWNER, Q_MEMBER].as_slice()), LINK),
+    ] {
+        let mut store = super::resume_fixture::StartStore::new();
+        store.rows = restored.rows.clone();
+        let row = crate::Record::Core(jig_domain_core::Record::People(people::Stored::Roles {
+            project: people::DEPLOYMENT,
+            holdings,
+        }));
+        store.rows.insert(row.key(), row);
+        let mut config = super::resume_fixture::config(7);
+        config.under_box = true;
+        config.forges.first_mut().unwrap().mode = forge::Mode::Owned;
+        let mut domain = Domain::new(config, &env.limits).unwrap();
+        crate::step(&mut domain, &env, Event::Restart { pending: false });
+        store.run(&mut domain, &env, false);
+        let link = domain.forge.link(FORGE);
+        if link != expected {
+            failures.push((name, link, expected)).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "restored links: {:?}", failures.as_slice());
 }
 
 #[test]
