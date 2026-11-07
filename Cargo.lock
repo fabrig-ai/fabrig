@@ -5569,6 +5569,7 @@ dependencies = [
 name = "temper-one-process-world"
 version = "0.0.0"
 dependencies = [
+ "aho-corasick",
  "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",
