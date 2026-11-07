@@ -5,4 +5,4 @@ JournalRoom 0
 takes 0
 worst_case 0
 comment:actual 57
-comment:genuine 9
+comment:genuine 8
