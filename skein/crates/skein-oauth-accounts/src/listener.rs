@@ -299,7 +299,8 @@ impl Listener {
         if let Some(event) = callback.events.pop() {
             match event {
                 http::Event::Call(call) => {
-                    let redirect = redirect::from_head(&call, &self.registered, &env.limits.client);
+                    let redirect =
+                        redirect::from_head(&call, &self.registered, &env.limits.client, env.limits.redirect_bytes);
                     callback.phase = Head::Judging;
                     if self.phase == Phase::Listening && redirect.is_some() {
                         self.read = redirect;

@@ -5,7 +5,8 @@ use skein_oauth::ClientLimits;
 
 pub(crate) const MAX_ORIGINS: u32 = 3;
 
-/// The component's limits supplied by its owner before the loop.
+/// The component's limits supplied by its owner before the loop
+/// (skein/docs/design/oauth.md, 6.7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Configured and added accounts, including removals still settling.
@@ -17,6 +18,9 @@ pub struct Limits {
     pub exchanges: u32,
     /// Public redirect listeners admitted at once; zero permits only confidential sign-ins.
     pub listeners: u32,
+    /// The longest returning redirect the listener or a paste reads, the whole
+    /// address with its query (skein/docs/design/oauth.md, 6.5 and 6.7).
+    pub redirect_bytes: u32,
     pub server: skein_http::server::Limits,
     /// How long before expiry a held record refreshes or an access-only one announces Expiring.
     pub refresh_lead: Duration,
@@ -25,6 +29,34 @@ pub struct Limits {
     pub tls: skein_tls::client::Limits,
     /// The owner's socket limits for transport admission and demands.
     pub io: skein_io::Limits,
+}
+
+/// A browser's own request fields beside its request line, with their line ends:
+/// its navigation fields and the cookies it holds for the loopback host
+/// (skein/docs/design/oauth.md, 6.7).
+pub const BROWSER_FIELDS: u32 = 8_192;
+
+/// The shortest `redirect_bytes` that holds a full answer at the client's bounds:
+/// the registered URI at `uri_bytes`, `?code=` and `code_bytes`, `&scope=` and
+/// `scope_bytes`, `&state=` and `state_bytes`, `&client_id=` and
+/// `issued_client_bytes`, unescaped; none past `u32`
+/// (skein/docs/design/oauth.md, 6.7).
+#[must_use]
+pub const fn redirect_room(limits: &Limits) -> Option<u32> {
+    let Some(room) = limits.client.uri_bytes.checked_add(limits.client.code_bytes) else { return None };
+    let Some(room) = room.checked_add(limits.client.scope_bytes) else { return None };
+    let Some(room) = room.checked_add(limits.client.state_bytes) else { return None };
+    let Some(room) = room.checked_add(limits.client.document.issued_client_bytes) else { return None };
+    room.checked_add(31)
+}
+
+/// The least `server.head` that holds a browser's request for a redirect of
+/// `redirect_bytes`: `GET `, the target, ` HTTP/1.1\r\n`, `BROWSER_FIELDS` and the
+/// blank line; none past `u32` (skein/docs/design/oauth.md, 6.7).
+#[must_use]
+pub const fn listener_head(redirect_bytes: u32) -> Option<u32> {
+    let Some(head) = redirect_bytes.checked_add(BROWSER_FIELDS) else { return None };
+    head.checked_add(17)
 }
 
 /// Whether these limits are representable: every edge bound they size

@@ -9,6 +9,7 @@ pub(crate) fn limits() -> Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
+        redirect_bytes: 1024,
         server: skein_http::server::Limits {
             head: 2048,
             headers: 16,
@@ -665,6 +666,26 @@ mod openid;
 
 #[path = "paste_tests.rs"]
 mod paste;
+
+#[test]
+fn redirect_and_listener_room_include_answer_fields_and_browser_framing() {
+    let profile = paste::answer_profile();
+    let mut overflow = profile;
+    overflow.client.uri_bytes = u32::MAX;
+    let mut separator_overflow = profile;
+    separator_overflow.client.uri_bytes = u32::MAX - 9280;
+    skein_rows::check(
+        [
+            ("full answer", (redirect_room(&profile), Some(13_407))),
+            ("answer sum overflow", (redirect_room(&overflow), None)),
+            ("answer separators overflow", (redirect_room(&separator_overflow), None)),
+            ("browser request", (listener_head(16_384), Some(24_593))),
+            ("browser fields overflow", (listener_head(u32::MAX), None)),
+            ("request framing overflow", (listener_head(u32::MAX - BROWSER_FIELDS), None)),
+        ],
+        |(observed, expected)| assert_eq!(observed, expected),
+    );
+}
 
 #[test]
 fn permitted_account_limits_pass_validation_including_large_bounds() {

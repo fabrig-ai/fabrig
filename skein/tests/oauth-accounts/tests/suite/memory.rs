@@ -505,6 +505,7 @@ fn shared_memory_limits() -> Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 4,
         listeners: 0,
+        redirect_bytes: 512,
         server: skein_http::server::Limits {
             head: 2048,
             headers: 16,
