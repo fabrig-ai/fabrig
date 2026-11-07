@@ -216,3 +216,25 @@ fn document_faults(limits: &Limits) -> [(people::SettingMember, people::SettingR
         ),
     ]
 }
+
+/// Parts own their struct, instructions and joining blank line (configuration.md, 6).
+#[test]
+fn charter_parts_own_their_instructions_and_joining_blank_lines() {
+    let mut charter = config(1).defaults.charters[0].clone();
+    let empty = charter_owned_bytes(&charter).unwrap();
+    let part_size = u64::try_from(size_of::<CharterPart>()).unwrap();
+    // Instructions of three and five bytes, each joined by a two-byte blank line.
+    let first_bytes = part_size + 3 + 2;
+    let second_bytes = part_size + 5 + 2;
+    charter.parts = Box::new([
+        CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"one".as_slice()) },
+        CharterPart { on: tasks::Reasons::QUESTION, instructions: Box::from(b"other".as_slice()) },
+    ]);
+    assert_eq!(parts_owned_bytes(&[]), Some(0));
+    assert_eq!(parts_owned_bytes(&charter.parts[..1]), Some(first_bytes));
+    assert_eq!(parts_owned_bytes(&charter.parts), Some(first_bytes + second_bytes));
+    assert_eq!(charter_owned_bytes(&charter), Some(empty + first_bytes + second_bytes));
+    charter.parts[0].instructions = Box::from(b"one more".as_slice());
+    // The first instructions grew by five bytes.
+    assert_eq!(charter_owned_bytes(&charter), Some(empty + first_bytes + second_bytes + 5));
+}

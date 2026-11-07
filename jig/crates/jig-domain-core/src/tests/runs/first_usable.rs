@@ -96,7 +96,12 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
     (core, limits)
 }
 fn named_choice() -> tasks::LlmChoice {
-    tasks::LlmChoice { account: None, main: tasks::ModelEffort { model: 0, effort: Some(0) }, subagents: Box::new([]) }
+    tasks::LlmChoice {
+        later: None,
+        account: None,
+        main: tasks::ModelEffort { model: 0, effort: Some(0) },
+        subagents: Box::new([]),
+    }
 }
 fn key(core: &mut Core, limits: &Limits, provider: u32) {
     account(core, limits, accounts::Event::Want);
@@ -158,6 +163,8 @@ fn claim(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(HOST),
             task: TASK,
             attempt: 1,
@@ -536,7 +543,7 @@ fn a_move_requires_an_authorized_model_and_counts_incompatibility() {
     // This unnamed task can use Claude only; a prospective charter has only OpenAI.
     let (mut core, limits) = fixture_with_models(false, tasks::Models::Named(1 << 2), false);
     let charters: Box<[tasks::CharterModels]> =
-        Box::new([tasks::CharterModels { number: 1, revision: 2, models: Some(Box::new([0, 1])) }]);
+        Box::new([tasks::CharterModels { resumes: false, number: 1, revision: 2, models: Some(Box::new([0, 1])) }]);
     assert_eq!(core.tasks.incompatible_charters(&charters, 1), (Box::<[u64]>::from([TASK]), 0));
     send_task(&mut core, &limits, tasks::Event::Charters { newest: 2, charters, efforts: Box::new([2, 2, 2, 2]) });
     assert!(!core.tasks.may_move(TASK));

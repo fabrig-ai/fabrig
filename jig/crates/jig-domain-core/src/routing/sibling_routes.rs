@@ -516,7 +516,7 @@ impl Core {
         }
     }
 
-    /// Keep the newly committed word in a preparing run's brief and route
+    /// Keep an offered committed word in a preparing run's brief and route
     /// the terminal to the caller who asked the task child to send it.
     pub fn sent(
         &mut self,
@@ -527,7 +527,11 @@ impl Core {
         tasks: u32,
     ) -> SentRoute {
         self.start_input();
-        if let Some(context) = self.contexts.get_mut(&task) {
+        let offered = match self.contexts.get(&task) {
+            Some(context) => tasks::offered(word, super::run::parts::preparation_offered(self, context)),
+            None => false,
+        };
+        if offered && let Some(context) = self.contexts.get_mut(&task) {
             let capacity = inbox_messages
                 .checked_add(tasks.checked_mul(2).expect("two decision kinds per task"))
                 .expect("validated virtual proposal room");

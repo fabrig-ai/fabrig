@@ -302,6 +302,8 @@ fn claim(core: &mut Core, env: &Env<Limits>, task: u64, account: Option<u32>) {
         core,
         &env.limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(Token::new(1)),
             task,
             attempt: 1,
@@ -394,6 +396,7 @@ fn an_account_choice_requires_coverage_and_waits_for_its_source() {
             None,
             &[][..],
             Some(tasks::LlmChoice {
+                later: None,
                 account: Some(1),
                 main: tasks::ModelEffort { model: 1, effort: Some(1) },
                 subagents: Box::new([tasks::ModelEffort { model: 0, effort: Some(0) }]),

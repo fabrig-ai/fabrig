@@ -98,6 +98,8 @@ fn worker(document: &Document) -> Problems {
 // Optional objects and nonempty lists from the charters, providers, templates, domain and policy
 // fixtures. Shared shapes are exercised at every path; alternate forms are exercised below.
 const EXTRAS: &[(&str, &str, &[u8])] = &[
+    ("charters.0", "resume", b"false"),
+    ("charters.0", "parts", br#"[{"on":["first","question"],"instructions":"part.md"}]"#),
     ("charters.0", "models", br#"["small"]"#),
     ("charters.0", "rest", b"true"),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
@@ -126,6 +128,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("templates.0", "resources", br#"[{"connector":1,"symbol":1}]"#),
     ("templates.0", "deadline", br#"{"span_ms":1000}"#),
     ("templates.0", "llm", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
+    ("templates.0.llm", "later", br#"{"main":{"model":"small","effort":"medium"},"sub_agents":[{"model":"small","effort":"medium"}]}"#),
     ("projects.0", "name", br#""Project One""#),
     ("projects.0.policy", "templates", br#"[{"template":1,"executor":{"charter":1},"budget":{"amount":10},"deadline":{"span_ms":1000},"priority":5}]"#),
     ("", "policies", b"[]"),

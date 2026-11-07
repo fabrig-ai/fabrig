@@ -95,6 +95,7 @@ fn amend_model(driver: &mut Driver, task: u64) {
     let revision = live(driver, task).revisions.spec;
     let mut amendment = person_amendment(None, None, b"explicit model and effort");
     amendment.llm = Some(people::LlmChoice {
+        later: None,
         account: None,
         main: people::ModelEffort { model: 0, effort: Some(0) },
         subagents: Box::new([]),

@@ -11,7 +11,7 @@ pub struct File {
 }
 #[must_use]
 pub fn files(engine: &Engine) -> Box<[File]> {
-    let max = engine
+    let mut max = engine
         .llm
         .providers
         .len()
@@ -21,6 +21,9 @@ pub fn files(engine: &Engine) -> Box<[File]> {
         .expect("bounded workers")
         .checked_add(engine.charters.len())
         .expect("bounded charters");
+    for charter in &engine.charters {
+        max = max.checked_add(charter.parts.len()).expect("bounded charter parts");
+    }
     let max = match &engine.clients.provider {
         Some(provider) => {
             max.checked_add(provider.clients.len()).expect("bounded clients").checked_add(1).expect("key file")

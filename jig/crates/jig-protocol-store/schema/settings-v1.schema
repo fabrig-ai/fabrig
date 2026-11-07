@@ -13,7 +13,8 @@ enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record Segment { bytes: bytes 4096 }
 record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
-record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
+record CharterPart { on: u32 instructions: bytes 65536 }
+record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document parts: list 8 CharterPart }
 enum ModelSource { stock, list, person }
 record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool first_read: option u64 }
 record ModelNumber { number: u32 }
@@ -72,7 +73,8 @@ enum Retention { kept, forgotten_once_read }
 enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
-record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Symbol { connector: u16 symbol: u16 }
 record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel }

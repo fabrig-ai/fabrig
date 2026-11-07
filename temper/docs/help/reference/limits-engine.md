@@ -54,6 +54,7 @@ temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the
 - `tasks.saved_resources`: count, 4. Bounds connector resources on which a task has saved state.
 - `tasks.contract_choices`: count, 1. Bounds distinct-code choices in a nonempty verdict contract.
 - `tasks.charters`: count, 4. Bounds retained configured agent-charter numbers.
+- `tasks.charter_parts`: count, 8. Bounds parts per charter.
 - `tasks.charter_documents`: count, 2. Bounds documents per charter.
 - `tasks.authority_grants`: count, 4. Bounds resource grants per task authority carrier.
 - `tasks.authority_segments`: count, 4. Bounds base segments per carried grant pattern.

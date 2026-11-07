@@ -503,6 +503,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
         c::MeDefault {
             template: jig_client::shapes::CHAT,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: f::first_run::text(b"ordinary-chat"), effort: None },
                 subagents: List::with_capacity(0),
@@ -511,6 +512,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
         c::MeDefault {
             template: 3,
             choice: c::LlmChoice {
+                later: None,
                 account: None,
                 main: c::ModelEffort { model: f::first_run::text(preview), effort: Some(f::first_run::text(b"high")) },
                 subagents: List::with_capacity(0),
@@ -644,6 +646,7 @@ fn configuring_chat_picker_applies_to_its_next_run() {
     use pages::choice::Act as Choice;
     let mut task = super::chat::configuring_task();
     task.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort { model: f::first_run::text(b"chosen"), effort: None },
         subagents: skein_lib::List::with_capacity(0),

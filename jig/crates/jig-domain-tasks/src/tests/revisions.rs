@@ -23,6 +23,7 @@ const CONTINUE_MESSAGE: u64 = 1;
 const RETRY: Retry = Retry { retries: 2, base: Duration::from_millis(10), max: Duration::from_secs(1) };
 
 pub(crate) const LIMITS: Limits = Limits {
+    charter_parts: 8,
     placed_holds: 16,
     project_placed_holds: 8,
     party_placed_holds: 4,
@@ -428,6 +429,8 @@ fn activity_keeps_whole_words_after_a_committed_turn_takes_them() {
     write(&mut test, 1, 1);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,
@@ -445,7 +448,7 @@ fn activity_keeps_whole_words_after_a_committed_turn_takes_them() {
         turn: 1,
         read: Some(1),
         offered: Some(1),
-        outstanding: Box::new([]),
+        outstanding: Box::new([1]),
         cumulative: 1,
     });
     assert!(test.domain.task(1).unwrap().inbox.is_empty());
@@ -586,6 +589,8 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     test.make(vec![task(1, &[])]);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,
@@ -639,6 +644,8 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     assert_eq!(test.domain.task(1).unwrap().due_reason, crate::Why::Released);
     test.send(Event::Prepare { reply_to: to(), task: 1 });
     test.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,
@@ -875,6 +882,8 @@ fn lifecycle_wall_times_keep_the_first_start_through_duplicate_reports_holds_and
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(7);
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,
@@ -914,6 +923,8 @@ fn retry_observations_distinguish_attempt_failures_from_preparation_refusals_and
     h.make(vec![task(1, &[]), task(2, &[])]);
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,
@@ -971,7 +982,12 @@ fn replacing_charter_models_replaces_the_table_and_keeps_live_tasks() {
 
 fn versions(rows: &[(u32, u32, Option<&[u8]>)]) -> Box<[crate::CharterModels]> {
     rows.iter()
-        .map(|&(number, revision, models)| crate::CharterModels { number, revision, models: models.map(Box::from) })
+        .map(|&(number, revision, models)| crate::CharterModels {
+            resumes: false,
+            number,
+            revision,
+            models: models.map(Box::from),
+        })
         .collect()
 }
 
@@ -982,6 +998,8 @@ fn settings_charters(test: &mut Harness, newest: u32, rows: &[(u32, u32, Option<
 
 fn settings_claim(test: &mut Harness, number: u64) -> Vec<Request> {
     test.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         reply_to: to(),
         task: number,
         attempt: 1,
@@ -1087,7 +1105,12 @@ fn a_run_records_its_tasks_revision_until_its_attempt_ends() {
 }
 
 fn settings_choice(model: u8) -> crate::LlmChoice {
-    crate::LlmChoice { account: None, main: crate::ModelEffort { model, effort: None }, subagents: Box::new([]) }
+    crate::LlmChoice {
+        later: None,
+        account: None,
+        main: crate::ModelEffort { model, effort: None },
+        subagents: Box::new([]),
+    }
 }
 
 fn settings_agent(number: u64, model: u8) -> New {

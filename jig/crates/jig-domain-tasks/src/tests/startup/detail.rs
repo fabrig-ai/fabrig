@@ -260,10 +260,11 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
         (crate::ModelEffort { model: 0, effort: Some(2) }, Why::Effort, vec![2], vec![0]),
         (crate::ModelEffort { model: 0, effort: None }, Why::Effort, vec![2], vec![0]),
     ] {
-        for subagent in [false, true] {
+        for (subagent, later) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut source = one_task();
             let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
             row.llm = Some(crate::LlmChoice {
+                later: None,
                 account: None,
                 main: if subagent {
                     crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) } }
@@ -272,9 +273,16 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
                 },
                 subagents: if subagent { Box::new([chosen]) } else { Box::new([]) },
             });
+            if later {
+                let choice = row.llm.as_mut().unwrap();
+                choice.later = Some(crate::LlmLater { main: choice.main, subagents: choice.subagents.clone() });
+                choice.main = crate::ModelEffort { model: 0, effort: if efforts[0] == 0 { None } else { Some(0) } };
+                choice.subagents = Box::new([]);
+            }
             let mut cold = empty(&LIMITS);
             cold.domain.efforts = efforts.clone().into_boxed_slice();
             cold.domain.charters = Box::new([crate::CharterModels {
+                resumes: false,
                 number: 1,
                 revision: 1,
                 models: Some(models.clone().into_boxed_slice()),
@@ -300,6 +308,7 @@ fn nonagent_choice_is_kept_without_rejudging_admission() {
         let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
         row.executor = executor;
         row.llm = Some(crate::LlmChoice {
+            later: None,
             account: None,
             main: crate::ModelEffort { model: 7, effort: Some(9) },
             subagents: Box::new([]),
@@ -527,7 +536,8 @@ fn retained_choices_do_not_rejudge_authority_or_duplicate_models() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
     let chosen = crate::ModelEffort { model: 0, effort: None };
-    row.llm = Some(crate::LlmChoice { account: None, main: chosen, subagents: Box::new([chosen, chosen]) });
+    row.llm =
+        Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen, chosen]) });
     row.authority.models = crate::Models::Named(0);
     let mut restored = cold(&source);
     assert!(restored.send(Event::Check).is_empty());

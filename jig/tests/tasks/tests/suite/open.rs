@@ -27,6 +27,8 @@ fn claimed_task(chat: New) -> World {
 }
 
 fn commit_turn(w: &mut World, attempt: u64, read: Option<u64>) {
+    let outstanding =
+        w.record(1).inbox.iter().filter(|word| Some(word.number) <= read).map(|word| word.number).collect();
     let reply_to = w.to();
     let call = reply_to.into_token();
     w.send(Event::Turn {
@@ -37,7 +39,7 @@ fn commit_turn(w: &mut World, attempt: u64, read: Option<u64>) {
         read,
         refused: Box::new([]),
         offered: read,
-        outstanding: Box::new([]),
+        outstanding,
         cumulative: 0,
     });
     assert_eq!(w.replies[&call.raw()], Reply::Turn(Accepted::New));

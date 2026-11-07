@@ -81,13 +81,7 @@ pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
             brief::GatherRequest::Complete { brief, order } => {
                 let task = brief.raw();
                 let current = match core.contexts.get(&task) {
-                    Some(context) => match core.tasks.task(task) {
-                        Some(row) => {
-                            row.phase == tasks::Phase::Active(tasks::Active::Preparing)
-                                && core.tasks.run_message(task) == Some(context.last_message)
-                        }
-                        None => false,
-                    },
+                    Some(context) => super::run::parts::preparation_current(core, context),
                     None => false,
                 };
                 if !current {

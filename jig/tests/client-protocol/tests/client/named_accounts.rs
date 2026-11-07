@@ -61,6 +61,7 @@ fn add(story: &mut Story, key: Key, name: u8, value: &[u8]) -> (u32, u32) {
 }
 fn choice(account: u32) -> c::LlmChoice {
     c::LlmChoice {
+        later: None,
         account: Some(account),
         main: c::ModelEffort { model: text(b"scripted"), effort: Some(text(b"high")) },
         subagents: List::with_capacity(0),

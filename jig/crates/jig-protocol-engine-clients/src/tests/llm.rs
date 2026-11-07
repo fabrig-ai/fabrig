@@ -16,6 +16,7 @@ const INVALID_MODEL_CASES: u32 = 2 + 3 + 5;
 
 fn choice() -> t::LlmChoice {
     t::LlmChoice {
+        later: None,
         account: None,
         main: t::ModelEffort { model: 0, effort: Some(1) },
         subagents: Box::new([t::ModelEffort { model: 1, effort: None }]),
@@ -236,7 +237,7 @@ fn settings_template(main: c::ModelEffort, subagents: skein_lib::List<c::ModelEf
     let mut item = jig_client_test_records::settings::settings_change().items.get(1).unwrap().clone();
     let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set template") };
     let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
-    template.llm = Some(c::LlmChoice { account: None, main, subagents });
+    template.llm = Some(c::LlmChoice { later: None, account: None, main, subagents });
     item
 }
 fn settings_charter(model: &[u8], effort: &[u8], alternative: bool) -> c::SettingItem {
@@ -345,6 +346,7 @@ fn an_amended_choice_reaches_the_people_child_in_configuration_s_order() {
         panic!("amendment")
     };
     let expected = p::LlmChoice {
+        later: None,
         account: None,
         main: p::ModelEffort { model: 0, effort: Some(1) },
         subagents: Box::new([p::ModelEffort { model: 1, effort: None }]),
