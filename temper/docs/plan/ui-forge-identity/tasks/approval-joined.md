@@ -79,3 +79,14 @@ The latest Answers entry settles this: “Then merge approval-story's repair fro
 The run reports that the revert was committed and pushed as 0ac11457d3ccc5fe5cc253b77784c81a15bdc329.
 Keep the heading fix, constructor, joined story and status removal; do not restore the Queued workaround or change the dependency instruction.
 Acceptance remains pending. Resume after the repair reaches the plan trunk and complete the outstanding checks.
+
+### 2026-11-07: Resume after approval-story's merge-veto repair reaches the plan trunk (recommended), or change the dependency instruction? (ui-forge-identity/approval-joined-4, foreman ui-forge-identity/approval-joined/foreman-2)
+
+Wait for approval-story’s repair on the plan trunk, then fetch and merge it and run the joined story by name.
+The task’s Answers entry explicitly settles this: “Then merge approval-story's repair from the plan's trunk once it's there, and run your story by name. If it's not there yet, push the revert and stop with a Question saying you're waiting on it.”
+Keep the heading fix, approval-only constructor, joined story and status removal. Do not restore the Queued workaround or change the dependency instruction.
+Acceptance remains pending. Resume after the prerequisite reaches the plan trunk and complete the outstanding checks and mutation bites.
+
+2026-11-07 (temper/ui). Resume: approval-story's merge-veto repair is on the plan's trunk now. Fetch and merge it, and run your story by name. The Queued arm stays out.
+
+2026-11-07 (temper/ui). Judgement: carry on. Its runs stopped only while waiting for approval-story's repair, which is now on the plan's trunk, verified at 12:57Z. Fetch, merge the trunk, and run your story by name, with the Queued arm still out. Then the remaining acceptance: the two mutation bites, clippy and the focused package checks. The client package's inherited budget is temper/tiers', as answered.

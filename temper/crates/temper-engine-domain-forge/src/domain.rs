@@ -3772,6 +3772,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         row.delegate = None;
     }
     for _ in 0_u32..16 {
+        let effect_prior = row.change.clone();
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         let advanced = stepped.change != row.change;
         row.change = stepped.change;
@@ -3785,6 +3786,16 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
+                // An approval wait keeps its turn (temper/docs/design/domain/forge.md, 8.12).
+                let prior = match effect {
+                    change::Effect::Merge { .. } => effect_prior,
+                    change::Effect::Open
+                    | change::Effect::CreateBranch { .. }
+                    | change::Effect::Reopen
+                    | change::Effect::Prepare { .. }
+                    | change::Effect::Retarget
+                    | change::Effect::Update { .. } => prior,
+                };
                 emit_change_effect(d, env, &mut row, pending, prior, effect, out);
                 return;
             }
