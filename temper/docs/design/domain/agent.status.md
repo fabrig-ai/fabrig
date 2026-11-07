@@ -75,8 +75,6 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
-- **Not yet:** 8.4: no step test holds what temper gives an asking charter's first
-  request to 16,384 bytes on both shapes (`temper-service/src/tests/`).
 - **Not yet:** 8.4.1: `see` reads no address: no parser or routing of the
   settings, revision and help addresses (`temper-engine-domain/src/route/see.rs`),
   no `more` token, bound, `see:` line, not-yet or unknown answer
