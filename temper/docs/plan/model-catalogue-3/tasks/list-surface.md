@@ -59,3 +59,15 @@ Then `cargo fmt`; `python3 -I -B jig/scripts/old_forms.py`, and for temper's; `h
 ## Report
 
 As the implementer's text says. `store.status.md`'s 4.4 line stays until `core-reads` writes the record.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-3/list-surface/foreman-1)
+
+Resolve the accounts export conflict by retaining ProviderList, ListRecord and ReadFailure.
+Rebase onto the current integration trunk. The sole reported conflict is `jig/crates/jig-domain-accounts/src/lib.rs`.
+Commit `a463f6cafc748ad520dcbbddff8c785fa0b28a0b` adds `ProviderList` to the providers export; this branch adds `ListRecord` and `ReadFailure` to the adjacent records export.
+Keep both additions:
+```rust
+pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
+pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
+```
+These exports serve separate contracts in `contracts.md`, section 6, and require no behavioral change. Preserve the automatically merged changes in the other paths.
