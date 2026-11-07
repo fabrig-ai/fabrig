@@ -31,6 +31,17 @@ pub enum Event {
         record: Stored,
     },
     Want,
+    Listed {
+        read: u64,
+        names: u64,
+        left_out: u32,
+        at: Wall,
+    },
+    ListFailed {
+        read: u64,
+        failure: crate::ReadFailure,
+        at: Wall,
+    },
     ProgramTargets {
         source: u32,
         hosts: Box<[crate::Worker]>,
@@ -282,6 +293,9 @@ pub enum Answer {
     KeyKept {
         source: u32,
     },
+    Reading {
+        count: u32,
+    },
     Done,
     Removed {
         confirmed: bool,
@@ -347,6 +361,12 @@ pub enum End {
 /// changes, and the counter whenever it moves.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    ReadList {
+        account: u32,
+        read: u64,
+        provider: u32,
+        grant: Grant,
+    },
     /// All issued names, including retired cleanup names, to check after every reconnect.
     Programs {
         names: Box<[Program]>,
@@ -422,6 +442,9 @@ pub struct Fact {
 /// A holder's account change; an LLM key is named only by its carried number.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
+    ReadLists {
+        provider: u32,
+    },
     /// Finish a sign-in with its person's pasted address, named by its held number (accounts.md, section 5).
     FinishSignIn {
         source: u32,

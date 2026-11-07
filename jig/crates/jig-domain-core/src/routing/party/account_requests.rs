@@ -24,7 +24,7 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
             return people::Outcome::AccountMovedIn { account, renewed };
         }
         accounts::Answer::Finishing { source } => return people::Outcome::AccountFinishing { source },
-        accounts::Answer::Done => return people::Outcome::AccountChanged,
+        accounts::Answer::Reading { .. } | accounts::Answer::Done => return people::Outcome::AccountChanged,
         accounts::Answer::Started { source, address } => {
             return people::Outcome::AccountSignInStarted { source, address };
         }
