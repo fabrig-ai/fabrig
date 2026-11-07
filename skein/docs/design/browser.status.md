@@ -5,5 +5,7 @@
 Unlisted sections have no known gap. Section 5's retained terminal boxed
 matches, truncation count and scope resolution without geometry are present.
 
+- **Not yet:** 5: `States` has no `pressed`; the kit doesn't read
+  Chromium's `pressed` property.
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
