@@ -18,3 +18,55 @@ id = 1
 story = "A commit names its durable rows without printing a key, and a row that outlives its project still fails in the same words"
 parts = ["naming-row"]
 walk = false
+
+[[part]]
+id = "protocol-polling"
+title = "The protocol world's net does work when a socket's bytes changed, and reads only what's new"
+mode = "direct"
+needs = ["naming-row"]
+design = "jig/docs/design/client/domain/testing.md, 2"
+
+[[part]]
+id = "world-setup"
+title = "What every test of a world pays to set up, and then doesn't read"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[part]]
+id = "store-sweeps"
+title = "The store world's seven sweeps move under fuzzy, and focused keeps cuts chosen for why"
+mode = "direct"
+needs = ["world-setup"]
+design = "jig/docs/design/domain/testing.md, 9"
+
+[[part]]
+id = "admission-checks"
+title = "A due agent's readiness asks the cheaper checks first"
+mode = "direct"
+needs = ["store-sweeps"]
+design = "jig/docs/design/domain/engine.md, 7.1"
+
+[[slice]]
+id = 2
+story = "A socket with no new bytes takes no step, and every cut, record check and event keeps its order"
+parts = ["protocol-polling"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A world starts as the design says, without parsing, copying or building what its test never reads"
+parts = ["world-setup"]
+walk = false
+
+[[slice]]
+id = 4
+story = "The store's focused suite cuts a few operations named for why, and fuzzy sweeps every cut of the same seven stories with the same checks"
+parts = ["store-sweeps"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A due agent gets the same admission answer, asking accounts and hosts only when nothing cheaper has answered"
+parts = ["admission-checks"]
+walk = false
