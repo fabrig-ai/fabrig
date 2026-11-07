@@ -59,3 +59,7 @@ Tests, each breaking its rule once by hand: in the domain, `a_press_asks_the_act
 ## Report
 
 What the picker's filter did when the switch went off; whether `look-round-11` had landed.
+
+## Answers
+
+2026-11-07 (temper/ui). models-switch repairs it: temper/ui widens this task's files to the catalogue-to-me notification path in jig, as model-act has landed and a live me watch must see a changed catalogue. Mark Frames only when a catalogue change commits and moved something, never on a read, a refused act or a repeat, so that it doesn't bring back what ui-fuzzy-joint just took out: a whole Frame delivered unchanged. A failing focused test first: a committed picker change reaches a live me watch, and a settings-equivalent repeat delivers nothing. Then your joined story's later assertions. A generic mechanism in jig; no temper names there.
