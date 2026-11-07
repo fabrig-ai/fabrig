@@ -144,3 +144,19 @@ fn the_shipped_limits_are_valid() {
     too_small.view.nodes = 0;
     assert!(!limits::valid(&too_small));
 }
+
+#[test]
+fn the_run_is_made_from_the_shipped_limits() {
+    use skein_ui_screen_terminal::{Depth, Terminal};
+    let limits = limits::tui();
+    assert!(limits::valid(&limits));
+    let settings = limits::terminal(&limits, Depth::Indexed);
+    assert_eq!(settings.interval, limits.interval);
+    assert_eq!(settings.depth, Depth::Indexed);
+    assert_eq!(settings.most, limits.most);
+    assert_eq!(settings.paste, limits.paste);
+    assert!(Terminal::operations(&settings).is_some());
+    let mut too_large = limits;
+    too_large.most = Size { rows: u16::MAX, columns: u16::MAX };
+    assert!(!limits::valid(&too_large));
+}
