@@ -72,3 +72,12 @@ Acceptance:
 ## Report
 
 As the implementer's text says, with each bite's broken rule and failure.
+
+## Rebase (2026-11-07, step merge, foreman ui-forge-identity/link-lookup/foreman-1)
+
+resolve forge.status.md by preserving both branches’ gap removals
+Rebase onto the landing tip; the sole reported conflict is `temper/docs/design/domain/forge.status.md`.
+Integration commit `089bff46d5417ef0d17eb30b536eee093d9a2cde` removes the “4, 4.6: adoption seeds the link’s user…” entry.
+Task commit `e962fc9547444acb3651db90ecd147a16318315d` removes the adjacent “4: forge_person answers adoption’s seeds alone…” and “8.9: eligibility counts an account on any forge…” entries.
+Resolve by removing all three entries, leaving the surrounding prose and every other status entry unchanged.
+Preserve the task’s configuration.status.md removal and code/test changes. No code change is needed for this conflict.
