@@ -1,5 +1,5 @@
 //! The two fixture binaries and their independent record model (store.md 14).
-use crate::{World, root};
+use crate::{World, root, world::Change};
 use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, SecretOwner, Secrets, Write};
 use jig_test_patches::{self as fixture, patches as app};
 use jig_test_patches_jig::{self as upstream, patches as jig};
@@ -275,13 +275,34 @@ impl Records {
 /// The ordinals name kernel calls, including durable replace's internals.
 #[must_use]
 pub fn cuts(world: &World) -> Vec<u32> {
-    use crate::world::Change;
     let changes = world.changes();
     let first = changes.iter().position(|(_, change)| *change == Change::Make).expect("copy mkdir");
     let last = changes.iter().rposition(|(_, change)| *change == Change::Rename).expect("switch rename");
     assert!(first < last);
     assert_eq!(changes[last + 1].1, Change::Sync, "switch directory sync follows its rename");
     changes[first..=last + 1].iter().map(|(operation, _)| *operation).collect()
+}
+
+/// The operation of the first change of this kind in a traced world.
+#[must_use]
+pub fn first_change(world: &World, kind: Change) -> u32 {
+    world
+        .changes()
+        .iter()
+        .find(|(_, change)| *change == kind)
+        .unwrap_or_else(|| panic!("first {kind:?} change reached"))
+        .0
+}
+
+/// The operation of the last change of this kind in a traced world.
+#[must_use]
+pub fn last_change(world: &World, kind: Change) -> u32 {
+    world
+        .changes()
+        .iter()
+        .rfind(|(_, change)| *change == kind)
+        .unwrap_or_else(|| panic!("last {kind:?} change reached"))
+        .0
 }
 
 pub fn whole(world: &mut World) {

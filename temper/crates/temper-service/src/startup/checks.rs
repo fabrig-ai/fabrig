@@ -53,6 +53,7 @@ fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
+    forge_result(root.forge.client.op_bytes, root.tasks.result_bytes, problems);
     if !jig_domain_core::brief_holds_documents(root.brief.sections, root.tasks.charter_documents) {
         against(
             problems,
@@ -498,6 +499,9 @@ fn short(problems: &mut Problems, path: Path, bytes: u64, of: &'static [u8], nee
         None => problems.push(path, What::Jig(config::What::Bound)),
     }
 }
+fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
+    short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
+}
 /// Answers made at decode must fit their whole settled-call allowance
 /// (protocol/documentation.md, 5).
 pub(super) fn call_answer(path: Path, bytes: u32, problems: &mut Problems) {
@@ -524,7 +528,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
     );
 }
 /// Each process checks the turn bounds its own document can know
-/// (protocol/configuration.md, 7). A worker alone knows only its turn cap.
+/// (protocol/configuration.md, 13.8). A worker alone knows its agent and hub.
 pub fn turns(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
@@ -533,9 +537,19 @@ pub fn turns(
     problems: &mut Problems,
 ) {
     let engine_path = Path::root().member(b"engine").member(b"limits").member(b"overrides");
+    if let Some(engine) = engine {
+        forge_result(own_limits.forge.client.op_bytes, engine.core.tasks.result_bytes, problems);
+    }
     if let Some(agent) = agent {
         let turn = u64::from(agent.limits.bodies.turn_body);
         if let Some(engine) = engine {
+            short(
+                problems,
+                engine_path.member(b"hub.outcome_bytes"),
+                engine.hub.outcome_bytes,
+                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                Some(agent.host_limits.outcome_bytes),
+            );
             short(
                 problems,
                 engine_path.member(b"hub.turn_bytes"),
@@ -568,6 +582,13 @@ pub fn turns(
         }
         for (index, worker) in workers.iter().enumerate() {
             let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
+            short(
+                problems,
+                path.member(b"hub.outcome_bytes"),
+                worker.limits.hub.outcome_bytes,
+                b"the agent's outcome (agent.json profile.declared.tool_payload)",
+                Some(agent.host_limits.outcome_bytes),
+            );
             short(
                 problems,
                 path.member(b"hub.turn_bytes"),

@@ -83,13 +83,15 @@ impl Deletions {
                 !snapshot.deleting.contains(number) && !snapshot.tasks.values().any(|task| task.project == *number);
             if project.ended {
                 for naming in &snapshot.naming {
-                    require(
-                        naming.outlives.is_some()
-                            || (naming.project != Some(*number)
-                                && !naming.task.is_some_and(|task| project.tasks.contains(&task))),
-                        Promise::Lost,
-                        format!("a deleted project's row outlived it: {}", naming.row),
-                    )?;
+                    if naming.outlives.is_none()
+                        && (naming.project == Some(*number)
+                            || naming.task.is_some_and(|task| project.tasks.contains(&task)))
+                    {
+                        return Err(Violation {
+                            promise: Promise::Lost,
+                            why: format!("a deleted project's row outlived it: {}", naming.row),
+                        });
+                    }
                 }
             }
         }

@@ -660,7 +660,13 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
 
 // Exercise admission, retained title and body, and the operation handed to the client.
 fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Write {
-    let mut d = domain();
+    projected_words_at(explicit_title, words, CLIENT.op_bytes)
+}
+
+fn projected_words_at(explicit_title: &[u8], words: &[u8], op_bytes: u32) -> skein_forge::api::Write {
+    let mut configured = env();
+    configured.limits.client.op_bytes = op_bytes;
+    let mut d = domain_with_limits(&configured.limits);
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -681,14 +687,55 @@ fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Wri
     assert_eq!(d.change(fixtures::CHANGE).unwrap().body.as_ref(), words);
     start_opening(&mut d, fixtures::CHANGE, FIRST_ENTRY);
     fixtures::missing_pull_reads(&mut d);
-    let built = fixtures::finish_missing(&mut d);
-    assert!(built_entry(&built, FIRST_ENTRY));
-    outputs(&mut d, Event::Committed { entry: FIRST_ENTRY });
-    answer_entry_clock(&mut d);
-    let (_, op) = fixtures::next_call(&mut d);
-    let skein_forge::api::Op::Write(write) = op else { panic!("open write") };
-    assert!(skein_forge::measure::write(&write).unwrap() <= u64::from(CLIENT.op_bytes));
-    write
+    let green = fixtures::checks(skein_forge::api::Check::Passed);
+    fixtures::answer_next(&mut d, Ok(green.clone()));
+    fixtures::answer_next(&mut d, Ok(green));
+    let (call, _) = fixtures::next_call(&mut d);
+    let mut built = Queue::uncapped();
+    // The final fresh read builds the effect using this row's operation bound.
+    step(
+        &mut d,
+        &configured,
+        Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call,
+            cost: 1,
+            result: Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }),
+        }),
+        &mut built,
+    );
+    let mut entry_built = false;
+    for _ in 0..built.len() {
+        if let Request::ChangeDecision { entry: Some(entry), .. } = built.pop().expect("counted output") {
+            entry_built |= entry == FIRST_ENTRY;
+        }
+    }
+    assert!(entry_built);
+    step(&mut d, &configured, Event::Committed { entry: FIRST_ENTRY }, &mut Queue::uncapped());
+    let (call, _) = fixtures::next_call(&mut d);
+    step(
+        &mut d,
+        &configured,
+        Event::Client(skein_forge_client::Event::Answered {
+            free: 0,
+            rate: None,
+            call,
+            cost: 1,
+            result: Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: configured.now }),
+        }),
+        &mut Queue::uncapped(),
+    );
+    let mut calls = Queue::uncapped();
+    resume(&mut d, &configured, &mut calls);
+    for _ in 0..calls.len() {
+        if let Request::Call { op, .. } = calls.pop().expect("counted output") {
+            let skein_forge::api::Op::Write(write) = op else { panic!("open write") };
+            assert!(skein_forge::measure::write(&write).unwrap() <= u64::from(op_bytes));
+            return write;
+        }
+    }
+    panic!("projected forge call");
 }
 
 #[test]
@@ -704,6 +751,28 @@ fn change_words_past_operation_bound_register_whole_and_open_with_marked_cuts() 
     let body_prefix =
         body.strip_suffix("…\nThe change's full words are on its task in temper.".as_bytes()).expect("marked body");
     assert_eq!(body_prefix, "界".repeat(body_prefix.len() / 3).as_bytes());
+}
+
+#[test]
+fn pull_bodies_fit_the_forge_bound_without_cutting_retained_words() {
+    const OP_BYTES: u32 = 131_070; // call-room's reference payload less its separator.
+    const BODY_BYTES: usize = 65_536; // temper/docs/design/domain/forge.md, 8.1.
+    const MARKER: &[u8] = "…\nThe change's full words are on its task in temper.".as_bytes();
+    // All three rows, including the reference-sized body, measured 5.9 ms of CPU together.
+    for (bytes, cut) in [(BODY_BYTES, false), (BODY_BYTES + 1, true), (131_070, true)] {
+        let mut words = skein_lib::bytes::zeroed(bytes);
+        words.fill(b'r');
+        let skein_forge::api::Write::OpenPull { body, .. } = projected_words_at(b"Small fix", &words, OP_BYTES) else {
+            panic!("open pull")
+        };
+        assert_eq!(body.len(), BODY_BYTES, "{bytes} supplied bytes");
+        if cut {
+            let prefix = body.strip_suffix(MARKER).expect("marked body cut");
+            assert_eq!(prefix, &words[..BODY_BYTES - MARKER.len()], "{bytes} supplied bytes");
+        } else {
+            assert_eq!(body, words, "{bytes} supplied bytes");
+        }
+    }
 }
 
 #[test]

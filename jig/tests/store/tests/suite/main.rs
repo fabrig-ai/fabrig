@@ -31,7 +31,10 @@ mod upgrades;
 mod fuzzy {
     mod crashes;
     mod frames;
+    mod generations;
     mod patching;
+    mod pending_switch;
     #[path = "../readers_fuzzy.rs"]
     mod readers;
+    mod upgrades;
 }

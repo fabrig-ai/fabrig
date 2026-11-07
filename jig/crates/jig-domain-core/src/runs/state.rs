@@ -1,6 +1,6 @@
 //! Live run and restart correlation held by the core (domain/engine.md, 3 and 7).
 
-use crate::{CallKey, Core, TurnRecord};
+use crate::{CallKey, Core, RunChoice, TurnRecord};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -96,41 +96,12 @@ impl Core {
     pub fn run_admission(&self, task: &tasks::RunContext, wall: Wall, writes: Box<[authority::Write]>) -> RunAdmission {
         let Some(task) = self.tasks.run_context(task.task) else { return RunAdmission::Wait(crate::RunWait::Host) };
         let choice = self.run_choice(task.task);
-        let mut accounts = List::with_capacity(jig_domain_tasks::MODELS);
-        if let Ok(choice) = &choice {
-            for binding in &choice.accounts {
-                accounts
-                    .push(authority::AccountCheck { binding: *binding, usable: true, host_eligible: true })
-                    .expect("provider bound");
-            }
-        }
         let mut findings = Queue::uncapped();
-        let mut current = List::with_capacity(self.authority.limits().writes);
-        for mut write in writes {
-            write.effect = crate::effects::resources::effect(self, task.project, write.effect);
-            if current.push(write).is_err() {
-                return RunAdmission::Hold(tasks::Hold::Effects);
-            }
-        }
-        let writes = current.into_boxed();
-        let numbers = translate::authority_numbers(task.numbers);
-        let checked = authority::check_run(
-            &self.authority,
-            &authority::RunAsk {
-                project: task.project,
-                authority: translate::tasks_authority(&task.authority),
-                numbers,
-                budget: authority::left(numbers).min(self.authority.rules().maximum_run_spend),
-                reserve: self.run_reserve(task.task),
-                wall,
-                main_provider: match &choice {
-                    Ok(choice) => choice.accounts.first().expect("choice includes main provider").provider,
-                    Err(_) => 0,
-                },
-                accounts: accounts.into_boxed(),
-                credentials: self.run_credentials_check(task.task, self.run_now),
-                writes,
-            },
+        let checked = self.run_check(
+            (task.task, task.project, &task.authority, task.numbers),
+            choice.as_ref().ok(),
+            wall,
+            writes,
             &mut findings,
         );
         match checked {
@@ -146,6 +117,88 @@ impl Core {
                     Ok(_) => crate::RunWait::Credential,
                 },
             ),
+        }
+    }
+
+    /// `check_run` for a task's current numbers and no writes but `writes`,
+    /// under `choice`'s accounts, or none if there is no choice.
+    fn run_check(
+        &self,
+        (number, project, task_authority, task_numbers): (u64, u32, &tasks::Authority, tasks::Numbers),
+        choice: Option<&RunChoice>,
+        wall: Wall,
+        writes: Box<[authority::Write]>,
+        findings: &mut Queue<authority::Finding>,
+    ) -> authority::RunAnswer {
+        let mut accounts = List::with_capacity(jig_domain_tasks::MODELS);
+        if let Some(choice) = choice {
+            for binding in &choice.accounts {
+                accounts
+                    .push(authority::AccountCheck { binding: *binding, usable: true, host_eligible: true })
+                    .expect("provider bound");
+            }
+        }
+        let mut current = List::with_capacity(self.authority.limits().writes);
+        for mut write in writes {
+            write.effect = crate::effects::resources::effect(self, project, write.effect);
+            if current.push(write).is_err() {
+                findings.push(authority::Finding::Oversized);
+                return authority::RunAnswer::Refuse;
+            }
+        }
+        let writes = current.into_boxed();
+        let numbers = translate::authority_numbers(task_numbers);
+        authority::check_run(
+            &self.authority,
+            &authority::RunAsk {
+                project,
+                authority: translate::tasks_authority(task_authority),
+                numbers,
+                budget: authority::left(numbers).min(self.authority.rules().maximum_run_spend),
+                reserve: self.run_reserve(number),
+                wall,
+                main_provider: match choice {
+                    Some(choice) => choice.accounts.first().expect("choice includes main provider").provider,
+                    None => 0,
+                },
+                accounts: accounts.into_boxed(),
+                credentials: self.run_credentials_check(number, self.run_now),
+                writes,
+            },
+            findings,
+        )
+    }
+
+    /// Whether a due agent's admission for no writes is anything but a wait
+    /// (domain/engine.md, 7.1), asking the cheaper checks first.
+    pub(crate) fn agent_ready(&self, task: u64) -> bool {
+        let Some(row) = self.tasks.task(task) else { return false };
+        let current = (task, row.project, &row.authority, row.numbers);
+        let mut findings = Queue::uncapped();
+        match self.run_check(current, None, self.run_wall, Box::new([]), &mut findings) {
+            authority::RunAnswer::Allow { .. } => unreachable!("no accounts cannot allow a run"),
+            authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {}
+        }
+        // Every finding but Account holds under any choice.
+        match denied(&mut findings, crate::RunWait::Host) {
+            RunAdmission::Hold(_) => return true,
+            RunAdmission::Wait(_) => {}
+            RunAdmission::Allow(_) => unreachable!("denied admission cannot allow a run"),
+        }
+        // A choice binds at most one account per provider and fits authority's
+        // checked account limit, so it cannot add an oversized hold here.
+        if !self.credentials_ready(task, self.run_now) {
+            return false;
+        }
+        let Ok(choice) = self.run_choice(task) else { return false };
+        match self.run_check(current, Some(&choice), self.run_wall, Box::new([]), &mut findings) {
+            authority::RunAnswer::Allow { .. } => true,
+            authority::RunAnswer::Wait | authority::RunAnswer::Propose | authority::RunAnswer::Refuse => {
+                match denied(&mut findings, crate::RunWait::Credential) {
+                    RunAdmission::Hold(_) | RunAdmission::Allow(_) => true,
+                    RunAdmission::Wait(_) => false,
+                }
+            }
         }
     }
 

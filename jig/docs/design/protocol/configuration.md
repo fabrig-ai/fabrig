@@ -421,6 +421,11 @@ host's half reports it (`llm.md`, 5.5).
   ceiling is accounting alone: page rows, chunks, decoder capacity,
   queues and read slots keep their own bounds; the number and its
   derivation live beside `STORE_KV` in the profile.
+- **Standard's room for a whole spec:** its `hub.charter_bytes` is
+  262,144, its `hub.outcome_bytes` 131,072 and its `authority.batch` 32,
+  where small's are 65,536, 4,096 and 2. None is allocated ahead: the
+  first two bound a frame and an admission, and the third what a stored
+  denial and a batch's aggregate may hold.
 - **Standard holds fabrig's own development** as its agents run it,
   with five times the largest figure seen there: live tasks in the
   deployment and in a project, live goals, a goal's tree over its life

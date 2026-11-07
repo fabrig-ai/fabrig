@@ -34,6 +34,8 @@ pub enum Case {
     ParkWaiting,
     /// Run workspace built-ins with a writable cwd and a read-only library.
     Tools,
+    /// Host tool calls at a declared `tool_payload`, for the large-argument table.
+    Payload { tool_payload: u32 },
     /// Record a program conversation with full content capture.
     Events,
     /// Keep an Open conversation across replies and scripted host messages.
@@ -57,6 +59,7 @@ impl Case {
             Self::Turns
                 | Self::Credentials
                 | Self::Tools
+                | Self::Payload { .. }
                 | Self::Waiting
                 | Self::ParkWaiting
                 | Self::Events
@@ -106,8 +109,35 @@ impl Delegate for Proc {
     }
 }
 
+fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
+    let mut profile = crate::profile();
+    profile.declared.tool_payload = tool_payload;
+    profile.declared.file_bytes = profile.declared.file_bytes.max(tool_payload);
+    let mut declarations = crate::declarations(4096);
+    for endpoint in &mut declarations.endpoints {
+        // skein-llm admits six escape bytes per input byte, eight bytes per token,
+        // with room for the completion's framing.
+        endpoint.limits.output = tool_payload * 6 / 8 + 1024;
+        endpoint.limits.window = endpoint.limits.window.max(endpoint.limits.output * 2);
+    }
+    let mut limits = smith_agent_service::profile::derive(&profile, &declarations).expect("payload profile derives");
+    limits.domain.configured_endpoint_bytes = 4096;
+    let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
+    config.domain.limits[0].output = declarations.endpoints[0].limits.output;
+    config.domain.limits[0].protocol_allowance = smith_agent_service::profile::endpoint_allowance(
+        &profile,
+        &declarations.endpoints[0],
+        &limits.domain.session.tools,
+    )
+    .expect("payload endpoint framing");
+    config
+}
+
+#[expect(clippy::too_many_lines, reason = "keep each scenario's bounds, environment and event wiring together")]
 fn configuration(case: Case) -> smith_agent_service::Config {
-    let mut config = if matches!(case, Case::Events | Case::Transcript) {
+    let mut config = if let Case::Payload { tool_payload } = case {
+        payload_configuration(tool_payload)
+    } else if matches!(case, Case::Events | Case::Transcript) {
         let mut limits = crate::limits();
         limits.llm.translation.client.request = 1_048_576;
         crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits)
@@ -148,6 +178,12 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             value: if case == Case::EarlyExit { b"1".as_slice().into() } else { b"0".as_slice().into() },
         },
     ];
+    if matches!(case, Case::Payload { .. }) {
+        variables.push(smith_protocol_machine::Variable {
+            name: b"FAKE_CLAUDE_LARGE_STORY".as_slice().into(),
+            value: b"1".as_slice().into(),
+        });
+    }
     if case == Case::Credentials {
         variables.extend(
             [
@@ -174,7 +210,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     config.limits.domain.run.check_tail = config.limits.domain.run.check_tail.min(256);
     config.limits.domain.run.host_reply_bytes = config.limits.domain.run.host_reply_bytes.min(4096);
     config.limits.domain.run.message_bytes = config.limits.domain.run.message_bytes.min(4096);
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
         config.limits.domain.run.outcome_bytes = 512;
         config.limits.domain.run.answer_bytes = 512;
         config.limits.domain.run.host_reply_bytes = 512;
@@ -183,7 +219,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     }
     config.limits.domain.session.delegated_result_bytes =
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
         config.limits.events = Some(
             smith_agent_service::event_limits(
                 &config.limits,
@@ -216,7 +252,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
         smith_agent_shell::config::Configuration {
             memory: configuration.limits.memory,
             service: configuration,
-            trace: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+            trace: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
                     capture: if matches!(case, Case::Events | Case::Transcript) {
@@ -242,7 +278,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             seed: 7,
             pid: 101,
             trace: inherited.appends.first().map(|(_, fd)| *fd),
-            roots: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+            roots: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
                 Some(
                     inherited
                         .roots
@@ -522,7 +558,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if let Some(login) = login {
         items.push(Item::file(b"programs/source/fake-claude.login", login).mode(0o600));
     }
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
             Item::directory(b"work/repo/src"),
@@ -673,7 +709,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
             name: b"programs".as_slice().into(),
             path: b"/programs".as_slice().into(),
         }];
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
             roots.extend([
                 skein_world::StartupRoot { name: b"cwd".as_slice().into(), path: b"/work/repo".as_slice().into() },
                 skein_world::StartupRoot { name: b"library".as_slice().into(), path: b"/library".as_slice().into() },
@@ -685,7 +721,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
 
 fn startup_appends(spawn: &Spawn) -> Vec<skein_world::StartupAppend> {
     let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
         vec![skein_world::StartupAppend {
             name: b"trace".as_slice().into(),
             root: b"/home".as_slice().into(),
@@ -752,8 +788,12 @@ fn spawn_parent(
         if let Some(dumps) = options.dumps {
             parent.dump_to(dumps);
         }
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
-            parent.peer = crate::host();
+        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            parent.peer = if matches!(case, Case::Payload { .. }) {
+                crate::host_with_limits(configuration(case).limits.channel)
+            } else {
+                crate::host()
+            };
             parent.peer.play(tools_start(charter, value));
             parent.program_host_answers = Some(0);
         }
@@ -826,7 +866,7 @@ fn run_directories(files: &mut Files, base: Opened) -> Vec<Vec<u8>> {
 }
 
 fn read_events(files: &mut Files, base: Opened, case: Case) -> Vec<smith_events::Record> {
-    if !matches!(case, Case::Tools | Case::Events | Case::Transcript) {
+    if !matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
         return Vec::new();
     }
     let file = files.open(base, b"home/events.jsonl", How::Read).expect("trace file");

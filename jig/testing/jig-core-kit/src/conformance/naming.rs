@@ -4,28 +4,24 @@ use super::{connector, r, root};
 /// Project and task ownership in the testing root's durable rows.
 #[must_use]
 pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
-    let row = format!("{key:?}");
-    let root::Key::Connector { key, .. } = key else {
+    let root::Key::Connector { key: connector_key, .. } = key else {
         let (root::Key::Core(key), root::Record::Core(record)) = (key, record) else { return None };
-        let mut name = jig_conformance::core::naming::naming(key, record);
-        if let Some(name) = &mut name {
-            name.row = row;
-        }
-        return name;
+        return jig_conformance::core::naming::naming(key, record);
     };
-    let mut name = r::Naming { row, project: None, task: None, outlives: None };
-    match key {
+    let mut project = None;
+    let mut task = None;
+    match connector_key {
         connector::RecordKey::SettingDefault { scope, .. }
         | connector::RecordKey::SettingChange { scope, .. }
         | connector::RecordKey::SettingReplaced { scope, .. }
-        | connector::RecordKey::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
-        connector::RecordKey::Adoption { project, .. } => name.project = Some(*project),
-        connector::RecordKey::Procedure(task)
-        | connector::RecordKey::ProcedureDelegateOutcome(task)
-        | connector::RecordKey::Result(task)
-        | connector::RecordKey::Task(task)
-        | connector::RecordKey::Subscription { task, .. } => name.task = Some(*task),
-        connector::RecordKey::Outbox(key) | connector::RecordKey::Made(key) => name.task = Some(key.task),
+        | connector::RecordKey::SettingProposal { scope, .. } => project = (*scope != 0).then_some(*scope),
+        connector::RecordKey::Adoption { project: owner, .. } => project = Some(*owner),
+        connector::RecordKey::Procedure(owner)
+        | connector::RecordKey::ProcedureDelegateOutcome(owner)
+        | connector::RecordKey::Result(owner)
+        | connector::RecordKey::Task(owner)
+        | connector::RecordKey::Subscription { task: owner, .. } => task = Some(*owner),
+        connector::RecordKey::Outbox(key) | connector::RecordKey::Made(key) => task = Some(key.task),
         connector::RecordKey::ApplicationObject(_)
         | connector::RecordKey::ApplicationAnswer(_)
         | connector::RecordKey::Pool(_)
@@ -36,12 +32,13 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
             connector::Record::SettingDefault { scope, .. }
             | connector::Record::SettingChange { scope, .. }
             | connector::Record::SettingReplaced { scope, .. }
-            | connector::Record::SettingProposal { scope, .. } => name.project = (*scope != 0).then_some(*scope),
-            connector::Record::Proposal { project, task, .. } | connector::Record::Task { project, task, .. } => {
-                name.project = Some(*project);
-                name.task = Some(*task);
+            | connector::Record::SettingProposal { scope, .. } => project = (*scope != 0).then_some(*scope),
+            connector::Record::Proposal { project: owner_project, task: owner_task, .. }
+            | connector::Record::Task { project: owner_project, task: owner_task, .. } => {
+                project = Some(*owner_project);
+                task = Some(*owner_task);
             }
-            connector::Record::Procedure(row) => name.project = Some(row.project),
+            connector::Record::Procedure(row) => project = Some(row.project),
             connector::Record::ApplicationObject { .. }
             | connector::Record::ApplicationAnswer { .. }
             | connector::Record::ProcedureDelegateOutcome { .. }
@@ -53,7 +50,12 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
             | connector::Record::Made { .. } => {}
         }
     }
-    (name.project.is_some() || name.task.is_some()).then_some(name)
+    (project.is_some() || task.is_some()).then(|| r::Naming {
+        row: r::Row::Application(format!("{key:?}")),
+        project,
+        task,
+        outlives: None,
+    })
 }
 #[cfg(test)]
 mod tests {
@@ -219,7 +221,10 @@ mod tests {
         assert_eq!(cases.len(), 71, "all store key kinds, including both application scopes");
         for (key, project, task, outlives) in cases {
             let expected = (project.is_some() || task.is_some()).then(|| r::Naming {
-                row: format!("{key:?}"),
+                row: match &key {
+                    root::Key::Core(key) => r::Row::Core(key.clone()),
+                    root::Key::Connector { .. } => r::Row::Application(format!("{key:?}")),
+                },
                 project,
                 task,
                 outlives,
