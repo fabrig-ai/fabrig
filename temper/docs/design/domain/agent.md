@@ -1441,6 +1441,15 @@ host:
 
 ## 10. Open questions
 
+- **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
+  landing story requires the chat's own successful `change`, rather than
+  a goal's change. Observe whether `goal`'s declaration steers a plain
+  repository change there, and whether the branch-read guidance gives a
+  real run its next read. Default: declarations and bounded refusal
+  guidance, without a new admission restriction; the existing live story
+  runs after landing (`testing.md`, 2.7). A scripted call establishes
+  neither model choice nor recovery.
+
 - **Forge-read fallout with real agents** (section 8): the existing
   ChatGPT and Claude Code owned-forge landing stories check that a real
   run completes without losing `temper serve`. Refusal-rendering checks
