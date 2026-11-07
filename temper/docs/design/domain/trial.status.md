@@ -10,12 +10,6 @@ real-loop story use fake models.
 - **Not yet:** 2, 6.1: verification on a real account remains unknown:
   no outcome of the model-check request's real-box walk is supplied for
   retirement. A fake model's answer does not establish that result.
-  2, 4: `route/trials.rs`'s `Make` names no `llm` for every trial, so a
-  later account's selects as a new chat does and may answer as another
-  account, its `took` naming which. jig's `Core::account_llm` (jig's
-  `domain/accounts.md`, 4.3), `PersonSeed::models` and
-  `Event::PersonTask`'s `llm` (jig's `domain/authority.md`, 6.1) are not
-  built either.
 
 - **Departs:** 6: `temper-client-domain/src/forge/trials.rs` keeps one
   `pending` request. `look` marks every newly usable account seen before

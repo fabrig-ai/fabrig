@@ -18,12 +18,15 @@ enum Choice {
 
 /// The trial's choice (temper/docs/design/domain/trial.md, 2): none for the person's first usable
 /// account; for a later one, `Core::account_llm` for it, or refused where it serves no model.
-fn choice(core: &core::Core, seed: &core::PersonSeed, person: u64, account: u32) -> Choice {
+fn choice(core: &core::Core, person: u64, account: u32) -> Choice {
+    // A person seed takes its models from the deployment ceiling without narrowing them.
+    let ceiling = core.authority.rules().ceiling.models;
+    let models = tasks::Models::from_parts(ceiling.bits(), ceiling.is_all());
     let payer = tasks::Payer::Party(person);
-    for offered in &core.offer(payer, people::DEPLOYMENT, seed.models()) {
+    for offered in &core.offer(payer, people::DEPLOYMENT, models) {
         for other in &offered.accounts {
             if *other != account {
-                return match core.account_llm(TRIAL_CHARTER, seed.models(), payer, people::DEPLOYMENT, account) {
+                return match core.account_llm(TRIAL_CHARTER, models, payer, people::DEPLOYMENT, account) {
                     Some(llm) => Choice::Held(llm),
                     None => Choice::Unserved,
                 };
@@ -49,16 +52,7 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
     while let Some(request) = out.pop() {
         match request {
             trials::Request::Make { account, person } => {
-                let Some(seed) = domain.core.person_seed(person) else {
-                    trials::step(
-                        &mut domain.trials,
-                        &env.with(crate::limits::trial_limits(&env.limits)),
-                        trials::Event::Refused { account },
-                        &mut out,
-                    );
-                    continue;
-                };
-                let llm = match choice(&domain.core, &seed, person, account) {
+                let llm = match choice(&domain.core, person, account) {
                     Choice::First => None,
                     Choice::Held(llm) => Some(llm),
                     Choice::Unserved => {
@@ -70,6 +64,15 @@ pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event
                         );
                         continue;
                     }
+                };
+                let Some(seed) = domain.core.person_seed(person) else {
+                    trials::step(
+                        &mut domain.trials,
+                        &env.with(crate::limits::trial_limits(&env.limits)),
+                        trials::Event::Refused { account },
+                        &mut out,
+                    );
+                    continue;
                 };
                 let task = seed.number();
                 domain.work.push(Work::Core(core::Event::PersonTask {
