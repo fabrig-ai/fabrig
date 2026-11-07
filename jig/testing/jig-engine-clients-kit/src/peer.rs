@@ -842,6 +842,9 @@ impl Peer {
         .expect("wire answer")
         {
             w::SignInAnswer::SignedIn(answer) => answer,
+            w::SignInAnswer::LinkUsed => panic!("sign-in link used"),
+            w::SignInAnswer::LinkExpired => panic!("sign-in link expired"),
+            w::SignInAnswer::LinkUnknown => panic!("sign-in link unknown"),
             w::SignInAnswer::Refused => panic!("sign-in refused"),
             w::SignInAnswer::NotReady => panic!("sign-in not ready"),
             w::SignInAnswer::Busy => panic!("sign-in busy"),

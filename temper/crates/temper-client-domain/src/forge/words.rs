@@ -678,7 +678,7 @@ pub const CHANGES: [ChangeRow; 106] = [
     (ChangeWord::ResolveLine, &[b"Resolving its conflicts with ", b"."], &[Name]),
     (ChangeWord::RepairCi, &[b"Repairing: CI failed at its head."], &[]),
     (ChangeWord::RepairGate, &[b"Repairing: gate ", b" asked for changes."], &[Number]),
-    (ChangeWord::RepairSemantic, &[b"Repairing: a semantic conflict with ", b"."], &[Name]),
+    (ChangeWord::RepairSemantic, &[b"Repairing: CI failed at its updated head."], &[]),
     (ChangeWord::LandingLine, &[b"Merging at its head."], &[]),
     (ChangeWord::LandedLine, &[b"Landed \xc2\xb7 merge commit ", b""], &[Name]),
     (ChangeWord::Held, &[b"Held while ", b": ", b"."], &[Name, Name]),
@@ -776,11 +776,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         }
         ChangeWord::QueueSt | ChangeWord::QueueNd | ChangeWord::QueueRd | ChangeWord::QueueTh if index == 1 => 256,
         ChangeWord::Held if index == 0 => 18,
-        ChangeWord::PrepareLine
-        | ChangeWord::FirstLine
-        | ChangeWord::UpdateLine
-        | ChangeWord::ResolveLine
-        | ChangeWord::RepairSemantic => 256,
+        ChangeWord::PrepareLine | ChangeWord::FirstLine | ChangeWord::UpdateLine | ChangeWord::ResolveLine => 256,
         ChangeWord::AuthorityHold | ChangeWord::Held => 512,
         ChangeWord::LandedLine
         | ChangeWord::VerifyingLine
@@ -827,6 +823,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Period
         | ChangeWord::RepairCi
         | ChangeWord::RepairGate
+        | ChangeWord::RepairSemantic
         | ChangeWord::LandingLine
         | ChangeWord::HeldProducing
         | ChangeWord::HeldOpening

@@ -4902,6 +4902,7 @@ dependencies = [
  "temper-client-domain",
  "temper-fake",
  "temper-fixtures",
+ "temper-init",
  "temper-playground",
  "temper-playground-world",
  "temper-service",
