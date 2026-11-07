@@ -647,7 +647,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-closed", world: Reference, address: task(118), then: Shown },
         Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
         Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
-        Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
+        Sample {
+            name: "start-goal",
+            world: Reference,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
         Sample { name: "start-goal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings-away", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -1236,7 +1241,13 @@ fn start_domain(sample: &Sample) -> Domain {
         Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat)
     };
     let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), then);
-    if sample.name != "start-goal" {
+    if sample.name == "start-goal" {
+        step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::OpenStart { draft: None, chat: None }) },
+            &mut Queue::uncapped(),
+        );
+    } else {
         let mut out = Queue::uncapped();
         step(
             &mut root,

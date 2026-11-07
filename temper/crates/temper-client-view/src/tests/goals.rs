@@ -160,10 +160,10 @@ fn its_headline_is_the_reports_or_its_states() {
     };
     for (state, fallback) in [
         (State::Planning, b"Planning from the draft.".as_slice()),
-        (State::Running, b"6 of 9 tasks landed.".as_slice()),
-        (State::Paused, b"6 of 9 tasks landed.".as_slice()),
-        (State::Needs { funds: true }, b"6 of 9 tasks landed.".as_slice()),
-        (State::Needs { funds: false }, b"6 of 9 tasks landed.".as_slice()),
+        (State::Running, b"6 of 9 tasks done.".as_slice()),
+        (State::Paused, b"6 of 9 tasks done.".as_slice()),
+        (State::Needs { funds: true }, b"6 of 9 tasks done.".as_slice()),
+        (State::Needs { funds: false }, b"6 of 9 tasks done.".as_slice()),
         (State::Landed, b"Landed.".as_slice()),
         (State::Closed, b"Closed by you.".as_slice()),
         (State::Failed, b"Failed.".as_slice()),
@@ -191,7 +191,7 @@ fn an_ended_row_is_marked() {
 fn a_row_reads_in_the_terminal() {
     for (total, name, headline) in [
         (EMPTY, "Hello · needs funds", b"Planning from the draft.".as_slice()),
-        (TOTAL, "Hello · 6 / 9 · needs funds", b"6 of 9 tasks landed.".as_slice()),
+        (TOTAL, "Hello · 6 / 9 · needs funds", b"6 of 9 tasks done.".as_slice()),
     ] {
         let mut line = line();
         line.delegates_total = total;
@@ -633,7 +633,7 @@ fn the_filters_press_and_move() {
             page.filter(chosen);
             let (tree, bindings) = page.tree(&words);
             let buttons = role_nodes(&tree, Role::Button);
-            assert_eq!(buttons.len(), filters.len());
+            assert_eq!(buttons.len(), filters.len() + 1);
             for (index, (filter, label)) in buttons.iter().zip(filters) {
                 let node = &tree.nodes()[*index];
                 assert_eq!(node.name.as_deref(), Some(label));
@@ -745,7 +745,7 @@ fn the_page_draws_no_spend() {
         for forbidden in [b"spent".as_slice(), b"budget"] {
             assert!(skein_lib::bytes::find(&text, forbidden).is_none());
         }
-        assert_eq!(role_nodes(&tree, Role::Link).len(), row_tasks(&tree, &bindings).len() + 1);
+        assert_eq!(role_nodes(&tree, Role::Link).len(), row_tasks(&tree, &bindings).len());
         assert_eq!(tree.nodes()[0].styles.as_slice(), [look::MAIN, look::GOALS]);
         let sections = style_order(
             &tree,
@@ -769,13 +769,14 @@ fn the_link_shows_with_a_tracked_template() {
             if node.styles.as_slice().contains(&look::GOALS_SECTION_HEAD) {
                 end = index + usize::try_from(node.size).unwrap();
             }
-            if node.role == Role::Link && node.name.as_deref() == Some(b"Start one from a draft") {
+            if node.role == Role::Button && node.name.as_deref() == Some(b"Start one from a draft") {
                 assert!(index < end);
                 assert!(node.styles.as_slice().contains(&look::SHEET_LINK));
                 assert_eq!(
                     bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
-                    Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                        address: Address::Chats { filter: temper_client_domain::ChatsFilter::All },
+                    Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::OpenStart {
+                        draft: None,
+                        chat: None
                     }))
                 );
                 found = true;
@@ -792,7 +793,7 @@ fn none_with_none() {
     fixtures::deliver_me(&mut page.root, page.me, me);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let (tree, _) = page.tree(&words);
-        assert!(fixtures::find(&tree, Role::Link, b"Start one from a draft").is_none());
+        assert!(fixtures::find(&tree, Role::Button, b"Start one from a draft").is_none());
     }
 }
 

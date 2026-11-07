@@ -499,7 +499,12 @@ pub fn me_handle() -> Handle {
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
-        Event::Act { act: Act::StartDraft { .. } | Act::Away(_) } => {}
+        Event::Act { act: Act::StartDraft { words } } => {
+            if let Some(start) = &mut pages.start {
+                start.draft_field(words);
+            }
+        }
+        Event::Act { act: Act::Away(_) } => {}
         Event::Act { act: Act::StartName { words } } => {
             if let Some(start) = &mut pages.start {
                 start.name(words);

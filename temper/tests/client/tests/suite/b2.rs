@@ -48,9 +48,9 @@ fn roadmap_b2_through_the_task_pages() {
 fn open_advisors_result_and_return(advised: &b2::Advised) -> Vec<Step<Address>> {
     let link = goal_link(b2::ADVISOR_BRIEF);
     let mut steps = vec![
-        see(Find::exactly_named(Role::Disclosure, b"1 landed")),
-        see(Find::exactly_named(Role::Image, b"1 landed of 1")),
-        see(landed(b"1 landed", b2::ADVISOR_BRIEF)),
+        gone(Find::exactly_named(Role::Disclosure, b"1 landed")),
+        see(Find::exactly_named(Role::Image, b"0 landed of 1")),
+        see(done(b2::ADVISOR_BRIEF)),
         Step::Press { find: link },
         see(task_heading(advised.advisor, b2::ADVISOR_BRIEF)),
         see(in_region(Find::exactly_named(Role::Status, b"Completed"), b"Result")),
@@ -63,7 +63,7 @@ fn open_advisors_result_and_return(advised: &b2::Advised) -> Vec<Step<Address>> 
 fn follow_the_plan_and_each_delegates_lineage(planned: &b2::Planned, attempt: u64) -> Vec<Step<Address>> {
     let mut steps = vec![
         see(goal_line(b2::SECOND_BRIEF, Find::text(b"waits on Implement the export"))),
-        see(Find::exactly_named(Role::Disclosure, b"1 landed")),
+        gone(Find::exactly_named(Role::Disclosure, b"1 landed")),
         see(Find::text(b"1 of 3 tasks")),
         Step::Press { find: goal_link(b2::SECOND_BRIEF) },
         see(task_heading(planned.second, b2::SECOND_BRIEF)),
@@ -91,10 +91,10 @@ fn follow_the_plan_and_each_delegates_lineage(planned: &b2::Planned, attempt: u6
 fn see_the_dependency_completed_and_second_running(planned: &b2::Planned) -> Vec<Step<Address>> {
     let mut steps = vec![
         see(goal_line(b2::SECOND_BRIEF, Find::text(b"running"))),
-        see(Find::exactly_named(Role::Disclosure, b"2 landed")),
+        gone(Find::exactly_named(Role::Disclosure, b"2 landed")),
         see(Find::text(b"2 of 3 tasks")),
-        see(landed(b"2 landed", b2::ADVISOR_BRIEF)),
-        see(landed(b"2 landed", b2::FIRST_BRIEF)),
+        see(done(b2::ADVISOR_BRIEF)),
+        see(done(b2::FIRST_BRIEF)),
         Step::Press { find: goal_link(b2::SECOND_BRIEF) },
         see(dependency(planned.second, Find::exactly_named(Role::Status, b"Completed"))),
         see(Find::exactly_named(Role::Status, b"running")),
@@ -112,11 +112,11 @@ fn see_the_goals_report_and_settled_budget(
         see(in_region(Find::text(report), b"Report")),
         see(Find::text(b"3 of 3 tasks")),
         // The world's engine answers the ended read two rows a page: the third is past it.
-        see(Find::exactly_named(Role::Image, b"2 landed of 2")),
+        see(Find::exactly_named(Role::Image, b"0 landed of 2")),
         see(in_region(Find::text(b"More of its tasks are not shown."), b"Tasks")),
-        see(Find::exactly_named(Role::Disclosure, b"2 landed")),
-        see(landed(b"2 landed", b2::ADVISOR_BRIEF)),
-        see(landed(b"2 landed", b2::FIRST_BRIEF)),
+        gone(Find::exactly_named(Role::Disclosure, b"2 landed")),
+        see(done(b2::ADVISOR_BRIEF)),
+        see(done(b2::FIRST_BRIEF)),
         gone(goal_link(b2::SECOND_BRIEF)),
         see(Find::text(format!("{} of {} spent", budget.numbers.spent, budget.numbers.budget).as_bytes())),
     ]
@@ -159,10 +159,10 @@ fn goal_line(title: &[u8], find: Find) -> Find {
         Target::Role { role: Role::Paragraph, name: title.into() },
     ]))
 }
-fn landed(fold: &[u8], title: &[u8]) -> Find {
+fn done(title: &[u8]) -> Find {
     // The joint's scripted reports fall within the epoch's first minute.
-    Find::text(b"00:00").within(Box::new([
-        Target::ExactRole { role: Role::Disclosure, name: fold.into() },
+    Find::text(b"done 00:00").within(Box::new([
+        Target::ExactRole { role: Role::Region, name: b"Tasks".as_slice().into() },
         Target::Role { role: Role::Paragraph, name: title.into() },
     ]))
 }
