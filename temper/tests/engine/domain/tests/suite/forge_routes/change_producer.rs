@@ -76,6 +76,7 @@ fn change(world: &mut World, goal: &engine::Assignment, producer: u32) -> engine
         b"change",
         &input,
         &models(),
+        &[],
     )
     .expect("change decodes") else {
         panic!("change call")

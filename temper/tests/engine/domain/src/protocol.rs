@@ -140,8 +140,10 @@ type DecodeAnswer = (bool, Box<[u8]>);
 #[derive(Debug, Default)]
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
-    /// The deployment models used by internal settings-note decoding.
+    /// The deployment models in numbered execution positions.
     pub(crate) models: Box<[engine::Model]>,
+    /// Whole model settings used by internal settings-note decoding.
+    pub(crate) catalogue: Box<[core::settings::CatalogueModel]>,
     /// Catalogue replacements for the clients component joined to this world.
     pub catalogues: Vec<Box<[core::settings::CatalogueModel]>>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
@@ -257,6 +259,7 @@ impl Protocol {
     pub fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         match request {
             engine::Request::Party(engine::PartyRequest::Catalogue { models }) => {
+                self.catalogue.clone_from(&models);
                 let highest = models.iter().map(|entry| entry.number).max().unwrap_or(0);
                 self.models = vec![engine::Model::hole(); usize::try_from(highest).expect("bounded catalogue")].into();
                 for entry in &models {
@@ -292,7 +295,7 @@ impl Protocol {
                     ))))),
                 },
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.models)])
+                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },

@@ -9,7 +9,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
-        c::Setting::Model(n) => (b"Model".as_slice(), Some(n.number)),
+        c::Setting::Model(n) => (b"model".as_slice(), Some(n.number)),
         c::Setting::Application { kind: 1 | 2, scope, number } => {
             out.put(b"landing-rule ");
             out.number(u64::from(number));

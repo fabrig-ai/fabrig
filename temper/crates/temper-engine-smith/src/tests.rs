@@ -1893,6 +1893,7 @@ fn configured_change(json: &[u8]) -> Result<engine::Call, Problem> {
         b"change",
         &input,
         &models,
+        &[],
     )? {
         crate::Decoded::Call(call) => Ok(call),
         crate::Decoded::Answered(_) => panic!("change answered at decode"),

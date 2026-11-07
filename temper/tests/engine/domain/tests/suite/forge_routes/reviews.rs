@@ -245,6 +245,7 @@ fn render_read(
         tool,
         &input,
         world.root.models(),
+        &world.root.catalogue(),
     )
     .expect("smith decodes forge read") else {
         panic!("forge read decoded")
