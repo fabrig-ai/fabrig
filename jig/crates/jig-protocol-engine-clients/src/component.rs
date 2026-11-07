@@ -444,7 +444,18 @@ impl Component {
             return;
         }
         match route {
-            Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake => {}
+            Route::ApprovalAsk => {
+                connection.respond(crate::Reply::Record(routes::approval_ask_answer(w::ApprovalAskAnswer::Refused)));
+            }
+            Route::ApprovalRead => {
+                connection.respond(crate::Reply::Record(routes::approval_state(w::ApprovalState::Unknown)));
+            }
+            Route::ApprovalDecide => {
+                connection.respond(crate::Reply::Record(routes::approval_decided(w::ApprovalDecided::Unknown)));
+            }
+            Route::ApprovalTake => {
+                connection.respond(crate::Reply::Record(routes::approval_sign_in(w::ApprovalSignInAnswer::Unknown)));
+            }
             Route::Link => {
                 let Ok(record) = w::LinkSignIn::decode(&env.limits.wire, &mut skein_lib::Reader::new(&body)) else {
                     connection.respond(crate::Reply::NotARecord);
