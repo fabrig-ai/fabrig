@@ -1,6 +1,6 @@
 # benchmarks: status
 
-2026-11-05. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
+2026-11-07. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
 
 - **Not yet:**
   - 3.1, 5.2, 11.5: calibrations. The probes `budget`, `cache-reuse`,

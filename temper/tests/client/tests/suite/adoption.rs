@@ -150,7 +150,8 @@ fn the_same_repository_adopted_again_from_its_page_replaces_its_record() {
     use temper_engine_domain as engine;
     use temper_engine_domain_forge as forge;
     let mut front = Joint::adoption(fixtures::SEED, fixtures::domain_limits());
-    let mut root = Temper::new(fixtures::SEED).0;
+    let mut root =
+        temper_client_world::app::Root::Person(Box::new(d::unlinked(&fixtures::domain_limits(), fixtures::SEED)));
     front.bind(jig_client_kit::harness::ClientId(0), fixtures::PARTY);
     accounts::event(&mut front, &mut root, Temper::start(fixtures::inbox(), Vec::new(), 0));
     for admitted in 1..=2 {

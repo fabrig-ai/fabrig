@@ -83,9 +83,9 @@ pub(super) struct Names {
     seen: BTreeSet<(u16, u64, u16)>,
 }
 impl Names {
-    pub(super) fn submitted(&mut self, store: &super::super::Store<'_>) {
-        if let Some(commit) = store.pending.back() {
-            self.pending.insert(commit.number, store.named.clone());
+    pub(super) fn submitted(&mut self, number: Option<u64>, named: Vec<super::super::NamedRevision>) {
+        if let Some(number) = number {
+            self.pending.insert(number, named);
         }
     }
     pub(super) fn durable(&mut self, applied: u64) -> Vec<r::Observed> {

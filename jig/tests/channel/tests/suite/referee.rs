@@ -39,3 +39,42 @@ fn an_attempt_placed_before_its_predecessors_stop_bound_is_caught() {
         assert_eq!(matches!(referee.verdict(), Verdict::Failed(_)), failed, "{label}");
     }
 }
+
+#[test]
+fn roots_are_due_where_a_grant_arrives_and_at_the_next_root_step() {
+    let mut checks = fixtures::root_checks(false);
+    assert!(!checks.due(0, 1, 0));
+    assert!(!checks.due(0, 1, 1));
+    assert!(checks.due(1, 1, 1), "grant arrives without a root step");
+    assert!(!checks.due(1, 1, 1), "same step after arrival");
+    assert!(checks.due(1, 2, 7), "each host sees the grant");
+    assert!(checks.due(1, 1, 2), "receiving root takes up the grant");
+    assert!(!checks.due(1, 1, 2));
+    assert!(!checks.due(1, 1, 3), "later steps need no check");
+    assert!(!checks.due(1, 2, 7), "another host's step does not take up this host's grant");
+    assert!(checks.due(1, 2, 8), "the second host still has its next step due");
+    assert!(!checks.due(1, 2, 9));
+    assert!(checks.due(2, 1, 3), "a replacement grant arrives");
+    assert!(!checks.due(2, 1, 3));
+    assert!(checks.due(2, 1, 4));
+    assert!(!checks.due(2, 1, 5));
+    assert!(checks.due(2, 2, 9), "replacement arrives independently on the second host");
+    assert!(checks.due(2, 2, 10));
+    assert!(!checks.due(2, 2, 11));
+}
+
+#[test]
+fn every_step_keeps_each_root_step_due() {
+    let mut checks = fixtures::root_checks(true);
+    assert!(checks.due(1, 1, 4));
+    assert!(!checks.due(1, 1, 4));
+    assert!(checks.due(1, 1, 5));
+    assert!(!checks.due(1, 1, 5));
+    assert!(checks.due(1, 1, 6), "steps after the grant's receiving step stay due");
+    assert!(!checks.due(1, 1, 6));
+    assert!(checks.due(1, 2, 8));
+    assert!(!checks.due(1, 2, 8));
+    assert!(checks.due(1, 2, 9));
+    assert!(checks.due(1, 2, 10));
+    assert!(checks.due(1, 1, 7), "hosts keep separate step counts");
+}

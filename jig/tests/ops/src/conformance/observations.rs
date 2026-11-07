@@ -114,14 +114,18 @@ pub(super) fn core_store(store: &Store) -> jig_conformance::core::Store<'_> {
             root::Record::Core(row) => Some(row),
             root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
         },
-        |write| match write {
-            jig_fake_store::Write::Save { row: root::Record::Core(row), .. } => conformance::Write::Save(row),
-            jig_fake_store::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
-            jig_fake_store::Write::Save { .. } | jig_fake_store::Write::Erase(_) => conformance::Write::Other,
-        },
+        core_write,
     );
     view.effects = effects(store);
     view
+}
+
+pub(super) fn core_write(write: &jig_fake_store::Write<root::Key, root::Record>) -> conformance::Write<'_> {
+    match write {
+        jig_fake_store::Write::Save { row: root::Record::Core(row), .. } => conformance::Write::Save(row),
+        jig_fake_store::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
+        jig_fake_store::Write::Save { .. } | jig_fake_store::Write::Erase(_) => conformance::Write::Other,
+    }
 }
 
 pub fn effects(store: &Store) -> jig_conformance::core::Effects {
