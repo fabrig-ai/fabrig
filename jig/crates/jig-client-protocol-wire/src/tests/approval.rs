@@ -29,19 +29,19 @@ fn letters(code: Option<&ApprovalCode>) -> Option<&[u8; 8]> {
 }
 
 #[test]
-fn an_approval_code_reads_typed_and_carried_forms() {
-    for (typed, expected) in FORMS {
-        assert_eq!(letters(ApprovalCode::parse(typed).as_ref()), *expected, "{typed:?}");
+fn an_approval_code_reads_input_and_carried_forms() {
+    for (input, expected) in FORMS {
+        assert_eq!(letters(ApprovalCode::parse(input).as_ref()), *expected, "{input:?}");
     }
 }
 
 #[test]
 fn an_approval_code_is_shown_as_four_a_hyphen_and_four() {
-    for (typed, expected) in FORMS {
+    for (input, expected) in FORMS {
         if expected.is_some() {
-            let code = ApprovalCode::parse(typed).expect("readable form");
-            assert_eq!(code.shown(), *b"WDJB-MJHT", "{typed:?}");
-            assert_eq!(ApprovalCode::parse(&code.shown()), Some(code), "{typed:?}");
+            let code = ApprovalCode::parse(input).expect("readable form");
+            assert_eq!(code.shown(), *b"WDJB-MJHT", "{input:?}");
+            assert_eq!(ApprovalCode::parse(&code.shown()), Some(code), "{input:?}");
         }
     }
 }
