@@ -86,11 +86,10 @@ pub(crate) fn workspace_prepared(
         return out;
     }
     drop(core.workspace_credentials.insert(task, credentials).expect("live task credential room"));
-    let Some(current) = core.tasks.run_context(task) else { return wait_for_account(core, work, context) };
-    if current != context {
+    let Some(current) = super::parts::preparation_facts(core, &context) else {
         drop(core.workspace_credentials.remove(&task));
-        return wait_for_account(core, work, current);
-    }
+        return wait_for_account(core, work, context);
+    };
     match context.executor {
         tasks::Executor::Job { .. } => {
             if let Some(items) = &workspace
@@ -327,9 +326,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     let Some(current) = core.tasks.task(task) else {
         return out;
     };
-    if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
-        || core.tasks.run_message(task) != Some(context.last_message)
-    {
+    if !super::parts::preparation_current(core, context) {
         return out;
     }
     if !core.dependency_results.contains_key(&task)
@@ -381,12 +378,7 @@ pub(crate) fn plan_brief(
     let Some(context) = core.contexts.get(&task) else {
         return out;
     };
-    let Some(current) = core.tasks.task(task) else {
-        return out;
-    };
-    if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
-        || core.tasks.run_message(task) != Some(context.last_message)
-    {
+    if !super::parts::preparation_current(core, context) {
         return out;
     }
     let text_limits = crate::BriefTextLimits {
@@ -709,8 +701,8 @@ pub(crate) fn route_claim_prepared(
         let mut reasons = tasks::Reasons::FIRST;
         if let Some(context) = core.contexts.remove(&task) {
             reasons = context.reasons;
-            let valid = match core.tasks.run_context(task) {
-                Some(current) if current == context => match core.run_admission(&current, env.wall, Box::new([])) {
+            let valid = match super::parts::preparation_facts(core, &context) {
+                Some(current) => match core.run_admission(&current, env.wall, Box::new([])) {
                     crate::RunAdmission::Allow(allowance) => {
                         let proof = core.proofs.get(&task).expect("pending proof");
                         allowance.spend == budget
@@ -719,7 +711,7 @@ pub(crate) fn route_claim_prepared(
                     }
                     crate::RunAdmission::Wait(_) | crate::RunAdmission::Hold(_) => false,
                 },
-                Some(_) | None => false,
+                None => false,
             };
             if !valid {
                 let _: Option<(u64, tasks::Reasons)> = core.claiming.remove(&task);

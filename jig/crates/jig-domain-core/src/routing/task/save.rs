@@ -334,10 +334,7 @@ fn clear_stale_preparation(
     out: &mut Queue<Request>,
 ) {
     let stale = match core.contexts.get(&task.number) {
-        Some(context) => {
-            task.phase != tasks::Phase::Active(tasks::Active::Preparing)
-                || core.tasks.run_message(task.number) != Some(context.last_message)
-        }
+        Some(context) => !crate::routing::run::parts::preparation_current(core, context),
         None => false,
     };
     if stale {
