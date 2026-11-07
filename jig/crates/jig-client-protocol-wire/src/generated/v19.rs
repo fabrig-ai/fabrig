@@ -75958,8 +75958,8 @@ impl TaskWaitHello {
         size = size.checked_add(field_why.measure()).expect("schema ceilings fit u32");
         let field_figures = &self.figures;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_figures {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_figures.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         }
         size
     }
@@ -76004,8 +76004,7 @@ impl TaskWaitBounds {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_kind = &self.kind;
-        size = size.checked_add(field_kind.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_why = &self.why;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_why {
@@ -76013,8 +76012,8 @@ impl TaskWaitBounds {
         }
         let field_figures = &self.figures;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_figures {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_figures.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         }
         size
     }
