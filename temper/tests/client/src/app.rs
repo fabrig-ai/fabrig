@@ -223,7 +223,9 @@ impl App for Temper {
             Request::Client { .. }
             | Request::Unlinked {
                 request:
-                    jig_client::UnlinkedRequest::Authorized(_)
+                    jig_client::UnlinkedRequest::ApprovalAct(_)
+                    | jig_client::UnlinkedRequest::Approval(_)
+                    | jig_client::UnlinkedRequest::Authorized(_)
                     | jig_client::UnlinkedRequest::Told { .. }
                     | jig_client::UnlinkedRequest::SignOut
                     | jig_client::UnlinkedRequest::Down {

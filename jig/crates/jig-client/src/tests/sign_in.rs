@@ -351,6 +351,7 @@ fn a_sign_out_that_did_not_reach_the_engine_tells_the_link() {
             Request::Told { told: Told::Link { link } } => links.push(*link).unwrap(),
             Request::Exchange { .. }
             | Request::OpenStream { .. }
+            | Request::Approval(_)
             | Request::Authorized(_)
             | Request::ServiceCredential { .. }
             | Request::CloseStream
@@ -383,6 +384,7 @@ fn the_link_s_service_credential_leaves_once_as_a_host_duty() {
             | Request::Save { .. }
             | Request::Erase { .. }
             | Request::Told { .. }
+            | Request::Approval(_)
             | Request::Authorized(_) => {}
         }
     }
@@ -463,7 +465,7 @@ fn held_and_transport_installation_end_reads_even_before_first_sign_in() {
             let expected_credential = match &with {
                 With::Held(credential) => Some(credential.clone()),
                 With::Transport => None,
-                With::Link { .. } | With::Service(_) => unreachable!("immediate installation"),
+                With::Approval { .. } | With::Link { .. } | With::Service(_) => unreachable!("immediate installation"),
             };
             c.step(Event::SignIn { with });
             assert_eq!(fixtures::pages(c.requests()).as_slice(), &[(TASK, signed_out_page()), (ME, signed_out_page())]);
@@ -528,6 +530,7 @@ fn sign_in_without_installation_leaves_old_reads_eligible() {
             let (mut c, signing, reads) = reads_across_sign_in_exchange(match &with {
                 With::Link { secret, held } => With::Link { secret: secret.clone(), held: held.clone() },
                 With::Service(credential) => With::Service(credential.clone()),
+                With::Approval { secret } => With::Approval { secret: secret.clone() },
                 With::Held(_) | With::Transport => unreachable!("exchange sign-in"),
             });
             let event = match result {
@@ -684,23 +687,49 @@ fn a_service_s_busy_sign_in_retries_and_full_does_not() {
 fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
     use super::approval::{take_answer, taking};
     for (answer, why) in [
-        (w::ApprovalSignInAnswer::SignedIn(w::SignedIn::new(&w::CEILINGS, w::SignedInParts { token: Some(fixtures::credential(&NEW_CREDENTIAL)), party: PARTY, expires: 300 }).unwrap()), None),
+        (
+            w::ApprovalSignInAnswer::SignedIn(
+                w::SignedIn::new(
+                    &w::CEILINGS,
+                    w::SignedInParts { token: Some(fixtures::credential(&NEW_CREDENTIAL)), party: PARTY, expires: 300 },
+                )
+                .unwrap(),
+            ),
+            None,
+        ),
         (w::ApprovalSignInAnswer::Refused, Some(NotSignedIn::Approval(Taking::Refused))),
         (w::ApprovalSignInAnswer::Expired, Some(NotSignedIn::Approval(Taking::Expired))),
         (w::ApprovalSignInAnswer::Used, Some(NotSignedIn::Approval(Taking::Used))),
         (w::ApprovalSignInAnswer::Unknown, Some(NotSignedIn::Approval(Taking::Unknown))),
-        (w::ApprovalSignInAnswer::Full(w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).unwrap()), Some(NotSignedIn::Full { sign_ins: 2, earliest: skein_lib::Wall::from_nanos(400), link_until: skein_lib::Wall::from_nanos(300) })),
+        (
+            w::ApprovalSignInAnswer::Full(
+                w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 })
+                    .unwrap(),
+            ),
+            Some(NotSignedIn::Full {
+                sign_ins: 2,
+                earliest: skein_lib::Wall::from_nanos(400),
+                link_until: skein_lib::Wall::from_nanos(300),
+            }),
+        ),
     ] {
         let mut c = Client::new();
         c.step(Event::SignIn { with: taking() });
-        let [Request::Exchange { message: Message::SignInApproval(body), credential: None, .. }] = c.requests() else { panic!("take with no credential") };
+        let [Request::Exchange { message: Message::SignInApproval(body), credential: None, .. }] = c.requests() else {
+            panic!("take with no credential")
+        };
         let body = body.clone();
         let mut now = Time::ZERO;
-        for _ in 0..2 {
-            c.step_at(now, Event::Reply { exchange: c.exchange(), message: take_answer(&w::ApprovalSignInAnswer::Waiting) });
+        for _ in 0_u8..2 {
+            c.step_at(
+                now,
+                Event::Reply { exchange: c.exchange(), message: take_answer(&w::ApprovalSignInAnswer::Waiting) },
+            );
             assert_eq!(c.machine.link().not_signed_in, Some(NotSignedIn::Approval(Taking::Waiting)));
-            if now == Time::ZERO { assert_link_told(&c); }
-            let until = now.saturating_add(APPROVAL_AGAIN);
+            if now == Time::ZERO {
+                assert_link_told(&c);
+            }
+            let until = now.saturating_add(Duration::from_secs(1));
             assert_eq!(c.machine.next_deadline(), Some(until));
             c.fire(Time::from_nanos(until.as_nanos() - 1));
             assert!(c.requests().is_empty());
@@ -726,17 +755,40 @@ fn a_waiting_take_is_sent_again_each_second_until_it_ends() {
 #[test]
 fn another_sign_in_or_sign_out_stops_a_take_and_its_late_answer() {
     use super::approval::{take_answer, taking};
-    for event in [Event::SignIn { with: With::Transport }, Event::SignOut] {
+    for sign_out in [false, true] {
         for waiting in [false, true] {
-            let mut c = Client::new();
-            c.step(Event::SignIn { with: taking() });
-            let exchange = c.exchange();
-            if waiting { c.step(Event::Reply { exchange, message: take_answer(&w::ApprovalSignInAnswer::Waiting) }); }
-            // Events are owned, and have no Clone; recreate the row's simple event.
-            c.step(match &event { Event::SignIn { .. } => Event::SignIn { with: With::Transport }, Event::SignOut => Event::SignOut, _ => unreachable!() });
-            c.step(Event::Reply { exchange, message: take_answer(&w::ApprovalSignInAnswer::Waiting) });
-            c.fire(Time::ZERO.saturating_add(APPROVAL_AGAIN));
-            assert!(!c.requests().iter().any(|r| matches!(r, Request::Exchange { message: Message::SignInApproval(_), .. })));
+            for late in [
+                w::ApprovalSignInAnswer::Waiting,
+                w::ApprovalSignInAnswer::SignedIn(
+                    w::SignedIn::new(
+                        &w::CEILINGS,
+                        w::SignedInParts {
+                            token: Some(fixtures::credential(&NEW_CREDENTIAL)),
+                            party: PARTY,
+                            expires: 300,
+                        },
+                    )
+                    .unwrap(),
+                ),
+            ] {
+                let mut c = Client::new();
+                c.step(Event::SignIn { with: taking() });
+                let exchange = c.exchange();
+                if waiting {
+                    c.step(Event::Reply { exchange, message: take_answer(&w::ApprovalSignInAnswer::Waiting) });
+                }
+                c.step(if sign_out { Event::SignOut } else { Event::SignIn { with: With::Transport } });
+                let state = c.machine.link().state;
+                c.step(Event::Reply { exchange, message: take_answer(&late) });
+                assert_eq!(c.machine.link().credential, None, "a cancelled take cannot install a late credential");
+                assert_eq!(c.machine.link().state, state);
+                c.fire(Time::ZERO.saturating_add(APPROVAL_AGAIN));
+                for request in c.requests() {
+                    if let Request::Exchange { message: Message::SignInApproval(_), .. } = request {
+                        panic!("a cancelled take is not sent again");
+                    }
+                }
+            }
         }
     }
 }
@@ -751,14 +803,22 @@ fn a_take_not_ready_busy_or_lost_uses_the_existing_backoff() {
         let mut c = Client::new();
         c.step(Event::SignIn { with: taking() });
         let exchange = c.exchange();
-        c.step(match answer { Some(answer) => Event::Reply { exchange, message: take_answer(&answer) }, None => Event::Lost { exchange } });
+        c.step(match answer {
+            Some(answer) => Event::Reply { exchange, message: take_answer(&answer) },
+            None => Event::Lost { exchange },
+        });
         assert_eq!(c.machine.link().not_signed_in, why);
         let until = c.machine.next_deadline().unwrap();
         assert!(until >= Time::ZERO.saturating_add(LEAST_BACKOFF));
         assert!(until <= Time::ZERO.saturating_add(FIRST_BACKOFF));
         c.fire(until);
-        let [Request::Exchange { message: Message::SignInApproval(_), credential: None, .. }] = c.requests() else { panic!("retry take") };
-        c.step_at(until, Event::Reply { exchange: c.exchange(), message: take_answer(&w::ApprovalSignInAnswer::Waiting) });
-        assert_eq!(c.machine.next_deadline(), Some(until.saturating_add(APPROVAL_AGAIN)));
+        let [Request::Exchange { message: Message::SignInApproval(_), credential: None, .. }] = c.requests() else {
+            panic!("retry take")
+        };
+        c.step_at(
+            until,
+            Event::Reply { exchange: c.exchange(), message: take_answer(&w::ApprovalSignInAnswer::Waiting) },
+        );
+        assert_eq!(c.machine.next_deadline(), Some(until.saturating_add(Duration::from_secs(1))));
     }
 }

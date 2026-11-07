@@ -231,7 +231,16 @@ fn link_sign_in_answers_decode_and_trailing_bytes_are_lost() {
 #[test]
 fn each_approval_take_answer_is_decoded_without_a_credential() {
     for (answer, expected) in [
-        (w::ApprovalSignInAnswer::SignedIn(w::SignedIn::new(&w::CEILINGS, w::SignedInParts { token: Some(Secret::new(Box::new(CREDENTIAL))), party: PARTY, expires: 300 }).unwrap()), Signing::SignedIn { party: PARTY }),
+        (
+            w::ApprovalSignInAnswer::SignedIn(
+                w::SignedIn::new(
+                    &w::CEILINGS,
+                    w::SignedInParts { token: Some(Secret::new(Box::new(CREDENTIAL))), party: PARTY, expires: 300 },
+                )
+                .unwrap(),
+            ),
+            Signing::SignedIn { party: PARTY },
+        ),
         (w::ApprovalSignInAnswer::Waiting, Signing::Approval(Taking::Waiting)),
         (w::ApprovalSignInAnswer::Refused, Signing::Approval(Taking::Refused)),
         (w::ApprovalSignInAnswer::Expired, Signing::Approval(Taking::Expired)),
@@ -239,30 +248,68 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
         (w::ApprovalSignInAnswer::Unknown, Signing::Approval(Taking::Unknown)),
         (w::ApprovalSignInAnswer::NotReady, Signing::Again),
         (w::ApprovalSignInAnswer::Busy, Signing::Busy),
-        (w::ApprovalSignInAnswer::Full(w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).unwrap()), Signing::Full { sign_ins: 2, earliest: skein_lib::Wall::from_nanos(400), link_until: skein_lib::Wall::from_nanos(300) }),
-        (w::ApprovalSignInAnswer::SignedIn(w::SignedIn::new(&w::CEILINGS, w::SignedInParts { token: Some(Secret::new(Box::new([9; 39]))), party: PARTY, expires: 300 }).unwrap()), Signing::Lost),
+        (
+            w::ApprovalSignInAnswer::Full(
+                w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 })
+                    .unwrap(),
+            ),
+            Signing::Full {
+                sign_ins: 2,
+                earliest: skein_lib::Wall::from_nanos(400),
+                link_until: skein_lib::Wall::from_nanos(300),
+            },
+        ),
+        (
+            w::ApprovalSignInAnswer::SignedIn(
+                w::SignedIn::new(
+                    &w::CEILINGS,
+                    w::SignedInParts { token: Some(Secret::new(Box::new([9; 39]))), party: PARTY, expires: 300 },
+                )
+                .unwrap(),
+            ),
+            Signing::Lost,
+        ),
     ] {
         for trailing in [false, true] {
             let mut h = Harness::new(&limits());
             h.sign_in(held());
             let exchange = h.sign_in(With::Approval { secret: Secret::new(Box::new(LINK_SECRET)) }).unwrap();
             assert_eq!(h.credentials().as_slice(), &[None], "a take never carries the held credential");
-            let Some(Request::Exchange { message: Message::SignInApproval(body), .. }) = h.out.pop() else { panic!("take exchange") };
+            let Some(Request::Exchange { message: Message::SignInApproval(body), .. }) = h.out.pop() else {
+                panic!("take exchange")
+            };
             let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
             assert_eq!(record.secret().expose(), LINK_SECRET);
             let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap() + usize::from(trailing));
             answer.encode(&mut bytes).unwrap();
-            if trailing { bytes.put(&[0]).unwrap(); }
+            if trailing {
+                bytes.put(&[0]).unwrap();
+            }
             h.answer(exchange, &bytes.finish());
-            assert_eq!(h.out.pop(), Some(Request::Signing { signing: if trailing { Signing::Lost } else { match &expected {
-                Signing::SignedIn { party } => Signing::SignedIn { party: *party },
-                Signing::Approval(taking) => Signing::Approval(*taking),
-                Signing::Again => Signing::Again,
-                Signing::Busy => Signing::Busy,
-                Signing::Full { sign_ins, earliest, link_until } => Signing::Full { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until },
-                Signing::Lost => Signing::Lost,
-                other => panic!("unexpected row {other:?}"),
-            } } }));
+            assert_eq!(
+                h.out.pop(),
+                Some(Request::Signing {
+                    signing: if trailing {
+                        Signing::Lost
+                    } else {
+                        match &expected {
+                            Signing::SignedIn { party } => Signing::SignedIn { party: *party },
+                            Signing::Approval(taking) => Signing::Approval(*taking),
+                            Signing::Again => Signing::Again,
+                            Signing::Busy => Signing::Busy,
+                            Signing::Full { sign_ins, earliest, link_until } => {
+                                Signing::Full { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until }
+                            }
+                            Signing::Lost => Signing::Lost,
+                            other @ (Signing::Refused
+                            | Signing::LinkUsed
+                            | Signing::LinkExpired
+                            | Signing::LinkUnknown
+                            | Signing::SignedOut) => panic!("unexpected row {other:?}"),
+                        }
+                    }
+                })
+            );
             if !trailing && expected == (Signing::SignedIn { party: PARTY }) {
                 assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
             }

@@ -44,7 +44,10 @@ fn each_message_maps_to_its_route_under_the_prefix() {
         let call = exchange(&mapping(), None, message);
         assert_eq!(call.method, Method::Post, "{route:?}");
         assert_eq!(call.path.as_ref(), route, "{route:?}");
-        assert!(call.headers.as_slice().contains(&Header { name: bytes::copy_of(b"Content-Type"), value: bytes::copy_of(b"application/octet-stream") }));
+        assert!(call.headers.as_slice().contains(&Header {
+            name: bytes::copy_of(b"Content-Type"),
+            value: bytes::copy_of(b"application/octet-stream")
+        }));
     }
 }
 #[test]

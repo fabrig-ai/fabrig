@@ -286,6 +286,7 @@ pub(crate) fn route_client(
             request @ (jig_client::Request::Exchange { .. }
             | jig_client::Request::OpenStream { .. }
             | jig_client::Request::CloseStream
+            | jig_client::Request::Approval(_)
             | jig_client::Request::Authorized(_)
             | jig_client::Request::ServiceCredential { .. }) => out.push(Request::Client { request }),
         }
@@ -307,6 +308,8 @@ pub(crate) fn route_unlinked(
                 out.push(Request::Erase { key: Key::Unlinked(key) });
             }
             request @ (jig_client::UnlinkedRequest::Down { .. }
+            | jig_client::UnlinkedRequest::ApprovalAct(_)
+            | jig_client::UnlinkedRequest::Approval(_)
             | jig_client::UnlinkedRequest::Authorized(_)
             | jig_client::UnlinkedRequest::SignOut) => out.push(Request::Unlinked { request }),
         }

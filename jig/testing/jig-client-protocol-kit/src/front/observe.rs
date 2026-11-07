@@ -28,6 +28,10 @@ pub(super) fn callback(event: &jig_client::Event) -> Option<Callback> {
         jig_client::Event::Start { .. }
         | jig_client::Event::StartUnlinked { .. }
         | jig_client::Event::SignIn { .. }
+        | jig_client::Event::AskApproval
+        | jig_client::Event::ReadApproval { .. }
+        | jig_client::Event::DecideApproval { .. }
+        | jig_client::Event::ApprovalAnswer { .. }
         | jig_client::Event::Authorize { .. }
         | jig_client::Event::SignOut
         | jig_client::Event::SignOutLost

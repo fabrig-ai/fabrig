@@ -2,7 +2,8 @@
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable, contract};
 pub use jig_client_domain::{StreamBound, StreamsFull};
-use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token};
+pub use jig_client_protocol_wire::ApprovalCode;
+use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token, Wall};
 /// A record the shell read with its 16-byte request key.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
@@ -14,12 +15,19 @@ pub struct Saved {
     pub version: u16,
     pub record: RequestRecord<jig_client_domain::Held>,
 }
-#[derive(Debug)]
 pub enum Event {
     SignIn {
         with: With,
     },
     SignOut,
+    AskApproval,
+    ReadApproval {
+        code: ApprovalCode,
+    },
+    DecideApproval {
+        code: ApprovalCode,
+        approve: bool,
+    },
     Authorize {
         query: Box<[u8]>,
     },
@@ -76,6 +84,7 @@ pub enum Request {
         full: StreamsFull,
     },
     Authorized(Authorized),
+    Approval(Approval),
     Save {
         record: Record,
     },
@@ -154,25 +163,31 @@ pub enum With {
     Transport,
     Link { secret: Secret, held: Option<Secret> },
     Held(Secret),
+    Approval { secret: Secret },
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Signing {
     SignedIn { party: u64 },
     Again,
     Busy,
-    Full { sign_ins: u32, earliest: skein_lib::Wall, link_until: skein_lib::Wall },
+    Full { sign_ins: u32, earliest: Wall, link_until: Wall },
     Refused,
     LinkUsed,
     LinkExpired,
     LinkUnknown,
+    Approval(Taking),
     Lost,
     SignedOut,
 }
 
 /// A protocol record, independent of its transport's route.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum Message {
     Authorize(Box<[u8]>),
+    ApprovalAsk(Box<[u8]>),
+    ApprovalRead(Box<[u8]>),
+    ApprovalDecide(Box<[u8]>),
+    SignInApproval(Box<[u8]>),
     Request(Box<[u8]>),
     Read(Box<[u8]>),
     Watch(Box<[u8]>),
@@ -183,7 +198,7 @@ pub enum Message {
     SignOut,
 }
 /// A transport exchange's terminal outcome.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum Heard {
     Reply { exchange: Token, message: Box<[u8]> },
     Lost { exchange: Token },
@@ -218,4 +233,134 @@ pub enum AuthorizeWhy {
     UnknownRedirect,
     NoProvider,
     NotAPerson,
+}
+
+/// Why an approval take installed nothing (jig/docs/design/client/domain/client.md, 12).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Taking {
+    Waiting,
+    Refused,
+    Expired,
+    Used,
+    Unknown,
+}
+
+/// An approval's single answer to its host (jig/docs/design/protocol/client.md, 8).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Approval {
+    Asked { secret: Secret, code: ApprovalCode, expires: Wall },
+    NotAsked(NotAsked),
+    Read { code: ApprovalCode, state: ApprovalState },
+    Decided { code: ApprovalCode, decided: Decided },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NotAsked {
+    Refused,
+    NotReady,
+    Busy,
+    Lost,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalState {
+    Waiting { asked: Wall },
+    Approved,
+    Taken,
+    Refused,
+    Expired,
+    Unknown,
+    NotABrowser,
+    SignedOut,
+    NotReady,
+    Busy,
+    Lost,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Decided {
+    Approved,
+    Refused,
+    Used,
+    Expired,
+    Unknown,
+    NotABrowser,
+    SignedOut,
+    NotReady,
+    Busy,
+    Lost,
+}
+
+// Encoded records can carry secrets and credentials (jig/docs/design/protocol/client.md, 8).
+impl core::fmt::Debug for Message {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Authorize(body) => f.debug_struct("Authorize").field("body_len", &body.len()).finish(),
+            Self::ApprovalAsk(body) => f.debug_struct("ApprovalAsk").field("body_len", &body.len()).finish(),
+            Self::ApprovalRead(body) => f.debug_struct("ApprovalRead").field("body_len", &body.len()).finish(),
+            Self::ApprovalDecide(body) => f.debug_struct("ApprovalDecide").field("body_len", &body.len()).finish(),
+            Self::SignInApproval(body) => f.debug_struct("SignInApproval").field("body_len", &body.len()).finish(),
+            Self::Request(body) => f.debug_struct("Request").field("body_len", &body.len()).finish(),
+            Self::Read(body) => f.debug_struct("Read").field("body_len", &body.len()).finish(),
+            Self::Watch(body) => f.debug_struct("Watch").field("body_len", &body.len()).finish(),
+            Self::Unwatch(body) => f.debug_struct("Unwatch").field("body_len", &body.len()).finish(),
+            Self::StreamGone(body) => f.debug_struct("StreamGone").field("body_len", &body.len()).finish(),
+            Self::SignInLink(body) => f.debug_struct("SignInLink").field("body_len", &body.len()).finish(),
+            Self::SignInService => f.write_str("SignInService"),
+            Self::SignOut => f.write_str("SignOut"),
+        }
+    }
+}
+
+// A reply may carry a credential (jig/docs/design/protocol/client.md, 8).
+impl core::fmt::Debug for Event {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::SignIn { with } => f.debug_struct("SignIn").field("with", with).finish(),
+            Self::SignOut => f.write_str("SignOut"),
+            Self::AskApproval => f.write_str("AskApproval"),
+            Self::ReadApproval { code } => f.debug_struct("ReadApproval").field("code", code).finish(),
+            Self::DecideApproval { code, approve } => {
+                f.debug_struct("DecideApproval").field("code", code).field("approve", approve).finish()
+            }
+            Self::Authorize { query } => f.debug_struct("Authorize").field("query", query).finish(),
+            Self::Start { kept } => f.debug_struct("Start").field("kept", kept).finish(),
+            Self::Save { record } => f.debug_struct("Save").field("record", record).finish(),
+            Self::Erase { key } => f.debug_struct("Erase").field("key", key).finish(),
+            Self::Stored => f.write_str("Stored"),
+            Self::NotStored => f.write_str("NotStored"),
+            Self::Send { attempt, key, ask, value } => f
+                .debug_struct("Send")
+                .field("attempt", attempt)
+                .field("key", key)
+                .field("ask", ask)
+                .field("value", value)
+                .finish(),
+            Self::Read { read, what } => f.debug_struct("Read").field("read", read).field("what", what).finish(),
+            Self::Reply { exchange, message } => {
+                f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
+            Self::Open { watch, subject } => {
+                f.debug_struct("Open").field("watch", watch).field("subject", subject).finish()
+            }
+            Self::Continue { watch, subject } => {
+                f.debug_struct("Continue").field("watch", watch).field("subject", subject).finish()
+            }
+            Self::Close { watch } => f.debug_struct("Close").field("watch", watch).finish(),
+            Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
+            Self::StreamGone => f.write_str("StreamGone"),
+        }
+    }
+}
+
+// A reply may carry a credential (jig/docs/design/protocol/client.md, 8).
+impl core::fmt::Debug for Heard {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Reply { exchange, message } => {
+                f.debug_struct("Reply").field("exchange", exchange).field("body_len", &message.len()).finish()
+            }
+            Self::Lost { exchange } => f.debug_struct("Lost").field("exchange", exchange).finish(),
+            Self::Streamed { message } => f.debug_struct("Streamed").field("message", message).finish(),
+            Self::StreamGone => f.write_str("StreamGone"),
+        }
+    }
 }

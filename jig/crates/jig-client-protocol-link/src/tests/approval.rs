@@ -16,19 +16,36 @@ fn code() -> ApprovalCode {
 fn asked() -> Approval {
     Approval::Asked { secret: Secret::new(Box::new([7; 32])), code: code(), expires: Wall::from_nanos(300) }
 }
-fn ask_rows() -> Vec<(Box<[u8]>, Approval)> {
-    vec![
-        (encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS, w::ApprovalAskedParts {
-            secret: Secret::new(Box::new([7; 32])), code: *code().letters(), expires: 300,
-        }).unwrap())), asked()),
+fn ask_rows() -> Box<[(Box<[u8]>, Approval)]> {
+    Box::new([
+        (
+            encoded!(w::ApprovalAskAnswer::Asked(
+                w::ApprovalAsked::new(
+                    &w::CEILINGS,
+                    w::ApprovalAskedParts {
+                        secret: Secret::new(Box::new([7; 32])),
+                        code: *code().letters(),
+                        expires: 300,
+                    }
+                )
+                .unwrap()
+            )),
+            asked(),
+        ),
         (encoded!(w::ApprovalAskAnswer::Refused), Approval::NotAsked(NotAsked::Refused)),
         (encoded!(w::ApprovalAskAnswer::NotReady), Approval::NotAsked(NotAsked::NotReady)),
         (encoded!(w::ApprovalAskAnswer::Busy), Approval::NotAsked(NotAsked::Busy)),
-    ]
+    ])
 }
-fn read_rows() -> Vec<(Box<[u8]>, Approval)> {
-    [
-        (w::ApprovalState::Waiting(w::ApprovalWaiting::new(&w::CEILINGS, w::ApprovalWaitingParts { asked: 100 }).unwrap()), ApprovalState::Waiting { asked: Wall::from_nanos(100) }),
+fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
+    let mut rows = skein_lib::List::with_capacity(10);
+    for (record, state) in [
+        (
+            w::ApprovalState::Waiting(
+                w::ApprovalWaiting::new(&w::CEILINGS, w::ApprovalWaitingParts { asked: 100 }).unwrap(),
+            ),
+            ApprovalState::Waiting { asked: Wall::from_nanos(100) },
+        ),
         (w::ApprovalState::Approved, ApprovalState::Approved),
         (w::ApprovalState::Taken, ApprovalState::Taken),
         (w::ApprovalState::Refused, ApprovalState::Refused),
@@ -38,10 +55,14 @@ fn read_rows() -> Vec<(Box<[u8]>, Approval)> {
         (w::ApprovalState::SignedOut, ApprovalState::SignedOut),
         (w::ApprovalState::NotReady, ApprovalState::NotReady),
         (w::ApprovalState::Busy, ApprovalState::Busy),
-    ].into_iter().map(|(record, state)| (encoded!(record), Approval::Read { code: code(), state })).collect()
+    ] {
+        rows.push((encoded!(record), Approval::Read { code: code(), state })).unwrap();
+    }
+    rows.into_boxed()
 }
-fn decide_rows() -> Vec<(Box<[u8]>, Approval)> {
-    [
+fn decide_rows() -> Box<[(Box<[u8]>, Approval)]> {
+    let mut rows = skein_lib::List::with_capacity(9);
+    for (record, decided) in [
         (w::ApprovalDecided::Approved, Decided::Approved),
         (w::ApprovalDecided::Refused, Decided::Refused),
         (w::ApprovalDecided::Used, Decided::Used),
@@ -51,7 +72,10 @@ fn decide_rows() -> Vec<(Box<[u8]>, Approval)> {
         (w::ApprovalDecided::SignedOut, Decided::SignedOut),
         (w::ApprovalDecided::NotReady, Decided::NotReady),
         (w::ApprovalDecided::Busy, Decided::Busy),
-    ].into_iter().map(|(record, decided)| (encoded!(record), Approval::Decided { code: code(), decided })).collect()
+    ] {
+        rows.push((encoded!(record), Approval::Decided { code: code(), decided })).unwrap();
+    }
+    rows.into_boxed()
 }
 fn event(kind: u8) -> Event {
     match kind {
@@ -74,10 +98,31 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
     let Some(Request::Exchange { exchange, credential, message }) = h.out.pop() else { panic!("approval exchange") };
     assert!(credential.is_none());
     match message {
-        Message::ApprovalAsk(body) => { assert_eq!(kind, 0); assert_eq!(body, encoded!(w::ApprovalAsk::new(&w::CEILINGS, w::ApprovalAskParts {}).unwrap())); }
-        Message::ApprovalRead(body) => { assert_eq!(kind, 1); let record = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap(); assert_eq!(record.code(), code().letters()); }
-        Message::ApprovalDecide(body) => { assert_eq!(kind, 2); let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap(); assert_eq!(record.code(), code().letters()); assert!(record.approve()); }
-        other => panic!("approval message: {other:?}"),
+        Message::ApprovalAsk(body) => {
+            assert_eq!(kind, 0);
+            assert_eq!(body, encoded!(w::ApprovalAsk::new(&w::CEILINGS, w::ApprovalAskParts {}).unwrap()));
+        }
+        Message::ApprovalRead(body) => {
+            assert_eq!(kind, 1);
+            let record = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
+            assert_eq!(record.code(), code().letters());
+        }
+        Message::ApprovalDecide(body) => {
+            assert_eq!(kind, 2);
+            let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
+            assert_eq!(record.code(), code().letters());
+            assert!(record.approve());
+        }
+        other @ (Message::Authorize(_)
+        | Message::SignInApproval(_)
+        | Message::Request(_)
+        | Message::Read(_)
+        | Message::Watch(_)
+        | Message::Unwatch(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInService
+        | Message::SignOut) => panic!("approval message: {other:?}"),
     }
     exchange
 }
@@ -88,13 +133,23 @@ fn each_approval_message_is_encoded_and_its_answer_decoded() {
             for trailing in [false, true] {
                 let mut h = Harness::new(&limits());
                 let exchange = exchange(&mut h, kind);
-                let mut body = body.to_vec();
-                if trailing { body.push(0); }
+                let mut bytes = Writer::new(body.len().checked_add(usize::from(trailing)).unwrap());
+                bytes.put(&body).unwrap();
+                if trailing {
+                    bytes.put(&[0]).unwrap();
+                }
+                let body = bytes.finish();
                 h.answer(exchange, &body);
-                if !trailing && (expected == (Approval::Read { code: code(), state: ApprovalState::SignedOut }) || expected == (Approval::Decided { code: code(), decided: Decided::SignedOut })) {
+                if !trailing
+                    && (expected == (Approval::Read { code: code(), state: ApprovalState::SignedOut })
+                        || expected == (Approval::Decided { code: code(), decided: Decided::SignedOut }))
+                {
                     assert_eq!(h.out.pop(), Some(Request::Signing { signing: Signing::SignedOut }));
                 }
-                assert_eq!(h.out.pop(), Some(Request::Approval(if trailing { lost(kind) } else { expected_for(&expected) })));
+                assert_eq!(
+                    h.out.pop(),
+                    Some(Request::Approval(if trailing { lost(kind) } else { expected_for(&expected) }))
+                );
                 assert!(h.out.is_empty());
                 h.answer(exchange, &body);
                 assert!(h.out.is_empty(), "an answer is told once");
@@ -141,12 +196,20 @@ fn approval_admission_is_one_ask_and_one_read_or_decision() {
 }
 #[test]
 fn an_invalid_asked_code_or_secret_is_lost() {
-    for (code, secret) in [(*b"AAAAAAAA", Box::from([7; 32].as_slice())), (*b"bcdfghjk", Box::from([7; 32].as_slice())), (*b"BCDFGHJK", Box::from([7; 31].as_slice()))] {
+    for (code, secret) in [
+        (*b"AAAAAAAA", Box::from([7; 32].as_slice())),
+        (*b"bcdfghjk", Box::from([7; 32].as_slice())),
+        (*b"BCDFGHJK", Box::from([7; 31].as_slice())),
+    ] {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 0);
-        let body = encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS, w::ApprovalAskedParts {
-            secret: Secret::new(secret), code, expires: 300,
-        }).unwrap()));
+        let body = encoded!(w::ApprovalAskAnswer::Asked(
+            w::ApprovalAsked::new(
+                &w::CEILINGS,
+                w::ApprovalAskedParts { secret: Secret::new(secret), code, expires: 300 }
+            )
+            .unwrap()
+        ));
         h.answer(exchange, &body);
         assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));
     }
