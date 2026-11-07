@@ -15,14 +15,16 @@ First:
   More ways to start work:
     [11] Chat
       Ask a question or ask for a change.
-    [12] All ways to start work
-  [13] Settings
+    [12] Goal
+      Agents plan a larger change and land it.
+    [13] All ways to start work
+  [14] Settings
   * Pat
 First · landing
 1 queued · last landed just now. Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [14] Store: policy record · checking · checks started just now
+  - [15] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [15] A landed change · 00:00
+  - [16] A landed change · 00:00

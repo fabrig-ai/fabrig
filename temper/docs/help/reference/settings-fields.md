@@ -467,7 +467,7 @@ An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the 
 
 ## project-ways
 
-What a project shows and the way its goals start. With none stored, all switches are false and way is 0.
+What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0.
 
 - `drafts`: true or false. Whether chats can write drafts.
 - `goals`: true or false. Whether the rail shows Goals.

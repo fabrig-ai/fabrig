@@ -13,6 +13,8 @@ use skein_lib::{Duration, Env, Intake, List, Queue, Time, Token, Wall};
 use skein_llm::Credential;
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 
+use skein_world::stream::Trace;
+
 use crate::plaintext::Wire;
 
 /// An independently selected point for an owner close or abort.
@@ -268,7 +270,7 @@ pub struct World {
     pub component: Component,
     pub judge: Judge,
     pub events: Vec<String>,
-    pub trace: Vec<String>,
+    pub trace: Trace,
     env: Env<Limits>,
     above: Queue<Event>,
     below: Queue<IoRequest>,
@@ -327,7 +329,7 @@ impl World {
             component: Component::new(endpoints, &limits).expect("component"),
             judge: Judge::default(),
             events: Vec::new(),
-            trace: Vec::new(),
+            trace: Trace::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
             below: Queue::uncapped(),
@@ -520,7 +522,7 @@ impl World {
 
 /// Cross an owner close with one call's progress, then replay the exact result.
 #[must_use]
-pub fn run(seed: u64, point: Point, abort: bool) -> (Vec<String>, Vec<String>) {
+pub fn run(seed: u64, point: Point, abort: bool) -> (Trace, Vec<String>) {
     let mut world = if point == Point::Waiting { World::configured(seed, 2, 1, 1) } else { World::new(seed, 1) };
     if point == Point::Closing {
         world.until(Point::Idle);

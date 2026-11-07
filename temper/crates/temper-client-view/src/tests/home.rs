@@ -331,6 +331,7 @@ struct StatusFixture {
     document: w::ProjectStatus,
     answered: bool,
     goals: bool,
+    shown: bool,
     goal_rows: Option<ChatFixture>,
     away: Option<AwayFixture>,
 }
@@ -351,7 +352,7 @@ fn home_documents_with_status(
     status: Option<&StatusFixture>,
 ) -> (d::Domain, Token) {
     let (mut root, me_watch, accounts, settings, needs_watch, away_watch) =
-        f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.goals));
+        f::home_root(&home_limits(), rows, dismissed, status.is_some_and(|fixture| fixture.shown));
     if let Some(spell) = status.and_then(|s| s.away.as_ref()).and_then(|a| a.spell.clone()) {
         drive(
             &mut root,
@@ -892,7 +893,7 @@ fn absent(text: &[u8], words: &str) {
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 fn styled(tree: &skein_ui::Tree, style: skein_ui::Style) -> &skein_ui::Node {
-    main_nodes(tree).iter().find(|node| node.styles.as_slice().contains(&style)).expect("styled Home node")
+    tree.nodes().iter().find(|node| node.styles.as_slice().contains(&style)).expect("styled Home node")
 }
 fn children(nodes: &[skein_ui::Node]) -> Box<[&skein_ui::Node]> {
     let mut children = List::with_capacity(u32::try_from(nodes.len()).unwrap());
@@ -2076,6 +2077,7 @@ fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, go
         document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
         answered,
         goals,
+        shown: goals,
         goal_rows: None,
         away: None,
     };
@@ -2536,6 +2538,7 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
         document: w::ProjectStatus::new(&w::CEILINGS, status_parts()).unwrap(),
         answered: true,
         goals: true,
+        shown: !beginning,
         goal_rows: Some(goals),
         away: None,
     };
@@ -2621,13 +2624,28 @@ fn all_n_links_to_goals() {
 fn to_begin_keeps_chats() {
     let root = home_goals(1, 1, true);
     assert!(root.has_goals(f::PROJECT));
+    assert!(!root.forge().ways(f::PROJECT).unwrap().goals);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let nav = styled(view.tree(), crate::look::RAIL_NAV);
+        let mut goals = false;
+        for node in &children(subtree(view.tree(), nav.id)) {
+            goals |= node.name.as_deref() == Some(b"Goals");
+        }
+        assert!(goals);
         main_find(view.tree(), Role::Heading { level: 2 }, b"To begin");
         main_find(view.tree(), Role::Region, b"Chats");
         for node in main_nodes(view.tree()) {
             assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Goals"));
         }
     }
+    let view = f::browser_page_view(&root);
+    let tabs = styled(view.tree(), crate::look::TABBAR);
+    let expected = [b"Home".as_slice(), b"Needs you", b"Goals", b"Chats"];
+    let mut names = List::with_capacity(u32::try_from(expected.len()).unwrap());
+    for node in &children(subtree(view.tree(), tabs.id)) {
+        names.push(node.name.as_deref().unwrap()).unwrap();
+    }
+    assert_eq!(names.as_slice(), expected);
 }
 
 const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
@@ -3170,6 +3188,7 @@ fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts
         document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
         answered: true,
         goals: false,
+        shown: false,
         goal_rows: None,
         away: Some(away),
     };

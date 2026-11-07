@@ -734,7 +734,7 @@ impl ConfiguringChat {
         core.settings.tail_bytes = 1024;
         core.hub_turns = HISTORY_TURNS;
         for owner in &mut core.owners {
-            owner.identity = people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() };
+            owner.identity = temper_engine_domain_forge::user_key(1, 7_u64);
         }
         let period_budget = core.defaults.rules.period_spend;
         limits.people.amendment_bytes = 2048;

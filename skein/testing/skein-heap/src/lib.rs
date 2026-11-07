@@ -64,7 +64,9 @@
 //! `unsafe` in skein, allowed because this crate is test-only and never
 //! linked into a service (testing.md, 6). It only counts; `System`
 //! allocates. On an allocation's path it never panics: where an invariant of
-//! its own breaks, it aborts, as a global allocator must not unwind.
+//! its own breaks, it aborts, as a global allocator must not unwind. It
+//! constructs a padded layout after checking its size once in `alloc`;
+//! `dealloc` reconstructs the same layout, whose conditions `alloc` held.
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::cell::{Cell, RefCell};
@@ -146,30 +148,42 @@ fn warm_runtime() {
     drop(std::io::stderr().lock());
 }
 
-// Const-initialised and without a destructor: reaching them never allocates
-// and never fails, so the allocator can use them. Nothing allocates while it
-// borrows the highs.
-thread_local! {
-    static COUNTS: Counts = const { Counts {
-        live: Cell::new(0), peak: Cell::new(0), made: Cell::new(0), phase: Cell::new(Phase::Idle),
-    } };
-    static HIGHS: RefCell<Highs> = const { RefCell::new(Highs::NONE) };
-}
-
-/// Counters reached together on every allocation and free (testing.md, 5).
-/// Cells keep their values independent while sharing one thread-local lookup.
+/// A thread's counts. Const-initialised and without a destructor: reaching
+/// them never allocates, never fails and never panics, so the allocator can
+/// use them. Nothing allocates while it borrows the highs.
 struct Counts {
     live: Cell<i64>,
     peak: Cell<i64>,
-    /// Allocations made so far, which numbers them from one.
+    // Allocations made so far, which numbers them from one.
     made: Cell<u64>,
     phase: Cell<Phase>,
+    highs: RefCell<Highs>,
+}
+
+impl Counts {
+    #[expect(
+        clippy::declare_interior_mutable_const,
+        reason = "each thread instantiates this constant once in its const-initialised COUNTS"
+    )]
+    const NONE: Counts = Counts {
+        live: Cell::new(0),
+        peak: Cell::new(0),
+        made: Cell::new(0),
+        phase: Cell::new(Phase::Idle),
+        highs: RefCell::new(Highs::NONE),
+    };
+}
+
+const _: () = assert!(!core::mem::needs_drop::<Counts>(), "the allocator's counts have no thread-local destructor");
+
+thread_local! {
+    static COUNTS: Counts = const { Counts::NONE };
 }
 
 /// Counts a block of `layout` allocated, and numbers it. The heap's counts
 /// are signed, as a block freed on another thread than its own takes that
 /// thread's below what it allocated, and wrap rather than trap: a panic
-/// here would allocate.
+/// here would allocate. Reaches `COUNTS` once.
 fn allocated(layout: Layout) -> u64 {
     COUNTS.with(|counts| {
         let made = counts.made.get().wrapping_add(1);
@@ -179,14 +193,14 @@ fn allocated(layout: Layout) -> u64 {
         if live > counts.peak.get() {
             counts.peak.set(live);
             if counts.phase.get() == Phase::Stepping {
-                with_highs(|highs| highs.push(High { made, low: live, live, handed: 0 }));
+                with_highs(counts, |highs| highs.push(High { made, low: live, live, handed: 0 }));
             }
         }
         made
     })
 }
 
-/// Counts the block of `layout` numbered `number` freed.
+/// Counts the block of `layout` numbered `number` freed. Reaches `COUNTS` once.
 fn freed(layout: Layout, number: u64) {
     COUNTS.with(|counts| {
         counts.live.set(counts.live.get().wrapping_sub(size(layout)));
@@ -195,7 +209,7 @@ fn freed(layout: Layout, number: u64) {
         };
         if number > before {
             let bytes = u64::try_from(layout.size()).unwrap_or(u64::MAX);
-            with_highs(|highs| highs.hand(number, bytes));
+            with_highs(counts, |highs| highs.hand(number, bytes));
         }
     });
 }
@@ -206,11 +220,11 @@ fn size(layout: Layout) -> i64 {
 
 /// The highs, on the allocator's paths. They are never borrowed already, as
 /// nothing allocates while it borrows them.
-fn with_highs<F: FnOnce(&mut Highs)>(change: F) {
-    HIGHS.with(|highs| match highs.try_borrow_mut() {
+fn with_highs<F: FnOnce(&mut Highs)>(counts: &Counts, change: F) {
+    match counts.highs.try_borrow_mut() {
         Ok(mut highs) => change(&mut highs),
         Err(_) => broken(),
-    });
+    }
 }
 
 /// Where an invariant of the allocator's own breaks: it aborts. A global
@@ -307,14 +321,15 @@ impl Highs {
     }
 }
 
-/// The block System allocates for one of `layout`, and how far into it the
-/// caller's begins: room before it for its number, as far as its alignment
-/// puts it and no less than a number takes. `None` past what a layout can
-/// describe.
-fn padded(layout: Layout) -> Option<(Layout, usize)> {
+/// The size of System's block and the offset of the caller's within it:
+/// room before it for its number, as far as its alignment puts it and no
+/// less than a number takes. A layout bounds its size by `isize::MAX` less
+/// its alignment minus one, so adding the offset cannot overflow `usize`.
+/// Whether the padded size, rounded to its alignment, fits a layout is
+/// checked by `alloc` alone.
+fn padded(layout: Layout) -> (usize, usize) {
     let offset = layout.align().max(NUMBER);
-    let padded = Layout::from_size_align(layout.size().checked_add(offset)?, offset).ok()?;
-    Some((padded, offset))
+    (layout.size().wrapping_add(offset), offset)
 }
 
 #[expect(
@@ -330,7 +345,8 @@ fn padded(layout: Layout) -> Option<(Layout, usize)> {
 // as they are both live while it copies.
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let Some((padded, offset)) = padded(layout) else {
+        let (bytes, offset) = padded(layout);
+        let Ok(padded) = Layout::from_size_align(bytes, offset) else {
             return ptr::null_mut();
         };
         // SAFETY: `padded` is not empty: it has room for a number at least.
@@ -347,10 +363,9 @@ unsafe impl GlobalAlloc for Counting {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        // It was allocated with `layout`, which padded then.
-        let Some((padded, offset)) = padded(layout) else {
-            return;
-        };
+        let (bytes, offset) = padded(layout);
+        // SAFETY: alloc accepted this layout's padded size and alignment.
+        let padded = unsafe { Layout::from_size_align_unchecked(bytes, offset) };
         // SAFETY: `ptr` came from `alloc` with `layout`, above: its number is
         // in the bytes just before it.
         let number = unsafe { ptr.wrapping_sub(NUMBER).cast::<u64>().read_unaligned() };
@@ -406,26 +421,25 @@ impl Meter {
     /// Bytes allocated since the base and not freed.
     #[must_use]
     pub fn held(&self) -> u64 {
-        let live = COUNTS.with(|counts| counts.live.get());
-        self.since(live).expect("nothing freed that was not allocated since the base")
+        COUNTS
+            .with(|counts| self.since(counts.live.get()))
+            .expect("nothing freed that was not allocated since the base")
     }
 
     /// Starts a step: the highs from now on are the step's, the first being
     /// what is live now.
     pub fn start(&self) {
-        let (made, live) = COUNTS.with(|counts| {
-            let live = counts.live.get();
+        COUNTS.with(|counts| {
+            let (made, live) = (counts.made.get(), counts.live.get());
             counts.peak.set(live);
-            (counts.made.get(), live)
-        });
-        HIGHS.with_borrow_mut(|highs| {
+            let mut highs = counts.highs.borrow_mut();
             highs.step = highs.step.wrapping_add(1);
             highs.len = 0;
             highs.least = i64::MAX;
             highs.merge_span = None;
             highs.push(High { made, low: live, live, handed: 0 });
+            counts.phase.set(Phase::Stepping);
         });
-        COUNTS.with(|counts| counts.phase.set(Phase::Stepping));
     }
 
     /// Ends a step: the most held at once since it started, and what is held
@@ -433,14 +447,14 @@ impl Meter {
     /// starts.
     #[must_use]
     pub fn end(&self) -> Measured {
-        let peak = COUNTS.with(|counts| {
+        COUNTS.with(|counts| {
             assert!(counts.phase.get() == Phase::Stepping, "a step ends after it starts");
             counts.phase.set(Phase::Handing { before: self.before });
-            counts.peak.get()
-        });
-        let step = HIGHS.with_borrow(|highs| highs.step);
-        let peak = self.since(peak).expect("nothing freed that was not allocated since the base");
-        Measured { peak, held: self.held(), step }
+            let step = counts.highs.borrow().step;
+            let peak = self.since(counts.peak.get()).expect("nothing freed that was not allocated since the base");
+            let held = self.since(counts.live.get()).expect("nothing freed that was not allocated since the base");
+            Measured { peak, held, step }
+        })
     }
 
     /// Checks `step` against `bound`, a worst case, and returns the most it
@@ -450,12 +464,12 @@ impl Meter {
     /// the test frees nothing else in between, and checks before the next
     /// step starts. `what` names the step if it fails.
     pub fn check(&self, step: Measured, bound: u64, what: &dyn Debug) -> u64 {
-        let last = HIGHS.with_borrow(|highs| highs.step);
+        let (last, phase) = COUNTS.with(|counts| (counts.highs.borrow().step, counts.phase.get()));
         assert!(
-            last == step.step && COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping,
+            last == step.step && phase != Phase::Stepping,
             "a step is checked once it has ended, before the next starts"
         );
-        let own = HIGHS.with_borrow(|highs| highs.own(self));
+        let own = COUNTS.with(|counts| counts.highs.borrow().own(self));
         let own = own.expect("what a step handed out by a high was live at it");
         assert!(own <= bound, "{what:?}: {own} bytes held at the peak of a step, more than the worst case of {bound}");
         own
@@ -495,12 +509,9 @@ impl Span {
     /// Measures from now.
     #[must_use]
     pub fn start() -> Span {
-        assert!(
-            COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping,
-            "a span is measured outside a meter's step"
-        );
-        warm_runtime();
         COUNTS.with(|counts| {
+            assert!(counts.phase.get() != Phase::Stepping, "a span is measured outside a meter's step");
+            warm_runtime();
             let live = counts.live.get();
             counts.peak.set(live);
             Span { start: live }
