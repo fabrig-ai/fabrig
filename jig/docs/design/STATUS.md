@@ -19,8 +19,10 @@ core world's restore stories are ignored (`domain/engine.md`,
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
-charter versions and endpoint bounds at hello are built; provider-list reads and per-account
-narrowing remain deferred (`domain/engine.md`, 16 and 17.11).
+charter versions and endpoint bounds at hello are built, with worker
+provider-list reads, retained per-account names, atomic catalogue updates
+and per-account offer narrowing (`domain/accounts.md`, 3.7;
+`domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
 A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
