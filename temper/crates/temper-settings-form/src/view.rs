@@ -14,6 +14,7 @@ pub struct ChangeSettings {
     pub items: List<SettingItem>,
     pub running: Running,
 }
+/// A charter and its parts (temper/docs/design/client/tools.md, 5.3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
     pub rest: bool,
@@ -34,6 +35,41 @@ pub struct Charter {
     pub spend: u64,
     pub wake: WakePolicy,
     pub documents: List<CharterDocument>,
+    pub parts: List<CharterPart>,
+}
+/// The store names in bit order (temper/docs/design/client/tools.md, 5.3).
+pub const REASON_NAMES: [&[u8]; 14] = [
+    b"first",
+    b"question",
+    b"question_answered",
+    b"question_ended",
+    b"question_owed",
+    b"escalation",
+    b"proposal",
+    b"person_stalled",
+    b"result",
+    b"notice",
+    b"nothing_awaited",
+    b"news",
+    b"timer",
+    b"words",
+];
+/// The kinds every run is offered, which choose no part (temper/docs/design/client/tools.md, 5.3).
+pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
+    b"answer",
+    b"proposal_decision",
+    b"settings_decision",
+    b"effect_not_made",
+    b"met",
+    b"amendment",
+    b"finish_requested",
+];
+/// A charter's part (temper/docs/design/client/tools.md, 5.3).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterPart {
+    /// Bits of `REASON_NAMES`, as jig's client `CharterPart.on`.
+    pub on: u32,
+    pub instructions: Text,
 }
 /// A charter document (temper/docs/design/protocol/configuration.md, 13.7).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -65,10 +101,18 @@ pub struct HeldRevision {
     pub head: RevisionHead,
     pub holders: u32,
 }
+/// A template's model choice (temper/docs/design/client/tools.md, 5.3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
     pub account: Option<u32>,
+    pub main: ModelEffort,
+    pub subagents: List<ModelEffort>,
+    pub later: Option<LlmLater>,
+}
+/// The choice after a task's first activation (temper/docs/design/client/tools.md, 5.3).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LlmLater {
     pub main: ModelEffort,
     pub subagents: List<ModelEffort>,
 }

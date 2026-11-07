@@ -12,6 +12,7 @@ pub enum Shape {
     Item,
     Setting,
     Charter,
+    CharterPart,
     Document,
     Model,
     Catalogue,
@@ -37,6 +38,7 @@ pub enum Shape {
     Deadline,
     Flags,
     Llm,
+    LlmLater,
     ModelEffort,
     Policy,
     Role,
@@ -123,6 +125,8 @@ pub enum Limit {
     CharterInstructions,
     CharterAlternatives,
     CharterDocuments,
+    CharterParts,
+    CharterPartInstructions,
     DocumentSegment,
     DocumentRepository,
     DocumentBranch,
@@ -181,6 +185,10 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::CharterInstructions => limits.settings.charter_instructions,
             Limit::CharterAlternatives => limits.settings.charter_alternatives,
             Limit::CharterDocuments => limits.settings.charter_documents,
+            Limit::CharterParts => limits.settings.charter_parts,
+            Limit::CharterPartInstructions => {
+                limits.settings.charter_instructions.min(limits.settings.charter_part_instructions)
+            }
             Limit::DocumentSegment => limits.settings.charter_document_name_item,
             Limit::DocumentRepository => limits.settings.charter_document_name_item.saturating_mul(2).saturating_add(1),
             Limit::DocumentBranch => limits

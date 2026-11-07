@@ -96,15 +96,43 @@ fn charter_file(documents: &str) -> Vec<u8> {
         .replace("\"documents\":[]", &format!("\"documents\":{documents}"))
         .into_bytes()
 }
+const PARTS: &str = r#"[{"on":["first"],"instructions":"instructions for the first run only"},{"on":["question_owed","question"],"instructions":"instructions for questions"}]"#;
+fn parts() -> List<c::CharterPart> {
+    list([
+        c::CharterPart { on: 1, instructions: words("instructions for the first run only") },
+        c::CharterPart { on: (1 << 1) | (1 << 4), instructions: words("instructions for questions") },
+    ])
+}
+fn with_parts(file: &[u8], parts: &str, resume: bool) -> Vec<u8> {
+    String::from_utf8(file.to_vec())
+        .expect("file JSON")
+        .replace(r#""documents":["#, &format!(r#""parts":{parts},"documents":["#))
+        .replace(r#""resume":true"#, if resume { r#""resume":true"# } else { r#""resume":false"# })
+        .into_bytes()
+}
 const DOCUMENTS: &str = r#"[{"forge":"code.example","repository":"team/rules","branch":"main","path":"AGENTS.md","heading":"Rules"},{"forge":"code.example","repository":"team/rules","branch":"topic/rules","path":"docs/rules.md"}]"#;
 
 #[test]
+fn settings_reason_names_keep_jigs_bit_order_and_always_offered_names() {
+    assert_eq!(settings_form::view::REASON_NAMES.len(), jig_client_domain::REASON_NAMES.len());
+    for (form, client) in settings_form::view::REASON_NAMES.iter().zip(jig_client_domain::REASON_NAMES) {
+        assert_eq!(*form, client.as_bytes());
+    }
+    assert_eq!(settings_form::view::ALWAYS_OFFERED_NAMES, jig_domain_tasks::ALWAYS_OFFERED_NAMES);
+}
+#[test]
 fn a_settings_file_charter_names_documents() {
-    let file = charter_file(DOCUMENTS);
+    let file = with_parts(&charter_file(DOCUMENTS), PARTS, false);
+    settings_file::decode(&file, &crate::limits::tools()).expect("parts and documents decode");
     let (root, call) = changed(&file, false);
     let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
     let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
-    let (setting, value) = values().remove(0);
+    let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else { panic!("charter") };
+    charter.parts = parts();
+    charter.resume = false;
+    let value = c::SettingValue::Charter(charter);
+    let json = setting_json(setting, value.clone());
+    assert!(core::str::from_utf8(&json).expect("JSON").contains(r#""on":["question","question_owed"]"#));
     assert_eq!(
         change,
         &c::ChangeSettings {
@@ -215,8 +243,11 @@ fn a_document_that_is_no_forge_branch_renders_its_name() {
 }
 #[test]
 fn document_bounds_refuse_each_member_one_past_its_bound() {
-    let file = charter_file(DOCUMENTS);
+    let file = with_parts(&charter_file(DOCUMENTS), PARTS, false);
     for (name, length, path) in [
+        ("charter_parts", 2, "charter.parts"),
+        ("charter_instructions", 35, "charter.parts[0].instructions"),
+        ("charter_part_instructions", 35, "charter.parts[0].instructions"),
         ("charter_documents", 2, "charter.documents"),
         ("charter_document_name", 7, "charter.documents[1].branch"),
         ("charter_document_name_item", 12, "charter.documents[0].forge"),
@@ -226,6 +257,9 @@ fn document_bounds_refuse_each_member_one_past_its_bound() {
         for (bound, allowed) in [(length, true), (length - 1, false)] {
             let mut limits = crate::limits::tools();
             match name {
+                "charter_parts" => limits.settings.charter_parts = bound,
+                "charter_instructions" => limits.settings.charter_instructions = bound,
+                "charter_part_instructions" => limits.settings.charter_part_instructions = bound,
                 "charter_documents" => limits.settings.charter_documents = bound,
                 "charter_document_name" => limits.settings.charter_document_name = bound,
                 "charter_document_name_item" => limits.settings.charter_document_name_item = bound,
@@ -238,6 +272,9 @@ fn document_bounds_refuse_each_member_one_past_its_bound() {
             if let Err(error) = result {
                 let text = core::str::from_utf8(&error).expect("error text");
                 assert!(text.contains("item 1") && text.contains(path), "{text}");
+                if name == "charter_parts" {
+                    assert!(text.contains("tasks.charter_parts"), "{text}");
+                }
             }
         }
     }
@@ -308,6 +345,54 @@ fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
         let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("invalid document");
         let error = core::str::from_utf8(&error).expect("error text");
         assert!(error.contains(&format!("charter.documents[0].{member}")), "{error}");
+    }
+    for (parts, resume, path, why) in [
+        (r#"[{"on":["unknown"],"instructions":"x"}]"#, false, "charter.parts[0].on[0]", r#""unknown" is no reason"#),
+        (
+            r#"[{"on":["answer"],"instructions":"x"}]"#,
+            false,
+            "charter.parts[0].on[0]",
+            r#""answer" goes to every run and chooses no part"#,
+        ),
+        (
+            r#"[{"on":["question","question"],"instructions":"x"}]"#,
+            false,
+            "charter.parts[0].on[1]",
+            r#""question" twice"#,
+        ),
+        (r#"[{"on":[],"instructions":"x"}]"#, false, "charter.parts[0].on", "names no kind"),
+        (PARTS, true, "charter.parts", "a charter that resumes takes no parts"),
+        ("null", false, "charter.parts", "expected array"),
+        (r#"[{"instructions":"x"}]"#, false, "charter.parts[0].on", "missing member"),
+        (r#"[{"on":["first"]}]"#, false, "charter.parts[0].instructions", "missing member"),
+    ] {
+        let file = with_parts(&charter_file(DOCUMENTS), parts, resume);
+        let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("invalid part");
+        let error = core::str::from_utf8(&error).expect("error text");
+        assert_eq!(error, format!("settings file item 1: {path}: {why}"));
+        let (mut root, call) = changed(&file, false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+    for (later, path, why) in [
+        ("null", "llm.later", "expected object"),
+        ("{}", "llm.later.main", "missing member"),
+        (r#"{"main":{"effort":null}}"#, "llm.later.main.model", "missing member"),
+        (r#"{"main":{"model":7}}"#, "llm.later.main.model", "expected string"),
+        (r#"{"main":{"model":"m","effort":7}}"#, "llm.later.main.effort", "expected string"),
+        (r#"{"main":{"model":"m","effort":null},"subagents":null}"#, "llm.later.subagents", "expected array"),
+        (r#"{"main":{"model":"m","effort":null},"subagents":[{}]}"#, "llm.later.subagents[0].model", "missing member"),
+        (r#"{"main":{"model":"m","effort":null},"account":1}"#, "llm.later.account", "unknown member"),
+    ] {
+        let (setting, value) = values().remove(1);
+        let file = String::from_utf8(file_from_setting(&setting_json(setting, value)))
+            .expect("JSON")
+            .replace(r#""llm":{"#, &format!(r#""llm":{{"later":{later},"#));
+        let error = settings_file::decode(file.as_bytes(), &crate::limits::tools()).expect_err("invalid later");
+        assert_eq!(core::str::from_utf8(&error).expect("error text"), format!("settings file item 1: {path}: {why}"));
+        let (mut root, call) = changed(file.as_bytes(), false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
     }
     for heading in ["", r#", "heading":null"#] {
         let file = charter_file(&format!(
@@ -555,7 +640,38 @@ fn settings_calls_parse_and_write_back_with_existing_numbers_unchanged() {
 }
 #[test]
 fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
-    for (setting, value) in values() {
+    let mut cases = values();
+    let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else { panic!("charter") };
+    charter.parts = parts();
+    charter.resume = false;
+    cases.push((setting, c::SettingValue::Charter(charter)));
+    let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
+        main: c::ModelEffort { model: words("later-model"), effort: Some(words("medium")) },
+        subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+    });
+    cases.push((setting, c::SettingValue::Template(template)));
+    for (setting, value) in cases {
+        let bounds = crate::limits::form();
+        let wire = jig_client_protocol_wire::SettingDocument::new(
+            &bounds.settings,
+            jig_client_protocol_wire::SettingDocumentParts {
+                setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
+                    .expect("wire selector"),
+                revision: 5,
+                value: Some(
+                    jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+                        .expect("wire value"),
+                ),
+                application: None,
+                proposed: None,
+            },
+        )
+        .expect("wire document");
+        assert_eq!(
+            settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore value").value,
+            Some(jig::form_setting_value(&value))
+        );
         let json = setting_json(setting, value.clone());
         let file = file_from_setting(&json);
         let items = settings_file::decode(&file, &crate::limits::tools()).expect("whole setting round trip");
