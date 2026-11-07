@@ -1272,8 +1272,11 @@ Not in the tier, each in the lowest world that shows it:
   first line alone. Test 2 keeps the closed line hiding them and the open line
   across a reply.
 - **Goals' link to a draft:** the view's
-  `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
-  Chats page; test 2 holds what a browser's history does with a link.
+  `tests::goals::the_link_shows_with_a_tracked_template` holds its button
+  opening the Start goal sheet with no draft. The client world's
+  `suite::chat_draft::a_goal_from_goals_asks_its_person_and_the_answer_wakes_it`
+  starts by a typed Draft path and answers its person task. Test 2 holds
+  what a browser's history does with a link.
 - **A procedure's plan, agent and lineage, and a fresh client at its address:**
   the client world's `suite::b2::roadmap_b2_through_the_task_pages` and
   `suite::task::a_delegates_page_shows_its_brief_run_and_report`.
@@ -1310,6 +1313,13 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **Whole questions and starting from Goals** (2.5, 7.2; `README.md`,
+  3.5, 5.8, 5.14): the long question's context, evidence and choices, the
+  typed Draft sheet, zero-funding explanations and change-only landings
+  need their browser, walk and render checks after landing. Default:
+  shared view and domain tables, focused client stories from a chat and
+  Goals, and gallery prints; no new browser test for `ui-goal-asks-2`.
 
 - **A failed link with a live cookie** (2.4): falling back to the cookie
   instead of keeping the link's reason is jig's client question

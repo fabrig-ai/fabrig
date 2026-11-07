@@ -21,6 +21,10 @@ proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
+An ended settings acceptance reaches its retained decision with the
+running-work choice. An automatically replaced task proposal has no
+retained decision and answers unknown; retaining one and naming its
+decider remain deferred (`client/domain/contract.md`, 3.2, 4 and 11).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
