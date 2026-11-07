@@ -55,55 +55,61 @@ fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
     }
 }
 
-fn check(kind: Kind, bytes: &[u8], seed: u64, case: &str, valid: bool, refuse: bool) {
+fn check(kind: Kind, bytes: &[u8], context: &str, case: &str, valid: bool, refuse: bool) {
     let result = catch_unwind(|| decode(kind, bytes, refuse));
-    assert!(result.is_ok(), "seed {seed}, {kind:?}, {case}, input {bytes:?}");
+    assert!(result.is_ok(), "{context}{kind:?}, {case}, input {bytes:?}");
     let encoded = result.expect("panic reported with seed and input");
     if valid {
-        assert!(encoded.is_some(), "seed {seed}, {kind:?}, {case}: bound fixture must decode");
+        assert!(encoded.is_some(), "{context}{kind:?}, {case}: bound fixture must decode");
     }
     if let Some(encoded) = encoded {
-        assert_eq!(encoded.as_ref(), bytes, "seed {seed}, {kind:?}, {case}");
+        assert_eq!(encoded.as_ref(), bytes, "{context}{kind:?}, {case}");
     }
 }
 
 #[test]
 fn public_records_decoders_never_panic_and_reencode_the_same() {
     let fixtures = catch_unwind(bound_records).expect("seed 1: build bound records");
+    for (kind, golden, length_at, ceiling) in &fixtures {
+        fixed(*kind, golden, *length_at, *ceiling);
+    }
     for seed in 1..=SEEDS {
         assert!(catch_unwind(|| sweep(seed, &fixtures)).is_ok(), "seed {seed}: public record sweep panicked");
     }
 }
 
 fn sweep(seed: u64, fixtures: &[(Kind, Box<[u8]>, usize, u32); 3]) {
+    let context = format!("seed {seed}, ");
     let mut rng = Rng::new(seed);
     let arbitrary = temper_codecs_world::drawn(&mut rng, ARBITRARY_BYTES);
-    for (kind, golden, length_at, ceiling) in fixtures {
-        check(*kind, &arbitrary, seed, "arbitrary", false, false);
-        check(*kind, golden, seed, "at every bound", true, false);
+    for (kind, golden, _, _) in fixtures {
+        check(*kind, &arbitrary, &context, "arbitrary", false, false);
         let length = skein_lib::len_u64(golden.len());
         let at = usize::try_from(rng.below(length)).expect("seed: byte position fits usize");
         let mut bytes = golden.to_vec();
         *bytes.get_mut(at).expect("seed: chosen byte") ^= 1 << rng.below(u64::from(u8::BITS));
-        check(*kind, &bytes, seed, "flipped", false, false);
+        check(*kind, &bytes, &context, "flipped", false, false);
         bytes.clear();
         bytes.extend_from_slice(golden);
         let inserted_at = usize::try_from(rng.between(0, length)).expect("seed: insertion position fits");
         bytes.insert(inserted_at, u8::try_from(rng.below(256)).expect("seed: one byte"));
-        check(*kind, &bytes, seed, "inserted", false, false);
+        check(*kind, &bytes, &context, "inserted", false, false);
         bytes.clear();
         bytes.extend_from_slice(golden);
         bytes.remove(at);
-        check(*kind, &bytes, seed, "removed", false, false);
-        bytes.clear();
-        bytes.extend_from_slice(golden);
-        let end = length_at.checked_add(size_of::<u32>()).expect("seed: length prefix fits");
-        bytes
-            .get_mut(*length_at..end)
-            .expect("seed: length prefix")
-            .copy_from_slice(&ceiling.checked_add(1).expect("seed: ceiling has successor").to_be_bytes());
-        check(*kind, &bytes, seed, "length past ceiling", false, true);
+        check(*kind, &bytes, &context, "removed", false, false);
     }
+}
+
+fn fixed(kind: Kind, golden: &[u8], length_at: usize, ceiling: u32) {
+    check(kind, golden, "", "at every bound", true, false);
+    let mut bytes = golden.to_vec();
+    let end = length_at.checked_add(size_of::<u32>()).expect("length prefix fits");
+    bytes
+        .get_mut(length_at..end)
+        .expect("length prefix")
+        .copy_from_slice(&ceiling.checked_add(1).expect("ceiling has successor").to_be_bytes());
+    check(kind, &bytes, "", "length past ceiling", false, true);
 }
 
 fn bound_records() -> [(Kind, Box<[u8]>, usize, u32); 3] {
