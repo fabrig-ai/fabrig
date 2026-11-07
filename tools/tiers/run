@@ -60,49 +60,51 @@ def build(name, arguments, env):
         raise FailedStep(f"{name}: exit {code}")
 
 
+def bundle_entry(tree):
+    """The tree's table in the bundle list (tools/tiers/design.md, 2.2)."""
+    path = Path("tools/tiers/bundles.toml")
+    try:
+        with path.open("rb") as source:
+            bundles = tomllib.load(source)
+    except (OSError, ValueError) as error:
+        raise FailedStep(f"bundle list: read {path} from the checkout root: {error}") from error
+    entry = bundles.get(tree)
+    if not isinstance(entry, dict):
+        raise FailedStep(f"bundle list: {path} has no [{tree}] table")
+    fields = ("package", "out", "variable", "options", "features")
+    for key in sorted(set(entry) - set(fields)):
+        raise FailedStep(f"bundle list: {path}: {tree}.{key} is no bundle field")
+    for field in fields:
+        value = entry.get(field)
+        if field in ("package", "variable"):
+            valid = isinstance(value, str) and bool(value)
+            requirement = "a non-empty string"
+        elif field == "out":
+            valid = isinstance(value, str) and value not in ("", ".", "..") and "/" not in value
+            requirement = "a plain directory name"
+        else:
+            valid = isinstance(value, list) and all(isinstance(item, str) for item in value)
+            requirement = "an array of strings"
+        if not valid:
+            raise FailedStep(f"bundle list: {path}: {tree}.{field} must be {requirement}")
+    return entry
+
+
 def bundle(tree, target, env):
-    if tree == "skein":
-        package = "skein-ui-example-shell-web"
-        out = target / "ui-example-bundle"
-        variable = "SKEIN_UI_EXAMPLE_BUNDLE"
-        options = ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
-                   "--placeholder", "skein/examples/ui/shell-web/loading.html",
-                   "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
-                   "--noscript", "Notes needs WebAssembly and scripts."]
-        features = []
-    elif tree == "jig":
-        package = "jig-client-test-shell-web"
-        out = target / "jig-test-bundle"
-        variable = "JIG_TEST_BUNDLE"
-        options = ["--stylesheet", "jig/crates/jig-client-shell-web/jig.css",
-                   "--stylesheet", "jig/testing/jig-client-test-shell-web/jig_client_test_shell_web.css",
-                   "--pictures", "jig=jig/crates/jig-client-shell-web/pictures",
-                   "--pictures", "jig-test=jig/testing/jig-client-test-shell-web/pictures",
-                   "--files", "jig/testing/jig-client-test-shell-web/files",
-                   "--noscript", "jig needs WebAssembly and scripts."]
-        features = []
-    else:
-        package = "temper-client-shell-web"
-        out = target / "temper-bundle"
-        variable = "TEMPER_TEST_BUNDLE"
-        shell = "temper/crates/temper-client-shell-web"
-        options = ["--title", "temper", "--placeholder", f"{shell}/loading.html",
-                   "--placeholder-stylesheet", f"{shell}/loading.css",
-                   "--stylesheet", f"{shell}/temper.css",
-                   "--stylesheet", f"{shell}/task-pages.css",
-                   "--files", f"{shell}/files",
-                   "--noscript", "temper needs WebAssembly and scripts."]
-        features = ["--features", "loopback-navigation,small-window"]
+    entry = bundle_entry(tree)
+    package = entry["package"]
+    out = target / entry["out"]
+    features = ["--features", ",".join(entry["features"])] if entry["features"] else []
     build("wasm module", ["--target", "wasm32-unknown-unknown", *features, "-p", package], env)
     build("bundle tool", ["-p", "skein-ui-bundle"], env)
     module = package.replace("-", "_")
     command = [str(target / "debug/skein-ui-bundle"),
                "--module", str(target / "wasm32-unknown-unknown/debug" / f"{module}.wasm"),
-               "--name", module, "--prefix", "/bundle/", *options, "--out", str(out)]
+               "--name", module, "--prefix", "/bundle/", *entry["options"], "--out", str(out)]
     code = step("browser bundle", command, env, wrapped=False)
     if code:
         raise FailedStep(f"browser bundle: exit {code}")
-    env[variable] = str(out)
+    env[entry["variable"]] = str(out)
 
 
 def target_directory(env):
@@ -266,7 +268,7 @@ def main(argv=None):
                     matches = False
             return 0 if matches else 1
         target = None
-        if args.tier == "browser" and args.tree in ("skein", "jig", "temper"):
+        if args.tier == "browser":
             target = target_directory(env)
             bundle(args.tree, target, env)
             if profile == "browser-temper":
