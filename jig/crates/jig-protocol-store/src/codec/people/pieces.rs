@@ -389,26 +389,44 @@ pub(in crate::codec) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]
     }
 }
 
+// Empty-item wire bytes and the piece's u32 length (protocol/store.md, 5.1).
+// The focused test below holds these to the generated family's bounds.
+const GRANT_FRAMING: u64 = 17;
+const PERMISSION_FRAMING: u32 = 12;
+
 pub(super) fn shared_sum(limits: &wire::Limits) -> u32 {
-    let framing = wire::Grant::encoded_bound(&EMPTY)
-        .expect("fixed grant")
-        .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))
-        .expect("fixed framing");
     let overhead = u64::try_from(size_of::<domain::Grant>())
         .expect("grant size")
-        .checked_sub(framing)
+        .checked_sub(GRANT_FRAMING)
         .expect("inline grant is larger than its framing");
     limits.authority_grants.checked_add(u32::try_from(overhead).expect("grant overhead")).expect("schema bounds sum")
 }
 pub(super) fn permission_sum(limits: &wire::Limits) -> u32 {
-    let framing = wire::PermissionRole::encoded_bound(&EMPTY)
-        .expect("fixed permission")
-        .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))
-        .expect("fixed framing");
     limits
         .policy_value_permissions
-        .checked_div(u32::try_from(framing).expect("permission framing"))
+        .checked_div(PERMISSION_FRAMING)
         .expect("nonzero framing")
         .checked_mul(u32::try_from(size_of::<domain::PermissionRole>()).expect("permission size"))
         .expect("decoded size is no larger than its piece")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EMPTY, GRANT_FRAMING, PERMISSION_FRAMING, wire};
+
+    #[test]
+    fn fixed_piece_framing_matches_the_generated_bounds() {
+        let grant = wire::Grant::encoded_bound(&EMPTY).expect("empty grant limits fit the family");
+        assert_eq!(
+            Some(GRANT_FRAMING),
+            grant.checked_add(4),
+            "grant framing includes its empty pattern and piece length"
+        );
+        let permission = wire::PermissionRole::encoded_bound(&EMPTY).expect("empty permission limits fit the family");
+        assert_eq!(
+            Some(u64::from(PERMISSION_FRAMING)),
+            permission.checked_add(4),
+            "permission framing includes its piece length"
+        );
+    }
 }

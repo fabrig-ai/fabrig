@@ -25,7 +25,6 @@ fn write_report(name: &str) -> Box<[api::Script]> {
 fn directory(seed: u64, files: &Files, placement: Placement, name: &str, writable: bool) -> World {
     let mut world = World::plain(seed, files, placement, name.as_bytes(), writable);
     world.scenario.scripts = Some(write_report(name));
-    world.scenario.launch.traced = true;
     world
 }
 
@@ -48,6 +47,7 @@ fn a_named_read_only_root_refuses_the_agents_write() {
     for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = directory(82, &files, placement, "kit", false);
+        world.scenario.launch.traced = true;
         world.settle();
         world.assert_ended(Ending::Report(b"Wrote it".to_vec()));
         let records = match placement {

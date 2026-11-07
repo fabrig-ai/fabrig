@@ -196,22 +196,60 @@ pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
     result.extend_from_slice(&input[span.end..]);
     result.into_boxed_slice()
 }
+
+/// Several reads and disjoint edits of one fixture share its parsed document.
+pub struct Json<'a> {
+    input: &'a [u8],
+    document: skein_json::Document,
+}
+impl<'a> Json<'a> {
+    pub fn new(input: &'a [u8]) -> Self {
+        let document = jig_protocol_config::document(
+            input,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+        )
+        .unwrap();
+        Self { input, document }
+    }
+    pub fn value(&self, path: &[u8]) -> &[u8] {
+        &self.input[member_span_in(self.input, &self.document, path)]
+    }
+    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Box<[u8]> {
+        let mut edits: Vec<_> = edits
+            .iter()
+            .map(|(path, json)| (member_span_in(self.input, &self.document, path), turn_limits(path, json)))
+            .collect();
+        edits.sort_unstable_by_key(|(span, _)| span.start);
+        let mut result = Vec::new();
+        let mut after = 0;
+        for (span, json) in edits {
+            assert!(after <= span.start, "fixture edits are disjoint");
+            result.extend_from_slice(&self.input[after..span.start]);
+            result.extend_from_slice(&json);
+            after = span.end;
+        }
+        result.extend_from_slice(&self.input[after..]);
+        result.into_boxed_slice()
+    }
+}
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
-    use jig_protocol_config::{self as config, read};
-    let document =
-        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    let json = Json::new(input);
+    member_span_in(input, &json.document, path)
+}
+fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) -> core::ops::Range<usize> {
+    use jig_protocol_config::read;
     let mut at = 0;
     for member in core::str::from_utf8(path).unwrap().split('.') {
         let (member, index) = match member.split_once('[') {
             Some((member, index)) => (member, Some(index.trim_end_matches(']').parse::<usize>().unwrap())),
             None => (member, None),
         };
-        at = read::Object::new(&document, at).unwrap().member(&document, member.as_bytes()).unwrap();
+        at = read::Object::new(document, at).unwrap().member(document, member.as_bytes()).unwrap();
         if let Some(index) = index {
-            at = *read::list(&document, at, 16_384).unwrap().get(u32::try_from(index).unwrap()).unwrap();
+            at = *read::list(document, at, 16_384).unwrap().get(u32::try_from(index).unwrap()).unwrap();
         }
     }
-    let after = read::after(&document, at).unwrap();
+    let after = read::after(document, at).unwrap();
     let mut token = 0;
     let mut start = None;
     let mut end = None;

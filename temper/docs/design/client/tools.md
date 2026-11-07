@@ -2425,10 +2425,10 @@ Each is named here and designed when it comes.
   and nothing of what lies beyond. Whether the line stays, and its person
   form, is settled when jig bounds another act.
 - **A step before a project goes public** (5.3): `project amend --visibility
-  public` acts at once, so a person who has read neither its help nor
-  `temper help open-public-reading` meets its words only in its answer. A flag
-  that names them could stand first. Default: none, the request `ui-public-3`
-  asking the answer or the help to say so.
+  public` acts at once, so a person who has skipped the publication help
+  meets its words only in the completed answer's stderr, after visibility
+  has changed. A flag that names them could stand first. Default: none,
+  the request `ui-public-3` asking the answer or the help to say so.
 
 ## 15. Open questions
 

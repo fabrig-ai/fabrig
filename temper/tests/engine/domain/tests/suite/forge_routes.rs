@@ -119,6 +119,7 @@ mod early_start;
 #[path = "forge_routes/goal_questions.rs"]
 mod goal_questions;
 
+mod goal_delivery;
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;
 

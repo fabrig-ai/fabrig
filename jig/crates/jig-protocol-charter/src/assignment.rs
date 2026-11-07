@@ -46,6 +46,7 @@ pub fn assignment(run: core::RunCharter, brief: Box<[Section]>, tools: Box<[Tool
         wait: WAIT_GRANTED,
         agents: policy.agents,
         workspace: WorkspaceTools { inspect: policy.inspect, modify: policy.modify, shell: policy.shell },
+        delivers: false,
         conventions: None,
         contract: contract(run.contract)?,
         budget: Budget {

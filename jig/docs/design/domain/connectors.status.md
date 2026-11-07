@@ -1,6 +1,11 @@
 # connectors: status
 
-2026-11-06. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-07. Where jig's code lags or departs from [connectors.md](connectors.md).
+
+Section 11's procedure beside its requester's own writing run is present
+in temper's forge connector. Its held-branch step tests and engine domain
+stories cover that exception; another run, a lost writer and an effect
+entry still stop the procedure. The exception grants no second writer.
 
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
   horizon, which is not built (`../protocol/store.md`, 11.1).
