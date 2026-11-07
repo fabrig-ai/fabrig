@@ -23,10 +23,13 @@ changes.
   the drawing: step code; the terminal: ordinary Rust on io), and the test
   crate `tests/ui-screen`; the panic's restoration in skein-fail-stop and
   skein-shell; the simulated window.
-- **`tui`** (`temper/docs/design/client/README.md`, 6.11 to 6.16; written
-  in a later batch): `temper-client-tui` (the TUI's state, view and theme)
-  and `temper-client-shell-tui` (its host and its loop); bare `temper` and
-  `temper ADDRESS`; the client world's stories.
+- **`tui`** (`temper/docs/design/client/README.md`, 6.11 to 6.16, and
+  `notes/tui.md`): `temper-client-tui` (the TUI's state, words, view and
+  theme) and `temper-client-shell-tui` (its host and its loop); bare
+  `temper` and `temper ADDRESS`; the client world's stories.
+  `temper-client-domain` and `temper-client-view` do not change: the TUI
+  reads the root's `me` and link and says the view's words through their
+  public items.
 
 ## Tasks so far
 
@@ -40,6 +43,7 @@ changes.
 | `screen-terminal` | screen | screen-keys, sim-window | the terminal on io, and `tests/ui-screen` |
 | `screen-roles` | screen | screen-render | every other role, as the text shell says it |
 | `screen-status` | screen | every screen task | skein's statuses closed from the trunk's code |
+| `tui-view` | tui | screen-surface | `temper-client-tui`: the TUI's state, words, two screens, themes and limits |
 
 ## Critical path, as it stands
 

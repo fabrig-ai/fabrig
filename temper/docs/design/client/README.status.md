@@ -839,3 +839,10 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
+- **Not yet:** 2: the crates `temper-client-tui` and `temper-client-shell-tui`.
+  6.11: bare `temper` and `temper ADDRESS`: the binary's table has no row for them, and bare
+  `temper` prints its line whatever its terminal (`crates/temper/src/commands.rs`). 6.12: the
+  TUI's directory and its `address`. 6.13: the TUI's host and its seam. 6.14: its two
+  screens, its state and its words. 6.15: its themes. 6.16: its loop, its closing and the
+  binary's startup around it. 10: the TUI's goldens and rows, its loop on the simulated
+  machine, and its stories in the joint world.
