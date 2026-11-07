@@ -175,7 +175,7 @@ pub const ROWS: [Row; 118] = [
     (Word::Suspended, &[b"This account is suspended."], &[]),
     (Word::Full, &[b"The picker is full. Use Not listed to add another repository."], &[]),
     (Word::NoneReachable, &[b"None reachable."], &[]),
-    (Word::NoneFound, &[b"Nothing matches. Try another name, or use Not listed."], &[]),
+    (Word::NoneFound, &[b"Nothing here matches \xe2\x80\x9c", b"\xe2\x80\x9d."], &[Name]),
     (Word::AdoptOne, &[b"Adopt ", b""], &[Name]),
     (Word::AdoptMany, &[b"Adopt ", b" repositories"], &[Number]),
     (Word::Grant, &[b"Check ", b" exists, and grant it to temper\xe2\x80\x99s App on GitHub."], &[Name]),
@@ -291,7 +291,7 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
         Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
-        Word::ForgeSaid => 768,
+        Word::ForgeSaid | Word::NoneFound => 768,
         Word::CopyOne => text.checked_mul(3).expect("lossy address fits").max(513),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,
@@ -370,7 +370,6 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
         | Word::Suspended
         | Word::Full
         | Word::NoneReachable
-        | Word::NoneFound
         | Word::AdoptMany
         | Word::InstallAnother
         | Word::Sources
