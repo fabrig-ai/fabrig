@@ -19,6 +19,8 @@ pub(crate) struct Call {
     pub body_kind: http::Body,
     pub credential: Option<skein_lib::Secret>,
     pub browser: bool,
+    /// Whether the credential came by the cookie (protocol/client.md, 17.3).
+    pub cookie: bool,
     pub via: crate::Via,
     pub body: Intake,
     pub route: Route,
@@ -39,6 +41,7 @@ impl Call {
             body_kind: http::Body::None,
             credential: None,
             browser: false,
+            cookie: false,
             via: crate::Via::Listener,
             body: Intake::with_capacity(limits.body),
             route: Route::Missing,
@@ -158,7 +161,7 @@ impl Call {
                     let credential = self.credential.take();
                     let message = match crate::dispatch::message(&self.route, body) {
                         Some(message) => jig_protocol_engine_clients::FromTransport::Exchange {
-                            browser: false,
+                            browser: self.cookie,
                             exchange: self.name,
                             credential,
                             message,

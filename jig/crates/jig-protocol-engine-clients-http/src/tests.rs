@@ -158,7 +158,12 @@ fn a_browser_s_link_sign_in_sets_the_cookie_and_answers_no_token() {
         let mut out = Queue::with_capacity(16);
         let call = fixtures::call(&mut mount, &mut out, Method::Post, path, &fixtures::browser_header(), b"");
         assert_eq!(fixtures::component(&mut out).len(), 1, "{path:?}");
-        fixtures::reply(&mut mount, &mut out, call, fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY));
+        fixtures::reply(
+            &mut mount,
+            &mut out,
+            call,
+            fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY),
+        );
         let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), Some(fixtures::COOKIE_ON_LISTENER), "{path:?}");
@@ -174,7 +179,12 @@ fn a_native_sign_in_answers_its_token_in_the_body() {
         let mut out = Queue::with_capacity(16);
         let call = fixtures::call(&mut mount, &mut out, Method::Post, path, &[], b"");
         assert_eq!(fixtures::component(&mut out).len(), 1, "{path:?}");
-        fixtures::reply(&mut mount, &mut out, call, fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY));
+        fixtures::reply(
+            &mut mount,
+            &mut out,
+            call,
+            fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY),
+        );
         let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), None, "{path:?}");
@@ -264,12 +274,15 @@ fn the_approval_routes_reach_the_component_as_their_messages() {
         let mut out = Queue::with_capacity(16);
         fixtures::call(&mut mount, &mut out, Method::Post, path, &[], b"ask");
         exchanges.push((path, fixtures::component(&mut out)));
-        expected.push((path, Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
-            exchange: fixtures::EXCHANGE,
-            credential: None,
-            browser: false,
-            message: message(Box::from(b"ask".as_slice())),
-        }])));
+        expected.push((
+            path,
+            Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
+                exchange: fixtures::EXCHANGE,
+                credential: None,
+                browser: false,
+                message: message(Box::from(b"ask".as_slice())),
+            }]),
+        ));
     }
     assert_eq!(exchanges, expected);
 }
@@ -286,7 +299,8 @@ fn the_approval_routes_refuse_every_other_method() {
     }
 }
 const COOKIE_FIELD: (&[u8], &[u8]) = (b"cookie", b"jig-sign-in=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw");
-const BEARER_FIELD: (&[u8], &[u8]) = (b"authorization", b"Bearer BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw");
+const BEARER_FIELD: (&[u8], &[u8]) =
+    (b"authorization", b"Bearer BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw");
 const BROWSER_FIELD: (&[u8], &[u8]) = (b"jig-client", b"browser");
 const CARRIERS: &[(&str, Fields, Option<bool>)] = &[
     ("cookie and header", &[COOKIE_FIELD, BROWSER_FIELD], Some(true)),
@@ -330,7 +344,12 @@ const REFUSED: &[(Method, &[u8], Fields, u16)] = &[
     ),
     (Method::Post, b"/jig/v1/read", &[(b"host", b"127.0.0.1:8080"), (b"content-type", b"text/plain")], 415),
     (Method::Options, b"/jig/v1/read", &[(b"host", b"127.0.0.1:8080")], 404),
-    (Method::Post, b"/jig/v1/approval/decide", &[(b"host", b"evil.test:7100"), (b"content-type", b"application/octet-stream")], 421),
+    (
+        Method::Post,
+        b"/jig/v1/approval/decide",
+        &[(b"host", b"evil.test:7100"), (b"content-type", b"application/octet-stream")],
+        421,
+    ),
     (Method::Post, b"/jig/v1/approval/decide", &[(b"host", b"127.0.0.1:8080"), (b"content-type", b"text/plain")], 415),
     (Method::Options, b"/jig/v1/approval/decide", &[(b"host", b"127.0.0.1:8080")], 404),
 ];
@@ -512,9 +531,14 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
         }
     }
     for record in [
-        w::ApprovalSignInAnswer::Busy, approval_full, w::ApprovalSignInAnswer::Waiting,
-        w::ApprovalSignInAnswer::Refused, w::ApprovalSignInAnswer::Expired,
-        w::ApprovalSignInAnswer::Used, w::ApprovalSignInAnswer::Unknown, w::ApprovalSignInAnswer::NotReady,
+        w::ApprovalSignInAnswer::Busy,
+        approval_full,
+        w::ApprovalSignInAnswer::Waiting,
+        w::ApprovalSignInAnswer::Refused,
+        w::ApprovalSignInAnswer::Expired,
+        w::ApprovalSignInAnswer::Used,
+        w::ApprovalSignInAnswer::Unknown,
+        w::ApprovalSignInAnswer::NotReady,
     ] {
         let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut bytes).unwrap();
@@ -527,7 +551,7 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
             let browser_headers = fixtures::browser();
             let headers: &[skein_http::Header] = if browser { &browser_headers } else { &[] };
             let call = fixtures::call(&mut mount, &mut out, Method::Post, path, headers, b"");
-            fixtures::component(&mut out);
+            assert_eq!(fixtures::component(&mut out).len(), 1, "{path:?}");
             fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.clone()));
             let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
             assert_eq!(status, 200, "{path:?}");
