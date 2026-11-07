@@ -57,7 +57,7 @@ record OutcomeSettingsChanged { revision: u32 }
 record RefusalStale { newest: u32 }
 record RefusalFull { revision: u32 tasks: list 32 u64 more: u32 }
 enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged }
-enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector }
+enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector, stored_policy }
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }
 record MalformedSettings { setting: Setting fault: SettingFault detail: option SettingDetail }

@@ -48,9 +48,25 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
         let mut charter = base.clone();
         charter.parts = parts;
         charter.policy.resume = resume;
+        let supplied = policy_owned_bytes(&charter.policy)
+            .unwrap()
+            .checked_add(parts_owned_bytes(&charter.parts).unwrap())
+            .unwrap();
         let value = Value::Charter(Box::new(charter));
+        let detail = if name == "past run bytes" {
+            Some(people::SettingDetail {
+                member: people::SettingMember::StoredPolicy,
+                document: 0,
+                segment: 0,
+                rule: people::SettingRule::Maximum,
+                supplied: u32::try_from(supplied).unwrap(),
+                bound: limits.run_bytes,
+            })
+        } else {
+            None
+        };
         let expected = match fault {
-            Some(fault) => Err(Failure { setting: Setting::Charter(1), fault, detail: None }),
+            Some(fault) => Err(Failure { setting: Setting::Charter(1), fault, detail }),
             None => Ok(()),
         };
         let items = [Item { setting: Setting::Charter(1), edit: Edit::Set(value.clone()) }];
@@ -65,7 +81,7 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
             "{name}: restore"
         );
         if let Some(fault) = fault {
-            check_refused_change(&items, &limits, fault, name);
+            check_refused_change(&items, &limits, fault, detail, name);
         }
         let mut at_start = Current::new(config(1).defaults, &limits, &[]);
         at_start.defaults.get_mut(&Setting::Charter(1)).unwrap().value = value.clone();
@@ -84,7 +100,13 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
     }
 }
 
-fn check_refused_change(items: &[Item], limits: &Limits, fault: Fault, name: &str) {
+fn check_refused_change(
+    items: &[Item],
+    limits: &Limits,
+    fault: Fault,
+    detail: Option<people::SettingDetail>,
+    name: &str,
+) {
     use crate::routing::{party::dispatch::Routed, settings::dispatch};
     let (mut core, _) = core();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
@@ -110,7 +132,7 @@ fn check_refused_change(items: &[Item], limits: &Limits, fault: Fault, name: &st
         result,
         Err(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: Setting::Charter(1), fault, detail: None },
+            why: people::Malformed::Settings { setting: Setting::Charter(1), fault, detail },
         }),
         "{name}: malformed reply at the charter item"
     );
