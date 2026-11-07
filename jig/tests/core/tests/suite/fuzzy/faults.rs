@@ -216,3 +216,43 @@ fn random_drawn_commit_cuts_preserve_whole_turns_and_atomic_effect_decisions() {
         });
     }
 }
+
+#[test]
+fn every_commit_of_a_turn_effect_and_terminal_survives_both_crash_cuts() {
+    let mut reference = World::new(Setup { seed: 300, ..Setup::default() });
+    let first = reference.store.applied + 1;
+    crate::faults::effect_scenario(&mut reference);
+    let last = reference.store.applied;
+    assert!(last >= first + 2);
+    for number in first..=last {
+        for cut in [Cut::Submitted(number), Cut::Durable(number)] {
+            crate::faults::an_effect_cut_recovers(cut);
+        }
+    }
+}
+
+#[test]
+fn a_failed_commit_at_every_scenario_boundary_stops_before_any_later_output() {
+    let mut reference = World::new(Setup { seed: 301, ..Setup::default() });
+    let first = reference.store.applied + 1;
+    crate::faults::effect_scenario(&mut reference);
+    for number in first..=reference.store.applied {
+        crate::faults::a_failed_commit_stops(number);
+    }
+}
+
+#[test]
+fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_durability() {
+    for engine in [false, true] {
+        let mut reference = faults::workers(307, 1, engine);
+        // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+        if engine {
+            reference.broken();
+        }
+        for number in 1..=reference.store.applied {
+            for cut in [Cut::Submitted(number), Cut::Durable(number)] {
+                crate::faults::a_startup_cut_restarts(engine, cut);
+            }
+        }
+    }
+}
