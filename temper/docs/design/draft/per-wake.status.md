@@ -2,6 +2,9 @@
 
 2026-11-07. Where the design lags or departs from [per-wake.md](per-wake.md).
 
+Sections 2 to 5 have no remaining jig design gap beyond the departures
+below. The remaining design lags belong to temper's half (9, item 2).
+
 - **Design lags:**
   - 6: `reference-code-production.md`, sections 13 and 14: the reference's charter 5 is one text, and template 4 takes one LLM choice. Tests and stage one's judge read that draft, so it stays as it is; `../protocol/configuration.md`, 13.9 carries the parts and the later choice.
   - 8: `../domain/root.md`, section 10: a change of settings refused for a charter's stored size doesn't name the size or the bound. jig's refusal detail names a charter's documents alone, in the client wire 19 and the people family's stored refusals, so naming them needs a protocol and stored-format change, a question to the user (the plan `per-wake-temper`, 2026-11-07).

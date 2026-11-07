@@ -652,7 +652,10 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `temper box` before it starts serve (`setup.md`, 7.2).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
-  10); contained process trees are for hosts apart (section 14).
+  10); contained process trees are for hosts apart (section 14). An
+  agent's program, `claude`, is the agent's child in a group of its own
+  (smith's `protocol/programs.md`, section 2), so killing an agent's
+  group leaves its program running: only the agent's own stop ends it.
 - **The forge outside,** reached over HTTP, and over TLS when it is not
   on loopback; its deliveries reach the webhooks' listener on loopback,
   so a forge on another host polls alone (forge.md, section 5).
@@ -662,10 +665,17 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `../domain/root.md`, section 2).
 - **Starting and ending together:** configuration for both, then the
   engine's start, then the worker's. A signal drains the engine; once it
-  has drained, the service ends the worker at once, its agent processes'
-  and git invocations' groups killed as io closes them. No worker
-  outlives the engine, so the next start settles the worker's claims at
-  once (jig's `domain/engine.md`, section 6; `../domain/root.md`, 9.1).
+  has drained, the service stops the worker, with no grace for its turns
+  and answers: its runs are cancelled, each agent process ending its
+  program before it exits, within smith's cancel, then kill, and the
+  service closes the worker once no agent process is left, its git
+  invocations' groups killed as io closes them (jig's
+  `protocol/service.md`, section 10). The service exits only after. A
+  second signal closes the worker at once, its agent processes' groups
+  killed, and a program they started outlives them until agents run in
+  contained trees (section 14). No worker outlives the engine, so the
+  next start settles the worker's claims at once (jig's
+  `domain/engine.md`, section 6; `../domain/root.md`, 9.1).
 - **Its world** is `tests/one-process` (`../domain/testing.md`, 2.5).
 
 ### 8.1 A long pass

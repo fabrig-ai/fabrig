@@ -498,11 +498,19 @@ between hosts.
 - **Starting and ending together:** configuration for all, then the
   engine's start (section 3), then each worker's (section 6). A signal
   drains the engine (section 5); once it has drained, the service ends
-  the workers at once, with no grace, since no engine will come back
-  while they live: their agent processes' groups are killed as io closes
-  them, and their runs end with the service, as the engine's own slots'
-  do. The next start settles their claims at once (`../domain/engine.md`,
-  section 6).
+  the workers with no grace for their turns and answers, since no engine
+  will come back while they live. Each worker's hub cancels every run,
+  as at a worker's ending (section 6), so that each agent process ends
+  what it started, a program among them (smith's `protocol/programs.md`,
+  section 2), within its host's cancel, then kill (smith's
+  `domain/host.md`, section 4). Once no agent process is left, the
+  service closes the worker, its other children's groups killed as io
+  closes them. A second signal closes the workers at once: their agent
+  processes' groups are killed, and whatever an agent started in a group
+  of its own outlives it until agents run in contained trees (README.md,
+  section 10). Their runs end with the service, as the engine's own
+  slots' do. The next start settles their claims at once
+  (`../domain/engine.md`, section 6).
 - **Its world** is the protocol world of section 8, with workers: the
   engine's and a test worker's services in one loop, joined by in-process
   addresses, the test worker's agents smith's agent processes over skein's

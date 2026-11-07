@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Section 2.7 has no known implementation gap in refusing a chat's
+non-procedure delegate as its change, naming an agent's task and charter,
+or in naming successful and failed committed calls when `change` did not
+succeed. The focused referee tables hold those diagnostics, including
+missing executors and empty call sets. They establish no live outcome;
+the plain-change model choice remains section 11's after-landing work.
+The owned-forge setup counts agree: `assert_forgejo_setup` checks and
+removes the sign-in call before `assert_forgejo_setup_after_sign_in`
+checks six calls on the first run or three otherwise.
+
 Sections 2.5, 6 and 6.1 have the profiled fuzzy repairs: engine walking,
 terminal-cut, escalation and role sweeps compare exact traces and
 complete frozen-state digests each iteration, with full text on a
@@ -219,12 +229,6 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`).
-  Its `owned_forge_landing` also passes seven setup calls on a fresh
-  first run and four otherwise to `assert_forgejo_setup`, which expects
-  six and three (`crates/temper/tests/support/forge_land.rs`). Those
-  lengths disagree before the token-file assertion. The late-handover
-  cause reaches both stories through that shared assertion, but its
-  repair establishes no live pass and does not fix this oracle mismatch.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,

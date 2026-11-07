@@ -1231,7 +1231,13 @@ section 8; testing-strategy.md, 2.9).
   final nonempty line matches exactly, skipping only zero-length lines.
   Before discovering a change, an attempted idle/news chat with no live
   child, run wait or subscription and the shipped immediate wake policy
-  fails promptly. Active work and final parked replies remain valid. A
+  fails promptly. Active work and final parked replies remain valid.
+  The chat's one delegate is its change: a delegate whose executor is an
+  agent, as a goal's is, fails the story as soon as it is found, naming
+  the task and its charter, never watched as though it were the change.
+  Where the chat made no successful `change`, the failure names the
+  tools of the chat's committed calls, those that succeeded and those
+  that failed, so a refused `change` before another call shows. A
   fresh client finds the same chat, pull and merge hash after the box
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
@@ -1270,8 +1276,14 @@ section 8; testing-strategy.md, 2.9).
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
-  role on Claude Code on `claude-haiku-5-5`, on a held login used in place
-  (../protocol/credentials.md, 3): `TEMPER_LIVE_CLAUDE` names the
+  role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
+  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  a fresh sitting takes it by name, as a person adds a Claude
+  subscription's model (jig's `domain/engine.md`, 17.11): one `settings
+  apply` sets a model at the highest number its catalogue leaves free,
+  with the figures of the provider's dearest stock model, `claude-fable-5-1`,
+  marked estimated and the person's, its efforts with `low` its default,
+  and every charter the story selects naming it. `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
@@ -2810,6 +2822,15 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **The plain-change live outcome** (2.7): run the existing owned-forge
+  landing story after landing to observe the real chat's choice with
+  `goal`'s declaration (`agent.md`, 4.3.2). Keep the requirement for the
+  chat's own successful `change`; a goal making a change does not satisfy
+  this story. The referee's executor and committed-call tables establish
+  its diagnostics, not a model's choice. If the live story still fails,
+  diagnose the named delegate and committed calls at that red, rather
+  than accepting the goal path.
 
 - **The box's approval story on GitHub** (6.4): extend the configuring
   and change-wait stories to a manifest-made personal App on the fake

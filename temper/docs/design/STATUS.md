@@ -12,7 +12,15 @@ range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
 landing stories remain the after-landing check (`domain/forge.md`, 5.3
-and 20; `domain/agent.md`, sections 8 and 10). The first
+and 20; `domain/agent.md`, sections 8 and 10). Goal's declaration directs
+a plain repository change to `change`; refused branch reads name their
+next reads. The owned-forge referee rejects a non-procedure delegate and
+names the chat's successful and failed committed calls. Focused tables
+hold those words; the real model's choice remains unobserved until after
+landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
+and 11). The standard brief follows the declarations at 354,988 bytes;
+the larger requested brief remains undecided (`protocol/configuration.md`,
+11 and 13.4). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -36,7 +44,12 @@ Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
-(`client/README.md`, sections 5.1 and 11). Stock instructions hold forge
+(`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
+charter parts, offered-message fences and a task's later LLM choice.
+Temper's settings form and ctl, the reference's goal charter and later
+template choice, focused charters and charter-size refusal words remain
+the next application work; the draft's departures and open decisions stay
+recorded (`draft/per-wake.md`, sections 3 to 9 and 11). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
 (`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link

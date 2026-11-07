@@ -495,7 +495,12 @@ impl Service {
     fn worker_runs(&self) -> bool {
         match &self.engine {
             Some(engine) => {
-                engine.end.is_some() || engine.store.opened && engine.workers.host.opened() && engine.clients.opened()
+                engine.end.is_some()
+                    || match &self.worker {
+                        Some(worker) => worker.stopping(),
+                        None => false,
+                    }
+                    || engine.store.opened && engine.workers.host.opened() && engine.clients.opened()
             }
             None => true,
         }
@@ -767,6 +772,7 @@ pub enum Stage {
 pub const STAGES: [Stage; 5] = [Stage::Io, Stage::Route, Stage::Engine, Stage::Worker, Stage::Out];
 
 /// Run one stage with the pass's times (protocol/README.md, 8.1).
+#[expect(clippy::too_many_lines, reason = "the five ordered stages include supervised worker shutdown")]
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     match stage {
         Stage::Io => {
@@ -805,20 +811,28 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
         }
         Stage::Engine => {
             if let Some(engine) = &mut service.engine {
+                if let Some(drain) = &mut engine.drain
+                    && let Some(worker) = &service.worker
+                {
+                    drain.agents_ended = worker.agents_ended();
+                }
                 engine::iterate(engine, now, wall);
             }
         }
         Stage::Worker => {
             let runs = service.worker_runs();
             if let Some(worker) = &mut service.worker {
-                if let Some(engine) = &service.engine
-                    && (engine.end.is_some()
-                        || match &engine.drain {
-                            Some(drain) => drain.closing,
-                            None => false,
-                        })
-                {
-                    worker.abort();
+                if let Some(engine) = &service.engine {
+                    if engine.end.is_some() {
+                        worker.abort();
+                    } else if let Some(drain) = &engine.drain
+                        && drain.closing
+                    {
+                        worker.stop();
+                        if worker.agents_ended() {
+                            worker.abort();
+                        }
+                    }
                 }
                 if runs {
                     worker.iterate(now, wall);
