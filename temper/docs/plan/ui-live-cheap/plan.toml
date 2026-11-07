@@ -1,0 +1,6 @@
+draft = "ui-live-cheap"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-live-cheap/inputs/request.md", "temper/crates/temper/tests/support/forge_land/rung.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
