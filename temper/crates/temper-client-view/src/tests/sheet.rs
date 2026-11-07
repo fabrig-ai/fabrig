@@ -96,6 +96,29 @@ fn the_list_reads_on_and_holds_while_busy() {
     sheet.find.text = b"shop".as_slice().into();
     let (filtered, _) = self::tree(&sheet);
     assert!(f::text(&filtered).windows(b"1 of 9 repositories".len()).any(|s| s == b"1 of 9 repositories"));
+    for picked in [false, true] {
+        if picked {
+            sheet
+                .picks
+                .push(sheet::Pick {
+                    id: 1,
+                    owner_id: 3,
+                    owner: b"acme".as_slice().into(),
+                    name: b"shop".as_slice().into(),
+                })
+                .unwrap();
+        }
+        sheet.find.text = b" \tMiSsInG\n ".as_slice().into();
+        let (empty, _) = self::tree(&sheet);
+        let none = empty.nodes().iter().position(|n| n.styles.as_slice().contains(&look::CONNECT_NONE)).unwrap();
+        assert_eq!(f::node_text(&empty, none).as_ref(), "Nothing here matches “MiSsInG”.".as_bytes());
+        assert!(!empty.nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_COUNT)));
+    }
+    sheet.rows.clear();
+    sheet.find.text = b" \t ".as_slice().into();
+    let (blank, _) = self::tree(&sheet);
+    let none = blank.nodes().iter().position(|n| n.styles.as_slice().contains(&look::CONNECT_NONE)).unwrap();
+    assert_eq!(f::node_text(&blank, none).as_ref(), b"None reachable.");
 }
 #[test]
 fn checks_keep_names_marks_picks_and_hide_home_for_plural() {
@@ -160,7 +183,7 @@ fn more_keeps_the_forms_fields_and_summary() {
     let (tree, _) = tree(&sheet);
     let more = node(&tree, Role::Disclosure, b"More");
     assert!(more.states.is_empty());
-    assert_eq!(more.description.as_deref(), Some(b"Owned, it runs CI".as_slice()));
+    assert_eq!(more.description.as_deref(), Some("· Owned, it runs CI".as_bytes()));
     for name in [b"Branch prefix".as_slice(), b"Landing branch", b"Checks: gate numbers, separated by spaces or commas"]
     {
         assert!(f::find(&tree, Role::TextField, name).is_some());
@@ -245,6 +268,23 @@ fn copy_lines_have_separate_words_and_their_repairs_reach_the_sheet() {
     );
     let area = node(view.tree(), Role::TextArea, b"Their addresses, one per line");
     assert!(area.styles.as_slice().contains(&look::CONNECT_ADDRESSES));
+    let area_at = view.tree().nodes().iter().position(|n| n.id == area.id).unwrap();
+    let caption_at = view
+        .tree()
+        .nodes()
+        .iter()
+        .enumerate()
+        .position(|(at, n)| {
+            n.role == Role::Paragraph && f::node_text(view.tree(), at).as_ref() == b"Their addresses, one per line"
+        })
+        .expect("visible addresses caption");
+    let caption = &view.tree().nodes()[caption_at];
+    assert!(caption.styles.as_slice().contains(&look::CONNECT_TITLE));
+    assert_eq!(caption_at + usize::try_from(caption.size).unwrap(), area_at, "the caption directly precedes the area");
+    let terminal = f::page_view(&root);
+    assert!(f::find(terminal.tree(), Role::TextArea, b"Their addresses, one per line").is_some());
+    assert!(!terminal.tree().nodes().iter().enumerate().any(|(at, n)| n.role == Role::Paragraph
+        && f::node_text(terminal.tree(), at).as_ref() == b"Their addresses, one per line"));
     assert_eq!(area.placeholder.as_deref(), Some(b"github.com/owner/name".as_slice()));
     let list_at = view.tree().nodes().iter().position(|n| n.styles.as_slice().contains(&look::CONNECT_ALERTS)).unwrap();
     let list = &view.tree().nodes()[list_at];

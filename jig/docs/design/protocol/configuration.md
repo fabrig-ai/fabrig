@@ -370,7 +370,7 @@ Result explicitly; the tools take no `ended_by` key.
 | name, secret | the worker's name, and the file holding its secret, a data path |
 | slots | how many runs it hosts at once |
 | graces | the grace after losing the engine, the stop graces of an agent's tree, a delivery's deadline, a save's: with the link's ping interval and silence deadline, what its stop bound is made of (`channel.md`, 10.1; `../domain/hosts.md`, 6.6) |
-| agent | the agent program, which the worker's protocol layer spawns for each run, and which may be the application's own binary run as its `agent` command, smith's agent shell (`service.md`, section 6), with its arguments, which the worker passes as written: neither is a path of the document's; and its configuration, a configuration path, smith's agent configuration (smith's `protocol/agent.md`, section 4), which declares the models the engine's charters name, with their window and output, and the endpoints they run on, by the same names as the engine's (`llm.md`, section 4). The worker's routing decodes charters against its endpoints, and its hello states its agent's bounds from it (`channel.md`, 4.3). A worker that composes `smith-inline-agent` gives it the same configuration, and runs no agent program |
+| agent | the agent program, which the worker's protocol layer spawns for each run, and which may be the application's own binary run as its `agent` command, smith's agent shell (`service.md`, section 6), with its arguments, which the worker passes as written: neither is a path of the document's; and its configuration, a configuration path, smith's agent configuration (smith's `protocol/agent.md`, section 4), which declares endpoint limits for the engine's charter models, by the same endpoint names as the engine's (`llm.md`, section 4). The worker's routing decodes charters against its endpoints, and its hello states its agent's bounds from it (`channel.md`, 4.3). A worker that composes `smith-inline-agent` gives it the same configuration, and runs no agent program |
 | programs | `check_interval_ms`, a positive interval for the host's local login checks. The executable and private source-directory base are the agent configuration's `programs.claude_code.path` and `directory` (smith's `protocol/agent.md`, section 4), supplied with its explicit command environment below the worker root; no directory under a person's home is invented. Without `claude_code`, each source reports failed, no program configured. A model on an endpoint naming `program` takes a program source; one on an endpoint without it takes a credential source |
 | limits | a profile, and overrides |
 
@@ -742,11 +742,12 @@ the same capacities even when every run slot is occupied.
 
 ## 9. Open questions
 
-- **Models out of configuration** (section 3): a catalogue of model
-  settings would replace the engine's model declarations and let a charter
-  choose from that catalogue. It needs the settings and agent contracts to
-  carry the same bounds and defaults (`../domain/engine.md`, section 16).
-  Until then `effort`, `shown` and `picker` are configuration members.
+- **Provider discovery** (section 3): a worker request and a per-account
+  list narrow the catalogue's offer (`../domain/engine.md`, section 16).
+  Default: model settings supplied by the application or seeded from this
+  document, with no provider-list read. Under passed defaults the document
+  holds providers, endpoints and sources; `effort`, `shown` and `picker`
+  belong to the model setting.
 
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at

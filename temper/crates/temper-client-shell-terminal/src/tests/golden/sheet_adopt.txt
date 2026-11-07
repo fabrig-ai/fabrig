@@ -39,7 +39,7 @@ Add repositories to First:
   Not listed:
     [22] Owner: (empty)
     [23] Name: (empty)
-  More: Owned, it runs CI
+  More: · Owned, it runs CI
     What temper does with it
     Role:
       [24] (*) Owned

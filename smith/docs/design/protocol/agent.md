@@ -32,7 +32,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   directory read-only. Without contained trees they are plain children in
   process groups, and the agent says so (section 3).
 - **Configuration is declared quantities.** It gives:
-  - the endpoints and their models' declared quantities;
+  - the endpoints and their declared limits for charter models;
   - the programs it may run, and their configuration directories'
     parent;
   - a profile: a named bundle of the rest;

@@ -927,33 +927,71 @@ fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
 
 #[test]
 fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
-    for (address, tab, to, here) in [
+    // The providers offered by connect_model::plans_root.
+    const CHATGPT_PROVIDER: u32 = 17;
+    const CLAUDE_PROVIDER: u32 = 18;
+    let offered = super::connect_model::plans_root();
+    let providers = offered.pages().me(offered.client()).unwrap().providers.clone();
+    for (address, tab, to, choices, here) in [
         (
             Address::ConnectForge { forge: None },
             b"Forges".as_slice(),
             b"/forges".as_slice(),
+            None,
             b"Connect a forge".as_slice(),
         ),
         (
             Address::ConnectModel { way: None },
             b"Accounts".as_slice(),
             b"/accounts".as_slice(),
+            None,
             b"Connect a model".as_slice(),
         ),
+        (
+            Address::ConnectModel {
+                way: Some(d::ModelWay { provider: CHATGPT_PROVIDER, kind: d::WayKind::SignIn, source: None }),
+            },
+            b"Accounts".as_slice(),
+            b"/accounts".as_slice(),
+            Some((b"Connect a model".as_slice(), b"/accounts/connect".as_slice())),
+            b"ChatGPT".as_slice(),
+        ),
+        (
+            Address::ConnectModel {
+                way: Some(d::ModelWay { provider: CLAUDE_PROVIDER, kind: d::WayKind::Program, source: None }),
+            },
+            b"Accounts".as_slice(),
+            b"/accounts".as_slice(),
+            Some((b"Connect a model".as_slice(), b"/accounts/connect".as_slice())),
+            b"Claude".as_slice(),
+        ),
+        (
+            Address::ConnectModel {
+                way: Some(d::ModelWay { provider: CHATGPT_PROVIDER, kind: d::WayKind::Key, source: None }),
+            },
+            b"Accounts".as_slice(),
+            b"/accounts".as_slice(),
+            Some((b"Connect a model".as_slice(), b"/accounts/connect".as_slice())),
+            b"OpenAI API key".as_slice(),
+        ),
     ] {
-        let root = root(address);
+        let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.providers = providers.clone();
+        f::deliver_me(&mut root, watch, me);
         let terminal = f::page_view(&root);
         assert!(!terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_PATH)));
         let mut browser = f::browser_page_view(&root);
         let path = styled(browser.tree(), look::SETTINGS_PATH);
         assert!(path.iter().any(|n| n.role == Role::Navigation && n.name.as_deref() == Some(b"Where")));
         let links: Vec<_> = path.iter().filter(|n| n.role == Role::Link).map(|n| (n.id, n.name.clone())).collect();
-        let expected = [
-            (tab, to),
+        let mut expected = vec![
+            choices.unwrap_or((tab, to)),
             (b"Shop".as_slice(), b"/projects/1".as_slice()),
             (b"Settings".as_slice(), b"/projects/1/settings".as_slice()),
             (tab, to),
         ];
+        expected.extend(choices);
         assert_eq!(links.len(), expected.len());
         let last = path.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)).unwrap();
         assert_eq!(last.role, Role::Text);

@@ -2,6 +2,10 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Sections 2.5 and 7.2 have the Models tab's shipped view and gallery states.
+Page 07's four-width render comparison and screenshots belong to temper/ui
+after landing (section 5); no such outcome is supplied here.
+
 Section 2.5's flow tokens have the acceptance preview's rules under the
 chats marker. The page draws the case's scene and retains its fallback;
 temper/ui's rendered comparison in a chat and its document is deferred

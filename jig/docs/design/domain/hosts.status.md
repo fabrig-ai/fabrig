@@ -4,6 +4,9 @@
 
 - **Not yet:** 5.1: reading an account's list: the hub's source machine has no such command.
 
+Sections 2 and 8 have no known gap in endpoint bounds at hello and
+charter-supplied model names; the host keeps no model allowlist.
+
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its

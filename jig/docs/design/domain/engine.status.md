@@ -1,6 +1,11 @@
 # engine: status
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
+
+Sections 17.1, 17.7, 17.8 and 17.11 have no known implementation gap in
+numbered model settings, release-default overlays, resolved charter versions,
+withdrawal, catalogue notifications or the owner's newest-revision act.
+Provider-list reads and their decider remain the gap below.
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
