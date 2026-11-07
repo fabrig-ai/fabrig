@@ -303,6 +303,13 @@ Each project has its roles, and its policy says what each may do
   the two holds it (5.1).
 - **`public` is no project's role.** It is the public party's, fixed in
   code, with no number, so no policy can name it (13.1).
+- **The deployment's sole owner** is one read: the party holding `owner`
+  on the deployment's roster when no other party holds it, else none:
+  with no owner, with several, or when the roster can't be read, as after
+  a failed start. It answers whenever a project's members can be read,
+  during a start's restore too, and allocates and changes nothing. An
+  application that rests a fact on a deployment of one person reads it
+  again at each start.
 
 ## 5. What a party does
 

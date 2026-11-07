@@ -1,3 +1,20 @@
 draft = "ui-forge-identity"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-forge-identity/inputs/request.md", "temper/docs/design/draft/forge-identity.md", "temper/docs/design/draft/forge-identity.status.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "scope"
+title = "A box's one person: jig answers the deployment's sole owner, and a box's sign-in refuses application.sign_in beside it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/forge-identity.md, 9"
+
+[[slice]]
+id = 1
+story = "A box's person says nothing lands without their approval, the rule is accepted, a change waits under Needs you with its link, they approve on the forge, and it lands, on an owned Forgejo and on GitHub"
+parts = ["scope"]
+walk = false
