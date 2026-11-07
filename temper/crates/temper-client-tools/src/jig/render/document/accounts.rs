@@ -115,6 +115,7 @@ fn party_fields(
             row.manage_usage.as_deref(),
             row.plan,
             &row.display,
+            row.email(),
             row.holder,
             row.uses.as_ref(),
             &row.sources,
@@ -203,6 +204,7 @@ fn deployment(
                 row.manage_usage.as_deref(),
                 row.plan,
                 &row.display,
+                row.email(),
                 row.holder,
                 row.uses.as_ref(),
                 &row.sources,
@@ -240,6 +242,7 @@ fn line(
     manage_usage: Option<&[u8]>,
     plan: bool,
     display: &c::DocumentText,
+    email: Option<&[u8]>,
     held: c::AccountHolder,
     uses: Option<&skein_lib::List<c::AccountUse>>,
     sources: &skein_lib::List<c::AccountSource>,
@@ -270,6 +273,11 @@ fn line(
     out.boolean(plan);
     out.key(b"display");
     super::encode_document_text(display, out, cut);
+    out.key(b"email");
+    match email {
+        Some(email) => super::offers::whole(email, out, cut, window),
+        None => out.null(),
+    }
     out.key(b"holder");
     holder(held, out);
     out.key(b"uses");

@@ -2443,18 +2443,37 @@ fn ready_orders_forge_then_model_for_every_readiness_combination() {
 #[test]
 fn ready_names_a_programs_login_and_a_keys_billing() {
     use jig_client::contract::AccountKind as K;
-    for (provider, display, kind, expected) in [
+    for (provider, display, kind, email, expected) in [
         (
             b"anthropic".as_slice(),
             b"claude-owner".as_slice(),
             K::Program,
+            None,
             "Claude subscription · claude-owner, signed in on this machine",
         ),
-        (b"openai".as_slice(), b"".as_slice(), K::Key, "OpenAI API key · billed to the key’s organization"),
-        (b"openai".as_slice(), b"".as_slice(), K::SignIn, "ChatGPT plan"),
+        (
+            b"anthropic",
+            b"claude-owner",
+            K::Program,
+            Some(b"alice@example.com".as_slice()),
+            "Claude subscription · alice@example.com, signed in on this machine",
+        ),
+        (b"openai", b"", K::Key, None, "OpenAI API key · billed to the key’s organization"),
+        (b"openai", b"", K::SignIn, None, "ChatGPT plan"),
+        (b"openai", b"Legacy", K::SignIn, None, "ChatGPT plan · Legacy"),
+        (b"openai", b"", K::SignIn, Some(b"alice@example.com".as_slice()), "ChatGPT plan · alice@example.com"),
+        (
+            b"openai",
+            b"Different display",
+            K::SignIn,
+            Some(b"alice@example.com".as_slice()),
+            "ChatGPT plan · alice@example.com",
+        ),
     ] {
         let (mut root, watch) = ready_model_fixture();
-        super::accounts::deliver(&mut root, watch, super::accounts::card_document(provider, display, kind));
+        let mut doc = super::accounts::card_document(provider, display, kind);
+        doc.accounts.get_mut(0).unwrap().facts = super::accounts::email_facts(email);
+        super::accounts::deliver(&mut root, watch, doc);
         for (terminal, view) in [(true, f::page_view(&root)), (false, f::browser_page_view(&root))] {
             node(view.tree(), Role::Paragraph, expected);
             if terminal {
