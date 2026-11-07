@@ -317,7 +317,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                 policies: skein_lib::Map::with_capacity(authority_limits().projects),
             },
             settings: jig_domain_core::Settings {
-                endpoints: Box::default(),
+                endpoints: Box::new([jig_domain_core::EndpointFacts { number: 1, dialect: 1, program: None }]),
                 key_bytes: 256,
                 redirect_bytes: 256,
                 deployment_provider: 1,
@@ -693,6 +693,8 @@ impl StartStore {
             if let Some(request) = out.pop() {
                 match request {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
+                    engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
                     }

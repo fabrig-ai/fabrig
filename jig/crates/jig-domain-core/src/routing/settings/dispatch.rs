@@ -208,7 +208,8 @@ fn decide_with(
             after.insert(previous, ()).expect("previous newest name");
         }
     }
-    let plan = core.held.plan_held(&core.current, &change.items, number, &after, &env.limits);
+    let version_items = s::charters::version_items(&core.current, &change.items, &env.limits);
+    let plan = core.held.plan_held(&core.current, &version_items, number, &after, &env.limits);
     let held_count = after.len();
     if held_count > env.limits.settings.revisions || plan.versions() > env.limits.settings.versions {
         let revision = match after.first() {
@@ -220,14 +221,16 @@ fn decide_with(
     }
     let mut templates = false;
     let mut rules = false;
-    let mut charters = false;
+    let mut charters = version_items.len() > change.items.len();
+    let mut models = false;
     for item in &change.items {
         if s::changes_current(&core.current, core::slice::from_ref(item)) {
             match item.setting {
                 s::Setting::Charter(_) => charters = true,
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
-                s::Setting::Model(_) | s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Model(_) => models = true,
+                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -256,7 +259,21 @@ fn decide_with(
             .push(s::RevisionItem { setting: item.setting, edit: item.edit.clone(), replaced })
             .expect("revision items");
     }
-    let writes = s::apply(&mut core.current, &change.items, number);
+    let mut writes = s::apply(&mut core.current, &change.items, number);
+    let mut implicit = skein_lib::List::with_capacity(env.limits.tasks.charters);
+    for item in version_items {
+        if s::check::edit(&change.items, item.setting).is_none() {
+            implicit.push(item).expect("implicit charter count");
+        }
+    }
+    for write in s::charters::stamp(&mut core.current, implicit.as_slice(), number).into_boxed() {
+        writes.push(write).expect("settings write bound");
+    }
+    core.settings.models = s::catalogue::table(&core.current);
+    s::charters::rebuild(&mut core.current, &env.limits);
+    if models {
+        core.tell_catalogue(&mut routed.out);
+    }
     core.current.head =
         s::Head { number, against: previous, at: env.wall, by, proposal, moved: change.running == s::Running::Moves };
     let application_writes = u32::try_from(kept.len()).expect("bounded application writes");
@@ -288,7 +305,7 @@ fn decide_with(
         routed.out.push(Request::Write(write));
     }
     withdraw_stale(core, env, &mut routed.out, proposal);
-    core.tell_replaced_settings(env, rules, charters);
+    core.tell_replaced_settings(env, rules, charters || models);
     project_policy::commit(core, env, routed, &change.items);
     if moves {
         move_tasks(core, env, &mut routed.out, None);
@@ -297,7 +314,7 @@ fn decide_with(
         core.touch_deployment();
         core.touch_run_waits();
     }
-    crate::routing::view::marks::settings_revised(core, &mut routed.work, templates || charters || rules);
+    crate::routing::view::marks::settings_revised(core, &mut routed.work, templates || charters || rules || models);
     Ok(number)
 }
 

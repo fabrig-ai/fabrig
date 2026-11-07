@@ -78,7 +78,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         seed_projects: Box::new([]),
         connectors: Box::new([]),
         settings: core::Settings {
-            endpoints: Box::default(),
+            endpoints: Box::new([core::EndpointFacts { number: 1, dialect: 3, program: None }]),
             deployment_provider: 2,
             models: Box::new([model()]),
             resume_bytes: 256,
@@ -86,7 +86,15 @@ fn configuration(limits: &core::Limits) -> core::Config {
             tools: core::ToolFamilies::JIG,
             key_bytes: 256,
             redirect_bytes: 4096,
-            llm_providers: jig_domain_accounts::Providers::none(),
+            llm_providers: jig_domain_accounts::Providers {
+                providers: Box::new([jig_domain_accounts::Provider {
+                    number: 1,
+                    name: b"Fake".as_slice().into(),
+                    signed_in_plan: false,
+                    manage_usage: None,
+                    offers: jig_domain_accounts::Offers { sign_in: false, key: false, programs: Box::new([]) },
+                }]),
+            },
         },
         kinds: Box::default(),
         defaults: core::settings::Defaults {

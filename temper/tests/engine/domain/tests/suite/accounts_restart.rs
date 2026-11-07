@@ -25,6 +25,12 @@ const RESTORE_STEPS: u32 = 200;
 
 fn config() -> engine::Config {
     let mut config = walking::config(SEED);
+    for model in &mut config.core.settings.models {
+        model.provider = CLAUDE;
+    }
+    for charter in &mut config.core.defaults.charters {
+        charter.policy.model.provider = CLAUDE;
+    }
     config.core.settings.llm_providers = accounts::Providers {
         providers: Box::new([
             accounts::Provider {

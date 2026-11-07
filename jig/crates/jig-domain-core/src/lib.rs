@@ -164,14 +164,14 @@ pub struct Config {
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
 }
 
-/// Immutable deployment and run settings used by core decisions.
+/// Deployment and current catalogue settings used by core decisions.
 #[derive(Debug)]
 pub struct Settings {
     pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.
     pub deployment_provider: u16,
-    /// Configured models in configuration's order: model `i` is bit `i` of an authority's
-    /// models and the `i` a task's LLM choice names (authority.md, 3; tasks.md, 3).
+    /// The current catalogue by number: row `i` is setting `i + 1`, including holes
+    /// (domain/engine.md, 17.11; authority.md, 3; tasks.md, 3).
     pub models: Box<[Model]>,
     /// Maximum committed conversation bytes resumed whole.
     pub resume_bytes: u32,
@@ -451,6 +451,10 @@ impl Core {
             config.settings.tail_bytes <= limits.brief_core_budgets.tail,
             "core prices its transcript text retention"
         );
+        if config.defaults.models.is_empty() {
+            config.defaults.models = settings::catalogue::defaults(&config.settings);
+        }
+        config.settings.models = settings::catalogue::rows(&config.defaults.models);
         charters::assert_catalogue(&config.settings);
         assert!(
             config.seed_projects.len() <= skein_lib::length::usize_of(limits.authority.projects),
@@ -480,7 +484,9 @@ impl Core {
             );
         }
         let fleet_needs = fleet_needs::configured(&config, limits);
-        let current = settings::Current::new(config.defaults, limits, &config.kinds);
+        let mut current = settings::Current::new(config.defaults, limits, &config.kinds);
+        config.settings.models = settings::catalogue::table(&current);
+        charters::rebuild(&mut current, limits);
         for project in &config.seed_projects {
             assert!(
                 project.policy.templates.is_empty()

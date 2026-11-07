@@ -338,8 +338,9 @@ fn held_reasons_history_queries_and_real_escalation_handoffs_fit_counted_root_me
     }
 }
 
-// Measured peak: 970,990 bytes; 25% headroom, rounded up to two significant digits.
-const ROLE_RECOVERY_HEAP_CEILING: u64 = 1_300_000;
+// Measured peak: 1,349,074 bytes with numbered catalogue records and resolved
+// charters in recovery snapshots; 25% headroom, rounded up to two significant digits.
+const ROLE_RECOVERY_HEAP_CEILING: u64 = 1_700_000;
 
 #[test]
 fn candidate_rosters_waiting_snapshots_keyed_history_and_recovery_fit_counted_memory() {

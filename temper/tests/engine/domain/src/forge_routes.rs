@@ -675,6 +675,11 @@ impl World {
                     .expect("one stock policy");
                 config.core.seed_projects[0].policy = defaults.policies.get(&1).expect("stock policy 1").clone();
                 config.core.settings.models = Box::new([model.clone()]);
+                config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+                    number: model.endpoint,
+                    dialect: model.dialect,
+                    program: model.program.clone(),
+                }]);
 
                 config.core.connectors = Box::new([1]);
                 for rule in &mut landing_rules.deployment {
@@ -1267,6 +1272,7 @@ impl World {
             };
             match request {
                 engine::Request::ToChild(released) => self.events.push_back(engine::Event::Released(released)),
+                engine::Request::Store(engine::StoreRequest::Catalogue { names }) => self.store.catalogue(names),
                 engine::Request::Store(engine::StoreRequest::Switch) => {
                     let answer = self.store.switch();
                     self.events.push_back(engine::Event::Store(answer));

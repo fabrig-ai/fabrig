@@ -164,6 +164,10 @@ impl Story {
     #[must_use]
     pub fn program_sources(seed: u64) -> Self {
         let mut config = jig_test_profile::config(seed);
+        config.core.settings.models[0].provider = 3;
+        for charter in &mut config.core.defaults.charters {
+            charter.policy.model.provider = 3;
+        }
         config.core.worker_names = Box::new([b"unavailable".as_slice().into()]);
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {

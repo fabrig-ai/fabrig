@@ -761,6 +761,7 @@ fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
         .changes
         .insert(Setting::Charter(1), Changed { value: Some(Value::Charter(Box::new(changed))), revision: 2 })
         .unwrap();
+    charters::rebuild(&mut core.current, &limits);
     assert_eq!(crate::admission::amendments::default_wake(&core, &agent), expected);
     for executor in [
         tasks::Executor::Agent { charter: 999 },
@@ -771,6 +772,7 @@ fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
         assert_eq!(crate::admission::amendments::default_wake(&core, &executor), tasks::WakePolicy::DEFAULT);
     }
     core.current.changes.insert(Setting::Charter(1), Changed { value: None, revision: 3 }).unwrap();
+    charters::rebuild(&mut core.current, &limits);
     assert_eq!(crate::admission::amendments::default_wake(&core, &agent), tasks::WakePolicy::DEFAULT);
 }
 
@@ -959,8 +961,14 @@ fn a_number_keeps_its_name() {
 }
 #[test]
 fn removing_a_model_withdraws_it_and_keeps_its_number() {
-    let (mut current, settings, limits, mut value) = catalogue_fixture();
-    apply(&mut current, &[catalogue_item(value.clone())], 2);
+    let (mut current, settings, mut limits, mut value) = catalogue_fixture();
+    limits.run_bytes = 1024;
+    // Withdrawal is checked with another named model left in the charter.
+    let mut remaining = value.clone();
+    remaining.number = 1;
+    remaining.model.name = b"remaining".as_slice().into();
+    charter(&mut current).policy.alternatives = Box::new([remaining.model.clone()]);
+    apply(&mut current, &[catalogue_item(value.clone()), catalogue_item(remaining)], 2);
     let items = [Item { setting: Setting::Model(9), edit: Edit::Removed }];
     assert_eq!(check_change(&current, &items, &settings, &[1, 2], &limits), Ok(()));
     assert!(changes_current(&current, &items));

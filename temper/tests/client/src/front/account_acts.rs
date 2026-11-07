@@ -382,6 +382,7 @@ fn fixture_root(
             for model in &mut config.core.settings.models {
                 model.program = Some(b"claude_code".as_slice().into());
             }
+            config.core.settings.endpoints[0].program = Some(b"claude_code".as_slice().into());
         }
         if selection_story {
             config.core.settings.models[0].program = None;
@@ -392,6 +393,11 @@ fn fixture_root(
             model.name = b"second-scripted".as_slice().into();
             model.provider = PROVIDER + 1;
             model.program = Some(b"claude_code".as_slice().into());
+            model.endpoint = 2;
+            config.core.settings.endpoints = Box::new([
+                jig_domain_core::EndpointFacts { number: 1, dialect: model.dialect, program: None },
+                jig_domain_core::EndpointFacts { number: 2, dialect: model.dialect, program: model.program.clone() },
+            ]);
             config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
             config.core.defaults.charters[1].policy.alternatives = Box::new([model]);
             let mut provider = config.core.settings.llm_providers.providers[0].clone();

@@ -706,53 +706,6 @@ fn ordinary_party_proposal_history_stays_private_to_its_proposer() {
     );
 }
 
-#[test]
-fn a_shape_refused_proposal_can_retry_after_its_unused_model_returns_without_a_holder() {
-    let (mut config, limits) = configuration();
-    let mut model = config.core.settings.models[0].clone();
-    model.name = b"pending-only".as_slice().into();
-    config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
-
-    let mut world = World::new(Setup {
-        configuration: Some(config),
-        limits,
-        boot: jig_core_world::world::Boot::Empty,
-        ..Setup::default()
-    });
-    world.client_peer = Some(ClientPeer::default());
-    let owner = sign_in(&mut world);
-    assert!(world.assignments.is_empty(), "positive retry has no live holder");
-    let mut charter = world.domain.settings().charter(1).expect("fixture charter").clone();
-    charter.policy.model = model.clone();
-    let items = Box::new([settings::Item {
-        setting: settings::Setting::Charter(1),
-        edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
-    }]);
-    let proposal = proposed(&propose(&mut world, owner, 1, 1, items));
-    restart(&mut world, configuration().0);
-    let before = proposal_document(&mut world, owner, OWNER, proposal).action;
-    let rows = settings_rows(&world);
-    assert!(matches!(
-        decide(&mut world, owner, 2, OWNER, proposal, people::ProposalDecision::Accept, Some(people::Running::Stays)),
-        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
-            why: people::Malformed::Settings { .. },
-            ..
-        }))
-    ));
-    assert_eq!(settings_rows(&world), rows);
-    assert_eq!(proposal_document(&mut world, owner, OWNER, proposal).action, before);
-    let (mut restored, _) = configuration();
-    restored.core.settings.models = Box::new([restored.core.settings.models[0].clone(), model.clone()]);
-
-    restart(&mut world, restored);
-    assert!(matches!(
-        decide(&mut world, owner, 3, OWNER, proposal, people::ProposalDecision::Accept, Some(people::Running::Stays)),
-        people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
-    ));
-    assert_eq!(world.domain.settings().newest(), 2);
-    assert!(!world.store.rows.contains_key(&proposal_set_key(OWNER, proposal)));
-}
-
 fn full_version_configuration() -> (root::Config, root::Limits) {
     let (mut config, mut limits) = configuration();
     let mut second = config.core.defaults.charters[0].clone();

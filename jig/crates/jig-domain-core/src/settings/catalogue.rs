@@ -1,7 +1,8 @@
 //! The model setting's value and shape (jig/docs/design/domain/engine.md, 17.1 and 17.11).
-use super::Fault;
+use super::{Current, Edit, Fault, Item, Setting};
 use crate::{Model, Settings};
 use alloc::boxed::Box;
+use skein_lib::List;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ModelSource {
@@ -111,4 +112,82 @@ pub(crate) fn bound() -> Option<u64> {
             )?,
         )?
         .checked_add(u64::from(crate::EFFORT_BYTES))
+}
+
+/// The catalogue the current settings leave, one row per number up to the highest (17.11).
+pub(crate) fn table(current: &Current) -> Box<[Model]> {
+    rows(&entries(current))
+}
+
+pub(crate) fn rows(models: &[CatalogueModel]) -> Box<[Model]> {
+    let mut highest = 0;
+    for model in models {
+        highest = highest.max(model.number);
+    }
+    let mut rows = List::with_capacity(highest);
+    for number in 1..=highest {
+        let mut row = Model::hole();
+        for model in models {
+            if model.number == number {
+                row = model.model.clone();
+                break;
+            }
+        }
+        rows.push(row).expect("catalogue number bound");
+    }
+    rows.into_boxed()
+}
+
+pub(crate) fn entries(current: &Current) -> Box<[CatalogueModel]> {
+    overlay(current, false, &[])
+}
+
+/// Select models through the same default/change overlay as the settings check.
+pub(crate) fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[CatalogueModel]> {
+    let mut models = List::with_capacity(jig_domain_tasks::MODELS);
+    for number in 1..=jig_domain_tasks::MODELS {
+        let setting = Setting::Model(number);
+        let before = if defaults { current.default_value(setting) } else { current.value(setting) };
+        let mut withdrawn = false;
+        let value = match super::check::edit(items, setting) {
+            Some(Edit::Set(value)) => Some(value),
+            Some(Edit::Removed) => {
+                withdrawn = true;
+                before
+            }
+            Some(Edit::Reset) => current.default_value(setting),
+            None => before,
+        };
+        if let Some(value) = value
+            && let Some(value) = value.as_model()
+        {
+            let mut value = value.clone();
+            value.withdrawn |= withdrawn;
+            models.push(value).expect("catalogue number bound");
+        }
+    }
+    models.into_boxed()
+}
+
+/// Worlds without numbered defaults take their initial rows as stock (17.7).
+pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
+    let mut models = List::with_capacity(jig_domain_tasks::MODELS);
+    for (at, model) in settings.models.iter().enumerate() {
+        if model.is_hole() {
+            continue;
+        }
+        models
+            .push(CatalogueModel {
+                number: u32::try_from(at).expect("model position").checked_add(1).expect("model number"),
+                model: model.clone(),
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: ModelSource::Stock,
+                estimated: false,
+            })
+            .expect("catalogue number bound");
+    }
+    models.into_boxed()
 }
