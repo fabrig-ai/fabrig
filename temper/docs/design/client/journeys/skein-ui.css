@@ -27,6 +27,32 @@
   fill: none;
 }
 
+/* A scene that says its height sits in its figure's flow (ui-web, 8). */
+[data-scene-height] > svg {
+  position: static;
+  display: block;
+}
+
+/* A flow's plain default (ui.md, 11.5): an owner's stylesheet may restyle it. */
+[data-drawn] > svg .skein-ui-flow-name,
+[data-drawn] > svg .skein-ui-flow-caption {
+  fill: currentColor;
+  stroke: none;
+}
+
+[data-drawn] > svg .skein-ui-flow-caption {
+  font-size: smaller;
+  opacity: .7;
+}
+
+[data-drawn] > svg .skein-ui-flow-box.skein-ui-flow-strong {
+  fill: currentColor;
+}
+
+[data-drawn] > svg .skein-ui-flow-name.skein-ui-flow-strong {
+  fill: Canvas;
+}
+
 [data-act] {
   pointer-events: all;
 }
