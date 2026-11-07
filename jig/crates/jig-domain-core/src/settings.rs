@@ -1,6 +1,7 @@
 //! Deployment settings, defaults and revisions (domain/engine.md, section 17).
 
 pub mod application;
+pub mod catalogue;
 mod change;
 pub mod charters;
 pub(crate) mod check;
@@ -20,6 +21,7 @@ use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
 
 pub use application::{Kind, KindScope};
+pub use catalogue::{CatalogueModel, ModelSource};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
@@ -35,31 +37,38 @@ pub enum Value {
     Template(Box<Template>),
     Policy(Box<ConfiguredPolicy>),
     Rules(Box<authority::Rules>),
+    Model(Box<CatalogueModel>),
     Application(Box<[u8]>),
 }
 impl Value {
+    pub(crate) fn as_model(&self) -> Option<&CatalogueModel> {
+        match self {
+            Self::Model(value) => Some(value),
+            Self::Charter(_) | Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+        }
+    }
     pub(crate) fn as_charter(&self) -> Option<&Charter> {
         match self {
             Self::Charter(value) => Some(value),
-            Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+            Self::Template(_) | Self::Policy(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_template(&self) -> Option<&Template> {
         match self {
             Self::Template(value) => Some(value),
-            Self::Charter(_) | Self::Policy(_) | Self::Rules(_) | Self::Application(_) => None,
+            Self::Charter(_) | Self::Policy(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_policy(&self) -> Option<&ConfiguredPolicy> {
         match self {
             Self::Policy(value) => Some(value),
-            Self::Charter(_) | Self::Template(_) | Self::Rules(_) | Self::Application(_) => None,
+            Self::Charter(_) | Self::Template(_) | Self::Rules(_) | Self::Model(_) | Self::Application(_) => None,
         }
     }
     pub(crate) fn as_rules(&self) -> Option<&authority::Rules> {
         match self {
             Self::Rules(value) => Some(value),
-            Self::Charter(_) | Self::Template(_) | Self::Policy(_) | Self::Application(_) => None,
+            Self::Charter(_) | Self::Template(_) | Self::Policy(_) | Self::Model(_) | Self::Application(_) => None,
         }
     }
 }
@@ -69,6 +78,7 @@ pub struct Defaults {
     pub templates: Box<[Template]>,
     pub policies: Map<u32, ConfiguredPolicy>,
     pub rules: authority::Rules,
+    pub models: Box<[CatalogueModel]>,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Default {
@@ -120,6 +130,7 @@ fn proposal_projects(items: &[Item], applications: &[application::Recorded]) -> 
             | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
+            | Setting::Model(_)
             | Setting::Rules => continue,
             Setting::Application { scope, .. } => scope,
             Setting::ProjectPolicy { project } => project,
@@ -242,9 +253,11 @@ impl Proposal {
     }
 }
 
-/// Only defaults and changes own current values. Revision history stays in the store.
+/// Defaults and changes own set values; resolved charters cache the catalogue.
+/// Revision history stays in the store.
 #[derive(Debug)]
 pub struct Current {
+    pub(crate) resolved: Map<u32, Charter>,
     pub(crate) defaults: Map<Setting, Default>,
     pub(crate) changes: Map<Setting, Changed>,
     pub(crate) applications: Map<Setting, application::State>,
@@ -256,6 +269,12 @@ impl Current {
     #[must_use]
     pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
+        for model in defaults.models {
+            let previous = values
+                .insert(Setting::Model(model.number), Default { value: Value::Model(Box::new(model)), revision: 1 })
+                .expect("default model bound");
+            assert!(previous.is_none(), "unique default model");
+        }
         for charter in defaults.charters {
             let previous = values
                 .insert(
@@ -286,6 +305,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            resolved: Map::with_capacity(limits.tasks.charters),
             applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
             head: Head {
@@ -342,6 +362,12 @@ impl Current {
     pub fn charter(&self, number: u32) -> Option<&Charter> {
         self.value(Setting::Charter(number))?.as_charter()
     }
+    pub(crate) fn resolved_charter(&self, number: u32) -> Option<&Charter> {
+        match self.resolved.get(&number) {
+            Some(charter) => Some(charter),
+            None => self.charter(number),
+        }
+    }
     #[must_use]
     pub fn template(&self, number: u32) -> Option<&Template> {
         self.value(Setting::Template(number))?.as_template()
@@ -354,7 +380,10 @@ impl Current {
     pub fn rules(&self) -> &authority::Rules {
         match self.value(Setting::Rules) {
             Some(Value::Rules(value)) => value,
-            Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Application(_)) | None => {
+            Some(
+                Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Model(_) | Value::Application(_),
+            )
+            | None => {
                 unreachable!("checked settings always offer rules")
             }
         }
@@ -388,6 +417,7 @@ impl Current {
                 Setting::Charter(number) => numbers.push(number).expect("offered charter count"),
                 Setting::Template(_)
                 | Setting::Policy(_)
+                | Setting::Model(_)
                 | Setting::Rules
                 | Setting::ProjectPolicy { .. }
                 | Setting::Application { .. } => {}
@@ -403,6 +433,7 @@ impl Current {
                 Setting::Template(number) => numbers.push(number).expect("offered template count"),
                 Setting::Charter(_)
                 | Setting::Policy(_)
+                | Setting::Model(_)
                 | Setting::Rules
                 | Setting::ProjectPolicy { .. }
                 | Setting::Application { .. } => {}
@@ -413,7 +444,13 @@ impl Current {
 }
 #[must_use]
 pub fn capacity(limits: &crate::Limits) -> Option<u32> {
-    limits.tasks.charters.checked_add(limits.templates)?.checked_add(limits.authority.projects)?.checked_add(1)
+    limits
+        .tasks
+        .charters
+        .checked_add(limits.templates)?
+        .checked_add(limits.authority.projects)?
+        .checked_add(1)?
+        .checked_add(jig_domain_tasks::MODELS)
 }
 fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) -> List<Setting> {
     let mut names =
@@ -495,8 +532,33 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(templates)?
         .checked_add(policies)?
         .checked_add(authority::rules_bound(&limits.authority)?)?
-        .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)
+        .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
+        .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)
 }
+/// Current settings own two set overlays and one resolved charter set (engine.md, 17.8).
+#[must_use]
+pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
+    let resolved = Map::<u32, Charter>::price(limits.tasks.charters)?.checked_add(
+        u64::from(limits.tasks.charters).checked_mul(
+            u64::from(limits.run_bytes).checked_add(
+                u64::from(limits.tasks.charter_documents).checked_mul(
+                    u64::try_from(size_of::<crate::Document>())
+                        .ok()?
+                        .checked_add(
+                            u64::from(limits.authority.segments).checked_mul(
+                                u64::from(limits.authority.segment_bytes)
+                                    .checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                            )?,
+                        )?
+                        .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
+                        .checked_add(u64::from(crate::DOCUMENT_HEADING_BYTES))?,
+                )?,
+            )?,
+        )?,
+    )?;
+    set_bound(limits)?.checked_mul(2)?.checked_add(resolved)
+}
+
 /// One record's items and a whole set of replaced values, priced independently of the held heads
 /// (jig/docs/design/domain/engine.md, 17.10).
 #[must_use]
@@ -510,9 +572,10 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
 #[cfg(test)]
 impl Current {
     pub(crate) fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
+        drop(self.resolved.remove(&number));
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
-            Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_) => {
+            Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => {
                 panic!("fixture charter value")
             }
         }
@@ -522,7 +585,11 @@ impl Current {
         for (&setting, _) in &self.defaults {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
-                Setting::Charter(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => {}
+                Setting::Charter(_)
+                | Setting::Policy(_)
+                | Setting::Model(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. } => {}
                 Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
             }
         }
@@ -574,6 +641,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
+                    Setting::Model(n) => jig_domain_tasks::Setting::Model(n),
                     Setting::Application { .. } | Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
@@ -604,6 +672,7 @@ pub(crate) fn is_project_policy(setting: Setting) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Model(_)
         | Setting::Rules
         | Setting::Application { .. } => false,
     }

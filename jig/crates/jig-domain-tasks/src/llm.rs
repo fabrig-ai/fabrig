@@ -7,9 +7,9 @@
 //! The root may check a choice alone against its charter and authority's models at the newest
 //! revision, before asking for its batch (domain/tasks.md, section 4).
 //!
-//! Models and efforts are indices in configuration's order: model `i` is the `i`th configured
-//! model, bit `i` of `Models`; effort `e` is the `e`th effort that model declares
-//! (`../protocol/configuration.md`, section 3).
+//! Model index `i` is catalogue setting `i + 1` and bit `i` of `Models`; a hole has no
+//! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
+//! (domain/engine.md, 17.11; `../protocol/configuration.md`, section 3).
 
 use alloc::boxed::Box;
 
@@ -18,14 +18,14 @@ use skein_lib::List;
 use crate::domain::Domain;
 use crate::{Authority, Executor, Models, Refusal};
 
-/// Most configured models, the bits of `Models` (`../protocol/configuration.md`, section 3). A
+/// Most catalogue rows, the bits of `Models` (`../protocol/configuration.md`, section 3). A
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
 
 /// One model and its effort (domain/tasks.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ModelEffort {
-    /// The configured model, in configuration's order.
+    /// The catalogue number's position, starting at zero.
     pub model: u8,
     /// One of the efforts the model declares, in its order; `None` is the LLM provider's default,
     /// the only effort of a model that declares none.

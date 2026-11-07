@@ -98,8 +98,6 @@ pub enum Per {
     Deployment,
     /// One configured endpoint, identified by its number.
     Endpoint(u32),
-    /// One model's position within its configured endpoint.
-    Model { endpoint: u32, model: u32 },
 }
 
 /// An effective value in its unit, sent in a comparison or startup report.

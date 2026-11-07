@@ -45,7 +45,6 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
             name: provider.name.clone(),
             signed_in_plan: provider.signed_in_plan,
             manage_usage: provider.manage_usage.clone(),
-            models: provider.models.clone(),
             offers,
         };
         llm_providers.push(value).expect("one per configured provider");
@@ -75,14 +74,16 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         grants: engine.acts.clone(),
         kinds: Box::default(),
         defaults: domain::settings::Defaults {
+            models: engine.llm.models.clone(),
             charters: engine.charters.clone(),
             templates: engine.templates.clone(),
             policies: configured_policies(engine),
             rules: engine.rules.clone(),
         },
         settings: domain::Settings {
+            endpoints: endpoints(engine),
             deployment_provider: deployment_provider.expect("one checked deployment provider"),
-            models: engine.llm.models.clone(),
+            models: engine.llm.models(),
             resume_bytes: limits.resume_bytes,
             tail_bytes: limits.brief_core_budgets.tail,
             tools: domain::ToolFamilies::JIG,
@@ -117,4 +118,28 @@ fn configured_policies(engine: &Engine) -> Map<u32, domain::ConfiguredPolicy> {
         assert!(previous.is_none(), "checked unique configured policy");
     }
     policies
+}
+
+fn endpoints(engine: &Engine) -> Box<[domain::EndpointFacts]> {
+    let mut endpoints = List::with_capacity(u32::try_from(engine.llm.endpoints.len()).expect("endpoint count"));
+    for endpoint in &engine.llm.endpoints {
+        endpoints
+            .push(domain::EndpointFacts {
+                providers: {
+                    let mut numbers =
+                        List::with_capacity(u32::try_from(engine.llm.providers.len()).expect("provider count"));
+                    for provider in &engine.llm.providers {
+                        if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) {
+                            numbers.push(provider.number).expect("provider count");
+                        }
+                    }
+                    numbers.into_boxed()
+                },
+                number: endpoint.number,
+                dialect: endpoint.dialect,
+                program: endpoint.program.clone(),
+            })
+            .expect("endpoint count");
+    }
+    endpoints.into_boxed()
 }

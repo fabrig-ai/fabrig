@@ -5,6 +5,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue};
 
+use super::{CatalogueModel, Current, Edit, Item, Setting, Value};
 use crate::{Core, Limits, RunPolicy, Settings};
 
 /// A charter's document (domain/engine.md, 17.9).
@@ -23,6 +24,7 @@ pub struct Document {
 /// (protocol/configuration.md, 3; domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
+    pub rest: bool,
     pub number: u32,
     pub policy: RunPolicy,
     pub hosts: fleet::Kinds,
@@ -32,12 +34,163 @@ pub struct Charter {
     pub documents: Box<[Document]>,
 }
 
+/// Resolve names against the current catalogue (domain/engine.md, 17.11).
+#[must_use]
+pub fn resolved(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> Option<Charter> {
+    resolution(charter, models, limits).0
+}
+
+pub(crate) fn left_out(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> u32 {
+    resolution(charter, models, limits).1
+}
+
+fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> (Option<Charter>, u32) {
+    let mut candidates = List::with_capacity(tasks::MODELS);
+    for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
+        for model in models {
+            if model.model.name == named.name
+                && !model.withdrawn
+                && !model.model.is_hole()
+                && !candidates.as_slice().contains(&model.number)
+            {
+                candidates.push(model.number).expect("unique catalogue candidates");
+            }
+        }
+    }
+    let named = candidates.len();
+    if charter.rest {
+        for number in 1..=tasks::MODELS {
+            for model in models {
+                if model.number == number
+                    && !model.withdrawn
+                    && !model.model.is_hole()
+                    && !candidates.as_slice().contains(&number)
+                {
+                    candidates.push(number).expect("unique catalogue candidates");
+                }
+            }
+        }
+    }
+    let mut value = charter.clone();
+    let mut chosen = List::with_capacity(tasks::MODELS);
+    let mut main = false;
+    let mut omitted = 0_u32;
+    for (at, number) in candidates.as_slice().iter().enumerate() {
+        let rest = at >= skein_lib::length::usize_of(named);
+        let mut record = None;
+        for model in models {
+            if model.number == *number {
+                record = Some(&model.model);
+                break;
+            }
+        }
+        let model = record.expect("candidate catalogue row");
+        if rest && main && chosen.len() >= limits.settings.alternatives {
+            omitted = omitted.checked_add(1).expect("bounded candidates");
+            continue;
+        }
+        let mut trial = value.policy.clone();
+        if main {
+            let mut alternatives = chosen.clone();
+            alternatives.push(model.clone()).expect("alternative room checked");
+            trial.alternatives = alternatives.into_boxed();
+        } else {
+            trial.model = model.clone();
+            trial.alternatives = Box::new([]);
+        }
+        let fits = match crate::limits::policy_owned_bytes(&trial) {
+            Some(bytes) => bytes <= u64::from(limits.run_bytes),
+            None => false,
+        };
+        if rest && !fits {
+            omitted = omitted.checked_add(1).expect("bounded candidates");
+            continue;
+        }
+        if main {
+            chosen.push(model.clone()).expect("alternative room checked");
+        }
+        value.policy = trial;
+        main = true;
+    }
+    (if main { Some(value) } else { None }, omitted)
+}
+
+pub(crate) fn rebuild(current: &mut Current, limits: &Limits) {
+    let models = super::catalogue::entries(current);
+    current.resolved = skein_lib::Map::with_capacity(limits.tasks.charters);
+    for number in current.offered_charters() {
+        if let Some(charter) = resolved(current.charter(number).expect("offered charter"), &models, limits) {
+            current.resolved.insert(number, charter).expect("checked charter count");
+        }
+    }
+}
+
+/// Names alone are enough for held-version preflight; implicit changes retain the set value.
+pub(crate) fn version_items(current: &Current, items: &[Item], limits: &Limits) -> Box<[Item]> {
+    let models = super::catalogue::overlay(current, false, items);
+    let mut result = List::with_capacity(
+        u32::try_from(items.len())
+            .expect("bounded items")
+            .checked_add(limits.tasks.charters)
+            .expect("implicit charter items"),
+    );
+    for item in items {
+        result.push(item.clone()).expect("given items");
+    }
+    for number in current.offered_charters() {
+        let setting = Setting::Charter(number);
+        if super::check::edit(items, setting).is_some() {
+            continue;
+        }
+        let charter = current.charter(number).expect("offered charter");
+        let after = resolved(charter, &models, limits);
+        if after.as_ref() != Some(current.resolved_charter(number).expect("offered resolution")) {
+            result
+                .push(Item { setting, edit: Edit::Set(Value::Charter(Box::new(charter.clone()))) })
+                .expect("implicit charter items");
+        }
+    }
+    result.into_boxed()
+}
+
+/// Stamp only resolutions that a model edit changed; their stored charter stays as set.
+pub(crate) fn stamp(current: &mut Current, items: &[Item], revision: u32) -> List<crate::Write> {
+    let mut writes = List::with_capacity(u32::try_from(items.len()).expect("version items"));
+    for item in items {
+        match item.setting {
+            Setting::Charter(_) => {}
+            Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Model(_)
+            | Setting::Rules
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => continue,
+        }
+        let record = if let Some(change) = current.changes.get_mut(&item.setting) {
+            change.revision = revision;
+            super::Record::Changed { setting: item.setting, changed: change.clone() }
+        } else if let Some(default) = current.defaults.get_mut(&item.setting) {
+            default.revision = revision;
+            super::Record::Default { setting: item.setting, default: default.clone() }
+        } else {
+            continue;
+        };
+        writes
+            .push(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Settings(record))))
+            .expect("one stamp per charter");
+    }
+    writes
+}
+
 const _: () = assert!(fleet::CATALOGUE_MODELS == tasks::MODELS, "fleet evidence prices the model catalogue");
 const _: () = assert!(fleet::CATALOGUE_NAME_BYTES == crate::MODEL_NAME_BYTES, "fleet evidence prices model names");
 
 pub(crate) fn assert_catalogue(settings: &Settings) {
     assert!(settings.models.len() <= skein_lib::length::usize_of(tasks::MODELS), "model count");
     for (at, model) in settings.models.iter().enumerate() {
+        if model.is_hole() {
+            continue;
+        }
         for earlier in settings.models.iter().take(at) {
             assert!(earlier.name != model.name, "unique configured model names");
         }
@@ -63,8 +216,8 @@ pub(crate) fn assert_catalogue(settings: &Settings) {
 }
 
 /// Each charter's models as tasks checks an LLM choice against them: its main model, then its
-/// alternatives, each once, by its index in configuration's order (tasks.md, 3).
-pub(crate) fn models(current: &super::Current, settings: &Settings, limits: &Limits) -> Box<[tasks::CharterModels]> {
+/// alternatives, each once, by its number's position in the catalogue (tasks.md, 3).
+pub(crate) fn models(current: &Current, settings: &Settings, limits: &Limits) -> Box<[tasks::CharterModels]> {
     let mut charters = List::with_capacity(
         limits
             .tasks
@@ -78,16 +231,16 @@ pub(crate) fn models(current: &super::Current, settings: &Settings, limits: &Lim
     charters.into_boxed()
 }
 
-fn append_models(current: &super::Current, settings: &Settings, charters: &mut List<tasks::CharterModels>) {
+fn append_models(current: &Current, settings: &Settings, charters: &mut List<tasks::CharterModels>) {
     for number in current.offered_charters() {
-        let charter = current.charter(number).expect("offered charter");
-        let (_, origin) = current.lookup(super::Setting::Charter(number));
+        let charter = current.resolved_charter(number).expect("offered charter");
+        let (_, origin) = current.lookup(Setting::Charter(number));
         let (_, revision) = origin.expect("offered charter version");
         let value = one_models(charter, revision, settings);
         charters.push(value).expect("configured charter count");
     }
     for (setting, change) in &current.changes {
-        if let super::Setting::Charter(number) = setting
+        if let Setting::Charter(number) = setting
             && change.value.is_none()
         {
             charters
@@ -98,13 +251,17 @@ fn append_models(current: &super::Current, settings: &Settings, charters: &mut L
 }
 
 pub(crate) fn one_models(charter: &Charter, revision: u32, settings: &Settings) -> tasks::CharterModels {
+    one_models_rows(charter, revision, &settings.models)
+}
+
+pub(crate) fn one_models_rows(charter: &Charter, revision: u32, rows: &[crate::Model]) -> tasks::CharterModels {
     let count = charter.policy.alternatives.len().checked_add(1).expect("charter model count");
     let mut models = List::with_capacity(u32::try_from(count).expect("charter model count"));
-    if let Some(main) = configured(settings, &charter.policy.model) {
+    if let Some(main) = position(rows, &charter.policy.model) {
         models.push(main).expect("charter model count");
     }
     for model in &charter.policy.alternatives {
-        let Some(index) = configured(settings, model) else { continue };
+        let Some(index) = position(rows, model) else { continue };
         if !models.as_slice().contains(&index) {
             models.push(index).expect("charter model count");
         }
@@ -112,7 +269,7 @@ pub(crate) fn one_models(charter: &Charter, revision: u32, settings: &Settings) 
     tasks::CharterModels { number: charter.number, revision, models: Some(models.into_boxed()) }
 }
 
-/// How many efforts each configured model declares, in configuration's order (tasks.md, 3).
+/// How many efforts each catalogue row declares, by number (tasks.md, 3).
 pub(crate) fn efforts(settings: &Settings) -> Box<[u8]> {
     let mut efforts = List::with_capacity(u32::try_from(settings.models.len()).expect("model count"));
     for model in &settings.models {
@@ -129,9 +286,11 @@ fn declares(model: &crate::Model) -> bool {
     }
 }
 
-/// A model's index in configuration's order, matched by name.
-pub(crate) fn configured(settings: &Settings, model: &crate::Model) -> Option<u8> {
-    for (index, configured) in settings.models.iter().enumerate() {
+fn position(rows: &[crate::Model], model: &crate::Model) -> Option<u8> {
+    if model.is_hole() {
+        return None;
+    }
+    for (index, configured) in rows.iter().enumerate() {
         if configured.name == model.name {
             return u8::try_from(index).ok();
         }
@@ -180,7 +339,7 @@ impl Core {
     /// The newest charter, for work about to be made (engine.md, 17.3).
     #[must_use]
     pub fn charter(&self, number: u32) -> Option<&Charter> {
-        self.current.charter(number)
+        self.current.resolved_charter(number)
     }
 
     /// An admitted live agent task's run revision, or its own when no run lives.

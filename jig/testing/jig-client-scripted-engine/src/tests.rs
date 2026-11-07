@@ -37,6 +37,7 @@ fn frame(number: u64) -> Me {
             name: DocumentText::complete(text(b"party")),
         },
         projects: list(vec![MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             models: skein_lib::List::with_capacity(0),

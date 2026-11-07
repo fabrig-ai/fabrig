@@ -57,6 +57,7 @@ pub fn me() -> Me {
     me.projects = List::with_capacity(ONE);
     me.projects
         .push(MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,

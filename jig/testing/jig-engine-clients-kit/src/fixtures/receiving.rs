@@ -7,6 +7,7 @@ use skein_lib::{Duration, Env, Map, Queue, ReplyTo, Time, Token, Wall};
 /// The one configured model, which the charter names.
 fn model() -> core::Model {
     core::Model {
+        provider: 1,
         dialect: 3,
         endpoint: 1,
         program: None,
@@ -28,6 +29,9 @@ fn model() -> core::Model {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = model();
     Box::new([jig_protocol_engine_clients::Model {
+        number: 1,
+        source: jig_domain_core::settings::ModelSource::Stock,
+        estimated: false,
         effort: model.default_effort().map(skein_lib::bytes::copy_of),
         shown: None,
         picker: true,
@@ -77,6 +81,12 @@ fn configuration(limits: &core::Limits) -> core::Config {
         seed_projects: Box::new([]),
         connectors: Box::new([]),
         settings: core::Settings {
+            endpoints: Box::new([core::EndpointFacts {
+                providers: Box::new([]),
+                number: 1,
+                dialect: 3,
+                program: None,
+            }]),
             deployment_provider: 2,
             models: Box::new([model()]),
             resume_bytes: 256,
@@ -84,11 +94,21 @@ fn configuration(limits: &core::Limits) -> core::Config {
             tools: core::ToolFamilies::JIG,
             key_bytes: 256,
             redirect_bytes: 4096,
-            llm_providers: jig_domain_accounts::Providers::none(),
+            llm_providers: jig_domain_accounts::Providers {
+                providers: Box::new([jig_domain_accounts::Provider {
+                    number: 1,
+                    name: b"Fake".as_slice().into(),
+                    signed_in_plan: false,
+                    manage_usage: None,
+                    offers: jig_domain_accounts::Offers { sign_in: false, key: false, programs: Box::new([]) },
+                }]),
+            },
         },
         kinds: Box::default(),
         defaults: core::settings::Defaults {
+            models: Box::default(),
             charters: Box::new([core::Charter {
+                rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
                 number: 1,

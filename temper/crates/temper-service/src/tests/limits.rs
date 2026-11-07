@@ -188,7 +188,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 355_467,
+                brief_bytes: 355_022,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -199,7 +199,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             },
             journal: temper_engine_domain::JournalLimits {
                 transcript_bytes: 22_467_664,
-                result_bytes: 355_467,
+                result_bytes: 355_022,
                 ..small.root.journal
             },
             loads: temper_engine_domain::loads::Limits {
@@ -658,7 +658,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 2_168_979);
+    assert_eq!(profile.store.page.bytes, 3_421_331);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 

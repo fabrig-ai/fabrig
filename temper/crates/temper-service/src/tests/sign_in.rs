@@ -66,7 +66,7 @@ pub(crate) fn world_settings(
         providers.push(provider).unwrap();
     }
     providers
-        .push(jig_protocol_config::Provider { number: 3, kind: jig_protocol_config::ProviderKind::Application })
+        .push(jig_protocol_config::IdentityProvider { number: 3, kind: jig_protocol_config::ProviderKind::Application })
         .unwrap();
     config.jig.providers = providers.into_boxed();
     config.jig.clients.provider = provider;

@@ -362,11 +362,12 @@ fn a_narrowed_run_rule_refuses_the_next_oversized_creation_and_keeps_the_old_pro
 }
 
 #[test]
-fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
+fn changed_charter_instructions_and_catalogue_effort_prepare_the_next_new_task() {
     let (mut config, limits) = configuration();
     config.core.settings.models[0].efforts = Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
     config.core.settings.models[0].effort = Some(Box::from(b"low".as_slice()));
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
+    config.core.defaults.models[0].model = config.core.settings.models[0].clone();
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
@@ -377,18 +378,27 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     let signed = sign_in(&mut world);
     let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
     charter.policy.instructions = Box::from(b"Changed instructions.".as_slice());
-    charter.policy.model.effort = Some(Box::from(b"high".as_slice()));
-    // A selected effort is a charter default; the model's declared efforts stay configured.
+    let Some(settings::Value::Model(model)) = world.domain.settings().value(settings::Setting::Model(1)) else {
+        panic!("catalogue model")
+    };
+    let mut model = model.clone();
+    model.model.effort = Some(Box::from(b"high".as_slice()));
     changed(
         &change(
             &mut world,
             signed,
             41,
             1,
-            Box::new([settings::Item {
-                setting: settings::Setting::Charter(1),
-                edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
-            }]),
+            Box::new([
+                settings::Item {
+                    setting: settings::Setting::Charter(1),
+                    edit: settings::Edit::Set(settings::Value::Charter(Box::new(charter))),
+                },
+                settings::Item {
+                    setting: settings::Setting::Model(1),
+                    edit: settings::Edit::Set(settings::Value::Model(model)),
+                },
+            ]),
         ),
         2,
     );
@@ -580,6 +590,10 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
     let mut other = config.core.settings.models[0].clone();
     other.name = Box::from(b"other".as_slice());
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), other.clone()]);
+    let mut other_entry = config.core.defaults.models[0].clone();
+    other_entry.number = 2;
+    other_entry.model = other.clone();
+    config.core.defaults.models = Box::new([config.core.defaults.models[0].clone(), other_entry]);
     config.core.defaults.charters[0].policy.alternatives = Box::new([other.clone()]);
     limits.core.tasks.circle = 1;
     peers::journal(&mut limits);
@@ -609,6 +623,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         made.push(first);
     }
     let mut charter = world.domain.settings().charter(1).expect("charter").clone();
+    charter.rest = false;
     charter.policy.model = other;
     charter.policy.alternatives = Box::new([]);
     let item = settings::Item {
@@ -2214,4 +2229,50 @@ fn assert_checks_refused(world: &mut World, signed: u64, task: u64) {
         document.run_wait
     );
     assert!(world.assigned.is_none());
+}
+
+#[test]
+fn a_model_setting_survives_a_restart_and_reads_back_whole() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let config = configuration().0;
+    let mut model = config.core.settings.models[0].clone();
+    model.name = b"person:model-9".as_slice().into();
+    let value = settings::Value::Model(Box::new(settings::CatalogueModel {
+        number: 9,
+        model,
+        shown: Some(b"Personal model".as_slice().into()),
+        description: Some(b"Kept whole across a restart".as_slice().into()),
+        picker: false,
+        withdrawn: false,
+        source: settings::ModelSource::Person,
+        estimated: true,
+    }));
+    let item = settings::Item { setting: settings::Setting::Model(9), edit: settings::Edit::Set(value.clone()) };
+    changed(&change(&mut world, signed, 41, 1, Box::new([item.clone()])), 2);
+    assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
+    restart(&mut world, config);
+    assert_eq!(world.domain.settings().newest(), 2);
+    let signed = sign_in(&mut world);
+    let reads::Answer::Setting(document) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Model(9), revision: 2, proposal: None },
+    ) else {
+        panic!("whole model setting")
+    };
+    assert_eq!(document.value, Some(value));
+    assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
+    let list = inventory(&mut world, signed);
+    assert!(list.settings.iter().any(|row| row.setting == settings::Setting::Model(9)));
+    let mut next = item.clone();
+    let settings::Edit::Set(settings::Value::Model(model)) = &mut next.edit else { panic!("model item") };
+    model.picker = !model.picker;
+    changed(&change(&mut world, signed, 42, 2, Box::new([next])), 3);
+    assert_eq!(revision(&world, 2, true).items[0].edit, item.edit);
+    let reads::Answer::Revision(answer) = client_read(&mut world, signed, reads::Read::Revision { number: 2 }) else {
+        panic!("model history")
+    };
+    let reads::RevisionAnswer::Revision { revision, .. } = *answer else { panic!("retained model revision") };
+    assert_eq!(revision.items[0].edit, item.edit);
 }

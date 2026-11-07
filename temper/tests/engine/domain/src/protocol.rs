@@ -6,7 +6,7 @@
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Form, Hosting, JobBound, JobKind, ModelBound, Phase, Scheme};
+use jig_domain_link::{Bounds, EndpointBound, Form, Hosting, JobBound, JobKind, Phase, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Token};
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,7 +18,7 @@ use temper_engine_domain as engine;
 pub fn bounds() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 1024, output: 1024 }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: 1024, output: 1024 }]),
         turns: 8,
         spend: 1000,
         time: Duration::from_secs(60),
@@ -140,8 +140,12 @@ type DecodeAnswer = (bool, Box<[u8]>);
 #[derive(Debug, Default)]
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
-    /// The deployment models used by internal settings-note decoding.
+    /// The deployment models in numbered execution positions.
     pub(crate) models: Box<[engine::Model]>,
+    /// Whole model settings used by internal settings-note decoding.
+    pub(crate) catalogue: Box<[core::settings::CatalogueModel]>,
+    /// Catalogue replacements for the clients component joined to this world.
+    pub catalogues: Vec<Box<[core::settings::CatalogueModel]>>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
     decode_answers: BTreeMap<Box<[u8]>, DecodeAnswer>,
     ends: BTreeMap<Box<[u8]>, tasks::End>,
@@ -251,8 +255,20 @@ impl Protocol {
     ///
     /// # Errors
     /// Returns the request when it is not the protocol layer's to answer.
+    #[expect(clippy::too_many_lines, reason = "the protocol fixture routes each root request at one boundary")]
     pub fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         match request {
+            engine::Request::Party(engine::PartyRequest::Catalogue { models }) => {
+                self.catalogue.clone_from(&models);
+                let highest = models.iter().map(|entry| entry.number).max().unwrap_or(0);
+                self.models = vec![engine::Model::hole(); usize::try_from(highest).expect("bounded catalogue")].into();
+                for entry in &models {
+                    let at = usize::try_from(entry.number - 1).expect("bounded model number");
+                    self.models[at] = entry.model.clone();
+                }
+                self.catalogues.push(models);
+                Ok(Vec::new())
+            }
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
                 channel,
                 down: host::LinkDown::Sources { sources: _ },
@@ -279,7 +295,7 @@ impl Protocol {
                     ))))),
                 },
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.models)])
+                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },

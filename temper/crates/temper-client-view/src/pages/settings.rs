@@ -22,6 +22,7 @@ pub(crate) enum Tab {
     Repositories,
     Forges,
     Accounts,
+    Models,
     Builders,
 }
 
@@ -89,16 +90,17 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
         Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
         Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
+        Tab::Models => (Word::ModelsHeading, Word::ModelsLede),
         Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
     };
     let title = match tab {
         Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
-        Tab::Forges | Tab::Accounts | Tab::Builders => w.say(heading, &[]),
+        Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(heading, &[]),
     };
     text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
     let lede = match tab {
         Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Builders => w.say(lede, &[]),
+        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
     };
     text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
     b.close();
@@ -110,6 +112,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         (Tab::Repositories, Word::SettingsRepositoriesTab, Address::Repositories { project }),
         (Tab::Forges, Word::ForgesTitle, Address::Forges),
         (Tab::Accounts, Word::SettingsAccountsTab, Address::Accounts),
+        (Tab::Models, Word::ModelsTab, Address::Models { project }),
         (Tab::Builders, Word::SettingsBuildersTab, Address::Builders { project }),
     ] {
         let name = w.say(word, &[]);
@@ -121,7 +124,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         match item {
             Tab::Forges => crate::frame::forge_mark(b, root, w, false),
             Tab::Accounts => crate::frame::account_mark(b, root, w, false),
-            Tab::HowWorkRuns | Tab::Repositories | Tab::Builders => {}
+            Tab::HowWorkRuns | Tab::Repositories | Tab::Models | Tab::Builders => {}
         }
         b.close();
     }

@@ -2039,6 +2039,11 @@ section 5).
 
 ## 16. Open questions
 
+- **A number freed:** a catalogue's 64 numbers last the deployment's life, a
+  withdrawn model keeping its own (17.11). A number no held revision and no
+  live task reads could be given again, should a provider's lists come to
+  use them up.
+
 - **Room for a replacement settings proposal** (17.6, 17.8): whether
   admission may discount the proposer's own pending set at
   `settings.proposals`. Default: check the full bound before replacement,
@@ -2120,7 +2125,7 @@ section 5).
 ## 17. Settings
 
 A deployment's charters, templates, the policies its projects are made
-from, its rules, and an application's settings of its own are its
+from, its rules, its LLM models, and an application's settings of its own are its
 **settings**: the binary's defaults, with the changes the store keeps
 over them. A change is one decision; each makes a revision; a task's
 runs read their charter from the revision the task was made in. This
@@ -2139,10 +2144,11 @@ section 17; the records are `../protocol/store.md`, 4.4.
   | template | the template's, from 1 | a template whole (`../protocol/configuration.md`, 3.1) | when `me` is served (11.1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (core.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (authority.md, section 6) | at every decision: the newest |
+  | model | the model's, 1 to 64, never given to another name (17.11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person) and whether its prices are estimated | at each decision and when `me` is served: the newest; a run reads it from its charter (17.11) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (17.5) | by the application, from that connector: the newest |
 
 - **The defaults are the binary's.** The application passes them as
-  values when it builds the core (`Config`'s defaults): its charters,
+  values when it builds the core (`Config`'s defaults): its models, charters,
   policies and rules, its templates, jig's chat and goal among them
   where it wants them, which jig gives as values made for the charter
   they run (`../protocol/configuration.md`, 3.1); its own kinds'
@@ -2162,7 +2168,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   (a charter's instructions within the journal's run bytes, its budgets
   above its reserve and holding one of its default model's costliest
   completions, its models configured; a template's charter offered and
-  its grace within the tasks child's span; a policy within the rules,
+  its grace within the tasks child's span; a model in 17.11's shape; a policy within the rules,
   its roles well formed, its overrides' templates offered, its owner
   role able to be a root's requester), the counts within their limits
   (charters within `tasks.charters`, templates within `templates`,
@@ -2182,7 +2188,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   child's span), *owner* (a policy's owner role unable to be a root's
   requester).
 - **What is not a setting:** the limits, which size memory at the
-  start; the hosts, the LLM providers and models, the connectors, the
+  start; the hosts, the LLM providers and their endpoints, the connectors, the
   clients and the first owners, the document's; and each project's own
   policy, which its owners change (people.md, 5.2).
 
@@ -2606,7 +2612,9 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     kinds' defaults differ (section 6, steps 1 and 2; 17.5), with the
     connectors' new defaults saved in it; like any revision, it
     withdraws stale proposals of settings (17.6); new work takes it,
-    running work keeps its own;
+    running work keeps its own. A model a change is over stays as that
+    change left it, so one a person turned off stays off, and a release's
+    new model comes in at its default;
   - *the current settings are checked whole* (17.1): a start whose
     settings fail is refused, naming the setting, the change over it if
     any, and what fails, as a document failing its check always was;
@@ -2640,7 +2648,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   task's are. Nothing is activated or relayed from the decision itself,
   so a first start and a second after a crash do the same.
 - **The document's members as defaults.** An application that passes
-  no defaults gives the document's `charters`, `templates`, `policies`
+  no defaults gives the document's `llm` models, `charters`, `templates`, `policies`
   and `rules` (`../protocol/configuration.md`, section 3), and the
   store's changes lie over them as over any defaults. A deployment that
   restarts with the same document and no change behaves as it did; a
@@ -2664,12 +2672,12 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   restore's `SettingsCommit { room }` carries its write budget, not a
   per-event journal reservation; the commit stays within the store's
   write limit.
-- **The current settings** cost the defaults and the changes, each
-  within its kind's bounds (17.1): at most two whole sets, priced so;
+- **The current settings** cost the defaults and the changes, 64 models
+  among them, each within its kind's bounds (17.1): at most two whole sets, priced so;
   of an application's kinds, the core prices only what it keeps of
   them, and their connectors the values (17.5).
   The fleet keeps, for each connected host, what its hello declared for
-  the configured models and its agent's bounds, priced by the models'
+  its endpoints and its agent's bounds, priced by the endpoints'
   bound, so that it can judge the host against changed needs.
 - **History** is a third number, of revision records the store keeps
   beyond those held, within the store's fill (`../protocol/store.md`,
@@ -2829,3 +2837,65 @@ forgotten and names the oldest kept (2026-11-04).
 The proposal's reason is `restores revision R: ` followed by the party's
 reason. The combined text is cut to the reason's byte bound at a character
 boundary (2026-11-04).
+
+### 17.11 The catalogue
+
+The current settings of kind `model`, in number order, are the
+deployment's **catalogue**: what a task's LLM choice, an authority's
+models and a charter name.
+
+- **A number is a position.** Model `i` of a task's choice and bit `i` of
+  an authority's models are the setting numbered `i + 1`
+  (`tasks.md`, section 3; `authority.md`, section 3), so the store's and
+  the wire's indices hold across a change and a release. The bound is
+  `MODELS`, 64, for the deployment's life; a number no setting has is a
+  hole, which nothing offers or resolves. The binary's defaults take low
+  numbers and keep them; a model a person or a provider's list adds takes
+  the highest free number, so a release's new default never meets one.
+- **A number keeps its name.** A set naming another name than its
+  default's or its stored change's is out of shape; so is a provider or
+  endpoint the document doesn't configure, a dialect or program its
+  endpoint doesn't have, and a name out of `valid_name`. Its window and
+  output take any value; one no agent's bounds hold makes a run wait, as a
+  charter's does (section 8).
+- **A model stays for the tasks that hold it.** A *removed* item keeps the
+  setting, *withdrawn*: out of the offer (11.1) and of every charter's
+  resolution, with its number and name. A *reset* returns one with a
+  default to it, and one with no default is out of shape. A run reads the
+  charter version of its revision (17.3), whose records are the models as
+  they were, so a task keeps the model it has, and no change of a model
+  moves one.
+- **A charter's models are names, resolved.** A charter names its first
+  choices, in order, and whether **the rest** follow
+  (`../protocol/configuration.md`, section 3). Its resolution is each
+  name's record in the catalogue, withdrawn ones dropped, the main the
+  first left; then, with the rest, every other model in number order,
+  while it stays within `settings.alternatives` and `run_bytes`. A
+  resolution with no model is a *reference* fault. What a run reads, what
+  the fleet needs and what the tasks child checks a choice against is the
+  resolution; a setting's value, a read and a proposal keep the charter as
+  set, so that a new model needs no charter's change.
+- **A change of a resolution is a change of its charter.** A decision or
+  a release whose models change a charter's resolution makes that charter's
+  next version at its revision, and holds the old one (17.3 and 17.8),
+  though no item names the charter and its stored value stays. A change of
+  a model's `picker` alone changes no resolution, and so no version.
+- **What the charter left out:** a model past a charter's bounds stays
+  in the catalogue and off that charter. `me` says how many, for a
+  project's chats (`../client/domain/contract.md`, 5.1).
+- **Who hears.** A decision or a start's restore that changes the
+  catalogue asks the root to tell the clients' component and the store,
+  before its commit (`Ask::Catalogue`; `../protocol/store.md`, section 5);
+  the tasks child hears the efforts with the charters (17.2), the fleet its
+  needs, and the views mark every `me`.
+- **An owner's act.** `ChangeModel` (`../client/domain/contract.md`, 3.2)
+  turns one model's picker on or off, or adds a model by name, a provider
+  and a name, as one change at the newest revision, running work staying,
+  decided as 17.2's. Adding checks the name's shape alone (`valid_name`),
+  since only a first run shows whether the provider serves it. It takes the
+  highest free number and the provider's dearest stock model's endpoint,
+  window, output and prices, marked estimated, so that a budget stops
+  early rather than late, with no efforts and on the picker. A name the
+  catalogue holds is out of shape, unless withdrawn, which it brings back.
+  A provider with no stock model takes its `endpoint` and the catalogue's
+  dearest stock model's figures.

@@ -518,7 +518,7 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
             hosting: Box::new([]),
             bounds: Bounds {
                 program_endpoints: Box::new([]),
-                models: Box::new([]),
+                endpoints: Box::new([]),
                 turns: 1,
                 spend: 1,
                 time: skein_lib::Duration::from_secs(1),
@@ -599,6 +599,7 @@ fn held_assignment() -> crate::Assignment {
                 reserve_turns: 1,
                 reserve_time: skein_lib::Duration::from_secs(1),
                 model: crate::Model {
+                    provider: 1,
                     program: None,
                     dialect: 1,
                     endpoint: 1,

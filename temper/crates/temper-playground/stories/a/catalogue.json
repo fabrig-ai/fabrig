@@ -1,0 +1,24 @@
+{
+  "models": [
+    {
+      "endpoint": "fake",
+      "name": "fake",
+      "output": 512,
+      "prices": {
+        "cached": 1,
+        "input": 1,
+        "output": 1,
+        "unit": 1000
+      },
+      "window": 1048576
+    }
+  ],
+  "providers": [
+    {
+      "number": 1,
+      "models": [
+        "fake"
+      ]
+    }
+  ]
+}

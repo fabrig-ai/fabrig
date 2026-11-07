@@ -18,17 +18,17 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
 
 #[test]
 fn the_worker_cap_for_one_slot_is_the_hand_summed_bytes() {
-    // Hello409 (125 + endpoint count4 + 64 * 4 + jobs count4 + bound20) + turn71 + answer136 + call85 + unauthorized28 + limited29
+    // Hello393 (109 + endpoint count4 + 64 * 4 + jobs count4 + bound20) + turn71 + answer136 + call85 + unauthorized28 + limited29
     // + account refused60; seven headers56. Sources add Logins158 + two SignedOut66.
-    // Mandatory1164 + reserve390 =1554; reserve fits fifteen shortest facts25.
-    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 1554, frames: 25 }, facts: 390 }));
+    // Mandatory1148 + reserve390 =1538; reserve fits fifteen shortest facts25.
+    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 1538, frames: 25 }, facts: 390 }));
 }
 
 #[test]
 fn the_worker_cap_reserves_the_facts_share_last() {
     let sizes = Sizes { facts: 75, ..SIZES_ONE_SLOT };
-    // Mandatory frames1164 bytes + reserve75 =1239; three shortest facts25 each.
-    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1239, frames: 13 }, facts: 75 }));
+    // Mandatory frames1148 bytes + reserve75 =1223; three shortest facts25 each.
+    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1223, frames: 13 }, facts: 75 }));
 }
 
 #[test]
@@ -79,7 +79,6 @@ fn sizes_past_a_ceiling_give_no_codec_limits() {
         ("grant", Sizes { grant: 8193, ..SIZES_ONE_SLOT }),
         ("name", Sizes { name: 257, ..SIZES_ONE_SLOT }),
         ("secret", Sizes { secret: 1025, ..SIZES_ONE_SLOT }),
-        ("model name", Sizes { model_name: 129, ..SIZES_ONE_SLOT }),
         ("items", Sizes { items: 1_048_577, ..SIZES_ONE_SLOT }),
         ("left", Sizes { left: 65_537, ..SIZES_ONE_SLOT }),
         ("saved", Sizes { saved: 65_537, ..SIZES_ONE_SLOT }),

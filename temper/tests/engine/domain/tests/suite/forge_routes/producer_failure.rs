@@ -2,7 +2,7 @@
 use super::questions::row as change_row;
 use super::*;
 use jig_domain_core::reads;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use temper_engine_domain_forge_change::{Hold, State};
 
 const CHANNEL: Token = Token::new(7);
@@ -111,15 +111,26 @@ const NO_CHANGE_REPORT: &str = "For successful NoChange, tell the person nothing
 fn stock_search_chat() -> (World, engine::Assignment) {
     let model = stock::box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
-        models: Box::new([model.clone()]),
-        descriptions: Box::new([None]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::default(),
         endpoints: Box::default(),
     };
     let limits = temper_engine_domain_world::forge_routes::box_limits();
-    let defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 2, Box::default());
@@ -130,7 +141,8 @@ fn stock_search_chat() -> (World, engine::Assignment) {
     hello.bounds.turns = 800;
     hello.bounds.time = Duration::from_secs(28_800);
     hello.bounds.spend = defaults.rules.maximum_run_spend;
-    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     hello.bounds.message_bytes = world.env.limits.tasks.result_bytes.max(world.env.limits.tasks.message_bytes);
     hello.bounds.inbox = world.env.limits.tasks.run_inbox;
     world.send(event);

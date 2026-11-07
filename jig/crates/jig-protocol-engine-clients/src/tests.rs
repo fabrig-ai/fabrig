@@ -149,3 +149,6 @@ mod provider_claims {
         assert!(email.verified);
     }
 }
+
+#[path = "tests/catalogue.rs"]
+mod catalogue;

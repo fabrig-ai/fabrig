@@ -54,13 +54,6 @@ fn name(output: &mut List<u8>, name: &LimitName) {
             number(output, u64::from(endpoint));
             text(output, "]");
         }
-        Per::Model { endpoint, model } => {
-            text(output, "[endpoint=");
-            number(output, u64::from(endpoint));
-            text(output, ",model=");
-            number(output, u64::from(model));
-            text(output, "]");
-        }
     }
 }
 

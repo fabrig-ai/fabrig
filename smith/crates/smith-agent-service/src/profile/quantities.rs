@@ -23,6 +23,8 @@ pub struct Fraction {
 /// Deployment quantities from which the service derives ownership bounds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Declared {
+    /// Most LLMs a charter names, including main.
+    pub charter_models: u32,
     pub conversations: u32,
     /// Bytes exchanged in one tool piece.
     pub tool_payload: u32,
@@ -110,12 +112,9 @@ pub struct Profile {
     pub policy: Policy,
 }
 
-/// One configured model's quantities, sent by the shell and kept until shutdown.
+/// One endpoint's quantities, sent by the shell and kept until shutdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Model {
-    pub name: Box<[u8]>,
-    /// Accepted model effort names, empty for the provider's own validation.
-    pub efforts: Box<[smith_domain::run::charter::Effort]>,
+pub struct Limits {
     /// Declared usable input tokens.
     pub window: u32,
     /// Declared maximum completion tokens, thinking included.
@@ -127,7 +126,7 @@ pub struct Model {
     pub idle: Duration,
 }
 
-/// One endpoint's progress deadlines and its declared models, supplied at startup.
+/// One endpoint's progress deadlines and its limits, supplied at startup.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Endpoint {
     pub number: u32,
@@ -137,7 +136,7 @@ pub struct Endpoint {
     pub option_bytes: u64,
     pub connect: Duration,
     pub handshake: Duration,
-    pub models: Box<[Model]>,
+    pub limits: Limits,
 }
 
 /// Numeric endpoint declarations used by service derivation, without credentials.
@@ -156,6 +155,7 @@ pub const fn standard() -> Profile {
     Profile {
         name: Name::Standard,
         declared: Declared {
+            charter_models: 64,
             conversations: 5,
             tool_payload: 40_960,
             file_bytes: 1_048_576,

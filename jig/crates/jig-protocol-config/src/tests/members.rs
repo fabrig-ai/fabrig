@@ -98,6 +98,8 @@ fn worker(document: &Document) -> Problems {
 // Optional objects and nonempty lists from the charters, providers, templates, domain and policy
 // fixtures. Shared shapes are exercised at every path; alternate forms are exercised below.
 const EXTRAS: &[(&str, &str, &[u8])] = &[
+    ("charters.0", "models", br#"["small"]"#),
+    ("charters.0", "rest", b"true"),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
     ("limits", "overrides", b"{}"),
     ("llm.endpoints.0", "transport", br#""tls""#),
@@ -111,6 +113,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.models.0", "shown", br#""Small""#),
     ("llm.models.0", "picker", b"false"),
     ("llm.models.0.prices", "cache_write", b"1"),
+    ("llm.providers.0", "endpoint", br#""fake""#),
     ("llm.providers.0", "signed_in_plan", b"true"),
     ("llm.providers.0", "manage_usage", br#""https://usage.example/""#),
     ("llm.providers.0", "sources", br#"{"sign_in":{"issuer":"https://issuer.example","client":"client-a","scopes":["chat","offline_access"],"name_hint":"jig","authorization":"https://issuer.example/authorize","token":"https://issuer.example/token","revocation":"https://issuer.example/revoke","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","trust":"roots.pem","must_grant":["chat"],"resource":"https://resource.example","redirect_path":"callback","redirect_port":8080},"keys":true,"programs":["claude_code"]}"#),

@@ -53,6 +53,7 @@ fn authority() -> c::Authority {
 }
 fn model() -> c::SettingModel {
     c::SettingModel {
+        provider: 1,
         dialect: 1,
         endpoint: 2,
         program: Some(words("program")),
@@ -327,6 +328,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                rest: false,
                 documents: documents(),
                 number: 3,
                 instructions: words("keep \"boundaries\"\nwhole"),
@@ -855,6 +857,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
+            c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -3305,4 +3308,62 @@ fn settings_effort_names_use_the_terminal_name_cut() {
             }
         }
     }
+}
+
+#[test]
+fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
+    let setting = c::Setting::Model(c::SettingNumber { number: 4 });
+    let value = c::SettingValue::Model(Box::new(c::CatalogueEntry {
+        number: 4,
+        model: model(),
+        shown: Some(words("GPT-6.1 Terra")),
+        description: None,
+        picker: false,
+        withdrawn: false,
+        source: c::ModelSource::Stock,
+        estimated: false,
+    }));
+    let (mut root, call) = fixtures::read_call(&["settings", "show", "model", "4", "--revision", "5"]);
+    assert_eq!(
+        root.reads.get(&call).unwrap().1,
+        c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
+    );
+    root.serve(
+        call,
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 5,
+            value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        }))),
+    );
+    let answer = root.answer(call).unwrap();
+    let text = core::str::from_utf8(&answer.stdout).unwrap();
+    assert!(text.starts_with("model 4, revision 5\n"), "{text}");
+    let file = file_from_setting(&setting_json(setting, value.clone()));
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).unwrap();
+    assert_eq!(
+        decoded.get(0).unwrap(),
+        &c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value }) }
+    );
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).unwrap() else { panic!("jig change") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(change.items, decoded);
+    let inventory = c::ReadValue::Settings(Box::new(c::SettingsDocument {
+        newest: 5,
+        settings: list([c::SettingLine {
+            setting,
+            name: Some(c::DocumentText::complete(words("GPT-6.1 Terra"))),
+            follows: c::SettingFollows::Change,
+            last: Some(5),
+            application: None,
+        }]),
+        held: list([]),
+        pending: list([]),
+    }));
+    let bytes = jig::render::settings_text(&inventory, None, &crate::limits::tools());
+    let text = core::str::from_utf8(&bytes).unwrap();
+    assert!(text.contains("model 4") && text.contains("GPT-6.1 Terra"), "{text}");
 }

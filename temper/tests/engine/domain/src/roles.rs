@@ -489,6 +489,7 @@ impl World {
             };
             match request {
                 engine::Request::ToChild(released) => self.queue(engine::Event::Released(released), 0),
+                engine::Request::Store(engine::StoreRequest::Catalogue { names }) => self.store.catalogue(names),
                 engine::Request::Store(engine::StoreRequest::Switch) => {
                     let answer = self.store.switch();
                     self.queue(engine::Event::Store(answer), 0);

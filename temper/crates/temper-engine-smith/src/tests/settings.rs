@@ -83,7 +83,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, landing-rule and forge-charter; the other kinds take none.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none.""#).is_some());
         }
     }
     for (input, why) in [
@@ -93,6 +93,7 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"setting":{"kind":"charter"}}"#, Problem::Needs { kind: b"charter", member: b"number" }),
         (br#"{"setting":{"kind":"template"}}"#, Problem::Needs { kind: b"template", member: b"number" }),
         (br#"{"setting":{"kind":"policy"}}"#, Problem::Needs { kind: b"policy", member: b"number" }),
+        (br#"{"setting":{"kind":"model"}}"#, Problem::Needs { kind: b"model", member: b"number" }),
         (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
         (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
@@ -644,7 +645,8 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     assert_eq!(restored.setting, form::Setting::Rules);
                     rules.ceiling
                 }
-                form::SettingValue::Application(_)
+                form::SettingValue::Model(_)
+                | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
                 | form::SettingValue::Template(_) => {
                     panic!("policy or rules");

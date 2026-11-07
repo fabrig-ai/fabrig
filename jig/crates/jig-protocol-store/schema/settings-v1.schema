@@ -3,7 +3,7 @@ family jig-store-settings 1
 # Settings hold each value whole; instructions are their text bytes, never a path.
 record Text { bytes: bytes 32 }
 record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
-record Model { dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
+record Model { provider: u32 dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
 record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 }
 enum Kinds { workers, engine, both }
 record WakeBatch { count: u32 age: duration }
@@ -13,13 +13,16 @@ enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record Segment { bytes: bytes 4096 }
 record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
-record Charter { number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
+record Charter { rest: bool number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
+enum ModelSource { stock, list, person }
+record CatalogueModel { number: u32 model: Model shown: option bytes 4096 description: option bytes 512 picker: bool withdrawn: bool source: ModelSource estimated: bool }
+record ModelNumber { number: u32 }
 record CharterNumber { number: u32 }
 record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
-enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber }
 record LastExact { bytes: bytes 4096 }
 record LastOpen { bytes: bytes 4096 }
 enum Last { exact: LastExact, open: LastOpen }
@@ -72,7 +75,7 @@ record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
 record Symbol { connector: u16 symbol: u16 }
 record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
-enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules }
+enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel }
 record Party { number: u64 }
 enum Decider { first_start, release, party: Party }
 enum Proposer { task: Party, party: Party }

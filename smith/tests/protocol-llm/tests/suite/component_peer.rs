@@ -275,7 +275,7 @@ fn run_story(
                 },
                 llm: call.endpoint,
             },
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )

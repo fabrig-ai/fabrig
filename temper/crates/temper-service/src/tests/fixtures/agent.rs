@@ -1,5 +1,5 @@
 use crate::settings;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 pub fn agent() -> settings::Agent {
     use skein_lib::Duration;
     let mut endpoints = skein_lib::List::with_capacity(1);
@@ -77,7 +77,7 @@ pub fn agent() -> settings::Agent {
         host_limits,
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 8192, output: 1024 }]),
             turns: 800,
             spend: 256,
             time: Duration::from_secs(28_800),

@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.

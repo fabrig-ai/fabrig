@@ -16,8 +16,15 @@ use skein_lib::List;
 #[must_use]
 pub fn configured(config: &Config, limits: &Limits) -> Needs {
     let mut charters = List::with_capacity(limits.tasks.charters);
+    let models = if config.defaults.models.is_empty() {
+        super::catalogue::defaults(&config.settings)
+    } else {
+        config.defaults.models.clone()
+    };
     for charter in &config.defaults.charters {
-        charters.push(one(charter, 1)).expect("configured charter count");
+        if let Some(charter) = super::charters::resolved(charter, &models, limits) {
+            charters.push(one(&charter, 1)).expect("configured charter count");
+        }
     }
     Needs {
         charters: charters.into_boxed(),
@@ -51,7 +58,7 @@ pub(crate) fn current(core: &crate::Core, limits: &Limits) -> Needs {
     }
 }
 pub(crate) fn model(value: &crate::Model) -> ModelNeed {
-    ModelNeed { name: value.name.clone(), window: value.window, output: value.output }
+    ModelNeed { endpoint: value.endpoint, name: value.name.clone(), window: value.window, output: value.output }
 }
 
 fn one(charter: &crate::Charter, revision: u32) -> CharterNeeds {

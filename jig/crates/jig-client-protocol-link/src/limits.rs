@@ -134,6 +134,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.task_contract_document_approval_state, &mut wire.runtime_running_tool_some,
         &mut wire.runtime_backing_off_reason, &mut wire.setting_model_name, &mut wire.setting_model_program_some,
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
+        &mut wire.catalogue_entry_shown_some, &mut wire.catalogue_entry_description_some,
         &mut wire.charter_document_name_item,
     ]);
     narrow(

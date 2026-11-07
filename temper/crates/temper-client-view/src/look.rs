@@ -1258,6 +1258,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-model-back",
         b"temper-model-find",
         b"temper-model-long",
+        b"temper-models-source",
+        b"temper-models-ask",
+        b"temper-models-add",
     ],
     regions: &[b"temper-link"],
 };
@@ -1585,6 +1588,13 @@ pub const MODEL_ALL: Style = Style { owner: owner(), token: 574 };
 pub const MODEL_BACK: Style = Style { owner: owner(), token: 575 };
 pub const MODEL_FIND: Style = Style { owner: owner(), token: 576 };
 pub const MODEL_LONG: Style = Style { owner: owner(), token: 577 };
+
+/// Models source line (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 578 };
+/// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_ASK: Style = Style { owner: owner(), token: 579 };
+/// Add a model by name (temper/docs/design/client/README.md, 3.5).
+pub const MODELS_ADD: Style = Style { owner: owner(), token: 580 };
 
 #[cfg(test)]
 mod tests {

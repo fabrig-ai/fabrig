@@ -159,10 +159,9 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
-    /// Offer two models and their efforts to the composer, with matching worker bounds.
+    /// Offer the stock models and their efforts to the composer, with matching worker bounds.
     #[must_use]
     pub fn with_model_picker(self) -> Self {
-        configuration::model_picker(self.scratch.path());
         self
     }
     /// The first-run demo, with the box's own fake LLM and forge, started when the playground is chosen.
@@ -238,11 +237,8 @@ impl Tier {
             format!("http://{socket}/bundle/{}/issuer.webmanifest", digest.file_name().to_str().expect("digest"));
         value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
         value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 2000.into();
-        let sign_in = serde_json::json!({
-            "issuer":"http://127.0.0.1:9", "client":"temper-test", "scopes":["openid","chat"],
-            "authorization":"http://127.0.0.1:9/authorize", "token":"http://127.0.0.1:9/token",
-            "keys":keys, "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
-        });
+        let mut sign_in = account_registration("http://127.0.0.1:9");
+        sign_in["keys"] = keys.into();
         account_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         tier
@@ -257,17 +253,9 @@ impl Tier {
         let origin = format!("http://{address}");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let sign_in = serde_json::json!({
-            "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
-            "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
-            "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
-            "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
-        });
-        let agent_path = tier.scratch.path().join("agent.json");
-        let mut agent =
-            serde_json::from_slice(&fs::read(&agent_path).expect("worker declaration")).expect("agent JSON");
-        sign_in_providers(&mut value, &mut agent, &sign_in);
-        configuration::private(&agent_path, &serde_json::to_vec(&agent).expect("welcome agent JSON"));
+        let sign_in = account_registration(&origin);
+        account_provider(&mut value, &sign_in);
+        welcome_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         let mut peer = issuer::peer(address, &sign_in);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held issuer listener");
@@ -380,39 +368,34 @@ impl Tier {
     }
 }
 
+/// Public registration shared by the browser's account fixtures.
+fn account_registration(origin: &str) -> serde_json::Value {
+    serde_json::json!({
+        "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
+        "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
+        "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
+        "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
+    })
+}
+
 /// The two account stories share their provider and room for its driver.
 fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
     // One git operation leaves the small profile's sockets room for the accounts driver.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"Test provider", "number":17, "signed_in_plan":false, "models":["fake"],
+        "name":"Test provider", "number":1, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
     }]);
 }
 
 /// The welcome's own provider on the same issuer, whose one subject would renew on the first
-/// provider (temper/docs/design/client/browser.md, 4.2). A provider claims its models alone.
+/// provider (temper/docs/design/client/browser.md, 4.2). Provider 2 has its own stock models.
 fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
-    let mut model = value["engine"]["llm"]["models"][0].clone();
-    model["name"] = "welcome-fake".into();
-    value["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
     value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
-        "name":"Welcome provider", "number":18, "signed_in_plan":false, "models":["welcome-fake"],
+        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"fake",
         "sources":{"keys":true,"sign_in":sign_in}
     }));
-}
-
-/// Declare both sign-in providers and the welcome model with the same worker bounds.
-fn sign_in_providers(value: &mut serde_json::Value, agent: &mut serde_json::Value, sign_in: &serde_json::Value) {
-    account_provider(value, sign_in);
-    welcome_provider(value, sign_in);
-    let model = &value["engine"]["llm"]["models"][1];
-    let mut declared = agent["endpoints"][0]["models"][0].clone();
-    for field in ["name", "window", "output"] {
-        declared[field] = model[field].clone();
-    }
-    agent["endpoints"][0]["models"].as_array_mut().expect("worker models").push(declared);
 }
 
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
@@ -438,6 +421,17 @@ mod tests {
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
+    fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
+        let document = jig_protocol_config::document(
+            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("account deployment admits stock settings");
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        core.defaults
+    }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
         let (_, deployment) =
@@ -447,16 +441,28 @@ mod tests {
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
     }
     #[test]
+    fn the_accounts_provider_keeps_the_stock_offer() {
+        let mut value = tier_configuration().1;
+        super::account_provider(&mut value, &super::account_registration("http://127.0.0.1:9"));
+        let defaults = stock_defaults(&value);
+        assert_eq!(defaults.models.len(), 4);
+        assert!(defaults.models.iter().all(|entry| entry.model.provider == 1));
+    }
+    #[test]
+    fn the_welcome_provider_has_its_own_stock_offer() {
+        let mut value = tier_configuration().1;
+        let sign_in = super::account_registration("http://127.0.0.1:9");
+        super::account_provider(&mut value, &sign_in);
+        super::welcome_provider(&mut value, &sign_in);
+        let defaults = stock_defaults(&value);
+        assert!(defaults.models.iter().any(|entry| entry.model.provider == 2));
+    }
+    #[test]
     fn the_sign_in_tiers_two_providers_pass_startup_validation() {
-        let (mut agent, mut value) = tier_configuration();
-        let origin = "http://127.0.0.1:9";
-        let sign_in = serde_json::json!({
-            "issuer":origin, "client":"temper-test", "scopes":["openid","chat"],
-            "authorization":format!("{origin}/authorize"), "token":format!("{origin}/token"),
-            "revocation":format!("{origin}/revoke"), "keys":format!("{origin}/keys"),
-            "transport":"plaintext", "must_grant":["chat"], "redirect_path":"callback"
-        });
-        super::sign_in_providers(&mut value, &mut agent, &sign_in);
+        let (agent, mut value) = tier_configuration();
+        let sign_in = super::account_registration("http://127.0.0.1:9");
+        super::account_provider(&mut value, &sign_in);
+        super::welcome_provider(&mut value, &sign_in);
         let shape = temper_service::startup::shape(
             &serde_json::to_vec(&value).expect("two-provider deployment JSON"),
             &jig_protocol_config::Directories::working(),
@@ -464,21 +470,17 @@ mod tests {
         .expect("browser deployment admits two sign-in providers");
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
-        let declared = agent["endpoints"][0]["models"].as_array().expect("worker models");
-        assert_eq!(engine.charters.len(), 7);
-        for charter in &engine.charters {
-            assert_eq!(charter.policy.alternatives.len(), 1);
-            for model in std::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
-                let name = std::str::from_utf8(&model.name).expect("model name");
-                assert!(
-                    declared.iter().any(|bound| {
-                        bound["name"] == name
-                            && bound["window"].as_u64().expect("window") >= u64::from(model.window)
-                            && bound["output"].as_u64().expect("output") >= u64::from(model.output)
-                    }),
-                    "charter {}: model {name} and its bounds must be declared by the worker",
-                    charter.number
-                );
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        let defaults = &core.defaults;
+        let bound = &agent["endpoints"][0]["limits"];
+        assert_eq!(defaults.charters.len(), 7);
+        for charter in &defaults.charters {
+            let resolved =
+                jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
+                    .expect("two-provider stock charter resolves");
+            for model in std::iter::once(&resolved.policy.model).chain(resolved.policy.alternatives.iter()) {
+                assert!(bound["window"].as_u64().expect("window") >= u64::from(model.window));
+                assert!(bound["output"].as_u64().expect("output") >= u64::from(model.output));
             }
         }
     }

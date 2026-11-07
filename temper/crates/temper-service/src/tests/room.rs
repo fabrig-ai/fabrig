@@ -40,7 +40,7 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
     let document = fixtures::with(&document, b"application.limits.overrides", &out.finish());
     let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
     let host = temper_engine_smith::room::host_part(&agent.run_limits);
-    let mut defaults = stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &mut defaults.charters {
         if charter.number == CHARTER {
             charter.policy.instructions = Box::new([]);

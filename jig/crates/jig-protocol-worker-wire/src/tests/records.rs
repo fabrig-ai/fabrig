@@ -4,8 +4,8 @@ use alloc::boxed::Box;
 use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
-// Hello178 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 178 + 4 + crate::v9::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+// Hello146 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
+const HELLO_MAX: u32 = 146 + 4 + crate::v9::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -68,9 +68,9 @@ fn a_hello_keeps_its_agent_bounds_through_bytes() {
     let hello = fixtures::hello_fullest();
     let decoded = hello_through_bytes(&hello);
     let bounds = decoded.bounds();
-    let small = bounds.models().get(0).expect("the first model");
-    assert_eq!(bounds.models().len(), 2);
-    assert_eq!(small.name(), b"small");
+    let small = bounds.endpoints().get(0).expect("the first model");
+    assert_eq!(bounds.endpoints().len(), 2);
+    assert_eq!(small.endpoint(), 1);
     assert_eq!(small.window(), 8192);
     assert_eq!(small.output(), 1024);
     assert_eq!(bounds.turns(), 40);
@@ -109,14 +109,14 @@ fn a_credential_keeps_its_secret_through_bytes() {
 }
 
 #[test]
-fn a_hello_one_model_past_its_list_bound_is_refused() {
+fn a_hello_one_endpoint_past_its_list_bound_is_refused() {
     let mut parts = fixtures::hello_fullest().into_parts();
     let mut bounds = parts.bounds.into_parts();
     let mut models = List::with_capacity(3);
     for _ in 0_u32..3 {
         models.push(fixtures::model()).expect("three fixture slots");
     }
-    bounds.models = models;
+    bounds.endpoints = models;
     parts.bounds = Bounds::new(&crate::CEILINGS, bounds).expect("three models fit the ceilings");
     assert_eq!(
         Hello::new(&fixtures::LIMITS, parts).expect_err("third model refused").reason,

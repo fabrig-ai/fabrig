@@ -845,6 +845,11 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     }
     for (index, charter) in engine.charters.iter().enumerate() {
         let path = charter_path(engine, index);
+        let Some(charter) =
+            jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
+        else {
+            continue;
+        };
         model(&charter.policy.model, &agent.bounds, path.member(b"model"), problems);
         for (index, alternative) in charter.policy.alternatives.iter().enumerate() {
             model(alternative, &agent.bounds, at(index, path.member(b"alternatives")), problems);
@@ -853,8 +858,8 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
 }
 fn model(model: &jig_domain_core::Model, bounds: &jig_domain_link::Bounds, path: Path, problems: &mut Problems) {
     let mut found = false;
-    for bound in &bounds.models {
-        found |= bound.name == model.name && bound.window >= model.window && bound.output >= model.output;
+    for bound in &bounds.endpoints {
+        found |= bound.endpoint == model.endpoint && bound.window >= model.window && bound.output >= model.output;
     }
     if !found {
         problems.push(path, What::Agent);

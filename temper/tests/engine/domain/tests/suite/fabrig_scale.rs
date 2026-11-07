@@ -3,7 +3,7 @@
 //! `temper/docs/design/domain/testing.md`, 1).
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, ReplyTo, Token};
@@ -27,16 +27,26 @@ const LEAVES: [u32; 4] = [95, 95, 95, 94]; // Goal + four coordinators + 379 rep
 
 fn stock_world() -> (World, core::settings::Defaults) {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([super::stock::box_model()]),
+        models: (Box::new([super::stock::box_model()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let limits = box_limits();
-    let stock = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
-    let mut world = World::configured_stock_limits(&stock, &llm.models[0], &limits);
+    let stock = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let mut world = World::configured_stock_limits(&stock, &llm.models[0].model, &limits);
     world.sign_in();
     (world, stock)
 }
@@ -165,7 +175,8 @@ fn close(world: &mut World) {
 fn worker(world: &mut World, stock: &core::settings::Defaults) {
     let model = super::stock::box_model();
     let mut bounds = protocol::bounds();
-    bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     bounds.turns = 800;
     bounds.time = Duration::from_secs(28_800);
     bounds.spend = stock.rules.maximum_run_spend;

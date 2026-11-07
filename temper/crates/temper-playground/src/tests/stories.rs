@@ -47,9 +47,12 @@ fn story_a_decodes_within_the_fakes_bounds() {
     assert_eq!(deployment["engine"]["llm"]["endpoints"][0]["address"]["socket"], llm.listen().to_string());
     assert_eq!(deployment["application"]["demo"]["llm"]["key"], "/setup/llm.key");
     let [model] = llm.models() else { panic!("one model") };
-    assert_eq!(deployment["engine"]["llm"]["models"][0]["name"], std::str::from_utf8(&model.name).expect("model name"));
-    assert_eq!(deployment["engine"]["llm"]["models"][0]["window"], model.window);
-    assert_eq!(deployment["engine"]["llm"]["models"][0]["output"], model.output);
+    assert!(deployment["engine"]["llm"].get("models").is_none());
+    assert!(deployment["engine"]["llm"]["providers"][0].get("models").is_none());
+    let engine = documents::settings::configuration(&deployment);
+    assert_eq!(engine.llm.models[0].model.name.as_ref(), model.name.as_ref());
+    assert_eq!(engine.llm.models[0].model.window, model.window);
+    assert_eq!(engine.llm.models[0].model.output, model.output);
     assert_eq!(all().len(), 1);
     assert_eq!(all()[0].name, "a");
     assert_eq!(all()[0].deployment, A.deployment);
@@ -63,7 +66,7 @@ fn story_as_chats_keep_the_stock_requester_ending() {
         panic!("the composition supplies its settings")
     };
     let engine = documents::settings::configuration(&document);
-    let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(jig.templates[0].flags.ended_by, stock.templates[0].flags.ended_by);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
 }
@@ -485,7 +488,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
 fn story_a_stock() -> (jig_protocol_config::Engine, jig_domain_core::settings::Defaults) {
     let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
     let engine = documents::settings::configuration(&document);
-    let defaults = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     (engine, defaults)
 }
 

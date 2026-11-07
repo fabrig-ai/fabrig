@@ -34,26 +34,14 @@ pub fn configuration() -> smith::Config {
     smith::Config {
         programs: Box::new([]),
         endpoints: Box::from([run::charter::Endpoint(0)]),
-        models: [b"fake-1".as_slice(), b"fake-2".as_slice(), b"fake-3".as_slice()]
-            .into_iter()
-            .map(|model| smith::ConfiguredModel {
-                efforts: Box::new([]),
-                prices: smith_domain::run::Prices {
-                    input: 1,
-                    cached: 1,
-                    cache_write: None,
-                    output: 1,
-                    unit: 1_000_000,
-                },
-                protocol_allowance: 0,
-                endpoint: run::charter::Endpoint(0),
-                model: model.into(),
-                window: 65_536,
-                output: 4096,
-                head: Duration::from_secs(60),
-                idle: Duration::from_secs(30),
-            })
-            .collect(),
+        limits: Box::new([smith::EndpointLimits {
+            protocol_allowance: 0,
+            endpoint: run::charter::Endpoint(0),
+            window: 65_536,
+            output: 4096,
+            head: Duration::from_secs(60),
+            idle: Duration::from_secs(30),
+        }]),
     }
 }
 

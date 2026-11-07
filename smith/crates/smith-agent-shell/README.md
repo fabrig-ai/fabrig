@@ -20,9 +20,8 @@ startup with a reason on standard error.
       "provider": "openai",
       "connect": 10000,
       "handshake": 10000,
-      "models": [{ "name": "gpt-5.5", "window": 159606, "output": 30915,
-        "prices": { "input": 1, "cached": 1, "output": 1, "unit": 1000000 },
-        "reasoning_item": 2048, "head": 60000, "idle": 30000 }],
+      "limits": { "window": 159606, "output": 30915,
+        "reasoning_item": 2048, "head": 60000, "idle": 30000 },
       "address": "api.openai.com:443",
       "transport": "tls",
       "server_name": "api.openai.com"
@@ -36,8 +35,9 @@ startup with a reason on standard error.
 ```
 
 The `standard` profile derives the domain, channel, LLM, machine, IO and
-queue limits from deployment and model declarations. Each model supplies
-positive prices per `unit` tokens; omitted `cache_write` uses `input`. `profile.declared.memory`
+queue limits from deployment and endpoint limits. Charters name their models
+and supply their prices per `unit` tokens; omitted `cache_write` uses `input`.
+`profile.declared.charter_models` bounds the number of LLMs one charter names. `profile.declared.memory`
 is the checked process ceiling, not an allocation. `profile.policy.group_stop`
 is the process stop grace in milliseconds. Children use Skein's supervised
 process trees. An endpoint may also set

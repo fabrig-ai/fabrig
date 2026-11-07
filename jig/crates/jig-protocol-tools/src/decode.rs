@@ -252,6 +252,7 @@ fn settings_read(value: json::Node<'_>) -> Result<core::SettingsRead, Problem> {
         b"inventory" => core::SettingsRead::Inventory,
         b"setting" => {
             let setting = match value.required(b"setting")?.text()?.as_ref() {
+                b"model" => core::settings::Setting::Model(value.required(b"number")?.small()?),
                 b"charter" => core::settings::Setting::Charter(value.required(b"number")?.small()?),
                 b"template" => core::settings::Setting::Template(value.required(b"number")?.small()?),
                 b"policy" => core::settings::Setting::Policy(value.required(b"number")?.small()?),

@@ -48,7 +48,7 @@ fn project(
 ) -> Option<()> {
     declared(inventory, &profile.declared)?;
     policy(inventory, &profile.policy)?;
-    models(inventory, profile, configuration)?;
+    endpoint_declarations(inventory, profile, configuration)?;
     domain(inventory, &limits.domain)?;
     run(inventory, &limits.domain.run)?;
     session(inventory, &limits.domain.session)?;
@@ -85,6 +85,7 @@ fn project(
 
 fn declared(inventory: &mut Inventory, limits: &super::super::Declared) -> Option<()> {
     let super::super::Declared {
+        charter_models,
         conversations,
         tool_payload,
         file_bytes,
@@ -102,6 +103,7 @@ fn declared(inventory: &mut Inventory, limits: &super::super::Declared) -> Optio
         memory,
     } = *limits;
     inventory.layer = Layer::Declared;
+    inventory.value("charter_models", Value::Count(u64::from(charter_models)))?;
     inventory.value("conversations", Value::Count(u64::from(conversations)))?;
     inventory.value("tool_payload", Value::Bytes(u64::from(tool_payload)))?;
     inventory.value("file_bytes", Value::Bytes(u64::from(file_bytes)))?;
@@ -184,7 +186,7 @@ fn domain(inventory: &mut Inventory, limits: &smith_domain::Limits) -> Option<()
     let smith_domain::Limits {
         accounts,
         endpoints,
-        configured_model_bytes,
+        configured_endpoint_bytes,
         decoded_call_bytes,
         content_edge_records,
         skew,
@@ -194,7 +196,7 @@ fn domain(inventory: &mut Inventory, limits: &smith_domain::Limits) -> Option<()
     inventory.layer = Layer::Domain;
     inventory.value("accounts", Value::Count(u64::from(accounts)))?;
     inventory.value("endpoints", Value::Count(u64::from(endpoints)))?;
-    inventory.value("configured_model_bytes", Value::Bytes(configured_model_bytes))?;
+    inventory.value("configured_endpoint_bytes", Value::Bytes(configured_endpoint_bytes))?;
     inventory.value("decoded_call_bytes", Value::Bytes(decoded_call_bytes))?;
     inventory.value("content_edge_records", Value::Count(u64::from(content_edge_records)))?;
     inventory.value("skew", Value::Duration(skew))?;
@@ -433,33 +435,21 @@ fn service(inventory: &mut Inventory, limits: &crate::Limits) -> Option<()> {
     Some(())
 }
 
-fn models(inventory: &mut Inventory, profile: &Profile, configuration: &Configuration) -> Option<()> {
+fn endpoint_declarations(inventory: &mut Inventory, profile: &Profile, configuration: &Configuration) -> Option<()> {
     for endpoint in &configuration.endpoints {
-        let super::super::Endpoint { number, provider: _, option_bytes: _, connect, handshake, models } = endpoint;
+        let super::super::Endpoint { number, provider: _, option_bytes: _, connect, handshake, limits } = endpoint;
         inventory.per = Per::Endpoint(*number);
         inventory.layer = Layer::Policy;
         inventory.value("connect", Value::Duration(*connect))?;
         inventory.value("handshake", Value::Duration(*handshake))?;
         inventory.value("connection_keep", Value::Duration(profile.policy.connection_keep))?;
         inventory.layer = Layer::Declared;
-        for (index, model) in models.iter().enumerate() {
-            let super::super::Model {
-                name: _,
-                efforts: _,
-                window,
-                output,
-                reasoning_item,
-                oversized_reasoning: _,
-                head,
-                idle,
-            } = model;
-            inventory.per = Per::Model { endpoint: *number, model: u32::try_from(index).ok()? };
-            inventory.value("window", Value::Tokens(u64::from(*window)))?;
-            inventory.value("output", Value::Tokens(u64::from(*output)))?;
-            inventory.value("reasoning_item", Value::Bytes(u64::from(*reasoning_item)))?;
-            inventory.value("head", Value::Duration(*head))?;
-            inventory.value("idle", Value::Duration(*idle))?;
-        }
+        let super::super::Limits { window, output, reasoning_item, oversized_reasoning: _, head, idle } = limits;
+        inventory.value("window", Value::Tokens(u64::from(*window)))?;
+        inventory.value("output", Value::Tokens(u64::from(*output)))?;
+        inventory.value("reasoning_item", Value::Bytes(u64::from(*reasoning_item)))?;
+        inventory.value("head", Value::Duration(*head))?;
+        inventory.value("idle", Value::Duration(*idle))?;
     }
     inventory.per = Per::Deployment;
     Some(())

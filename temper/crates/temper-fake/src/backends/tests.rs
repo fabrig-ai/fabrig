@@ -421,13 +421,13 @@ fn assert_program_provider(llm: &Value, temper: &Value) {
         &json!({
             "name":"anthropic", "number":2, "signed_in_plan":false,
             "manage_usage":"https://claude.ai/settings/usage",
-            "models":["fake-claude"], "sources":{"programs":["claude_code"]}
+            "endpoint":"fake-claude", "sources":{"programs":["claude_code"]}
         })
     );
     let openai = &llm["providers"][0];
-    assert_eq!(openai["models"], temper["engine"]["llm"]["providers"][0]["models"]);
+    assert_eq!(openai["endpoint"], temper["engine"]["llm"]["providers"][0]["endpoint"]);
     assert!(openai["sources"].get("programs").is_none());
-    assert!(provider["models"].as_array().expect("provider models").contains(&json!("fake-claude")));
+    assert!(provider.get("models").is_none());
     assert!(provider["sources"]["programs"].as_array().expect("program adapters").contains(&json!("claude_code")));
 }
 
@@ -453,24 +453,21 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
     assert_program_provider(llm, &temper);
-    let model = llm["models"]
-        .as_array()
-        .expect("models")
-        .iter()
-        .find(|model| model["name"] == "fake-claude")
-        .expect("program model");
-    assert_eq!(model["endpoint"], "fake-claude");
+    assert!(llm.get("models").is_none());
+    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let model = stock.models.iter().find(|entry| entry.model.name.as_ref() == super::PROGRAM_MODEL.as_bytes()).unwrap();
+    assert_eq!(model.model.endpoint, 2);
     let engine_endpoint = llm["endpoints"]
         .as_array()
         .expect("engine endpoints")
         .iter()
-        .find(|endpoint| endpoint["name"] == model["endpoint"])
+        .find(|endpoint| endpoint["name"] == "fake-claude")
         .expect("engine program endpoint");
     let agent_endpoint = effective_agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
         .iter()
-        .find(|endpoint| endpoint["name"] == model["endpoint"])
+        .find(|endpoint| endpoint["name"] == "fake-claude")
         .expect("agent program endpoint");
     for endpoint in [engine_endpoint, agent_endpoint] {
         assert_eq!(endpoint["program"], "claude_code");
@@ -478,15 +475,21 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         assert_eq!(endpoint["dialect"], 2, "Anthropic’s endpoint dialect");
         assert_eq!(endpoint["number"], 2);
     }
-    let agent_model = agent_endpoint["models"].as_array().expect("agent models").first().expect("program model");
-    for field in ["name", "window", "output", "prices"] {
-        assert_eq!(model[field], agent_model[field], "program declarations agree: {field}");
+    let agent_limits = &agent_endpoint["limits"];
+    for field in ["window", "output"] {
+        let actual = if field == "window" { model.model.window } else { model.model.output };
+        assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
     }
     let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
-        assert!(charter.policy.alternatives.iter().any(|model| model.name.as_ref() == b"fake-claude"));
-        let expected = if charter.number == 3 { b"gpt-6-astra".as_slice() } else { b"gpt-6.1-sol" };
-        assert_eq!(charter.policy.model.name.as_ref(), expected, "default remains credential-backed");
+        assert_eq!(charter.policy.model.name.as_ref(), super::PROGRAM_MODEL.as_bytes());
+        let names: Vec<_> = stock
+            .models
+            .iter()
+            .filter(|entry| entry.model.provider == 2)
+            .map(|entry| entry.model.name.as_ref())
+            .collect();
+        assert_eq!(names, [b"claude-opus-5-5".as_slice(), b"claude-sonnet-5-5", b"claude-fable-5-1"]);
     }
 }
 
@@ -561,12 +564,12 @@ fn written_anthropic_entries_are_replaced_once() {
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0]["name"], "fake-claude");
     }
-    let models: Vec<_> = llm["models"].as_array().unwrap().iter().filter(|m| m["endpoint"] == "fake-claude").collect();
-    assert_eq!(models.len(), 1);
-    assert_eq!(models[0]["name"], "fake-claude");
+    assert!(llm.get("models").is_none());
     for document in [&effective, &effective_agent] {
-        for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"] {
-            assert!(!serde_json::to_string(document).unwrap().contains(name));
+        assert!(document["engine"]["llm"].get("models").is_none());
+        for endpoint in document.get("endpoints").unwrap_or(&document["engine"]["llm"]["endpoints"]).as_array().unwrap()
+        {
+            assert!(endpoint.get("models").is_none());
         }
     }
 }

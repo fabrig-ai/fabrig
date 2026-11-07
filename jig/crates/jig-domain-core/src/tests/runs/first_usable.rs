@@ -7,7 +7,7 @@
 )]
 use super::run_choice::{account, granted, host_with_endpoints, inventory, login, placement_fleet};
 use crate::tests::*;
-use jig_domain_link::{Bounds, Hello, Hosting, LoginState, ModelBound, Phase, SourceName};
+use jig_domain_link::{Bounds, EndpointBound, Hello, Hosting, LoginState, Phase, SourceName};
 
 const TASK: u64 = 1;
 const HOST: Token = Token::new(7);
@@ -36,6 +36,12 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
         .map(|(at, name)| {
             let mut model = scripted_model();
             model.name = (*name).into();
+            model.provider = match at {
+                0 | 1 => OPENAI,
+                2 => CLAUDE,
+                3 => THIRD,
+                _ => unreachable!("fixture models"),
+            };
             if at == 2 {
                 model.program = Some(b"claude_code".as_slice().into());
                 model.endpoint = PROGRAM_ENDPOINT;
@@ -52,7 +58,6 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
             .map(|(number, names)| accounts::Provider {
                 number,
                 name: names[0].into(),
-                models: names.iter().map(|name| (*name).into()).collect(),
                 signed_in_plan: false,
                 manage_usage: None,
                 offers: accounts::Offers {
@@ -307,9 +312,10 @@ fn a_busy_login_host_is_a_host_wait() {
                 jobs: Box::default(),
                 bounds: Bounds {
                     program_endpoints: Box::new([PROGRAM_ENDPOINT]),
-                    models: NAMES
+                    endpoints: NAMES
                         .iter()
-                        .map(|name| ModelBound { name: (*name).into(), window: 8192, output: 1024 })
+                        .filter_map(|name| core.settings.models.iter().find(|model| model.name.as_ref() == *name))
+                        .map(|model| EndpointBound { endpoint: model.endpoint, window: 8192, output: 1024 })
                         .collect(),
                     ..fixtures::bounds()
                 },

@@ -1,7 +1,7 @@
 //! Calls answered at decode, as errors or successes, leave no commit and
 //! no record (domain/root.md, 5.2; protocol/documentation.md, 5).
 use jig_domain_host as host;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
 use temper_engine_domain::{self as engine, Delivery};
@@ -402,14 +402,24 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     };
     let model = crate::stock::box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model.clone()]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(&llm, 384);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 384);
     let mut designer = defaults.charters[1].clone();
     designer.number = 7;
     defaults.charters = [defaults.charters.as_ref(), &[designer]].concat().into();
@@ -427,7 +437,8 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     };
     worker.bounds = jig_test_profile::fixtures::bounds();
     worker.bounds.time = skein_lib::Duration::from_secs(28_800);
-    worker.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    worker.bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     world.send(hello);
     let ask = world.chat(1, b"coordinate designers and close out the plan");
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -548,14 +559,24 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
     use jig_domain_core::settings::{Edit, Value};
     let model = crate::stock::box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model.clone()]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(&llm, 10_660);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 10_660);
     let mut charters = defaults.charters.to_vec();
     for item in reference_person_settings() {
         match item.edit {
@@ -666,7 +687,8 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
     hello.bounds = jig_test_profile::fixtures::bounds();
     hello.bounds.time = skein_lib::Duration::from_secs(28_800);
     let model = crate::stock::box_model();
-    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     world.send(event);
     let jig_domain_people::Ask::Create { project, mut batch } = world.chat(1, b"Coordinate a person-only choice")
     else {

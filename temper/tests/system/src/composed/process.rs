@@ -675,7 +675,7 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
 }
 
 fn receiving() -> run::Limits {
-    use smith_agent_service::profile::{self, Configuration, Endpoint, Model};
+    use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
     let declarations = Configuration {
         role_bound: None,
         environment_bytes: 0,
@@ -685,18 +685,14 @@ fn receiving() -> run::Limits {
             option_bytes: 0,
             connect: Duration::from_secs(10),
             handshake: Duration::from_secs(10),
-            models: [b"fake-1".as_slice(), b"fake-2".as_slice()]
-                .map(|name| Model {
-                    name: name.into(),
-                    efforts: Box::default(),
-                    window: 1_048_576,
-                    output: 8192,
-                    reasoning_item: 65_536,
-                    oversized_reasoning: profile::OversizedReasoning::Fail,
-                    head: Duration::from_secs(60),
-                    idle: Duration::from_secs(30),
-                })
-                .into(),
+            limits: DeclaredLimits {
+                window: 1_048_576,
+                output: 8192,
+                reasoning_item: 65_536,
+                oversized_reasoning: profile::OversizedReasoning::Fail,
+                head: Duration::from_secs(60),
+                idle: Duration::from_secs(30),
+            },
         }]),
     };
     let template: serde_json::Value =

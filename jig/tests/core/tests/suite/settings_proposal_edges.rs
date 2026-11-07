@@ -800,15 +800,13 @@ fn settings_revision(world: &World, number: u32) -> &s::Revision {
         .expect("durable settings revision")
 }
 
-// engine.md, 17.1, 17.2 and 17.6: acceptance rechecks the whole set;
-// removing an unused model changes no setting and makes no release revision.
+// The catalogue includes the model the proposed charter names (engine.md, 17.11).
 fn model_proposal_configuration() -> (root::Config, root::Limits, core::Model) {
     let (mut config, limits) = configuration();
     let mut model = config.core.settings.models[0].clone();
     model.name = b"pending-only".as_slice().into();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
-    config.core.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), model.name.clone()]);
+
     (config, limits, model)
 }
 
@@ -835,73 +833,6 @@ fn durable_settings(world: &World) -> Vec<root::Record> {
         .filter(|row| matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Settings(_)))))
         .cloned()
         .collect()
-}
-
-fn refused_model_proposal() -> (World, u64, u64) {
-    let (config, limits, model) = model_proposal_configuration();
-    let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
-    world.reads = Some(reads::Parties::new(world.store.applied));
-    let owner = world.sign_in.expect("owner sign-in");
-    let number = propose(&mut world, owner, 140, 1, model_proposal_items(model));
-    let proposal_before = proposal_document(&mut world, owner, OWNER, number);
-    world.restart_with(configuration().0);
-    let settings_before = settings_document(&mut world, owner);
-    let rows_before = durable_settings(&world);
-    let task = world.assigned.as_ref().expect("fixture's live agent task").task;
-    let task_before = fixtures::live_row(&world, task).clone();
-    let assignments_before = world.assignments.clone();
-    let cancellations_before = world.cancellations.clone();
-    fixtures::ask_as(
-        &mut world,
-        owner,
-        141,
-        people::Ask::DecideProposal {
-            project: DEPLOYMENT,
-            proposer: people::Proposer::Party(OWNER),
-            proposal: number,
-            decision: people::ProposalDecision::Accept,
-            running: Some(people::Running::Moves),
-        },
-    );
-    let reply = world.people_answers.last().expect("one acceptance answer").clone();
-    let proposal_after = proposal_document(&mut world, owner, OWNER, number);
-    let settings_after = settings_document(&mut world, owner);
-    assert_eq!(proposal_after, proposal_before, "shape refusal preserves the pending review; {reply:?}");
-    assert_eq!(settings_after, settings_before, "no item of a refused set becomes visible; {reply:?}");
-    assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
-    assert!(
-        matches!(
-            reply,
-            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
-                why: people::Malformed::Settings { .. },
-                ..
-            }))
-        ),
-        "shape refusal: {reply:?}"
-    );
-    assert_eq!(durable_settings(&world), rows_before, "no settings row saved or erased on refusal");
-    assert_eq!(fixtures::live_row(&world, task), &task_before, "refused Moves does not move the task");
-    assert_eq!(world.assignments, assignments_before, "refusal starts no work");
-    assert_eq!(world.cancellations, cancellations_before, "refusal cancels no run");
-    world.restart_with(configuration().0);
-    assert_eq!(proposal_document(&mut world, owner, OWNER, number), proposal_before);
-    assert_eq!(settings_document(&mut world, owner), settings_before);
-    (world, owner, number)
-}
-
-#[test]
-fn shape_refusal_keeps_the_pending_set_across_restart() {
-    let (world, _, number) = refused_model_proposal();
-    assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Pending { .. }));
-}
-
-#[test]
-fn restoring_a_removed_model_allows_the_pending_proposals_retry() {
-    let (mut world, owner, number) = refused_model_proposal();
-    world.restart_with(model_proposal_configuration().0);
-    decide(&mut world, owner, 142, OWNER, number, people::ProposalDecision::Accept);
-    assert_eq!(settings_document(&mut world, owner).newest, 2, "retry: {:?}", world.people_answers.last());
-    assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::SettingsAccepted { revision: 2, .. }));
 }
 
 #[test]

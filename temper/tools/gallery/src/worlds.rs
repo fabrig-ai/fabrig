@@ -101,6 +101,9 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     member
         .models
         .push(c::MeModel {
+            number: 1,
+            source: jig_client::contract::ModelSource::Stock,
+            estimated: false,
             name: choice.main.model,
             provider: Some(17),
             description: None,
@@ -364,6 +367,9 @@ fn world_in_layout(
                             if let Then::Hosts { role: false, .. } = then {
                                 me.deployment_role = None;
                             }
+                            if let Then::Models { one_account, state } = then {
+                                models_frame(&mut me, one_account, state);
+                            }
                             if let Some(name) = picker {
                                 picker::frame(&mut me, name);
                             }
@@ -371,13 +377,14 @@ fn world_in_layout(
                         }
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
-                            {
-                                let mut doc = accounts(w, then);
-                                if let Some(name) = picker {
-                                    picker::accounts(&mut doc, name);
-                                }
-                                Some(c::Delivery::Accounts(Box::new(doc)))
+                            let mut doc = accounts(w, then);
+                            if let Then::Models { one_account: true, .. } = then {
+                                doc.accounts.truncate(1);
                             }
+                            if let Some(name) = picker {
+                                picker::accounts(&mut doc, name);
+                            }
+                            Some(c::Delivery::Accounts(Box::new(doc)))
                         }
                         c::Subject::Tasks { query, window } => {
                             let mut tasks = if query.tracked == Some(true) {
@@ -3532,7 +3539,8 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 source: 43,
                 end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
-            Then::Hosts { .. }
+            Then::Models { .. }
+            | Then::Hosts { .. }
             | Then::Shown
             | Then::DraftEmpty
             | Then::Mode(_)
@@ -3645,6 +3653,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut projects = List::with_capacity(1);
     projects
         .push(c::MeProject {
+            left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
@@ -5291,4 +5300,50 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
         }
     }
     assert!(out.is_empty(), "Home decisions settle");
+}
+
+/// The Models samples use only the accounts' supplied offer (client/README.md, 3.5, The `Models` tab).
+fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelState) {
+    use super::samples::ModelState;
+    if state == ModelState::Member {
+        me.deployment_role = Some(c::HeldRole::Policy { role: 1 });
+    }
+    let member = me.projects.get_mut(0).expect("models project");
+    let sample = member.models.get(0).expect("sample model").clone();
+    member.models = List::with_capacity(7);
+    for (number, (provider, name, shown, effort)) in (1u32..).zip([
+        (17, "claude-opus-5-5", "Opus 5.5", "high"),
+        (17, "claude-sonnet-5-5", "Sonnet 5.5", "high"),
+        (17, "claude-fable-5-1", "Fable 5.1", "high"),
+        (18, "gpt-6.1-sol", "GPT-6.1 Sol", "high"),
+        (18, "gpt-6-astra", "GPT-6 Astra", "high"),
+        (18, "gpt-6.1-terra", "GPT-6.1 Terra", "medium"),
+        (18, "gpt-6-luna", "GPT-6 Luna", "medium"),
+    ]) {
+        if one_account && provider == 18 {
+            continue;
+        }
+        let mut model = sample.clone();
+        model.number = number;
+        model.provider = Some(provider);
+        model.name = text(name);
+        model.shown = Some(text(shown));
+        model.efforts =
+            List::from_boxed(Box::new([text("low"), text("medium"), text("high"), text("xhigh"), text("max")]));
+        model.effort = Some(text(effort));
+        model.picker = name != "gpt-6-luna" && !(state == ModelState::Off && name == "claude-sonnet-5-5");
+        if state == ModelState::Added && name == "claude-sonnet-5-5" {
+            model.source = c::ModelSource::Person;
+            model.estimated = true;
+        }
+        member.models.push(model).expect("seven supplied models");
+    }
+    member.defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            subagents: List::with_capacity(0),
+        },
+    }]));
 }

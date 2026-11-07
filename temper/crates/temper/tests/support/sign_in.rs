@@ -506,9 +506,8 @@ fn reasoning_allowance(directory: &Path) -> u64 {
         .as_array()
         .expect("endpoints")
         .iter()
-        .flat_map(|endpoint| endpoint["models"].as_array().expect("models"))
-        .find(|model| model["name"] == "gpt-6-luna")
-        .expect("plan model")["reasoning_item"]
+        .find(|endpoint| endpoint["name"] == "openai")
+        .expect("plan endpoint")["limits"]["reasoning_item"]
         .as_u64()
         .expect("reasoning allowance")
 }

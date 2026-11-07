@@ -159,7 +159,7 @@ pub(crate) fn valid_current_executor(
     }
     let policy = match executor {
         TemplateExecutor::Chosen => None,
-        TemplateExecutor::Charter(number) => match current.charter(number) {
+        TemplateExecutor::Charter(number) => match current.resolved_charter(number) {
             Some(charter) => Some(&charter.policy),
             None => return false,
         },

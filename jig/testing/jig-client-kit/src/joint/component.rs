@@ -35,6 +35,10 @@ pub(super) struct Composition {
 }
 
 impl Composition {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the joint fixture constructs its transport and protocol models together"
+    )]
     pub(super) fn new(driver: &Driver, limits: jig_client_domain::Limits) -> Self {
         let (now, wall) = driver.world.clocks();
         let env = Env {
@@ -86,6 +90,9 @@ impl Composition {
                 .models
                 .iter()
                 .map(|model| clients::Model {
+                    number: 0,
+                    source: jig_domain_core::settings::ModelSource::Stock,
+                    estimated: false,
                     effort: model.default_effort().map(skein_lib::bytes::copy_of),
                     shown: None,
                     picker: true,
@@ -238,6 +245,7 @@ impl Composition {
         | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. })
         | core::Event::Key { reply_to, .. }
         | core::Event::ProposeSettings { reply_to, .. }
+        | core::Event::ChangeModel { reply_to, .. }
         | core::Event::ChangeSettings { reply_to, .. } = &mut event
         {
             driver

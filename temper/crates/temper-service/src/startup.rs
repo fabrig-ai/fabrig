@@ -288,9 +288,13 @@ pub fn engine_with(
     given: &crate::stock::Given,
 ) -> Result<config::Engine, config::Problems> {
     let mut engine = config::engine(document, at, directories, config::Defaults::Passed)?;
-    if engine.llm.models.is_empty() {
+    let stock = match given {
+        crate::stock::Given::Stock => true,
+        crate::stock::Given::Own { .. } => false,
+    };
+    if stock && crate::stock::models(&engine.llm).is_empty() {
         let mut problems = config::Problems::empty();
-        problems.push(Path::root().member(b"llm").member(b"models"), config::What::Bound);
+        problems.push(Path::root().member(b"llm").member(b"providers"), config::What::Bound);
         return Err(problems);
     }
     let Some(defaults) = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes) else {

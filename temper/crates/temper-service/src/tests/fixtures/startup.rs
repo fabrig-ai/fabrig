@@ -4,7 +4,7 @@
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
 use crate::settings;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{List, Secret};
 
 pub const APPLICATION: &[u8] = br#"{
@@ -45,7 +45,7 @@ pub fn demo_document() -> Box<[u8]> {
         .into_boxed_slice()
 }
 pub fn demo_service() -> crate::Service {
-    crate::startup::startup(
+    start(
         &demo_document(),
         &jig_protocol_config::Directories::working(),
         &files(),
@@ -121,6 +121,8 @@ pub fn startup_agent() -> settings::Agent {
     agent.host_limits.call_bytes = 256;
     agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
     agent.bounds.message_bytes = 512;
+    agent.bounds.spend = 43_584;
+    agent.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]);
     agent
 }
 
@@ -415,7 +417,7 @@ pub fn owned_worker_agent() -> settings::Agent {
         },
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"gpt-6-luna".as_slice().into(), window: 1_048_576, output: 8192 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]),
             turns: 16,
             spend: 1_000_000_000,
             time: skein_lib::Duration::from_secs(86_400),
@@ -459,4 +461,29 @@ pub fn owned_worker_agent() -> settings::Agent {
             facts: 1024,
         },
     }
+}
+
+#[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
+pub fn start(
+    document: &[u8],
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: crate::WorkerRuntime,
+    forges: List<crate::ForgeRuntime>,
+) -> Result<crate::Service, crate::startup::Problems> {
+    let defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    crate::startup::startup_with(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        runtime,
+        forges,
+        &crate::stock::Given::Own { jig: defaults, forge: Box::default() },
+    )
 }

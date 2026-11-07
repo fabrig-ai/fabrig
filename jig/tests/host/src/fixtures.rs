@@ -52,7 +52,7 @@ pub fn callback(name: &[u8]) -> Token {
 pub fn bounds() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([]),
+        endpoints: Box::new([]),
         turns: 8,
         spend: 100,
         time: Duration::from_secs(60),

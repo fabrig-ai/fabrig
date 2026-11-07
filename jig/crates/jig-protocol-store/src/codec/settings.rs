@@ -17,6 +17,8 @@ const EMPTY: wire::Limits = wire::Limits {
     model_name_name: 0,
     model_name_efforts: 0,
     model_name_efforts_item: 0,
+    catalogue_model_shown_some: 0,
+    catalogue_model_description_some: 0,
     model_program_some: 0,
     model_name: 0,
     model_efforts: 0,
@@ -92,6 +94,9 @@ fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wi
             wire::Setting::Policy(wire::PolicyNumber::new(limits, wire::PolicyNumberParts { number: *entry })?)
         }
         settings::Setting::Rules => wire::Setting::Rules,
+        settings::Setting::Model(number) => {
+            wire::Setting::Model(wire::ModelNumber::new(limits, wire::ModelNumberParts { number: *number })?)
+        }
         settings::Setting::Application { kind, scope, number } => {
             wire::Setting::Application(wire::ApplicationSetting::new(
                 limits,
@@ -116,6 +121,7 @@ fn decode_setting(value: wire::Setting) -> settings::Setting {
         }
         wire::Setting::ProjectPolicy(value) => settings::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Rules => settings::Setting::Rules,
+        wire::Setting::Model(number) => settings::Setting::Model(number.number()),
         wire::Setting::Application(value) => {
             let wire::ApplicationSettingParts { kind, scope, number } = value.into_parts();
             settings::Setting::Application { kind, scope, number }
@@ -402,6 +408,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Template(entry) => wire::Value::Template(Box::new(encode_template(entry, limits)?)),
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
+        settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
     })
 }
@@ -411,6 +418,7 @@ fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::V
         wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits)?)),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
+        wire::Value::Model(value) => settings::Value::Model(Box::new(decode_catalogue(*value))),
     })
 }
 fn encode_decider(value: &settings::Decider, limits: &wire::Limits) -> Result<wire::Decider, wire::Problem> {
@@ -512,6 +520,7 @@ fn encode_model(value: &core::Model, limits: &wire::Limits) -> Result<wire::Mode
     wire::Model::new(
         limits,
         wire::ModelParts {
+            provider: value.provider,
             dialect: field_dialect,
             endpoint: field_endpoint,
             program: field_program,
@@ -530,6 +539,7 @@ fn encode_model(value: &core::Model, limits: &wire::Limits) -> Result<wire::Mode
 }
 fn decode_model(value: wire::Model) -> core::Model {
     let wire::ModelParts {
+        provider,
         dialect,
         endpoint,
         program,
@@ -563,6 +573,7 @@ fn decode_model(value: wire::Model) -> core::Model {
     let field_efforts = list_6.into_boxed();
     let field_effort = effort;
     core::Model {
+        provider,
         dialect: field_dialect,
         endpoint: field_endpoint,
         program: field_program,
@@ -702,6 +713,7 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
     wire::Charter::new(
         limits,
         wire::CharterParts {
+            rest: value.rest,
             number: field_number,
             policy: field_policy,
             hosts: field_hosts,
@@ -712,7 +724,7 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
     )
 }
 fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::Charter, wire::Problem> {
-    let wire::CharterParts { number, policy, hosts, spend, wake, documents } = value.into_parts();
+    let wire::CharterParts { rest, number, policy, hosts, spend, wake, documents } = value.into_parts();
     let mut decoded = List::with_capacity(documents.len());
     for document in documents.into_boxed() {
         let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
@@ -734,6 +746,7 @@ fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::C
             .expect("decoded documents bound");
     }
     Ok(core::Charter {
+        rest,
         number,
         policy: decode_run_policy(policy),
         hosts: decode_kinds(hosts),
@@ -1943,6 +1956,8 @@ fn decode_recorded(values: List<wire::Recorded>) -> Box<[application::Recorded]>
 pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     let mut limits = wire::CEILINGS;
     limits.text_bytes = core::EFFORT_BYTES;
+    limits.catalogue_model_shown_some = core::MODEL_NAME_BYTES;
+    limits.catalogue_model_description_some = core::MODEL_DESCRIPTION_BYTES;
     limits.model_name = core::MODEL_NAME_BYTES;
     limits.model_name_name = core::MODEL_NAME_BYTES;
     limits.model_name_efforts = core::EFFORTS;
@@ -1985,7 +2000,7 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
         wire::RevisionItem::encoded_bound(&EMPTY)?,
         true,
     )?;
-    limits.proposal_items = settings::capacity(domain)?.checked_mul(2)?;
+    limits.proposal_items = settings::capacity(domain)?.checked_mul(2)?.min(tasks::SETTINGS_ITEMS);
     limits.revision_applications = tasks::SETTINGS_ITEMS;
     limits.proposal_applications = tasks::SETTINGS_ITEMS;
     if wire::check_limits(&limits).is_err() {
@@ -2006,6 +2021,7 @@ pub fn encode(
                 settings::Setting::Charter(_)
                 | settings::Setting::Template(_)
                 | settings::Setting::Policy(_)
+                | settings::Setting::Model(_)
                 | settings::Setting::Rules
                 | settings::Setting::ProjectPolicy { .. } => return Err(bound()),
             }
@@ -2072,6 +2088,7 @@ pub fn decode(
             settings::Setting::Charter(_)
             | settings::Setting::Template(_)
             | settings::Setting::Policy(_)
+            | settings::Setting::Model(_)
             | settings::Setting::Rules
             | settings::Setting::ProjectPolicy { .. } => settings::Record::Changed {
                 setting: *setting,
@@ -2200,5 +2217,45 @@ fn decode_wake(value: wire::WakePolicy) -> tasks::WakePolicy {
         questions,
         answers,
         timers,
+    }
+}
+
+fn encode_catalogue(
+    value: &settings::CatalogueModel,
+    limits: &wire::Limits,
+) -> Result<wire::CatalogueModel, wire::Problem> {
+    wire::CatalogueModel::new(
+        limits,
+        wire::CatalogueModelParts {
+            number: value.number,
+            model: encode_model(&value.model, limits)?,
+            shown: value.shown.clone(),
+            description: value.description.clone(),
+            picker: value.picker,
+            withdrawn: value.withdrawn,
+            estimated: value.estimated,
+            source: match value.source {
+                settings::ModelSource::Stock => wire::ModelSource::Stock,
+                settings::ModelSource::List => wire::ModelSource::List,
+                settings::ModelSource::Person => wire::ModelSource::Person,
+            },
+        },
+    )
+}
+fn decode_catalogue(value: wire::CatalogueModel) -> settings::CatalogueModel {
+    let value = value.into_parts();
+    settings::CatalogueModel {
+        number: value.number,
+        model: decode_model(value.model),
+        shown: value.shown,
+        description: value.description,
+        picker: value.picker,
+        withdrawn: value.withdrawn,
+        estimated: value.estimated,
+        source: match value.source {
+            wire::ModelSource::Stock => settings::ModelSource::Stock,
+            wire::ModelSource::List => settings::ModelSource::List,
+            wire::ModelSource::Person => settings::ModelSource::Person,
+        },
     }
 }

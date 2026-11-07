@@ -75,9 +75,7 @@
         {{
           "name": "fake-provider",
           "number": 1,
-          "models": [
-            "fake"
-          ],
+          "endpoint": "fake",
           "sources": {{
             "keys": true
           }}
@@ -86,7 +84,7 @@
       "endpoints": [
         {{
           "name": "fake",
-          "number": 1,
+          "number": 0,
           "dialect": 3,
           "provider": "fake-provider",
           "address": {{
@@ -96,20 +94,6 @@
           "headers": [],
           "connect_ms": 10000,
           "handshake_ms": 10000
-        }}
-      ],
-      "models": [
-        {{
-          "name": "fake",
-          "endpoint": "fake",
-          "window": 1048576,
-          "output": 512,
-          "prices": {{
-            "input": 1,
-            "cached": 1,
-            "output": 1,
-            "unit": 1000000
-          }}
         }}
       ]
     }},

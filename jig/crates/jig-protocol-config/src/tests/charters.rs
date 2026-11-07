@@ -17,6 +17,19 @@ fn a_charter_whose_budget_holds_its_reserve_is_read() {
     assert_eq!(engine.charters.len(), 1);
     assert_eq!(engine.charters[0].spend, 20);
     assert!(engine.charters[0].documents.is_empty());
+    assert!(engine.charters[0].rest);
+    let document = fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""model": "small", "alternatives": []"#,
+        br#""models": ["small"], "rest": false"#,
+    );
+    let named = fixtures::engine(&document).expect("named first choice");
+    assert!(!named.charters[0].rest);
+    assert_eq!(named.charters[0].policy.model, engine.charters[0].policy.model);
+    let document = fixtures::with(fixtures::ENGINE_SMALL, br#""model": "small", "alternatives": [],"#, b"");
+    let all = fixtures::engine(&document).expect("rest without named choices");
+    assert!(all.charters[0].rest);
+    assert_eq!(all.charters[0].policy.model, engine.charters[0].policy.model);
 }
 
 fn with_documents(value: &[u8]) -> Box<[u8]> {

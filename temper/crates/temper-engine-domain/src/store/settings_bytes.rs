@@ -48,6 +48,21 @@ fn items(items: &[Item]) -> Option<u64> {
 }
 fn value(value: &Value) -> Option<u64> {
     match value {
+        Value::Model(value) => {
+            let mut bytes = u64::try_from(size_of::<jig_domain_core::settings::CatalogueModel>()).ok()?;
+            bytes = bytes.checked_add(skein_lib::len_u64(value.model.name.len()))?;
+            for effort in &value.model.efforts {
+                bytes = bytes
+                    .checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?
+                    .checked_add(skein_lib::len_u64(effort.len()))?;
+            }
+            for text in
+                [&value.shown, &value.description, &value.model.program, &value.model.effort].into_iter().flatten()
+            {
+                bytes = bytes.checked_add(skein_lib::len_u64(text.len()))?;
+            }
+            Some(bytes)
+        }
         Value::Charter(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
             .ok()?
             .checked_add(jig_domain_core::charter_owned_bytes(charter)?),

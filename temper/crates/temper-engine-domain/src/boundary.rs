@@ -625,6 +625,14 @@ pub enum PartyInput {
         change: Box<core::settings::Proposed>,
         kinds: Box<[KindValue]>,
     },
+    /// An owner model act, decided by jig at its newest revision.
+    ChangeModel {
+        reply_to: ReplyTo,
+        sign_in: u64,
+        key: [u8; 16],
+        digest: [u8; 32],
+        act: core::settings::catalogue::ModelAct,
+    },
     /// A direct owner settings change, decided by jig.
     ChangeSettings {
         reply_to: ReplyTo,
@@ -856,6 +864,10 @@ pub enum Request {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum StoreRequest {
+    /// Replace the names before the catalogue decision commits (jig domain/engine.md, 17.11).
+    Catalogue {
+        names: Box<[core::settings::ModelName]>,
+    },
     Switch,
     Commit {
         /// Positive ordered commit number allocated by the journal, echoed by the store terminal;
@@ -896,6 +908,10 @@ pub enum WorkerRequest {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum PartyRequest {
+    /// Replace the clients' catalogue before its decision commits (jig domain/engine.md, 17.11).
+    Catalogue {
+        models: Box<[core::settings::CatalogueModel]>,
+    },
     /// A sign-in the core refused before any decision: a counter is
     /// exhausted, or the store is at its fill mark.
     SignInRefused {

@@ -1614,15 +1614,28 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
             .collect();
     config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: config.core.settings.models.clone(),
-        descriptions: Box::new([]),
+        models: (config.core.settings.models.clone())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
-    let stock =
-        temper_service::stock::defaults(&llm, temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes);
+    let stock = temper_service::stock::with_models(
+        llm.models.clone(),
+        temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
+    );
     let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
     config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
     let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();

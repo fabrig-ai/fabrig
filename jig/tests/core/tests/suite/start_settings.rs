@@ -62,7 +62,11 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
         let mut erased = false;
         let mut extent = false;
         for _ in 0..h.out.len() {
-            let core::Request::Write(write) = h.out.pop().expect("release write") else { panic!("release writes") };
+            let write = match h.out.pop().expect("release output") {
+                core::Request::Write(write) => write,
+                core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. } => continue,
+                other => panic!("unexpected release output: {other:?}"),
+            };
             match write {
                 core::Write::Save(core::Record::Core(core::CoreRecord::Settings(row))) => match row {
                     settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
@@ -122,9 +126,10 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
 }
 
 #[test]
-fn unchanged_settings_go_directly_to_sweep_without_a_release_commit() {
+fn unchanged_settings_tell_the_catalogue_without_a_release_revision() {
     let mut h = Harness::stored(false, false);
     phase(&link(&mut h.core, &h.env, &mut h.out), Phase::Sweep);
+    assert!(matches!(h.out.pop(), Some(core::Request::Ask { ask: core::Ask::Catalogue { .. }, .. })));
     assert!(h.out.is_empty());
     assert_eq!(h.core.current.newest(), 1);
     phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);

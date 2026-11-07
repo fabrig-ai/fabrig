@@ -26,9 +26,9 @@
         {
           "name": "openai",
           "number": 1,
+          "endpoint": "openai",
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
-          "models": ["gpt-6.1-sol"],
           "sources": {
             "keys": true,
             "sign_in": {
@@ -65,20 +65,6 @@
           "connect_ms": 10000,
           "handshake_ms": 10000,
           "server_name": "api.openai.com"
-        }
-      ],
-      "models": [
-        {
-          "name": "gpt-6.1-sol",
-          "endpoint": "openai",
-          "window": 1048576,
-          "output": 8192,
-          "prices": {
-            "input": 1,
-            "cached": 1,
-            "output": 1,
-            "unit": 1000000
-          }
         }
       ]
     },

@@ -7,6 +7,11 @@ use skein_world::Host;
 
 const PASSES: u32 = 1000;
 
+#[test]
+fn each_picker_repository_has_room_for_its_first_commit() {
+    let _peer = super::peer_repositories(([127, 0, 0, 1], 0).into(), 45, 30);
+}
+
 struct World {
     peer: Peer,
     sim: Sim,

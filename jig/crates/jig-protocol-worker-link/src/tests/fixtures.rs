@@ -1,5 +1,5 @@
 use crate::{Credential, Limits};
-use jig_domain_link::{Bounds, Hello, Hosting, ModelBound, Phase};
+use jig_domain_link::{Bounds, EndpointBound, Hello, Hosting, Phase};
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
@@ -22,7 +22,7 @@ pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wi
     grant: 16,
     name: 16,
     secret: 16,
-    model_name: 16,
+
     items: 16,
     left: 16,
     saved: 16,
@@ -75,7 +75,7 @@ pub fn hello() -> Hello {
         hosting: Box::new([Hosting { run: RUN_SEVEN, attempt: ATTEMPT_TWO, phase: Phase::Active }]),
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"model".as_slice().into(), window: 16, output: 8 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 16, output: 8 }]),
             turns: 1,
             spend: 10,
             time: Duration::from_secs(60),

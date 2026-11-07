@@ -64,6 +64,9 @@ pub fn settings() -> Settings {
 pub fn models() -> Box<[crate::Model]> {
     Box::new([
         crate::Model {
+            number: 1,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             effort: Some(Box::from(b"low".as_slice())),
             shown: None,
             picker: true,
@@ -76,6 +79,9 @@ pub fn models() -> Box<[crate::Model]> {
             description: Some(Box::from(b"For careful work".as_slice())),
         },
         crate::Model {
+            number: 1,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             effort: None,
             shown: None,
             picker: true,

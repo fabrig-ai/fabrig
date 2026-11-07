@@ -6,7 +6,7 @@
   "tls": null,
   "models": [
     {{
-      "name": "fake",
+      "name": "gpt-6.1-sol",
       "window": 1048576,
       "output": 8192
     }}

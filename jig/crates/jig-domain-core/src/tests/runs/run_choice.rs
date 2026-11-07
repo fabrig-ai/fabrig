@@ -7,8 +7,8 @@
 )]
 use crate::tests::*;
 use jig_domain_link::{
-    Bounds, CountKind, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Membership, ModelBound, Phase,
-    Scheme, SourceFailure, SourceName,
+    Bounds, CountKind, EndpointBound, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Membership,
+    Phase, Scheme, SourceFailure, SourceName,
 };
 const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
@@ -57,13 +57,20 @@ pub(in crate::tests) fn host_with_endpoints(
 ) {
     let mut bounds = fixtures::bounds();
     bounds.program_endpoints = endpoints;
-    bounds.models = names.iter().map(|name| ModelBound { name: (*name).into(), window: 8192, output: 1024 }).collect();
+    let mut declared: Vec<_> = names
+        .iter()
+        .filter_map(|name| core.settings.models.iter().find(|model| model.name.as_ref() == *name))
+        .map(|model| EndpointBound { endpoint: model.endpoint, window: 8192, output: 1024 })
+        .collect();
+    declared.sort_by_key(|endpoint| endpoint.endpoint);
+    declared.dedup_by_key(|endpoint| endpoint.endpoint);
+    bounds.endpoints = declared.into_boxed_slice();
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
         fleet::Event::Hello {
-            worker: u32::from(channel == SECOND),
+            worker: u32::from(channel == SECOND).min(limits.fleet.workers.saturating_sub(1)),
             channel,
             hello: Hello {
                 jobs: Box::default(),
@@ -94,17 +101,17 @@ fn ready(none: bool) -> (Core, Limits) {
     let mut same = scripted_model();
     same.name = b"same".as_slice().into();
     let mut other = scripted_model();
+    other.provider = 2;
     other.name = b"other".as_slice().into();
+    other.endpoint = 2;
     config.settings.models = Box::new([scripted_model(), same.clone(), other.clone()]);
     config.defaults.charters[0].policy.alternatives = Box::new([same, other]);
-    config.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), b"same".as_slice().into()]);
+
     let provider = accounts::Provider {
         name: b"Fake".as_slice().into(),
         signed_in_plan: !none,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),
         number: 2,
-        models: Box::new([b"other".as_slice().into()]),
         offers: accounts::Offers { sign_in: !none, key: false, programs: Box::new([]) },
     };
     config.settings.llm_providers.providers = Box::new([config.settings.llm_providers.providers[0].clone(), provider]);
@@ -428,7 +435,7 @@ fn a_task_document_distinguishes_an_application_credential_wait() {
 fn a_progress_count_leaves_due_task_watches_unmarked() {
     let (mut core, mut limits) = ready(false);
     limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs(), Box::new([]));
+    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -495,15 +502,12 @@ pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Tok
 }
 pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::Domain {
     let mut config = config(41);
+    config.settings.models = core.settings.models.clone();
     config.defaults.charters[0].hosts = core.charter(1).unwrap().hosts;
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();
-    let mut fleet = fleet::Domain::new(
-        &limits.fleet,
-        limits.settings.versions,
-        fleet_needs::configured(&config, limits),
-        Box::new([]),
-    );
+    let mut fleet =
+        fleet::Domain::new(&limits.fleet, limits.settings.versions, fleet_needs::configured(&config, limits));
     fleet.configure_workers(
         Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes).unwrap(),
     );
@@ -903,7 +907,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         let mut configuration = config(41);
         configuration.defaults.charters[0].hosts = fleet::Kinds::Both;
         let needs = fleet_needs::configured(&configuration, &limits);
-        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs.clone(), Box::new([]));
+        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs.clone());
         assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Host));
         let channel = if kind == fleet::HostKind::Engine { Token::new(0) } else { FIRST };
         let at = Wall::from_nanos(1234);
@@ -945,7 +949,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         send_task(&mut core, &limits, tasks::Event::Hold { task: TASK, why: tasks::Hold::Uncertain { entry: 1 } });
         assert_eq!(document_wait(&core, &limits), None);
         // A new fleet has no durable refusal; observing it again reconstructs the explanation.
-        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs, Box::new([]));
+        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs);
         let mut row = core.tasks.task(TASK).unwrap().clone();
         row.phase = tasks::Phase::Active(tasks::Active::Due);
         assert_eq!(task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap().run_wait, Some(TaskRunWait::Host));
@@ -1420,6 +1424,7 @@ fn an_open_task_retains_its_program_endpoint_alternative() {
     let (mut core, limits) = ready(false);
     open(&mut core, &limits);
     core.current.test_charter_mut(1).policy.alternatives[0].endpoint = PROGRAM_ENDPOINT;
+    core.settings.models[1].endpoint = PROGRAM_ENDPOINT;
     let mut old = placement_fleet(&core, &limits);
     core::mem::swap(&mut core.fleet, &mut old);
     host_with_endpoints(&mut core, &limits, FIRST, &[b"scripted", b"same"], Box::new([]), Box::new([PROGRAM_ENDPOINT]));

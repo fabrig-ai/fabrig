@@ -163,7 +163,10 @@ fn fixture() -> (Domain, Env<Limits>) {
                         crate::step(&mut domain, &env, Event::StartDone(core::start::Phase::ReadAfresh { connector }));
                     }
                 }
-                Request::Deliver(_) | Request::Now(_) => {}
+                Request::StoreCatalogue { .. }
+                | Request::ClientsCatalogue { .. }
+                | Request::Deliver(_)
+                | Request::Now(_) => {}
                 Request::Stop | Request::Busy { .. } | Request::ReadResult { .. } => panic!("start failed: {domain:?}"),
             }
         }

@@ -448,9 +448,11 @@ fn a_compound_s_operations_round_trip_as_pieces() {
 #[test]
 fn a_me_project_without_its_name_cannot_decode() {
     let limits = fixtures::limits();
-    let project = u32::MAX.to_be_bytes();
+    let mut prefix = skein_lib::Writer::new(8);
+    prefix.put(&0_u32.to_be_bytes()).expect("left-out count");
+    prefix.put(&u32::MAX.to_be_bytes()).expect("project number");
     assert_eq!(
-        MeProject::decode(&limits, &mut Reader::new(&project)),
+        MeProject::decode(&limits, &mut Reader::new(&prefix.finish())),
         Err(Problem { path: Path::DocumentTextBytes, reason: skein_codec::Reason::Short })
     );
 }

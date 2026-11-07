@@ -106,8 +106,8 @@ fn startup_needs_own_models_and_preserve_charter_requirements() {
     assert_eq!(
         worker.models.as_ref(),
         &[
-            fleet::ModelNeed { name: b"scripted".as_slice().into(), window: 8192, output: 1024 },
-            fleet::ModelNeed { name: b"alternative".as_slice().into(), window: 4096, output: 512 },
+            fleet::ModelNeed { endpoint: 1, name: b"scripted".as_slice().into(), window: 8192, output: 1024 },
+            fleet::ModelNeed { endpoint: 1, name: b"alternative".as_slice().into(), window: 4096, output: 512 },
         ]
     );
     let engine = &needs.charters[1];

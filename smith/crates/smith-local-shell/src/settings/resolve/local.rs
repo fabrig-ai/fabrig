@@ -78,7 +78,7 @@ pub(super) fn limits(
 
 fn checked_effort(settings: &Settings, model: &Model) -> Result<Option<charter::Effort>, Refusal> {
     let effort = settings.values.get("effort").and_then(|value| value.value.as_str());
-    if !smith_domain::ConfiguredModel::accepts_effort(&model.declared.efforts, effort.map(str::as_bytes)) {
+    if !smith_local_domain::Config::accepts_effort(&model.declared.efforts, effort.map(str::as_bytes)) {
         let words = smith_events::effort_words(
             effort.unwrap_or_default().as_bytes(),
             &model.declared.efforts,
@@ -110,10 +110,10 @@ pub(super) fn build(
         let native = agent
             .service
             .domain
-            .models
+            .limits
             .iter()
-            .find(|entry| entry.endpoint.0 == endpoint.number && entry.model == model.declared.name)
-            .expect("configured model");
+            .find(|entry| entry.endpoint.0 == endpoint.number)
+            .expect("configured endpoint");
         allowances.push(native.protocol_allowance);
     }
     let efforts = models.iter().map(|model| model.declared.efforts.clone()).collect();

@@ -3,7 +3,7 @@
 //! temper/docs/design/protocol/configuration.md, 13.7).
 use super::*;
 use jig_domain_core::Document;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 const CHANNEL: Token = Token::new(7);
 const CHAT: Token = Token::new(92);
@@ -174,15 +174,25 @@ fn a_missing_document_says_so_and_the_run_goes_on() {
 fn settings_world() -> (World, u64) {
     let model = stock::box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model.clone()]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let limits = temper_engine_domain_world::forge_routes::box_limits();
-    let defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     let head = push_document(&mut world, b"README.md", WHOLE);
     world.adopt();
@@ -277,7 +287,8 @@ fn chat_with_document(world: &mut World) -> engine::Assignment {
     };
     let bounds = &mut hello.bounds;
     let model = stock::box_model();
-    bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     bounds.turns = 800;
     bounds.time = Duration::from_secs(28_800);
     bounds.spend = 2_500_000;

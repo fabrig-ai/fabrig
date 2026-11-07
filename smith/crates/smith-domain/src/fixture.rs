@@ -16,7 +16,7 @@ const CEILING: session::Budget = session::Budget {
 pub const SMALL: Limits = Limits {
     accounts: 4,
     endpoints: 3,
-    configured_model_bytes: 4096,
+    configured_endpoint_bytes: 4096,
     content_edge_records: 128,
     decoded_call_bytes: 4096,
     skew: Duration::ZERO,

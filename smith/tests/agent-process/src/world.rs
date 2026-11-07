@@ -1072,8 +1072,9 @@ impl World {
             self.charter = crate::wire::edit_charter(&self.charter, |parts| {
                 if case == TraceCase::Refused {
                     let mut main = parts.main.clone().into_parts();
-                    main.model = b"undeclared-model".as_slice().into();
-                    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("undeclared model");
+                    main.window =
+                        crate::declarations(0).endpoints[0].limits.window.checked_add(1).expect("past endpoint window");
+                    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("past endpoint window");
                 }
                 let mut budget = parts.budget.clone().into_parts();
                 budget.turns = if case == TraceCase::Parked { 4 } else { 1 };

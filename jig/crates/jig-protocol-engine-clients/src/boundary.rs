@@ -6,6 +6,10 @@ use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
 #[derive(Debug)]
 pub enum Event {
+    /// Replace the catalogue before its commit (domain/engine.md, 17.11).
+    Catalogue {
+        models: Box<[Model]>,
+    },
     Transport(FromTransport),
     Reply {
         to: ReplyTo,
@@ -212,6 +216,9 @@ pub struct Settings {
 /// A configured model as the client protocol names and shows it (configuration.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Model {
+    pub number: u32,
+    pub source: core::settings::ModelSource,
+    pub estimated: bool,
     pub name: Box<[u8]>,
     /// The number of the LLM provider serving it, when configuration names one.
     pub provider: Option<u32>,

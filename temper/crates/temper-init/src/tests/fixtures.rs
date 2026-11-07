@@ -97,18 +97,15 @@ pub fn agent_settings(mut document: Value) -> smith_agent_world::Settings {
     let mut settings = Settings {
         limits: configuration.service.limits.domain,
         budget: configuration.service.limits.domain.run.budget,
-        window: configuration.declarations.endpoints[0].models[0].window,
+        window: configuration.declarations.endpoints[0].limits.window,
         job: Job::Reporting,
         writable: false,
         network: skein_world::domain::Span::millis(1, 1),
         ..Settings::calm(144)
     };
-    // The shared world installs three six-byte fake model names, independently
-    // of the shipped destinations. Only their retained declaration room differs.
-    settings.limits.configured_model_bytes = smith_domain::ConfiguredModel::owned_bound(b"fake-1".len(), &[])
-        .expect("fake model declaration")
-        .checked_mul(3)
-        .expect("three fake models");
+    // The shared world installs one endpoint, independently of the shipped destinations.
+    settings.limits.configured_endpoint_bytes =
+        u64::try_from(size_of::<smith_domain::EndpointLimits>()).expect("endpoint cell");
     settings.provider.latency_min = skein_lib::Duration::from_millis(100);
     settings.provider.latency_max = settings.provider.latency_min;
     settings

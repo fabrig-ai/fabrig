@@ -301,7 +301,6 @@ fn playground_providers(config: &mut engine::Config) {
     let mut other = playground.clone();
     other.number = PROVIDER + 1;
     other.name = Box::from(b"Other fake".as_slice());
-    other.models = Box::new([Box::from(b"other-scripted".as_slice())]);
     other.offers = a::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.core.settings.llm_providers.providers = Box::new([playground, other]);
 }
@@ -344,6 +343,12 @@ fn fixture_root(
         trial.policy.agents = false;
         trial.policy.tools = jig_domain_tasks::Tools(0);
         config.core.defaults.charters = Box::new([walking::charter(), trial]);
+        for model in &mut config.core.settings.models {
+            model.provider = PROVIDER;
+        }
+        for charter in &mut config.core.defaults.charters {
+            charter.policy.model.provider = PROVIDER;
+        }
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
                 number: PROVIDER,
@@ -356,7 +361,6 @@ fn fixture_root(
                 }),
                 signed_in_plan: plan,
                 manage_usage: None,
-                models: Box::new([Box::from(b"scripted".as_slice())]),
                 offers: a::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };
@@ -377,14 +381,13 @@ fn fixture_root(
                 Box::new([Box::from(b"claude_code".as_slice())]);
         }
         if tools {
-            let mut model = walking::charter().policy.model;
+            let primary = config.core.settings.models[0].clone();
+            let mut model = primary.clone();
             model.name = Box::from(b"effort-model".as_slice());
             model.efforts = Box::new([Box::from(b"high".as_slice())]);
             model.effort = None;
-            config.core.settings.models = Box::new([walking::charter().policy.model, model.clone()]);
+            config.core.settings.models = Box::new([primary, model.clone()]);
             config.core.defaults.charters.get_mut(0).expect("fixture charter").policy.alternatives = Box::new([model]);
-            config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").models =
-                Box::new([Box::from(b"scripted".as_slice()), Box::from(b"effort-model".as_slice())]);
         }
         if program {
             for charter in &mut config.core.defaults.charters {
@@ -393,6 +396,7 @@ fn fixture_root(
             for model in &mut config.core.settings.models {
                 model.program = Some(b"claude_code".as_slice().into());
             }
+            config.core.settings.endpoints[0].program = Some(b"claude_code".as_slice().into());
         }
         if selection_story {
             config.core.settings.models[0].program = None;
@@ -401,13 +405,28 @@ fn fixture_root(
             }
             let mut model = config.core.settings.models[0].clone();
             model.name = b"second-scripted".as_slice().into();
+            model.provider = PROVIDER + 1;
             model.program = Some(b"claude_code".as_slice().into());
+            model.endpoint = 2;
+            config.core.settings.endpoints = Box::new([
+                jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: model.dialect,
+                    program: None,
+                },
+                jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 2,
+                    dialect: model.dialect,
+                    program: model.program.clone(),
+                },
+            ]);
             config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
             config.core.defaults.charters[1].policy.alternatives = Box::new([model]);
             let mut provider = config.core.settings.llm_providers.providers[0].clone();
             provider.number = PROVIDER + 1;
             provider.name = b"Second".as_slice().into();
-            provider.models = Box::new([b"second-scripted".as_slice().into()]);
             config.core.settings.llm_providers.providers =
                 Box::new([config.core.settings.llm_providers.providers[0].clone(), provider]);
         }

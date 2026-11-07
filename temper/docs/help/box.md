@@ -69,7 +69,7 @@ refuses it.
 
 Expect: `init: wrote DATA/worker.secret`; last line: step 2's real command.
 
-**Claude Code:** init writes Anthropic's provider, endpoint and model beside
+**Claude Code:** init writes Anthropic's provider and endpoint beside
 OpenAI's. A `claude` on `PATH` when init runs names that program; otherwise
 temper fetches its pinned build when first needed. Its login directory is
 `DATA/programs`, apart from your own Claude Code configuration.

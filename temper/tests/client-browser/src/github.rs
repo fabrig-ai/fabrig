@@ -9,12 +9,12 @@ use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 // next request and its previous connection until that close completes.
 // EOF and the next Accept can arrive together, before the old slot is reclaimed.
 const CONNECTIONS: u32 = 1 + 1 + 2;
-// The forge's Full and Contents tokens, plus the setup client's picker token.
-const INSTALLATION_TOKENS: u32 = 3;
+// The forge's Full and Contents tokens, plus two desktop pages and one phone page.
+const INSTALLATION_TOKENS: u32 = 2 + 2 + 1;
 // Browser navigation (3), connect/conversion (4), reconcile/accept (5),
-// forge token/identity reads (4), two picker pages (4), and adoption's seven read stages.
+// forge token/identity reads (4), three picker pages (6), and adoption's seven read stages.
 // Each adoption stage may use two HTTP requests (metadata/protection or pagination).
-const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 4 + 2 * 7;
+const OBSERVATIONS: u32 = 3 + 4 + 5 + 4 + 6 + 2 * 7;
 const SEED: u64 = 23;
 const ACCOUNT: u64 = 10;
 const BOT: u64 = 11;
@@ -33,6 +33,7 @@ pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u3
     let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);
     let mut config = domain_config();
     config.limits.repositories = repositories;
+    config.limits.commits = repositories;
     let mut domain = domain::Domain::new(&config, SEED);
     seed_repository(&mut domain, &config);
     for id in 2..=repositories {
@@ -41,36 +42,6 @@ pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u3
     let forge = Rc::new(RefCell::new(Forge::new(domain, config)));
     let config = github_config(repositories);
     let http = skein_http::server::Limits { body: 32768, response: 32768, ..profile.driver.server };
-    // Each retained head owns at most its wire-head bytes and its Header array.
-    let observation_bytes = http
-        .head
-        .checked_add(
-            http.headers
-                .checked_mul(u32::try_from(core::mem::size_of::<skein_http::Header>()).expect("header size"))
-                .expect("header array"),
-        )
-        .expect("one retained head")
-        .checked_mul(OBSERVATIONS)
-        .expect("retained request heads");
-    let limits = layer::Limits {
-        deliveries: layer::delivery::Limits { entries: 1, payload_bytes: 32768 },
-        http,
-        github: skein_forge::github::limits::Limits {
-            json: skein_json::tokenizer::Limits { chunk: 1024, string: 32768, number: 32, depth: 16, length: 32768 },
-            writer: skein_json::writer::Limits { depth: 16, length: 32768 },
-            string_bytes: 1024,
-            body_bytes: 32768,
-            inner: 32,
-            target_bytes: 4096,
-        },
-        installations: layer::installations::Limits { installations: 1, tokens: INSTALLATION_TOKENS, listed: 1 },
-        pages: layer::pages::Limits { states: 1, manifest_bytes: 8192 },
-        page,
-        body: 32768,
-        response: 32768,
-        blob_records: 1,
-        git_records: 1,
-    };
     Peer::github(
         address,
         ([127, 0, 0, 1], 0).into(),
@@ -81,14 +52,50 @@ pub(super) fn peer_repositories(address: SocketAddr, repositories: u32, page: u3
             plaintext: 65536,
             ciphertext: 65536,
             observations: OBSERVATIONS,
-            observation_bytes,
+            observation_bytes: observation_bytes(&http),
         },
         config,
-        limits,
+        peer_limits(http, page, repositories),
         forge,
         SEED,
     )
     .expect("loopback GitHub peer")
+    .keeping(skein_fake_peers::forge::Kept { heads: true, ..skein_fake_peers::forge::Kept::NONE })
+}
+
+fn observation_bytes(http: &skein_http::server::Limits) -> u32 {
+    // Each retained head owns at most its wire-head bytes and its Header array.
+    http.head
+        .checked_add(
+            http.headers
+                .checked_mul(u32::try_from(core::mem::size_of::<skein_http::Header>()).expect("header size"))
+                .expect("header array"),
+        )
+        .expect("one retained head")
+        .checked_mul(OBSERVATIONS)
+        .expect("retained request heads")
+}
+
+fn peer_limits(http: skein_http::server::Limits, page: u32, repositories: u32) -> layer::Limits {
+    layer::Limits {
+        deliveries: layer::delivery::Limits { entries: 1, payload_bytes: 32768 },
+        http,
+        github: skein_forge::github::limits::Limits {
+            json: skein_json::tokenizer::Limits { chunk: 1024, string: 32768, number: 32, depth: 16, length: 32768 },
+            writer: skein_json::writer::Limits { depth: 16, length: 32768 },
+            string_bytes: 1024,
+            body_bytes: 32768,
+            inner: repositories.max(32),
+            target_bytes: 4096,
+        },
+        installations: layer::installations::Limits { installations: 1, tokens: INSTALLATION_TOKENS, listed: 1 },
+        pages: layer::pages::Limits { states: 1, manifest_bytes: 8192 },
+        page,
+        body: 32768,
+        response: 32768,
+        blob_records: 1,
+        git_records: 1,
+    }
 }
 
 fn github_config(count: u32) -> layer::Config {

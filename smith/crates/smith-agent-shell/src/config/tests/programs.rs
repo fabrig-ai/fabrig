@@ -135,9 +135,9 @@ fn the_program_startup_pool_prices_declarations_independently() {
     let model_only = smith_agent_service::profile::derive(&direct.profile, &direct.declarations)
         .unwrap()
         .domain
-        .configured_model_bytes;
-    assert_eq!(direct.service.limits.domain.configured_model_bytes, model_only);
-    assert_eq!(declared.service.limits.domain.configured_model_bytes, model_only);
+        .configured_endpoint_bytes;
+    assert_eq!(direct.service.limits.domain.configured_endpoint_bytes, model_only);
+    assert_eq!(declared.service.limits.domain.configured_endpoint_bytes, model_only);
     assert!(direct.service.program.is_none());
     assert!(declared.service.program.as_ref().unwrap().endpoints.is_empty());
     assert!(direct.service.domain.programs.is_empty());
@@ -149,7 +149,7 @@ fn the_program_startup_pool_prices_declarations_independently() {
     let declaration_cells = program.service.domain.programs.len() * size_of::<smith_domain::Program>();
     let name_bytes = program.service.domain.programs.len() * b"claude_code".len();
     let expected = model_only + u64::try_from(declaration_cells + name_bytes).unwrap();
-    assert_eq!(program.service.limits.domain.configured_model_bytes, expected);
+    assert_eq!(program.service.limits.domain.configured_endpoint_bytes, expected);
     assert_eq!(program.service.domain.programs.len(), 1);
     assert!(program.service.domain.valid(&program.service.limits.domain));
 }

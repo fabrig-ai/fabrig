@@ -232,10 +232,7 @@ fn worker_limits() -> worker::Limits {
     limits.agent.path_bytes = 64;
     limits.agent.no_progress = Duration::from_secs(120);
     limits.bounds = crate::world::bounds();
-    limits.bounds.models[0].window = 1_048_576;
-    let mut second = limits.bounds.models[0].clone();
-    second.name = b"fake-2".as_slice().into();
-    limits.bounds.models = Box::new([limits.bounds.models[0].clone(), second]);
+    limits.bounds.endpoints[0].window = 1_048_576;
     limits.bounds.inbox = 4;
     limits.bounds.message_bytes = 1024;
     limits.bounds.unacknowledged = 2;
@@ -759,6 +756,8 @@ impl World {
             Err(request) => *request,
         };
         match request {
+            engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+            | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
             engine::Request::Store(engine::StoreRequest::Switch) => {
                 let answer = self.store.switch();
@@ -845,7 +844,7 @@ impl World {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => review::decode(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    return Ok(vec![temper_service::settings_note(to, *call, &body, self.root.models())]);
+                    return Ok(vec![temper_service::settings_note(to, *call, &body, &self.root.catalogue())]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
@@ -875,7 +874,7 @@ impl World {
                         &answer,
                         from,
                         requested,
-                        self.root.models(),
+                        &self.root.catalogue(),
                         application.as_ref(),
                         &repositories,
                         &people,

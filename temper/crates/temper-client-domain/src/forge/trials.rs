@@ -112,6 +112,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::NewChat { .. }
+        | crate::Address::Models { .. }
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }
         | crate::Address::Chat { .. }

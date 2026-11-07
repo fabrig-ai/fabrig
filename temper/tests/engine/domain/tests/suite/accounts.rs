@@ -9,13 +9,18 @@ use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 fn driver() -> Driver {
     let config = std::array::from_fn(|_| {
         let mut config = walking::config(91);
+        for model in &mut config.core.settings.models {
+            model.provider = 3;
+        }
+        for charter in &mut config.core.defaults.charters {
+            charter.policy.model.provider = 3;
+        }
         config.core.settings.llm_providers = accounts::Providers {
             providers: Box::new([accounts::Provider {
                 number: 3,
                 name: Box::from(b"Issuer".as_slice()),
                 signed_in_plan: false,
                 manage_usage: None,
-                models: Box::new([]),
                 offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };

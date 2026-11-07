@@ -157,6 +157,7 @@ fn charter() -> jig_domain_core::Charter {
     use jig_domain_core as core;
     use skein_lib::Duration;
     core::Charter {
+        rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([
             core::Document {
@@ -188,6 +189,7 @@ fn charter() -> jig_domain_core::Charter {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(5),
             model: core::Model {
+                provider: 1,
                 dialect: 3,
                 endpoint: 4,
                 program: Some(Box::from(b"program".as_slice())),
@@ -357,6 +359,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
             s::Value::Charter(value) => s::Setting::Charter(value.number),
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
+            s::Value::Model(value) => s::Setting::Model(value.number),
             s::Value::Rules(_) => s::Setting::Rules,
             s::Value::Application(_) => s::Setting::Application { kind: 1, scope: 0, number: 1 },
         };
@@ -436,6 +439,7 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
     };
     let mut source = charter();
     source.wake = expected;
+    source.rest = true;
     let value = translate::value(&s::Value::Charter(Box::new(source)), &f::models(), &w::CEILINGS).unwrap();
     let client =
         jig_client_protocol_link::translate::settings::restore_setting_value(&value, &f::client_limits()).unwrap();
@@ -455,6 +459,7 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     let s::Edit::Set(s::Value::Charter(charter)) = &items[0].edit else { panic!("charter change") };
     assert_eq!(charter.wake, expected);
+    assert!(charter.rest);
 }
 
 #[test]
@@ -618,4 +623,40 @@ fn a_charters_tools_round_trip_from_core_through_wire() {
     row.encode(&mut writer).unwrap();
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
+}
+
+#[test]
+fn a_model_setting_round_trips_whole_in_both_directions() {
+    let source = s::CatalogueModel {
+        number: 9,
+        model: charter().policy.model,
+        shown: Some(b"Shown model".as_slice().into()),
+        description: Some(b"Whole description".as_slice().into()),
+        picker: true,
+        withdrawn: true,
+        source: s::ModelSource::Person,
+        estimated: true,
+    };
+    let source = s::Value::Model(Box::new(source));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut encoded).unwrap();
+    let wire = w::SettingValue::decode(&w::CEILINGS, &mut Reader::new(&encoded.finish())).unwrap();
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let item = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: w::Setting::Model(
+                w::SettingNumber::new(&w::CEILINGS, w::SettingNumberParts { number: 9 }).unwrap(),
+            ),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(item.measure()).unwrap());
+    item.encode(&mut encoded).unwrap();
+    let items = translate::items(f::pieces(&[encoded.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Model(9), edit: s::Edit::Set(source) }]);
 }

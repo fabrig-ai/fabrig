@@ -390,13 +390,15 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-sol"] {
         let mut model = walking::models()[0].clone();
         model.name = name.as_bytes().into();
+        model.provider = if name.starts_with("claude") { 2 } else { 3 };
         model.program = Some(b"claude_code".as_slice().into());
+        model.endpoint = 2;
         model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
         model.effort = Some(b"high".as_slice().into());
         models.push(model);
     }
     let mut providers = config.core.settings.llm_providers.providers.clone().into_vec();
-    for (number, name, names) in [
+    for (number, name, _names) in [
         (2, "anthropic", vec!["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"]),
         (3, "openai", vec!["gpt-6.1-sol"]),
     ] {
@@ -405,7 +407,6 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
             name: name.as_bytes().into(),
             signed_in_plan: true,
             manage_usage: None,
-            models: names.iter().map(|name| name.as_bytes().into()).collect(),
             offers: accounts::Offers {
                 sign_in: false,
                 key: false,
@@ -417,6 +418,31 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     for charter in &mut config.core.defaults.charters {
         charter.policy.alternatives = models[1..].into();
     }
+    config.core.settings.endpoints = Box::new([
+        jig_domain_core::EndpointFacts {
+            providers: Box::new([]),
+            number: 1,
+            dialect: models[0].dialect,
+            program: None,
+        },
+        jig_domain_core::EndpointFacts {
+            providers: Box::new([]),
+            number: 2,
+            dialect: models[0].dialect,
+            program: Some(b"claude_code".as_slice().into()),
+        },
+    ]);
+    let stock = config.core.defaults.models[0].clone();
+    config.core.defaults.models = models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| {
+            let mut entry = stock.clone();
+            entry.number = u32::try_from(at).expect("bounded fixture models") + 1;
+            entry.model = model.clone();
+            entry
+        })
+        .collect();
     config.core.settings.models = models.into();
     config.core.settings.llm_providers.providers = providers.into();
     (config, bounds)
@@ -425,17 +451,19 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
 fn claude_offer_world() -> World {
     use temper_engine_domain_world::protocol;
     let (config, bounds) = claude_offer_setup();
-    let capabilities = config
+    let mut capabilities: Vec<_> = config
         .core
         .settings
         .models
         .iter()
-        .map(|model| jig_domain_link::ModelBound {
-            name: model.name.clone(),
+        .map(|model| jig_domain_link::EndpointBound {
+            endpoint: model.endpoint,
             window: model.window,
             output: model.output,
         })
         .collect();
+    capabilities.sort_by_key(|endpoint| endpoint.endpoint);
+    capabilities.dedup_by_key(|endpoint| endpoint.endpoint);
     let mut world = World::with_limits(config, &bounds);
     world.ask(
         world.owner,
@@ -460,8 +488,8 @@ fn claude_offer_world() -> World {
     let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
         panic!("hello")
     };
-    hello.bounds.models = capabilities;
-    hello.bounds.program_endpoints = Box::new([1]);
+    hello.bounds.endpoints = capabilities.into_boxed_slice();
+    hello.bounds.program_endpoints = Box::new([2]);
     hello.bounds.time = skein_lib::Duration::from_secs(28_800);
     hello.bounds.turns = 800;
     hello.bounds.message_bytes = bounds.tasks.message_bytes;
@@ -1655,5 +1683,91 @@ fn no_answer_a_configuring_run_hears_says_nothing_changed() {
         for message in start.messages {
             says_no_empty_change(&message.text);
         }
+    }
+}
+
+#[test]
+fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
+    use serde_json::json;
+    for from_note in [false, true] {
+        let mut configuration = config();
+        configuration.core.defaults.models[0].number = 4;
+        configuration.core.defaults.models[0].shown = Some(b"Scripted model".as_slice().into());
+        let mut bounds = limits();
+        bounds.notes.body_bytes = 65_536;
+        bounds.journal.transcript_bytes = 131_072;
+        bounds.loads.bytes = 131_072;
+        bounds.loads.reply_bytes = 131_072;
+        bounds.loads.transcript_bytes = 131_072;
+        bounds.tasks.charters = 10;
+        bounds.authority.segments = 8;
+        bounds.call_records = 64;
+        bounds.forge.named_calls = 64;
+        let mut world = World::with_limits(configuration, &bounds);
+        let member = world.member();
+        let run = world.chat(CONFIGURING, member, 20);
+        let charter = temper_engine_smith::charter(&run);
+        let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"propose_settings").unwrap();
+        let schema: serde_json::Value = serde_json::from_slice(&tool.schema).unwrap();
+        assert!(
+            schema["properties"]["items"]["items"]["properties"]["setting"]["properties"]["kind"]["enum"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("model"))
+        );
+        let selector = json!({"kind":"model","number":4});
+        let (text, _) = read_whole(&mut world.driver, &run, 1, json!({"setting":selector}));
+        assert!(text.starts_with("model 4, revision 1\n"), "{text}");
+        let (_, body) = text.split_once('\n').unwrap();
+        let before: serde_json::Value = serde_json::from_str(body.trim()).unwrap();
+        assert_eq!(before["shown"], "Scripted model");
+        let mut after = before.clone();
+        after["shown"] = json!("Careful model");
+        after["model"]["output_price"] = json!(2);
+        let items = json!([{"setting":selector,"set":after}]);
+        let input = if from_note {
+            let (name, revision) = settings_note(&mut world, &run, &json!({"items":items}).to_string());
+            json!({"against":1,"reason":"New prices and shown name","note":{"name":name,"revision":revision}})
+        } else {
+            json!({"against":1,"reason":"New prices and shown name","items":items})
+        };
+        let (answer, error) = bounded_call(&mut world, &run, 100, b"propose_settings", &input);
+        assert!(!error, "{}", String::from_utf8_lossy(&answer));
+        let answer = std::str::from_utf8(&answer).unwrap();
+        let proposal = answer
+            .strip_prefix(&format!("proposed as t{}/", run.task))
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(world.head().number, 1, "a proposal waits for acceptance");
+        world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 2, "one acceptance makes one revision");
+        let (text, _) = read_whole(&mut world.driver, &run, 200, json!({"setting":selector}));
+        let (_, body) = text.split_once('\n').unwrap();
+        assert_eq!(serde_json::from_str::<serde_json::Value>(body.trim()).unwrap(), after);
+        let (history, _) = read_whole(&mut world.driver, &run, 300, json!({"revision":2}));
+        assert!(history.contains("Careful model") && history.contains("was: default"), "{history}");
+        let mut next = after.clone();
+        next["shown"] = json!("Model for careful work");
+        let proposal = propose(&mut world.driver, &run, 400, 2, &json!([{"setting":selector,"set":next}]));
+        world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 3);
+        let (history, _) = read_whole(&mut world.driver, &run, 500, json!({"revision":3}));
+        assert!(history.contains("Careful model") && history.contains("Model for careful work"), "{history}");
+        let revision = world
+            .settings_rows()
+            .into_iter()
+            .find_map(|row| match row {
+                s::Record::Revision { history: false, revision } if revision.head.number == 3 => Some(revision),
+                _ => None,
+            })
+            .unwrap();
+        let item = revision.items.iter().find(|item| item.setting == s::Setting::Model(4)).unwrap();
+        let s::Replaced::Value(s::Value::Model(replaced)) = &item.replaced else { panic!("previous model") };
+        assert_eq!(replaced.shown.as_deref(), Some(b"Careful model".as_slice()));
+        assert_eq!(replaced.model.output_price, 2);
     }
 }

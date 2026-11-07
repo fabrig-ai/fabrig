@@ -9,6 +9,7 @@ pub fn research_charter() -> core::Charter {
     let mut charter = crate::config(0).core.defaults.charters[0].clone();
     charter.number = 2;
     charter.policy.instructions = b"Research the question.".as_slice().into();
+    charter.policy.model.provider = 2;
     charter.policy.model.name = b"research".as_slice().into();
     charter
 }
@@ -44,7 +45,6 @@ pub fn two_charters(seed: u64) -> (root::Config, root::Limits) {
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number: 2,
-            models: Box::new([b"research".as_slice().into()]),
             offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
         },
     ]);

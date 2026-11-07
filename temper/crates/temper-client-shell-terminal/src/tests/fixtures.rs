@@ -413,7 +413,10 @@ fn populate_page(
                         held: skein_lib::List::with_capacity(0),
                         pending: skein_lib::List::with_capacity(0),
                     }))),
-                    Subject::Me => Some(Delivery::Me(Box::new(jig_client_kit::stories::frame(1)))),
+                    Subject::Me => Some(Delivery::Me(Box::new(super::render::models_frame(
+                        address,
+                        jig_client_kit::stories::frame(1),
+                    )))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
                     Subject::Deployment => Some(Delivery::Deployment(Box::new(jig_client_kit::stories::deployment()))),
                     Subject::Tree { .. }
