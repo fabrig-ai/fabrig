@@ -1,6 +1,10 @@
 # git: status
 
-2026-11-06. Where temper's code lags or departs from [git.md](git.md).
+2026-11-07. Where temper's code lags or departs from [git.md](git.md).
+
+Section 7 has no known gap in the orderly worker-close ordering: serve
+waits for its agent processes before aborting the worker's remaining
+resources (README.md, section 8). Its second signal still aborts at once.
 
 - **Not yet:** 4.10: `Rewrite`, the lease-guarded move of a prepare job's candidate: neither `temper-worker-domain-checkout`'s `git::Op` nor `temper-worker-protocol-git` has it. 4.5: no test runs real git on a dirty workspace: `temper/tests/worker/checkout/tests/suite/reuse.rs` proves the worker's operations and, on the fake git, the two commands' state, where the fake's checkout replaces the whole tree whether or not `clean` ran, and `temper/tools/git-transcripts/src/cases.rs`, `locals`, records `checkout --force --detach` over no staged file or merge in progress. What 4.5 says of those rests on one run by hand, git 2.47.3, 2026-11-05 (section 10).
 - **Design departs:** 4.7, from the request `parallel-faults` of 2026-11-06, item 3, decided by its plan's cut: a commit leaves a file out by its name alone, `.*.log`, where the request has a snapshot carry no file a change has no business with, so a stray of another name still lands unless the repository ignores it (section 10). A new file can't be told from a run's new work, which `a_saved_retry_delivers_the_file_written_before_its_run_ended` holds, and `*.log` would leave out a new fixture of a kind this repository tracks.

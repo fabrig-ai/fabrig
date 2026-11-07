@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 8 has no known gap in orderly worker shutdown: serve cancels the
+runs and waits for every agent process, including a spawn in flight,
+before aborting the remaining worker resources. The real-loop held-turn
+test checks Claude's interrupt and end before serve ends drained. The
+live proof and forced-stop containment remain in `setup.md`, section 15.
+
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
   jig's fleet removes a draining worker from placement before its runs
   end. No reference-case story runs in this tier; the task-per-worker,
