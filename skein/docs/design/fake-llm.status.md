@@ -2,7 +2,6 @@
 
 2026-11-07. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
 
-- **Not yet:** 3.2: the fake answers no `GET /v1/models`.
 - **Departs:** 4: `skein/docs/foundation/testing-strategy.md`, 4 asks
   for no shared types, but this section designs a shared codec:
   `skein-fake-llm-protocol/src/documents.rs` uses `skein-llm`'s

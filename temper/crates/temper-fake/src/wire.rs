@@ -81,6 +81,8 @@ pub(crate) fn llm(
         if configuration.tls { skein_fake_peers::Transport::Tls } else { skein_fake_peers::Transport::Plaintext },
         limits,
         provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
