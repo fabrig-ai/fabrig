@@ -21,7 +21,15 @@ impl Evidence {
     /// Start at chat show's first page; each read family allows at most 32 pages.
     #[must_use]
     pub fn new(chat: u64, ended_at: u64) -> Self {
-        Self { chat, ended_at, detailed: false, pages: 0, replies: BTreeMap::new(), tools: BTreeSet::new(), failed: BTreeSet::new() }
+        Self {
+            chat,
+            ended_at,
+            detailed: false,
+            pages: 0,
+            replies: BTreeMap::new(),
+            tools: BTreeSet::new(),
+            failed: BTreeSet::new(),
+        }
     }
 
     /// Consume the queued read's JSON and return its continuation, including the
@@ -47,6 +55,7 @@ impl Evidence {
                 }
             }
             self.tools.extend(super::successful_tools(activity));
+            self.failed.extend(super::failed_tools(activity));
         } else {
             self.replies.extend(super::replies_after(activity, self.ended_at)?);
         }

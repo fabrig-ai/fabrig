@@ -1139,11 +1139,12 @@ fn an_imported_records_path_is_printed_as_file() {
 fn the_chats_delegate_is_a_change_or_the_story_names_it() {
     use support::forge_land::change_delegate;
     for (executor, expected) in [
-        (json!({"procedure": {"connector": 1, "code": 2}}), Ok(3)),
+        (json!({"procedure": {"connector": 1, "kind": 2}}), Ok(3)),
         (json!({"agent": {"charter": 1}}), Err("the chat's delegate task 3 is an agent's on charter 1, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
         (Value::Null, Err("delegate executor missing (chip.executor)".to_owned())),
         (json!({"job": {"kind": 1}}), Err("the chat's delegate task 3 is a job's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
-        (json!({"person": {"party": 1}}), Err("the chat's delegate task 3 is a person's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (json!({"party": {"party": 1}}), Err("the chat's delegate task 3 is a party's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (json!({"role": {"project": 1, "role": 2}}), Err("the chat's delegate task 3 is a role's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
     ] {
         let row = json!({"chip": {"task": 3, "executor": executor}});
         assert_eq!(change_delegate(&row), expected, "{row}");
@@ -1454,10 +1455,26 @@ fn a_landing_referee_reads_committed_tools_beyond_the_conversation() {
     assert_eq!(evidence.failed, BTreeSet::from(["delegate".to_owned()]), "failed committed calls count");
     assert_eq!(support::forge_land::require_chat_change(&evidence), Ok(()));
     for (tools, failed, expected) in [
-        (vec!["goal"], vec!["delegate"], "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed [delegate]"),
-        (vec!["read_branch", "goal"], vec!["change"], "the chat's committed change call succeeded: its committed calls succeeded [goal, read_branch] and failed [change]"),
-        (vec![], vec!["read_branch", "change"], "the chat's committed change call succeeded: its committed calls succeeded [] and failed [change, read_branch]"),
-        (vec!["goal"], vec![], "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed []"),
+        (
+            vec!["goal"],
+            vec!["delegate"],
+            "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed [delegate]",
+        ),
+        (
+            vec!["read_branch", "goal"],
+            vec!["change"],
+            "the chat's committed change call succeeded: its committed calls succeeded [goal, read_branch] and failed [change]",
+        ),
+        (
+            vec![],
+            vec!["read_branch", "change"],
+            "the chat's committed change call succeeded: its committed calls succeeded [] and failed [change, read_branch]",
+        ),
+        (
+            vec!["goal"],
+            vec![],
+            "the chat's committed change call succeeded: its committed calls succeeded [goal] and failed []",
+        ),
         (vec![], vec![], "the chat's committed change call succeeded: its committed calls succeeded [] and failed []"),
     ] {
         evidence.tools = tools.into_iter().map(str::to_owned).collect();
