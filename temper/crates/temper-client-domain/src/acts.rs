@@ -214,6 +214,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "the act dispatch retains each page variant and its shown revision")]
 fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Key> {
     let card = find_card(pages, open.object)?;
     if card.key.is_some() {
@@ -271,6 +272,45 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
         (ObjectKey::Question { task, message }, ActKind::Answer) => {
             let words = words?;
             Ask::Answer { project, on: contract::AnswerOn::Question { task, message, words } }
+        }
+        (ObjectKey::PersonTask(task), ActKind::Answer) => {
+            match page {
+                ReadValue::PersonTask(person) => {
+                    if !crate::question::in_words(person) {
+                        return None;
+                    }
+                }
+                ReadValue::Task(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::Question(_)
+                | ReadValue::Escalation(_)
+                | ReadValue::Settings(_)
+                | ReadValue::Setting(_)
+                | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
+                | ReadValue::Revisions(_)
+                | ReadValue::Tasks(_)
+                | ReadValue::Project(_)
+                | ReadValue::Ended(_)
+                | ReadValue::Me(_)
+                | ReadValue::Result(_)
+                | ReadValue::EndedPage(_)
+                | ReadValue::History(_)
+                | ReadValue::Turn(_)
+                | ReadValue::Activity(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Notes(_)
+                | ReadValue::Deployment(_) => return None,
+            }
+            Ask::Answer {
+                project,
+                on: contract::AnswerOn::Person {
+                    task,
+                    revision: open.revision?,
+                    answer: contract::PersonAnswer::Words(words?),
+                },
+            }
         }
         (ObjectKey::PersonTask(task), ActKind::Take) => Ask::Take { project, task },
         (ObjectKey::PersonTask(task), ActKind::HandBack) => Ask::HandBack { project, task },

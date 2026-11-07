@@ -178,22 +178,24 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
         words: row.spec.words.clone(),
         phase: row.phase.clone(),
     };
-    let mut plan = List::with_capacity(limits.tasks.tree_tasks);
     let mut found = false;
-    for old in &state.plan {
+    for old in &mut state.plan {
         if old.number == row.number {
             state.changed |= *old != next;
-            plan.push(next.clone()).expect("existing tree task");
+            *old = next.clone();
             found = true;
-        } else {
-            plan.push(old.clone()).expect("bounded tree plan");
+            break;
         }
     }
     if !found {
+        let mut plan = List::with_capacity(limits.tasks.tree_tasks);
+        for old in core::mem::replace(&mut state.plan, Box::new([])) {
+            plan.push(old).expect("bounded tree plan");
+        }
         plan.push(next).expect("lifetime tree task room admitted");
+        state.plan = plan.into_boxed();
         state.changed = true;
     }
-    state.plan = plan.into_boxed();
     write(
         out,
         ProjectionRecord::Task {

@@ -243,6 +243,7 @@ fn project_policy(period_spend: u64, pool_spend: u64, task_spend: u64) -> Config
     }
 }
 
+/// A role delegates to its own role alone (domain/agent.md, 8.2).
 fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decides: u8) -> authority::Role {
     let mut authority = ceiling(spend);
     if spend == 0 {
@@ -251,6 +252,20 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
         authority.grants = Box::default();
         authority.delegation = authority::Delegation { kinds: Box::default(), tasks: 0, depth: 0 };
         authority.notes = authority::Scopes(0);
+    } else {
+        let mut kinds = List::with_capacity(u32::try_from(authority.delegation.kinds.len()).expect("stock kinds fit"));
+        for kind in &authority.delegation.kinds {
+            let keep = match *kind {
+                authority::Executor::Role(role) => role == number,
+                authority::Executor::Job(_) | authority::Executor::Charter(_) | authority::Executor::Procedure(_) => {
+                    true
+                }
+            };
+            if keep {
+                kinds.push(*kind).expect("narrowed stock kinds fit");
+            }
+        }
+        authority.delegation.kinds = kinds.into_boxed();
     }
     authority::Role {
         number,
@@ -397,6 +412,9 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
+                authority::Executor::Role(0),
+                authority::Executor::Role(1),
+                authority::Executor::Role(2),
             ]),
             tasks: 384,
             depth: 32,

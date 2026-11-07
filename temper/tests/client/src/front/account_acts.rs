@@ -37,6 +37,7 @@ enum Tools {
     Spend(u64),
     Trial,
     TrialSelection,
+    TwoSignIns,
 }
 #[must_use]
 pub fn small_rows_fixture(seed: u64) -> (Joint, Root) {
@@ -253,6 +254,13 @@ pub fn empty_plan_fixture(seed: u64) -> (Joint, Root) {
     event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
     without_deployment_account((front, root))
 }
+/// `empty_plan_fixture`, with a second provider offering a sign-in: `playground_providers`' `other`.
+#[must_use]
+pub fn two_sign_ins_fixture(seed: u64) -> (Joint, Root) {
+    let (mut front, mut root) = fixture_root(seed, Tools::TwoSignIns, 2, None, true, WelcomeForge::Empty, false);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    without_deployment_account((front, root))
+}
 fn without_deployment_account((mut front, mut root): (Joint, Root)) -> (Joint, Root) {
     use temper_client_domain::pages::{
         Act as PageAct,
@@ -309,8 +317,9 @@ fn fixture_root(
 ) -> (Joint, Root) {
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
-        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection => None,
+        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection | Tools::TwoSignIns => None,
     };
+    let two_sign_ins = tools == Tools::TwoSignIns;
     let selection_story = tools == Tools::TrialSelection;
     let trial_story = matches!(tools, Tools::Trial | Tools::TrialSelection);
     let tools = matches!(tools, Tools::On | Tools::Spend(_));
@@ -353,6 +362,9 @@ fn fixture_root(
         };
         // The runtime offers the playground and the real provider.
         let runtime = index == 1;
+        if two_sign_ins && runtime {
+            playground_providers(&mut config);
+        }
         if let WelcomeForge::Playground { .. } = forge
             && runtime
         {

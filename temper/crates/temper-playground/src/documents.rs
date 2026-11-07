@@ -166,7 +166,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        ("people.amendment_bytes", 1061),
+        ("people.amendment_bytes", 1069),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
@@ -201,11 +201,11 @@ pub fn chat_policy(value: &mut serde_json::Value) {
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 8),
+        ("authority.executors", 11),
         ("authority.segments", 8),
         ("tasks.authority_grants", 14),
         ("tasks.authority_bytes", 70),
-        ("tasks.executor_kinds", 8),
+        ("tasks.executor_kinds", 11),
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {

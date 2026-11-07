@@ -1133,9 +1133,13 @@ fn pump_visit(service: &mut crate::Service, peer: &mut fixtures::http::Peer) {
     peer.pump(service.engine.as_mut().unwrap(), false);
 }
 fn status(peer: &fixtures::http::Peer, code: &[u8]) {
-    assert!(contains(peer.received(), code), "response: {}", core::str::from_utf8(peer.received()).unwrap());
+    status_at(peer, code, b"");
+}
+fn status_at(peer: &fixtures::http::Peer, code: &[u8], target: &[u8]) {
+    let target = target.escape_ascii();
+    assert!(contains(peer.received(), code), "{target}: response: {}", core::str::from_utf8(peer.received()).unwrap());
     for header in [b"Cache-Control: no-store".as_slice(), b"Referrer-Policy: no-referrer"] {
-        assert!(contains(peer.received(), header));
+        assert!(contains(peer.received(), header), "{target}: missing {}", header.escape_ascii());
     }
     if code != b"302" && code != b"303" {
         for part in [
@@ -1146,7 +1150,7 @@ fn status(peer: &fixtures::http::Peer, code: &[u8]) {
             b"Back to temper</a>",
             b"Content-Security-Policy: default-src 'none';",
         ] {
-            assert!(contains(peer.received(), part));
+            assert!(contains(peer.received(), part), "{target}: missing {}", part.escape_ascii());
         }
     }
 }
@@ -1271,6 +1275,8 @@ fn setup_without_state_refuses_a_stray_installation() {
 }
 #[test]
 fn setup_malformed_queries_are_bad_requests() {
+    // Parsing refuses these visits before taking setup state; rows share the service.
+    let mut service = service(8, Duration::from_secs(3600));
     for (path, query) in [
         (b"setup".as_slice(), b"".as_slice()),
         (b"setup", b"installation_id=0&setup_action=install"),
@@ -1289,10 +1295,9 @@ fn setup_malformed_queries_are_bad_requests() {
         (b"redirect", b"code=c&state=%00"),
         (b"redirect", b"code=c&code=d&state=s"),
     ] {
-        let mut service = service(8, Duration::from_secs(3600));
         let target = joined(&[b"/forges/1/github/", path, b"?", query]);
         let peer = visit(&mut service, b"GET", &target);
-        status(&peer, b"400");
+        status_at(&peer, b"400", &target);
     }
 }
 #[test]
