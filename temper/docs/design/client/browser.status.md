@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Section 2.5's flow tokens have the acceptance preview's rules under the
+chats marker. The page draws the case's scene and retains its fallback;
+temper/ui's rendered comparison in a chat and its document is deferred
+in section 5. No browser story is added for flows.
+
 Sections 2.5 and 4.6 carry the connect panels and repository sheet.
 The tier keeps twelve test functions: Accounts history and key re-entry
 share both sign-ins' setup; sheet scrolling, search, adoption and 420 px

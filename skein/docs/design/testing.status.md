@@ -2,7 +2,9 @@
 
 2026-11-07. Where skein's code lags or departs from [testing.md](testing.md).
 
-Unlisted sections have no known gap. Section 9 carries deferred cost work.
+Unlisted sections have no known gap. Section 6's test-only fork kit and
+its documented process boundary are present. Section 9 carries deferred
+cost work, including allocation layout and the native fork floor.
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,

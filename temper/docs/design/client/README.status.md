@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 3.5 has no known implementation gap in drawing a Markdown flow
+in a chat or its document. The page routes skein-ui's flow owner and
+names under temper's limits; its host test checks the case's SVG and
+the fallback at a narrow width. Temper/ui's look at both places remains
+section 11's after-landing work.
+
 Sections 3.5, 5.1 and 5.10 have no known implementation gap in Home's
 single "Nothing needs you.", the three failed-link paragraphs or the
 semantic-repair line "Repairing: CI failed at its updated head." The view
@@ -727,9 +733,6 @@ result supplied here (`browser.status.md`, 4.6).
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
-
-- **Not yet:** 3.5, a chat's document: temper/ui's after-landing look at a flow, in a chat and in its document.
-
 - **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
