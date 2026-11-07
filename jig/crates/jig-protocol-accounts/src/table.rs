@@ -1,6 +1,6 @@
 //! The two newest lent generations per account (protocol/llm.md, 5.3).
 //! A value is a credential with its scheme (protocol/channel.md, 8).
-use skein_lib::{Map, Secret, Time};
+use skein_lib::{List, Map, Secret, Time};
 
 /// A grant's credential, put in its taker's form only when handed over.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -71,6 +71,45 @@ impl Table {
         }
         None
     }
+    /// Forget one unheld key generation on a worker; bearers keep their expiry (channel.md, 8).
+    pub fn release_key(&mut self, account: u32, generation: u64) {
+        let Some(slots) = self.accounts.get_mut(&account) else { return };
+        release_key(&mut slots.newest, generation);
+        release_key(&mut slots.older, generation);
+        if slots.newest.is_none() {
+            slots.newest = slots.older.take();
+        }
+        if slots.newest.is_none() {
+            let _removed = self.accounts.remove(&account);
+        }
+    }
+    /// Names of key generations whose worker lifetime follows attempts and reads (channel.md, 8).
+    #[must_use]
+    pub fn keys(&self) -> List<(u32, u64)> {
+        let mut keys = List::with_capacity(self.entries());
+        for (account, slots) in &self.accounts {
+            for entry in [&slots.newest, &slots.older].into_iter().flatten() {
+                match entry.value.scheme {
+                    Scheme::Key => keys.push((*account, entry.generation)).expect("one name per retained key"),
+                    Scheme::Bearer => {}
+                }
+            }
+        }
+        keys
+    }
+
+    /// Retained credential generations, including those awaiting expiry.
+    #[must_use]
+    pub fn entries(&self) -> u32 {
+        let mut count = 0_u32;
+        for (_, slots) in &self.accounts {
+            for _ in [&slots.newest, &slots.older].into_iter().flatten() {
+                count = count.checked_add(1).expect("two entries per bounded account");
+            }
+        }
+        count
+    }
+
     /// Frees a removed LLM account source's generations and its table place.
     pub fn remove(&mut self, account: u32) {
         let _removed = self.accounts.remove(&account);
@@ -115,4 +154,15 @@ fn expire(slot: &mut Option<Entry>, now: Time) {
 #[must_use]
 pub const fn valid(accounts: u32, token_bytes: u32) -> bool {
     accounts > 0 && token_bytes > 0
+}
+
+fn release_key(slot: &mut Option<Entry>, generation: u64) {
+    if let Some(entry) = slot
+        && entry.generation == generation
+    {
+        match entry.value.scheme {
+            Scheme::Key => *slot = None,
+            Scheme::Bearer => {}
+        }
+    }
 }

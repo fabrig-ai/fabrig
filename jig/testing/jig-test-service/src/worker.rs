@@ -51,6 +51,7 @@ pub struct Worker {
     next: u64,
     program: Box<[u8]>,
     arguments: Box<[Box<[u8]>]>,
+    configuration: Box<[u8]>,
     directory: Option<Fd>,
     root_close: Option<Token>,
     pub(super) submitted: Queue<io::kernel::Submit>,
@@ -140,6 +141,7 @@ impl Worker {
             next: 2,
             program: config.agent.program,
             arguments: config.agent.arguments,
+            configuration: config.agent.configuration,
             directory: Some(directory),
             root_close: None,
             submitted: Queue::with_capacity(1),
@@ -160,8 +162,15 @@ impl Worker {
     }
     pub(super) fn configure_program_sources(
         &mut self,
-        resources: crate::program_sources::Resources,
+        mut resources: crate::program_sources::Resources,
     ) -> Result<(), crate::program_sources::Resources> {
+        resources.list_launch(host::ListLaunch {
+            program: self.program.clone(),
+            arguments: Box::new([self.configuration.clone()]),
+            environment: Box::default(),
+            root: self.directory.expect("worker root"),
+            directory: Box::from(b".".as_slice()),
+        });
         self.sources.configure(resources)
     }
     pub fn stop(&mut self) {
@@ -365,6 +374,19 @@ impl Worker {
             for _ in 0..self.out.len() {
                 let request = self.out.pop().expect("worker output count");
                 match request {
+                    root::Request::ReadList { read, endpoint, grant } => {
+                        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+                        self.next = self.next.checked_add(1).expect("source owner sequence");
+                        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+                        let credential = list_credential(&self.values, grant, self.env.now);
+                        let deadline = self.env.now.saturating_add(self.env.limits.hub.source_timeout);
+                        let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
+                        self.answered(settled);
+                    }
+                    root::Request::CancelRead { read } => {
+                        let settled = self.sources.cancel_read(read, &mut self.io);
+                        self.answered(settled);
+                    }
                     root::Request::Source { owner, name, operation, deadline } => {
                         let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                         self.next = self.next.checked_add(1).expect("source owner sequence");
@@ -560,7 +582,16 @@ impl Worker {
     }
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
-            self.source_events.push(jig_domain_host::Event::SourceAnswered { owner, answer });
+            let event = match answer {
+                jig_domain_host::sources::Answer::Read(outcome) => {
+                    jig_domain_host::Event::ListRead { read: owner.raw(), outcome }
+                }
+                answer @ (jig_domain_host::sources::Answer::Checked(_)
+                | jig_domain_host::sources::Answer::SignedOut(_)) => {
+                    jig_domain_host::Event::SourceAnswered { owner, answer }
+                }
+            };
+            self.source_events.push(event);
         }
     }
     pub(super) fn iterate(&mut self, now: Time, wall: Wall) {
@@ -632,6 +663,23 @@ impl Worker {
         }
         self.retired.clear();
         self.root.reclaim();
+        self.release_read_keys();
+    }
+    fn release_read_keys(&mut self) {
+        if !self.events.is_empty() {
+            return;
+        }
+        let keys = self.values.keys();
+        for (account, generation) in &keys {
+            if !self.root.holds_grant(*account, *generation) {
+                self.values.release_key(*account, *generation);
+            }
+        }
+    }
+    /// Credential generations retained below the root, for channel lifetime assertions.
+    #[must_use]
+    pub fn value_count(&self) -> u32 {
+        self.values.entries()
     }
     fn reclaim_processes(&mut self) {
         for index in 0..self.retired.len() {
@@ -791,6 +839,113 @@ fn agent_values(agent: &Agent) -> Agent {
 #[cfg(test)]
 mod program_grant_tests {
     use super::*;
+    #[test]
+    #[expect(clippy::too_many_lines, reason = "one table checks key retention through the read and the last attempt")]
+    fn a_read_releases_only_keys_no_attempt_holds() {
+        use jig_domain_link::{Form, Grant, ListOutcome, Scheme as GrantScheme};
+        use skein_lib::{Duration, Secret};
+        for (label, scheme, held, expected) in [
+            ("unheld key", Scheme::Key, false, 0),
+            ("attempt holds key", Scheme::Key, true, 1),
+            ("bearer awaits expiry", Scheme::Bearer, false, 1),
+        ] {
+            let mut service = crate::tests::fixtures::worker_service();
+            let worker = service.worker(0).expect("worker");
+            let grant = Grant {
+                account: 1,
+                generation: 4,
+                valid: Duration::from_secs(30),
+                form: Form::Credential(match scheme {
+                    Scheme::Key => GrantScheme::Key,
+                    Scheme::Bearer => GrantScheme::Bearer,
+                }),
+            };
+            worker
+                .values
+                .granted(
+                    1,
+                    4,
+                    Value { token: Secret::new(b"fixture".as_slice().into()), scheme },
+                    Time::from_nanos(30_000_000_000),
+                )
+                .expect("grant");
+            assert!(list_credential(&worker.values, grant, Time::ZERO).is_some(), "{label}: live matching value");
+            assert!(
+                list_credential(&worker.values, Grant { generation: 5, ..grant }, Time::ZERO).is_none(),
+                "{label}: missing generation"
+            );
+            assert!(
+                list_credential(&worker.values, grant, Time::from_nanos(30_000_000_000)).is_none(),
+                "{label}: lapsed value"
+            );
+            let other = Grant {
+                form: Form::Credential(match grant.form {
+                    Form::Credential(GrantScheme::Key) => GrantScheme::Bearer,
+                    Form::Credential(GrantScheme::Bearer) => GrantScheme::Key,
+                    Form::Application | Form::Program(_) => unreachable!("credential fixture"),
+                }),
+                ..grant
+            };
+            assert!(list_credential(&worker.values, other, Time::ZERO).is_none(), "{label}: wrong scheme");
+            let mut out = Queue::uncapped();
+            root::step(
+                &mut worker.root,
+                &worker.env,
+                root::Event::Link(jig_domain_host::LinkDown::Sources { sources: Box::new([]) }),
+                &mut out,
+            );
+            let mut owner = None;
+            if held {
+                let jig_domain_host::LinkDown::Assign { mut assignment } = crate::tests::fixtures::worker_assignment()
+                else {
+                    panic!("fixture assignment")
+                };
+                assignment.assignment.grants = Box::new([grant]);
+                root::step(
+                    &mut worker.root,
+                    &worker.env,
+                    root::Event::Link(jig_domain_host::LinkDown::Assign { assignment }),
+                    &mut out,
+                );
+                while let Some(request) = out.pop() {
+                    if let root::Request::Decode { agent, .. } = request {
+                        owner = Some(agent);
+                    }
+                }
+                assert!(owner.is_some(), "{label}: attempt is starting");
+                assert_eq!(worker.root.hosted(), 1, "{label}: real attempt holds grant");
+            }
+            root::step(
+                &mut worker.root,
+                &worker.env,
+                root::Event::Link(jig_domain_host::LinkDown::ReadList { read: 7, endpoint: 1, grant }),
+                &mut out,
+            );
+            root::step(
+                &mut worker.root,
+                &worker.env,
+                root::Event::Source(Box::new(jig_domain_host::Event::ListRead {
+                    read: 7,
+                    outcome: ListOutcome::Listed(Box::new([])),
+                })),
+                &mut out,
+            );
+            worker.release_read_keys();
+            assert_eq!(worker.value_count(), expected, "{label}: count after read ends");
+            if let Some(owner) = owner {
+                root::step(
+                    &mut worker.root,
+                    &worker.env,
+                    root::Event::Decoded { agent: owner, start: Err(jig_domain_host::Undecoded::Charter) },
+                    &mut out,
+                );
+                worker.root.reclaim();
+                worker.release_read_keys();
+                assert_eq!(worker.value_count(), 0, "{label}: releasing the last attempt releases the key");
+            }
+        }
+    }
+
     fn program_grant() -> smith::Grant {
         smith::Grant {
             form: smith::Form::Program(smith::SourceName::new(b"personal").expect("source name")),
@@ -1010,7 +1165,9 @@ mod admission_tests {
                         layer.link_down(layer.env.now, link::Event::Up { up, parts: Box::default() });
                     }
                     root::Request::Process(_) => {}
-                    other @ (root::Request::Source { .. }
+                    other @ (root::Request::ReadList { .. }
+                    | root::Request::CancelRead { .. }
+                    | root::Request::Source { .. }
                     | root::Request::SourceFault
                     | root::Request::Hello(_)
                     | root::Request::CancelRelay { .. }
@@ -1314,4 +1471,27 @@ mod admission_tests {
         assert!(service.root_steps() > before);
         assert!(service.worker(0).expect("worker").events.is_empty());
     }
+}
+
+fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> Option<smith_channel::CredentialValue> {
+    let scheme = match grant.form {
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer) => Scheme::Bearer,
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key) => Scheme::Key,
+        jig_domain_link::Form::Program(_) | jig_domain_link::Form::Application => return None,
+    };
+    let value = table.value(grant.account, grant.generation, now)?;
+    if value.scheme != scheme {
+        return None;
+    }
+    smith_channel::CredentialValue::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CredentialValueParts {
+            scheme: match scheme {
+                Scheme::Bearer => smith_channel::Scheme::Bearer,
+                Scheme::Key => smith_channel::Scheme::Key,
+            },
+            bytes: value.token.clone(),
+        },
+    )
+    .ok()
 }

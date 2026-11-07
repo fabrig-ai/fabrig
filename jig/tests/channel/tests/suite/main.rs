@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod channel;
+mod list_read;
 mod program_runs;
 mod program_sources;
 mod referee;

@@ -1366,7 +1366,6 @@ pub(crate) fn finished(domain: &mut Hub, env: &Env<Limits>, owner: Token, last: 
     finish_run(domain, env, owner, finish, out);
 }
 
-#[cfg(test)]
 impl Hosted {
     pub(crate) fn grants(&self) -> &[Grant] {
         &self.grants
