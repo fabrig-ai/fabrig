@@ -1800,7 +1800,8 @@ delegate's terminal wakes it to offer the landed result.
   reviews budget, 4,608 bytes on the stock, cut from their end and
   marked; and carrying why: CI's failing output on the head; a gate's
   remarks; for a clean update whose CI then fails (a semantic conflict),
-  CI's failing output, the base merged in and what landed in it; or, for
+  CI's failing output before the pull section, which names the base
+  merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
   change is checked again. Where the head's failed checks are not
@@ -2781,9 +2782,11 @@ instead (`landing.md`, section 5).
   landing branch's tip (8.2, step 1); its project must name a
   `merge_job`. It lands as any change into the branch does, and nothing
   makes one but its requester's call.
-- **A semantic conflict,** a clean update whose CI fails while CI passes
-  on the base's tip, is a repair, whose brief names the base merged in
-  and what landed in it. While CI fails on the base's tip, the failure is
+- **A semantic conflict** is CI failing on a change's head after a clean
+  update. The name records that order, not proof that the base caused
+  the failure. Its repair's brief carries the failed check and its output
+  before the base merged in and what landed in it (8.4). While CI fails
+  on the base's tip, the failure is
   not the change's: its queue is paused (section 9), and the change
   waits for the branch's repair instead.
 - **Gates carry over** a clean update temper made, where their
@@ -3284,6 +3287,18 @@ whole.
   branch, its delivery finds the branch moved and the run ends stale, and its
   next run resumes from the same saved tree. It takes a parked edit and a
   live change's repair on one branch, and no story has met it. Default: so.
+- **Saved branches outside the task's saved set** (11): a terminal the
+  engine never heard, a repository no longer in the set, or full holds at
+  close can leave a branch on the forge. Finding these needs a branch
+  inventory beyond the set a next attempt resumes from. Default: manual
+  deletion or deployment retention; a failed descendant's known saved
+  work stays with its root until that root closes.
+- **A clean update's other words** (8.4, 10): the result still says
+  `the base broke it`, and the client panel calls its repair a semantic
+  conflict, although the path proves only that CI failed after an update.
+  Aligning those words needs the client's owner too. Default: the task's
+  instructions and brief name the failed check; the result and panel keep
+  their words until that follow-up.
 - **"The brief on Home" in Settings** (5.7): the status agent always runs
   for now; the switch is another plan's. Default: it runs.
 - **A status run's kept row** (5.7): a task made for the deployment is
