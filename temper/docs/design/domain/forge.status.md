@@ -50,6 +50,13 @@ marked cut and the change's stored words kept whole. The engine's batch
 table admits 32 changes and refuses 33 at an authority batch bound of 32.
 
 - **Not yet:**
+  - 5.3, *each answer reaches the read that asked*: the connector names
+    its change steps' and landings' reads in the root's range
+    (`temper-engine-domain-forge/src/domain.rs` and `landing.rs`, an
+    owner of `sequence | 1 << 61`), and the root's serial counts apart
+    from the connector's sequence, so a step can take a root read's
+    `Busy` and the root its step's answer. No world story holds a root
+    read and a connector read under one owner.
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;

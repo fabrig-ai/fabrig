@@ -949,6 +949,18 @@ call slab limit and background reserve (skein's `forge-client.md`, 5–6).
 An admitted answer or any other terminal forge error follows the normal
 read-answer path once.
 
+**Each answer reaches the read that asked.** The client answers a read
+under the owner it was asked with, and two reads under one owner cannot
+be told apart. The root's fresh reads take their owners from a range
+that is the root's alone (`temper_engine_domain_forge::root_read`): bit
+61 set, bits 59, 60, 62 and 63 clear, and the root's serial below
+2^59. The connector names none of its own reads there: its change
+steps, landings and every other read it makes take owners outside it,
+from its own sequence. It routes a client answer to its own pending
+read first and passes an answer in the root's range to the root, so a
+refused `Busy`, an answer or a failure reaches the one read that asked
+for it, never a read of another kind or another party's.
+
 - **Containment needs only ancestry.** The landing decision reads
   `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
   the head and base tip this step observed. A complete empty reverse
