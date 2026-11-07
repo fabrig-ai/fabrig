@@ -14,7 +14,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge::github::{
-    document::{App, Document},
+    document::{App, AppOwner, Document},
     request::Request,
 };
 use skein_lib::{Decimal, Queue, Wall};
@@ -25,6 +25,7 @@ struct Checked {
     accepted: Box<[u64]>,
     slug: Box<[u8]>,
     lacking: Box<[Lacking]>,
+    owner: Option<AppOwner>,
 }
 #[derive(Debug)]
 enum State {
@@ -34,7 +35,7 @@ enum State {
     Accepted(Kept),
     App { kept: Kept, accepted: Box<[u64]> },
     Hook { child: Hook, checked: Checked },
-    Sweep { child: Sweep, lacking: Box<[Lacking]> },
+    Sweep { child: Sweep, lacking: Box<[Lacking]>, owner: Option<AppOwner> },
     Ended,
 }
 
@@ -68,12 +69,12 @@ impl Reconcile {
             }
             Some(hook::Progress::Complete) => {
                 let child = Sweep::new(&self.given, checked.kept, checked.accepted, self.wall);
-                self.sweep(child, checked.lacking, Event::Begin)
+                self.sweep(child, checked.lacking, checked.owner, Event::Begin)
             }
             Some(hook::Progress::Pending(Need::Done(_))) | None => self.stop(&checked.slug, Why::Unexpected),
         }
     }
-    fn sweep(&mut self, mut child: Sweep, lacking: Box<[Lacking]>, event: Event) -> Need {
+    fn sweep(&mut self, mut child: Sweep, lacking: Box<[Lacking]>, owner: Option<AppOwner>, event: Event) -> Need {
         let mut out = Queue::uncapped();
         installations::step(&mut child, event, &mut out);
         match out.pop() {
@@ -81,10 +82,10 @@ impl Reconcile {
             Some(installations::Progress::Pending(
                 need @ (Need::Read(_) | Need::Write { .. } | Need::Send { .. } | Need::Draw(_)),
             )) => {
-                self.state = State::Sweep { child, lacking };
+                self.state = State::Sweep { child, lacking, owner };
                 need
             }
-            Some(installations::Progress::Complete) => Need::Done(Outcome::Lacking { lacking }),
+            Some(installations::Progress::Complete) => Need::Done(Outcome::Lacking { lacking, owner }),
             Some(installations::Progress::Pending(Need::Done(_))) | None => {
                 self.stop(b"installations", Why::Unexpected)
             }
@@ -104,7 +105,7 @@ impl Reconcile {
         }
         let lacking = checks::lacks(&app);
         let child = Hook::new(self.given.forge, kept.clone(), &app.slug, self.given.repair_hook);
-        let checked = Checked { kept, accepted, slug: app.slug, lacking };
+        let checked = Checked { kept, accepted, slug: app.slug, lacking, owner: app.owner };
         self.hook(child, checked, Event::Begin)
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
@@ -155,7 +156,7 @@ impl Reconcile {
             },
             State::App { kept, accepted } => self.proved(kept, accepted, event),
             State::Hook { child, checked } => self.hook(child, checked, event),
-            State::Sweep { child, lacking } => self.sweep(child, lacking, event),
+            State::Sweep { child, lacking, owner } => self.sweep(child, lacking, owner, event),
             State::Ended => unreachable!("ended reconcile is not advanced"),
         }
     }

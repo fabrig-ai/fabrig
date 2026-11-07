@@ -81,7 +81,7 @@ impl Place {
 pub fn item(item: skein_forge_setup::item::Item) -> File {
     use skein_forge_setup::item::Item;
     match item {
-        Item::AppId | Item::AppSlug | Item::AppKey | Item::Accepted | Item::Pasted | Item::Copying => {
+        Item::AppMade | Item::AppId | Item::AppSlug | Item::AppKey | Item::Accepted | Item::Pasted | Item::Copying => {
             unreachable!(
                 "items come only from in-process Forgejo Reconcile, never files, stores or peers; GitHub's items are records"
             )

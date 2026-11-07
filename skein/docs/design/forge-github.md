@@ -772,6 +772,9 @@ github.com (fake-forge.md, section 11).
   `token-narrowed-creates-not-edits`; `rate-core-5000`,
   `jwt-calls-no-rate`; `viewer-is-bot`, `user-on-installation-403`,
   `app-routes-401-on-installation-token`; `jwt-iss-string`;
+  `app-owner-id-login-type` (`GET /app`'s `owner` has `id`, `login` and
+  `type`, as GitHub's documentation lists them; written, and not yet
+  observed live);
   `bot-permission-is-not-a-role` (the App's bot's collaborator
   permission is `none` with an empty `role_name`, and the full mint's
   `permissions` name the installation's levels; observed 2026-10-23).

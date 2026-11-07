@@ -307,11 +307,20 @@ pub struct Permission {
     pub access: Access,
 }
 
-/// The App's identity, permissions and event subscriptions.
+/// The account that owns an App (forge-github.md, section 11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct AppOwner {
+    pub id: u64,
+    pub login: Box<[u8]>,
+    pub kind: Account,
+}
+
+/// The App identity, account and grants (forge-github.md, section 11).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct App {
     pub id: u64,
     pub slug: Box<[u8]>,
+    pub owner: Option<AppOwner>,
     pub permissions: Box<[Permission]>,
     pub events: Box<[Box<[u8]>]>,
 }

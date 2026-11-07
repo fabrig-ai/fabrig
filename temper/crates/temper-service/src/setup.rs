@@ -718,6 +718,7 @@ fn item_record(item: skein_forge_setup::item::Item) -> Option<Item> {
         I::GitToken => Item::GitToken,
         I::User => Item::User,
         I::WebhookSecret => Item::WebhookSecret,
+        I::AppMade => Item::AppMade,
         I::AppId => Item::AppId,
         I::AppSlug => Item::AppSlug,
         I::AppKey => Item::AppKey,

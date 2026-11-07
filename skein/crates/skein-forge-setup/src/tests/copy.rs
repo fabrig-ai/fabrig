@@ -288,7 +288,9 @@ fn halted(mut machine: Copy, stage: Stage) {
         Stage::Org => b"first",
         Stage::Repository => SUBJECT,
         Stage::File => PATH,
-        Stage::Bot | Stage::Token | Stage::App | Stage::Installation | Stage::State => panic!("copy stage"),
+        Stage::Bot | Stage::Token | Stage::App | Stage::Installation | Stage::State | Stage::Person => {
+            panic!("copy stage")
+        }
     };
     let mut out = Queue::uncapped();
     copy::halt(&mut machine, Why::Down, &mut out);
