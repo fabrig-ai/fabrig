@@ -20,3 +20,16 @@ id = 1
 story = "With drafts off, a person on a configuring chat, after its first message, presses \"+ Draft\" and the document opens; another chat still follows drafts"
 parts = ["configuring-offer"]
 walk = false
+
+[[part]]
+id = "drafts-on"
+title = "A new project has drafts on, and a project holding a goal shows Goals in its bar"
+mode = "direct"
+needs = ["configuring-offer"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 2
+story = "On a fresh project a person writes a draft in a chat, starts a goal from it, and finds it from the chat and from Goals in the bar; a project can still turn drafts off"
+parts = ["drafts-on"]
+walk = false
