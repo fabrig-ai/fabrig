@@ -723,7 +723,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     the application serving its values, and an item of a project's own
     policy with that project's policy now and as it would be, each whole
     within the document's bound or with its size (`../../domain/engine.md`,
-    17.2);
+    17.2). A retained task-origin proposal keeps its original reason, at the
+    live reason's bound, and its decision state; one of settings also keeps
+    its items and `projects`, so a client can draw it after a reload while
+    its record is retained;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a line of a change
     to a proposal of the task's names that proposal's number and says whether
@@ -1596,6 +1599,13 @@ designs (`../../protocol/client.md`):
   and bundle, which jig never serves (`../../protocol/service.md`).
 
 ## 11. Open questions
+
+- **Proposal objects on committed calls** (5.1): naming the proposal in a
+  call's `objects` needs its identity carried through the core's turn record
+  and the archived turn, and a mapping from call position to proposal number.
+  A verdict or procedure proposal has no call. Default: the activity line
+  names the proposal and its making independently of any call; filling call
+  objects is separate work.
 
 - **An account's model list** (5.1): narrowing the offer by each account's
   last provider-list read waits for a catalogue and those reads
