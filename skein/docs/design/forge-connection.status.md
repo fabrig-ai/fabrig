@@ -2,7 +2,6 @@
 
 2026-11-07. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
-- **Not yet:** 3.5, 5.2: `skein-forge-connection/src/limits.rs`, `access`, judges an App key by signing with it.
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive
