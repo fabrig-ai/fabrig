@@ -44,6 +44,9 @@ changes.
 | `screen-roles` | screen | screen-render | every other role, as the text shell says it |
 | `screen-status` | screen | every screen task | skein's statuses closed from the trunk's code |
 | `tui-view` | tui | screen-surface | `temper-client-tui`: the TUI's state, words, two screens, themes and limits |
+| `tui-goldens` | tui | tui-view, screen-render | the TUI's screens as golden frames: the first at 80 by 24 and 40 by 12, dark and light, and signing in |
+| `tui-host` | tui | tui-view, screen-render, screen-keys | `temper-client-shell-tui`'s host, the seam, and its limits |
+| `tui-world` | tui | tui-host | the joint world carries a linked client; the TUI signed in by its pasted link, across a restart, signed out elsewhere |
 
 ## Critical path, as it stands
 
