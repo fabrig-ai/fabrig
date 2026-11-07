@@ -10,11 +10,7 @@ for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
 a silent check still has no output to report (section 15).
 
-- **Not yet:** 3.3: a run with no workspace still has `## Tools` ("You have
-  no tools that act on the checkout.") and `## Checkout` ("There is no
-  checkout.") in its system text (`smith-domain-run/src/prompt.rs`,
-  `render_system`).
-  6, 9.2: messages mid-work and threshold notes. The run
+- **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
   marks the budget's thresholds.
