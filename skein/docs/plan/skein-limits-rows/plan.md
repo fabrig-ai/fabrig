@@ -82,6 +82,7 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-llm` | `client::tests` | 38 | 24 | 1 | 15 | unknown |
 | `skein-llm-connection` | `tests` | 38 | 31 | 1 | 8 | unknown |
 | `skein-forge-connection` | `limits::tests` | 19 | 14 | 2 | 7 | unknown |
+| `skein-tls` | `tests` | 54 | 50 | 1 | 6 | unknown |
 
 Left apart:
 
@@ -99,6 +100,7 @@ Left apart:
 - `skein-llm::client::tests`: all 15 limit-refusal wrappers fold; the other client and translation contracts retain their different checks and existing tables. Floor is unknown for this binary.
 - `skein-llm-connection::tests`, 3 limit tests: too many endpoint records, a measured request-head failure and a computed largest-call reservation have additional setup or assertions beyond a limit literal, so stay apart. Eight helper-equivalent refusals fold; the after-Closed panic is a separate lifecycle rule. Floor is unknown.
 - `skein-forge-connection::limits::tests`: all seven refusal tests fold into two tables, separating plain constructor refusals from refusals that also assert capacity_bound is absent. Other limit, key, platform and component lifecycle contracts stay apart. Floor is unknown.
+- `skein-tls::tests::config`, 1 refusal: valid_refuses_native_room_past_u32 accepts portable limits and rejects only native construction, so it stays separate. The five shared portable/native refusals fold; other TLS and RSA contracts stay apart. Floor is unknown.
 
 ### rows-forge
 
