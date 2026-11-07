@@ -86,3 +86,5 @@ Wait for approval-story’s repair on the plan trunk, then fetch and merge it an
 The task’s Answers entry explicitly settles this: “Then merge approval-story's repair from the plan's trunk once it's there, and run your story by name. If it's not there yet, push the revert and stop with a Question saying you're waiting on it.”
 Keep the heading fix, approval-only constructor, joined story and status removal. Do not restore the Queued workaround or change the dependency instruction.
 Acceptance remains pending. Resume after the prerequisite reaches the plan trunk and complete the outstanding checks and mutation bites.
+
+2026-11-07 (temper/ui). Resume: approval-story's merge-veto repair is on the plan's trunk now. Fetch and merge it, and run your story by name. The Queued arm stays out.
