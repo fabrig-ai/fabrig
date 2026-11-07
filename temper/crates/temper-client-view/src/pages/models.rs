@@ -51,6 +51,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
                 b.close();
             }
         }
+        add(b, root, w, bindings, me, project);
         ask(b, w, bindings, project);
         b.close();
     }
@@ -209,4 +210,97 @@ fn ask(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32) {
     b.text(Run::Plain, &name);
     b.close();
     b.close();
+}
+
+fn add(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, me: &c::Me, project: u32) {
+    if me.deployment_role != Some(c::HeldRole::Owner) {
+        return;
+    }
+    let page = root.pages().models();
+    let playground = root.forge().playground_provider();
+    let selected = page.provider(me, playground);
+    settings::section_head(b, &w.say(Word::ModelsAddHeading, &[]));
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::MODELS_ADD);
+    b.open(Role::Select);
+    b.name(&w.say(Word::ModelsProvider, &[]));
+    if page.add_pending() || selected.is_none() {
+        b.state(State::Disabled);
+    }
+    let mut provider_name: Box<[u8]> = Box::default();
+    for provider in &me.providers {
+        if Some(provider.provider) == playground {
+            continue;
+        }
+        let name = add_provider_name(provider.name.bytes());
+        b.open(Role::Option);
+        b.name(name);
+        b.bind(bindings.insert(Act::Models(models::Act::Provider(provider.provider))));
+        if selected == Some(provider.provider) {
+            b.state(State::Selected);
+            provider_name = name.into();
+        }
+        b.close();
+    }
+    b.close();
+    b.open(Role::TextField);
+    b.state(State::SubmitsOnEnter);
+    b.name(&w.say(Word::ModelsName, &[]));
+    b.placeholder(&w.say(Word::ModelsNameHint, &[]));
+    b.value(page.name(), temper_client_domain::pages::shown(root.pages()));
+    b.bind(bindings.insert(Act::Models(models::Act::Name(Box::default()))));
+    if page.add_pending() {
+        b.state(State::Disabled);
+    }
+    b.close();
+    b.open(Role::Button);
+    b.name(&w.say(Word::ModelsAdd, &[]));
+    b.style(look::SETTINGS_SMALL);
+    b.bind(bindings.insert(Act::Models(models::Act::Add)));
+    if !page.can_add(me, project, playground) {
+        b.state(State::Disabled);
+    }
+    b.close();
+    b.close();
+    detail(b, &w.say(Word::ModelsAddHelp, &[]));
+    if page.duplicate(me, project, playground) {
+        detail(b, &w.say(Word::ModelsDuplicate, &[Hole::Name(provider_name)]));
+    }
+    if let Some(provider) = page.added() {
+        let mut offered = false;
+        if let Some(models) = choice::offer(me, project) {
+            for model in models {
+                offered |= model.provider == Some(provider);
+            }
+        }
+        if !offered {
+            for offer in &me.providers {
+                if offer.provider == provider {
+                    detail(
+                        b,
+                        &w.say(Word::ModelsAddedWaiting, &[Hole::Name(add_provider_name(offer.name.bytes()).into())]),
+                    );
+                }
+            }
+        }
+    }
+    if let Some(outcome) = page.add_refused() {
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_REFUSAL);
+        crate::confirm::outcome_words(b, w, outcome);
+        b.close();
+    }
+    b.close();
+}
+fn detail(b: &mut Builder, words: &[u8]) {
+    b.open(Role::Text);
+    b.style(look::SETTINGS_DETAIL);
+    b.name(words);
+    b.text(Run::Plain, words);
+    b.close();
+}
+
+fn add_provider_name(name: &[u8]) -> &[u8] {
+    if name == b"anthropic" { b"Claude" } else { provider_words(name).0 }
 }

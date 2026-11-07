@@ -1208,7 +1208,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-public-section",
         b"temper-models-source",
         b"temper-models-ask",
-        b"temper-reserved-528",
+        b"temper-models-add",
         b"temper-reserved-529",
         b"temper-reserved-530",
         b"temper-reserved-531",
@@ -1495,6 +1495,8 @@ pub const PUBLIC_SECTION: Style = Style { owner: owner(), token: 525 };
 pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 526 };
 /// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
 pub const MODELS_ASK: Style = Style { owner: owner(), token: 527 };
+/// Add a model by name (temper/docs/design/client/README.md, 3.5).
+pub const MODELS_ADD: Style = Style { owner: owner(), token: 528 };
 /// Model picker at the composer (client/README.md, 3.5).
 pub const FOOT_ROW: Style = Style { owner: owner(), token: 565 };
 pub const MODEL: Style = Style { owner: owner(), token: 566 };
