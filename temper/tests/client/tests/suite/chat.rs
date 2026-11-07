@@ -309,6 +309,7 @@ fn a_new_chat_lands_its_delegated_change_and_closes_in_your_chats() {
             press(Role::Button, b"Close chat"),
             Step::Pause { span: PAST_CLOSE_GRACE },
             see(Find::text(b"Closed at 00:00")),
+            see(Find::exactly_named(Role::Paragraph, "T1 · model".as_bytes())),
             Step::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
         ],
     );
