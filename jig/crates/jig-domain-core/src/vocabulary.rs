@@ -1004,15 +1004,23 @@ pub enum NamedAction {
 #[derive(Debug)]
 pub enum ToolKind {
     Settings,
+    /// An application's asking tool, decided by the asking family alone.
+    Ask,
     Delegate,
-    Message { target: u64 },
+    Message {
+        target: u64,
+    },
     Control,
     Decide,
     Propose,
     Subscribe,
     Effect,
-    Note { scope: notes::Scope },
-    Recall { by: notes::Recall },
+    Note {
+        scope: notes::Scope,
+    },
+    Recall {
+        by: notes::Recall,
+    },
     Read,
 }
 /// A task holder's choice on one pending proposal.
