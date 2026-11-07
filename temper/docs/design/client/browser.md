@@ -1194,8 +1194,9 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
 over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
-5 another. The twelve test functions in `tests/client-browser/tests/browser_all`
-are:
+5 another; 8 and 9 share their Accounts setup, and 16 shares its sheet's
+setup across desktop and phone widths. The twelve test functions in
+`tests/client-browser/tests/browser_all` are:
 
 | Stories below | Module | Test |
 |---|---|---|
@@ -1204,13 +1205,13 @@ are:
 | 4 and 5 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
 | 6 | `browser_attacks` | `cross_origin_requests_and_framing_cannot_act_as_the_person` |
 | 7 | `browser_authorize` | `a_cross_site_authorization_returns_a_code_and_the_links_state` |
-| 8 | `browser_accounts` | `the_accounts_page_returns_after_a_key_send` |
-| 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready` |
+| 8 and 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_lands_on_accounts` |
 | 10 | `browser_github` | `the_manifest_posts_once_and_history_waits_for_continue` |
 | 12 | `browser_playground` | `story_a_walks_on_the_built_playground` |
 | 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
 | 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
 | 15 | `browser_pages` | `closing_project_rename_returns_focus_to_the_summary` |
+| 16 | `browser_connect_flows` | `scrolling_the_sheet_reads_more_then_search_picks_and_adopts` |
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1232,10 +1233,12 @@ are:
    page shows nothing, in one harness with both attacker host names.
 7. **A cross-site authorization** returns its code and the link's state
    (4.5).
-8. **The accounts page after a key's send:** Back restores an emptied
-   field, Forward the chats (4.2).
+8. **The accounts page after a key's send:** the completion returns to Accounts
+   with the key's row; Back restores an emptied field, Forward the chats (4.2).
 9. **`ConnectModel`'s sign-in, in a new tab** (4.2), after the welcome's Model
-   step's, each with one authorization and one code exchange.
+   step's, each with one authorization and one code exchange. The replaced
+   history entry returns to Accounts, and its counted heading remains through
+   Back, Forward and reload while the completion message disappears.
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
@@ -1253,6 +1256,12 @@ are:
     and reads back from the composer, past its window at both ends.
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`.
+
+16. **The repository sheet** (`README.md`, 4.4; `forge.md`, 5.1): scrolling
+    the last loaded row into view reads the second page without changing the
+    list's bounds; search finds its repository, selection counts it, and adoption
+    returns to its row. On the same deployment at phone width, a reopened
+    sheet meets the viewport's bottom and keeps its primary button visible.
 
 The cap includes all browser tests, whatever their names.
 
