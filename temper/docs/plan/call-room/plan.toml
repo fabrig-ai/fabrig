@@ -40,3 +40,30 @@ id = 2
 story = "A run on a declared 128 KB call derives within smith's ceiling, and a change's report is bounded by its contract's words and not a constant"
 parts = ["agent", "profile"]
 walk = false
+
+[[part]]
+id = "reference"
+title = "The reference declares a call's room, and the start names what moves with it"
+mode = "direct"
+needs = ["argument", "agent", "profile"]
+design = "temper/docs/design/protocol/configuration.md, 13.8"
+
+[[part]]
+id = "report"
+title = "A report past 3,584 bytes reaches its requester, and a batch of 32 passes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.4"
+
+[[part]]
+id = "close"
+title = "The status files say what this plan left"
+mode = "direct"
+needs = ["argument", "agent", "profile", "reference", "report"]
+design = "temper/docs/design/protocol/configuration.md, 13.8"
+
+[[slice]]
+id = 3
+story = "A reference deployment starts with a call of 128 KB, its charter holds a whole spec, and a producer's long report reaches its requester, whole in the store"
+parts = ["reference", "report", "close"]
+walk = false
