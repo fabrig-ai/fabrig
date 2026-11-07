@@ -97,3 +97,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the row's red (the failure seen at step 1), the bite, the row's CPU time alone; the figures of acceptance 3; each oracle repaired and why; the option taken where a default didn't hold; anything under `## Left`.
+
+## Answers
+
+2026-11-07 (temper/ui). Added before the task starts, at temper/migration's ask: a stop must not cost a coding run. Add a second row in the same world, as a row of the same table test where one fits. A coding run's task has its agent mid-turn at the stop. After the drain, and a restart on the same store, the task is due again as after a crash: no attempt counted against it, its saved work kept (temper's domain/worker.md, 12), and its slot and checkout as the restart expects. If the Shutdown cancel reaches the engine's journal as a cancelled run or a failed attempt, that is this fix's fault. Fix it at its lowest place: keep the cancel's outcome out of the journal, since the engine has drained, or record the run as interrupted. Say in the report which it was. If the world can't restart on one store cheaply, check instead that nothing the cancel sends reaches the journal after the drain, which leaves the run in flight as after a crash, and say so. Run each row alone, as the first.
