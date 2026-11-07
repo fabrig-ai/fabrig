@@ -37,6 +37,7 @@ pub(crate) fn agent_env(env: &Env<Limits>) -> Env<agent::Limits> {
 /// Hands one of the protocol's events to the child domain it is for.
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::ListRead { read, outcome } => host_step(domain, env, host::Event::ListRead { read, outcome }),
         Event::SourceAnswered { owner, answer } => {
             host_step(domain, env, host::Event::SourceAnswered { owner, answer });
         }
@@ -236,15 +237,8 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
-        host::Request::ReadList { read, .. } => host_step(
-            domain,
-            env,
-            host::Event::ListRead {
-                read,
-                outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
-            },
-        ),
-        host::Request::CancelRead { .. } => {}
+        host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
+        host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Source { owner, name, operation, deadline } => {
             out.push(Request::Source { owner, name, operation, deadline });
         }

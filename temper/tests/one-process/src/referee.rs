@@ -325,6 +325,7 @@ impl skein_world::Referee<Proc> for Referee {
             Proc::Other(HarnessProcess::Client(person)) => person.is_empty(),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::List(_)
             | Proc::Peer(_)
             | Proc::GitRoute(_)
             | Proc::Git(_)
@@ -610,6 +611,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
         Proc::Forge(forge) => forge.shutdown(),
         Proc::Service(_)
         | Proc::Agent(_)
+        | Proc::List(_)
         | Proc::GitRoute(_)
         | Proc::Git(_)
         | Proc::Shell(_)

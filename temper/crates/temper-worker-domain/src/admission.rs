@@ -29,6 +29,7 @@ pub fn is_new_work(event: &Event) -> bool {
             | host::LinkDown::Grant { .. },
         )
         | Event::SourceAnswered { .. }
+        | Event::ListRead { .. }
         | Event::Ready
         | Event::Lost
         | Event::GracePassed
@@ -71,6 +72,7 @@ pub fn passes(event: &Event) -> bool {
             | host::LinkDown::Grant { .. },
         )
         | Event::SourceAnswered { .. }
+        | Event::ListRead { .. }
         | Event::Ready
         | Event::Lost
         | Event::GracePassed
