@@ -679,11 +679,6 @@ work; no new real-model or phone press outcome is supplied.
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
-- **Not yet:** 3.5, *Needs you*, *Whole* and *Cut*, and 5.8, *Needs you bands*: a
-  person task in words reads only what the document holds, which the engine cuts at
-  `documents.text_bytes`, so past it the card shows no choices and no sign of the
-  cut. 3.5, *Needs you*, a funds card's words name a budget proposal whether or not
-  one waits.
 - **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task

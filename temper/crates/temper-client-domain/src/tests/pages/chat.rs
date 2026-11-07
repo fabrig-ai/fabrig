@@ -717,6 +717,7 @@ fn rejecting_pages() -> crate::pages::Pages {
         .cards_mut()
         .expect("chat cards")
         .push(crate::pages::inbox::Card {
+            whole: None,
             object: c::ObjectKey::Proposal(PROPOSAL),
             group: c::InboxGroup::Proposals,
             project: Some(fixtures::PROJECT),

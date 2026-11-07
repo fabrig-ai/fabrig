@@ -1,4 +1,5 @@
 //! The inbox keeps cards through refreshes (temper/docs/design/client/README.md, 3.5).
+pub mod whole;
 use super::Request;
 use crate::{
     Limits,
@@ -11,6 +12,7 @@ use jig_client::{
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
 };
 use skein_lib::{List, Queue, Set};
+use whole::Whole;
 #[derive(Clone, Debug)]
 pub struct Card {
     pub object: ObjectKey,
@@ -20,9 +22,47 @@ pub struct Card {
     pub unread: Option<contract::Count>,
     pub handle: Handle,
     pub page: Option<ReadValue>,
+    pub whole: Option<Whole>,
     pub words: Option<contract::Text>,
     pub key: Option<jig_client::Key>,
     pub outcome: Option<jig_client::Outcome>,
+}
+/// What a card's question reads (temper/docs/design/client/README.md, 3.5, Whole, Cut).
+#[derive(Debug)]
+pub enum QuestionWords<'a> {
+    Whole(&'a [u8]),
+    Reading(&'a [u8]),
+    Cut(&'a [u8]),
+}
+impl Card {
+    #[must_use]
+    pub fn question_words(&self) -> Option<QuestionWords<'_>> {
+        if let Some(ReadValue::Question(question)) = &self.page {
+            return Some(if question.words.cut {
+                QuestionWords::Cut(question.words.bytes())
+            } else {
+                QuestionWords::Whole(question.words.bytes())
+            });
+        }
+        if let Some(ReadValue::PersonTask(task)) = &self.page
+            && crate::question::in_words(task)
+        {
+            let words = &task.spec.specification.words;
+            if !words.cut {
+                return Some(QuestionWords::Whole(words.bytes()));
+            }
+            if let Some(whole) = &self.whole {
+                if let Some(words) = whole.words() {
+                    return Some(QuestionWords::Whole(words));
+                }
+                if whole.reading {
+                    return Some(QuestionWords::Reading(words.bytes()));
+                }
+            }
+            return Some(QuestionWords::Cut(words.bytes()));
+        }
+        None
+    }
 }
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "refresh bookkeeping is private to the page")]
@@ -41,6 +81,7 @@ pub struct Inbox {
     pub queries: [Handle; 2],
     pub next: u64,
     pub window: u32,
+    long_text: u32,
 }
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
     out.push(Request::Client(event));
@@ -55,6 +96,7 @@ impl Inbox {
         let cards = card_capacity(limits.client.domain.reads);
         let inbox = Self {
             filter,
+            long_text: limits.client.domain.long_text,
             cut: [false; 2],
             entries: handle(first),
             queries: [
@@ -85,6 +127,9 @@ impl Inbox {
         }
         for card in &self.cards {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
+            if let Some(whole) = &card.whole {
+                client(out, jig_client::Event::Unwatch { handle: whole.handle });
+            }
         }
         self.next
     }
@@ -132,8 +177,12 @@ impl Inbox {
         }
     }
     fn replace(&mut self, out: &mut Queue<Request>) {
-        for card in &self.cards {
+        for card in self.cards.iter_mut() {
             client(out, jig_client::Event::Unwatch { handle: card.handle });
+            if let Some(whole) = &mut card.whole {
+                whole.reading = false;
+                client(out, jig_client::Event::Unwatch { handle: whole.handle });
+            }
         }
         self.pending = Set::with_capacity(self.pending.capacity());
         self.previous.clear();
@@ -222,6 +271,7 @@ impl Inbox {
                 unread,
                 handle,
                 page: None,
+                whole: None,
                 words: None,
                 key: None,
                 outcome: None,
@@ -233,6 +283,7 @@ impl Inbox {
                 let index = self.cards.len().checked_sub(1).expect("new card");
                 let card = self.cards.get_mut(index).expect("new card");
                 card.page = old.page.take();
+                card.whole = old.whole.take();
                 card.words = old.words.take();
                 card.key = old.key;
                 card.outcome = old.outcome.take();
@@ -241,6 +292,22 @@ impl Inbox {
         }
         self.pending.insert(handle).expect("inbox card reads fit");
         client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
+        self.read_whole(self.cards.len().checked_sub(1).expect("new card"), out);
+    }
+    fn read_whole(&mut self, index: u32, out: &mut Queue<Request>) {
+        let card = self.cards.get_mut(index).expect("bounded card index");
+        let Some(ReadValue::PersonTask(task)) = &card.page else { return };
+        if !crate::question::in_words(task) || !task.spec.specification.words.cut {
+            return;
+        }
+        if let Some(whole) = &card.whole
+            && (whole.reading || whole.words().is_some())
+        {
+            return;
+        }
+        let handle = handle(self.next);
+        self.next = self.next.checked_add(1).expect("inbox handles fit");
+        card.whole = Some(Whole::start(task.task.task, handle, out));
     }
     /// Whether this section's read has answered with its value since the page opened
     /// (temper/docs/design/client/README.md, 3.5).
@@ -270,6 +337,15 @@ impl Inbox {
             return true;
         }
         let Told::Page { handle, page } = told else { return false };
+        for card in self.cards.iter_mut() {
+            if let Some(whole) = &mut card.whole
+                && whole.handle == handle
+                && let ObjectKey::PersonTask(task) = card.object
+            {
+                whole.told(task, self.long_text, page, out);
+                return true;
+            }
+        }
         let answered = self.pending.remove(&handle);
         if self.queries.contains(&handle) && (self.filter.project.is_some() || self.filter.goal.is_some()) {
             let index = usize::from(handle == self.queries[1]);
@@ -285,6 +361,7 @@ impl Inbox {
                 let card = self.cards.get_mut(index).expect("bounded card index");
                 if card.handle == handle {
                     card.page = Some(value);
+                    self.read_whole(index, out);
                     return true;
                 }
             }

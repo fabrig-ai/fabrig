@@ -264,10 +264,12 @@ fn answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe) {
     // The note's host tool defers rendering; typed driver calls render their own replies.
     front.engine.protocol.defer_render = false;
     let attempt = front.engine.task(goal).expect("running goal").attempt;
-    let mut child = temper_engine_domain_world::fixtures::report_delegate(
-        b"Which colour?\n\nChoose the colour for the work.\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
-        Box::new([]),
+    let question = format!(
+        "Which colour?\n\n{}\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
+        "Choose the colour for the work, keeping both options available. ".repeat(10),
     );
+    assert!(question.len() > usize::try_from(limits().client.domain.text).expect("document text bound fits usize"));
+    let mut child = temper_engine_domain_world::fixtures::report_delegate(question.as_bytes(), Box::new([]));
     child.executor = tasks::Executor::Person(tasks::PersonAddress::Person(fixtures::PARTY));
     child.contract = tasks::Contract::Report { words: 4096 };
     child.authority.tools = tasks::Tools(0);
@@ -292,7 +294,35 @@ fn answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe) {
     let card = root.pages().needs().shown(root.pages().inbox().expect("inbox")).expect("person question");
     let object = ObjectKey::PersonTask(child);
     assert_eq!(card.object, object);
-    act(front, probe, Act::Needs(needs::Act::Choose { object, words: Box::from(*b"Blue") }));
+    let Some(jig_client::contract::ReadValue::PersonTask(person)) = &card.page else { panic!("person question") };
+    assert!(person.spec.specification.words.cut, "the engine bounded the document's words");
+    let limits = limits();
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit");
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    let mut blue = None;
+    for _ in 0..ROUNDS {
+        temper_client_view::build(&mut view, probe.0.person(), env().wall, &mut Queue::uncapped());
+        blue = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Blue"))
+            .map(|node| node.id);
+        if blue.is_some() {
+            break;
+        }
+        pump(front, probe);
+    }
+    let action = temper_client_view::act(&mut view, blue.expect("whole question's Blue button"), skein_ui::Act::Press)
+        .expect("choice press");
+    Temper::step(&mut probe.0, &env(), Event::Act { action }.into(), &mut probe.1);
+    pump(front, probe);
     assert!(probe.0.person().pages().needs().held(object));
     let mut due = env();
     due.now = due.now.saturating_add(needs::HOLD);
