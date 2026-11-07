@@ -478,9 +478,7 @@ focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
 130.202313 fuzzy CPU s for the measured packages alone; the whole focused
 total remains unknown. The whole fuzzy suite's three warm serial runs
 pass all 81 tests each, but their median is 125.579032 CPU s against 120
-(119.288299–127.664356, including the driver). Engine replay uses frozen
-state digests and final complete text; crash and public-record sweeps
-retain all draws with cheaper setup, observations and shared codecs.
+(119.288299–127.664356, including the driver).
 The requested roughly 15 CPU s reduction and reliable headroom remain
 unachieved; gate accounting is distinct (`domain/testing.md`, sections 6,
 6.1 and 11). The real-loop focused median is 31.769481 CPU s against
