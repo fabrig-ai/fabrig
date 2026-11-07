@@ -1265,7 +1265,39 @@ digest: task 7c1e09a2b44f0d13
 
   Every other wait keeps its words, an account wait that names its
   account among them: `next run: account 43 source unknown: empty`.
-  `--json` keeps `run_wait` as jig gives it.
+  `--json` keeps `run_wait` as jig gives it, a refusal's `figures` as
+  `{"required":N,"offered":N}` or `null` and a bounds refusal as
+  `{"refused":{"bounds":{"kind":…,"why":…,"figures":…}}}`.
+
+  Every command those lines name is a ctl call that parses, or `temper
+  help NAME` with NAME a page, or the program login's command (the
+  request `ui-wait-words`, 2026-11-07). A host's wait names none: it starts
+  by itself.
+
+  ```
+  next run: host
+    no host has room, or none is connected; it starts when one does
+  ```
+
+  A run no worker can ever take (jig's `Refused(Bounds)`, `client/domain/contract.md`,
+  5.1) says which bound keeps it out in the client's form
+  (`README.md`, 5.5), lower case, a count as digits, a duration in
+  milliseconds as `N ms`:
+
+  ```
+  next run: refused, no worker takes it: agent turns too few for charter 3
+    no worker can take this: its charter asks 100000 turns, and the largest worker takes 800
+  ```
+
+  With no bound named, `next run: refused, no worker takes it` and `no
+  worker can take this: each falls short of another bound its charter
+  asks`. A refused hello with figures keeps its code line and says the
+  same of its worker, `no worker can take this: charter 3 asks 100000
+  turns, and the worker refused at 10:42 takes 800` (its UTC clock), in
+  place of `its host refused this start: …`; every other refusal keeps
+  that line. A shortfall of turns, time or waiting names its charter as
+  checks does, `agent turns too few for charter 3`, and the checks'
+  pointer is `see temper help settings for held revisions`.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of

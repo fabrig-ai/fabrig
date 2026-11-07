@@ -344,7 +344,7 @@ fn a_restart_spends_no_second_turn() {
 }
 
 #[test]
-fn no_model_is_named() {
+fn a_later_account_is_the_one_tried() {
     let (mut front, mut root) = h::trial_selection_fixture(fixtures::SEED);
     h::event(
         &mut front,
@@ -380,10 +380,11 @@ fn no_model_is_named() {
     login(&mut front, &mut root, true);
     let trial = row(&root);
     assert_ne!(trial.account, first, "a second model's usable account caused this trial");
-    assert_eq!(trial.took, Some(first), "the trial takes the first usable model's account");
+    let later = trial.account;
+    assert_eq!(trial.took, Some(later), "the trial takes the later account");
     let assignment = front.assignments.last().expect("second trial assigned");
-    assert_eq!(assignment.run.policy.model.name.as_ref(), b"scripted");
-    assert_eq!(assignment.run.accounts.first().expect("assigned account").account, first);
+    assert_eq!(assignment.run.policy.model.name.as_ref(), b"second-scripted");
+    assert_eq!(assignment.run.accounts.first().expect("assigned account").account, later);
     let task = trial.task.expect("trial task");
     // Read the person's real Task document already watched by the trial.
     let watched = root
@@ -396,9 +397,53 @@ fn no_model_is_named() {
     };
     assert_eq!(document.chip.task, task);
     let choice = document.llm.as_ref().expect("next_llm chose the task's model");
-    assert_eq!(choice.main.model.bytes(), b"scripted");
-    assert_eq!(choice.account, None, "no creator account preference");
+    assert_eq!(choice.main.model.bytes(), b"second-scripted");
+    assert_eq!(choice.account, Some(later), "creator holds the later account");
+    fail(&mut front, &mut root);
+    assert_eq!(row(&root).state, trials::State::Failed { why: trials::Why::Ended { class: trials::Class::Run } });
+    h::event(&mut front, &mut root, Temper::went(Address::Accounts));
+    let mut view = drawn(&root);
+    let later_nodes = account_nodes(&view, b"Second");
+    assert!(later_nodes.iter().any(|node| node.role == Role::Status && node.name.as_deref() == Some(b"stopped")));
+    assert!(later_nodes.iter().any(|node| {
+        node.text
+            .iter()
+            .any(|run| String::from_utf8_lossy(&run.text).contains("The run stopped before Second answered."))
+    }));
+    let retry = later_nodes
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Try again"))
+        .expect("the later account offers its own retry")
+        .id;
+    let first_nodes = account_nodes(&view, b"Anthropic");
+    assert!(first_nodes.iter().any(|node| {
+        node.name.as_deref().is_some_and(|name| String::from_utf8_lossy(name).contains("answered in 1 s"))
+    }));
+    assert!(!first_nodes.iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Try again")));
+    let event = Temper::act(&mut view, retry, Act::Press).expect("bound account retry");
+    assert!(matches!(event.root(), Some(temper_client_domain::Event::Act {
+        action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::TryAccount { account, again: true })
+    }) if *account == later));
+    let before = front.assignments.len();
+    h::event(&mut front, &mut root, event);
+    assert_eq!(front.assignments.len(), before + 1);
+    assert_eq!(row(&root).account, later);
+    assert_eq!(row(&root).took, Some(later));
+    let retry = front.assignments.last().expect("later account retried");
+    assert_eq!(retry.run.policy.model.name.as_ref(), b"second-scripted");
+    assert_eq!(retry.run.accounts.first().expect("retried account").account, later);
     h::answer_trial(&mut front, &mut root);
+}
+
+fn account_nodes<'a>(view: &'a View, name: &[u8]) -> &'a [skein_ui::Node] {
+    let nodes = Temper::tree(view).nodes();
+    let at = nodes
+        .iter()
+        .position(|node| {
+            node.role == Role::Disclosure && node.name.as_deref().is_some_and(|title| title.starts_with(name))
+        })
+        .expect("the account's drawn row");
+    &nodes[at..at + usize::try_from(nodes[at].size).expect("row size")]
 }
 
 fn login(front: &mut Joint, root: &mut Root, usable: bool) {

@@ -105,6 +105,7 @@ enum Property {
     CompletedDescription,
     Options,
     Placeholder,
+    Hint,
     Sort(skein_ui::Sort),
     Fraction(Option<Fraction>),
     Count,
@@ -335,6 +336,16 @@ const PROPERTIES: &[(Role, Property, &str)] = &[
         Property::Placeholder,
         r#"<textarea data-node="1" aria-label="Words &amp; &lt;b&gt;" placeholder="Hint &amp; &lt;b&gt;"></textarea>"#,
     ),
+    (
+        Role::Heading { level: 1 },
+        Property::Hint,
+        r#"<h1 data-node="1" aria-label="Words &amp; &lt;b&gt;" title="Hint &amp; &lt;b&gt;"></h1>"#,
+    ),
+    (
+        Role::Button,
+        Property::Hint,
+        r#"<button data-node="1" type="button" title="Hint &amp; &lt;b&gt;">Words &amp; &lt;b&gt;</button>"#,
+    ),
 ];
 
 fn property(made: &mut Made, property: Property) {
@@ -352,6 +363,10 @@ fn property(made: &mut Made, property: Property) {
         Property::Placeholder => {
             made.attribute.name = Some(b"Words & <b>".as_slice().into());
             made.attribute.placeholder = Some(b"Hint & <b>".as_slice().into());
+        }
+        Property::Hint => {
+            made.attribute.name = Some(b"Words & <b>".as_slice().into());
+            made.attribute.hint = Some(b"Hint & <b>".as_slice().into());
         }
         Property::Fraction(fraction) => {
             made.attribute.fraction = fraction;

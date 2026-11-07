@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [fake-llm.md](fake-llm.md).
 
+Section 3.2 has no known implementation gap in configured list bodies,
+status replacement between reads, credential observations or keeping
+lists apart from scripted calls.
+
 - **Departs:** 4: `skein/docs/foundation/testing-strategy.md`, 4 asks
   for no shared types, but this section designs a shared codec:
   `skein-fake-llm-protocol/src/documents.rs` uses `skein-llm`'s

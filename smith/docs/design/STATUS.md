@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where smith's code lags or departs from its design, from
+2026-11-07. Where smith's code lags or departs from its design, from
 the status files below. Containment waits on skein's contained trees
 (skein's `io.md`, 6.2 to 6.4): the agent and its commands run as
 plain children in process groups, so the view, the writable scope
@@ -26,7 +26,10 @@ each model request and what a program was given in a private directory
 by hand (`protocol/hosts.md`). `domain/session.md`,
 `protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
-`protocol/transcript.md` have no gap. smith has no drafts.
+`protocol/transcript.md` have no gap. The agent's standalone `--list`
+request and its host half's bounded stdin/stdout exchange are built,
+without a run slot (`protocol/agent.md`, 6.1; `protocol/hosts.md`, section 2).
+smith has no drafts.
 
 Design documents:
 - [`domain/README.md`](domain/README.status.md)

@@ -1324,13 +1324,12 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   by four agent processes and their programs on a laptop. Default: four
   slots, with the after-landing measurement in `setup.md`, section 15;
   a person's existing document keeps its configured concurrency.
-- **The model catalogue's provider lists** (13.4): reading lists, keeping
-  names per account and deciding their catalogue changes are the lists
-  step (`../draft/model-catalogue.md`, sections 5 and 7). Default: the
-  binary's seven stock models and model settings added by name, without
-  provider discovery. Release defaults reach settings that still follow
-  them; a person's change, including a picker switched off, stays over the
-  default. Charters resolve their model names through that catalogue.
+- **A real provider's list** (13.1): checking the configured patterns and
+  account grant against a real provider follows landing. Default: fake
+  lists through the worker and agent, with the account's retained names,
+  catalogue decision and unchanged accounting checked together. A fake
+  establishes no real-provider result. Later pages and changes to a known
+  model's figures remain jig's `domain/engine.md`, section 16's work.
 - **The real-browser check of watch sizing.** The domain story uses the
   pages' watch sets without HTTP, a browser or a kernel (section 7).
   Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools

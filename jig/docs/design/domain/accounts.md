@@ -628,6 +628,17 @@ account a preferred number or an endpoint default.
   account's cache and replay. Its creator names an account when it is
   created or amended (tasks.md, section 3) only to want one in
   particular, within the account's uses.
+- **Holding a new task to one account.** `Core::account_llm(charter,
+  models, payer, project, account)` is the choice that wants one account
+  in particular for a creator who names no model: the charter's first
+  model, in its order within `models`, that the offer (engine.md, 11.1)
+  holds with that account; else the first whose LLM provider is the
+  account's and whose candidates for the payer hold it, so that its wait
+  names that account; each model at its default effort, as a task given
+  no choice takes it, and the account its creator's preference. `None`
+  where the account serves none of them. It is an observation, as the
+  offer is: a task's own checks decide, and a task made with it waits for
+  that account rather than moving.
 - **A change of payer chooses again.** When a commit changes a task's
   payer (a move to another requester, a widening or an acceptance
   funded by another party: tasks.md, section 7; authority.md, section

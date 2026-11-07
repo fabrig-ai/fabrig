@@ -210,7 +210,7 @@ impl Core {
     }
 }
 
-fn candidates(choice: &tasks::LlmChoice) -> List<tasks::ModelEffort> {
+pub(super) fn candidates(choice: &tasks::LlmChoice) -> List<tasks::ModelEffort> {
     let mut candidates = List::with_capacity(tasks::MODELS);
     candidates.push(choice.main).expect("charter main");
     for candidate in &choice.subagents {
@@ -219,7 +219,7 @@ fn candidates(choice: &tasks::LlmChoice) -> List<tasks::ModelEffort> {
     candidates
 }
 
-fn defaults(
+pub(super) fn defaults(
     settings: &Settings,
     policy: &RunPolicy,
     mut choice: tasks::LlmChoice,
@@ -303,7 +303,7 @@ fn model(settings: &Settings, policy: &RunPolicy, chosen: tasks::ModelEffort) ->
 }
 
 #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
-fn charter_model<'policy>(policy: &'policy RunPolicy, name: &[u8]) -> Option<&'policy Model> {
+pub(super) fn charter_model<'policy>(policy: &'policy RunPolicy, name: &[u8]) -> Option<&'policy Model> {
     if policy.model.name.as_ref() == name {
         return Some(&policy.model);
     }

@@ -6,6 +6,10 @@ Sections 4.4, 7.2 and 15.9 have no known gap in facts' key tag 5, their
 bounded codec, restoration after the accounts and sources, or removal
 with the account. The accounts family changes in place under section 5.
 
+Section 4.4 has no known implementation gap in account list records,
+model first-read times or the provider-list revision decider. The list
+record and its catalogue decision share the commit and restart boundary.
+
 Sections 5 and 5.1 have no known gap in loading model-setting names before
 family restoration and taking catalogue updates before their commit, so a
 person's stored model retains its number across restart.

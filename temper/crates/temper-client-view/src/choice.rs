@@ -722,7 +722,12 @@ pub(crate) fn waiting(
             control(b, bindings, Role::Link, &w.say(W::ForgesTitle, &[]), Act::Go { address: Address::Forges }, false);
         }
         Some(c::TaskRunWait::Refused(why)) => {
-            line(b, w, W::WaitRefused, &[Hole::Name(refused(w, times, why))]);
+            let text = refused(w, times, why);
+            b.open(Role::Paragraph);
+            b.style(crate::look::ACCOUNT_LINE);
+            b.name(&text);
+            b.text(skein_ui::Run::Plain, &text);
+            b.close();
         }
         Some(c::TaskRunWait::Host) => line(b, w, host_wait(root), &[]),
         Some(c::TaskRunWait::Account { .. }) => {
@@ -735,16 +740,124 @@ fn sentences(w: &Words, first: Box<[u8]>, next: Box<[u8]>) -> Box<[u8]> {
 }
 fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     match why {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { kind, why, figures } => bound_refusal(w, times, kind, why, figures, None),
+        c::TaskWaitRefused::Hello { kind, at, why, figures } => {
+            match why {
+                c::HelloRefusal::Agent { why } if figures.is_some() => {
+                    return bound_refusal(w, times, kind, Some(why), figures, Some(at));
+                }
+                c::HelloRefusal::Agent { .. }
+                | c::HelloRefusal::JobKinds
+                | c::HelloRefusal::ReservedChannel
+                | c::HelloRefusal::Position { .. }
+                | c::HelloRefusal::Workers { .. }
+                | c::HelloRefusal::StopBound { .. } => {}
+            }
             let word = match kind {
                 c::HostKind::Engine => W::RefusedEngineAt,
                 c::HostKind::Worker => W::RefusedWorkerAt,
             };
             let first = w.say(word, &[Hole::Name(times.say(w, TimeForm::Clock, at))]);
-            sentences(w, first, hello_refusal(w, why))
+            let cause = sentences(w, first, hello_refusal(w, why));
+            w.say(W::WaitRefused, &[Hole::Name(cause)])
         }
     }
 }
+
+/// Bound figures keep their units and the fleet's largest offer (temper/docs/design/client/README.md, 5.5).
+fn bound_refusal(
+    w: &Words,
+    times: &mut Times,
+    kind: c::HostKind,
+    why: Option<c::AgentShortfall>,
+    figures: Option<c::Figures>,
+    at: Option<skein_lib::Wall>,
+) -> Box<[u8]> {
+    use c::AgentShortfall as S;
+    let (lead, alone) = match kind {
+        c::HostKind::Worker => (W::BoundWorker, W::BoundNoWorker),
+        c::HostKind::Engine => (W::BoundEngine, W::BoundNoEngine),
+    };
+    let Some(why) = why else {
+        return w.say(lead, &[Hole::Name(w.say(W::BoundDifferent, &[]))]);
+    };
+    let Some(figures) = figures else {
+        return sentences(w, w.say(alone, &[]), agent_shortfall(w, why));
+    };
+    let charter = match why {
+        S::Model { charter, .. }
+        | S::Window { charter, .. }
+        | S::Output { charter, .. }
+        | S::Turns { charter }
+        | S::Time { charter }
+        | S::Waiting { charter }
+        | S::Checks { charter } => charter,
+        S::Spend | S::Message | S::Inbox | S::Unacknowledged => 0,
+    };
+    let charter = match at {
+        Some(_) => w.say(W::BoundHelloCharter, &[Hole::Number(u64::from(charter))]),
+        None => w.say(W::BoundCharter, &[]),
+    };
+    let required = bound_figure(w, why, figures.required);
+    let offered = bound_figure(w, why, figures.offered);
+    let clause = match why {
+        S::Turns { .. } => w.say(W::BoundTurns, &[Hole::Name(charter), Hole::Name(required)]),
+        S::Time { .. } => w.say(W::BoundTime, &[Hole::Name(charter), Hole::Name(required)]),
+        S::Waiting { .. } => w.say(W::BoundWaiting, &[Hole::Name(charter), Hole::Name(required)]),
+        S::Checks { .. } => w.say(W::BoundChecks, &[Hole::Name(charter), Hole::Name(required)]),
+        S::Window { model, .. } => {
+            w.say(W::BoundWindow, &[Hole::Name(charter), Hole::Number(u64::from(model)), Hole::Name(required)])
+        }
+        S::Output { model, .. } => {
+            w.say(W::BoundOutput, &[Hole::Name(charter), Hole::Number(u64::from(model)), Hole::Name(required)])
+        }
+        S::Spend => w.say(W::BoundSpend, &[Hole::Name(required)]),
+        S::Message => w.say(W::BoundMessage, &[Hole::Name(required)]),
+        S::Inbox => w.say(W::BoundInbox, &[Hole::Name(required)]),
+        S::Unacknowledged => w.say(W::BoundUnacknowledged, &[Hole::Name(required)]),
+        S::Model { .. } => return sentences(w, w.say(alone, &[]), agent_shortfall(w, why)),
+    };
+    let tail = match kind {
+        c::HostKind::Engine => w.say(W::BoundTakes, &[Hole::Name(offered)]),
+        c::HostKind::Worker => match at {
+            Some(at) => w.say(W::BoundRefusedAt, &[Hole::Name(times.say(w, TimeForm::Clock, at)), Hole::Name(offered)]),
+            None => {
+                let tail = match why {
+                    S::Checks { .. } => W::BoundQuickest,
+                    S::Model { .. }
+                    | S::Window { .. }
+                    | S::Output { .. }
+                    | S::Turns { .. }
+                    | S::Spend
+                    | S::Time { .. }
+                    | S::Waiting { .. }
+                    | S::Message
+                    | S::Inbox
+                    | S::Unacknowledged => W::BoundLargest,
+                };
+                w.say(tail, &[Hole::Name(offered)])
+            }
+        },
+    };
+    w.say(lead, &[Hole::Name(sentences(w, clause, tail))])
+}
+fn bound_figure(w: &Words, why: c::AgentShortfall, value: u64) -> Box<[u8]> {
+    use c::AgentShortfall as S;
+    match why {
+        S::Time { .. } | S::Waiting { .. } | S::Checks { .. } => {
+            w.time_span(value.checked_div(60_000).expect("minute is nonzero"))
+        }
+        S::Model { .. }
+        | S::Window { .. }
+        | S::Output { .. }
+        | S::Turns { .. }
+        | S::Spend
+        | S::Message
+        | S::Inbox
+        | S::Unacknowledged => crate::words::grouped(value),
+    }
+}
+
 fn hello_refusal(w: &Words, why: c::HelloRefusal) -> Box<[u8]> {
     match why {
         c::HelloRefusal::JobKinds => w.say(W::HelloJobKinds, &[]),
@@ -765,10 +878,10 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
         S::Model { .. } => W::AgentModel,
         S::Window { .. } => W::AgentWindow,
         S::Output { .. } => W::AgentOutput,
-        S::Turns => W::AgentTurns,
+        S::Turns { .. } => W::AgentTurns,
         S::Spend => W::AgentSpend,
-        S::Time => W::AgentTime,
-        S::Waiting => W::AgentWaiting,
+        S::Time { .. } => W::AgentTime,
+        S::Waiting { .. } => W::AgentWaiting,
         S::Checks { .. } => W::AgentChecks,
         S::Message => W::AgentMessage,
         S::Inbox => W::AgentInbox,
@@ -781,7 +894,9 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
             w.say(word, &[Hole::Number(u64::from(charter))]),
             w.say(W::AgentModelPosition, &[Hole::Number(u64::from(model))]),
         ),
-        S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => w.say(word, &[]),
+        S::Turns { .. } | S::Spend | S::Time { .. } | S::Waiting { .. } | S::Message | S::Inbox | S::Unacknowledged => {
+            w.say(word, &[])
+        }
     }
 }
 fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings) {
@@ -896,8 +1011,12 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
     let (word, until) = match *wait {
         c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
         c::TaskRunWait::Host => return w.say(host_wait(root), &[]),
-        c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
-            return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
+        c::TaskRunWait::Refused(why) => {
+            let at = match why {
+                c::TaskWaitRefused::Hello { at, .. } => at,
+                c::TaskWaitRefused::Bounds { .. } => skein_lib::Wall::EPOCH,
+            };
+            return refused(w, &mut Times::new(at), why);
         }
         c::TaskRunWait::Account { account, why, .. } => match why {
             R::Refreshing => return w.say(W::WaitRefreshing, &[]),

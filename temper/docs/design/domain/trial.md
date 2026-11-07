@@ -1,13 +1,14 @@
 # A model's trial
 
-Provisional, 2026-11-06. One short real task, once a model's account is usable, through the path a chat
+Provisional, 2026-11-07. One short real task, once a model's account is usable, through the path a chat
 takes: the worker, smith and the model. Written from `../draft/model-check.md`. This document holds what
 runs, who pays, what ends it and what crosses to the client. What the person reads, Model's line and its
 words, is `../client/README.md`, 3.5, *The try*.
 
 ## 1. In one page
 
-- **What runs:** one task of charter 10, naming no `llm`, in no project, paid for by the person (2).
+- **What runs:** one task of charter 10, in no project, paid for by the person. A person's first usable account's
+  names no `llm`; a later account's names that account, so that it is the one tried (2).
 - **Who keeps it:** `temper-engine-domain-trials`, a child of the root, in memory: a row per account (3).
 - **What starts it:** the client, when an account becomes usable under the welcome's Model step or Ready, or
   `ConnectModel`, and "Try again" (6). Nothing else does: a restart starts nothing.
@@ -21,9 +22,18 @@ words, is `../client/README.md`, 3.5, *The try*.
   turn, charter 1's models and hosts.
 - **What it asks:** the words `Say one word.`, its contract a report of at most 64 bytes, no job, parameters or
   inputs.
-- **It names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`, 4.3): a trial that
-  named its model could pass while chats still hung. So it takes the first model with a usable account, and that
-  may be another account than the one that started it: its row's `took` says which (3.1).
+- **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`,
+  4.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
+  0 (jig's `domain/engine.md`, 11.1), for the trial's charter and its seed's models, holds no account but the one tried:
+  then what a new chat takes is that account.
+- **A later account's names it.** Where that offer holds any other account, the person's own or the deployment's, the
+  trial's `llm` is jig's `Core::account_llm` for the account tried: that account, and the charter's first model offered
+  with it, else the first it serves, at its default effort (jig's `domain/accounts.md`, 4.3). Its run takes that
+  account alone, and waits for it, saying why, rather than moving to another. So whichever provider comes first, in
+  either order, and for a second account of one provider, the account just connected is the one tried, and its row's
+  `took` is its own (3.1). An account that serves none of the charter's models can't be tried: `Refused` (3.2).
+- **Each `Make` judges it again,** a "Try again" included: a first account tried again once another is usable names
+  itself.
 - **In no project:** the welcome's Model step has none yet, so its task is jig's person's task (jig's
   `domain/authority.md`, 6.1), its payer the person. So no list holds it: it is not in Chats, Needs you or Home's
   counts, and it writes nothing to a project's document.
@@ -90,8 +100,10 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
 - **`Application::Try { account, again }`,** admitted with its person, whose answer is `Tried` or, where the person
   doesn't hold that account, `NotTheirs`. `route/applications.rs` keeps that answer in memory for its key's retention, as
   it keeps a return's, so a replayed key spends nothing.
-- **`Make`:** `Core::person_seed`, then `Event::PersonTask` with `Executor::Agent { charter: TRIAL_CHARTER }`,
-  and `Made` with the seed's number; no seed, `Refused`.
+- **`Make`:** `Core::person_seed`, then the trial's choice (2): `Core::offer` for `Payer::Party(person)` in project 0
+  with the seed's `models()`; where it holds an account other than the row's, `Core::account_llm` for the row's account,
+  and none is `Refused`; otherwise no choice. Then `Event::PersonTask` with `Executor::Agent { charter: TRIAL_CHARTER }`
+  and that `llm`, and `Made` with the seed's number; no seed, `Refused`.
 - **Lines:** what `route_core_requests` sees saved for a task a row holds: `Line::Turn` is `Turn`, `Line::RunEnded`
   with `Finished` is `Finished`, with `Failed { class }` or `Refused` is `RunFailed`. An account's erase is
   `AccountGone`.
@@ -188,12 +200,10 @@ the pane, on the account's row and on Home, and "Try again".
 
 ## 8. Later
 
-- **Trying a second account:** a trial takes what a new chat takes, so an account of a later model isn't what
-  answers while an earlier one is usable. Naming an account means naming a model, which is what the trial doesn't
-  do. Its row's `took` says so, and the account's own row shows no try's fact.
 - **A deployment's accounts** are the owner's, on a document only the accounts page watches, and aren't tried.
 - **Settings:** whether the accounts page offers "Try it" on an account (the draft's 5).
 - **A key whose `uses` name a project alone** isn't covered in no project, so its trial waits saying there's no
-  account, where a chat in that project wouldn't.
+  account where it is the first, and can't start where it is a later one (2), where a chat in that project
+  wouldn't.
 - **Surviving a restart:** a failed trial's line is lost at a restart. Storing it would hold a line, not a fact,
   and nothing has asked.
