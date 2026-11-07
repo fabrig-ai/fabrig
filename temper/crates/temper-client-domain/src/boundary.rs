@@ -5,6 +5,7 @@ use skein_lib::List;
 /// A view act routed exhaustively to its child.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
+    Approve(crate::approve::Act),
     Copy { words: Box<[u8]> },
     Forge(crate::forge::Act),
     Pages(crate::pages::Act),
@@ -12,6 +13,8 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
+    /// The native client's ask for an approval (client/README.md, 7.1).
+    AskApproval,
     /// The browser left full screen, whoever left it (client/README.md, 3.5).
     ScreenLeft,
     /// At start, the kept store’s look (client/README.md, 3.5).

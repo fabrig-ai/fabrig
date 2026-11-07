@@ -7,6 +7,8 @@ mod address;
 mod admin;
 mod amend;
 mod approvals;
+mod approve;
+mod asked;
 mod away;
 mod copy;
 mod decided;
