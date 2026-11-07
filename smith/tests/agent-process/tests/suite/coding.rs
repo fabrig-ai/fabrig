@@ -131,3 +131,89 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
     assert_eq!(world.observed().iter().filter(|frame| frame.kind == 0x0107).count(), 1, "one checked delivery");
     world.assert_agent_clean();
 }
+
+// A short title and body each fit this delivery field bound.
+const DELIVERY_FIELD_BYTES: u32 = 64;
+
+fn report_delivery_charter() -> Box<[u8]> {
+    // Two required delivery fields, each bounded to a short title or body.
+    const FIELDS: u32 = 2;
+    smith_agent_process_world::wire::edit_charter(&coding_charter(), |parts| {
+        let limits = &smith_charter::CEILINGS;
+        let mut contract = parts.contract.clone().into_parts();
+        contract.change = None;
+        parts.contract = smith_charter::Contract::new(limits, contract).expect("report contract");
+        let mut fields = List::with_capacity(FIELDS);
+        for name in [b"title".as_slice(), b"body"] {
+            fields
+                .push(
+                    smith_charter::FieldRule::new(
+                        limits,
+                        smith_charter::FieldRuleParts { name: name.into(), max: DELIVERY_FIELD_BYTES },
+                    )
+                    .expect("delivery field"),
+                )
+                .expect("two delivery fields");
+        }
+        let mut tools = parts.tools.clone().into_parts();
+        tools.deliver = Some(
+            smith_charter::ChangeRule::new(limits, smith_charter::ChangeRuleParts { checks_must_pass: true, fields })
+                .expect("checked delivery grant"),
+        );
+        parts.tools = smith_charter::Tools::new(limits, tools).expect("delivery tools");
+    })
+}
+
+/// Delivery is an independent grant beside a report (domain/run.md, 3.1 and 8.4).
+#[test]
+fn a_report_run_offers_its_delivery_grant_and_continues() {
+    const REPORT: &[u8] = b"The files were delivered.";
+    let charter = report_delivery_charter();
+    let mut world = World::new(38, &charter);
+    world.standard_workspace();
+    world.script(
+        [
+            ("write", r#"{"path":"result.txt","content":"delivered\n"}"#),
+            ("deliver", r#"{"fields":{"title":"Design","body":"Keep the design."}}"#),
+            ("finish", r#"{"form":"report","text":"The files were delivered.","fields":{}}"#),
+        ]
+        .into_iter()
+        .map(|(name, arguments)| {
+            smith_agent_world::fixture::calls(
+                Box::new([api::Line::Call { name: name.as_bytes().into(), arguments: arguments.as_bytes().into() }]),
+                1,
+            )
+        })
+        .collect(),
+    );
+    assert!(world.settle());
+    let queries = world.peer_queries();
+    let first = queries.first().expect("report run reaches the model");
+    let deliver = first
+        .tools
+        .iter()
+        .find(|tool| tool.name.as_ref() == b"deliver")
+        .expect("the independent delivery grant offers deliver beside report");
+    let schema: serde_json::Value = serde_json::from_slice(&deliver.parameters).expect("delivery schema");
+    assert_eq!(schema["properties"]["fields"]["required"], serde_json::json!(["title", "body"]));
+    for name in ["title", "body"] {
+        assert_eq!(schema["properties"]["fields"]["properties"][name]["maxLength"], DELIVERY_FIELD_BYTES);
+    }
+    let last = queries.last().expect("report turn");
+    assert!(
+        last.messages.iter().flat_map(|message| &message.parts).any(|part| {
+            matches!(part, api::Part::ToolOutput { output, is_error: false, .. }
+            if output.as_ref() == b"delivered\nreceipt directory=0 text=\"checked files kept\"")
+        }),
+        "delivery is answered before the report"
+    );
+    assert_eq!(world.checked_files(), [b"delivered\n".to_vec()]);
+    let answer = world.answer().expect("host answer");
+    let smith_channel::RunResult::Accepted(accepted) = answer.result() else { panic!("report accepted: {answer:?}") };
+    let result =
+        smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(accepted.result()))
+            .expect("report result");
+    assert_eq!(result.form(), &smith_charter::Form::Report);
+    assert_eq!(result.text(), REPORT);
+    world.assert_agent_clean();
+}
