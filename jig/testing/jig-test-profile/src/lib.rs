@@ -109,6 +109,7 @@ fn profile() -> root::Limits {
         facts: 2,
     };
     let fleet = fleet::Limits {
+        reads: 1,
         configured_workers: 64,
         worker_name_bytes: 32,
         program_sources: 12,

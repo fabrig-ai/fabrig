@@ -14,6 +14,7 @@ const MAX_WIRE: usize = 20_000;
 
 /// The fleet's limits in the calm world.
 pub const LIMITS: Limits = Limits {
+    reads: 16,
     configured_workers: 64,
     worker_name_bytes: 32,
     program_sources: 12,
