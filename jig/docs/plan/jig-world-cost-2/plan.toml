@@ -1,3 +1,20 @@
 draft = "jig-world-cost-2"
 repo = "fabrig"
 sources = ["jig/docs/plan/jig-world-cost-2/inputs/request.md", "jig/testing/jig-conformance/src/core/naming.rs", "jig/testing/jig-client-protocol-kit/src/net.rs", "jig/testing/jig-core-kit/src/world/constructors.rs", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "naming-row"
+title = "A durable row keeps its typed key, and the referee prints it when a failure does"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 5.2"
+
+[[slice]]
+id = 1
+story = "A commit names its durable rows without printing a key, and a row that outlives its project still fails in the same words"
+parts = ["naming-row"]
+walk = false
