@@ -115,6 +115,10 @@ open is section 9.
     another method pays with something other than the person's plan;
   - **failed,** with its detail: the program missing, its status not
     ended within its deadline, or an answer that does not read.
+- **A usable answer may name an email:** its `email` field, reported beside
+  *usable* for the host to pass on. It is words to show, and no check depends on
+  it: a field that is missing, not a string, empty, past 255 bytes or holding a
+  control byte is no email, and the answer stays usable.
 - **The check is smith's,** in two places:
   - **the host's half** checks a program source when its host asks
     (hosts.md, section 2), so that a host places a run on a program only
@@ -140,13 +144,15 @@ open is section 9.
 - **Nothing of smith's holds the login:** no grant, record, setting,
   transcript, trace, event or environment of smith's holds it, nor a
   token `claude setup-token` makes. The only thing smith reads is the
-  status's answer (section 3).
+  status's answer (section 3), and of it the fields that section names.
 - **Per host.** A login is its host's: one that lapses or is refused
   makes its source unusable on that host alone, and the person is told
   the host and the command to run there. Claude Code warns three days
   before a login expires.
-- **A program source has no subject smith can read:** the status names
-  no account. A host names it to people by its holder's display name.
+- **A program source has no subject smith can read:** the status names no
+  stable identifier of the account, and an email it names is not one. A host
+  names it to people by that email where the status names one, and otherwise
+  by its holder's display name.
 
 ### 4.2 The configuration directory
 

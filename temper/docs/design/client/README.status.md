@@ -487,9 +487,7 @@ work; no new real-model or phone press outcome is supplied.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
-  status name no email for a ChatGPT sign-in, whose account's display is empty, since
-  the engine keeps no email: it waits on
-  `jig/docs/design/draft/account-facts.md`, 6, its second step.
+  status name no email, since no account's row carries one yet.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
   test holds either: a sign-in `Made` or `Renewed`, not declined, with no

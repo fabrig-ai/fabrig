@@ -1,0 +1,34 @@
+draft = "account-email"
+repo = "fabrig"
+sources = ["temper/docs/plan/account-email/inputs/request.md", "jig/docs/design/draft/account-facts.md", "jig/docs/design/domain/providers.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "format"
+title = "An account's facts have a record, a key and a codec"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/accounts.md, 3.7"
+
+[[part]]
+id = "claims"
+title = "skein's OAuth reads the profile claims its caller asks for"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 2.2"
+
+[[part]]
+id = "program-email"
+title = "A program's check names the email its status names"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 3"
+
+[[slice]]
+id = 1
+story = "The record stores an account's facts, and a sign-in, a refresh and a program's status can each say an email"
+parts = ["format", "claims", "program-email"]
+walk = false
