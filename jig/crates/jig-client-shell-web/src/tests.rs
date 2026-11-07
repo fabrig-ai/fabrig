@@ -58,13 +58,18 @@ fn the_link_route_s_secret_is_taken_and_the_address_is_the_home() {
         Some(sign_in::Taken { secret: Box::new([7; 32]), address: b"/".as_slice().into() })
     );
 }
-const OTHER: &[&[u8]] = &[
-    b"/inbox?secret=foo",
-    b"/jig/v1/sign-in/link",
-    b"/jig/v1/sign-in/link?secret=bad",
-    b"/jig/v1/sign-in/link?secret=",
-    b"/jig/v1/sign-in/link?other=x",
-];
+const OTHER: &[&[u8]] = &[b"/inbox?secret=foo", b"/jig/v1/sign-in/link", b"/jig/v1/sign-in/link?other=x"];
+#[test]
+fn a_malformed_link_secret_is_taken_empty_and_the_address_is_the_home() {
+    for value in ["bad", "", "!", "_w", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"] {
+        let path = format!("/jig/v1/sign-in/link?secret={value}");
+        assert_eq!(
+            sign_in::take(&fixtures::route(), path.as_bytes()),
+            Some(sign_in::Taken { secret: Box::new([]), address: b"/".as_slice().into() }),
+            "{value:?}",
+        );
+    }
+}
 #[test]
 fn another_path_takes_no_secret() {
     for path in OTHER {

@@ -157,9 +157,14 @@ fn a_link_answer_with_a_new_token_replaces_the_attempts_held_credential() {
 
 #[test]
 fn a_refused_not_ready_or_lost_link_installs_none_of_its_held_credential() {
-    for (body, expected) in
-        [(Some(&[1][..]), Signing::Refused), (Some(&[2][..]), Signing::Again), (None, Signing::Lost)]
-    {
+    for (body, expected) in [
+        (Some(&[1][..]), Signing::Refused),
+        (Some(&[2][..]), Signing::Again),
+        (None, Signing::Lost),
+        (Some(&[5][..]), Signing::LinkUsed),
+        (Some(&[6][..]), Signing::LinkExpired),
+        (Some(&[7][..]), Signing::LinkUnknown),
+    ] {
         let mut h = Harness::new(&limits());
         let exchange = h
             .sign_in(With::Link {
@@ -177,12 +182,15 @@ fn a_refused_not_ready_or_lost_link_installs_none_of_its_held_credential() {
 }
 
 #[test]
-fn busy_and_full_sign_in_answers_decode_and_trailing_bytes_are_lost() {
+fn link_sign_in_answers_decode_and_trailing_bytes_are_lost() {
     let full = w::SignInAnswer::Full(
         w::SignInsFull::new(&w::CEILINGS, w::SignInsFullParts { sign_ins: 2, earliest: 400, link_until: 300 }).unwrap(),
     );
     for (record, expected) in [
         (w::SignInAnswer::Busy, Signing::Busy),
+        (w::SignInAnswer::LinkUsed, Signing::LinkUsed),
+        (w::SignInAnswer::LinkExpired, Signing::LinkExpired),
+        (w::SignInAnswer::LinkUnknown, Signing::LinkUnknown),
         (
             full,
             Signing::Full {

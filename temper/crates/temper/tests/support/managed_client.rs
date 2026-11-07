@@ -35,7 +35,13 @@ impl Referee<NativeClient> for Person {
                     }
                 }
                 Signing::Again | Signing::Busy => self.retry = Some(now.saturating_add(Duration::from_millis(100))),
-                Signing::Refused | Signing::Lost | Signing::SignedOut | Signing::Full { .. } => {
+                Signing::LinkUsed
+                | Signing::LinkExpired
+                | Signing::LinkUnknown
+                | Signing::Refused
+                | Signing::Lost
+                | Signing::SignedOut
+                | Signing::Full { .. } => {
                     panic!("the sitting's sign-in was refused");
                 }
             }

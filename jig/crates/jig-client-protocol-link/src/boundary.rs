@@ -162,6 +162,9 @@ pub enum Signing {
     Busy,
     Full { sign_ins: u32, earliest: skein_lib::Wall, link_until: skein_lib::Wall },
     Refused,
+    LinkUsed,
+    LinkExpired,
+    LinkUnknown,
     Lost,
     SignedOut,
 }

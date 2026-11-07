@@ -67,6 +67,9 @@ pub enum UnlinkedRequest {
 /// Why the last printed-link sign-in installed no credential (client/domain/client.md, 12).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotSignedIn {
+    LinkUsed,
+    LinkExpired,
+    LinkUnknown,
     NotReady,
     Busy,
     Full { sign_ins: u32, earliest: Wall, link_until: Wall },
@@ -391,6 +394,9 @@ impl Client {
     fn signing(&mut self, env: &Env<DomainLimits>, signing: link::Signing) {
         if self.signing_link {
             let why = match &signing {
+                link::Signing::LinkUsed => Some(NotSignedIn::LinkUsed),
+                link::Signing::LinkExpired => Some(NotSignedIn::LinkExpired),
+                link::Signing::LinkUnknown => Some(NotSignedIn::LinkUnknown),
                 link::Signing::Again => Some(NotSignedIn::NotReady),
                 link::Signing::Busy => Some(NotSignedIn::Busy),
                 link::Signing::Full { sign_ins, earliest, link_until } => {
@@ -436,6 +442,9 @@ impl Client {
             | link::Signing::Full { .. }
             | link::Signing::Again
             | link::Signing::Lost
+            | link::Signing::LinkUsed
+            | link::Signing::LinkExpired
+            | link::Signing::LinkUnknown
             | link::Signing::Refused => {
                 self.sign_out_failed();
                 self.send_again = None;

@@ -64,12 +64,7 @@ fn each_step_supplies_its_slot_line_and_held_word() {
         assert_eq!(line, word);
         let expected: Box<[Hole]> = if word == W::QueueTh {
             Box::new([Hole::Number(65), Hole::Name(Box::from(panel.landing()))])
-        } else if word == W::PrepareLine
-            || word == W::FirstLine
-            || word == W::UpdateLine
-            || word == W::ResolveLine
-            || word == W::RepairSemantic
-        {
+        } else if word == W::PrepareLine || word == W::FirstLine || word == W::UpdateLine || word == W::ResolveLine {
             Box::new([Hole::Name(Box::from(panel.landing()))])
         } else if word == W::ReadyLine {
             Box::new([Hole::Number(61)])

@@ -1,0 +1,48 @@
+draft = "ui-small-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-small-1/inputs/request.md", "temper/crates/temper-service/src/stock/configuring.txt", "temper/crates/temper-box/src/terminal.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "small-words"
+title = "the configuring agent's approver line, a chat's forge look, Home's repeat and a repair's blame"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[part]]
+id = "printed-link"
+title = "a second printed link counts as a count, says why it came, and any fault behind it is fixed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "link-why"
+title = "a sign-in link that can't sign a person in says why: used, expired, or not this temper's"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 8"
+
+[[slice]]
+id = 1
+story = "a new person reads no false alarm, and Home says Nothing needs you once"
+parts = ["small-words"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a box that prints a second link fails with its stderr, and no secret in the log"
+parts = ["printed-link"]
+walk = false
+
+[[slice]]
+id = 3
+story = "a person opening a used link, or an older box's, reads why, and what to open instead"
+parts = ["link-why"]
+walk = false
