@@ -237,6 +237,10 @@ pub enum Word {
     ModelsPlan,
     ModelsKey,
     ModelsDefault,
+    ModelsAdded,
+    ModelsEstimated,
+    ModelsPicker,
+    ModelsLeftOut,
     ModelsAsk,
     ModelsConfigure,
     SettingsBuildersTab,
@@ -1416,7 +1420,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1899;
+const PHRASES: u32 = 1903;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1442,10 +1446,10 @@ const PHRASES: u32 = 1899;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3306;
+const SEGMENTS: u32 = 3314;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46477;
-const ALL: [Word; 1298] = [
+const ENGLISH_BYTES: u32 = 46564;
+const ALL: [Word; 1302] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1665,6 +1669,10 @@ const ALL: [Word; 1298] = [
     Word::ModelsPlan,
     Word::ModelsKey,
     Word::ModelsDefault,
+    Word::ModelsAdded,
+    Word::ModelsEstimated,
+    Word::ModelsPicker,
+    Word::ModelsLeftOut,
     Word::ModelsAsk,
     Word::ModelsConfigure,
     Word::SettingsBuildersTab,
@@ -2949,6 +2957,10 @@ impl Word {
             Self::ModelsPlan => 3927,
             Self::ModelsKey => 3928,
             Self::ModelsDefault => 3929,
+            Self::ModelsAdded => 3964,
+            Self::ModelsEstimated => 3965,
+            Self::ModelsPicker => 3966,
+            Self::ModelsLeftOut => 3967,
             Self::ModelsAsk => 3930,
             Self::ModelsConfigure => 3931,
             Self::SettingsBuildersTab => 3467,
@@ -5468,6 +5480,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelsSubscription => (&[b"Your ", b" subscription."], &[Name]),
         Word::ModelsPlan => (&[b"Your ", b" plan."], &[Name]),
         Word::ModelsKey => (&[b"Your API key."], &[]),
+        Word::ModelsAdded => (&[b" \xc2\xb7 added by you"], &[]),
+        Word::ModelsEstimated => (&[b" \xc2\xb7 estimated prices"], &[]),
+        Word::ModelsPicker => (&[b"", b" in the picker"], &[Name]),
+        Word::ModelsLeftOut => (&[b"", b" more models don't fit the catalogue."], &[Number]),
         Word::ModelsDefault => (&[b" \xc2\xb7 the default"], &[]),
         Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, tell "], &[]),
         Word::ModelsConfigure => (&[b"Configure temper."], &[]),

@@ -36,7 +36,7 @@ pub enum Then {
     Shown,
     DraftEmpty,
     Mode(temper_client_domain::pages::chat::document::Mode),
-    Models { one_account: bool },
+    Models { one_account: bool, state: ModelState },
     Hosts { role: bool, connected: bool },
     Working,
     DelegatedGoal,
@@ -62,6 +62,14 @@ pub enum Then {
     Declined,
     Renewed,
     SignInRefused,
+}
+/// The Models tab's switch, provenance and membership states.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelState {
+    On,
+    Off,
+    Added,
+    Member,
 }
 /// The paste's visible frames, reached through the same public events as a browser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,7 +122,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 290;
+pub const N: usize = 293;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -124,6 +132,7 @@ fn task(task: u64) -> Address {
 
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
+#[expect(clippy::large_stack_arrays, reason = "the gallery keeps its fixed sample table and array return")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
@@ -141,13 +150,31 @@ pub fn samples() -> [Sample; N] {
             name: "models",
             world: Reference,
             address: Address::Models { project: 1 },
-            then: Then::Models { one_account: false },
+            then: Then::Models { one_account: false, state: ModelState::On },
+        },
+        Sample {
+            name: "models-off",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Off },
+        },
+        Sample {
+            name: "models-added",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Added },
+        },
+        Sample {
+            name: "models-member",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Member },
         },
         Sample {
             name: "models-one-account",
             world: Reference,
             address: Address::Models { project: 1 },
-            then: Then::Models { one_account: true },
+            then: Then::Models { one_account: true, state: ModelState::On },
         },
         Sample {
             name: "builders",

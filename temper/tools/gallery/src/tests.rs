@@ -549,6 +549,21 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "models-off",
+        heading: "What the picker offers.",
+        parts: &[Part::Named { role: Role::Check, name: "Sonnet 5.5 in the picker" }, Part::Text { text: "Off" }],
+    },
+    Holds {
+        name: "models-added",
+        heading: "What the picker offers.",
+        parts: &[Part::Text { text: "claude-sonnet-5-5 · high · added by you · estimated prices" }],
+    },
+    Holds {
+        name: "models-member",
+        heading: "What the picker offers.",
+        parts: &[Part::NoRole { role: Role::Check }, Part::Text { text: "On" }, Part::Text { text: "Off" }],
+    },
+    Holds {
         name: "models-one-account",
         heading: "What the picker offers.",
         parts: &[
