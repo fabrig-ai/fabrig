@@ -14,14 +14,7 @@ pub(crate) fn preparation_current(core: &Core, context: &tasks::RunContext) -> b
     if core.tasks.run_message(context.task) == Some(context.last_message) {
         return true;
     }
-    let offered = match task.executor {
-        tasks::Executor::Agent { .. } => {
-            offered_kinds(core.charter_of(context.task), task.instructions.is_some(), context.reasons)
-        }
-        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
-            tasks::Reasons::ALL
-        }
-    };
+    let offered = preparation_offered(core, context);
     let Some(current) = core.tasks.run_context(context.task) else { return false };
     for word in &current.inbox {
         if word.number > context.last_message && tasks::offered(word, offered) {
@@ -29,6 +22,19 @@ pub(crate) fn preparation_current(core: &Core, context: &tasks::RunContext) -> b
         }
     }
     true
+}
+
+/// The offered kinds of the prepared snapshot, shared by freshness and sent-word routing.
+pub(crate) fn preparation_offered(core: &Core, context: &tasks::RunContext) -> tasks::Reasons {
+    let task = core.tasks.task(context.task).expect("preparing context names a live task");
+    match task.executor {
+        tasks::Executor::Agent { .. } => {
+            offered_kinds(core.charter_of(context.task), task.instructions.is_some(), context.reasons)
+        }
+        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
+            tasks::Reasons::ALL
+        }
+    }
 }
 
 /// Compare fresh preparation facts after excluding newer kept words and only the reasons

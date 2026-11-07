@@ -165,7 +165,28 @@ enum Arrival {
 }
 
 fn preparing_parts(parts: bool) -> (Core, Limits) {
-    let (mut core, limits) = make_tree();
+    let (mut core, limits) = tree_core();
+    let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([root]));
+    let child = new_row(&core, 2, tasks::Funder::Task(1), None);
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Task(1), Box::new([child]));
+    // Asking its requester keeps a live sender's phase unchanged in the prepared brief.
+    send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(2)), task: 2 });
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Claim {
+            reply_to: ReplyTo::new(Token::new(2)),
+            task: 2,
+            attempt: 1,
+            resumed: false,
+            budget: 1,
+            account: None,
+            writes: Box::new([]),
+            reasons: Reasons::FIRST,
+            offered: Reasons::ALL,
+        },
+    );
     let charter = core.current.test_charter_mut(1);
     charter.policy.resume = false;
     charter.policy.instructions = b"S".as_slice().into();
@@ -179,6 +200,48 @@ fn preparing_parts(parts: bool) -> (Core, Limits) {
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
     core.begin_transcript(1, 0, None);
     (core, limits)
+}
+
+#[test]
+fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
+    for (name, parts, own, from, kind, appended) in [
+        ("kept question", true, false, tasks::Party::Task(2), tasks::MessageKind::Question, false),
+        ("person words", true, false, tasks::Party::Person(1), tasks::MessageKind::Words, true),
+        ("no parts", false, false, tasks::Party::Task(2), tasks::MessageKind::Question, true),
+        ("own instructions", true, true, tasks::Party::Task(2), tasks::MessageKind::Question, true),
+    ] {
+        let (mut core, limits) = preparing_parts(parts);
+        if own {
+            let mut row = core.tasks.task(1).unwrap().clone();
+            row.instructions = Some(b"own".as_slice().into());
+            fixtures::restore(&mut core, &limits, Box::new([row]));
+        }
+        let prepared = core.contexts.get(&1).unwrap().clone();
+        let word = tasks::Word {
+            number: 1,
+            from,
+            kind,
+            words: b"arriving".as_slice().into(),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        };
+        let request = Token::new(11);
+        let key = CallKey { task: 2, attempt: 1, completion: 1, position: 0 };
+        let flight = core.fly_call(request, RoutedCall::Message(key));
+        let route = core.sent(flight, 1, &word, limits.tasks.inbox_messages, limits.tasks.tasks);
+        let SentRoute::Call { request: completed, key: caller, message } = route else {
+            panic!("{name}: sent word completes its call");
+        };
+        assert_eq!((completed, caller, message), (request, key, word.number), "{name}: terminal route");
+        let mut expected = prepared;
+        if appended {
+            expected.inbox = Box::new([word]);
+            expected.last_message = 1;
+        }
+        assert_eq!(core.contexts.get(&1), Some(&expected), "{name}: prepared snapshot");
+        assert!(core.land_task(flight).is_none(), "{name}: route consumed once");
+    }
 }
 
 fn arrive(core: &mut Core, limits: &Limits, kind: tasks::MessageKind) {
@@ -217,9 +280,10 @@ fn notes_load(out: &[Request]) -> Token {
 }
 
 fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
-    let mut out: Box<[Request]> = Box::new([]);
     // The fixture reads its goal, project and deployment scopes.
-    for _ in 0..3 {
+    const SCOPES: u32 = 3;
+    let mut out: Box<[Request]> = Box::new([]);
+    for _ in 0..SCOPES {
         out = watch_outputs(
             core,
             limits,
@@ -375,7 +439,7 @@ fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
                     budget = Some(run.budget);
                 }
             }
-            let budget = budget.expect("prepared run reaches claim");
+            let Some(budget) = budget else { panic!("{arrival:?}: prepared run reaches claim") };
             watch_outputs(&mut core, &limits, Event::ClaimPrepared { task: 1, attempt, budget, writes: Box::new([]) });
             let row = core.tasks.task(1).unwrap();
             assert_eq!(row.attempt, attempt, "{arrival:?}: claim made");
