@@ -331,9 +331,9 @@ pub(super) fn models_frame(
         project
             .models
             .push(c::MeModel {
-                new_until: None,
+                new_until: if provider == 18 { Some(skein_lib::Wall::from_nanos(604_800_000_000_000)) } else { None },
                 number: 1,
-                source: jig_client::contract::ModelSource::Stock,
+                source: if provider == 18 { c::ModelSource::List } else { c::ModelSource::Stock },
                 estimated: false,
                 name: text(name),
                 provider: Some(provider),
@@ -358,4 +358,49 @@ pub(super) fn models_frame(
         },
     }]));
     me
+}
+
+pub(super) fn models_accounts() -> jig_client::contract::Accounts {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    let text = |value: &str| c::DocumentText::complete(c::Text::new(value.as_bytes().into(), 256).unwrap());
+    c::Accounts {
+        program_hosts: List::with_capacity(0),
+        readiness: List::with_capacity(0),
+        readiness_cut: false,
+        signing: List::with_capacity(0),
+        last_end: None,
+        usable: true,
+        settled: true,
+        cut: false,
+        accounts: List::from_boxed(Box::new([c::AccountLine {
+            list: Some(c::AccountList {
+                read: Some(fixtures::NOW),
+                tried: Some(fixtures::NOW),
+                failure: None,
+                left_out: 0,
+            }),
+            number: 1,
+            place: 1,
+            uses: None,
+            plan: true,
+            provider: Some(18),
+            provider_name: Some(text("openai")),
+            manage_usage: None,
+            display: text("Own"),
+            holder: c::AccountHolder::Party(1),
+            cut: false,
+            sources: List::from_boxed(Box::new([c::AccountSource {
+                name: None,
+                place: 1,
+                number: 1,
+                kind: c::AccountKind::SignIn,
+                state: c::AccountState::Granted,
+                usable: true,
+                expiring: false,
+                attention: false,
+                spent_until: None,
+            }])),
+        }])),
+    }
 }

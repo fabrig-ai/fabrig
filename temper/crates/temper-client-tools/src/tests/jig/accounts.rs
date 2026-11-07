@@ -77,6 +77,7 @@ fn a_moving_source_and_a_refused_move_print_their_names() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one projection table holds provider ordering and supplied model fields")]
 fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_last() {
     let mut root = f::account_root(false);
     let mut me = f::me(f::PARTY);
@@ -88,7 +89,7 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         project
             .models
             .push(c::MeModel {
-                new_until: None,
+                new_until: Some(skein_lib::Wall::from_nanos(u64::MAX)),
                 number: 1,
                 source: jig_client::contract::ModelSource::Stock,
                 estimated: false,
@@ -128,9 +129,15 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         let call = root.submit(flags);
         f::deliver_accounts(&mut root, f::accounts());
         let printed = root.answer(call).expect("models join");
-        for fact in
-            [b"\"window\":8192".as_slice(), b"\"output\":1024", b"first", b"other", b"last", b"\"efforts\":[\"low\"]"]
-        {
+        for fact in [
+            b"\"new_until\":18446744073709551615".as_slice(),
+            b"\"window\":8192".as_slice(),
+            b"\"output\":1024",
+            b"first",
+            b"other",
+            b"last",
+            b"\"efforts\":[\"low\"]",
+        ] {
             assert!(f::json_has(&printed, fact), "{fact:?}");
         }
         for fact in [
@@ -378,6 +385,7 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     f::deliver_accounts(&mut root, f::accounts());
     let printed = root.answer(call).expect("model prices");
     assert!(f::json_has(&printed, b"\"description\":null"));
+    assert!(f::json_has(&printed, b"\"new_until\":null"));
     assert!(f::json_has(
         &printed,
         b"\"prices\":{\"input\":17,\"cached\":3,\"cache_write\":17,\"output\":29,\"unit\":100}"
@@ -413,6 +421,7 @@ fn accounts_show_supplied_deployment_activity_and_no_party_activity() {
 }
 #[test]
 fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
+    const WEEK: u64 = 604_800_000_000_000;
     let mut root = f::account_root(false);
     let mut me = f::choice_me(100);
     me.providers = f::provider_offers();
@@ -432,6 +441,8 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
     me.providers.push(f::provider_offers().get(0).expect("supplied provider").clone()).expect("provider");
     let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
     model.description = Some(f::act_text(b"Reasoning and code"));
+    model.new_until = Some(skein_lib::Wall::from_nanos(604_800_000_000_000));
+    model.source = c::ModelSource::List;
     model.prices = c::ModelPrices { input: 13, cached: 7, cache_write: None, output: 31, unit: 1000 };
     root.deliver(c::Delivery::Me(Box::new(me)));
     let call = root.submit(&["model", "list", "--project", "shop"]);
@@ -442,6 +453,7 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
     for fact in [
         "provider 7 · Empty provider\n  models: none\nprovider 9 · Scripted".as_bytes(),
         b"shown: Chosen shown",
+        " · new\n".as_bytes(),
         b"default effort: high",
         b"accounts: 47 43",
         b"picker: false",
@@ -458,6 +470,13 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
         b"efforts: high",
     ] {
         assert!(f::has(&printed, fact), "{fact:?}: {printed:?}");
+    }
+    for now in [WEEK - 1, WEEK, WEEK + 1] {
+        root.wall = skein_lib::Wall::from_nanos(now);
+        let call = root.submit(&["model", "list", "--project", "shop"]);
+        f::deliver_accounts(&mut root, f::accounts());
+        let printed = root.answer(call).expect("model new deadline");
+        assert_eq!(f::has(&printed, " · new\n".as_bytes()), now < WEEK);
     }
 }
 

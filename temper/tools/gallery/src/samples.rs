@@ -67,6 +67,9 @@ pub enum ModelState {
     Off,
     Added,
     Member,
+    Read,
+    ReadFailed,
+    New,
 }
 /// The paste's visible frames, reached through the same public events as a browser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +103,7 @@ impl Sample {
             "chat-model-open"
             | "chat-model-both"
             | "chat-model-all"
+            | "chat-model-new"
             | "chat-model-two-accounts"
             | "chat-model-sign-in-again"
             | "chat-started-model-open"
@@ -120,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 305;
+pub const N: usize = 309;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -149,6 +153,24 @@ pub fn samples() -> [Sample; N] {
             world: Reference,
             address: Address::Models { project: 1 },
             then: Then::Models { one_account: false, state: ModelState::On },
+        },
+        Sample {
+            name: "models-read",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::Read },
+        },
+        Sample {
+            name: "models-read-failed",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::ReadFailed },
+        },
+        Sample {
+            name: "models-new",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::New },
         },
         Sample {
             name: "models-add",
@@ -854,6 +876,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-model-open", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
         Sample { name: "chat-model-both", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
+        Sample { name: "chat-model-new", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
         Sample { name: "chat-model-all", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
         Sample {
             name: "chat-model-two-accounts",

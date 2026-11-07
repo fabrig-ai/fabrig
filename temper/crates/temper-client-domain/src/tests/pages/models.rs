@@ -51,9 +51,6 @@ fn opened() -> (crate::Domain, skein_lib::Token) {
     event(&mut root, Event::Went { place: Place::Address(Address::Models { project: fixtures::PROJECT }) });
     (root, watch)
 }
-fn press(root: &mut crate::Domain) -> Queue<crate::Request> {
-    event(root, Event::Act { action: Action::Pages(pages::Act::Models(Act::Picker { number: 2, on: false })) })
-}
 fn answer(root: &mut crate::Domain, outcome: Outcome) {
     let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: root.pages().serial };
     crate::route::told(
@@ -63,55 +60,129 @@ fn answer(root: &mut crate::Domain, outcome: Outcome) {
         &mut Queue::uncapped(),
     );
 }
+fn reading_fixture() -> (crate::Domain, skein_lib::Token) {
+    let (mut root, _, watch) = super::accounts::opened(c::HeldRole::Policy { role: 1 });
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = super::accounts::document(false) else {
+        unreachable!()
+    };
+    doc.accounts = List::with_capacity(1);
+    doc.accounts
+        .push(c::AccountLine {
+            list: Some(c::AccountList { read: None, tried: None, failure: None, left_out: 0 }),
+            number: 1,
+            place: 1,
+            uses: None,
+            plan: false,
+            provider: Some(17),
+            provider_name: None,
+            manage_usage: None,
+            display: c::DocumentText::complete(fixtures::acts::text(b"Own")),
+            holder: c::AccountHolder::Party(fixtures::PARTY),
+            sources: List::from_boxed(Box::new([c::AccountSource {
+                name: None,
+                place: 1,
+                number: 1,
+                kind: c::AccountKind::Key,
+                state: c::AccountState::Granted,
+                usable: true,
+                expiring: false,
+                attention: false,
+                spent_until: None,
+            }])),
+            cut: false,
+        })
+        .unwrap();
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+    event(&mut root, Event::Went { place: Place::Address(Address::Models { project: fixtures::PROJECT }) });
+    (root, watch)
+}
+fn moved(root: &mut crate::Domain, watch: skein_lib::Token) {
+    let doc = pages::accounts::document(root.client()).unwrap().clone();
+    deliver(root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(doc))));
+}
 #[test]
 fn a_press_asks_the_act_once() {
-    let (mut root, watch) = opened();
-    let out = press(&mut root);
-    let mut asks = List::uncapped();
-    for request in &out {
-        if let crate::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
-                },
-        } = request
-        {
-            asks.push(ask.as_ref()).unwrap();
+    for read in [false, true] {
+        for watch_first in [false, true] {
+            let (mut root, watch) = if read { reading_fixture() } else { opened() };
+            let action = if read { Act::Read(17) } else { Act::Picker { number: 2, on: false } };
+            let out = act(&mut root, action.clone());
+            let mut asks = List::uncapped();
+            for request in &out {
+                if let crate::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                        },
+                } = request
+                {
+                    asks.push(ask.as_ref()).unwrap();
+                }
+            }
+            let expected = if read {
+                c::Ask::ReadLists { provider: 17 }
+            } else {
+                c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Picker { number: 2, on: false } })
+            };
+            assert_eq!(asks.as_slice(), [&expected]);
+            assert!(if read { root.pages().models().reading(17) } else { root.pages().models().pending(2) });
+            assert!(act(&mut root, action.clone()).is_empty());
+            if read && watch_first {
+                moved(&mut root, watch);
+            }
+            let outcome = if read {
+                c::Outcome::Account(c::AccountAnswer::Reading { count: 1 })
+            } else {
+                c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 1 })
+            };
+            answer(&mut root, Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(outcome))));
+            if read {
+                assert_eq!(root.pages().models().reading(17), !watch_first);
+                if !watch_first {
+                    assert!(act(&mut root, action.clone()).is_empty());
+                    moved(&mut root, watch);
+                }
+                assert!(!root.pages().models().reading(17));
+                assert!(!act(&mut root, action).is_empty());
+            } else {
+                assert!(!root.pages().models().pending(2));
+                let mut me = root.pages().me(root.client()).unwrap().clone();
+                assert!(me.projects.get(0).unwrap().models.get(0).unwrap().picker, "pending is not optimistic");
+                me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap().picker = false;
+                deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))));
+                assert!(
+                    !root.pages().me(root.client()).unwrap().projects.get(0).unwrap().models.get(0).unwrap().picker
+                );
+            }
         }
     }
-    assert_eq!(
-        asks.as_slice(),
-        &[&c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Picker { number: 2, on: false } })]
-    );
-    assert!(root.pages().models().pending(2));
-    assert!(!root.pages().models().pending(1));
-    assert!(press(&mut root).is_empty());
-    let mut me = root.pages().me(root.client()).unwrap().clone();
-    assert!(me.projects.get(0).unwrap().models.get(0).unwrap().picker, "pending is not optimistic");
-    answer(
-        &mut root,
-        Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
-            c::OutcomeSettingsChanged { revision: 1 },
-        )))),
-    );
-    assert!(!root.pages().models().pending(2));
-    me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap().picker = false;
-    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))));
-    assert!(!root.pages().me(root.client()).unwrap().projects.get(0).unwrap().models.get(0).unwrap().picker);
 }
 #[test]
 fn a_refusal_stays_with_its_row() {
-    let (mut root, _) = opened();
-    press(&mut root);
-    let outcome =
-        Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }));
-    answer(&mut root, outcome.clone());
-    assert_eq!(root.pages().models().refused_at(2), Some(&outcome));
-    assert_eq!(root.pages().models().refused_at(1), None);
-    assert!(!root.pages().models().pending(2));
-    press(&mut root);
-    assert_eq!(root.pages().models().refused_at(2), None);
-    assert!(root.pages().models().pending(2));
+    for read in [false, true] {
+        let (mut root, _) = if read { reading_fixture() } else { opened() };
+        let action = if read { Act::Read(17) } else { Act::Picker { number: 2, on: false } };
+        act(&mut root, action.clone());
+        let outcome = Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::NotOffered,
+            at: None,
+        }));
+        answer(&mut root, outcome.clone());
+        assert_eq!(
+            if read { root.pages().models().read_refused(17) } else { root.pages().models().refused_at(2) },
+            Some(&outcome)
+        );
+        assert_eq!(root.pages().models().refused_at(1), None);
+        assert_eq!(root.pages().models().read_refused(18), None);
+        assert!(!root.pages().models().pending(2));
+        assert!(!root.pages().models().reading(17));
+        act(&mut root, action);
+        assert_eq!(
+            if read { root.pages().models().read_refused(17) } else { root.pages().models().refused_at(2) },
+            None
+        );
+        assert!(if read { root.pages().models().reading(17) } else { root.pages().models().pending(2) });
+    }
 }
 
 fn act(root: &mut crate::Domain, act: Act) -> Queue<crate::Request> {
