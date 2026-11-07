@@ -3,8 +3,13 @@
 2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
-present. Complete snapshots and cold readback remain the contract;
-section 10 holds further observation-cost work.
+present. Section 7's core row names retain typed keys until a failure
+prints them; shared setup avoids the repeated parse, unused view and
+whole-image copy, duplicate server limits, rebuilt rules domain and second
+restart-configuration copy. Section 9's seven store sweeps run in fuzzy,
+sharing their checks with the chosen focused cuts. Complete snapshots,
+startup and cold readback remain the contract; section 10 holds further
+observation and world-cost work.
 
 - **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
@@ -26,10 +31,19 @@ section 10 holds further observation-cost work.
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
   9: the focused suite's fit within 30 CPU s is unproved. The
-  `jig-world-cost` request expects further cost repairs beyond its five items;
-  their whole-suite effect, and fuzzy's fit with the moved sweeps and
-  `Standard` drive, await the queue's after-landing record. No budget or build
-  setting changes are part of those repairs.
+  `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
+  their whole-suite effect, and fuzzy's fit with the moved core and store
+  sweeps and `Standard` drive, await the queue's after-landing record. The
+  per-test shares in the latter request do not establish a saving or a
+  whole-suite total. No budget or build setting changes are part of those
+  repairs.
+- **Departs:** 9: the focused stray-cleanup story selects its first cut
+  with `Change::Make`, not the first `Change::Remove` the design names
+  (`jig/tests/store/tests/suite/generations.rs`,
+  `strays_cut_at_their_first_and_last_removal_are_gone_at_the_next_start`).
+  Its second cut is the last removal, and fuzzy retains every cut with the
+  same recovery checks. No reason for the first cut's substitution is
+  recorded; the named removal remains required.
 - **Departs:** 5: `jig_conformance::core` answers the core's accounts and
   builds its store view and snapshot, but an adapter still writes the core's
   arms in `deliver`, `poll`, `inbound`, `cold` and `observed` among its own

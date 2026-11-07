@@ -65,7 +65,14 @@ observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
 Views are made only for readers; further observation-cost work and proof
 that the focused suite fits 30 CPU s remain
-(`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
+(`domain/testing.md`, sections 5, 9 and 10). Typed core row names and shared
+setup avoid repeated formatting and construction; protocol wires skip idle
+polls and parse only new bytes, and due agents check holds and credentials
+before joint account and host selection. The seven store sweeps run in fuzzy
+with the focused cuts' checks; the focused stray story selects a directory
+creation where `domain/testing.md`, 9 requires its first removal. Whole-suite savings and
+fuzzy's fit remain unproved (`domain/testing.md`, sections 7, 9 and 10;
+`protocol/store.md`, section 14). The channel's root checks at every
 step cover its fuzzy stories; the other stories can miss transient grant
 values between arrival and end checks (`protocol/channel.md`, sections 12
 and 14).
