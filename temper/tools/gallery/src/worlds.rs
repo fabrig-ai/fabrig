@@ -658,6 +658,7 @@ fn world_in_layout(
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Trials
+                        | w::Watch::Approvals
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -4732,7 +4733,8 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
         items.push(item).expect("proposal items");
     }
     let record =
-        v::ProposalItemsAnswer::new(&v::CEILINGS, v::ProposalItemsAnswerParts { items }).expect("proposal values");
+        v::ProposalItemsAnswer::new(&v::CEILINGS, v::ProposalItemsAnswerParts { items, owned_approval: false })
+            .expect("proposal values");
     step(
         root,
         Event::Client {
