@@ -428,7 +428,10 @@ fn chat_story() -> Story {
         asked: vec![Script {
             cue: "FOLLOWUP".into(),
             turns: vec![
-                Turn::new(vec![Step::Together(vec![inspect_child("CUE-README", true), inspect_child("CUE-MAIN", false)])]),
+                Turn::new(vec![Step::Together(vec![
+                    inspect_child("CUE-README", true),
+                    inspect_child("CUE-MAIN", false),
+                ])]),
                 Turn::new(vec![Step::Text("Read the README again.".into())]),
             ],
         }],
@@ -514,7 +517,9 @@ fn a_resumed_program_main_can_start_fresh_children() {
     assert_ne!(sessions[0], sessions[1], "children have distinct sessions");
     let mut efforts = Vec::new();
     for session in sessions {
-        let call = calls.iter().find(|call| argument(&call.arguments, "--session-id") == Some(session))
+        let call = calls
+            .iter()
+            .find(|call| argument(&call.arguments, "--session-id") == Some(session))
             .expect("fresh child's call");
         assert!(argument(&call.arguments, "--resume").is_none());
         assert!(!before.iter().any(|prior| prior == session), "each activation needs fresh children");
