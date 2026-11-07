@@ -12,6 +12,13 @@ landings omit a zero stale-proof count while retaining a positive count.
 The view and sheet tests hold these rules. Titles retain the user's
 publication decision; no page offers a visibility change.
 
+Section 8.4's public landings check accepts one queued member or none,
+followed by no landing or the stock queue's merge. The tier's library
+table holds all four forms and refuses malformed identifiers, phases,
+times and extra text. The story keeps its other page and geometry checks.
+No implementation gap remains for the request `ui-public-queue`; the
+public geometry and console-expectation limits below remain separate.
+
 Public history retains two limits the request `ui-public-history` leaves
 for later (section 5), which the board's own line states (8.3): goals ended
 before publication are absent; a restart empties the ended-goal history

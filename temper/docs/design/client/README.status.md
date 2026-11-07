@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.8 have no known implementation gap in a person-addressed
+report task reading as a question under Needs you, on Home or in a goal's
+band. View tables cover its context, choices, recommendation, fallback and
+requester link. Domain tables cover choice, reply, Undo, refusal and the
+shown revision surviving a refresh; the terminal's Answer sends words too.
+The focused sheet-to-answer story checks the person task's report and its
+words reaching the resumed goal. The inbox filter remains person tasks;
+role-addressed tasks and other contracts keep their ordinary cards. Browser,
+walk and render checks remain section 11's after-landing work.
+
 Sections 3.5, 5.5 and 5.9 have no known implementation gap in the closed
 chat's header, closed agent's taskbar or the composer's named template
 default and effort. The view table covers both shells, including a turn
