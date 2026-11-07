@@ -162,10 +162,14 @@ fn a_sign_in_of_another_subject_fails_and_keeps_nothing() {
 // skein/docs/foundation/testing-strategy.md, 10: rows carry literal outside facts.
 #[test]
 fn sign_in_owner_facts_survive_refresh_restart_and_returns() {
-    use sign_in::Fact::{Closed, Failed, Granted, Keep, SignedIn, Visit};
+    use sign_in::Fact::{Closed, Failed, Granted, Keep, Profile, Refreshed, SignedIn, Visit};
     use sign_in::Return;
     const SIGNED_IN: &[sign_in::Fact] = &[Visit, Keep(1), SignedIn(1), Granted(1), Closed];
     const REFRESHED: &[sign_in::Fact] = &[Visit, Keep(1), SignedIn(1), Granted(1), Keep(2), Granted(2), Closed];
+    const PROFILE_REFRESH: &[sign_in::Fact] =
+        &[Visit, Keep(1), SignedIn(1), Profile, Granted(1), Keep(2), Refreshed(2), Granted(2), Closed];
+    const PROFILE_SILENT: &[sign_in::Fact] =
+        &[Visit, Keep(1), SignedIn(1), Profile, Granted(1), Keep(2), Granted(2), Closed];
     const RESTARTED: &[sign_in::Fact] = &[
         Visit,
         Failed(skein_oauth_accounts::Failure::Exchange(skein_oauth::Failure::Cancelled)),
@@ -189,6 +193,8 @@ fn sign_in_owner_facts_survive_refresh_restart_and_returns() {
         &[Visit, Keep(1), SignedIn(1), Granted(1), Visit, Keep(2), SignedIn(2), Granted(2), Closed];
     for (seed, story, faulted, [simulated, protocol]) in [
         (43, Story::Public, false, [REFRESHED; 2]),
+        (43, Story::Profile(true), false, [PROFILE_REFRESH; 2]),
+        (43, Story::Profile(false), false, [PROFILE_SILENT; 2]),
         (97, Story::Restart, false, [RESTARTED; 2]),
         (73, Story::TwoPorts, false, [TWO_PORTS_SIMULATED, TWO_PORTS]),
         (89, Story::VaryingTaken, true, [SIGNED_IN; 2]),

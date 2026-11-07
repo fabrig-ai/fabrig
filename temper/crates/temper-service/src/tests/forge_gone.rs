@@ -6,7 +6,7 @@ use skein_lib::{Secret, Token};
 use temper_engine_domain as root;
 use temper_protocol_records::{self as records, Item};
 
-const ITEMS: [Item; 10] = [
+const ITEMS: [Item; 11] = [
     Item::AdminToken,
     Item::ApiToken,
     Item::GitToken,
@@ -17,6 +17,7 @@ const ITEMS: [Item; 10] = [
     Item::AppKey,
     Item::Accepted,
     Item::Origin,
+    Item::AppMade,
 ];
 
 fn service() -> Service {
@@ -44,7 +45,7 @@ fn request(service: &mut Service, forge: u16) {
 
 fn complete(service: &mut Service) {
     let engine = service.engine.as_mut().unwrap();
-    for _ in 0_u32..10 {
+    for _ in 0_u32..11 {
         let event = engine.store.host.above.pop().expect("durable erase");
         let Event::Erased { owner } = event else { panic!("durable erase") };
         gone::answer(engine, owner);
@@ -98,14 +99,13 @@ fn forge_gone_erases_every_secret_item_then_answers() {
     request(&mut service, 1);
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.events.is_empty(), "durability is withheld");
-    for _ in 0_u32..9 {
+    for item in ITEMS {
+        assert_eq!(engine.forge.erasing.get(&1), Some(&Some(item)), "erases follow code order");
         let Some(Event::Erased { owner }) = engine.store.host.above.pop() else { panic!("durable erase") };
-        gone::answer(engine, owner);
         assert!(engine.events.is_empty(), "all erases must commit");
+        gone::answer(engine, owner);
     }
-    let Some(Event::Erased { owner }) = engine.store.host.above.pop() else { panic!("final erase") };
-    gone::answer(engine, owner);
-    assert_eq!(engine.store.erases, 10);
+    assert_eq!(engine.store.erases, 11);
     absent(&mut engine.store, 1);
     for item in ITEMS {
         let Some(Event::Secret { value: Some(_), .. }) = engine.store.secrets(
@@ -127,7 +127,7 @@ fn forge_gone_again_erases_nothing_and_answers() {
     complete(&mut service);
     answered(&mut service, 99);
     request(&mut service, 99);
-    assert_eq!(service.engine.as_ref().unwrap().store.erases, 10);
+    assert_eq!(service.engine.as_ref().unwrap().store.erases, 11);
     assert!(service.engine.as_ref().unwrap().store.host.above.is_empty());
     answered(&mut service, 99);
 }
@@ -165,7 +165,7 @@ fn erase_completions_follow_the_service_store_route() {
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.end.is_none());
     assert_eq!(engine.forge.erasing.get(&99), Some(&None));
-    assert_eq!(engine.store.erases, 10);
+    assert_eq!(engine.store.erases, 11);
     absent(&mut engine.store, 99);
 }
 
@@ -176,7 +176,7 @@ fn a_forge_with_no_runtime_or_records_is_erased_and_answered() {
     complete(&mut service);
     answered(&mut service, 100);
     request(&mut service, 100);
-    assert_eq!(service.engine.as_ref().unwrap().store.erases, 10);
+    assert_eq!(service.engine.as_ref().unwrap().store.erases, 11);
     answered(&mut service, 100);
 }
 

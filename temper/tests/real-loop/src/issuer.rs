@@ -57,6 +57,12 @@ pub(crate) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         },
     )
     .expect("local issuer");
+    peer.sign_in_as(skein_fake_oauth::Account {
+        subject: b"real-loop-person".as_slice().into(),
+        email: Some(skein_fake_oauth::Email { address: b"owner@example.com".as_slice().into(), verified: true }),
+        name: None,
+    })
+    .expect("owner's verified account");
     let scopes = registration["scopes"]
         .as_array()
         .expect("shipped scopes")

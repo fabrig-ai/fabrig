@@ -160,7 +160,10 @@ fn reads_wait_place_retry_and_answer_without_attempts() {
                 (hello(FIRST, 1, ENDPOINT), vec![Request::Sources { channel: FIRST, sources: Box::new([name]) }]),
                 (read(1, ANALYST), vec![]),
                 (
-                    Event::Logins { channel: FIRST, logins: Box::new([Login { name, state: LoginState::Usable }]) },
+                    Event::Logins {
+                        channel: FIRST,
+                        logins: Box::new([Login { name, state: LoginState::Usable, email: None }]),
+                    },
                     sent(FIRST, 1, ANALYST),
                 ),
             ],

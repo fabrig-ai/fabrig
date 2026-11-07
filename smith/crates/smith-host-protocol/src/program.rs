@@ -119,7 +119,9 @@ fn translate(ask: SourceAsk, ended: Ended<'_>) -> SourceAnswer {
             SourceAsk::Check => match exit {
                 kernel::Exit::Code(code @ (0 | 1)) => match stdout {
                     Some(stdout) => match program::status(code, stdout) {
-                        Status::Usable => SourceAnswer::Check(ProgramCheck::Usable),
+                        Status::Usable => {
+                            SourceAnswer::Check(ProgramCheck::Usable { email: program::email(code, stdout) })
+                        }
                         Status::NotSignedIn => SourceAnswer::Check(ProgramCheck::NotSignedIn),
                         Status::Otherwise(method) => SourceAnswer::Check(ProgramCheck::SignedInOtherwise(
                             ProgramMethod::new(method.as_bytes()).expect("same printable method bounds"),

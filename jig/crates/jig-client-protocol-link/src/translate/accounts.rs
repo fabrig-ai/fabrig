@@ -125,10 +125,11 @@ pub(crate) fn account_source(value: &w::AccountSource, room: &mut u64) -> Result
         },
     })
 }
-/// Charges an account's own heap, its uses and its display text, to the document's room.
+/// Charges an account's uses, display and whole facts to the document's room.
 pub(crate) fn charge_account(
     uses: Option<&List<w::AccountUse>>,
     display: &w::DocumentText,
+    facts: &List<w::AccountFact>,
     room: &mut u64,
 ) -> Result<(), w::Problem> {
     let uses = match uses {
@@ -136,16 +137,30 @@ pub(crate) fn charge_account(
         None => Some(0),
     };
     charge(room, uses)?;
-    charge(room, Some(len_u64(display.bytes().len())))
+    charge(room, Some(len_u64(display.bytes().len())))?;
+    charge(room, List::<c::AccountFact>::price(facts.len()))?;
+    for fact in facts {
+        charge(room, Some(len_u64(fact.label().len())))?;
+        match fact.value() {
+            w::AccountFactValue::Text(text) => charge(room, Some(len_u64(text.text().len())))?,
+            w::AccountFactValue::Count(_)
+            | w::AccountFactValue::Instant(_)
+            | w::AccountFactValue::Span(_)
+            | w::AccountFactValue::Share(_)
+            | w::AccountFactValue::Window(_) => {}
+        }
+    }
+    Ok(())
 }
 pub(crate) fn account_line(
     value: &w::AccountLine,
     limits: &Limits,
     room: &mut u64,
 ) -> Result<c::AccountLine, w::Problem> {
-    charge_account(value.uses().as_ref(), value.display(), room)?;
+    charge_account(value.uses().as_ref(), value.display(), value.facts(), room)?;
     Ok(c::AccountLine {
         list: account_list(value.list().as_ref()),
+        facts: account_facts(value.facts())?,
         number: value.number(),
         place: value.place(),
         uses: account_uses(value.uses().as_ref()),
@@ -321,7 +336,7 @@ pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
 }
 
 pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64) -> Result<c::Account, w::Problem> {
-    charge_account(value.uses().as_ref(), value.display(), room)?;
+    charge_account(value.uses().as_ref(), value.display(), value.facts(), room)?;
     // An account's runs and its waiting tasks stay lists bounded by the rows.
     let chips = List::<c::Chip>::price(limits.client().rows);
     charge(room, chips)?;
@@ -336,6 +351,7 @@ pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64
     };
     Ok(c::Account {
         list: account_list(value.list().as_ref()),
+        facts: account_facts(value.facts())?,
         number: value.number(),
         place: value.place(),
         uses: account_uses(value.uses().as_ref()),
@@ -399,4 +415,51 @@ pub(crate) fn account_list(value: Option<&w::AccountList>) -> Option<c::AccountL
         },
         left_out: value.left_out(),
     })
+}
+
+fn account_facts(facts: &List<w::AccountFact>) -> Result<List<c::AccountFact>, w::Problem> {
+    let mut rows = List::with_capacity(facts.len());
+    for fact in facts {
+        let value = match fact.value() {
+            w::AccountFactValue::Text(text) => c::AccountFactValue::Text(skein_lib::bytes::copy_of(text.text())),
+            w::AccountFactValue::Count(count) => c::AccountFactValue::Count(count.count()),
+            w::AccountFactValue::Instant(at) => c::AccountFactValue::Instant(Wall::from_nanos(at.at())),
+            w::AccountFactValue::Span(span) => c::AccountFactValue::Span(span.nanos()),
+            w::AccountFactValue::Share(share) => {
+                if share.basis() > 10_000 {
+                    return Err(w::Problem {
+                        path: w::Path::AccountFactShareBasis,
+                        reason: skein_codec::Reason::Bound,
+                    });
+                }
+                c::AccountFactValue::Share(share.basis())
+            }
+            w::AccountFactValue::Window(window) => {
+                if let Some(used) = window.used()
+                    && *used > 10_000
+                {
+                    return Err(w::Problem { path: w::Path::AccountWindowUsed, reason: skein_codec::Reason::Bound });
+                }
+                c::AccountFactValue::Window(c::AccountWindow {
+                    length: *window.length(),
+                    used: *window.used(),
+                    resets: match window.resets() {
+                        Some(at) => Some(Wall::from_nanos(*at)),
+                        None => None,
+                    },
+                    state: window.state(),
+                })
+            }
+        };
+        rows.push(c::AccountFact {
+            kind: fact.kind(),
+            label: skein_lib::bytes::copy_of(fact.label()),
+            value,
+            seen: Wall::from_nanos(fact.seen()),
+            source: *fact.source(),
+            origin: fact.origin(),
+        })
+        .expect("supplied facts fit");
+    }
+    Ok(rows)
 }

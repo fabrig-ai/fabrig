@@ -246,14 +246,30 @@ A registration with OpenID asks for an ID token: its requested scope includes
     limits allow; `nonce` equals the sign-in's, compared in constant time;
     and `sub` is present, within its bound.
   - **its subject,** `sub`, becomes the record's subject, and the token
-    itself the record's ID token (section 1). Claims beyond these are not
-    read; an email is never a subject.
+    itself the record's ID token (section 1). An email is never a subject.
+- **The profile claims its caller asks for.** A registration's OpenID terms
+  name which of `email` and `name` to read; no other claim is read, and none
+  unless asked. `Tokens` carries what was read, beside the record and never in
+  it, and nothing reads them to choose an issuer or account: they are words to
+  show.
+  - **`email`** is read only where `email_verified` is `true`, or the string
+    `"true"`, as some issuers write it;
+  - **each is reported or absent, and never fails the check:** a claim that is
+    missing, repeated, not a string, empty, past 255 bytes or holding a control
+    byte is absent.
 - **Granted scopes are reported, not enforced here.** A sign-in that was
   granted fewer scopes than the registration requires still returns its
   record, and `Tokens` names the missing ones; the caller decides (section
   6.3). A person who declines part of a grant has still signed in.
-- **A refresh's ID token** is not checked, and the record keeps the
-  sign-in's (section 7).
+- **A refresh's ID token** has no signature check, and the record keeps the
+  sign-in's (section 7). Where the registration asks for profile claims, they
+  are read from it when its `iss` equals the registration's issuer, its `aud`
+  and `azp` hold as above, its `exp` is after the wall clock less the skew, and
+  its `sub` equals the record's subject; it has no nonce to compare. The answer
+  came straight from the configured token endpoint, whose TLS stands in for the
+  signature (OpenID Connect Core, 3.1.3.7), and what it gives is shown, never
+  trusted. A refresh with no ID token, or with one that fails any of these,
+  reads nothing and is not failed for it.
 
 The check is the one cryptography this crate does. It runs in `skein-tls`,
 over rustls's ring provider, which the workspace already builds for TLS
@@ -550,7 +566,8 @@ never renames or reuses one on its own. An account has:
 |---|---|
 | visit | the authorization URL to show or open, once per sign-in |
 | taken | the sign-in took the redirect the owner handed in: `redirected`'s terminal; the sign-in's own follows (6.5) |
-| signed in | a sign-in that completed: its record kept (6.4), its grant ready to ask for, its subject, and the required scopes not granted, if any; the sign-in's success terminal |
+| signed in | a sign-in that completed: its record kept (6.4), its grant ready to ask for, its subject, the profile claims it read (2.2), and the required scopes not granted, if any; the sign-in's success terminal |
+| refreshed | a refresh whose record is kept and whose answer gave profile claims (2.2): the account, its generation and those claims; before the `granted` of that generation, and none where it gave none |
 | granted | an account's access token, its generation and how long it is valid |
 | keep | a record to keep durably, for an account the owner keeps (6.4) |
 | expiring | an access-only token has reached its lead before expiry, once |
@@ -1009,8 +1026,9 @@ accounts component nor its listener requires a sum of heap prices.
   takes no generator from its caller. The signature's bytes do not depend
   on it. Default: the fake signs as it answers; if a world must own every
   draw, the fake signs its ID tokens once, before the world starts.
-- **A refresh's ID token.** Default: not checked, and the record keeps the
-  sign-in's. Checking it would fetch the issuer's keys for refreshes too.
+- **A refresh's ID token.** Default: no signature check, its profile claims
+  read as 2.2 says, and the record keeps the sign-in's. Checking it would fetch
+  the issuer's keys for refreshes too.
 - **What `login_hint` carries.** Default: the record's subject. An issuer
   that expects another claim would need the registration to say which.
 - **How `earliest_refresh_at` is written.** Default: seconds since the

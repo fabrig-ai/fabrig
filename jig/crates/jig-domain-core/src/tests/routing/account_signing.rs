@@ -101,6 +101,7 @@ fn a_party_s_account_sign_in_is_answered_at_its_visit_and_sign_out_at_its_end() 
         subject: Box::from(&b"party"[..]),
         display: Box::from(&b"Party"[..]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     };
     assert_eq!(
         stepped(&mut core, &env, Event::Account(signed_in)),
@@ -223,7 +224,8 @@ fn a_value_is_in_no_committed_row() {
                         assert_ne!(window, VALUE);
                     }
                 }
-                Record::Accounts(accounts::Stored::Next { .. }) | Record::Core(CoreRecord::Deployment(_)) => {}
+                Record::Accounts(accounts::Stored::Next { .. } | accounts::Stored::Facts { .. })
+                | Record::Core(CoreRecord::Deployment(_)) => {}
                 other @ (Record::Core(_) | Record::Tasks(_) | Record::People(_) | Record::Notes(_)) => {
                     panic!("unexpected saved row: {other:?}")
                 }
@@ -288,4 +290,68 @@ fn program_sign_out_routes_the_offline_member_result() {
             })
         )
     );
+}
+
+#[test]
+fn a_refresh_marks_the_accounts_documents_only_when_facts_change() {
+    use crate::tests::documents::accounts_document::{account, fixture, source};
+    const ACCOUNT: u32 = 20;
+    const SOURCE: u32 = 21;
+    const WATCHER: Token = Token::new(30);
+    for (holder, watched) in [(PARTY, Watched::Accounts), (accounts::Holder::Deployment, Watched::Deployment)] {
+        for (text, changes) in [(b"next@example.com".as_slice(), true), (b"first@example.com".as_slice(), false)] {
+            let held = accounts::AccountFact {
+                kind: accounts::KIND_EMAIL,
+                label: Box::new([]),
+                value: accounts::FactValue::Text(b"first@example.com".as_slice().into()),
+                seen: Wall::from_nanos(1),
+                source: Some(SOURCE),
+                origin: accounts::ORIGIN_REFRESH,
+            };
+            let (mut core, mut env) = fixture(
+                [
+                    account(ACCOUNT, holder),
+                    source(ACCOUNT, SOURCE, 0, accounts::Kind::SignIn),
+                    accounts::Stored::Facts { account: ACCOUNT, facts: Box::new([held.clone()]) },
+                ]
+                .into(),
+            );
+            drop(watch_outputs(
+                &mut core,
+                &env.limits,
+                Event::Watch { watcher: WATCHER, sign_in: 10, subject: watched.clone(), window: window() },
+            ));
+            drop(watch_outputs(&mut core, &env.limits, Event::Delivered { watcher: WATCHER }));
+            drop(finish_watch_outputs(&mut core, &env.limits));
+            assert!(core.changed_views.is_empty());
+            env.wall = Wall::from_nanos(2);
+            let out = step(
+                &mut core,
+                &env,
+                Event::Account(accounts::Event::Component(accounts::FromComponent::Refreshed {
+                    account: SOURCE,
+                    said: accounts::Said { email: Some(text.into()), name: None },
+                })),
+            );
+            let subject = core.named_watch(WATCHER).expect("accounts watch").subject;
+            assert_eq!(core.changed_views.contains(&subject), changes, "{holder:?}");
+            let mut saved = None;
+            for request in &out {
+                if let Request::Write(Write::Save(Record::Accounts(accounts::Stored::Facts { facts, .. }))) = request {
+                    assert!(saved.replace(facts).is_none(), "one facts write");
+                }
+            }
+            assert_eq!(saved.is_some(), changes);
+            let expected = if changes {
+                accounts::AccountFact { value: accounts::FactValue::Text(text.into()), seen: env.wall, ..held }
+            } else {
+                held
+            };
+            assert_eq!(
+                core.accounts.account_facts(ACCOUNT),
+                &[expected],
+                "the holder's account keeps the final report"
+            );
+        }
+    }
 }

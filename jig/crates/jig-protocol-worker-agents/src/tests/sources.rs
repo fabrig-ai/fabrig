@@ -60,10 +60,13 @@ fn a_stored_name_smith_refuses_answers_unconfigured() {
     for (operation, expected) in [
         (
             sources::Operation::Check,
-            sources::Answer::Checked(LoginState::Failed {
-                reason: SourceFailure::Unconfigured,
-                detail: Box::from(b"invalid source name".as_slice()),
-            }),
+            sources::Answer::Checked {
+                state: LoginState::Failed {
+                    reason: SourceFailure::Unconfigured,
+                    detail: Box::from(b"invalid source name".as_slice()),
+                },
+                email: None,
+            },
         ),
         (
             sources::Operation::SignOut,
@@ -103,7 +106,7 @@ fn an_unavailable_programs_parent_answers_without_io() {
         )
         .expect("unconfigured answer");
     assert_eq!(owner, Token::new(1));
-    let sources::Answer::Checked(LoginState::Failed { reason, detail }) = answer else {
+    let sources::Answer::Checked { state: LoginState::Failed { reason, detail }, email: None } = answer else {
         panic!("missing parent is unconfigured");
     };
     assert_eq!(reason, SourceFailure::Unconfigured);
@@ -147,7 +150,9 @@ fn an_inspection_deadline_cancels_in_the_workers_namespace() {
     stage.complete(Complete { op: opening.op, kind: opening.kind, result: Err(Error::Cancelled) }).expect("owned open");
     let (owner, answer) = stage.step(deadline, &mut component, &mut below, &mut submitted).expect("settled deadline");
     assert_eq!(owner, Token::new(1));
-    let sources::Answer::Checked(LoginState::Failed { reason, .. }) = answer else { panic!("deadline answer") };
+    let sources::Answer::Checked { state: LoginState::Failed { reason, .. }, email: None } = answer else {
+        panic!("deadline answer")
+    };
     assert_eq!(reason, SourceFailure::Deadline);
     assert!(below.is_empty() && submitted.is_empty());
     assert!(component.settled() && stage.settled());
@@ -195,5 +200,34 @@ fn list_reads_without_a_launch_or_value_fail_without_io() {
         );
         assert!(below.is_empty(), "binding {configured}: no spawn");
         assert!(component.settled(), "binding {configured}");
+    }
+}
+
+#[test]
+fn program_checks_keep_only_the_usable_status_email() {
+    use smith_host_domain::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod};
+    for (check, state, email) in [
+        (
+            ProgramCheck::Usable { email: Some(b"you@example.com".as_slice().into()) },
+            LoginState::Usable,
+            Some(b"you@example.com".as_slice().into()),
+        ),
+        (ProgramCheck::Usable { email: None }, LoginState::Usable, None),
+        (ProgramCheck::NotSignedIn, LoginState::NotSignedIn, None),
+        (
+            ProgramCheck::SignedInOtherwise(ProgramMethod::new(b"api-key").expect("method")),
+            LoginState::SignedInOtherwise(jig_domain_link::LoginMethod::new(b"api-key").expect("method")),
+            None,
+        ),
+        (
+            ProgramCheck::Failed(ProgramFailure { reason: FailureReason::Exited, detail: b"failed".as_slice().into() }),
+            LoginState::Failed { reason: SourceFailure::Exited, detail: b"fail".as_slice().into() },
+            None,
+        ),
+    ] {
+        assert_eq!(
+            crate::sources::translate(smith_host_protocol::SourceAnswer::Check(check), 4),
+            sources::Answer::Checked { state, email }
+        );
     }
 }

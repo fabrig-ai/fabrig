@@ -340,6 +340,19 @@ pub(super) fn card_document(provider: &[u8], display: &[u8], kind: c::AccountKin
     }
     doc
 }
+pub(super) fn email_facts(email: Option<&[u8]>) -> List<c::AccountFact> {
+    match email {
+        Some(email) => List::from_boxed(Box::new([c::AccountFact {
+            kind: c::FACT_EMAIL,
+            label: Box::new([]),
+            value: c::AccountFactValue::Text(email.into()),
+            seen: fixtures::NOW,
+            source: Some(SOURCE),
+            origin: 1,
+        }])),
+        None => List::with_capacity(0),
+    }
+}
 fn card_heading(doc: c::Accounts) -> Vec<u8> {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, doc);
@@ -370,10 +383,24 @@ fn a_row_names_the_account_without_an_inner_heading() {
 }
 #[test]
 fn a_plan_card_names_the_plan_display_brand_and_holder() {
-    assert_eq!(
-        card_heading(card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn)),
-        "ChatGPT · alice@example.com · OpenAI · held by Pat".as_bytes()
-    );
+    for (email, display, who) in [
+        (None, b"Legacy".as_slice(), "Legacy"),
+        (Some(b"alice@example.com".as_slice()), b"", "alice@example.com"),
+        (Some(b"alice@example.com".as_slice()), b"Different display", "alice@example.com"),
+    ] {
+        let (mut root, me_watch, _, _, watch) =
+            fixtures::root_at_full(d::Address::Accounts, &fixtures::domain_limits(), b"Shop");
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        me.party.name = text(b"Alice");
+        fixtures::deliver_me(&mut root, me_watch, me);
+        let mut doc = card_document(b"openai", display, c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().facts = email_facts(email);
+        deliver(&mut root, watch.unwrap(), doc);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let title = format!("ChatGPT · {who} · OpenAI · held by Alice");
+            assert!(fixtures::find(view.tree(), Role::Disclosure, title.as_bytes()).is_some());
+        }
+    }
 }
 #[test]
 fn a_key_only_card_names_the_brand_and_holder_once() {
@@ -396,13 +423,44 @@ fn a_key_account_offers_replacement_and_removal() {
 }
 #[test]
 fn a_program_card_names_the_subscription_and_login() {
-    let mut doc = card_document(b"anthropic", b"claude-alice", c::AccountKind::Program);
-    // A program declaration has no provider display; its portable name belongs to the source.
-    doc.accounts.get_mut(0).unwrap().display = text(b"");
-    assert_eq!(card_heading(doc), "Claude subscription · claude-alice · Anthropic · held by Pat".as_bytes());
+    for (email, display, source, expected) in [
+        (None, b"".as_slice(), Some(b"claude-alice".as_slice()), "claude-alice"),
+        (None, b"Legacy", None, "Legacy"),
+        (
+            Some(b"alice@example.com".as_slice()),
+            b"Different display",
+            Some(b"claude-alice".as_slice()),
+            "alice@example.com",
+        ),
+    ] {
+        let mut doc = card_document(b"anthropic", display, c::AccountKind::Program);
+        let row = doc.accounts.get_mut(0).unwrap();
+        row.facts = email_facts(email);
+        row.sources.get_mut(0).unwrap().name = source.map(Box::from);
+        assert_eq!(card_heading(doc), format!("Claude subscription · {expected} · Anthropic · held by Pat").as_bytes());
+    }
 }
 #[test]
 fn a_deployment_card_names_its_holder_in_words() {
+    for (email, expected) in [
+        (None, "ChatGPT · Legacy · OpenAI · held by the deployment"),
+        (Some(b"alice@example.com".as_slice()), "ChatGPT · alice@example.com · OpenAI · held by the deployment"),
+    ] {
+        let (mut root, watch) = owner_root();
+        let mut doc = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+        let row = doc.accounts.get_mut(0).unwrap();
+        row.provider_name = Some(text(b"openai"));
+        row.plan = true;
+        row.display = text(b"Legacy");
+        row.facts = email_facts(email);
+        let mut login = source(SOURCE);
+        login.kind = c::AccountKind::SignIn;
+        row.sources = List::from_boxed(Box::new([login]));
+        deliver_deployment(&mut root, watch, doc);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            assert!(fixtures::find(view.tree(), Role::Disclosure, expected.as_bytes()).is_some());
+        }
+    }
     let mut doc = card_document(b"openai", b"", c::AccountKind::Key);
     doc.accounts.get_mut(0).unwrap().holder = c::AccountHolder::Deployment;
     assert_eq!(card_heading(doc), "OpenAI API key · held by the deployment".as_bytes());
@@ -498,6 +556,7 @@ pub(super) fn document(count: u32) -> c::Accounts {
         accounts
             .push(c::AccountLine {
                 list: None,
+                facts: List::with_capacity(0),
                 number,
                 place: number,
                 uses: None,
@@ -873,17 +932,30 @@ fn sign_in_end_words(mut doc: c::Accounts, end: c::AccountEnd) -> Vec<u8> {
 }
 #[test]
 fn a_completed_sign_in_names_the_plan_and_display() {
-    assert_eq!(
-        sign_in_end_words(
-            card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn),
-            c::AccountEnd::Made { account: 1, declined: false }
-        ),
-        b"Signed in to ChatGPT as alice@example.com"
-    );
+    for (email, display) in [
+        (None, b"alice@example.com".as_slice()),
+        (Some(b"alice@example.com".as_slice()), b""),
+        (Some(b"alice@example.com".as_slice()), b"Different display"),
+    ] {
+        let mut doc = card_document(b"openai", display, c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().facts = email_facts(email);
+        assert_eq!(
+            sign_in_end_words(doc, c::AccountEnd::Made { account: 1, declined: false }),
+            b"Signed in to ChatGPT as alice@example.com"
+        );
+    }
 }
 #[test]
 fn a_renewed_sign_in_explains_how_to_add_another_account() {
-    assert_eq!(sign_in_end_words(card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn), c::AccountEnd::Renewed { account: 1, declined: false }), "That’s alice@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes());
+    for (email, display) in [
+        (None, b"alice@example.com".as_slice()),
+        (Some(b"alice@example.com".as_slice()), b""),
+        (Some(b"alice@example.com".as_slice()), b"Different display"),
+    ] {
+        let mut doc = card_document(b"openai", display, c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().facts = email_facts(email);
+        assert_eq!(sign_in_end_words(doc, c::AccountEnd::Renewed { account: 1, declined: false }), "That’s alice@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes());
+    }
 }
 #[test]
 fn a_sign_in_end_keeps_the_number_when_its_account_has_not_arrived() {

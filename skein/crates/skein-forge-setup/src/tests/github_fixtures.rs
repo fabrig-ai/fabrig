@@ -24,6 +24,7 @@ pub fn app() -> App {
     App {
         id: 19,
         slug: b"kit-app".as_slice().into(),
+        owner: None,
         permissions: permissions.into_boxed(),
         events: events.into_boxed(),
     }

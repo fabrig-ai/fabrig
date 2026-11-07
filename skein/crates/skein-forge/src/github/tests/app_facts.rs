@@ -11,7 +11,7 @@ use crate::{
 use skein_lib::{List, Writer, bytes::copy_of};
 
 fn app() -> App {
-    App { id: 7, slug: Box::from(*b"example-app"), permissions: Box::from([]), events: Box::from([]) }
+    App { id: 7, slug: Box::from(*b"example-app"), owner: None, permissions: Box::from([]), events: Box::from([]) }
 }
 fn body(app: &App) -> Box<[u8]> {
     let mut out = Writer::new(4096);
@@ -200,6 +200,7 @@ fn github_app_access_is_independent_of_name_bound() {
     let expected = App {
         id: 7,
         slug: copy_of(b"app"),
+        owner: None,
         permissions: Box::from([Permission { name: copy_of(b"x"), access: Access::Admin }]),
         events: Box::from([copy_of(b"e")]),
     };

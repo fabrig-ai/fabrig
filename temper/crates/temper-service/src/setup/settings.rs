@@ -81,6 +81,7 @@ pub(super) fn connected(number: u16, own: &crate::limits::Limits) -> skein_forge
     limits.reachable = own.picker.page;
     limits.repositories = own.forge.client.repositories;
     skein_forge_setup::given::Given {
+        person: None,
         forge: number,
         bot_login: b"temper".as_slice().into(),
         bot_email: b"temper@localhost".as_slice().into(),
@@ -178,6 +179,7 @@ fn check(own: &temper_forge_setup::limits::Host) -> Result<(), Problems> {
                 | Place::ApiName
                 | Place::GitName
                 | Place::OrgOwner
+                | Place::Person
                 | Place::Repositories
                 | Place::Repository(_)
                 | Place::Page => unreachable!("the kit checks limits alone, with fixed file bounds"),

@@ -420,7 +420,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         return;
     }
     if kind == Kind::Paste {
-        if let reconcile::Outcome::Lacking { lacking } = &outcome
+        if let reconcile::Outcome::Lacking { lacking, .. } = &outcome
             && !lacking.is_empty()
         {
             engine.notes.push(crate::Note::ForgeLacking { number: forge, names: super::diagnostics::names(lacking) });
@@ -458,7 +458,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
             root::SetupOutcome::Manifest { state }
         }
         reconcile::Outcome::Install { state, url } => root::SetupOutcome::Install { state, url },
-        reconcile::Outcome::Lacking { lacking } => {
+        reconcile::Outcome::Lacking { lacking, .. } => {
             if !lacking.is_empty() {
                 engine
                     .notes
@@ -466,7 +466,9 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
             }
             root::SetupOutcome::Done
         }
-        reconcile::Outcome::Nothing => root::SetupOutcome::Done,
+        reconcile::Outcome::Made { .. } | reconcile::Outcome::Person { .. } | reconcile::Outcome::Nothing => {
+            root::SetupOutcome::Done
+        }
         reconcile::Outcome::Identity { .. }
         | reconcile::Outcome::Reachable { .. }
         | reconcile::Outcome::Copied { .. }
@@ -1280,6 +1282,7 @@ fn create_stopped(engine: &mut crate::engine::Engine, token: Token, failure: rec
         | reconcile::Stage::Token
         | reconcile::Stage::App
         | reconcile::Stage::Installation
+        | reconcile::Stage::Person
         | reconcile::Stage::State => unreachable!("host Create stopped outside its stages"),
     };
     let suffix = alloc::format!(": {:?} ({:?})", failure.step, failure.why);

@@ -374,6 +374,7 @@ pub(super) fn models_accounts() -> jig_client::contract::Accounts {
         settled: true,
         cut: false,
         accounts: List::from_boxed(Box::new([c::AccountLine {
+            facts: List::with_capacity(0),
             list: Some(c::AccountList {
                 read: Some(fixtures::NOW),
                 tried: Some(fixtures::NOW),

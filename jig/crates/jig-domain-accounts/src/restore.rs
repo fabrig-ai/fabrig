@@ -63,6 +63,7 @@ fn refuse(domain: &mut Domain, key: Key, set: RestoreSet, limit: u32) {
 pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     let key = record.key();
     match &record {
+        Stored::Facts { .. } => {}
         Stored::Next { number } => {
             domain.next = domain.next.max(*number);
             domain.kept = *number;
@@ -76,6 +77,15 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     }
     match record {
         Stored::Next { .. } => {}
+        Stored::Facts { account, facts } => {
+            assert!(!domain.said.contains_key(&account), "duplicate facts record {key:?}");
+            let limit = env.limits.accounts.min(domain.said.capacity());
+            if domain.said.len() >= limit {
+                refuse(domain, key, RestoreSet::Accounts, limit);
+                return;
+            }
+            assert!(domain.said.insert(account, facts).is_ok(), "loaded facts fit {key:?}");
+        }
         Stored::Account { number, provider, holder, place, uses, subject, display, list } => {
             assert!(!domain.accounts.contains_key(&number), "duplicate account record {key:?}");
             if domain.accounts.len() >= env.limits.accounts.min(domain.accounts.capacity()) {
@@ -135,6 +145,15 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
 pub(crate) fn link(domain: &mut Domain, env: &Env<Limits>) {
     if domain.restore_failure.is_some() {
         return;
+    }
+    let mut orphans = List::with_capacity(domain.said.capacity());
+    for (account, _) in &domain.said {
+        if !domain.accounts.contains_key(account) {
+            orphans.push(*account).expect("one number per facts row");
+        }
+    }
+    for account in &orphans {
+        drop(domain.said.remove(account).expect("orphan facts are held"));
     }
     for (number, issued) in &domain.issued {
         for (other, reservation) in &domain.issued {

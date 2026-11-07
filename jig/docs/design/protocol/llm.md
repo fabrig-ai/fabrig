@@ -258,7 +258,8 @@ engine's protocol layer
 | keep: a record | nothing: the routing keeps it in the secrets' store and answers `kept` (`store.md`, section 9) |
 | taken: a redirected the sign-in took | the finish taken: its answer, *finishing* |
 | refused, a redirected: another address, another sign-in's state, full, or not waiting | the finish refused, saying which (full: *too many*), the sign-in still waiting: never a sign-in failed, nor its source signed out; not waiting for any other refusal of a redirected |
-| signed in: the subject, the scopes granted | signed in, with the subject and display name: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3) |
+| signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth.md`, 2.2) |
+| refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts.md`, 3.7) |
 | signed in, without a scope the provider requires | refused, naming the scope |
 | granted: the access token, its generation, how long it is valid | granted: the generation and how long it is valid; the token goes into the table (5.3) |
 | failed: retry later (with how long), malformed, limit, not kept | failed, later, with how long (the driver's delay, or the child's backoff) |

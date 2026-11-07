@@ -23,6 +23,8 @@ pub enum Item {
     Pasted,
     /// The one-byte mark kept with a copy (forge-setup.md, 4.10 and 6.4).
     Copying,
+    /// The id of the App made by a conversion (forge-setup.md, 6.4).
+    AppMade,
 }
 
 /// The bounds `fits` asks of each item; a zero fits no nonempty value of its kind.
@@ -62,6 +64,11 @@ pub fn token(bytes: &[u8], token_bytes: u32) -> Option<&[u8]> {
 #[must_use]
 pub fn app_id(bytes: &[u8]) -> Option<NonZeroU64> {
     user(bytes)
+}
+/// An App made by a conversion: 8 bytes little-endian, never 0.
+#[must_use]
+pub fn app_made(bytes: &[u8]) -> Option<NonZeroU64> {
+    app_id(bytes)
 }
 /// 1 to `name_bytes` bytes of `a-z`, `0-9` and `-`, the first not `-`:
 /// GitHub's slug, safe in a path and a host name.
@@ -154,6 +161,7 @@ pub fn fits(item: Item, bytes: &[u8], bounds: &Bounds) -> bool {
         Item::AdminToken | Item::ApiToken | Item::GitToken | Item::WebhookSecret => {
             token(bytes, bounds.token_bytes).is_some()
         }
+        Item::AppMade => app_made(bytes).is_some(),
         Item::AppId => app_id(bytes).is_some(),
         Item::AppSlug => app_slug(bytes, bounds.name_bytes).is_some(),
         Item::AppKey => app_key(bytes, bounds.key_bytes).is_some(),

@@ -386,7 +386,8 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                     core::Record::Accounts(
                         accounts::Stored::Next { .. }
                         | accounts::Stored::Issued { .. }
-                        | accounts::Stored::Source { .. },
+                        | accounts::Stored::Source { .. }
+                        | accounts::Stored::Facts { .. },
                     )
                     | core::Record::Tasks(tasks::Stored::ClosedLedger(_))
                     | core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_)),

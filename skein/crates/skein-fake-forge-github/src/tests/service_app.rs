@@ -32,7 +32,26 @@ fn github_fake_cached_jwt_is_refused_after_expiry_and_key_revocation() {
 // Each route runs separately so the RSA checks stay within the step budget.
 #[test]
 fn github_fake_app_routes_need_the_jwt() {
+    use skein_forge::github::document::{Account, AppOwner};
     app_jwt_route(b"/app", Kind::App);
+    for (owner, expected) in [
+        (
+            crate::fixture::PERSON,
+            Some(AppOwner { id: crate::fixture::PERSON, login: f::boxed(b"alice"), kind: Account::User }),
+        ),
+        (
+            crate::fixture::OWNER,
+            Some(AppOwner { id: crate::fixture::OWNER, login: f::boxed(b"acme"), kind: Account::Organization }),
+        ),
+        (u64::MAX, None),
+    ] {
+        let mut config = f::config();
+        config.app.owner = owner;
+        let mut h = Harness::with(f::limits(), config);
+        let response = h.app(Method::Get, b"/app", b"");
+        let (_, Document::App(app)) = h.decode(Kind::App, &response) else { panic!("App document") };
+        assert_eq!(app.owner, expected);
+    }
 }
 #[test]
 fn github_fake_app_hook_needs_the_jwt() {

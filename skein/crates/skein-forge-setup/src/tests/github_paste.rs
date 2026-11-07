@@ -88,7 +88,7 @@ fn kept(machine: &mut Paste, mut need: Need, lacking: Box<[checks::Lacking]>) {
         assert_eq!(need, Need::Write { item, bytes: secret(value) });
         need = go(machine, Event::Written);
     }
-    assert_eq!(need, Need::Done(Outcome::Lacking { lacking }));
+    assert_eq!(need, Need::Done(Outcome::Lacking { lacking, owner: None }));
     silent(machine);
 }
 fn silent(machine: &mut Paste) {
@@ -160,9 +160,22 @@ fn paste_repairs_the_hook_and_reports_lacking_access() {
 }
 #[test]
 fn paste_keeps_four_items_before_done_and_never_writes_pasted() {
-    let mut machine = at(6);
-    let need = go(&mut machine, hook(URL)); // Matching hook requires no PATCH.
-    kept(&mut machine, need, Box::new([]));
+    use skein_forge::github::document::{Account, AppOwner};
+    for owner in [Some(AppOwner { id: 7, login: b"ada".as_slice().into(), kind: Account::User }), None] {
+        let mut machine = at(4);
+        let mut app = fixtures::app();
+        app.owner = owner.clone();
+        go(&mut machine, document(Document::App(app)));
+        go(&mut machine, document(Document::BotUser(BOT)));
+        let mut need = go(&mut machine, hook(URL));
+        for item in [Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
+            let Need::Write { item: written, .. } = need else { panic!("identity write") };
+            assert_eq!(written, item);
+            need = go(&mut machine, Event::Written);
+        }
+        assert_eq!(need, Need::Done(Outcome::Lacking { lacking: Box::new([]), owner }));
+        silent(&mut machine);
+    }
 }
 #[test]
 fn paste_without_repair_permission_keeps_items_without_repairing_the_hook() {
@@ -236,7 +249,7 @@ fn paste_rejects_unasked_events_and_drops_secrets_on_every_end() {
     }
     let mut machine = at(LAST);
     let need = go(&mut machine, Event::Written);
-    assert_eq!(need, Need::Done(Outcome::Lacking { lacking: Box::new([]) }));
+    assert_eq!(need, Need::Done(Outcome::Lacking { owner: None, lacking: Box::new([]) }));
     diagnostic(&format!("{machine:?} {need:?}"));
     assert!(!format!("{machine:?}").contains("Secret"));
     silent(&mut machine);

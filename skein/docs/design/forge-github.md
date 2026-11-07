@@ -726,10 +726,16 @@ Pure functions and decoders; forge-setup.md's plans run them.
   skipped.
 - **The bot user:** `GET /users/<slug>%5Bbot%5D`, no credential: `id`.
 - **The App's own reads,** on the JSON Web Token:
-  - `GET /app` for `id`, `slug`, `permissions` and `events`: reading
-    `id` and `slug` back proves a conversion's key, and checks a pasted
-    App, which the plan takes for another App when they differ
-    (forge-setup.md, section 5). Permissions retain every name and its
+  - `GET /app` for `id`, `slug`, `owner`, `permissions` and `events`:
+    reading `id` and `slug` back proves a conversion's key, and checks a
+    pasted App, which the plan takes for another App when they differ
+    (forge-setup.md, section 5). `owner` is the App's account, with `id`,
+    `login` and `type`, `User` or `Organization`. GitHub's documentation
+    lists them as required, but no run has measured them on this route
+    (section 13), so the read answers without one: an `owner` that is
+    absent or `null`, lacks one of the three, has an id of 0 or another
+    `type` is no account, and the document still decodes. A field of the
+    wrong JSON kind is `InvalidAnswer`, as anywhere. Permissions retain every name and its
     `read`, `write` or `admin` access; another access is `InvalidAnswer`.
     Permission and event names fit `string_bytes`, each list fits `inner`,
     and a name or list past its bound is `TooLarge`. Missing permissions
@@ -766,6 +772,9 @@ github.com (fake-forge.md, section 11).
   `token-narrowed-creates-not-edits`; `rate-core-5000`,
   `jwt-calls-no-rate`; `viewer-is-bot`, `user-on-installation-403`,
   `app-routes-401-on-installation-token`; `jwt-iss-string`;
+  `app-owner-id-login-type` (`GET /app`'s `owner` has `id`, `login` and
+  `type`, as GitHub's documentation lists them; written, and not yet
+  observed live);
   `bot-permission-is-not-a-role` (the App's bot's collaborator
   permission is `none` with an empty `role_name`, and the full mint's
   `permissions` name the installation's levels; observed 2026-10-23).

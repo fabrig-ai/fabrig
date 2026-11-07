@@ -288,6 +288,7 @@ fn a_document_answer_is_a_github_document() {
             Document::App(dialect::document::App {
                 id: 7,
                 slug: b"kit".as_slice().into(),
+                owner: None,
                 permissions: Box::new([]),
                 events: Box::new([]),
             }),

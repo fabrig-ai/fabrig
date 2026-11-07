@@ -415,6 +415,7 @@ fn demo_accounts() -> contract::Accounts {
     accounts
         .push(c::AccountLine {
             list: None,
+            facts: List::with_capacity(0),
             number: 1,
             place: 1,
             uses: None,

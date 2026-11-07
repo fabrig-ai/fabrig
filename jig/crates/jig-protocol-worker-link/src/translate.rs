@@ -818,7 +818,11 @@ fn logins_frame(logins: Box<[Login]>, limits: &wire::v9::Limits) -> Option<Frame
         rows.push(
             wire::Login::new(
                 limits,
-                wire::LoginParts { name: Box::from(login.name.as_bytes()), state: login_state(login.state, limits)? },
+                wire::LoginParts {
+                    name: Box::from(login.name.as_bytes()),
+                    state: login_state(login.state, limits)?,
+                    email: login.email,
+                },
             )
             .ok()?,
         )

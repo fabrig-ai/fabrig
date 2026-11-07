@@ -376,13 +376,13 @@ fn program_source_lifecycle_routes_without_run_payloads() {
     let inventory = link::up(
         &mut domain,
         fixtures::CHANNEL,
-        LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable }]) },
+        LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable, email: None }]) },
     );
     let core::Event::Fleet(fleet::Event::Logins { channel, logins }) = inventory.expect("routed logins") else {
         panic!("typed fleet inventory")
     };
     assert_eq!(channel, fixtures::CHANNEL);
-    assert_eq!(logins.as_ref(), [Login { name: fleet_name, state: LoginState::Usable }]);
+    assert_eq!(logins.as_ref(), [Login { name: fleet_name, state: LoginState::Usable, email: None }]);
     let result = link::up(&mut domain, fixtures::CHANNEL, LinkUp::SignedOut { name, result: SignOutResult::SignedOut });
     let core::Event::Fleet(fleet::Event::SignedOut { channel, name: actual, result }) =
         result.expect("routed sign-out")

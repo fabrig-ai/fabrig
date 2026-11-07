@@ -15,6 +15,9 @@ pub(super) struct State {
     graphql: document::GraphqlRefusal,
     graphql_error: document::GraphqlRefusal,
     app: document::App,
+    owner_id: u64,
+    owner_login: Box<[u8]>,
+    owner_kind: Option<document::Account>,
     permissions: List<document::Permission>,
     events: List<Box<[u8]>>,
     permission_name: Box<[u8]>,
@@ -52,7 +55,16 @@ impl State {
             viewer: document::Viewer { id: 0, login: Box::from([]) },
             graphql: document::GraphqlRefusal { kind: Box::from([]), message: Box::from([]) },
             graphql_error: document::GraphqlRefusal { kind: Box::from([]), message: Box::from([]) },
-            app: document::App { id: 0, slug: Box::from([]), permissions: Box::from([]), events: Box::from([]) },
+            app: document::App {
+                id: 0,
+                slug: Box::from([]),
+                owner: None,
+                permissions: Box::from([]),
+                events: Box::from([]),
+            },
+            owner_id: 0,
+            owner_login: Box::from([]),
+            owner_kind: None,
             permissions: List::with_capacity(capacity),
             events: List::with_capacity(capacity),
             permission_name: Box::from([]),
@@ -79,6 +91,18 @@ impl State {
                 }
             }
             Node::Reachable => return Ok(Some(Row::Reachable(core::mem::replace(&mut self.reachable, reachable())))),
+            Node::IdentityOwner => {
+                if self.owner_id != 0
+                    && !self.owner_login.is_empty()
+                    && let Some(kind) = self.owner_kind.take()
+                {
+                    self.app.owner = Some(document::AppOwner {
+                        id: self.owner_id,
+                        login: core::mem::replace(&mut self.owner_login, Box::new([])),
+                        kind,
+                    });
+                }
+            }
             Node::Viewer => self.has_viewer = true,
             Node::GraphqlError => {
                 let error = core::mem::replace(
@@ -202,6 +226,7 @@ impl State {
             Kind::App => Document::App(document::App {
                 id: self.app.id,
                 slug: self.app.slug.clone(),
+                owner: self.app.owner.clone(),
                 permissions: self.permissions.clone().into_boxed(),
                 events: self.events.clone().into_boxed(),
             }),
@@ -247,6 +272,17 @@ impl State {
     )]
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match (node, key, token) {
+            (Node::IdentityOwner, b"id", Token::Number(text)) => self.owner_id = unsigned(&text),
+            (Node::IdentityOwner, b"login", Token::String(text)) => self.owner_login = text,
+            (Node::IdentityOwner, b"type", Token::String(text)) => {
+                self.owner_kind = if text.as_ref() == b"User" {
+                    Some(document::Account::User)
+                } else if text.as_ref() == b"Organization" {
+                    Some(document::Account::Organization)
+                } else {
+                    None
+                };
+            }
             (Node::Installation, b"id", Token::Number(text)) => self.installation.id = unsigned(&text),
             (Node::Installation, b"created_at", Token::String(text)) => self.installation.created = time(&text, key)?,
             (Node::Installation, b"suspended_at", Token::True) => self.installation.suspended = true,
@@ -318,6 +354,7 @@ impl State {
                 | Node::ReachableEnvelope
                 | Node::ReachableRows
                 | Node::Reachable
+                | Node::IdentityOwner
                 | Node::AppOwner
                 | Node::ViewerEnvelope
                 | Node::ViewerData

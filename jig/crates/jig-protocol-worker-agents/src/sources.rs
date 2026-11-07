@@ -363,18 +363,25 @@ fn binding_error(error: smith_protocol_program::Error) -> &'static [u8] {
         smith_protocol_program::Error::Environment => b"invalid program environment",
     }
 }
-fn translate(answer: SourceAnswer, bound: u32) -> sources::Answer {
+pub(crate) fn translate(answer: SourceAnswer, bound: u32) -> sources::Answer {
     match answer {
-        SourceAnswer::Check(check) => sources::Answer::Checked(match check {
-            smith::ProgramCheck::Usable => LoginState::Usable,
-            smith::ProgramCheck::NotSignedIn => LoginState::NotSignedIn,
-            smith::ProgramCheck::SignedInOtherwise(method) => LoginState::SignedInOtherwise(
-                LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
-            ),
-            smith::ProgramCheck::Failed(failure) => {
-                LoginState::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) }
-            }
-        }),
+        SourceAnswer::Check(check) => {
+            let (state, email) = match check {
+                smith::ProgramCheck::Usable { email } => (LoginState::Usable, email),
+                smith::ProgramCheck::NotSignedIn => (LoginState::NotSignedIn, None),
+                smith::ProgramCheck::SignedInOtherwise(method) => (
+                    LoginState::SignedInOtherwise(
+                        LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
+                    ),
+                    None,
+                ),
+                smith::ProgramCheck::Failed(failure) => (
+                    LoginState::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) },
+                    None,
+                ),
+            };
+            sources::Answer::Checked { state, email }
+        }
         SourceAnswer::SignOut(sign_out) => sources::Answer::SignedOut(match sign_out {
             smith::ProgramSignOut::SignedOut => SignOutResult::SignedOut,
             smith::ProgramSignOut::Failed(failure) => {
@@ -401,7 +408,9 @@ fn failed(
 ) -> (Token, sources::Answer) {
     let detail = Box::from(detail.get(..detail.len().min(skein_lib::length::usize_of(bound))).expect("bounded detail"));
     let answer = match operation {
-        sources::Operation::Check => sources::Answer::Checked(LoginState::Failed { reason, detail }),
+        sources::Operation::Check => {
+            sources::Answer::Checked { state: LoginState::Failed { reason, detail }, email: None }
+        }
         sources::Operation::SignOut => sources::Answer::SignedOut(SignOutResult::Failed { reason, detail }),
     };
     (owner, answer)

@@ -186,6 +186,7 @@ fn change_response(world: &mut World, rng: &mut Rng, output: &Request, trace: &m
                     subject: Box::from(if rng.chance(50) { b"subject-a".as_slice() } else { b"subject-b".as_slice() }),
                     display: Box::new([]),
                     declined: rng.chance(20),
+                    said: jig_domain_accounts::Said::default(),
                 }
             })
         }

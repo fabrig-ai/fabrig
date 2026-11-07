@@ -38,6 +38,7 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
                 terminal::type_on("I’ve signed in".as_bytes(), b""),
                 terminal::see(b"Create your project"),
                 terminal::see(b"answered in "),
+                terminal::see(b"you@example.com"),
                 terminal::type_on(b"Create your project", b""),
                 terminal::see(b"Nothing needs you."),
                 terminal::see(b"Optional Skip"),

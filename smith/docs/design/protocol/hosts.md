@@ -94,7 +94,8 @@ The contract is domain/host.md's.
   host's check deadline and answers deadline on expiry, after its file
   resources settle. Once both levels are private, the half runs the
   program's status in the source's environment, with that same
-  deadline, and answers usable, not signed in, signed in otherwise
+  deadline, and answers usable, with the email its answer names where it
+  names one, not signed in, signed in otherwise
   (naming how) or failed (programs.md, section 3). It is no record of
   the channel's: a host asks when it chooses, before it places a run on
   the source, and the agent checks again at the run's start. The half

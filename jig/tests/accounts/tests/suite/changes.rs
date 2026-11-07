@@ -333,3 +333,36 @@ fn a_restart_names_each_party_source_before_wanting_it() {
             .all(|(i, _)| i > end)
     );
 }
+
+#[test]
+fn removing_an_account_erases_its_facts_in_the_same_decision() {
+    for facts in [false, true] {
+        for last_source in [false, true] {
+            let mut rows = vec![held(HELD_ACCOUNT, b"subject"), source(HELD_ACCOUNT, 11, 0, Kind::Key)];
+            if facts {
+                rows.push(Stored::Facts {
+                    account: HELD_ACCOUNT,
+                    facts: Box::new([jig_domain_accounts::AccountFact {
+                        kind: 1,
+                        label: Box::new([]),
+                        value: jig_domain_accounts::FactValue::Text(b"you@example.com".as_slice().into()),
+                        seen: skein_lib::Wall::EPOCH,
+                        source: Some(11),
+                        origin: 1,
+                    }]),
+                });
+            }
+            let mut world =
+                World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &rows);
+            world.step(Event::Want);
+            let out = change(
+                &mut world,
+                if last_source { Change::RemoveKey { source: 11 } } else { Change::Remove { account: HELD_ACCOUNT } },
+            );
+            assert!(out.contains(&Request::Erase { key: Key::Account { number: HELD_ACCOUNT } }));
+            assert_eq!(out.contains(&Request::Erase { key: Key::Facts { account: HELD_ACCOUNT } }), facts);
+            assert_eq!(out.len(), if facts { 5 } else { 4 });
+            assert!(world.domain.account_facts(HELD_ACCOUNT).is_empty());
+        }
+    }
+}

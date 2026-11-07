@@ -268,6 +268,7 @@ impl World {
                 }
                 Request::ReadList { .. }
                 | Request::ListRead { .. }
+                | Request::ProgramEmail { .. }
                 | Request::Assign { .. }
                 | Request::Inbound { .. }
                 | Request::Relay { .. }

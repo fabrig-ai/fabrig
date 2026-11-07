@@ -760,7 +760,8 @@ served is held, kept and unsent, for its owner's version (client.md,
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity;
   - *the party's accounts:* the party's own LLM accounts, each with its
-    LLM provider, display name and holder; its sources in order, each
+    LLM provider, display name and holder; what its provider says of it,
+    its facts (below); its sources in order, each
     with its state: usable; limited, until when where the provider said;
     refused, and why; needs sign-in, and for a program on which hosts;
     misconfigured; unloaded, where and why; a program source's state on
@@ -828,6 +829,20 @@ An account row with a list (`../../domain/accounts.md`, 3.7) also carries it
 Reads move these and not `me`, unless they move the offer
 (`../../domain/engine.md`, 17.12). `left_out` in `me` also counts the largest of
 the accounts' `left_out` its party may see, so that the page's one count holds both.
+
+An account row in either document also carries its facts
+(`../../domain/accounts.md`, 3.7), at most 24, each with its kind, label,
+value, when it was said, the source it came through and its origin. A row
+carries only those whose kind, origin and window state this build registers, and
+applies each kind's audience to its reader: a holder's kinds to the account's
+holder alone, an account's to whoever sees the account. A party's `accounts`
+holds the party's own accounts, so it carries every registered kind. In the
+deployment's, whoever may decide on the deployment's accounts reads for its holder
+(`../../domain/accounts.md`, 3.2), and any other reader with a deployment role
+gets the account's kinds alone. A fact is whole, at its
+own bounds: neither the document's text bound nor a line's `cut` touches it.
+The wire and the client's contract carry the registry's numbers, and the
+contract names those a client reads. The client link refuses a share past 10000.
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes

@@ -53,7 +53,15 @@ pub enum Event {
     /// Ends `Redirected`: the sign-in took the redirect handed in; its own terminal follows (oauth.md, 6.5).
     Taken { account: u32 },
     /// Ends `SignIn` once kept, naming the record's subject and required scopes not granted in `missing`.
-    SignedIn { account: u32, generation: u64, missing: Box<[u8]>, subject: Option<Box<[u8]>> },
+    SignedIn {
+        account: u32,
+        generation: u64,
+        missing: Box<[u8]>,
+        subject: Option<Box<[u8]>>,
+        profile: skein_oauth::ProfileClaims,
+    },
+    /// A refresh whose record is kept and whose answer gave profile claims; before its generation's grant.
+    Refreshed { account: u32, generation: u64, profile: skein_oauth::ProfileClaims },
     /// Answers Grant, then announces each new generation while the owner holds it.
     Granted { account: u32, token: Secret, generation: u64, valid: Duration },
     /// An access-only record reached its lead; announced once per record.

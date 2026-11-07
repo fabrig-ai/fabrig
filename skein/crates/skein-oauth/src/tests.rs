@@ -644,7 +644,15 @@ fn an_id_tokens_alg_must_be_rs256() {
         ("RS256", br#"{"alg":"RS256"}"#, Check::Keys),
     ] {
         let token = jws(header, &claims(1100), b"signature");
-        let got = jwt::verify_id_token(&token, &[], &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got = jwt::verify_id_token(
+            &token,
+            &[],
+            &id_expected(),
+            Profile::default(),
+            wall(1000),
+            Duration::ZERO,
+            &limits(),
+        );
         assert_eq!(got.err(), Some(expected), "{name}");
     }
 }
@@ -708,7 +716,8 @@ fn each_claim_is_checked() {
             Check::Missing,
         ),
     ] {
-        let got = jwt::check_claims(&payload, &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got =
+            jwt::check_claims(&payload, &id_expected(), Profile::default(), wall(1000), Duration::ZERO, &limits());
         assert_eq!(got.err(), Some(expected), "{name}");
     }
 }
@@ -723,7 +732,8 @@ fn aud_may_be_a_string_or_an_array() {
     ] {
         let payload =
             claims_with(b"https://issuer.example", audience, 1100, b"n-0123456789abcdef", Some(b"user-42"), azp);
-        let got = jwt::check_claims(&payload, &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got =
+            jwt::check_claims(&payload, &id_expected(), Profile::default(), wall(1000), Duration::ZERO, &limits());
         assert_eq!(got.err(), expected, "{name}");
     }
 }
@@ -732,7 +742,14 @@ fn an_expiry_on_the_skews_edge_is_expired_and_a_second_later_is_not() {
     for (skew, exp, expected) in
         [(60, 940, Some(Check::Expiry)), (60, 941, None), (0, 1000, Some(Check::Expiry)), (0, 1001, None)]
     {
-        let got = jwt::check_claims(&claims(exp), &id_expected(), wall(1000), Duration::from_secs(skew), &limits());
+        let got = jwt::check_claims(
+            &claims(exp),
+            &id_expected(),
+            Profile::default(),
+            wall(1000),
+            Duration::from_secs(skew),
+            &limits(),
+        );
         assert_eq!(got.err(), expected, "skew {skew}, exp {exp}");
     }
 }
@@ -764,10 +781,125 @@ fn rfc_7515_a2_passes_the_signature_check() {
             &token,
             core::slice::from_ref(&key),
             &id_expected(),
+            Profile::default(),
             wall(1000),
             Duration::ZERO,
             &limits(),
         );
         assert_eq!(got.err(), Some(expected), "{name}");
+    }
+}
+
+fn with_profile(payload: &[u8], extra: &[u8]) -> Box<[u8]> {
+    use skein_lib::Writer;
+    let head = payload.get(..payload.len().checked_sub(1).expect("object")).expect("object");
+    let mut writer =
+        Writer::new(head.len().checked_add(extra.len()).expect("fixture").checked_add(2).expect("fixture"));
+    for part in [head, b",", extra, b"}"] {
+        writer.put(part).expect("measured");
+    }
+    writer.finish()
+}
+
+#[test]
+fn profile_claims_are_optional_bounded_and_only_read_when_asked() {
+    const TEXT_BOUND: usize = 255; // oauth.md, 2.2.
+    const PROFILE_TOKENS: u32 = 8; // Object, claim, verification, duplicate claim, end.
+    const BOTH: Profile = Profile { email: true, name: true };
+    const EMAIL: &[u8] = b"you@example.com";
+    const NAME: &[u8] = b"Example Person";
+    for (extra, wanted, email, name) in [
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#.as_slice(),
+            BOTH,
+            Some(EMAIL),
+            Some(NAME),
+        ),
+        (
+            br#""email":"you@example.com","email_verified":"true","name":"Example Person""#,
+            BOTH,
+            Some(EMAIL),
+            Some(NAME),
+        ),
+        (br#""email":"you@example.com","email_verified":false"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":"false""#, BOTH, None, None),
+        (br#""email":"you@example.com""#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":1"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":true,"email_verified":true"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":true,"name":"Example Person""#, Profile::default(), None, None),
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#,
+            Profile { email: true, name: false },
+            Some(EMAIL),
+            None,
+        ),
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#,
+            Profile { email: false, name: true },
+            None,
+            Some(NAME),
+        ),
+    ] {
+        let verified = jwt::check_claims(
+            &with_profile(&claims(1100), extra),
+            &id_expected(),
+            wanted,
+            wall(1000),
+            Duration::ZERO,
+            &limits(),
+        )
+        .expect("valid identity");
+        assert_eq!(verified.subject.as_ref(), b"user-42");
+        assert_eq!(verified.profile.email.as_deref(), email, "{extra:?}, {wanted:?}");
+        assert_eq!(verified.profile.name.as_deref(), name, "{extra:?}, {wanted:?}");
+    }
+    for field in [b"email".as_slice(), b"name"] {
+        for (value, repeated, expected) in [
+            (Token::Number(boxed(b"1")), false, None),
+            (Token::String(boxed(b"value")), true, None),
+            (Token::String(boxed(b"")), false, None),
+            (Token::String(boxed(&[b'x'; TEXT_BOUND + 1])), false, None),
+            (Token::String(boxed(b"x\0y")), false, None),
+            (Token::String(boxed(b"x\x7fy")), false, None),
+            (Token::String(boxed(&[b'x'; TEXT_BOUND])), false, Some([b'x'; TEXT_BOUND].as_slice())),
+        ] {
+            let mut tokens = skein_lib::List::with_capacity(PROFILE_TOKENS);
+            for token in [
+                Token::ObjectStart,
+                Token::Key(boxed(field)),
+                value.clone(),
+                Token::Key(boxed(b"email_verified")),
+                Token::True,
+            ] {
+                tokens.push(token).expect("fixture");
+            }
+            if repeated {
+                tokens.push(Token::Key(boxed(field))).expect("fixture");
+                tokens.push(value).expect("fixture");
+            }
+            tokens.push(Token::ObjectEnd).expect("fixture");
+            let extra =
+                Json::from_tokens(tokens.as_slice(), &limits()).expect("object").to_bytes(&limits()).expect("object");
+            let extra = extra.get(1..extra.len().checked_sub(1).expect("object")).expect("object");
+            let verified = jwt::check_claims(
+                &with_profile(&claims(1100), extra),
+                &id_expected(),
+                BOTH,
+                wall(1000),
+                Duration::ZERO,
+                &limits(),
+            )
+            .expect("profile never fails identity");
+            assert_eq!(verified.subject.as_ref(), b"user-42");
+            let mut expected_claims = ProfileClaims::default();
+            if let Some(expected) = expected {
+                if field == b"email" {
+                    expected_claims.email = Some(boxed(expected));
+                } else {
+                    expected_claims.name = Some(boxed(expected));
+                }
+            }
+            assert_eq!(verified.profile, expected_claims, "{field:?}: {extra:?}");
+        }
     }
 }

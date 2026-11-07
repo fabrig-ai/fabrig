@@ -430,6 +430,8 @@ pub const AGENT_BRIEF: Style = Style { owner: owner(), token: 75 };
 pub const AGENT_RUN: Style = Style { owner: owner(), token: 76 };
 /// An ended agent task's result.
 pub const AGENT_RESULT: Style = Style { owner: owner(), token: 77 };
+/// What follows an agent task's lines: its outcome, result and plan.
+pub const AGENT_FOOT: Style = Style { owner: owner(), token: 81 };
 /// The playground context line's repository.
 pub const REPOSITORY: Style = Style { owner: owner(), token: 78 };
 /// A change's offered acts (client/README.md, 5.10).
@@ -761,7 +763,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository",
         b"temper-task-acts",
         b"temper-agent-steer",
-        b"temper-retired-task-danger",
+        b"temper-agent-foot",
         b"temper-task-amend",
         b"temper-ended",
         b"temper-day",

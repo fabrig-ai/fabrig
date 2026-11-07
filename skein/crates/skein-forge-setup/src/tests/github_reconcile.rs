@@ -61,7 +61,7 @@ fn failure(subject: &[u8], why: Why) -> Need {
     Need::Stop(Failure { forge: 4, step: Stage::App, subject: subject.into(), why })
 }
 fn done(lacking: Box<[Lacking]>) -> Need {
-    Need::Done(Outcome::Lacking { lacking })
+    Need::Done(Outcome::Lacking { lacking, owner: None })
 }
 fn silent(machine: &mut Reconcile) {
     for event in
@@ -386,4 +386,29 @@ fn the_reconcile_constructor_checks_given() {
     let mut given: Given = fixtures::given();
     given.limits.key_bytes = 0;
     assert_eq!(Reconcile::new(&given, NOW).err(), Some(Refused { place: Place::KeyBytes, other: None }));
+}
+
+#[test]
+fn reconcile_answers_the_apps_account() {
+    use skein_forge::github::document::AppOwner;
+    for owner in [
+        Some(AppOwner { id: 7, login: b"ada".as_slice().into(), kind: Account::User }),
+        Some(AppOwner { id: 8, login: b"acme".as_slice().into(), kind: Account::Organization }),
+        None,
+    ] {
+        let mut machine = at(4);
+        let mut app = fixtures::app();
+        app.owner = owner.clone();
+        go(&mut machine, document(app));
+        go(&mut machine, hook(b"https://wrong.invalid/"));
+        go(&mut machine, hook(URL));
+        go(&mut machine, rows(&[3, 1]));
+        go(&mut machine, rows(&[]));
+        go(&mut machine, Event::Written);
+        assert_eq!(
+            go(&mut machine, Event::Reply(Reply::Empty)),
+            Need::Done(Outcome::Lacking { lacking: Box::new([]), owner })
+        );
+        silent(&mut machine);
+    }
 }

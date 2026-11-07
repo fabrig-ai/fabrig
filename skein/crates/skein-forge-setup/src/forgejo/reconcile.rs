@@ -14,6 +14,7 @@ use crate::{
     plan,
 };
 use alloc::boxed::Box;
+use core::num::NonZeroU64;
 pub use hooks::hook_url;
 use skein_forge::forgejo::{document::Document, request::Request};
 use skein_lib::{Queue, Secret, Writer, bytes};
@@ -28,12 +29,14 @@ enum State {
     Written,
     Orgs,
     Access,
+    Person(Box<[u8]>),
     Ended,
 }
 /// One forge's state; credentials remain beside the machine's requests.
 #[derive(Debug)]
 pub struct Reconcile {
     forge: u16,
+    person: Option<Box<[u8]>>,
     bot_login: Box<[u8]>,
     bot_email: Box<[u8]>,
     admin_name: Box<[u8]>,
@@ -58,6 +61,7 @@ impl Reconcile {
         };
         Ok(Self {
             forge: given.forge,
+            person: given.person.clone(),
             bot_login: given.bot_login.clone(),
             bot_email: given.bot_email.clone(),
             admin_name: given.admin_name.clone(),
@@ -79,7 +83,9 @@ impl Reconcile {
     fn stop(&mut self, stage: Stage, why: Why) -> Need {
         let subject = match stage {
             Stage::Admin | Stage::App | Stage::Installation | Stage::State => self.admin_name.clone(),
-            Stage::Bot | Stage::Token | Stage::Org | Stage::Repository | Stage::File => self.bot_login.clone(),
+            Stage::Person | Stage::Bot | Stage::Token | Stage::Org | Stage::Repository | Stage::File => {
+                self.bot_login.clone()
+            }
         };
         self.stop_named(stage, &subject, why)
     }
@@ -131,6 +137,14 @@ impl Reconcile {
             },
             State::Orgs => orgs::advance(self, event),
             State::Access => walk::advance(self, event),
+            State::Person(login) => match account(event) {
+                Ok(user) => match NonZeroU64::new(user.id) {
+                    Some(id) => self.done(Outcome::Person { id: Some(id) }),
+                    None => self.stop_named(Stage::Person, &login, Why::Unexpected),
+                },
+                Err(Why::Refused(404)) => self.done(Outcome::Person { id: None }),
+                Err(why) => self.stop_named(Stage::Person, &login, why),
+            },
             State::Ended => unreachable!("terminal machine is not advanced"),
         }
     }
@@ -199,7 +213,8 @@ pub fn step(machine: &mut Reconcile, event: Event, out: &mut Queue<Need>) {
         | State::Id(_)
         | State::Written
         | State::Orgs
-        | State::Access => {
+        | State::Access
+        | State::Person(_) => {
             let need = machine.advance(state, event);
             out.push(need);
         }
@@ -237,10 +252,19 @@ impl Reconcile {
         }
     }
     fn finish(&mut self) -> Need {
+        match self.person.take() {
+            Some(login) => {
+                self.state = State::Person(login.clone());
+                self.send(Request::UserOf { login })
+            }
+            None => self.done(Outcome::Nothing),
+        }
+    }
+    fn done(&mut self, outcome: Outcome) -> Need {
         self.admin = None;
         self.shared.secret = None;
         self.state = State::Ended;
-        Need::Done(Outcome::Nothing)
+        Need::Done(outcome)
     }
     fn stop_named(&mut self, stage: Stage, name: &[u8], why: Why) -> Need {
         self.state = State::Ended;
@@ -289,6 +313,7 @@ pub(crate) fn halt(machine: &mut Reconcile, why: Why, out: &mut Queue<Need>) {
         | State::Written
         | State::Orgs
         | State::Access
+        | State::Person(_)
         | State::Ended => Event::Begin,
     };
     let mut needs = Queue::uncapped();

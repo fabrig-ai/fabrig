@@ -586,7 +586,7 @@ impl Worker {
                 jig_domain_host::sources::Answer::Read(outcome) => {
                     jig_domain_host::Event::ListRead { read: owner.raw(), outcome }
                 }
-                answer @ (jig_domain_host::sources::Answer::Checked(_)
+                answer @ (jig_domain_host::sources::Answer::Checked { .. }
                 | jig_domain_host::sources::Answer::SignedOut(_)) => {
                     jig_domain_host::Event::SourceAnswered { owner, answer }
                 }
