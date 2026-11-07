@@ -123,15 +123,23 @@ fn rename_keeps_repository_account_routing() {
     answered(&mut h, 1, Ok(Answer::Commit([0; 32])));
 }
 #[test]
-fn unaccepted_account_is_not_installed_without_io() {
-    for op in [branch(), locate(b"acme")] {
-        let mut h = known();
-        h.component.test_github_mut().rows.get_mut(&1).expect("row").accepted = false;
-        f::github_account(&mut h, 2, 23, b"stray", b"artificial-full-two");
-        h.call(1, REPO, op);
-        answered(&mut h, 0, Err(Error::NotInstalled));
-        assert_eq!(h.connections_opened(), 0);
-    }
+fn unaccepted_repository_installations_reject_calls_without_issuing_io() {
+    skein_rows::check(
+        [
+            ("unaccepted_account_is_not_installed_without_io", [branch(), locate(b"acme")]),
+            ("merge_and_reviewers_require_the_repository_installation", [merge(), reviewers()]),
+        ],
+        |operations| {
+            for op in operations {
+                let mut h = known();
+                h.component.test_github_mut().rows.get_mut(&1).expect("row").accepted = false;
+                f::github_account(&mut h, 2, 23, b"stray", b"artificial-full-two");
+                h.call(1, REPO, op);
+                answered(&mut h, 0, Err(Error::NotInstalled));
+                assert_eq!(h.connections_opened(), 0);
+            }
+        },
+    );
 }
 #[test]
 fn suspended_account_is_forbidden_without_io() {
@@ -215,16 +223,24 @@ fn still_valid_full_serves_during_contents_or_full_renewal() {
     }
 }
 #[test]
-fn call_401_is_forbidden_and_mints_once() {
-    let mut h = known();
-    begin(&mut h, branch());
-    h.answer(FORGE, &f::status(401));
-    answered(&mut h, 1, Err(Error::Forbidden));
-    let row = h.component.test_github().rows.get(&1).expect("row");
-    assert_eq!(row.refused_revision, Some(1));
-    h.run(Duration::ZERO);
-    assert_eq!(h.component.test_github().mint, Some((1, skein_forge::github::request::Scope::Full)));
-    assert_eq!(skein_lib::bytes::count(&h.all_request_bytes(FORGE), b"GET /repos/", u32::MAX), 1);
+fn unauthorized_calls_renew_full_credentials_without_replaying_requests() {
+    skein_rows::check(
+        [
+            ("call_401_is_forbidden_and_mints_once", (branch(), b"GET /repos/".as_slice())),
+            ("merge_401_is_forbidden_and_renews_full_without_replay", (merge(), b"PUT /repos/".as_slice())),
+        ],
+        |(operation, prefix)| {
+            let mut h = known();
+            begin(&mut h, operation);
+            h.answer(FORGE, &f::status(401));
+            answered(&mut h, 1, Err(Error::Forbidden));
+            assert_eq!(h.component.test_github().rows.get(&1).expect("row").refused_revision, Some(1));
+            h.run(Duration::ZERO);
+            assert_eq!(h.component.test_github().rows.get(&1).expect("row").refused_revision, Some(1));
+            assert_eq!(h.component.test_github().mint, Some((1, skein_forge::github::request::Scope::Full)));
+            assert_eq!(skein_lib::bytes::count(&h.all_request_bytes(FORGE), prefix, u32::MAX), 1);
+        },
+    );
 }
 #[test]
 fn call_403_does_not_mint() {
@@ -289,16 +305,7 @@ fn merge_without_a_method_keeps_the_dialect_refusal() {
     answered(&mut h, 0, Err(Error::Refused));
     assert!(h.request_lines(FORGE).is_empty());
 }
-#[test]
-fn merge_and_reviewers_require_the_repository_installation() {
-    for op in [merge(), reviewers()] {
-        let mut h = known();
-        h.component.test_github_mut().rows.get_mut(&1).expect("row").accepted = false;
-        h.call(1, REPO, op);
-        answered(&mut h, 0, Err(Error::NotInstalled));
-        assert_eq!(h.connections_opened(), 0);
-    }
-}
+
 #[test]
 fn sent_enqueue_is_never_replayed_after_loss_or_deadline() {
     for reset in [true, false] {
@@ -319,17 +326,7 @@ fn sent_enqueue_is_never_replayed_after_loss_or_deadline() {
         assert_eq!(skein_lib::bytes::count(&h.all_request_bytes(FORGE), b"enqueuePullRequest", u32::MAX), 1);
     }
 }
-#[test]
-fn merge_401_is_forbidden_and_renews_full_without_replay() {
-    let mut h = known();
-    begin(&mut h, merge());
-    h.answer(FORGE, &f::status(401));
-    answered(&mut h, 1, Err(Error::Forbidden));
-    h.run(Duration::ZERO);
-    assert_eq!(h.component.test_github().rows.get(&1).expect("row").refused_revision, Some(1));
-    assert_eq!(h.component.test_github().mint, Some((1, skein_forge::github::request::Scope::Full)));
-    assert_eq!(skein_lib::bytes::count(&h.all_request_bytes(FORGE), b"PUT /repos/", u32::MAX), 1);
-}
+
 #[test]
 fn queue_continuation_renews_only_its_selected_installations_token() {
     let mut h = known();

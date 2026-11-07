@@ -297,21 +297,20 @@ fn late_wrong_user_stops_once_after_connected() {
     forgotten(&h, 1);
 }
 #[test]
-fn terminal_deferred_viewer_status_stops_after_connected() {
-    terminal_viewer(401);
+fn deferred_viewer_refusals_stop_once_naming_their_status() {
+    skein_rows::check(
+        [
+            ("terminal_deferred_viewer_status_stops_after_connected", 401),
+            ("deferred_viewer_403_is_terminal", 403),
+            ("deferred_viewer_404_is_terminal", 404),
+            ("deferred_viewer_422_is_terminal", 422),
+        ],
+        terminal_viewer,
+    );
 }
-#[test]
-fn deferred_viewer_403_is_terminal() {
-    terminal_viewer(403);
-}
-#[test]
-fn deferred_viewer_404_is_terminal() {
-    terminal_viewer(404);
-}
-#[test]
-fn deferred_viewer_422_is_terminal() {
-    terminal_viewer(422);
-}
+
+
+
 fn terminal_viewer(status: u16) {
     let mut h = at(Stage::Viewer);
     h.answer(FORGE, &fixtures::status(status));
@@ -379,13 +378,16 @@ fn refused_refresh(status: u16, body: &[u8], gone: bool) {
     public_ready(&h);
 }
 #[test]
-fn ready_mint_403_waits_then_refreshes_suspension() {
-    refused_refresh(403, SUSPENDED, true);
+fn mint_refusals_wait_before_refreshing_lost_installation_eligibility() {
+    skein_rows::check(
+        [
+            ("ready_mint_403_waits_then_refreshes_suspension", (403, SUSPENDED, true)),
+            ("ready_mint_404_waits_then_refreshes_deletion", (404, b"[]", true)),
+        ],
+        |(v0, v1, v2)| refused_refresh(v0, v1, v2),
+    );
 }
-#[test]
-fn ready_mint_404_waits_then_refreshes_deletion() {
-    refused_refresh(404, b"[]", true);
-}
+
 #[test]
 fn unexplained_mint_refusal_doubles_after_refresh() {
     let mut h = at(Stage::Full);
@@ -413,17 +415,18 @@ fn ready_mint_terminal_status_stops_token_refused() {
     assert_eq!(h.stopped(), Some((FORGE, Stopped::TokenRefused { installation: 1, status: 422 })));
 }
 #[test]
-fn transient_mint_retries_selected_scope_without_listing() {
-    transient_mint(429, b"{}");
+fn transient_mint_responses_retry_the_selected_scope_directly() {
+    skein_rows::check(
+        [
+            ("transient_mint_retries_selected_scope_without_listing", (429, b"{}".as_slice())),
+            ("server_mint_failure_retries_selected_scope", (503, b"{}".as_slice())),
+            ("malformed_mint_retries_selected_scope", (201, b"{".as_slice())),
+        ],
+        |(v0, v1)| transient_mint(v0, v1),
+    );
 }
-#[test]
-fn server_mint_failure_retries_selected_scope() {
-    transient_mint(503, b"{}");
-}
-#[test]
-fn malformed_mint_retries_selected_scope() {
-    transient_mint(201, b"{");
-}
+
+
 fn transient_mint(status: u16, body: &[u8]) {
     let mut h = at(Stage::Contents);
     h.answer(FORGE, &fixtures::response(status, body));
@@ -547,17 +550,18 @@ fn replace_at(stage: Stage) {
     assert!(h.component.test_github().held.is_none());
 }
 #[test]
-fn retry_debug_redacts_tokens() {
-    redacted(Stage::Waiting);
+fn private_job_diagnostics_keep_both_installation_tokens_hidden() {
+    skein_rows::check(
+        [
+            ("retry_debug_redacts_tokens", Stage::Waiting),
+            ("held_debug_redacts_tokens", Stage::Held),
+            ("candidate_debug_redacts_tokens", Stage::Viewer),
+        ],
+        redacted,
+    );
 }
-#[test]
-fn held_debug_redacts_tokens() {
-    redacted(Stage::Held);
-}
-#[test]
-fn candidate_debug_redacts_tokens() {
-    redacted(Stage::Viewer);
-}
+
+
 fn redacted(stage: Stage) {
     let h = at(stage);
     let debug = std::format!("{:?} {:?} {:?}", h.component, h.up, h.io);
@@ -566,84 +570,79 @@ fn redacted(stage: Stage) {
 }
 
 #[test]
-fn stale_full_after_unaccepted_is_discarded() {
-    stale(Stage::Full, Loss::Unaccepted);
+fn installation_loss_discards_late_minted_token_values() {
+    skein_rows::check(
+        [
+            ("stale_full_after_unaccepted_is_discarded", (Stage::Full, Loss::Unaccepted)),
+            ("stale_full_after_deleted_is_discarded", (Stage::Full, Loss::Deleted)),
+            ("stale_full_after_suspended_is_discarded", (Stage::Full, Loss::Suspended)),
+            ("stale_contents_after_unaccepted_is_discarded", (Stage::Contents, Loss::Unaccepted)),
+            ("stale_contents_after_deleted_is_discarded", (Stage::Contents, Loss::Deleted)),
+            ("stale_contents_after_suspended_is_discarded", (Stage::Contents, Loss::Suspended)),
+        ],
+        |(v0, v1)| stale(v0, v1),
+    );
+}
+
+
+
+
+
+
+
+
+
+
+
+#[test]
+fn closing_ready_phases_discards_all_remaining_private_work() {
+    skein_rows::check(
+        [
+            ("close_during_ready_full_discards_private_work", Stage::Full),
+            ("close_during_ready_contents_discards_private_work", Stage::Contents),
+            ("close_during_ready_viewer_discards_private_work", Stage::Viewer),
+            ("close_during_ready_waiting_discards_private_work", Stage::Waiting),
+            ("close_during_ready_held_discards_private_work", Stage::Held),
+            ("close_during_ready_reading_discards_private_work", Stage::Reading),
+            ("close_during_ready_readwaiting_discards_private_work", Stage::ReadWaiting),
+            ("close_during_ready_diff_discards_private_work", Stage::Diff),
+        ],
+        close_at,
+    );
 }
 
 #[test]
-fn stale_full_after_deleted_is_discarded() {
-    stale(Stage::Full, Loss::Deleted);
+fn replacing_ready_phases_discards_all_remaining_private_work() {
+    skein_rows::check(
+        [
+            ("replace_during_ready_full_discards_private_work", Stage::Full),
+            ("replace_during_ready_contents_discards_private_work", Stage::Contents),
+            ("replace_during_ready_viewer_discards_private_work", Stage::Viewer),
+            ("replace_during_ready_waiting_discards_private_work", Stage::Waiting),
+            ("replace_during_ready_held_discards_private_work", Stage::Held),
+            ("replace_during_ready_reading_discards_private_work", Stage::Reading),
+            ("replace_during_ready_readwaiting_discards_private_work", Stage::ReadWaiting),
+            ("replace_during_ready_diff_discards_private_work", Stage::Diff),
+        ],
+        replace_at,
+    );
 }
 
-#[test]
-fn stale_full_after_suspended_is_discarded() {
-    stale(Stage::Full, Loss::Suspended);
-}
 
-#[test]
-fn stale_contents_after_unaccepted_is_discarded() {
-    stale(Stage::Contents, Loss::Unaccepted);
-}
 
-#[test]
-fn stale_contents_after_deleted_is_discarded() {
-    stale(Stage::Contents, Loss::Deleted);
-}
 
-#[test]
-fn stale_contents_after_suspended_is_discarded() {
-    stale(Stage::Contents, Loss::Suspended);
-}
 
-#[test]
-fn close_during_ready_full_discards_private_work() {
-    close_at(Stage::Full);
-}
 
-#[test]
-fn replace_during_ready_full_discards_private_work() {
-    replace_at(Stage::Full);
-}
 
-#[test]
-fn close_during_ready_contents_discards_private_work() {
-    close_at(Stage::Contents);
-}
 
-#[test]
-fn replace_during_ready_contents_discards_private_work() {
-    replace_at(Stage::Contents);
-}
 
-#[test]
-fn close_during_ready_viewer_discards_private_work() {
-    close_at(Stage::Viewer);
-}
 
-#[test]
-fn replace_during_ready_viewer_discards_private_work() {
-    replace_at(Stage::Viewer);
-}
 
-#[test]
-fn close_during_ready_waiting_discards_private_work() {
-    close_at(Stage::Waiting);
-}
 
-#[test]
-fn replace_during_ready_waiting_discards_private_work() {
-    replace_at(Stage::Waiting);
-}
 
-#[test]
-fn close_during_ready_held_discards_private_work() {
-    close_at(Stage::Held);
-}
 
-#[test]
-fn replace_during_ready_held_discards_private_work() {
-    replace_at(Stage::Held);
-}
+
+
 
 #[test]
 fn unrelated_acceptance_keeps_the_written_full_eligible() {
@@ -767,35 +766,17 @@ fn acceptance_after_late_stop_cannot_restart_work() {
     assert_eq!(h.connections_opened(), 1);
 }
 
-#[test]
-fn close_during_ready_reading_discards_private_work() {
-    close_at(Stage::Reading);
-}
 
-#[test]
-fn replace_during_ready_reading_discards_private_work() {
-    replace_at(Stage::Reading);
-}
 
-#[test]
-fn close_during_ready_readwaiting_discards_private_work() {
-    close_at(Stage::ReadWaiting);
-}
 
-#[test]
-fn replace_during_ready_readwaiting_discards_private_work() {
-    replace_at(Stage::ReadWaiting);
-}
 
-#[test]
-fn close_during_ready_diff_discards_private_work() {
-    close_at(Stage::Diff);
-}
 
-#[test]
-fn replace_during_ready_diff_discards_private_work() {
-    replace_at(Stage::Diff);
-}
+
+
+
+
+
+
 
 #[test]
 fn lost_unsent_mint_is_retired_without_sending() {

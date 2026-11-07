@@ -57,10 +57,18 @@ fn github_terminal_carries_its_answer_window() {
 }
 
 #[test]
-fn headerless_answer_keeps_the_repository_lookup_window() {
-    let h = resolved(b"");
-    let got = terminal(&h);
-    assert_eq!((got.cost, got.rate, &got.result), (TWO_REQUESTS, Some(FIRST), &Ok(Answer::Commit([0; 32]))));
+fn incomplete_rate_headers_preserve_the_last_complete_window() {
+    skein_rows::check(
+        [
+            ("headerless_answer_keeps_the_repository_lookup_window", b"".as_slice()),
+            ("partial_rate_headers_keep_the_last_complete_window", b"X-RateLimit-Remaining: 4998\r\n".as_slice()),
+        ],
+        |fields| {
+            let h = resolved(fields);
+            let got = terminal(&h);
+            assert_eq!((got.cost, got.rate, &got.result), (TWO_REQUESTS, Some(FIRST), &Ok(Answer::Commit([0; 32]))));
+        },
+    );
 }
 
 #[test]
@@ -70,11 +78,7 @@ fn latest_answer_replaces_the_repository_lookup_window() {
     assert_eq!((got.cost, got.rate, &got.result), (TWO_REQUESTS, Some(SECOND), &Ok(Answer::Commit([0; 32]))));
 }
 
-#[test]
-fn partial_rate_headers_keep_the_last_complete_window() {
-    let h = resolved(b"X-RateLimit-Remaining: 4998\r\n");
-    assert_eq!(terminal(&h).rate, Some(FIRST));
-}
+
 
 #[test]
 fn github_without_rate_headers_reports_no_window() {
