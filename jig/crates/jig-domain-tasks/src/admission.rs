@@ -96,7 +96,7 @@ pub(crate) fn turn(
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
     task.turn = turn;
-    crate::inbox::take(task, read);
+    crate::inbox::take(task, read, Some(&outstanding));
     task.ever_turned = true;
     task.last_reply = task.last_reply.checked_add(1).expect("reply ordinal admitted");
     crate::activity::append(

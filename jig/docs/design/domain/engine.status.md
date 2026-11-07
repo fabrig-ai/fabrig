@@ -51,9 +51,6 @@ and catalogue-number reuse remain section 16's open questions.
   its claim passes no reasons or offered kinds to the tasks child.
 - **Not yet:** 7.1: a run's check takes its task's first choice whatever its reasons
   (`jig-domain-core/src/runs/llm.rs`, `chosen_policy`).
-- **Not yet:** 7.2, 7.4: a turn's commit takes every message up to its fence, and a run
-  that parks idle or finishes ends no first activation; the code's side is
-  `tasks.status.md`, 8.6.
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
