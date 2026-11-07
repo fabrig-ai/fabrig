@@ -27,7 +27,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
-        Value::Application(_) => unreachable!("an application's setting: apps-core"),
+        Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
     }
 }
 #[test]
@@ -267,7 +267,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
-            Value::Application(_) => unreachable!("an application's setting: apps-core"),
+            Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
         };
         if let Some((setting, value)) = added {
             for erase in [Edit::Removed, Edit::Reset] {
@@ -879,4 +879,126 @@ fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
         let Value::Rules(rules) = value else { panic!("rules") };
         assert_eq!(rules.ceiling.models, after);
     }
+}
+
+fn catalogue_fixture() -> (Current, crate::Settings, Limits, CatalogueModel) {
+    let config = config(1);
+    let mut settings = config.settings;
+    settings.endpoints = Box::new([crate::EndpointFacts { number: 1, dialect: 3, program: None }]);
+    let value = CatalogueModel {
+        number: 9,
+        model: settings.models[0].clone(),
+        shown: Some(b"Shown".as_slice().into()),
+        description: Some(b"Description".as_slice().into()),
+        picker: true,
+        withdrawn: false,
+        source: ModelSource::Person,
+        estimated: true,
+    };
+    (Current::new(config.defaults, &limits(), &[]), settings, limits(), value)
+}
+fn catalogue_item(value: CatalogueModel) -> Item {
+    Item { setting: Setting::Model(value.number), edit: Edit::Set(Value::Model(Box::new(value))) }
+}
+#[test]
+fn a_model_setting_is_checked_whole() {
+    let (current, settings, limits, value) = catalogue_fixture();
+    assert_eq!(check_change(&current, &[catalogue_item(value.clone())], &settings, &[1, 2], &limits), Ok(()));
+    for (member, fault) in [
+        ("zero", Fault::Shape),
+        ("past", Fault::Shape),
+        ("name", Fault::Shape),
+        ("provider", Fault::Reference),
+        ("endpoint", Fault::Reference),
+        ("dialect", Fault::Shape),
+        ("program", Fault::Shape),
+        ("window", Fault::Shape),
+        ("output", Fault::Shape),
+    ] {
+        let mut value = value.clone();
+        match member {
+            "zero" => value.number = 0,
+            "past" => value.number = 65,
+            "name" => value.model.name = b"bad/name".as_slice().into(),
+            "provider" => value.model.provider = 99,
+            "endpoint" => value.model.endpoint = 99,
+            "dialect" => value.model.dialect = 99,
+            "program" => value.model.program = Some(b"other".as_slice().into()),
+            "window" => value.model.window = 0,
+            "output" => value.model.output = 0,
+            _ => unreachable!(),
+        }
+        let number = value.number;
+        assert_eq!(
+            check_change(&current, &[catalogue_item(value)], &settings, &[1, 2], &limits),
+            Err(Failure { setting: Setting::Model(number), fault, detail: None }),
+            "{member}"
+        );
+    }
+}
+#[test]
+fn a_number_keeps_its_name() {
+    let (mut current, settings, limits, value) = catalogue_fixture();
+    for default in [true, false] {
+        if default {
+            current
+                .defaults
+                .insert(Setting::Model(9), Default { value: Value::Model(Box::new(value.clone())), revision: 1 })
+                .unwrap();
+        } else {
+            current.defaults.remove(&Setting::Model(9));
+            apply(&mut current, &[catalogue_item(value.clone())], 2);
+        }
+        let mut renamed = value.clone();
+        renamed.model.name = b"different".as_slice().into();
+        assert_eq!(
+            check_change(&current, &[catalogue_item(renamed)], &settings, &[1, 2], &limits),
+            Err(Failure { setting: Setting::Model(9), fault: Fault::Shape, detail: None })
+        );
+    }
+}
+#[test]
+fn removing_a_model_withdraws_it_and_keeps_its_number() {
+    let (mut current, settings, limits, mut value) = catalogue_fixture();
+    apply(&mut current, &[catalogue_item(value.clone())], 2);
+    let items = [Item { setting: Setting::Model(9), edit: Edit::Removed }];
+    assert_eq!(check_change(&current, &items, &settings, &[1, 2], &limits), Ok(()));
+    assert!(changes_current(&current, &items));
+    let writes = apply(&mut current, &items, 3);
+    value.withdrawn = true;
+    assert_eq!(current.value(Setting::Model(9)), Some(&Value::Model(Box::new(value.clone()))));
+    assert!(current.offered().as_slice().contains(&Setting::Model(9)));
+    assert_eq!(current.changes.get(&Setting::Model(9)).unwrap().revision, 3);
+    assert!(!changes_current(&current, &items));
+    assert_eq!(writes.len(), 1);
+}
+#[test]
+fn resetting_a_model_with_no_default_is_out_of_shape() {
+    let (mut current, settings, limits, value) = catalogue_fixture();
+    apply(&mut current, &[catalogue_item(value.clone())], 2);
+    let items = [Item { setting: Setting::Model(9), edit: Edit::Reset }];
+    assert_eq!(
+        check_change(&current, &items, &settings, &[1, 2], &limits),
+        Err(Failure { setting: Setting::Model(9), fault: Fault::Shape, detail: None })
+    );
+    current.defaults.insert(Setting::Model(9), Default { value: Value::Model(Box::new(value)), revision: 1 }).unwrap();
+    assert_eq!(check_change(&current, &items, &settings, &[1, 2], &limits), Ok(()));
+}
+#[test]
+fn valid_name_takes_the_shapes_a_provider_names_a_model_by() {
+    for name in [b"claude-opus-5-5".as_slice(), b"openai:gpt_6.1", b"A0", b"-._:"] {
+        assert!(catalogue::valid_name(name));
+    }
+    let mut name = List::with_capacity(crate::MODEL_NAME_BYTES.checked_add(1).unwrap());
+    for _ in 0..crate::MODEL_NAME_BYTES {
+        name.push(b'a').unwrap();
+    }
+    assert!(catalogue::valid_name(name.as_slice()));
+    for name in [b"".as_slice(), b"space name", b"slash/name", b"new\nline", "modèle".as_bytes(), &[0]] {
+        assert!(!catalogue::valid_name(name));
+    }
+    name.push(b'a').unwrap();
+    assert!(!catalogue::valid_name(name.as_slice()));
+    assert!(crate::Model::hole().is_hole());
+    assert!(!config(1).settings.models[0].is_hole());
 }

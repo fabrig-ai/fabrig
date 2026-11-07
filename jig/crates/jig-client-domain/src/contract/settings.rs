@@ -15,6 +15,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Model(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -27,6 +28,7 @@ pub enum Setting {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
+    pub provider: u32,
     pub dialect: u32,
     pub endpoint: u32,
     pub program: Option<Text>,
@@ -58,6 +60,7 @@ pub struct CharterDocument {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
+    pub rest: bool,
     pub documents: List<CharterDocument>,
     pub number: u32,
     pub instructions: Text,
@@ -105,6 +108,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Model(Box<CatalogueEntry>),
     Application(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -435,4 +439,23 @@ pub struct SettingDetail {
     pub supplied: u32,
     /// The minimum or maximum; zero for `Registered`.
     pub bound: u32,
+}
+
+/// A whole model setting (jig/docs/design/domain/engine.md, 17.11).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CatalogueEntry {
+    pub number: u32,
+    pub model: SettingModel,
+    pub shown: Option<Text>,
+    pub description: Option<Text>,
+    pub picker: bool,
+    pub withdrawn: bool,
+    pub source: ModelSource,
+    pub estimated: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ModelSource {
+    Stock,
+    List,
+    Person,
 }

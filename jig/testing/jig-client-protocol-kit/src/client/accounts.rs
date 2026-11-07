@@ -29,11 +29,14 @@ impl Story {
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number,
-            models: Box::new([config.core.settings.models[0].name.clone()]),
             offers: accounts::Offers { sign_in: offered, key: false, programs: Box::new([]) },
         };
         let providers: Box<[accounts::Provider]> =
             if second { Box::new([provider(3), provider(4)]) } else { Box::new([provider(3)]) };
+        config.core.settings.models[0].provider = 3;
+        for charter in &mut config.core.defaults.charters {
+            charter.policy.model.provider = 3;
+        }
         config.core.settings.llm_providers = accounts::Providers { providers };
         let mut limits = fixtures::owner_limits();
         limits.core.accounts.accounts = 2;
@@ -168,7 +171,6 @@ impl Story {
                 name: b"Fake".as_slice().into(),
                 signed_in_plan: false,
                 manage_usage: Some(b"https://usage.example/".as_slice().into()),
-                models: Box::new([]),
                 offers: accounts::Offers {
                     sign_in: false,
                     key: false,

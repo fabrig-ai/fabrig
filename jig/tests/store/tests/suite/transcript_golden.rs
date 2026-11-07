@@ -14,9 +14,7 @@ const KEPT: &[u8] = include_bytes!("../../golden/transcript");
 const PATH: &[u8] = b"transcripts/0000000000000000/0000000000000015";
 const SEED: u64 = 0x0000_474f_4c44_454e;
 const READER: Token = Token::new(715);
-// A smaller task batch bound keeps this world's row floor below the fixed
-// page. check_commits verifies it before opening, without moving kept bytes
-// when the shared world's bounds change.
+// The task batch and fixed transcript turns have independent bounds.
 const BATCH_BYTES: u32 = 65_536;
 const TRANSCRIPT_BYTES: u32 = 400_000;
 // sizes::frame counts 52 bytes of core-v6 metadata (including Some(read)
@@ -56,14 +54,14 @@ fn turns() -> [core::TurnRecord; 3] {
     ]
 }
 
-/// A world with P exactly at the large frame, each turn committed separately.
+/// Fixed turns committed separately; the shared page also holds settings revisions.
 fn written() -> World {
     let mut limits = root::limits();
     limits.core.tasks.batch_bytes = BATCH_BYTES;
-    limits.store.page.bytes = PAGE;
+    limits.store.page.bytes = limits.store.page.bytes.max(PAGE);
     limits.store.chunk = limits.store.chunk.max(PAGE + KV_CHUNK_OVERHEAD);
     sizes::check_commits(&limits.core, &root::APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
-        .expect("fixed golden page still covers the world's row floor");
+        .expect("shared page covers the world's row floor");
     let mut world = World::unopened_observed(SEED, limits, None);
     world.open().expect("golden world opens");
     world.commit(root::first()).expect("task committed");

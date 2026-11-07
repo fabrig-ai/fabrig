@@ -30,6 +30,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
             grants: core.grants.clone(),
             kinds: core.kinds.clone(),
             defaults: core::settings::Defaults {
+                models: core.defaults.models.clone(),
                 charters: core.defaults.charters.clone(),
                 templates: core.defaults.templates.clone(),
                 policies,
@@ -46,6 +47,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
                 })
                 .collect(),
             settings: core::Settings {
+                endpoints: settings.endpoints.clone(),
                 deployment_provider: settings.deployment_provider,
                 models: settings.models.clone(),
                 resume_bytes: settings.resume_bytes,

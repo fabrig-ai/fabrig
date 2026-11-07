@@ -650,8 +650,8 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"charter|template|policy",
-                Kind::Word { set: &[b"charter", b"template", b"policy"] },
+                b"charter|template|policy|model",
+                Kind::Word { set: &[b"charter", b"template", b"policy", b"model"] },
                 Required,
                 b"The setting's kind",
             ),

@@ -6,6 +6,7 @@ pub enum Setting {
     Template(u32),
     Policy(u32),
     Rules,
+    Model(u32),
     /// Scope 0 is the deployment; otherwise it is a project number.
     Application {
         kind: u32,

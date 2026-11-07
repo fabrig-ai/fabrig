@@ -842,6 +842,9 @@ pub(super) fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> R
         domain::Setting::Policy(number) => {
             wire::Setting::Policy(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
+        domain::Setting::Model(number) => {
+            wire::Setting::Model(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
+        }
         domain::Setting::Rules => wire::Setting::Rules,
         domain::Setting::Application { kind, scope, number } => wire::Setting::Application(
             wire::ApplicationSetting::new(limits, wire::ApplicationSettingParts { kind, scope, number })?,
@@ -867,6 +870,7 @@ pub(super) fn decode_setting(value: &wire::Setting) -> domain::Setting {
         wire::Setting::Template(value) => domain::Setting::Template(value.number()),
         wire::Setting::Policy(value) => domain::Setting::Policy(value.number()),
         wire::Setting::ProjectPolicy(value) => domain::Setting::ProjectPolicy { project: value.project() },
+        wire::Setting::Model(value) => domain::Setting::Model(value.number()),
         wire::Setting::Rules => domain::Setting::Rules,
         wire::Setting::Application(value) => {
             domain::Setting::Application { kind: value.kind(), scope: value.scope(), number: value.number() }

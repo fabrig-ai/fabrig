@@ -73,6 +73,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             c::Setting::Charter(value) => s::Setting::Charter(value.number),
             c::Setting::Template(value) => s::Setting::Template(value.number),
             c::Setting::Policy(value) => s::Setting::Policy(value.number),
+            c::Setting::Model(value) => s::Setting::Model(value.number),
             c::Setting::Rules => s::Setting::Rules,
             c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
             c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
@@ -580,6 +581,7 @@ fn malformed_setting(
         s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
         s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
         s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
+        s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
         s::Setting::Rules => c::Setting::Rules,
         s::Setting::Application { kind, scope, number } => {
             c::Setting::Application { kind: *kind, scope: *scope, number: *number }

@@ -25,8 +25,7 @@ fn opening() -> (Driver, Cast) {
         implementer.number = 2;
         implementer.policy.model.name = b"gpt".as_slice().into();
         config.core.settings.models = Box::new([coordinator.policy.model.clone(), implementer.policy.model.clone()]);
-        config.core.settings.llm_providers.providers[0].models =
-            Box::new([Box::from(b"claude".as_slice()), Box::from(b"gpt".as_slice())]);
+
         config.core.defaults.charters = Box::new([coordinator, implementer]);
         let kinds: Box<[_]> = Box::new([authority::Executor::Charter(1), authority::Executor::Charter(2)]);
         config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);

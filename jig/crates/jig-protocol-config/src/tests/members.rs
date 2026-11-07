@@ -98,6 +98,8 @@ fn worker(document: &Document) -> Problems {
 // Optional objects and nonempty lists from the charters, providers, templates, domain and policy
 // fixtures. Shared shapes are exercised at every path; alternate forms are exercised below.
 const EXTRAS: &[(&str, &str, &[u8])] = &[
+    ("charters.0", "models", br#"["small"]"#),
+    ("charters.0", "rest", b"true"),
     ("", "acts", br#"[{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","remove_project"]}]"#),
     ("limits", "overrides", b"{}"),
     ("llm.endpoints.0", "transport", br#""tls""#),

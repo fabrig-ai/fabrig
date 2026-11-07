@@ -549,6 +549,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
                 people::Setting::Charter(n) => parties::Setting::Charter(n),
                 people::Setting::Template(n) => parties::Setting::Template(n),
                 people::Setting::Policy(n) => parties::Setting::Policy(n),
+                people::Setting::Model(n) => parties::Setting::Model(n),
                 people::Setting::Rules => parties::Setting::Rules,
                 people::Setting::Application { kind, scope, number } => {
                     parties::Setting::Application { kind, scope, number }

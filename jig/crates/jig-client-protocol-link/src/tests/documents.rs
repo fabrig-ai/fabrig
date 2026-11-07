@@ -442,7 +442,7 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     assert_eq!(limits.wire().charter_instructions, 1_114_240);
     assert_eq!(limits.wire().propose_settings_items, 1_114_240);
     assert_eq!(limits.wire().change_settings_items, 1_114_240);
-    assert_eq!(limits.wire().charter_alternatives, 16);
+    assert_eq!(limits.wire().charter_alternatives, 32);
     assert_eq!(limits.wire().policy_edit_templates_overrides, 16);
     assert_eq!(limits.wire().setting_model_efforts, 16);
     assert_eq!(limits.wire().setting_policy_templates, 16);

@@ -15,7 +15,6 @@ fn driver() -> Driver {
                 name: Box::from(b"Issuer".as_slice()),
                 signed_in_plan: false,
                 manage_usage: None,
-                models: Box::new([]),
                 offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };

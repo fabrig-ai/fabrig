@@ -227,7 +227,7 @@ fn decide_with(
                 s::Setting::Charter(_) => charters = true,
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
-                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Model(_) | s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -248,6 +248,7 @@ fn decide_with(
             s::Setting::Charter(_)
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
+            | s::Setting::Model(_)
             | s::Setting::Rules
             | s::Setting::Application { .. } => core.current.replaced(item.setting),
         };

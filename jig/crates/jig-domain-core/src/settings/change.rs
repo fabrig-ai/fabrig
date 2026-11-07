@@ -37,13 +37,18 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
                 }
                 project_policy = true;
             }
-            Setting::Charter(0)
+            Setting::Model(0)
+            | Setting::Charter(0)
             | Setting::Template(0)
             | Setting::Policy(0)
             | Setting::Application { number: 0, .. } => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
-            Setting::Charter(_)
+            Setting::Model(number) if number > jig_domain_tasks::MODELS => {
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
+            }
+            Setting::Model(_)
+            | Setting::Charter(_)
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
@@ -75,7 +80,18 @@ pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
         }
         let after = match &item.edit {
             Edit::Set(value) => Some(value),
-            Edit::Removed => None,
+            Edit::Removed => {
+                if let Some(model) = match current.value(item.setting) {
+                    Some(value) => value.as_model(),
+                    None => None,
+                } {
+                    if !model.withdrawn {
+                        return true;
+                    }
+                    continue;
+                }
+                None
+            }
             Edit::Reset => match current.defaults.get(&item.setting) {
                 Some(default) => Some(&default.value),
                 None => None,
@@ -98,7 +114,15 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         }
         let erase = match item.edit {
             Edit::Reset => true,
-            Edit::Removed => current.defaults.get(&item.setting).is_none(),
+            Edit::Removed => match item.setting {
+                Setting::Model(_) => false,
+                Setting::Charter(_)
+                | Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::Application { .. }
+                | Setting::ProjectPolicy { .. } => current.defaults.get(&item.setting).is_none(),
+            },
             Edit::Set(_) => false,
         };
         if erase {
@@ -111,8 +135,36 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         }
         let value = match &item.edit {
             Edit::Set(value) => Some(Some(value.clone())),
-            Edit::Removed if current.defaults.get(&item.setting).is_some() => Some(None),
-            Edit::Removed | Edit::Reset => None,
+            Edit::Removed => match item.setting {
+                Setting::Model(_) => match current.value(item.setting) {
+                    Some(super::Value::Model(value)) => {
+                        let mut value = value.clone();
+                        value.withdrawn = true;
+                        Some(Some(super::Value::Model(value)))
+                    }
+                    Some(
+                        super::Value::Charter(_)
+                        | super::Value::Template(_)
+                        | super::Value::Policy(_)
+                        | super::Value::Rules(_)
+                        | super::Value::Application(_),
+                    )
+                    | None => None,
+                },
+                Setting::Charter(_)
+                | Setting::Template(_)
+                | Setting::Policy(_)
+                | Setting::Rules
+                | Setting::Application { .. }
+                | Setting::ProjectPolicy { .. } => {
+                    if current.defaults.get(&item.setting).is_some() {
+                        Some(None)
+                    } else {
+                        None
+                    }
+                }
+            },
+            Edit::Reset => None,
         };
         let write = match value {
             Some(value) => {

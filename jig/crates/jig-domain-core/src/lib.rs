@@ -167,6 +167,7 @@ pub struct Config {
 /// Immutable deployment and run settings used by core decisions.
 #[derive(Debug)]
 pub struct Settings {
+    pub endpoints: Box<[EndpointFacts]>,
     /// Provider number for the application's services.
     pub deployment_provider: u16,
     /// Configured models in configuration's order: model `i` is bit `i` of an authority's
@@ -611,3 +612,11 @@ impl Core {
 }
 
 pub use effects::connector::PersonSeed;
+
+/// Endpoint identity used to check model settings (domain/engine.md, 17.11).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct EndpointFacts {
+    pub number: u32,
+    pub dialect: u32,
+    pub program: Option<Box<[u8]>>,
+}

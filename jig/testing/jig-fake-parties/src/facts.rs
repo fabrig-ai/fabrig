@@ -4,6 +4,7 @@ use skein_lib::Wall;
 /// A setting named independently of the engine's vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Setting {
+    Model(u32),
     Charter(u32),
     Template(u32),
     Policy(u32),

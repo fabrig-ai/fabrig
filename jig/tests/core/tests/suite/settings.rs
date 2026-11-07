@@ -2243,3 +2243,49 @@ fn assert_checks_refused(world: &mut World, signed: u64, task: u64) {
     );
     assert!(world.assigned.is_none());
 }
+
+#[test]
+fn a_model_setting_survives_a_restart_and_reads_back_whole() {
+    let mut world = start(64);
+    let signed = sign_in(&mut world);
+    let config = configuration().0;
+    let mut model = config.core.settings.models[0].clone();
+    model.name = b"person:model-9".as_slice().into();
+    let value = settings::Value::Model(Box::new(settings::CatalogueModel {
+        number: 9,
+        model,
+        shown: Some(b"Personal model".as_slice().into()),
+        description: Some(b"Kept whole across a restart".as_slice().into()),
+        picker: false,
+        withdrawn: false,
+        source: settings::ModelSource::Person,
+        estimated: true,
+    }));
+    let item = settings::Item { setting: settings::Setting::Model(9), edit: settings::Edit::Set(value.clone()) };
+    changed(&change(&mut world, signed, 41, 1, Box::new([item.clone()])), 2);
+    assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
+    restart(&mut world, config);
+    assert_eq!(world.domain.settings().newest(), 2);
+    let signed = sign_in(&mut world);
+    let reads::Answer::Setting(document) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Model(9), revision: 2, proposal: None },
+    ) else {
+        panic!("whole model setting")
+    };
+    assert_eq!(document.value, Some(value));
+    assert_eq!(revision(&world, 2, false).items[0].edit, item.edit);
+    let list = inventory(&mut world, signed);
+    assert!(list.settings.iter().any(|row| row.setting == settings::Setting::Model(9)));
+    let mut next = item.clone();
+    let settings::Edit::Set(settings::Value::Model(model)) = &mut next.edit else { panic!("model item") };
+    model.picker = !model.picker;
+    changed(&change(&mut world, signed, 42, 2, Box::new([next])), 3);
+    assert_eq!(revision(&world, 2, true).items[0].edit, item.edit);
+    let reads::Answer::Revision(answer) = client_read(&mut world, signed, reads::Read::Revision { number: 2 }) else {
+        panic!("model history")
+    };
+    let reads::RevisionAnswer::Revision { revision, .. } = *answer else { panic!("retained model revision") };
+    assert_eq!(revision.items[0].edit, item.edit);
+}

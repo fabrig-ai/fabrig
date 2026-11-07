@@ -25,7 +25,7 @@ fn configuration() -> engine::Config {
         providers: Box::new([]),
     };
     config.core.defaults = temper_service::stock::defaults(&llm, stock_limits().tasks.result_bytes);
-    config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
+
     config.core.settings.models = Box::new([model]);
     config.core.seed_projects = walking::config(SEED).core.seed_projects;
     config.core.seed_projects[0].policy =

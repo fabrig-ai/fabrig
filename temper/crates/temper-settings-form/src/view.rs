@@ -16,6 +16,7 @@ pub struct ChangeSettings {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
+    pub rest: bool,
     /// Resume, inspect, modify, shell and agents, in that order.
     pub switches: [bool; 5],
     pub number: u32,
@@ -298,6 +299,7 @@ pub enum Running {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
+    Model(SettingNumber),
     Application {
         kind: u32,
         scope: u32,
@@ -363,6 +365,7 @@ pub struct SettingLine {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingModel {
+    pub provider: u32,
     pub dialect: u32,
     pub endpoint: u32,
     pub program: Option<Text>,
@@ -398,6 +401,7 @@ pub struct SettingSet {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
+    Model(Box<CatalogueEntry>),
     Application(Box<[u8]>),
     Charter(Box<Charter>),
     Template(Box<Template>),
@@ -657,4 +661,22 @@ pub struct SettingDetail {
     pub supplied: u32,
     /// The minimum or maximum; zero for `Registered`.
     pub bound: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CatalogueEntry {
+    pub number: u32,
+    pub model: SettingModel,
+    pub shown: Option<Text>,
+    pub description: Option<Text>,
+    pub picker: bool,
+    pub withdrawn: bool,
+    pub source: ModelSource,
+    pub estimated: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ModelSource {
+    Stock,
+    List,
+    Person,
 }

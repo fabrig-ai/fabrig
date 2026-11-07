@@ -178,10 +178,15 @@ pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
     }
     for (at, item) in items.iter().enumerate() {
         match item.setting {
-            crate::Setting::Charter(0) | crate::Setting::Template(0) | crate::Setting::Policy(0) => {
+            crate::Setting::Model(0)
+            | crate::Setting::Charter(0)
+            | crate::Setting::Template(0)
+            | crate::Setting::Policy(0) => {
                 return false;
             }
-            crate::Setting::Charter(_)
+            crate::Setting::Model(n) if n > crate::MODELS => return false,
+            crate::Setting::Model(_)
+            | crate::Setting::Charter(_)
             | crate::Setting::Template(_)
             | crate::Setting::Policy(_)
             | crate::Setting::Rules => {}

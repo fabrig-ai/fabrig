@@ -17,14 +17,14 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"project-ways"` or `"project-questions"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"project-ways"` or `"project-questions"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.
 - `project`: integer, 0 to 4,294,967,295. Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
@@ -32,6 +32,7 @@ Which setting: its kind and number, or project for project settings.
 
 How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in.
 
+- `rest`: true or false. Whether the other catalogue models follow the named first choices; false when absent.
 - `number`: integer, 0 to 4,294,967,295. The charter's number, the same as `setting.number`.
 - `instructions`: text, at most 1,048,576 bytes. What the run's agent reads first, before its task's brief.
 - `waiting`: nanoseconds. How long a run with nothing to do waits for words or news before it parks.
@@ -41,7 +42,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `reserve_turns`: integer, 0 to 4,294,967,295. Of `turns`, those kept for the run to finish its work and report.
 - `reserve_time`: nanoseconds. Of `time`, the part kept for finishing and reporting. With `modify` true, at least the worker's check timeout (`check_timeout` in milliseconds). A worker refuses admission if any applicable current or held charter version has less reserve. See settings help for recovery through held revisions.
 - `model`: `model`. The default model: a task that names none takes the first of `model` and `alternatives` whose provider has an account that can pay.
-- `alternatives`: list of at most 16, each `model`. The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.
+- `alternatives`: list of at most 32, each `model`. The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.
 - `inspect`: true or false. Whether the run's agent may read, list and search its workspace.
 - `modify`: true or false. Whether the run's agent may write, edit and remove files in its workspace.
 - `shell`: true or false. Whether the run's agent may run commands in its workspace.
@@ -63,10 +64,24 @@ A document every run of the charter reads in its brief, as the file is at the br
 - `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.
 - `heading`: text, at most 80 bytes, or null. A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file.
 
+## catalogue
+
+A whole numbered model setting: its runtime model, display facts, availability and origin.
+
+- `number`: integer, 0 to 4,294,967,295. Its permanent number, from 1 to 64, matching setting.number.
+- `model`: `model`. The runtime model, whole.
+- `shown`: text, at most 4,096 bytes, or null. Its name for showing, or null.
+- `description`: text, at most 512 bytes, or null. Its description, or null.
+- `picker`: true or false. Whether a model picker shows it.
+- `withdrawn`: true or false. Whether it is withdrawn; its number and name stay.
+- `source`: `"stock"`, `"list"` or `"person"`. Where the model came from. `"stock"`: The binary. `"list"`: A provider list. `"person"`: A person.
+- `estimated`: true or false. Whether its prices are provider defaults.
+
 ## model
 
-One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value.
+A runtime model. In a charter, every member but `effort` must match its configured row, else refused as `reference`; a model setting supplies the row whole.
 
+- `provider`: integer, 0 to 4,294,967,295. The configured LLM provider that serves it; 1 when absent.
 - `dialect`: integer, 0 to 4,294,967,295. The protocol the model is spoken to in, as configured.
 - `endpoint`: integer, 0 to 4,294,967,295. The number of the configured endpoint that serves it.
 - `program`: text, at most 32 bytes, or null. The program that runs it, as configured, or null for none.

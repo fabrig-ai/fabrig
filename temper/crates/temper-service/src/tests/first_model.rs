@@ -191,12 +191,8 @@ impl StockBox {
     }
 
     fn provider(&self, name: &[u8]) -> u32 {
-        self.providers
-            .providers
-            .iter()
-            .find(|provider| provider.models.iter().any(|model| model.as_ref() == name))
-            .expect("init model belongs to a provider")
-            .number
+        let model = self.models.iter().find(|model| model.name.as_ref() == name).expect("configured init model");
+        self.providers.get(model.provider).expect("configured init provider").number
     }
 
     fn ask(&mut self, key: u8, ask: people::Ask) {

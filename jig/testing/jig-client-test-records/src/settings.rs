@@ -43,6 +43,7 @@ fn model() -> SettingModel {
     let mut efforts = List::with_capacity(1);
     efforts.push(text(b"high")).expect("one effort");
     SettingModel {
+        provider: 1,
         dialect: 3,
         endpoint: 2,
         program: Some(text(b"runner")),
@@ -69,6 +70,7 @@ pub fn settings_values() -> List<SettingValue> {
     alternatives.push(other).expect("one alternative");
     values
         .push(SettingValue::Charter(Box::new(Charter {
+            rest: false,
             documents: {
                 let mut documents = List::with_capacity(2);
                 for heading in [None, Some(Box::from(b"Rules".as_slice()))] {
