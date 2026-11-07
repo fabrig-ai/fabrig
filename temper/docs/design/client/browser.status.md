@@ -99,17 +99,6 @@ establish no rendered equality.
   menu also has no mousemove selection handler, so hovering an option
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
-- **Not yet:** 2.5, *A chat's terminal*, *Its tokens* and *Its layout*
-  (`look-round-17`, `chat-terminal`): the quiet line's model button takes
-  `temper-terminal-btn`, whose `1px 1ch` padding (`4px 1ch` on a phone) makes
-  the line 2 px taller (8 px on a phone); the running line is the conversation's
-  child before the box's form, whose 4 px top padding then stands between it and
-  the box; and at 760 px or less in Split the shell's Split rule sets the
-  conversation's ground to `--gf-surface`, white, beneath the dark document.
-- **Not yet:** 2.5, *A chat's terminal*, *The draft beside it*
-  (`look-round-17`, `chat-terminal-draft`): the pane keeps the shell's
-  `scrollbar-gutter: stable both-edges` and the browser's own scrollbar width,
-  so its text is 20 px narrower and 15 px further right at 1440 and 1000.
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
