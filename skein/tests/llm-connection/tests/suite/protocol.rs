@@ -9,6 +9,7 @@ use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_llm_connection_world::plaintext::Wire;
 use skein_world::domain::assert_replays;
+use skein_world::stream::Trace;
 
 fn limits() -> Limits {
     Limits {
@@ -64,7 +65,7 @@ fn complete_requests(bytes: &[u8]) -> usize {
 }
 
 #[expect(clippy::too_many_lines, reason = "the story drives both calls through one connection")]
-fn run(seed: u64) -> (Vec<String>, (u32, u32, bool)) {
+fn run(seed: u64) -> (Trace, (u32, u32, bool)) {
     let call = skein_llm_kit::call(7);
     let endpoints = plaintext_endpoints(skein_llm_kit::limits(), call.endpoint);
     let mut component = Component::new(endpoints, &limits()).expect("valid component");

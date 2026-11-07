@@ -8,6 +8,7 @@ use skein_lib::{Duration, Env, List, Queue, Time, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
 use skein_world::domain::Ledger;
+use skein_world::stream::Trace;
 use skein_world::{Delegate, Host, Memory, Outcome, Referee, World};
 use std::net::{Ipv4Addr, SocketAddr};
 
@@ -1049,12 +1050,12 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
 /// Runs the same owner and independent issuer directly over shared seeded streams.
 /// Returns the content-free owner facts and stream trace for protocol replay.
 #[must_use]
-pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
+pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Trace) {
     let (client, trace) = protocol_client(seed, Client::new(story, Transport::Plaintext));
     (client.facts, trace)
 }
 
-pub(crate) fn protocol_client(seed: u64, client: Client) -> (Client, Vec<String>) {
+pub(crate) fn protocol_client(seed: u64, client: Client) -> (Client, Trace) {
     let rig = client.protocol_rig(true);
     let (client, trace, _) = crate::streams::drive(seed, client, rig);
     (client, trace)
