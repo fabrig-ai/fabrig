@@ -273,6 +273,7 @@ members = [
     "temper/tests/client",
     "temper/tests/client-browser",
     "temper/crates/temper-client-view",
+    "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
@@ -560,6 +561,7 @@ temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
+temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper = { path = "temper/crates/temper" }
