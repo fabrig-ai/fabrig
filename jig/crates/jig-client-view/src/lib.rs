@@ -14,8 +14,8 @@ mod generated {
     //! Stored reference UI records (jig/docs/design/client/domain/view.md, 18.8).
     #[rustfmt::skip]
     #[expect(
-        dead_code, clippy::unnecessary_wraps, clippy::ref_option,
-        reason = "the generated record schema supplies uniform constructors, accessors and bounds beyond the view codec's calls"
+        dead_code, clippy::unnecessary_wraps, clippy::ref_option, clippy::unused_self,
+        reason = "the generated record schema supplies uniform constructors, accessors, measurements and bounds beyond the view codec's calls"
     )]
     pub(crate) mod records_v1;
 }

@@ -11,6 +11,7 @@ pub(crate) struct Context<'a> {
     named: BTreeMap<&'a str, &'a Declaration>,
     bounded: BTreeMap<&'a str, bool>,
     minimum: BTreeMap<&'a str, u32>,
+    fixed: BTreeMap<&'a str, bool>,
 }
 
 impl<'a> Context<'a> {
@@ -22,9 +23,10 @@ impl<'a> Context<'a> {
             named: BTreeMap::new(),
             bounded: BTreeMap::new(),
             minimum: BTreeMap::new(),
+            fixed: BTreeMap::new(),
         };
         for declaration in &schema.declarations {
-            let (name, bounded, minimum) = match declaration {
+            let (name, bounded, minimum, fixed) = match declaration {
                 Declaration::Record(record) => {
                     let mut minimum = if record.versioned { 2_u32 } else { 0_u32 };
                     for field in &record.fields {
@@ -33,7 +35,12 @@ impl<'a> Context<'a> {
                         collect_bounds(&field.ty, &prefix, &path, &mut context.bounds);
                         minimum = minimum.checked_add(context.min_bytes(&field.ty)).expect("checked ceiling");
                     }
-                    (record.name.as_str(), record.fields.iter().any(|field| context.has_bounds(&field.ty)), minimum)
+                    (
+                        record.name.as_str(),
+                        record.fields.iter().any(|field| context.has_bounds(&field.ty)),
+                        minimum,
+                        record.fields.iter().all(|field| context.fixed_bytes(&field.ty).is_some()),
+                    )
                 }
                 Declaration::Enum(enumeration) => {
                     let bounded = enumeration.variants.iter().any(|variant| {
@@ -49,12 +56,18 @@ impl<'a> Context<'a> {
                         .expect("enum nonempty")
                         .checked_add(1)
                         .expect("checked ceiling");
-                    (enumeration.name.as_str(), bounded, minimum)
+                    (
+                        enumeration.name.as_str(),
+                        bounded,
+                        minimum,
+                        enumeration.variants.iter().all(|variant| variant.record.is_none()),
+                    )
                 }
             };
             context.named.insert(name, declaration);
             context.bounded.insert(name, bounded);
             context.minimum.insert(name, minimum);
+            context.fixed.insert(name, fixed);
         }
         context
     }
@@ -81,6 +94,16 @@ impl<'a> Context<'a> {
             Type::Fixed(bound) => *bound,
             Type::Named(name) => *self.minimum.get(name.as_str()).expect("earlier declaration checked"),
         }
+    }
+
+    /// Exact wire bytes when every value of the type has the same width.
+    pub(crate) fn fixed_bytes(&self, ty: &Type) -> Option<u32> {
+        let fixed = match ty {
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) => true,
+            Type::Named(name) => *self.fixed.get(name.as_str()).expect("earlier declaration checked"),
+            Type::Bytes(_) | Type::Secret(_) | Type::Text(_) | Type::List(_, _) | Type::Option(_) => false,
+        };
+        fixed.then(|| self.min_bytes(ty))
     }
 }
 

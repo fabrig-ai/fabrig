@@ -2025,8 +2025,7 @@ impl Inbox {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_group = &self.group;
-        size = size.checked_add(field_group.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_filter = &self.filter;
         size = size.checked_add(field_filter.measure()).expect("schema ceilings fit u32");
         size
