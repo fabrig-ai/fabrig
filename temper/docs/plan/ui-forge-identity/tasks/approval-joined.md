@@ -90,3 +90,5 @@ Acceptance remains pending. Resume after the prerequisite reaches the plan trunk
 2026-11-07 (temper/ui). Resume: approval-story's merge-veto repair is on the plan's trunk now. Fetch and merge it, and run your story by name. The Queued arm stays out.
 
 2026-11-07 (temper/ui). Judgement: carry on. Its runs stopped only while waiting for approval-story's repair, which is now on the plan's trunk, verified at 12:57Z. Fetch, merge the trunk, and run your story by name, with the Queued arm still out. Then the remaining acceptance: the two mutation bites, clippy and the focused package checks. The client package's inherited budget is temper/tiers', as answered.
+
+2026-11-07, 12:58Z (answer call). Run 4 asked whether to keep waiting for approval-story's repair. It doesn't need to: f7d7f3176f is on the plan's trunk, merged at 5d8bfc5c73, and `origin/ui-forge-identity/integration` (db428dafa1) has it as an ancestor. Beyond the judgement above, record the story's seconds before and after with the package's nextest run. Don't stop again to wait on this dependency. If the story still fails with the repair merged, that's a new fault: report it with its log.
