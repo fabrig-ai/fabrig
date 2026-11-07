@@ -37,6 +37,14 @@ pub enum Word {
     Private,
     InProject,
     Copying,
+    MakingOn,
+    CopyingOn,
+    MakeFailedOn,
+    CopyFailedOn,
+    ForgeSaid,
+    CopyAgain,
+    MakeAgain,
+    DismissMaking,
     SoFar,
     Searching,
     Found,
@@ -118,7 +126,7 @@ pub enum Word {
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 110] = [
+pub const ROWS: [Row; 118] = [
     (Word::SheetTitle, &[b"Add repositories to ", b""], &[Name]),
     (Word::SheetProject, &[b"project ", b""], &[Number]),
     (Word::AddRepositories, &[b"Add repositories"], &[]),
@@ -151,6 +159,14 @@ pub const ROWS: [Row; 110] = [
     (Word::Private, &[b"private"], &[]),
     (Word::InProject, &[b"In ", b""], &[Name]),
     (Word::Copying, &[b"Copying\xe2\x80\xa6"], &[]),
+    (Word::MakingOn, &[b"Making \xc2\xb7 ", b""], &[Name]),
+    (Word::CopyingOn, &[b"Copying \xc2\xb7 ", b""], &[Name]),
+    (Word::MakeFailedOn, &[b"Make failed \xc2\xb7 ", b""], &[Name]),
+    (Word::CopyFailedOn, &[b"Copy failed \xc2\xb7 ", b""], &[Name]),
+    (Word::ForgeSaid, &[b"Forgejo said: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
+    (Word::CopyAgain, &[b"Copy again"], &[]),
+    (Word::MakeAgain, &[b"Make again"], &[]),
+    (Word::DismissMaking, &[b"Dismiss"], &[]),
     (Word::SoFar, &[b"", b" so far \xc2\xb7 more as you scroll"], &[Number]),
     (Word::Searching, &[b"Searching \xc2\xb7 ", b" read so far"], &[Number]),
     (Word::Found, &[b"", b" of ", b" repositories"], &[Number, Number]),
@@ -275,6 +291,7 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
         Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
+        Word::ForgeSaid => 768,
         Word::CopyOne => text.checked_mul(3).expect("lossy address fits").max(513),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,
@@ -304,7 +321,11 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 513
             }
         }
-        Word::MakeOn
+        Word::MakingOn
+        | Word::CopyingOn
+        | Word::MakeFailedOn
+        | Word::CopyFailedOn
+        | Word::MakeOn
         | Word::CopiedInto
         | Word::NotInstalled
         | Word::ReadNotAdmin
@@ -312,7 +333,10 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
         | Word::NoSuchForge
         | Word::Unreachable
         | Word::InvalidAnswer => 256,
-        Word::SheetProject
+        Word::CopyAgain
+        | Word::MakeAgain
+        | Word::DismissMaking
+        | Word::SheetProject
         | Word::AddRepositories
         | Word::SheetForge
         | Word::Account

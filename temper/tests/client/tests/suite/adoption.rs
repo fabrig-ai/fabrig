@@ -108,25 +108,9 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
 #[test]
 fn ready_adopts_the_first_repository_with_nothing_typed() {
     use jig_client_kit::harness::App;
-    use temper_client_domain::{self as d, Address};
+    use temper_client_domain::Address;
     use temper_client_world::{app::Temper, front::account_acts as accounts};
-    use temper_engine_domain_forge as forge;
-    let (mut front, mut root, mut now) = super::connect_forge::owned_welcome();
-    super::connect_forge::accept_owned(&mut front, &mut root, &mut now);
-    for event in [
-        forge::Event::Connection {
-            forge: 1,
-            state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
-        },
-        forge::Event::FirstMade { forge: 1, id: 42 },
-    ] {
-        front.engine.send(temper_engine_domain::Event::Forge(Box::new(event)));
-    }
-    front.engine.settle();
-    accounts::settle(&mut front, &mut root);
-    accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: d::Step::Ready }));
-    press_adoption(&mut front, &mut root, Role::Button, b"Create your project");
-    let project = root.person().pages().project().expect("Ready's project");
+    let (mut front, mut root, project) = owned_project();
     assert_eq!(root.person().pages().address(), &Address::Home { project });
     assert!(front.engine_adopted(1, 42), "Ready adopts work/hello as owned");
     assert_eq!(root.person().pages().adopting().expect("Ready's adoption").out, None);
@@ -146,8 +130,12 @@ fn press_adoption(
 ) {
     let mut view = super::connect_forge::view(root);
     let node = super::connect_forge::node(&view, role, name);
-    let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-        .unwrap_or_else(|| panic!("bound {role:?} {}", String::from_utf8_lossy(name)));
+    let action = temper_client_view::act(
+        &mut view,
+        node,
+        if role == Role::Choice { skein_ui::Act::Toggle } else { skein_ui::Act::Press },
+    )
+    .unwrap_or_else(|| panic!("bound {role:?} {}", String::from_utf8_lossy(name)));
     temper_client_world::front::account_acts::event(front, root, temper_client_domain::Event::Act { action }.into());
 }
 
@@ -236,4 +224,76 @@ fn a_search_reads_across_pages_and_adopts_both_picks_into_repositories() {
     assert!(world.front().engine_adopted(1, 7));
     assert!(world.front().engine_adopted(1, 8));
     assert!(!world.tree(person).nodes().iter().any(|node| node.role == Role::Dialog));
+}
+
+fn owned_project() -> (temper_client_world::front::Joint, temper_client_world::app::Root, u32) {
+    use jig_client_kit::harness::App;
+    use temper_client_domain::{self as d, Address};
+    use temper_client_world::{app::Temper, front::account_acts as accounts};
+    use temper_engine_domain_forge as forge;
+    let (mut front, mut root, mut now) = super::connect_forge::owned_welcome();
+    super::connect_forge::accept_owned(&mut front, &mut root, &mut now);
+    for event in [
+        forge::Event::Connection {
+            forge: 1,
+            state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+        },
+        forge::Event::FirstMade { forge: 1, id: 42 },
+    ] {
+        front.engine.send(temper_engine_domain::Event::Forge(Box::new(event)));
+    }
+    front.engine.settle();
+    accounts::settle(&mut front, &mut root);
+    accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: d::Step::Ready }));
+    press_adoption(&mut front, &mut root, Role::Button, b"Create your project");
+    let project = root.person().pages().project().expect("Ready's project");
+    (front, root, project)
+}
+
+#[test]
+fn a_failed_copy_can_be_filled_again_and_dismissed_from_repositories() {
+    use jig_client_kit::harness::App;
+    use temper_client_domain::Address;
+    use temper_client_world::{app::Temper, front::account_acts as h};
+    use temper_engine_domain_forge as forge;
+    let (mut front, mut root, project) = owned_project();
+    h::event(&mut front, &mut root, Temper::went(Address::Repositories { project }));
+    press_adoption(&mut front, &mut root, Role::Link, b"Add repositories");
+    press_adoption(&mut front, &mut root, Role::Choice, b"Copy public");
+    let mut view = super::connect_forge::view(&root);
+    let node = super::connect_forge::node(&view, Role::TextArea, b"Their addresses, one per line");
+    let event = temper_client_view::act_event(
+        &mut view,
+        node,
+        skein_ui::Act::Input { value: b"source.example/acme/again".as_slice().into() },
+    )
+    .unwrap();
+    h::event(&mut front, &mut root, event.into());
+    press_adoption(&mut front, &mut root, Role::Button, b"Copy acme/again");
+    let key = forge::MakingKey { forge: 1, org: b"acme".as_slice().into(), name: b"again".as_slice().into() };
+    front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::MakingStopped {
+        key: key.clone(),
+        failed: forge::MakingFailed {
+            step: forge::MakeStep::Repository,
+            reason: forge::MakeFailure::NotAllowed,
+            words: b"You can not import from disallowed hosts.".as_slice().into(),
+        },
+    })));
+    front.engine.settle();
+    h::settle(&mut front, &mut root);
+    let view = super::connect_forge::view(&root);
+    assert!(view.tree().nodes().iter().any(|node| {
+        node.text
+            .iter()
+            .any(|run| run.text.as_ref() == "Forgejo said: “You can not import from disallowed hosts.”".as_bytes())
+    }));
+    press_adoption(&mut front, &mut root, Role::Button, b"Copy again");
+    let sheet = root.person().forge().sheet().expect("retry sheet");
+    assert_eq!(sheet.source, temper_client_domain::forge::sheet::Source::Copy);
+    assert_eq!(sheet.addresses.text.as_ref(), b"https://source.example/acme/again");
+    press_adoption(&mut front, &mut root, Role::Button, b"Cancel");
+    press_adoption(&mut front, &mut root, Role::Button, b"Dismiss");
+    let view = super::connect_forge::view(&root);
+    assert!(!view.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"acme/again")));
+    assert!(!front.engine.store.rows.contains_key(&temper_engine_domain::Key::Forge(forge::Key::Making(key))));
 }

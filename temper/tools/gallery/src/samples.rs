@@ -111,7 +111,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 298;
+pub const N: usize = 299;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -571,6 +571,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "rail-person-menu", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample {
+            name: "repositories-making",
+            world: FirstRun { step: 7 },
+            address: Address::Repositories { project: 1 },
+            then: Shown,
+        },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
         Sample {
             name: "forges-added",
@@ -1341,6 +1347,9 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name == "settings" || sample.name.starts_with("settings-") {
         return crate::worlds::settings_world(sample.name);
+    }
+    if sample.name == "repositories-making" {
+        return crate::worlds::repositories_making_world();
     }
     if sample.name == "welcome-ready-copies" {
         return crate::worlds::copies_world(sample.address.clone(), sample.then);
