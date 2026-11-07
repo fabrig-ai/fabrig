@@ -140,3 +140,12 @@ fn only_other_text_arguments_stop_at_the_first_line() {
         assert_eq!(touched(tool, input), expected);
     }
 }
+
+#[test]
+fn a_settings_proposals_reason_never_names_the_call() {
+    for input in
+        [br#"{"reason":"private reason","items":[]}"#.as_slice(), br#"{"reason":"private reason","items":"cut"#, b"bad"]
+    {
+        assert_eq!(touched(b"propose_settings", input), Touched::Other { argument: None });
+    }
+}

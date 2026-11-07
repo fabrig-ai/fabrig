@@ -1,8 +1,15 @@
 # Status
 
-2026-11-06. Where temper's code lags or departs from its design, and
+2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). After landing is built
+milestone stands in the code (`README.md`). A goal with a confirmed goal
+branch and a modifying charter delivers to its own run branch and lands
+through a change into g; later runs merge r into g's tip before delivering
+again. The domain, checkout and real-loop stories use scripted models and
+fake forge/git; stock and reference workflow words, larger calls and
+reports, and a saved start overtaken by a repair remain separate work
+(`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
+`draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
 a red's news to its goal, a repair naming its red and a change
 living to cleared; a red of no goal's, trailers, what the forge
@@ -39,14 +46,16 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, `temper help proposal` still says an
-owner's rejection under Needs you fails,
-and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
-listing and the configuring chat's chooser are built. Account groups and
-"All models" await the separate picker look; an unusable account's fix is
+listing and the configuring chat's chooser are built. Model and effort sit
+at every chat's composer, grouped by account with "All models"; their render
+and fake-box press proof is recorded. A chat's model or effort amendment
+answers its person's next words on the new choice; a model change within a
+resumable window first asks the window's model for a summary
+(`domain/agent.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
@@ -116,10 +125,14 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
-The `landing-fixes` request's other items stand open: a
-task's saved work outlives its close and a repair's brief with no cause is untraced
-(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
-port reservation flakes (`domain/testing.md`). A green head ends a CI repair
+Saved work in the task's saved set
+is deleted through its release, and a clean update's repair names its failed
+check and carries its output before the base's contents; their real-deployment
+proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
+carry the fleet's reason and shortfall figures, sent as text and printed on the
+engine's stderr; the worker's own line keeps its reason code
+(`protocol/README.md`, 15.3). A lost kernel-chosen port is retried within 32
+attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -143,18 +156,32 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
+Publication help and ctl's completed answer say that chat words may show
+in titles; ctl has no preceding acknowledgement (`client/tools.md`). The
+configuring stock instructs a run to say the words when asked, with no
+real-model outcome supplied (`domain/agent.md`). Landings is underlined
+at a row's size, and a landing draws no zero stale-proof count
+(`client/browser.md`).
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story checks a wrapped text by its first quad alone
+change is handed from a live goal. The public geometry story measures each
+page and width from one boxed query, checks a wrapped text by its first
+quad alone, and retains missing-box failures; their intermittent cause is
+unestablished. Its sign-out 401 expectation accepts that console text
+throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 17 tests, five past its cap, its CPU
-measured within its budget on the 12 without the call line's and the welcome's
-sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
-`temper ctl` visibility command past its deadline, its cause not found, and at
-128.618150 to 143.808163 on three runs with a chat's reading stories, a closed
-chat's wait is located but not split, and no test shows a head waiting for room
-ended by the stall deadline (`client/browser.md`). The bundle travels gzipped and a
+The browser tier holds 18 tests, six past its cap; the picker story is
+compiled and awaits its after-landing run. The four reading stories
+pass with ctl history and a 131,072-byte window, but their CPU medians sum to
+44.849900 s and the three targets remain unmet; no whole-tier run proves the
+repair within 85 CPU s. The listener-full ctl failure is repaired; the public
+visibility-command failure remains unverified. A whole-bound manual reading
+check, the closed-chat wait's split and a head's stall-deadline story remain
+(`client/browser.md`). A stale view still rereads held Markdown and rebuilds
+and compares the semantic tree, preserving DOM nodes through the diff; retaining
+parsed blocks and timing away-reader scans remain open (`client/README.md`,
+`draft/chat-reading.md`). The bundle travels gzipped and a
 placeholder paints first, but its fade takes 160 ms where the design has 200, and a
 stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
@@ -241,13 +268,23 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 (`client/README.md`, `client/tools.md`). `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
-(`client/tools.md`). With no account serving the work `task show` says so on both
-its lines, and a bounded `task amend` prints its call alone, but a task pinned to
-an account with no source still reads `Nothing awaited` beneath `no account
+(`client/tools.md`). With no account serving the work `task show` says so in its
+header, waiting line and JSON, while its phase stays due. Failure holds point to
+the engine's log; keeping their text still needs the user's bound and readers
+(`domain/worker.md`). Setup suppresses the true protection warning without
+gaining access, and effort refusals name the effort locally only for models
+`me` shows (`client/tools.md`). A bounded `task amend` prints its call alone, but
+a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+project's Needs you and rail's count and is accepted on its chat's card. A fresh
+proposal replaces the chat's own pending one; live cards draw application rows
+from the review and its proposal-value key, templates by name and activity as
+"Proposed a change". Latest has its own row on a phone, held by CSS assertions;
+a measured press and the new instructions' real-model proof follow landing.
+Without a review, a card has no application rows; ended cards retain only
+kind 6 and 7 values already read in the session. An accepted card still stays
+on Needs you. No live turn
 names its proposal, so its card stands after the turn that made it; filling the call's
 objects and the real-model proposal-card QA walk remain separate work. The chat's card
 draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
@@ -414,6 +451,7 @@ Drafts:
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
+- [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)

@@ -41,9 +41,9 @@ impl Effects {
         self.stages.llm.bind_grants(charter).or(Err(Failure::Credential))
     }
 
-    /// Configure the result shapes used by completion tool schemas.
-    pub fn contract(&mut self, outcome: run::outcome::OutcomeSpec) {
-        self.stages.opening.contract(outcome);
+    /// Configure the result shapes and independent delivery grant used by completion tool schemas.
+    pub fn contract(&mut self, outcome: run::outcome::OutcomeSpec, deliver: Option<run::outcome::ChangeSpec>) {
+        self.stages.opening.contract(outcome, deliver);
     }
 
     /// Adopt opened workspace roots and replace the host's opaque names with file tokens.
