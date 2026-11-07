@@ -4,6 +4,7 @@ const TASK: u64 = 2;
 use super::fixtures;
 use crate::{intervals, keys};
 use alloc::boxed::Box;
+use jig_domain_core::settings::{Key as SettingKey, Setting};
 use jig_domain_core::{CoreKey, Key, RestoreRange};
 use jig_domain_notes as notes;
 use skein_lib::Rng;
@@ -14,7 +15,7 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
 
 // Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 8;
+const BOUNDARY_KEYS: u32 = 18;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -43,6 +44,16 @@ fn cursor_keys() -> Box<[Key]> {
         keys.push(fixtures::key(&mut rng)).expect("counted samples");
     }
     for key in [
+        Key::Core(CoreKey::Settings(SettingKey::Default(Setting::Charter(1)))),
+        Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::Charter(1)))),
+        Key::Core(CoreKey::Settings(SettingKey::Default(Setting::Rules))),
+        Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::Rules))),
+        Key::Core(CoreKey::Settings(SettingKey::Default(Setting::Application { kind: 1, scope: 0, number: 1 }))),
+        Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::Application { kind: 1, scope: 0, number: 1 }))),
+        Key::Core(CoreKey::Settings(SettingKey::Default(Setting::ProjectPolicy { project: 1 }))),
+        Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::ProjectPolicy { project: 1 }))),
+        Key::Core(CoreKey::Settings(SettingKey::Default(Setting::Model(1)))),
+        Key::Core(CoreKey::Settings(SettingKey::Changed(Setting::Model(1)))),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: 0 }),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: 7 }),
         Key::Accounts(jig_domain_accounts::Key::Facts { account: u32::MAX }),

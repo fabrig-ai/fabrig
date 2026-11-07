@@ -45,7 +45,7 @@ fn start_at(
     core.settings_input = Some((
         match s::change_shape(&change.items, &env.limits) {
             Ok(()) => Ok(change),
-            Err(failure) => Err(failure),
+            Err(failure) => Err(malformed_refusal(&change.items, failure)),
         },
         room,
         model,
@@ -88,7 +88,7 @@ pub(crate) fn model_start(
         Err(failure) => {
             let Signed { reply_to, sign_in, key } = signed;
             assert!(core.settings_input.is_none(), "one settings admission");
-            core.settings_input = Some((Err(failure), 0, true));
+            core.settings_input = Some((Err(malformed_refusal(&[], failure)), 0, true));
             let result = crate::routing::party::people::route_people(
                 core,
                 env,
@@ -174,17 +174,22 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
                 }
             }
         }
-        Some((Err(failure), _, _)) => malformed(failure),
+        Some((Err(why), _, _)) => people::Outcome::Refused(why),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
     routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
-pub(crate) fn malformed(failure: s::Failure) -> people::Outcome {
-    people::Outcome::Refused(malformed_refusal(failure))
-}
-pub(crate) fn malformed_refusal(failure: s::Failure) -> people::Refusal {
+/// An out-of-shape refusal (engine.md, 17.2): `at` is the position in
+/// `items` of the last item naming `failure.setting`, or 0 when none does.
+pub(crate) fn malformed_refusal(items: &[s::Item], failure: s::Failure) -> people::Refusal {
+    let mut at = 0;
+    for (position, item) in items.iter().enumerate() {
+        if item.setting == failure.setting {
+            at = u32::try_from(position).expect("bounded settings position");
+        }
+    }
     people::Refusal::NotWellFormed {
-        at: 0,
+        at,
         why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault, detail: failure.detail },
     }
 }
@@ -209,14 +214,14 @@ fn preflight(
         return Err(people::Refusal::Stale { newest: core.current.newest() });
     }
     if let Err(failure) = s::change_shape(&change.items, &env.limits) {
-        return Err(malformed_refusal(failure));
+        return Err(malformed_refusal(&change.items, failure));
     }
     if let Err(failure) = s::application::check(core, &change.items) {
-        return Err(malformed_refusal(failure));
+        return Err(malformed_refusal(&change.items, failure));
     }
     match s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
         Ok(()) => project_policy::check(core, &env.limits, &change.items),
-        Err(failure) => Err(malformed_refusal(failure)),
+        Err(failure) => Err(malformed_refusal(&change.items, failure)),
     }
 }
 
@@ -282,7 +287,7 @@ fn decide_with(
         s::Decider::FirstStart | s::Decider::Release | s::Decider::List { .. } => {}
     }
     if let Err(failure) = s::application::references(&core.current, &change.items, &kept) {
-        return Err(malformed_refusal(failure));
+        return Err(malformed_refusal(&change.items, failure));
     }
     let mut jig_items = skein_lib::List::with_capacity(u32::try_from(change.items.len()).expect("bounded items"));
     for item in change.items {
@@ -529,10 +534,10 @@ pub(super) fn proposal_check(
         return Err(people::Refusal::NotOffered);
     }
     if let Err(failure) = s::application::check(core, &change.items) {
-        return Err(malformed_refusal(failure));
+        return Err(malformed_refusal(&change.items, failure));
     }
     if let Err(failure) = s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
-        return Err(malformed_refusal(failure));
+        return Err(malformed_refusal(&change.items, failure));
     }
     project_policy::check(core, &env.limits, &change.items)?;
     if !project_policy::has_approver(core, &change.items) {

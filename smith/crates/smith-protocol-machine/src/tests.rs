@@ -564,6 +564,7 @@ fn command_output_waits_for_both_pipes_and_child_close() {
 #[test]
 fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
     use skein_io::Event;
+    use skein_lib::stream::Up;
     let mut harness = Harness::new();
     let owner = Token::new(33);
     harness.request(FromDomain::Check {
@@ -584,6 +585,11 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
     assert_eq!(harness.below.len(), 2);
     assert!(harness.below.pop().is_some());
     assert!(harness.below.pop().is_some());
+    harness.event(BelowEvent::Pipe(Event::Stream {
+        owner: Token::new(46),
+        up: Up::Bytes(Box::from(b"abcdef".as_slice())),
+    }));
+    assert!(harness.below.pop().is_some(), "keep reading stdout");
     let mut later = env();
     later.now = Time::from_nanos(101);
     harness.component.fire(&later, &mut harness.above, &mut harness.below);
@@ -595,6 +601,13 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
             signal: kernel::Signal::Terminate
         }))
     );
+    harness.component.from_below(
+        &later,
+        BelowEvent::Pipe(Event::Stream { owner: Token::new(47), up: Up::Bytes(Box::from(b"gh".as_slice())) }),
+        &mut harness.above,
+        &mut harness.below,
+    );
+    assert!(harness.below.pop().is_some(), "keep reading stderr while stopping");
     later.now = Time::from_nanos(10_000_102);
     harness.component.fire(&later, &mut harness.above, &mut harness.below);
     assert_eq!(
@@ -637,7 +650,10 @@ fn deadline_sends_group_term_kill_close_and_answers_after_reap() {
     );
     assert_eq!(
         harness.above.pop(),
-        Some(ToDomain::Checked { owner, ran: run::Ran { exit: run::Exit::TimedOut, output: Box::new([]), cut: 0 } })
+        Some(ToDomain::Checked {
+            owner,
+            ran: run::Ran { exit: run::Exit::TimedOut, output: Box::from(b"efgh".as_slice()), cut: 4 }
+        })
     );
 }
 
