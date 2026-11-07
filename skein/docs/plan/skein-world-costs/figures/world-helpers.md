@@ -78,3 +78,33 @@ validation. The remaining wrapper and other setup calls together are
 change their ownership/lifecycle and the setup exercised by the tests.
 No removable helper cause reaches 1%; product and peer TLS now dominate.
 
+
+### LLM literal event slices
+
+| Test | Arm | Total Ir | Cause | Inclusive Ir | Share |
+|---|---|---:|---|---:|---:|
+| T4 | base | 10,622,141 | `events` | 230,192 | 2.17% |
+| T4 | slice assembly | 10,419,593 | `events` | 25,923 | 0.25% |
+| T4 | slice assembly | 10,419,593 | `text_response` | 104,518 | 1.00% |
+| T4 | slice assembly | 10,419,593 | `World::next_turn` | 181,259 | 1.74% |
+
+The total falls by 202,548 Ir (1.91%). The same documents, including empty,
+UTF-8 and embedded-newline documents, retain the exact `data: ` prefix and
+two-newline suffix. The regression test fails when the suffix loses one
+newline, and passes after restoration; all four helper tests and the exact
+median LLM test pass. The public signature and all callers stay unchanged.
+
+`text_response` is the composition of the now 0.25% event builder and
+0.74% response builder. `World::next_turn` spends 88,332 Ir (0.85%) in
+`Intake::meet`, 37,972 Ir (0.36%) in `Client::has_work` and 24,281 Ir (0.23%)
+in `Client::waiting`; each is product code. Its entire remainder is less
+than 0.31%, including necessary intake append and RNG calls. There is no
+removable 1% helper cause left here.
+
+For T3, `Wire::answer`'s largest children are trace recording (99,474 Ir,
+0.31%), slice extension (96,416 Ir, 0.30%) and product `Intake::meet`
+(62,552 Ir, 0.20%). Even deleting the first two would save less than 1% and
+would discard the required trace. `Trace::clear` is already below 1%.
+RSA signing dominates this median, not a shared helper; no further forge
+helper change follows. Counting's remaining costs belong to the earlier
+task and are carried into the account by cause.
