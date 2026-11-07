@@ -625,6 +625,7 @@ impl Component {
                     events.push(domain::Event::Visited { source, address });
                     continue;
                 }
+                translate::Up::Refreshed { .. } => continue,
                 translate::Up::SignedIn { source, subject, display } => {
                     events.push(domain::Event::SignedIn { source, subject, display, declined: false });
                     continue;
@@ -1165,6 +1166,7 @@ fn event_account(event: &driver::Event) -> Option<u32> {
         | driver::Event::Visit { account, .. }
         | driver::Event::Taken { account }
         | driver::Event::SignedIn { account, .. }
+        | driver::Event::Refreshed { account, .. }
         | driver::Event::Keep { account, .. }
         | driver::Event::Removed { account }
         | driver::Event::SignedOut { account, .. }

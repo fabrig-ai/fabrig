@@ -1,6 +1,6 @@
 //! Access-token metadata is unauthenticated; `verify_id_token` authenticates
 //! an `OpenID` ID token and checks its sign-in claims (oauth.md, section 2.2).
-use crate::{ClaimSelector, DecodeError, Json, Limits, common, json};
+use crate::{ClaimSelector, DecodeError, Json, Limits, Profile, ProfileClaims, common, json};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall, base64, bytes, usize_of};
 
@@ -85,10 +85,11 @@ pub(crate) fn verify_id_token(
     token: &[u8],
     keys: &[crate::keys::Key],
     expected: &Expected<'_>,
+    wanted: Profile,
     wall: Wall,
     skew: Duration,
     limits: &Limits,
-) -> Result<Box<[u8]>, crate::Check> {
+) -> Result<Verified, crate::Check> {
     use crate::Check;
     let first = bytes::find(token, b".").ok_or(Check::Signature)?;
     let header = token.get(..first).ok_or(Check::Signature)?;
@@ -116,7 +117,7 @@ pub(crate) fn verify_id_token(
         return Err(Check::Signature);
     }
     let payload = base64::decode(base64::Alphabet::Url, payload, limits.document_bytes).or(Err(Check::Issuer))?;
-    check_claims(&payload, expected, wall, skew, limits)
+    check_claims(&payload, expected, wanted, wall, skew, limits)
 }
 
 pub(crate) fn pick_key<'k>(
@@ -138,24 +139,15 @@ pub(crate) fn pick_key<'k>(
 pub(crate) fn check_claims(
     payload: &[u8],
     expected: &Expected<'_>,
+    wanted: Profile,
     wall: Wall,
     skew: Duration,
     limits: &Limits,
-) -> Result<Box<[u8]>, crate::Check> {
+) -> Result<Verified, crate::Check> {
     use crate::Check;
     let value = Json::from_bytes(payload, limits).or(Err(Check::Issuer))?;
     let tokens = value.as_tokens();
-    if claim_text(tokens, b"iss").or(Err(Check::Issuer))? != expected.issuer {
-        return Err(Check::Issuer);
-    }
-    check_audience(tokens, expected.client_id).or(Err(Check::Audience))?;
-    let at = json::required(tokens, b"exp").or(Err(Check::Expiry))?;
-    let value = json::value_at(tokens, at).or(Err(Check::Expiry))?;
-    let exp = json::unsigned(value).or(Err(Check::Expiry))?;
-    let exp = exp.checked_mul(1_000_000_000).ok_or(Check::Expiry)?;
-    if exp <= wall.as_nanos().saturating_sub(skew.as_nanos()) {
-        return Err(Check::Expiry);
-    }
+    check_common(tokens, expected.issuer, expected.client_id, wall, skew)?;
     let nonce = claim_text(tokens, b"nonce").or(Err(Check::Nonce))?;
     if !skein_lib::sha256::equal(nonce, expected.nonce) {
         return Err(Check::Nonce);
@@ -164,7 +156,7 @@ pub(crate) fn check_claims(
     if subject.is_empty() || subject.len() > usize_of(limits.subject_bytes) {
         return Err(Check::Missing);
     }
-    Ok(bytes::copy_of(subject))
+    Ok(Verified { subject: bytes::copy_of(subject), profile: profile_claims(tokens, wanted) })
 }
 
 fn claim_text<'a>(tokens: &'a [skein_json::Token], name: &[u8]) -> Result<&'a [u8], DecodeError> {
@@ -191,4 +183,108 @@ fn check_audience(tokens: &[skein_json::Token], client: &[u8]) -> Result<(), Dec
         return Err(DecodeError::Malformed);
     }
     Ok(())
+}
+
+/// Checked identity and the display claims requested by its registration.
+#[derive(Debug)]
+pub(crate) struct Verified {
+    pub(crate) subject: Box<[u8]>,
+    pub(crate) profile: ProfileClaims,
+}
+
+fn check_common(
+    tokens: &[skein_json::Token],
+    issuer: &[u8],
+    client_id: &[u8],
+    wall: Wall,
+    skew: Duration,
+) -> Result<(), crate::Check> {
+    use crate::Check;
+    if claim_text(tokens, b"iss").or(Err(Check::Issuer))? != issuer {
+        return Err(Check::Issuer);
+    }
+    check_audience(tokens, client_id).or(Err(Check::Audience))?;
+    let at = json::required(tokens, b"exp").or(Err(Check::Expiry))?;
+    let value = json::value_at(tokens, at).or(Err(Check::Expiry))?;
+    let exp = json::unsigned(value).or(Err(Check::Expiry))?;
+    let exp = exp.checked_mul(1_000_000_000).ok_or(Check::Expiry)?;
+    if exp <= wall.as_nanos().saturating_sub(skew.as_nanos()) {
+        return Err(Check::Expiry);
+    }
+    Ok(())
+}
+
+fn profile_claims(tokens: &[skein_json::Token], wanted: Profile) -> ProfileClaims {
+    ProfileClaims {
+        email: if wanted.email && email_verified(tokens) { profile_text(tokens, b"email") } else { None },
+        name: if wanted.name { profile_text(tokens, b"name") } else { None },
+    }
+}
+
+fn email_verified(tokens: &[skein_json::Token]) -> bool {
+    match json::field(tokens, b"email_verified") {
+        Ok(Some(at)) => match json::value_at(tokens, at) {
+            Ok([skein_json::Token::True]) => true,
+            Ok(value) => json::text_ref(value) == Ok(b"true".as_slice()),
+            Err(_) => false,
+        },
+        Ok(None) | Err(_) => false,
+    }
+}
+
+fn profile_text(tokens: &[skein_json::Token], name: &[u8]) -> Option<Box<[u8]>> {
+    let at = json::field(tokens, name).ok()??;
+    let value = json::text_ref(json::value_at(tokens, at).ok()?).ok()?;
+    if value.is_empty() || value.len() > 255 {
+        return None;
+    }
+    for byte in value {
+        if byte.is_ascii_control() {
+            return None;
+        }
+    }
+    Some(bytes::copy_of(value))
+}
+
+/// What the record and registration expect of a refresh's ID token (oauth.md, 2.2).
+pub(crate) struct RefreshExpected<'a> {
+    pub(crate) issuer: &'a [u8],
+    pub(crate) client_id: &'a [u8],
+    pub(crate) subject: &'a [u8],
+}
+
+/// A refresh's ID token: no signature; empty when any check fails (oauth.md, 2.2).
+pub(crate) fn refreshed_profile(
+    token: &[u8],
+    expected: &RefreshExpected<'_>,
+    wanted: Profile,
+    wall: Wall,
+    skew: Duration,
+    limits: &Limits,
+) -> ProfileClaims {
+    refreshed_claims(token, expected, wanted, wall, skew, limits).unwrap_or_default()
+}
+
+fn refreshed_claims(
+    token: &[u8],
+    expected: &RefreshExpected<'_>,
+    wanted: Profile,
+    wall: Wall,
+    skew: Duration,
+    limits: &Limits,
+) -> Option<ProfileClaims> {
+    let first = bytes::find(token, b".")?;
+    let rest = token.get(first.checked_add(1)?..)?;
+    let second = bytes::find(rest, b".")?;
+    let payload = base64::decode(base64::Alphabet::Url, rest.get(..second)?, limits.document_bytes).ok()?;
+    let value = Json::from_bytes(&payload, limits).ok()?;
+    let tokens = value.as_tokens();
+    check_common(tokens, expected.issuer, expected.client_id, wall, skew).ok()?;
+    // The refresh reader requires the nonce claim but has no sign-in nonce to compare.
+    let _nonce = claim_text(tokens, b"nonce").ok()?;
+    let subject = claim_text(tokens, b"sub").ok()?;
+    if subject.is_empty() || subject.len() > usize_of(limits.subject_bytes) || subject != expected.subject {
+        return None;
+    }
+    Some(profile_claims(tokens, wanted))
 }

@@ -78,7 +78,16 @@ fn settle_listener(owner: &mut Owner, listener: Token) {
 fn signs_in(owner: &mut Owner) {
     let identity = owner.sent();
     let mut events = owner.finish_tokens(identity, private::BODY);
-    assert_event(events.pop(), Event::SignedIn { account: 0, generation: 1, missing: Box::new([]), subject: None });
+    assert_event(
+        events.pop(),
+        Event::SignedIn {
+            account: 0,
+            generation: 1,
+            missing: Box::new([]),
+            subject: None,
+            profile: skein_oauth::ProfileClaims::default(),
+        },
+    );
     assert!(events.is_empty(), "one sign-in terminal");
     for _ in 0_u32..8 {
         owner.fire();

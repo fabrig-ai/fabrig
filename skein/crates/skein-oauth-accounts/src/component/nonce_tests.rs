@@ -12,7 +12,11 @@ fn openid() -> (Component, Limits) {
     let mut account = refresh_account(0, ([127, 0, 0, 1], 31000).into());
     if let Account::SignIn { registration, .. } = &mut account {
         registration.terms = Some(oauth::Terms {
-            openid: Some(oauth::OpenId { issuer: bytes::copy_of(b"http://127.0.0.1:31000/"), key_set: None }),
+            openid: Some(oauth::OpenId {
+                profile: skein_oauth::Profile::default(),
+                issuer: bytes::copy_of(b"http://127.0.0.1:31000/"),
+                key_set: None,
+            }),
             ..crate::tests::terms()
         });
         registration.scope = bytes::copy_of(b"openid");
