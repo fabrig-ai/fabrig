@@ -14,11 +14,18 @@ tasks are `notes/contracts.md`; the standing rules `notes/common.md`.
 | Part | Task | Needs | What |
 |---|---|---|---|
 | surface | `surface` | | the types and fields, forced readers empty |
+| formats | `store` | surface | the settings, tasks and people families keep parts, `later`, reasons |
+| formats | `config` | surface | a charter's `parts` and a template's `later` in the document, refused at their path |
+| formats | `wire` | surface | the client wire 19 and both translations carry parts and `later` |
+| offering | `offering` | surface | reasons at activation, kept across attempts; relays and the fence take only what was offered; an undecided entry wakes |
+| parts | `parts-core` | surface | the core's check of parts; a run's instructions, start and claim from the parts its reasons meet |
 
 ## Critical path, as it stands
 
-`surface`, then the formats, the offering and the parts in parallel, then `later`, then the
-story. The specs after `surface` follow in the next push.
+`surface`, then `store`, `config`, `wire`, `offering` and `parts-core` in parallel (one
+writer per crate), then `later` (which needs the tasks child and the core free again: it
+writes both), then the story in the core world. `later` and the story follow in the next
+push.
 
 ## Overlaps with drafts beside this one
 
