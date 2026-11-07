@@ -40,3 +40,37 @@ id = 2
 story = "a sweep of generated cases runs in fuzzy, or at the count its named behaviour needs"
 parts = ["sweeps"]
 walk = false
+
+[[part]]
+id = "forge-machine"
+title = "the forge machine world's loops end when their work has"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "memory-worlds"
+title = "kv, tls, llm and io under their ceilings: the counts their behaviour needs, and each row's cause"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "scenario-worlds"
+title = "conformance, end to end, http, fail-stop and protocol: the seeds that show a behaviour, and what a wait costs"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "close"
+title = "The repair's account: the table in plan.md and the report"
+mode = "direct"
+needs = ["github", "lib-memory", "sweeps", "forge-machine", "memory-worlds", "scenario-worlds"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 3
+story = "the rest of skein's rows read lower in instructions, and the numbers go to the user"
+parts = ["forge-machine", "memory-worlds", "scenario-worlds", "close"]
+walk = false
