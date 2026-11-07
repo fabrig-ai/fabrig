@@ -87,7 +87,8 @@ impl Stand {
         assert!(self.component.up(&self.env, &mut self.out));
     }
     fn exchange(&mut self, exchange: Token, message: kit::Message) {
-        self.down(kit::Event::Transport(kit::FromTransport::Exchange { browser: false,
+        self.down(kit::Event::Transport(kit::FromTransport::Exchange {
+            browser: false,
             exchange,
             credential: Some(self.credential.clone()),
             message,

@@ -264,10 +264,20 @@ pub enum FromTransport {
         browser: bool,
         message: Message,
     },
-    StreamOpen { stream: Token, credential: Option<Secret> },
-    StreamTaken { stream: Token },
-    StreamGone { stream: Token },
-    PublicRead { exchange: Token, read: PublicRead },
+    StreamOpen {
+        stream: Token,
+        credential: Option<Secret>,
+    },
+    StreamTaken {
+        stream: Token,
+    },
+    StreamGone {
+        stream: Token,
+    },
+    PublicRead {
+        exchange: Token,
+        read: PublicRead,
+    },
 }
 #[derive(Debug, PartialEq)]
 pub enum Message {

@@ -240,7 +240,8 @@ impl World {
         record.encode(&mut bytes).expect("measured authorization");
         let exchange = Token::new(self.next);
         self.next += 1;
-        self.send(Event::Transport(FromTransport::Exchange { browser: false,
+        self.send(Event::Transport(FromTransport::Exchange {
+            browser: false,
             exchange,
             credential: self.credential.clone(),
             message: Message::Authorize(bytes.finish()),

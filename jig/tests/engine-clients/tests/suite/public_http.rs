@@ -209,8 +209,9 @@ fn public_and_signed_in_calls_each_have_their_own_room() {
     let bearer = fixtures::signed_in(&mut peer);
     let signed_headers = || headers(&[(b"authorization", &bearer), (b"content-type", b"application/octet-stream")]);
     let (signed, messages) = peer.public_http(Method::Post, b"/jig/v1/read", signed_headers());
-    let Some(FromTransport::Exchange { exchange: signed_exchange, credential: Some(_), message: Message::Read(_), .. }) =
-        messages.first()
+    let Some(FromTransport::Exchange {
+        exchange: signed_exchange, credential: Some(_), message: Message::Read(_), ..
+    }) = messages.first()
     else {
         panic!("wire seeds 1,2: signed-in read admitted: {messages:?}");
     };
@@ -227,7 +228,8 @@ fn public_and_signed_in_calls_each_have_their_own_room() {
     let public_exchange = admitted(&messages);
     // Public room is full, yet the signed-in call reaches the component and completes.
     let (signed, messages) = peer.public_http(Method::Post, b"/jig/v1/read", signed_headers());
-    let Some(FromTransport::Exchange { exchange, credential: Some(_), message: Message::Read(_), .. }) = messages.first()
+    let Some(FromTransport::Exchange { exchange, credential: Some(_), message: Message::Read(_), .. }) =
+        messages.first()
     else {
         panic!("wire seeds 1,2: signed-in read beside full public room: {messages:?}");
     };

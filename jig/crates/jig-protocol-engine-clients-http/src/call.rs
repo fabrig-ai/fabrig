@@ -157,7 +157,8 @@ impl Call {
                     let body = self.body.meet(Read::Fill(self.body.len())).unwrap_or_default();
                     let credential = self.credential.take();
                     let message = match crate::dispatch::message(&self.route, body) {
-                        Some(message) => jig_protocol_engine_clients::FromTransport::Exchange { browser: false,
+                        Some(message) => jig_protocol_engine_clients::FromTransport::Exchange {
+                            browser: false,
                             exchange: self.name,
                             credential,
                             message,

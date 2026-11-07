@@ -196,7 +196,8 @@ impl Exchange {
         let owner = self.component.name();
         self.component.down(
             &self.env,
-            Event::Transport(crate::FromTransport::Exchange { browser: false,
+            Event::Transport(crate::FromTransport::Exchange {
+                browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
                 message,

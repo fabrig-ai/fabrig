@@ -10,7 +10,8 @@ fn a_read_post_becomes_the_component_s_read_exchange() {
     fixtures::call(&mut mount, &mut out, Method::Post, b"/jig/v1/read", &fixtures::bearer(), b"\x01\x02");
     assert_eq!(
         *fixtures::component(&mut out),
-        [kit::FromTransport::Exchange { browser: false,
+        [kit::FromTransport::Exchange {
+            browser: false,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
             message: kit::Message::Read(Box::new([1, 2]))
@@ -95,7 +96,8 @@ fn the_same_routes_answer_under_another_prefix() {
     fixtures::call(&mut mount, &mut out, Method::Post, b"/api/v1/read", &[], b"\x01\x02");
     assert_eq!(
         *fixtures::component(&mut out),
-        [kit::FromTransport::Exchange { browser: false,
+        [kit::FromTransport::Exchange {
+            browser: false,
             exchange: fixtures::EXCHANGE,
             credential: None,
             message: kit::Message::Read(Box::new([1, 2]))
@@ -138,7 +140,8 @@ fn a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
         fixtures::event(&mut mount, &mut out, fixtures::EXCHANGE, http::Event::Body(Up::End));
         assert_eq!(
             *fixtures::component(&mut out),
-            [kit::FromTransport::Exchange { browser: false,
+            [kit::FromTransport::Exchange {
+                browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
                 message: kit::Message::Request(Box::from(BODY))
@@ -189,7 +192,8 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
         let expected = if stream {
             kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: Some(fixtures::credential()) }
         } else {
-            kit::FromTransport::Exchange { browser: false,
+            kit::FromTransport::Exchange {
+                browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
                 message: kit::Message::Read(Box::new([])),
@@ -234,7 +238,8 @@ fn the_bearer_wins_when_a_cookie_also_arrives() {
     fixtures::call(&mut mount, &mut out, Method::Post, b"/jig/v1/read", &headers, b"");
     assert_eq!(
         *fixtures::component(&mut out),
-        [kit::FromTransport::Exchange { browser: false,
+        [kit::FromTransport::Exchange {
+            browser: false,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
             message: kit::Message::Read(Box::new([]))
@@ -388,7 +393,8 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
         fixtures::call(&mut mount, &mut out, Method::Post, b"/jig/v1/sign-in/link", &fixtures::browser(), b"link");
     assert_eq!(
         *fixtures::component(&mut out),
-        [kit::FromTransport::Exchange { browser: false,
+        [kit::FromTransport::Exchange {
+            browser: false,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
             message: kit::Message::SignInLink(Box::from(b"link".as_slice())),
@@ -447,7 +453,8 @@ fn the_public_name_is_admitted_beside_the_listener() {
         fixtures::read_by_host(&mut mount, &mut out, host);
         assert_eq!(
             *fixtures::component(&mut out),
-            [kit::FromTransport::Exchange { browser: false,
+            [kit::FromTransport::Exchange {
+                browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: None,
                 message: kit::Message::Read(Box::new([])),
@@ -589,7 +596,8 @@ fn authorize_maps_under_the_prefix_and_uses_record_error_statuses() {
         let call = fixtures::call(&mut mount, &mut out, Method::Post, &path, &fixtures::bearer(), &body);
         assert_eq!(
             *fixtures::component(&mut out),
-            [kit::FromTransport::Exchange { browser: false,
+            [kit::FromTransport::Exchange {
+                browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
                 message: kit::Message::Authorize(Box::from(body))

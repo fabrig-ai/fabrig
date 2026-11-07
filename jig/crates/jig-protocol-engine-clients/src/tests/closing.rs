@@ -22,7 +22,8 @@ fn stopping_keeps_the_printed_link_live_and_unspent() {
     component.down(&env, Event::Stop, &mut out);
     component.down(
         &env,
-        Event::Transport(crate::FromTransport::Exchange { browser: false,
+        Event::Transport(crate::FromTransport::Exchange {
+            browser: false,
             exchange: owner,
             credential: None,
             message: crate::Message::SignInLink(body.finish()),

@@ -327,8 +327,12 @@ impl Component {
                     Route::Request => self.request(env, exchange, sign_in, &body, out),
                     Route::SignOut => self.sign_out(env, exchange, sign_in, &body, out),
                     Route::Authorize => self.authorize_checked(env, exchange, sign_in, &body, out),
-                    Route::ApprovalAsk | Route::ApprovalRead | Route::ApprovalDecide | Route::ApprovalTake
-                    | Route::Link | Route::Service => {}
+                    Route::ApprovalAsk
+                    | Route::ApprovalRead
+                    | Route::ApprovalDecide
+                    | Route::ApprovalTake
+                    | Route::Link
+                    | Route::Service => {}
                 },
                 Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
@@ -420,6 +424,7 @@ impl Component {
         self.body(env, &mut connection, route, body, credential, out);
         self.connections.insert(owner, connection).expect("transport bounds active exchanges");
     }
+    #[expect(clippy::too_many_lines, reason = "dispatch keeps disabled approval answers before credential lookup")]
     fn body(
         &mut self,
         env: &Env<Limits>,
