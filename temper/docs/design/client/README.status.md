@@ -4,9 +4,15 @@
 
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
-  starters. Tree and domain stories exercise these facts, including a
-  simulated plan sign-in; they do not prove the browser's geometry or a real
-  provider's response. The plan's slices deliberately have `walk = false`.
+  starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
+  geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
+  with the stored choice surviving a reload. It supplies no real-provider walk.
+- **Not yet:** 3.5, *The work's account and model*, 5.5: a stored model and
+  effort amendment can leave the next run using the previous model. The
+  `model-picker` proof stored and reloaded GPT-6 Astra at low, but four
+  fake-provider requests still named `gpt-6.1-sol` (`1d82a937df`). The
+  `ui-model-next-turn` plan owns the runtime repair, by the answer of 2026-11-06
+  to the `look-round-11` task `picker-proof`; no repair is on record.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -286,6 +292,10 @@
   changes; a new drawing and the terminal have only the prefix, where the request
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
+- **Not yet:** 5.15: the whole-bound manual reading check is not on record
+  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
+  history and the smaller window; they do not prove the person's whole-bound
+  layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

@@ -1035,7 +1035,7 @@ pub const PROJECT_AMEND_AT: u8 = 64;
 pub const PROJECT_AMEND: Tool = Tool {
     name: b"project amend",
     line: b"Make a project readable by anyone without signing in, or private again",
-    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`",
+    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`, then what may show on stderr; made private, `project 1: private`",
     result: b"project_amend",
     forms: &[&[
         positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
@@ -1043,7 +1043,7 @@ pub const PROJECT_AMEND: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
+    notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
 /// Appended host position for claiming role-addressed person work.

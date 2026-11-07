@@ -5582,6 +5582,12 @@ measures it (skein's `ui-web.md`, section 7).
 - **While a window has let its newest go** the log *continues* (skein's
   `ui.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
   New words and a run's live text wait: they show when the end is back.
+- **A delivery that makes the view stale** rebuilds the semantic page tree,
+  rereads the held Markdown and compares the old and new trees across the
+  window. Unchanged builds are gated; the diff patches changed DOM nodes in
+  place. No parsed Markdown or conversation subtree is retained. Following
+  reads aggregate log geometry; holding an away reader can scan entries for
+  its anchors, including on a patch outside that log (skein's `ui-web.md`, 7).
 - **Each line's outer node is keyed,** a turn by its name, a run of calls by
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
@@ -6549,14 +6555,21 @@ own tests:
   a new chat selects, personal accounts alone, and no retained line or
   additional Settings act.
 
-- **Account groups and "All models"** (3.5): the `model-picker` look takes
-  the offer's account ids and `picker` flags to group by what pays and expose
-  every offered model, including those outside the short picker. A stopped
-  account keeps its own fix beside another usable account of that provider.
-  Until that look, the chooser groups by provider and shows `picker` models.
-  Settings, Models, its switches and adding by name belong to the catalogue's
-  store step; reading providers' lists and "Read again" to its lists step
-  (`../draft/model-catalogue.md`, section 7).
+- **A stopped account beside a usable one** (3.5): the provider's fix line
+  is drawn only when it has no offered model. A separate fix for each stopped
+  account, even beside a usable account of that provider, remains the catalogue's
+  requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
+  line until those account rows are designed.
+- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
+  switches, adding by name and direction to Configure temper for a default
+  change belong to the catalogue's store step. Provider-list reads, "Read again",
+  failed-read words, estimated prices and "new" on All models belong to its
+  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
+  no "new", and All models links to Accounts with "Accounts, in Settings".
+- **The next run after a picker amendment** (3.5, 5.5): `ui-model-next-turn`
+  owns carrying the stored model and effort through to the next provider
+  request. Default: the choice is applied by one press; the runtime repair
+  and its proof remain that plan's, with the mismatch in `README.status.md`.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
@@ -6921,6 +6934,14 @@ own tests:
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
+- **A delivery beside a long conversation** (5.15;
+  `../draft/chat-reading.md`, 3): retaining parsed closed blocks or a conversation
+  subtree needs invalidation rules and proofs; reducing page bookkeeping and
+  away-reader anchor scans needs the same. Default: rebuild and diff, keeping
+  DOM identities. The measured whole-bound delivery cost is in
+  `temper/docs/development/browser-budget.md`; the away-reader scan's share
+  remains untimed. The browser tier's smaller window leaves a person's cost
+  at the whole bound in place.
 - **Reading a conversation in every browser** (5.15; `../draft/chat-reading.md`, 5):
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with

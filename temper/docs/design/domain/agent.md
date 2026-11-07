@@ -701,7 +701,9 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   without one the charter's first whose LLM provider has an account
   usable for the payer (jig's `domain/tasks.md`, section 3),
   and the account the run's claim chose for each LLM provider (jig's
-  `domain/accounts.md`, 4.3). Their credentials, or a program source's
+  `domain/accounts.md`, 4.3). A chat's new choice answers its person's
+  next words, whether its run still listens or has parked (jig's
+  `domain/tasks.md`, section 7). Their credentials, or a program source's
   name, come to the agent as grants through the worker
   (`../protocol/credentials.md`, section 3). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
@@ -949,6 +951,10 @@ and waits in the Needs you of each project it belongs to (jig's
     current setting" from "How this project works" (8.3) or in its words;
     and to say neither "stock settings" nor "operator", but what temper
     starts with and who runs temper here;
+  - that making the project public is no setting, so never to propose it:
+    none of its tools makes a project public and no proposal's item carries
+    it. Asked, it says the project's owner does it outside this chat, and
+    says the words of `../client/tools.md`, 5.3, whole;
   - never to send the person to a terminal, `temper ctl` or a command,
     nor to relay one from a page, whose facts it takes: what it can
     check it checks with its tools, and what it can't, an owner's
