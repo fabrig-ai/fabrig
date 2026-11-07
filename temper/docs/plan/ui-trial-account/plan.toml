@@ -1,0 +1,3 @@
+draft = "ui-trial-account"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-trial-account/inputs/request.md", "temper/docs/design/domain/trial.md", "temper/docs/design/draft/model-check.status.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
