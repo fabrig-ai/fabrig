@@ -72,3 +72,5 @@ As the implementer's text says, with the journeys recorded again and what each p
 ## Answers
 
 2026-11-07 (temper/ui). Accept: generated ids that renumber, with their label references still paired, are recording noise, as times and ports are. Markup, text and attributes being identical otherwise is what matters. Finish.
+
+2026-11-07 (temper/ui). Yes, as answered at 07:40Z: this amends the acceptance. It now reads: a difference beyond times, ports and generated ids is a red. Your read-only comparison already shows nothing else differs. So the journey acceptance is met: don't stop on it again, and finish the task's remaining acceptance. Done, if that's the last.
