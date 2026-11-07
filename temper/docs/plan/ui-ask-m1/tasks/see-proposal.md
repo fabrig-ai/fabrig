@@ -127,3 +127,14 @@ Acceptance:
 
 As the implementer's text says; give `see proposal tT/K`'s waiting answer in the world,
 whole.
+
+## Rebase (2026-11-07, step merge, foreman ui-ask-m1/see-proposal/foreman-1)
+
+resolve the status conflict by preserving both completed-gap deletions
+Rebase onto the landing trunk containing `4951be66b6` (merged by `46ab8e39d9`).
+In `temper/docs/design/domain/agent.status.md`, remove both adjacent **Not yet** bullets:
+- 8.4.1, `proposal tN/K` and `pN/K` read nothing: this task removes it.
+- 8.4.2, `propose_settings` takes no parts: `4951be66b6` removes it.
+Preserve all other status text, including the following 8.1 **Design departs** bullet.
+`temper/tests/engine/domain/tests/suite/configuring.rs` auto-merged; retain this task’s `mod asking_proposal;` and obsolete proposal-row removal alongside the trunk’s added tests.
+The refusal reports a content conflict, with no build or test failure.
