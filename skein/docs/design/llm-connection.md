@@ -195,6 +195,25 @@ Once it runs, a call that waited is a call like any other.
   the credential. The failure carries the class and the provider's
   report (llm.md, section 2.5), never the credential.
 
+### 4.3 Reading a list
+
+`skein_llm_connection::list::Exchange` makes the one request of a provider's
+list (llm.md, 4.9) on an endpoint's address and transport. It is no call: it
+takes no pool's room, no conversation and no prompt, and a process that reads a
+list holds one exchange and nothing else of this component.
+
+- **It takes** an endpoint, the route, a credential or none, and deadlines: the
+  connect, the handshake and one whole deadline over the exchange.
+- **One connection, closed after.** The request says `connection: close`, and
+  the exchange settles when its socket has.
+- **One answer,** `ListAnswer`, once it has settled: `Listed`, the rows; `Refused`,
+  the status of any answer but a 2xx; `Unreachable`, no connection or a lost one;
+  `Unreadable`, a body past its bound or that doesn't read as the route's; or
+  `Deadline`.
+- **No body leaves it but a list's.** A refusal carries its status alone, so
+  that nothing a provider echoes reaches a log. The credential goes nowhere
+  but the request's head.
+
 ## 5. Connections
 
 - **Opening:** a socket to the endpoint's address, then TLS where the
@@ -386,6 +405,9 @@ client's evidence: unsent, possibly sent, or a response received.
 
 ## 9. Open questions
 
+- **One exchange's shape:** `list::Exchange` and `skein-oauth-accounts`'s private
+  `Web` are the same bounded exchange over `skein-link` and `skein-http`. Whether
+  a shared form belongs in `skein-link` waits for a third.
 - **Names while running:** resolving an endpoint's name again when its
   addresses change, once io has a DNS client (io.md, section 4).
 - **Proxies,** and HTTP/2, if a provider requires either.

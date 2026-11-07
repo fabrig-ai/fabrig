@@ -421,7 +421,7 @@ fn assert_program_provider(llm: &Value, temper: &Value) {
         &json!({
             "name":"anthropic", "number":2, "signed_in_plan":false,
             "manage_usage":"https://claude.ai/settings/usage",
-            "endpoint":"fake-claude", "sources":{"programs":["claude_code"]}
+            "endpoint":"fake-claude", "keep":["claude-*"], "drop":["*-20??????"], "sources":{"programs":["claude_code"]}
         })
     );
     let openai = &llm["providers"][0];
@@ -435,15 +435,7 @@ fn assert_program_provider(llm: &Value, temper: &Value) {
 fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
-    let document = crate::read::document(&docs.temper).expect("effective document");
-    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
-    let admitted = jig_protocol_config::engine(
-        &document,
-        engine,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-    )
-    .expect("the program provider passes ordinary engine admission");
+    let admitted = admit(&docs.temper);
     assert_eq!(
         admitted.limits.core.documents.lines,
         jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core.documents.lines,
@@ -571,5 +563,65 @@ fn written_anthropic_entries_are_replaced_once() {
         {
             assert!(endpoint.get("models").is_none());
         }
+    }
+}
+
+/// A fresh catalogue read must preserve every stock choice (temper/docs/design/protocol/configuration.md, 13.1).
+#[test]
+fn the_templates_list_patterns_keep_every_stock_model() {
+    for template in [
+        include_bytes!("../../../temper-init/template/temper.json").as_slice(),
+        include_bytes!("../../../temper-init/template/bare.json").as_slice(),
+    ] {
+        let (mut value, _, _, _) = fixture();
+        value["engine"]["llm"]["providers"] = json(template)["engine"]["llm"]["providers"].clone();
+        let admitted = admit(&serde_json::to_vec(&value).unwrap());
+        let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+        for provider in &admitted.llm.providers {
+            if provider.number == 3 {
+                assert!(provider.list.is_none(), "the scripted provider reads no list");
+                continue;
+            }
+            let patterns = provider.list.as_ref().expect("the real providers read their lists");
+            let models: Vec<_> = stock.models.iter().filter(|row| row.model.provider == provider.number).collect();
+            assert!(!models.is_empty(), "each provider has stock models");
+            for row in models {
+                assert!(
+                    jig_domain_core::settings::catalogue::kept(&row.model.name, patterns),
+                    "the template drops stock model {:?}",
+                    row.model.name
+                );
+            }
+        }
+    }
+}
+
+fn admit(bytes: &[u8]) -> jig_protocol_config::Engine {
+    let document = crate::read::document(bytes).unwrap();
+    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).unwrap();
+    jig_protocol_config::engine(
+        &document,
+        engine,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .unwrap()
+}
+
+#[test]
+fn the_fake_list_preserves_openais_stock() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).unwrap();
+    let fake = crate::llm::Document::decode(&docs.llm).unwrap();
+    let admitted = admit(&docs.temper);
+    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let body = crate::wire::llm_config(fake.models()).list.unwrap();
+    let listed = skein_llm::list::parse(skein_llm::Provider::OpenAi, &body, &skein_llm::list::Limits::DEFAULT).unwrap();
+    for row in stock.models.iter().filter(|row| row.model.provider == 1) {
+        assert!(
+            listed.iter().any(|listed| listed.name == row.model.name),
+            "the fake omits stock model {:?}",
+            row.model.name
+        );
     }
 }

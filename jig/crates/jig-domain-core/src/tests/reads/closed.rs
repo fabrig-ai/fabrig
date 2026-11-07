@@ -250,6 +250,7 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts },
         accounts::Event::Restore {
             record: accounts::Stored::Account {
+                list: None,
                 number: 0,
                 provider: 1,
                 holder: accounts::Holder::Party(1),
@@ -266,6 +267,7 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts },
         accounts::Event::Restore {
             record: accounts::Stored::Account {
+                list: None,
                 number: 1,
                 provider: 1,
                 holder: accounts::Holder::Deployment,

@@ -463,6 +463,7 @@ pub fn form_revision_decider(v: &c::RevisionDecider) -> n::RevisionDecider {
     match v {
         c::RevisionDecider::FirstStart => n::RevisionDecider::FirstStart,
         c::RevisionDecider::Release => n::RevisionDecider::Release,
+        c::RevisionDecider::List { provider } => n::RevisionDecider::List { provider: *provider },
         c::RevisionDecider::Party(x) => n::RevisionDecider::Party(form_revision_party(x)),
     }
 }

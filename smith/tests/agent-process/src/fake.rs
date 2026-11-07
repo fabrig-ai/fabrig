@@ -209,6 +209,8 @@ impl Options {
             transport,
             limits(),
             provider::Config {
+                list: None,
+                list_status: None,
                 echo: skein_llm::openai::Echo::NONE,
                 usage_fields: documents::UsageFields::ALL,
                 provider: if anthropic { documents::Provider::Anthropic } else { documents::Provider::OpenAi },
@@ -239,7 +241,8 @@ pub fn queries(peer: &llm::Peer) -> impl Iterator<Item = &api::Query> {
         | llm::Observation::Accepted { .. }
         | llm::Observation::Answered { .. }
         | llm::Observation::Closed { .. }
-        | llm::Observation::Credential { .. } => None,
+        | llm::Observation::Credential { .. }
+        | llm::Observation::List { .. } => None,
     })
 }
 

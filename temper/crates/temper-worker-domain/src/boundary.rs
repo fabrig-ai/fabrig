@@ -65,6 +65,8 @@ use temper_worker_domain_tooling as tooling;
 pub enum Event {
     /// Terminal of one source command, correlated by its request owner.
     SourceAnswered { owner: Token, answer: host::sources::Answer },
+    /// One endpoint list read settled below the worker root.
+    ListRead { read: u64, outcome: jig_domain_link::ListOutcome },
     /// From the engine: an assignment, jig's record, with temper's workspace
     /// items with their per-repository saved-work branches (jig's `protocol/channel.md`,
     /// 6.2). The record's workspace, if it has one, names the workstream the
@@ -114,6 +116,10 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts.md, 5.1).
+    ReadList { read: u64, endpoint: u32, grant: jig_domain_link::Grant },
+    /// Cancel a list read and settle its child before the source queue is reused.
+    CancelRead { read: u64 },
     /// Run one bounded program sign-in/sign-out command below the root (jig's domain/hosts.md, 5.1).
     Source { owner: Token, name: SourceName, operation: host::sources::Operation, deadline: Time },
     /// The source-command component violated its contract; stop this worker.

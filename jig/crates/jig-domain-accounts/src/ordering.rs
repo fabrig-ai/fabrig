@@ -5,6 +5,7 @@ use skein_lib::{List, Map, Queue};
 pub(crate) fn account_record(domain: &Domain, number: u32) -> Stored {
     let account = domain.accounts.get(&number).expect("a kept account");
     Stored::Account {
+        list: account.list,
         number,
         provider: account.provider,
         holder: account.holder,

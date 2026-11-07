@@ -21,7 +21,7 @@ pub(super) fn world(name: &str) -> Domain {
     };
     let (mut root, _) = world_in_layout(World::Bare, address, Then::Shown, false, Some(name), None, false);
     let mut out = Queue::uncapped();
-    if name == "chat-model-all" {
+    if matches!(name, "chat-model-all" | "chat-model-new") {
         step(&mut root, Event::Act { action: Action::Pages(Act::Choice(choice::Act::All)) }, &mut out);
     }
     if matches!(name, "chat-started-model-changing" | "chat-started-model-refused") {
@@ -63,7 +63,14 @@ pub(super) fn world(name: &str) -> Domain {
     root
 }
 fn both(name: &str) -> bool {
-    matches!(name, "chat-model-both" | "chat-model-all" | "chat-started-model-changing" | "chat-started-model-refused")
+    matches!(
+        name,
+        "chat-model-both"
+            | "chat-model-all"
+            | "chat-model-new"
+            | "chat-started-model-changing"
+            | "chat-started-model-refused"
+    )
 }
 fn chosen() -> c::LlmChoice {
     c::LlmChoice {
@@ -104,7 +111,7 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
         if provider == 18 && !both(name) {
             continue;
         }
-        if !picker && !matches!(name, "chat-model-both" | "chat-model-all") {
+        if !picker && !matches!(name, "chat-model-both" | "chat-model-all" | "chat-model-new") {
             continue;
         }
         let mut row = sample.clone();
@@ -112,6 +119,10 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
         row.shown = Some(text(shown));
         row.provider = Some(provider);
         row.picker = picker;
+        if name == "chat-model-new" && !picker {
+            row.source = c::ModelSource::List;
+            row.new_until = Some(skein_lib::Wall::from_nanos(604_800_000_000_000));
+        }
         row.accounts = if provider == 17 && name == "chat-model-two-accounts" {
             List::from_boxed(Box::new([1, 3]))
         } else {

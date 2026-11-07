@@ -85,6 +85,7 @@ pub(crate) fn admitted(
             accounts::Change::ReplaceKey { source, carried }
         }
         other @ (people::AccountChange::DeclareProgram { .. }
+        | people::AccountChange::ReadLists { .. }
         | people::AccountChange::CheckProgram { .. }
         | people::AccountChange::RemoveKey { .. }
         | people::AccountChange::Resume { .. }

@@ -78,6 +78,7 @@ pub enum Command {
     BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
+    AgentList { configuration: PathBuf },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
     Help { request: help::Request },
@@ -108,6 +109,15 @@ pub fn configure_with(
     environment: &[EnvironmentEntry],
     working: &[u8],
 ) -> Result<Command, String> {
+    // smith's host half prefixes list launches with its selector.
+    let arguments = match arguments {
+        [flag, internal, list, ..]
+            if flag.as_ref() == b"--list" && internal.as_ref() == b"internal" && list.as_ref() == b"agent-list" =>
+        {
+            &arguments[1..]
+        }
+        _ => arguments,
+    };
     let row = commands::find(arguments).ok_or_else(|| commands::unknown(arguments))?;
     let arguments = &arguments[row.words.len()..];
     if arguments.len() == 1 && arguments[0].as_ref() == b"--help" {
@@ -132,6 +142,12 @@ fn configure_row(
         ["internal", "agent"] => {
             return match arguments {
                 [configuration] => Ok(Command::Agent { configuration: path(configuration).into() }),
+                _ => Err(invalid()),
+            };
+        }
+        ["internal", "agent-list"] => {
+            return match arguments {
+                [configuration] => Ok(Command::AgentList { configuration: path(configuration).into() }),
                 _ => Err(invalid()),
             };
         }
@@ -239,6 +255,9 @@ pub fn run(command: Command) -> Result<u8, String> {
                 None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
             })
             .map_err(|why| prefixed("temper internal agent", &why))?,
+        Command::AgentList { configuration } => agent::decoded(&configuration)
+            .and_then(|decoded| smith_agent_shell::list::run_decoded(decoded, Box::new(std::io::stderr())))
+            .map_err(|why| prefixed("temper internal agent-list", &why))?,
         Command::ProgramLogin { directories, name } => {
             return program_login::run(&directories, &name)
                 .map_err(|why| prefixed("temper program-login", &why.lines().collect::<Vec<_>>().join("; ")));

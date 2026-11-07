@@ -61,6 +61,7 @@ pub(crate) fn pop_activity(domain: &mut Hub) -> Option<LinkUp> {
         let valid_hub = match &record {
             LinkUp::Piece { run, attempt, piece } => pending(domain, *run, *attempt, piece.turn),
             LinkUp::Activity { .. }
+            | LinkUp::ListRead { .. }
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Unauthorized { .. }

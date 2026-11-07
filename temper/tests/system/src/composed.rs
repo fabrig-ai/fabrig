@@ -377,6 +377,7 @@ impl World {
             .collect();
         let rows = [
             Stored::Account {
+                list: None,
                 number: BILLING_ACCOUNT,
                 provider: 1,
                 holder: Holder::Deployment,
@@ -1181,7 +1182,11 @@ impl World {
 
     fn worker_request(&mut self, request: worker::Request) {
         match request {
-            worker::Request::Job { .. } | worker::Request::Source { .. } | worker::Request::SourceFault => {
+            worker::Request::ReadList { .. }
+            | worker::Request::CancelRead { .. }
+            | worker::Request::Job { .. }
+            | worker::Request::Source { .. }
+            | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),
@@ -1191,7 +1196,8 @@ impl World {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
                     host::LinkUp::Call { .. } => self.observed.relays += 1,
-                    host::LinkUp::Logins { .. }
+                    host::LinkUp::ListRead { .. }
+                    | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }

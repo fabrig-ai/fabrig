@@ -109,6 +109,7 @@ fn a_people_row_reaches_the_people_child() {
 fn an_accounts_row_reaches_the_accounts_child() {
     let (mut core, env) = loading();
     let record = accounts::Stored::Account {
+        list: None,
         number: 1,
         provider: 0,
         holder: accounts::Holder::Deployment,

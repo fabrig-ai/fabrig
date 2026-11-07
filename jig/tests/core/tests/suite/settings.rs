@@ -2239,6 +2239,7 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     let mut model = config.core.settings.models[0].clone();
     model.name = b"person:model-9".as_slice().into();
     let value = settings::Value::Model(Box::new(settings::CatalogueModel {
+        first_read: None,
         number: 9,
         model,
         shown: Some(b"Personal model".as_slice().into()),

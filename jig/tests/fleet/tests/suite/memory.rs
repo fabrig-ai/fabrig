@@ -6,6 +6,7 @@ use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
 const LIMITS: Limits = Limits {
+    reads: 12,
     configured_workers: 64,
     worker_name_bytes: 32,
     program_sources: 12,

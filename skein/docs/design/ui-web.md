@@ -1337,6 +1337,13 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     that attribute, fails the step. The run hands back what each person kept, by name, with each
     link a command's step opened, so that the test reads a peer's state
     by what the story saw;
+  - **awaits a control pressed:** the target the step gives, found as
+    the face finds one, until the kit says its node is pressed
+    (browser.md, section 5), looking again each poll interval, within
+    the step's time. A target the face does not find by then fails the
+    step as missing, and one found but not pressed fails it, naming the
+    target. So a story reads a toggle's state by its name and the
+    state a person hears, never by its place among its siblings;
   - **awaits trouble** with given words, which the person's pages then
     expect from the script's start, so that it fails no story;
   - **opens again the URL** the person's page first opened, so that a

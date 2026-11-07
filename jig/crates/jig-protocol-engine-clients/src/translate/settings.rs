@@ -75,6 +75,9 @@ pub fn head(value: &s::Head, limits: &w::Limits) -> Result<w::RevisionHead, w::P
             by: match value.by {
                 s::Decider::FirstStart => w::RevisionDecider::FirstStart,
                 s::Decider::Release => w::RevisionDecider::Release,
+                s::Decider::List { provider } => {
+                    w::RevisionDecider::List(w::RevisionList::new(limits, w::RevisionListParts { provider })?)
+                }
                 s::Decider::Party(number) => {
                     w::RevisionDecider::Party(w::RevisionParty::new(limits, w::RevisionPartyParts { number })?)
                 }

@@ -108,6 +108,8 @@ impl Protocol {
         let peer_limits = skein_llm_kit::fake::limits(&translation.client);
         let service = provider::Service::new(
             provider::Config {
+                list: None,
+                list_status: None,
                 echo: skein_llm::openai::Echo::NONE,
                 usage_fields: configuration.usage_fields,
                 provider: match configuration.endpoint.provider {

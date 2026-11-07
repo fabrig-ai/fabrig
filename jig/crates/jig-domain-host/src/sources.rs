@@ -2,6 +2,7 @@
 //! Commands are serialized, including across list replacement and reconnect.
 use crate::{Limits, LinkUp, Login, LoginState, Request, SignOutResult, SourceFailure, SourceName};
 use alloc::boxed::Box;
+use jig_domain_link::{Grant, ListFailure, ListOutcome};
 use skein_lib::{Env, List, Queue, Time, Token};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -13,6 +14,7 @@ pub enum Operation {
 pub enum Answer {
     Checked { state: LoginState, email: Option<Box<[u8]>> },
     SignedOut(SignOutResult),
+    Read(ListOutcome),
 }
 #[derive(Debug)]
 struct Row {
@@ -25,7 +27,7 @@ struct Row {
     next: Option<Time>,
 }
 #[derive(Debug)]
-struct Busy {
+struct Command {
     owner: Token,
     name: SourceName,
     operation: Operation,
@@ -33,9 +35,21 @@ struct Busy {
     explicit: bool,
 }
 #[derive(Debug)]
+struct Reading {
+    read: u64,
+    endpoint: u32,
+    grant: Grant,
+}
+#[derive(Debug)]
+enum Busy {
+    Source(Command),
+    Read { reading: Reading, current: bool },
+}
+#[derive(Debug)]
 pub struct Domain {
     rows: List<Row>,
     busy: Option<Busy>,
+    reading: Option<Reading>,
     sequence: u64,
     first: bool,
     connected: bool,
@@ -47,6 +61,7 @@ impl Domain {
         Self {
             rows: List::with_capacity(capacity),
             busy: None,
+            reading: None,
             sequence: 1,
             first: false,
             connected: false,
@@ -68,6 +83,20 @@ impl Domain {
             }
         }
         next
+    }
+    pub(crate) fn holds_grant(&self, account: u32, generation: u64) -> bool {
+        if let Some(reading) = &self.reading
+            && reading.grant.account == account
+            && reading.grant.generation == generation
+        {
+            return true;
+        }
+        match &self.busy {
+            Some(Busy::Read { reading, .. }) => {
+                reading.grant.account == account && reading.grant.generation == generation
+            }
+            Some(Busy::Source(_)) | None => false,
+        }
     }
     #[must_use]
     pub fn settled(&self) -> bool {
@@ -154,13 +183,12 @@ pub(crate) fn sign_out(domain: &mut Domain, env: &Env<Limits>, name: SourceName,
         }));
         return;
     }
-    if let Some(busy) = &domain.busy
-        && busy.current
-        && busy.name == name
-        && busy.operation == Operation::SignOut
-    {
-        out.push(Request::SourceFault);
-        return;
+    match &domain.busy {
+        Some(Busy::Source(busy)) if busy.current && busy.name == name && busy.operation == Operation::SignOut => {
+            out.push(Request::SourceFault);
+            return;
+        }
+        Some(Busy::Source(_) | Busy::Read { .. }) | None => {}
     }
     let mut found = false;
     for index in 0..domain.rows.len() {
@@ -186,13 +214,17 @@ pub(crate) fn sign_out(domain: &mut Domain, env: &Env<Limits>, name: SourceName,
     advance(domain, env, out);
 }
 pub(crate) fn answered(domain: &mut Domain, env: &Env<Limits>, owner: Token, answer: Answer, out: &mut Queue<Request>) {
-    let Some(busy) = &domain.busy else { return };
-    if busy.owner != owner {
-        return;
+    match &domain.busy {
+        Some(Busy::Source(busy)) if busy.owner == owner => {}
+        Some(Busy::Source(_) | Busy::Read { .. }) | None => return,
     }
-    let busy = domain.busy.take().expect("matched command");
+    let busy = match domain.busy.take().expect("matched command") {
+        Busy::Source(busy) => busy,
+        Busy::Read { .. } => unreachable!("matched source command"),
+    };
     if busy.current {
         match answer {
+            Answer::Read(_) => unreachable!("source terminal is not a list"),
             Answer::Checked { state, email } => {
                 let state = match state {
                     LoginState::Failed { reason, detail } => {
@@ -253,16 +285,37 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
     advance(domain, env, out);
 }
-pub(crate) fn lost(domain: &mut Domain) {
+pub(crate) fn lost(domain: &mut Domain, out: &mut Queue<Request>) {
     domain.connected = false;
     domain.first = false;
     domain.rows.clear();
-    if let Some(busy) = &mut domain.busy {
-        busy.current = false;
+    domain.reading = None;
+    match &mut domain.busy {
+        Some(Busy::Source(busy)) => busy.current = false,
+        Some(Busy::Read { reading, current }) => {
+            if *current {
+                out.push(Request::CancelRead { read: reading.read });
+            }
+            *current = false;
+        }
+        None => {}
     }
 }
 pub(crate) fn close(domain: &mut Domain, out: &mut Queue<Request>) {
     domain.closed = true;
+    if let Some(reading) = domain.reading.take() {
+        failed_read(reading.read, out);
+    }
+    match &mut domain.busy {
+        Some(Busy::Read { reading, current }) => {
+            if *current {
+                failed_read(reading.read, out);
+                out.push(Request::CancelRead { read: reading.read });
+            }
+            *current = false;
+        }
+        Some(Busy::Source(_)) | None => {}
+    }
     for index in 0..domain.rows.len() {
         let row = domain.rows.get_mut(index).expect("source row");
         row.check = false;
@@ -321,6 +374,13 @@ fn advance(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             break;
         }
     }
+    if selected.is_none()
+        && let Some(reading) = domain.reading.take()
+    {
+        out.push(Request::ReadList { read: reading.read, endpoint: reading.endpoint, grant: reading.grant });
+        domain.busy = Some(Busy::Read { reading, current: true });
+        return;
+    }
     if selected.is_none() {
         for index in 0..domain.rows.len() {
             let row = domain.rows.get_mut(index).expect("source row");
@@ -336,7 +396,7 @@ fn advance(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if let Some((name, operation, explicit)) = selected {
         let owner = Token::new(domain.sequence);
         domain.sequence = domain.sequence.checked_add(1).expect("source command names never reused");
-        domain.busy = Some(Busy { owner, name, operation, current: true, explicit });
+        domain.busy = Some(Busy::Source(Command { owner, name, operation, current: true, explicit }));
         out.push(Request::Source {
             owner,
             name,
@@ -352,4 +412,40 @@ fn tail(detail: Box<[u8]>, bound: u32) -> Box<[u8]> {
         return detail;
     }
     Box::from(detail.get(detail.len().saturating_sub(bound)..).expect("bounded tail"))
+}
+
+pub(crate) fn read(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    read: u64,
+    endpoint: u32,
+    grant: Grant,
+    out: &mut Queue<Request>,
+) {
+    if domain.closed || !domain.connected || domain.reading.is_some() {
+        failed_read(read, out);
+        return;
+    }
+    domain.reading = Some(Reading { read, endpoint, grant });
+    advance(domain, env, out);
+}
+pub(crate) fn list_read(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    read: u64,
+    outcome: ListOutcome,
+    out: &mut Queue<Request>,
+) {
+    let current = match &domain.busy {
+        Some(Busy::Read { reading, current }) if reading.read == read => *current,
+        Some(Busy::Read { .. } | Busy::Source(_)) | None => return,
+    };
+    domain.busy = None;
+    if current && domain.connected {
+        out.push(Request::Up(LinkUp::ListRead { read, outcome }));
+    }
+    advance(domain, env, out);
+}
+fn failed_read(read: u64, out: &mut Queue<Request>) {
+    out.push(Request::Up(LinkUp::ListRead { read, outcome: ListOutcome::Failed(ListFailure::Agent) }));
 }

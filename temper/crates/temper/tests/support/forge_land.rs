@@ -224,7 +224,10 @@ pub(super) fn peer_seen(procs: &[Process], index: usize) -> Seen {
             Observation::Query { query, .. } => seen.requests.push(query.clone()),
             Observation::Answered { result, .. } => seen.answers.push(*result),
             Observation::Credential { scheme, .. } => seen.schemes.push(*scheme),
-            Observation::Accepted { .. } | Observation::Head { .. } | Observation::Closed { .. } => {}
+            Observation::Accepted { .. }
+            | Observation::Head { .. }
+            | Observation::List { .. }
+            | Observation::Closed { .. } => {}
         }
     }
     seen
