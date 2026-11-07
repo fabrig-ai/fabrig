@@ -107,12 +107,12 @@ result supplied here (`browser.status.md`, 4.6).
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
 
-- **Not yet:** 3.5, *The `Models` tab*: the render check beside `model-picker`'s
-  page 07 at 1440, 1280, 1000 and 420 px follows landing, owned by temper/ui.
-  The tab, switches, add-by-name form, source, estimated prices, omitted count
-  and All models' link to the project's Models tab are built. The client world
-  holds switches and adding across reloads; no browser or real-provider walk
-  of this tab is supplied.
+Section 3.5's Models tab, switches, add-by-name form, source, estimated
+prices, omitted count and All models' link to the project's Models tab
+have no known implementation gap. The client world holds switches and
+adding across reloads. Page 07's render comparison at 1440, 1280, 1000 and
+420 px belongs to temper/ui after landing; it and browser and real-provider
+checks remain section 11's deferred work, with no outcome supplied here.
 - **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
   now and on purpose: an address under the project, `/projects/<project>/settings/models`, as
   `me`'s offer is a project's, where 07 draws `/models`; and "the default" on one row, as `me`

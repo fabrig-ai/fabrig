@@ -2,6 +2,9 @@
 
 2026-11-07. Where smith's code lags or departs from [agent.md](agent.md).
 
+Section 4 has no known gap in endpoint `limits`, refusing endpoint model
+lists or taking model and effort names from the charter within their bounds.
+
 - **Not yet:**
   - 1, 3, 6, 8: the view. Commands, searches and checks run as plain
     children in process groups (`smith-protocol-machine/src/process.rs`),

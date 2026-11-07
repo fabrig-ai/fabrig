@@ -165,6 +165,12 @@ fn making(b: &mut Builder, root: &Domain, sheet: &sheet::Sheet, w: &Words, bindi
         }
         Source::Copy => {
             b.open(Role::Slot);
+            if w.shell == crate::words::Shell::Browser {
+                b.open(Role::Paragraph);
+                b.style(look::CONNECT_TITLE);
+                words::text(w, b, Word::Addresses, &[]);
+                b.close();
+            }
             b.open(Role::TextArea);
             b.style(look::SETTINGS_TEXT);
             b.style(look::CONNECT_ADDRESSES);
@@ -356,12 +362,22 @@ fn picker(b: &mut Builder, root: &Domain, sheet: &sheet::Sheet, project: &[u8], 
         b.style(look::CONNECT_NONE);
         let word = if sheet.more {
             Word::Reading
-        } else if sheet.find.text.is_empty() {
+        } else if sheet.find.text.trim_ascii().is_empty() {
             Word::NoneReachable
         } else {
             Word::NoneFound
         };
-        words::text(w, b, word, &[]);
+        let holes =
+            if word == Word::NoneFound { Some([Hole::Name(sheet.find.text.trim_ascii().into())]) } else { None };
+        words::text(
+            w,
+            b,
+            word,
+            match &holes {
+                Some(holes) => holes,
+                None => &[],
+            },
+        );
         b.close();
     }
     b.close();
@@ -464,6 +480,7 @@ fn more(b: &mut Builder, sheet: &sheet::Sheet, form: &forge::Form, w: &Words, bi
         forge::Role::Context => Word::ContextSummary,
     };
     let summary = bytes::concat(&[
+        b"\xc2\xb7 ",
         &words::say(w, role, &[]),
         &words::say(w, if form.ci.on { Word::WithCi } else { Word::WithoutCi }, &[]),
     ]);
