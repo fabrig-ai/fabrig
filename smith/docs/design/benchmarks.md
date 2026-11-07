@@ -710,7 +710,12 @@ answer is a warning on a completed attempt.
   ended. Without contained trees nothing keeps an agent from the
   user's files, so the scope gate looks for it, and lists the user's entries
   under `/tmp` before and after each attempt: a new or changed one is a
-  write outside the workspace.
+  write outside the workspace. The directory it lists is an input of the
+  attempt, its request's `shared_temporary`. A planned request names `/tmp`
+  for every real run, and a document naming none means `/tmp`. Only `probe`
+  takes another (`--shared-temporary`), and an offline test names a
+  directory of its own, so what a test costs never depends on what else the
+  machine has run.
 - **Process trees.** An attempt ends when its whole tree has ended. At
   the hard deadline the tree is terminated, then killed after a grace;
   after an observed answer, the deadline is the agent's teardown bound
@@ -896,7 +901,10 @@ The offline tier runs in the focused suite, with no agent and no network:
   within and past O's bound, stop it or not (16.6).
 - **An attempt against a replaying agent:** a small program that prints a
   recorded stream, leaves a grandchild behind, or never ends, observed,
-  ended at the deadline and classified.
+  ended at the deadline and classified. A file it leaves in the shared
+  temporary directory its request names is a write outside (10); that a
+  planned request names `/tmp` is read from the request, without listing
+  `/tmp`.
 - **Fuzzy:** parsers fed truncated and corrupted lines never panic and
   never count a response twice.
 
