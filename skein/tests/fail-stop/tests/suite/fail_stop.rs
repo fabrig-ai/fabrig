@@ -14,7 +14,7 @@ fn a_panic_on_a_second_thread_aborts_the_process_after_its_report() {
     let output = panic_report(Some("full"), "str", None);
     let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
     assert!(report.contains("the fixture's thread panics"), "the hook reported first: {report}");
-    assert_report(&output, "<unnamed>", "the fixture's thread panics");
+    assert_report(&output, "", "<unnamed>", "the fixture's thread panics");
 }
 
 #[test]
@@ -24,8 +24,19 @@ fn owned_and_non_string_payloads_follow_the_default_report() {
         [(None, "string", "the fixture's owned message"), (Some("1"), "any", "Box<dyn Any>")]
     {
         let output = panic_report(backtrace, payload, Some("fixture-worker"));
-        assert_report(&output, "fixture-worker", message);
+        assert_report(&output, "", "fixture-worker", message);
     }
+}
+
+#[test]
+fn a_restoration_runs_once_before_the_report() {
+    let output = panic_report(None, "restore", None);
+    let report = core::str::from_utf8(&output.stderr).expect("UTF-8");
+    let restored = report.find("restored\n").expect("the restoration ran");
+    let header = report.find("thread '").expect("the report");
+    assert!(restored < header, "the restoration ran before the report: {report}");
+    assert_eq!(report.matches("restored\n").count(), 1);
+    assert_report(&output, "restored\n", "<unnamed>", "the fixture's thread panics");
 }
 
 fn panic_report(backtrace: Option<&str>, payload: &str, name: Option<&str>) -> Output {
@@ -42,9 +53,10 @@ fn panic_report(backtrace: Option<&str>, payload: &str, name: Option<&str>) -> O
     command.output().expect("the fixture starts")
 }
 
-fn assert_report(output: &Output, name: &str, message: &str) {
+fn assert_report(output: &Output, restoration: &str, name: &str, message: &str) {
     assert_eq!(output.status.signal(), Some(SIGABRT), "the process aborts: {:?}", output.status);
     let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
+    let report = report.strip_prefix(restoration).expect("the restoration precedes the report");
     let mut lines = report.lines();
     assert_eq!(lines.next(), Some(""), "the report starts on a new line: {report}");
     let header = lines.next().expect("the report has a thread line");
