@@ -12,7 +12,7 @@ fn an_authenticated_reload_routes_the_restored_person_frame() {
     let limits = fixtures::domain_limits();
     let mut front = Joint::new(fixtures::SEED, limits);
     front.bind(CLIENT, fixtures::PARTY);
-    let (mut root, _) = Temper::new(fixtures::SEED);
+    let mut root = crate::app::Root::Person(Box::new(client::unlinked(&limits, fixtures::SEED)));
     settle_root(&mut front, &mut root, &limits, Vec::new());
     assert_eq!(root.person().client().link().state, jig_client::Link::Live);
     let kept = pending_adoption(&mut front, &mut root, &limits);
@@ -153,7 +153,7 @@ fn an_unconfigured_model_is_answered_immediately() {
     let limits = fixtures::domain_limits();
     let mut front = Joint::new(fixtures::SEED, limits);
     front.bind(CLIENT, fixtures::PARTY);
-    let (mut root, _) = Temper::new(fixtures::SEED);
+    let mut root = crate::app::Root::Person(Box::new(client::unlinked(&limits, fixtures::SEED)));
     settle_root(&mut front, &mut root, &limits, Vec::new());
     let text = |bytes: &[u8]| c::Text::new(bytes.into(), limits.client.domain.text).expect("fixture text");
     let me = client::pages::accounts::current_me(root.person().client()).expect("authenticated me");

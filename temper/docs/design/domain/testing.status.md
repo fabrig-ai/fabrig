@@ -1,6 +1,13 @@
 # testing: status
 
-2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
+
+Section 2.4's real-loop goal-delivery story is present, alongside the six
+engine domain stories and the checkout world's later-run cases. It uses
+real smith and a worker with scripted model replies, fake git and the
+fake forge; no real model or real forge is proved by it. Section 6.5.1's
+reference obligations retain their current charter words; folding in the
+goal-as-designer workflow remains in section 11.
 
 Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
 socket-claimed blocks below Linux's configured ephemeral range, the

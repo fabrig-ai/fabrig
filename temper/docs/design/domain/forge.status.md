@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
+goal's delivery through r. The six engine domain stories in
+`tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
+merges into g while the goal runs, an early dependent, a second run,
+work r holds that g lacks, a new delivery under an open change, the merge
+job and resolution after the goal frees r's slot, and the goal's close.
+A change's close leaves r held by its goal; the goal's close deletes it.
+Coverage uses the fake forge. Section 20 keeps the default for deleting
+unlanded run work and the deferred saved-start case overtaken by a repair.
+
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

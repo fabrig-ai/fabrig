@@ -280,21 +280,18 @@ impl World {
     }
 
     #[expect(
-        clippy::too_many_arguments,
         clippy::too_many_lines,
-        reason = "one fixture configures the policy, fake, and bounds for root forge stories"
+        reason = "one builder derives bootstrap and runtime policy configurations for root forge stories"
     )]
-    fn configured_settings(
+    fn configurations(
         with_read: bool,
         with_change: bool,
-        silent_ci: bool,
-        passes: u32,
         gate: paths::Gate,
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
-    ) -> Self {
+    ) -> [(engine::Config, engine::Limits); 2] {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
             tools,
@@ -314,11 +311,11 @@ impl World {
             slots,
             tasks,
             across,
-            library_gate_latency,
+            library_gate_latency: _,
             tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|index| {
+        std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
@@ -783,7 +780,28 @@ impl World {
                 config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
-        });
+        })
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::too_many_lines,
+        reason = "one fixture configures the policy, fake, and bounds for root forge stories"
+    )]
+    fn configured_settings(
+        with_read: bool,
+        with_change: bool,
+        silent_ci: bool,
+        passes: u32,
+        gate: paths::Gate,
+        documents: Option<jig_domain_core::documents::DocumentLimits>,
+        timing: StoryLimits,
+        stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
+        charter_documents: &[jig_domain_core::Document],
+    ) -> Self {
+        let [(bootstrap, mut limits), (config, _)] =
+            Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
+        let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = timing;
         let mut fake_config = forge_world::fake_config();
         fake_config.limits.repositories = 2;
         if stock.is_some() {
@@ -1164,11 +1182,9 @@ impl World {
     pub fn restart_with_charter(&mut self, with_read: bool, with_change: bool, forge_charter: Option<u32>) {
         assert!(self.store.pending.is_empty(), "the chosen cut resolves store uncertainty first");
         assert!(self.pending.is_empty(), "old API terminals are drained at this cut");
-        let fresh = Self::configured_limits(
+        let [_bootstrap, (config, _limits)] = Self::configurations(
             with_read,
             with_change,
-            false,
-            if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
             StoryLimits {
@@ -1178,8 +1194,10 @@ impl World {
                 stall: Some(self.env.limits.forge.change_policy.stall),
                 ..StoryLimits::default()
             },
+            None,
+            &[],
         );
-        self.restart_domain(fresh.restart_config, with_change);
+        self.restart_domain(config, with_change);
     }
 
     /// Restart with the same tier and project configuration, retaining only durable rows.
@@ -2549,6 +2567,13 @@ pub fn box_joins() -> u32 {
 }
 
 fn box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+    // A story reads the same template for its defaults, root limits and store joins.
+    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_service::limits::Limits)> =
+        std::sync::OnceLock::new();
+    *PROFILES.get_or_init(read_box_profiles)
+}
+
+fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),

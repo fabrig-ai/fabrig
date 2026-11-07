@@ -113,8 +113,8 @@ pub fn scripted_reply(turns: Box<[api::Turn]>, anthropic: bool) -> llm::Peer {
 #[must_use]
 pub fn scripted(turns: Box<[api::Turn]>, credential: skein_llm::Credential, anthropic: bool) -> llm::Peer {
     let scripts = Box::new([api::Script { cue: Box::new([]), turns }]);
-    // Live pressure stories pass 16 KiB by one byte; keep script and document room
-    // at the same existing 128 KiB bound used by the reasoning replay fixture.
+    // Live pressure stories pass 16 KiB by one byte; script and document room
+    // admit those turns and their replay within 128 KiB.
     Options { anthropic, request_bytes: 131_072, document_bytes: 131_072, ..Options::default() }
         .make(scripts, credential)
 }
@@ -261,5 +261,5 @@ pub fn context_rejected(peer: &llm::Peer) -> bool {
 
 /// Admit the observed reasoning turn when it is replayed in the next request.
 pub(crate) fn reasoning(scripts: Box<[api::Script]>) -> llm::Peer {
-    Options { request_bytes: 131_072, document_bytes: 131_072, ..Options::default() }.make(scripts, credential(false))
+    Options::default().make(scripts, credential(false))
 }

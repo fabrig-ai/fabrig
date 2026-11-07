@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-11-06. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-07. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -522,7 +522,9 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings"; `read` and `Read` are "read N files", `list` and `Glob`
+      settings"; `propose_settings` is "proposed a change N×", once
+      "proposed a change", and under way "proposing a change", none of them
+      naming its input; `read` and `Read` are "read N files", `list` and `Glob`
       "listed N folders", `write` and `Write` "wrote N files", `edit` and
       `Edit` "edited N files" and `remove` "removed N files", each its
       distinct arguments, a call whose input can't be read one; `search`
@@ -639,6 +641,8 @@ keeps (`../protocol/configuration.md`, section 2).
     pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
     a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
     the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    At a phone's width it stands in a row of its own below the log instead,
+    so nothing lies beneath it and it covers none of a card's controls.
     Pressed, the view returns to the end and it goes. Where the window has
     let the newest lines go the log continues and the pill stays visible,
     even at the window's foot. A press on a chat reads the end again;
@@ -2520,7 +2524,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The work's account and model.** The model and effort sit at the composer,
   on every chat: a new chat's, Configure temper's, a chat's and a configuring
   chat's (the look request `model-picker`). A choice is the task's LLM choice,
-  from the chat's next run (jig's `domain/tasks.md`, section 3).
+  from the chat's next run (jig's `domain/tasks.md`, sections 3 and 7).
   - *The picker* is on the hint's row, at the composer's right edge: a
     disclosure named "Model" (skein's `ui.md`, its disclosure), which folds
     away, described by its closed line. A browser shows the line and a chevron;
@@ -2569,6 +2573,23 @@ keeps (`../protocol/configuration.md`, section 2).
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
     refused, it says why, and the choice is the chat's own again.
+    An accepted amendment changing only the LLM choice sends no message and
+    starts no run. A turn under way keeps its choice; the person's next words
+    stop a live run behind the choice and start the next on the new choice,
+    with those words retained and no try spent (jig's `domain/tasks.md`,
+    section 7).
+    A model change in a resumable window first asks the saved window's model,
+    when configured, for a summary, then the new model for the answer.
+    A changed effort alone keeps the window. Across an endpoint, dialect,
+    account or backend boundary, or without the saved program session, the
+    conversation's text, calls and results carry over, with opaque replay
+    dropped and the summary on the new model (smith's `domain/session.md`,
+    8.2). A provider change chooses an account again (jig's `domain/tasks.md`,
+    section 7). A smaller window follows the same compaction rules. If the
+    conversation still cannot fit, the chat is held with its transcript kept
+    and nothing cut: "the run no longer fits the model's window of N tokens"
+    (jig's `client/domain/contract.md`, 5.5). The person can choose another
+    model on the held chat.
   - *A chat whose choice can't be changed:* the same words with no chevron, not a
     button. No usable model: 5.5's "No model yet" above the composer, and no
     picker.
@@ -5332,14 +5353,21 @@ section 5.
   when it was made, as every proposal is (3.5; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
-  then each item, in small mono type, faint, in the words of `temper ctl` but
+  then each item, small and faint in the card's type, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
   "Questions: answered by the goal", "Questions: asked of me too" or "Questions:
-  not asked"; any other as "charter 2", "template 4", "landing rule 1". Those
-  values come from the forge's read of a proposal's items, which takes a role
-  in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
-  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
+  not asked"; a template by its name, as "Way: NAME" names one, or "template 4"
+  where the person's `me` names none; any other as "charter 2", "landing rule 1".
+  A proposal's heads name jig's own settings alone, so a live card takes its
+  application's items and project's policies from the proposal's review, and
+  those values from the forge's read of a proposal's items under the review's
+  `key`, which takes a role in the deployment
+  (`../protocol/configuration.md`, 13.2). Until those values arrive, kinds
+  6 and 7 are named as `temper ctl` names them. With no review, no application
+  or project-policy rows can be recovered from the heads. A decided card has
+  no review: it keeps the kind 6 and 7 values it read in this session, and
+  otherwise draws its heads alone. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
   something", quiet: it focuses the composer, brings it into view and sets its
   placeholder to "What should change?", until something is sent or the proposal
@@ -5347,8 +5375,11 @@ section 5.
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
-  what to change here revises nothing while it waits: the agent answers that an
-  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Decided, it ends in a muted state line in place of its
+  what to change here has the agent propose again, whose fresh proposal replaces
+  the one that waits (`../domain/agent.md`, 8.1): the new card stands below. An
+  "Accept" pressed on a replaced card, in a tab that hadn't heard, is refused and changes
+  nothing, and the refusal ends the card as withdrawn: "Replaced by the proposal below",
+  or "Withdrawn · nothing changes" until it has read the later one. Decided, it ends in a muted state line in place of its
   acts, however the decision was made (*Needs you*, another tab, `temper ctl`), the
   chat's task document telling it with no reload: accepted, "✓ Accepted · new work
   follows it"; rejected, "Rejected · nothing changes"; withdrawn, "Withdrawn · nothing
@@ -6566,10 +6597,6 @@ own tests:
   failed-read words, estimated prices and "new" on All models belong to its
   lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
   no "new", and All models links to Accounts with "Accounts, in Settings".
-- **The next run after a picker amendment** (3.5, 5.5): `ui-model-next-turn`
-  owns carrying the stored model and effort through to the next provider
-  request. Default: the choice is applied by one press; the runtime repair
-  and its proof remain that plan's, with the mismatch in `README.status.md`.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
@@ -6755,14 +6782,25 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none; a person rejects in *Needs you*
-  before the agent proposes afresh (5.13).
+  proposal's own `project`. Default: none; a person rejects in *Needs you*, and
+  asking for a change has the agent propose again (5.13).
 - **Calls naming their proposals** (3.5, 5.13): filling a committed call's
   `objects` needs the core's turn record, its archived form and a mapping from
   the call's position to the proposal's number; proposals from a verdict or a
   procedure have no call. Default: keep the call anchor where one is supplied,
   and otherwise place the card by its making line, or its waiting time, as 5.13
   specifies. Filling those call objects is separate work.
+- **Application rows after a decision** (5.13): retaining every application
+  item and project-policy row, and restoring kind 6 and 7 values after a
+  reload, needs more than the session's cached values. A person without a
+  review has no such rows to read. Default: a live card uses its review; an
+  ended card uses its heads and the kind 6 and 7 values already read in this
+  session, with no new proposal-value request.
+- **Latest on a phone, checked by a press** (3.5; the request `ui-proposal-2`
+  of 2026-11-06): after landing, check that Latest's row leaves a card's
+  controls reachable at a phone's width. Default: the stylesheet assertions
+  hold its place in flow in both chats and agent pages; measuring and pressing
+  in a browser follow landing.
 - **The real-model proposal-card walk** (5.13; the request `ui-proposal-card`
   of 2026-11-06): QA repeats the two-proposal, rejection from *Needs you* and
   reload walk at 1440 and 420 pixels on a real model after landing. Default:

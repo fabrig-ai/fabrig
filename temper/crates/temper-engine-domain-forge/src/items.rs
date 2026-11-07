@@ -25,6 +25,8 @@ pub enum Start {
 /// Root-translated identities and branch names for one repository.
 #[derive(Debug)]
 pub struct Seed {
+    /// The run may modify through its held run branch (temper/docs/design/domain/forge.md, 11.1).
+    pub modify: bool,
     pub task: u64,
     pub parent: Option<u64>,
     pub repository: api::Repository,
@@ -34,6 +36,8 @@ pub struct Seed {
 /// A sized workspace item ready to hand to the worker.
 #[derive(Debug)]
 pub struct Item {
+    /// This item delivers a goal's work through its run branch.
+    pub delivers: bool,
     pub provider: api::Repository,
     pub name: Box<[u8]>,
     pub host: Box<[u8]>,
@@ -46,8 +50,8 @@ pub struct Item {
     pub credential: Option<u32>,
     pub bytes: u64,
 }
-/// A checkout's start, optional push branch and holder.
-type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>);
+/// A checkout's start, push branch, holder, landing comparison and delivery fact.
+type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]>>, bool);
 
 impl Domain {
     /// The project's context repositories are added to every checkout read-only.
@@ -82,7 +86,7 @@ impl Domain {
             },
             None => None,
         };
-        let (mut start, mut push, holder) = match inherited {
+        let (mut start, mut push, holder, selected_landing, delivers) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
                     let existing = branch_head(self, seed.repository, &row.branch).is_some();
@@ -101,12 +105,16 @@ impl Domain {
                     } else {
                         Start::Base(row.base.clone())
                     };
-                    (start, Some(row.branch.clone()), Some(row.task))
+                    (start, Some(row.branch.clone()), Some(row.task), None, false)
                 }
 
-                change::Delegate::Repair(_) => {
-                    (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(self.change_branch_holder(row)))
-                }
+                change::Delegate::Repair(_) => (
+                    Start::Branch(row.branch.clone()),
+                    Some(row.branch.clone()),
+                    Some(self.change_branch_holder(row)),
+                    None,
+                    false,
+                ),
                 change::Delegate::Resolve { base } => (
                     Start::Merge {
                         branch: if row.change.last_head.is_some() { row.branch.clone() } else { row.base.clone() },
@@ -114,13 +122,17 @@ impl Domain {
                     },
                     Some(row.branch.clone()),
                     Some(self.change_branch_holder(row)),
+                    None,
+                    false,
                 ),
                 change::Delegate::Merge { base, from } => (
                     Start::Merge { branch: if from.is_some() { row.branch.clone() } else { row.base.clone() }, base },
                     Some(row.branch.clone()),
                     Some(self.change_branch_holder(row)),
+                    None,
+                    false,
                 ),
-                change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None),
+                change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None, None, false),
             },
             None => self.task_workspace_item(&seed, repository)?,
         };
@@ -165,8 +177,13 @@ impl Domain {
                 | change::Delegate::Resolve { .. }
                 | change::Delegate::Merge { .. }
                 | change::Delegate::Gate { .. },
-            ))
-            | None => None,
+            )) => None,
+            None => match &start {
+                Start::Merge { .. } if push.is_some() => selected_landing,
+                Start::Base(_) | Start::Branch(_) | Start::Saved(_) | Start::Merge { .. } | Start::Merged { .. } => {
+                    None
+                }
+            },
         };
         let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
@@ -194,6 +211,7 @@ impl Domain {
             bytes = bytes.checked_add(skein_lib::len_u64(landing.len()))?;
         }
         Some(Item {
+            delivers: delivers && push.is_some(),
             provider: repository.provider,
             name,
             host: repository.host.clone(),
@@ -210,7 +228,8 @@ impl Domain {
         })
     }
 
-    /// A goal inspects its confirmed held branch; other tasks start at the repository's base
+    /// A modifying goal delivers through its run branch from its confirmed goal branch;
+    /// other tasks start at the repository's base
     /// (temper/docs/design/domain/forge.md, 11.1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
         if repository.role != Role::Context {
@@ -227,11 +246,25 @@ impl Domain {
                     && let Some(head) = self.heads.get(name)
                     && head.owned
                 {
-                    return Some((Start::Branch(branch_bytes(name)?), None, None));
+                    let branch = branch_bytes(name)?;
+                    if seed.modify {
+                        let (start, landing) = match branch_head(self, seed.repository, &seed.run_branch) {
+                            Some(base) => (Start::Merge { branch: branch.clone(), base }, Some(branch)),
+                            None => (Start::Base(branch), None),
+                        };
+                        return Some((start, Some(seed.run_branch.clone()), None, landing, true));
+                    }
+                    return Some((Start::Branch(branch), None, None, None, false));
                 }
             }
         }
-        Some((Start::Base(repository.settings.default_branch.clone()), Some(seed.run_branch.clone()), None))
+        Some((
+            Start::Base(repository.settings.default_branch.clone()),
+            Some(seed.run_branch.clone()),
+            None,
+            None,
+            false,
+        ))
     }
 
     /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge.md, 8.1).
