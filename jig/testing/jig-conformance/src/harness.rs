@@ -111,6 +111,7 @@ pub trait Application {
     fn policy(peers: &Self::Peers) -> &Policy;
     /// The same complete policy as `policy`, shared immutably until an edit.
     /// Adapters without a snapshot retain the value comparison at each inspection.
+    #[must_use]
     fn policy_snapshot(_: &Self::Peers) -> Option<&PolicySnapshot> {
         None
     }
@@ -563,7 +564,6 @@ where
     /// # Errors
     /// Returns the same missing receipt or broken promise as `crash`.
     pub fn from_snapshot(mut snapshot: ColdSnapshot<A>) -> Result<Self, Violation> {
-        let meter = skein_world::domain::heap::Meter::new();
         // Exactly crash's outside sequence, before constructing its one new root.
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
@@ -576,6 +576,9 @@ where
             &mut snapshot.referee,
             snapshot.clock,
         )?;
+        // Cold observation discards copied derived caches. As at initial start,
+        // measure after outside setup and before constructing the engine.
+        let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&snapshot.config);
         let events = A::start(&snapshot.config, &mut snapshot.store).into_iter().map(Input::Event).collect();
         Ok(Self {
