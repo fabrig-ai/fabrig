@@ -1,0 +1,22 @@
+draft = "ui-model-next-turn"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-model-next-turn/inputs/request.md", "smith/crates/smith-domain/src/route.rs", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+
+# A started chat's new model or effort is what its next turn's request uses. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "next-turn"
+title = "A chat's new model or effort answers its person's next words"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 7"
+
+[[slice]]
+id = 1
+story = "A started chat's change of model or effort is what the provider's request for its next turn uses"
+parts = ["next-turn"]
+walk = false
