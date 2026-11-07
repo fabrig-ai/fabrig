@@ -341,9 +341,10 @@ shorter.
   a repository being made, disabled, so a person sees one list (4.4). The
   repository's id and its owner's id the row carries ride in the adoption
   request and are never shown.
-- **A search that finds nothing,** with all read, opens "Not listed" on
-  what was typed, with the remedy below. The button waits for the remedy,
-  unless the role is Context.
+- **A search that finds nothing,** with all read, says "Nothing here matches
+  “QUERY”." in the list, has no count, and opens "Not listed" on what was
+  typed, with the remedy below. The button waits for the remedy, unless the
+  role is Context.
 - **One forge, one account:** its field goes too.
 
 What temper can reach:

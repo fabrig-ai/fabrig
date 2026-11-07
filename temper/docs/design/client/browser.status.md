@@ -79,6 +79,8 @@ keeps it; publication is not a cutoff on a handed change's commit.
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
   `browser_pages`'s `enter_starts_one_chat_and_the_composer_keeps_the_focus` holds the
   heading taking it from the main, and that module has no test of its own.
+- **Not yet:** 2.5: the chevron rule loses on the sheet's Forge and Account
+  selects and on Models' Provider select (`look-round-14`).
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older", since gone (`README.md`, 5.15), pressed twice. What holds it is the sheet's
