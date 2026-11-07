@@ -15,6 +15,28 @@ impl<R: 'static> Browser<R> {
 fn storage() -> Option<web_sys::Storage> {
     web_sys::window()?.session_storage().ok().flatten()
 }
+fn kept_storage() -> Option<web_sys::Storage> {
+    web_sys::window()?.local_storage().ok().flatten()
+}
+fn read(storage: Option<web_sys::Storage>) -> Vec<crate::store::Record> {
+    let Some(storage) = storage else { return Vec::new() };
+    (0..storage.length().unwrap_or(0))
+        .filter_map(|index| {
+            let key = storage.key(index).ok().flatten()?;
+            let value = storage.get_item(&key).ok().flatten()?;
+            Some(crate::store::Record { key: key.into_bytes().into(), value: value.into_bytes().into() })
+        })
+        .collect()
+}
+fn write(storage: Option<web_sys::Storage>, key: &[u8], value: &[u8]) -> bool {
+    let (Ok(key), Ok(value)) = (std::str::from_utf8(key), std::str::from_utf8(value)) else { return false };
+    storage.is_some_and(|storage| storage.set_item(key, value).is_ok())
+}
+fn remove(storage: Option<web_sys::Storage>, key: &[u8]) {
+    if let (Some(storage), Ok(key)) = (storage, std::str::from_utf8(key)) {
+        let _removed = storage.remove_item(key);
+    }
+}
 impl<R: 'static> super::Platform for Browser<R> {
     fn open_tab(&mut self, words: &[u8]) -> bool {
         self.tab.open(words)
@@ -35,23 +57,22 @@ impl<R: 'static> super::Platform for Browser<R> {
         self.hidden.carry(duty);
     }
     fn read_all(&self) -> Vec<crate::store::Record> {
-        let Some(storage) = storage() else { return Vec::new() };
-        (0..storage.length().unwrap_or(0))
-            .filter_map(|index| {
-                let key = storage.key(index).ok().flatten()?;
-                let value = storage.get_item(&key).ok().flatten()?;
-                Some(crate::store::Record { key: key.into_bytes().into(), value: value.into_bytes().into() })
-            })
-            .collect()
+        read(storage())
     }
     fn write(&mut self, key: &[u8], value: &[u8]) -> bool {
-        let (Ok(key), Ok(value)) = (std::str::from_utf8(key), std::str::from_utf8(value)) else { return false };
-        storage().is_some_and(|storage| storage.set_item(key, value).is_ok())
+        write(storage(), key, value)
     }
     fn remove(&mut self, key: &[u8]) {
-        if let (Some(storage), Ok(key)) = (storage(), std::str::from_utf8(key)) {
-            let _removed = storage.remove_item(key);
-        }
+        remove(storage(), key);
+    }
+    fn read_kept(&self) -> Vec<crate::store::Record> {
+        read(kept_storage())
+    }
+    fn write_kept(&mut self, key: &[u8], value: &[u8]) -> bool {
+        write(kept_storage(), key, value)
+    }
+    fn remove_kept(&mut self, key: &[u8]) {
+        remove(kept_storage(), key);
     }
     fn send(&mut self, exchange: &crate::fetch::Exchange) {
         self.fetch.exchange(exchange);

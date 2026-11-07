@@ -1,6 +1,6 @@
 # Testing hearth: status
 
-2026-11-06. Where hearth's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where hearth's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
@@ -55,6 +55,6 @@
 - **Departs:** 8.4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
   (`skein/docs/design/testing.md`, 6).
-- **Departs:** 9.1: no global timeout holds hearth's suites alone, because
-  the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
-  sum each tree's figures, hearth's 30 s and 120 s among them.
+- **Departs:** 9.1: no global wall timeout holds hearth's suites alone,
+  because the root has one `default` and one `fuzzy` profile, whose 150 s
+  and 600 s wall backstops cover all trees together.

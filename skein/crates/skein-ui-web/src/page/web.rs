@@ -363,6 +363,34 @@ impl Mounted {
             observer.observe(element);
         }
     }
+    fn options(&self, field: NodeId, menu: Option<NodeId>, active: Option<NodeId>) {
+        let element = self.group(field).element;
+        if let Some(menu) = menu {
+            element.set_attribute("aria-autocomplete", "list").expect("autocomplete attribute");
+            element
+                .set_attribute("aria-controls", &format!("skein-ui-options-{}", menu.0))
+                .expect("controls attribute");
+            let items = self.group(menu).element.query_selector_all("[role=option]").expect("option selector");
+            for index in 0..items.length() {
+                let item = items.item(index).expect("option within list").unchecked_into::<Element>();
+                if self.id(&item) == active {
+                    item.set_attribute("aria-selected", "true").expect("selected attribute");
+                } else {
+                    item.remove_attribute("aria-selected").expect("selected attribute");
+                }
+            }
+        } else {
+            element.remove_attribute("aria-autocomplete").expect("autocomplete attribute");
+            element.remove_attribute("aria-controls").expect("controls attribute");
+        }
+        if let Some(active) = active {
+            element
+                .set_attribute("aria-activedescendant", &format!("skein-ui-option-{}", active.0))
+                .expect("active descendant attribute");
+        } else {
+            element.remove_attribute("aria-activedescendant").expect("active descendant attribute");
+        }
+    }
     fn affected_trees(&self, op: &Op, trees: &mut Vec<NodeId>) {
         let mut affected = Vec::new();
         match op {
@@ -395,6 +423,7 @@ impl Mounted {
             | Op::Text { .. }
             | Op::Value { .. }
             | Op::Choice { .. }
+            | Op::Options { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
@@ -437,6 +466,7 @@ impl Mounted {
                         area.set_value(&text);
                     }
                 }
+                Op::Options { field, menu, active } => self.options(*field, *menu, *active),
                 Op::Choice { node, checked } => {
                     let element = self.group(*node).element;
                     if let Some(option) = element.dyn_ref::<HtmlOptionElement>() {
@@ -1102,6 +1132,7 @@ fn read(event: &web_sys::Event, element: &Element, node: Option<NodeId>, documen
             alt: key.alt_key(),
             shift: key.shift_key(),
             in_field,
+            composing: key.is_composing(),
         });
         if in_component {
             return out;

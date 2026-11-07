@@ -1,5 +1,5 @@
 //! Supplied next-run choices and account waits (client/README.md, 3.5 and 5.5).
-mod picker;
+pub(crate) mod picker;
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word as W, Words},
@@ -148,7 +148,7 @@ pub(crate) fn composer(
     feedback(b, root, task, w, bindings, times);
     b.close();
 }
-fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
+pub(crate) fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
     let draft = root.pages().choice();
     can_send(root)
         && match task {

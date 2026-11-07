@@ -830,8 +830,15 @@ struct Marker {
     at: usize,
     len: usize,
     run: Run,
+    byte: u8,
     partner: Option<u32>,
     opening: bool,
+}
+fn word_character(byte: Option<&u8>) -> bool {
+    match byte {
+        Some(byte) => byte.is_ascii_alphanumeric() || *byte >= 0x80,
+        None => false,
+    }
 }
 fn markers(line: &[u8], ranges: &List<Range>, depth: u32) -> List<Marker> {
     let mut markers: List<Marker> = List::with_capacity(crate::tree::length(line));
@@ -854,8 +861,8 @@ fn markers(line: &[u8], ranges: &List<Range>, depth: u32) -> List<Marker> {
         }
         let (len, run) = if *byte == b'`' {
             (1, Run::Code)
-        } else if !in_code && *byte == b'*' {
-            if line.get(index.checked_add(1).expect("marker index fits")) == Some(&b'*') {
+        } else if !in_code && (*byte == b'*' || *byte == b'_') {
+            if line.get(index.checked_add(1).expect("marker index fits")) == Some(byte) {
                 (2, Run::Strong)
             } else {
                 (1, Run::Emphasis)
@@ -864,9 +871,16 @@ fn markers(line: &[u8], ranges: &List<Range>, depth: u32) -> List<Marker> {
             continue;
         };
         skip = index.checked_add(len).expect("marker end fits");
+        if *byte == b'_'
+            && word_character(line.get(..index).expect("marker starts in line").last())
+            && word_character(line.get(skip))
+        {
+            continue;
+        }
         let mut matched = None;
         if let Some(top) = open.top()
             && markers.get(*top).expect("open marker exists").run == run
+            && markers.get(*top).expect("open marker exists").byte == *byte
         {
             matched = Some(*top);
         }
@@ -882,6 +896,7 @@ fn markers(line: &[u8], ranges: &List<Range>, depth: u32) -> List<Marker> {
                     at: index,
                     len,
                     run,
+                    byte: *byte,
                     partner: if nonempty { Some(partner) } else { None },
                     opening: false,
                 })
@@ -889,7 +904,7 @@ fn markers(line: &[u8], ranges: &List<Range>, depth: u32) -> List<Marker> {
             let _closed = open.pop().expect("matching marker remains");
         } else if open.len() < depth {
             markers
-                .push(Marker { at: index, len, run, partner: None, opening: true })
+                .push(Marker { at: index, len, run, byte: *byte, partner: None, opening: true })
                 .expect("markers fit input bytes");
             open.push(position).expect("emphasis fits its nesting bound");
         }

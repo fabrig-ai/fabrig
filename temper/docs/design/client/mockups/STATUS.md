@@ -290,6 +290,9 @@ browser coverage is in `../../draft/chat-reading.status.md`, sections 3
 and 5, and of the line in its sections 2 and 7; a numbered list's look is in
 `../browser.status.md`, 2.5.
 
+The terminal is a browser's other look of a chat, with its own top line,
+commands and document pane (`../README.md`, 3.5, *A chat's terminal*).
+
 Where the client's recorded picks stand against the drawing:
 
 - **The chats page's pane** (the person's look requests, 11-03;

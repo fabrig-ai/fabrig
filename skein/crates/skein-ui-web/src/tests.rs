@@ -4,6 +4,7 @@ mod fixtures;
 mod log;
 mod mapping;
 mod page;
+mod screen;
 mod svg;
 mod worker;
 

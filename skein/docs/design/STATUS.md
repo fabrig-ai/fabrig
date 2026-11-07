@@ -47,6 +47,11 @@ figure's flow. The case scenes and text fallback are held by host tests
 (`ui.md`, `ui-web.md`, `ui-text.md`). Node hints are bounded text carried
 by attribute patches, shown as `title` on the web and omitted by the text
 shell (`ui.md`, 3.2; `ui-web.md`, section 6; `ui-text.md`, section 5).
+Underscore emphasis and strong keep word-internal underscores literal;
+a field's options keep focus while arrows move, Enter presses and Tab
+completes. The kept store and full-screen reports with Escape-only
+locking are present; real-key checks belong to consuming applications
+after landing (`ui.md`, 3.2, 4.2 and 10; `ui-web.md`, 6, 7, 10, 11 and 15).
 Branches, merges, more shapes and
 sequence diagrams remain later work (`ui.md`, section 18); the practice
 and home of draft acceptance cases remain the user's open decision

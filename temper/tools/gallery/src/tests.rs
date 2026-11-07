@@ -131,6 +131,79 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-terminal-question",
+        heading: "T1 · Make tally sum stream its input",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Menu, name: "Keep the trailing comma?" },
+            Part::Named { role: Role::MenuItem, name: "Keep it" },
+            Part::Named { role: Role::MenuItem, name: "Drop it" },
+            Part::Named { role: Role::MenuItem, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-proposal",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Text, name: "Proposal" },
+            Part::Named { role: Role::Disclosure, name: "Details" },
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-draft",
+        heading: "T1 · Away mode, draft",
+        parts: &[Part::Named { role: Role::Button, name: "Exit" }, Part::Pressed { name: "Draft" }],
+    },
+    Holds {
+        name: "chat-terminal-commands",
+        heading: "T1 · Away mode, draft",
+        parts: &[Part::Named { role: Role::Button, name: "Exit" }, Part::Named { role: Role::Menu, name: "Commands" }],
+    },
+    Holds {
+        name: "chat-terminal-model",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Menu, name: "Model. A change applies from the next turn." },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-light",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "Font: IBM Plex Mono." },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-closed",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "/ for commands" },
+        ],
+    },
+    Holds {
+        name: "chat-terminal-working",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Exit" },
+            Part::Named { role: Role::Paragraph, name: "/ for commands" },
+            Part::Named { role: Role::Status, name: "Working" },
+        ],
+    },
+    Holds {
         name: "agent-work",
         heading: "T1 · please describe how temper works",
         parts: &[
@@ -2878,7 +2951,13 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 46] = [
+const SPENDS: [(&str, Role, &str); 52] = [
+    ("chat-terminal-proposal", Role::Paragraph, "0 spent · of 40"),
+    ("chat-terminal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-draft", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-light", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-closed", Role::Paragraph, "1 spent · of 40"),
+    ("chat-terminal-working", Role::Paragraph, "1 spent · of 40"),
     ("chat-model-fixed", Role::Paragraph, "70 spent · of 101472"),
     ("chat-started-model-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-started-model-changing", Role::Paragraph, "70 spent · of 101472"),
@@ -2927,6 +3006,13 @@ const SPENDS: [(&str, Role, &str); 46] = [
     ("chats-solo", Role::Paragraph, "1 spent"),
 ];
 fn each_chat_reads_its_allotment(sample: &Sample, view: &temper_client_view::View) {
+    if matches!(sample.name, "chat-terminal-commands" | "chat-terminal-model" | "chat-terminal-question") {
+        assert!(
+            !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::TERMINAL_LINE)),
+            "a list replaces the quiet line and spend"
+        );
+        return;
+    }
     if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
         && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
     {
@@ -3230,6 +3316,13 @@ fn print_writes_every_page_and_the_bundle() {
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
             assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
+        } else if sample.name.starts_with("chat-terminal") {
+            let (_, main) = page.split_once("<main ").expect("terminal main element");
+            let (main, _) = main.split_once('>').expect("terminal main attributes");
+            assert!(main.contains("class=\"temper-terminal "), "{}: terminal main", sample.name);
+            for class in ["temper-rail", "temper-tabbar", "temper-menu"] {
+                assert!(!page.contains(&format!("class=\"{class}\"")), "{}: no {class}", sample.name);
+            }
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {

@@ -907,6 +907,12 @@ for the head and `read_pull_files` pages; an oversized pull-file page points
 to directory and selected-file `read_file` calls at both endpoints with
 `max_bytes`. Forge-client admission busy still uses the host's bounded
 backoff.
+A forge read answered with a kind no agent read asks for (`Runs`, `Run`,
+`Commits`, `Tree` or `Queued`) is refused as such, and nothing stops
+`temper serve`: the run's tool result, marked an error, names the read's
+tool and the kind and says nothing was read, and the service notes a
+read refusal for stderr at layer `host-render`, its reason naming the
+kind.
 A reviewer fails when it cannot judge the change.
 
 

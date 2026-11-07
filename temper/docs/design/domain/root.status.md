@@ -2,6 +2,10 @@
 
 2026-11-07. Where temper's code lags or departs from [root.md](root.md).
 
+Section 9.1's owner handoff is present: after both domains load, the root
+hands the forge `people.sole_owner()` before its restore decision. The
+connector's retained-link scope gap remains in `forge.status.md`, 4.6.
+
 Section 5.2's host-answer room is shared across the box's runs, as
 `fleet.calls` bounds the fleet rather than each run. No concurrency gap is
 known in that room; the settings-answer bound gap remains below.

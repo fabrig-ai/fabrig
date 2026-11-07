@@ -393,6 +393,11 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 
 ## 7. Open questions
 
+- **Links for several members** (section 2, family 25): one optional link
+  belongs to a box's one person. A deployment with several members needs
+  a family and evidence of each account (`../draft/forge-identity.md`,
+  section 12). Default: the forge's one link and adoption's party seeds;
+  no party merge or compatibility migration.
 - **`Landed` grows with history.** A merge temper made is kept for
   own-change news, and no row is erased; once the forge's `landings`
   limit is reached, later merges are not recorded, and news of them reads

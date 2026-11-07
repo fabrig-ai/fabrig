@@ -1,5 +1,5 @@
 //! The page's landmark outline (skein's ui.md, section 14).
-use crate::{Role, Shortcut, Tree};
+use crate::{Role, Shortcut, State, Tree};
 use skein_lib::List;
 
 /// The first node in preorder breaking the outline, or zero for a missing node.
@@ -26,6 +26,8 @@ pub enum Rule {
     ShortcutOnce,
     /// Escape named by a node outside every dialog and every form.
     EscapeInDialogOrForm,
+    /// An options menu has no preceding text field in its innermost form.
+    OptionsAfterField,
 }
 
 /// Check roles, region names and shortcuts, without reading words.
@@ -43,6 +45,14 @@ pub fn check(tree: &Tree) -> Option<Fault> {
         }
         if node.role == Role::Form {
             form_end = form_end.max(index.checked_add(node.size).expect("form end fits u32"));
+        }
+        if node.states.as_slice().contains(&State::Options) && !options_after_field(tree, index) {
+            if let Some(earlier) = fault
+                && earlier.node <= index
+            {
+                return Some(earlier);
+            }
+            return Some(Fault { rule: Rule::OptionsAfterField, node: index });
         }
         if let Some(shortcut) = node.shortcut {
             if shortcut == Shortcut::ESCAPE && index >= dialog_end && index >= form_end {
@@ -130,4 +140,31 @@ fn landmarks(tree: &Tree) -> Option<Fault> {
         return Some(Fault { rule: Rule::OneMain, node: 0 });
     }
     fault
+}
+
+fn options_after_field(tree: &Tree, menu: u32) -> bool {
+    let mut form = None;
+    for index in 0..menu {
+        let node = tree.get(index).expect("index before menu");
+        let end = index.checked_add(node.size).expect("subtree end fits u32");
+        if node.role == Role::Form && menu < end {
+            form = Some(index);
+        }
+    }
+    let Some(form) = form else {
+        return false;
+    };
+    let mut nested_end = 0;
+    for index in form.checked_add(1).expect("form precedes menu")..menu {
+        if index < nested_end {
+            continue;
+        }
+        let node = tree.get(index).expect("index before menu");
+        if node.role == Role::Form {
+            nested_end = index.checked_add(node.size).expect("subtree end fits u32");
+        } else if node.role.is_text_field() {
+            return true;
+        }
+    }
+    false
 }

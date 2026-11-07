@@ -1,4 +1,4 @@
-//! Session records, encoded under an application's prefix (ui-web.md, 10).
+//! Session and kept records, encoded under an application's prefix (skein/docs/design/ui-web.md, 10).
 use crate::platform::Platform;
 use skein_lib::{
     Writer,
@@ -16,16 +16,32 @@ pub struct Refused;
 pub struct Store {
     prefix: Box<[u8]>,
     bound: Option<u64>,
+    place: Place,
+}
+enum Place {
+    Session,
+    Kept,
 }
 impl Store {
+    /// The small store, the tab's session storage.
     #[must_use]
     pub fn new(prefix: &[u8], bound: Option<u64>) -> Self {
-        Self { prefix: prefix.into(), bound }
+        Self { prefix: prefix.into(), bound, place: Place::Session }
+    }
+    /// The kept store, the browser's local storage, in the same form.
+    #[must_use]
+    pub fn kept(prefix: &[u8], bound: Option<u64>) -> Self {
+        Self { prefix: prefix.into(), bound, place: Place::Kept }
+    }
+    fn records(&self, platform: &impl Platform) -> Vec<Record> {
+        match self.place {
+            Place::Session => platform.read_all(),
+            Place::Kept => platform.read_kept(),
+        }
     }
     #[must_use]
     pub fn read_all(&self, platform: &impl Platform) -> Vec<Record> {
-        platform
-            .read_all()
+        self.records(platform)
             .into_iter()
             .filter_map(|record| {
                 let key = record.key.strip_prefix(self.prefix.as_ref())?;
@@ -40,20 +56,30 @@ impl Store {
         let key = self.key(key)?;
         let value = encoded(value)?;
         // The bound prices the text bytes held under this prefix, including keys.
-        let held = platform
-            .read_all()
+        let held = self
+            .records(platform)
             .into_iter()
             .filter(|record| record.key.starts_with(&self.prefix) && record.key != key)
             .try_fold(0_u64, |total, record| total.checked_add(size(&record.key, &record.value)?));
         let total = held.and_then(|held| held.checked_add(size(&key, &value)?)).ok_or(Refused)?;
-        if self.bound.is_some_and(|bound| total > bound) || !platform.write(&key, &value) {
+        if self.bound.is_some_and(|bound| total > bound) {
+            return Err(Refused);
+        }
+        let written = match self.place {
+            Place::Session => platform.write(&key, &value),
+            Place::Kept => platform.write_kept(&key, &value),
+        };
+        if !written {
             return Err(Refused);
         }
         Ok(())
     }
     pub fn remove(&mut self, key: &[u8], platform: &mut impl Platform) {
         if let Ok(key) = self.key(key) {
-            platform.remove(&key);
+            match self.place {
+                Place::Session => platform.remove(&key),
+                Place::Kept => platform.remove_kept(&key),
+            }
         }
     }
     fn key(&self, key: &[u8]) -> Result<Box<[u8]>, Refused> {

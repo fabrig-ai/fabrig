@@ -183,6 +183,8 @@ impl App for Temper {
             Request::Client { .. } | Request::Unlinked { .. } => Duty::Wire(request),
             Request::Show { address, replace } => Duty::Show { address, replace },
             Request::Copy { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
@@ -230,6 +232,8 @@ impl App for Temper {
             }
             | Request::Copy { .. }
             | Request::Show { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
@@ -260,6 +264,8 @@ impl App for Temper {
                 | domain::Event::Start { .. }
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
+                | domain::Event::ScreenLeft
+                | domain::Event::LookKept { .. }
                 | domain::Event::SignInKept { .. }
                 | domain::Event::TabRefused
                 | domain::Event::SignedOut
@@ -352,6 +358,8 @@ impl App for Temper {
             | Request::Unlinked { .. }
             | Request::Copy { .. }
             | Request::Show { .. }
+            | Request::Screen { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
@@ -399,6 +407,8 @@ impl App for Temper {
             | domain::Event::Forge(_)
             | domain::Event::AccountKey { .. }
             | domain::Event::SignInAddress { .. }
+            | domain::Event::ScreenLeft
+            | domain::Event::LookKept { .. }
             | domain::Event::SignInKept { .. }
             | domain::Event::TabRefused
             | domain::Event::Client { .. } => vec![],

@@ -45,3 +45,49 @@ fn removal_uses_the_encoded_key() {
     Store::new(b"notes-", None).remove(b"key", &mut platform);
     assert_eq!(platform.calls, vec![Call::Remove(b"notes-a2V5".to_vec())]);
 }
+
+#[test]
+fn the_kept_store_is_the_small_stores_form_in_local_storage() {
+    // notes- plus the encoded key and value holds 18 text bytes.
+    const RECORD_BYTES: u64 = 18;
+    let record = |value: &[u8]| Record { key: b"notes-a2V5".as_slice().into(), value: value.into() };
+    let cases = [
+        (
+            Store::new as fn(&[u8], Option<u64>) -> Store,
+            b"session".as_slice(),
+            Call::Write(b"notes-a2V5".to_vec(), b"cmVjb3Jk".to_vec()),
+            Call::Remove(b"notes-a2V5".to_vec()),
+        ),
+        (
+            Store::kept as fn(&[u8], Option<u64>) -> Store,
+            b"kept".as_slice(),
+            Call::WriteKept(b"notes-a2V5".to_vec(), b"cmVjb3Jk".to_vec()),
+            Call::RemoveKept(b"notes-a2V5".to_vec()),
+        ),
+    ];
+    for (make, expected, write, remove) in cases {
+        let mut platform = FakePlatform {
+            records: vec![record(b"c2Vzc2lvbg==")],
+            kept: vec![record(b"a2VwdA==")],
+            ..FakePlatform::default()
+        };
+        let mut store = make(b"notes-", Some(RECORD_BYTES));
+        assert_eq!(store.read_all(&platform), vec![Record { key: b"key".as_slice().into(), value: expected.into() }]);
+        assert_eq!(store.write(b"key", b"record", &mut platform), Ok(()));
+        assert_eq!(platform.calls, vec![write]);
+        platform.calls.clear();
+        store.remove(b"key", &mut platform);
+        assert_eq!(store.read_all(&platform), vec![]);
+        assert_eq!(platform.calls, vec![remove]);
+        platform.calls.clear();
+        assert_eq!(make(b"notes-", Some(RECORD_BYTES - 1)).write(b"key", b"record", &mut platform), Err(Refused));
+        assert!(platform.calls.is_empty());
+        platform.quota = Some(0);
+        assert_eq!(store.write(b"key", b"record", &mut platform), Err(Refused));
+    }
+    let mut platform = super::fixtures::SessionOnly;
+    let mut store = Store::kept(b"notes-", None);
+    assert_eq!(store.read_all(&platform), vec![]);
+    assert_eq!(store.write(b"key", b"record", &mut platform), Err(Refused));
+    store.remove(b"key", &mut platform);
+}

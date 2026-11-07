@@ -174,3 +174,8 @@ pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<
         None => number(b, w, task),
     }
 }
+
+/// The browser's entrance to a chat's terminal (client/README.md, 3.5).
+pub(crate) fn to_terminal(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
+    super::terminal::enter(b, w, bindings);
+}

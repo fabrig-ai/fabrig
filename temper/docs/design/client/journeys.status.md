@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9 has no known implementation gap in the terminal's drawing
+route: the request pages remain hand-made references, nine gallery
+states draw the shared view, and `chat-draft` and `welcome-playground`
+prints include the terminal button. `chat-draft`'s opening paragraph
+renders Markdown emphasis in the shared document pane. Render and
+real-key comparisons remain section 10's after-landing work.
+
 Section 9's `chat-title` has no known implementation gap. Its hand-made
 heading page is a request reference; no recorded journey's heading
 changes, so no recording or print needs regeneration. The account is
