@@ -12,6 +12,8 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
+    /// At start, the kept store’s look (client/README.md, 3.5).
+    LookKept { look: crate::pages::terminal::Look },
     Copied {
         token: u32,
         written: crate::copy::Written,
@@ -64,6 +66,8 @@ pub enum Tab {
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    /// Keep the look in the step that changed it (client/README.md, 3.5).
+    KeepLook { look: crate::pages::terminal::Look },
     /// Keep an answered sign-in beside the client's records (client/README.md, 7).
     KeepSignIn {
         source: u32,

@@ -43,6 +43,7 @@ pub fn down(request: Request) -> Option<jig_client::Down> {
         Request::Unlinked { .. }
         | Request::Client { .. }
         | Request::Show { .. }
+        | Request::KeepLook { .. }
         | Request::KeepSignIn { .. }
         | Request::Tab { .. }
         | Request::Leave { .. }

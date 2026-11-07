@@ -1645,6 +1645,7 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
@@ -4318,6 +4319,7 @@ fn place_read_root(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }

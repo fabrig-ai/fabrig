@@ -452,6 +452,7 @@ fn populate_page(
             }
             Request::Client { .. }
             | Request::Unlinked { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }

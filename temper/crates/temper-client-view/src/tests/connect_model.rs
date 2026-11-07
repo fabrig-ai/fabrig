@@ -224,6 +224,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
@@ -1141,7 +1142,8 @@ fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(found) },
                     },
             } if found == subject => Some(*watch),
-            d::Request::KeepSignIn { .. }
+            d::Request::KeepLook { .. }
+            | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Client { .. }
             | d::Request::Unlinked { .. }
@@ -1210,7 +1212,8 @@ pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -
             } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
                 Some(*read)
             }
-            d::Request::KeepSignIn { .. }
+            d::Request::KeepLook { .. }
+            | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Client { .. }
             | d::Request::Unlinked { .. }

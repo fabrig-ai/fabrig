@@ -35,6 +35,7 @@ pub enum TabAct {
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub keep_look: Option<[u8; 3]>,
     pub tab: Vec<TabAct>,
     pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
@@ -68,6 +69,7 @@ pub struct Host {
     replace: Option<Box<[u8]>>,
     show: Option<(Box<[u8]>, bool)>,
     copy: Option<(u32, Box<[u8]>)>,
+    keep_look: Option<[u8; 3]>,
 }
 impl Host {
     #[must_use]
@@ -91,6 +93,7 @@ impl Host {
             next: 0,
             show: None,
             copy: None,
+            keep_look: None,
             navigate: None,
             replace: None,
         }
@@ -99,19 +102,26 @@ impl Host {
         self.view.forge_sign_in(forges);
     }
     pub fn start(&mut self, path: &[u8], records: Vec<skein_ui_web::store::Record>, secret: Option<Box<[u8]>>) {
-        if parse(path) == Place::AuthorizeMalformed {
-            self.event(Event::Went { place: Place::AuthorizeMalformed });
-            return;
-        }
         let mut kept = List::with_capacity(u32::try_from(records.len()).expect("bounded store"));
         let mut sign_in = None;
+        let mut look = None;
         for record in records {
+            if record.key.as_ref() == records::LOOK_KEY {
+                look = records::decode_look(&record.value);
+            }
             if record.key.as_ref() == records::SIGN_IN_KEY {
                 sign_in = records::decode_sign_in(&record.value);
             }
             if let Some(record) = records::decode(record) {
                 kept.push(record).expect("counted store");
             }
+        }
+        if let Some(look) = look {
+            self.event(Event::LookKept { look });
+        }
+        if parse(path) == Place::AuthorizeMalformed {
+            self.event(Event::Went { place: Place::AuthorizeMalformed });
+            return;
         }
         let place = parse(path);
         self.address = self.opened(path);
@@ -164,6 +174,7 @@ impl Host {
         }
         let (asked, writes, tab) = self.duties();
         Duties {
+            keep_look: self.keep_look.take(),
             tab,
             asked,
             writes,
@@ -263,6 +274,7 @@ impl Host {
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::KeepLook { look } => self.keep_look = Some(records::encode_look(look)),
                 Request::Tab { tab: request } => tab.push(match request {
                     root::Tab::Open { provider } => {
                         TabAct::Open { words: view::opening_tab(&self.view, &self.root, provider) }

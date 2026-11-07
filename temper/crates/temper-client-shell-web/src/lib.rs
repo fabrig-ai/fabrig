@@ -51,6 +51,7 @@ struct Shell<P: ShellPlatform> {
     dom: Dom,
     platform: P,
     store: Store,
+    kept: Store,
     clipboard: clipboard::web::Clipboard<Report>,
     history: Rc<history::web::History>,
     timer: P::Timer,
@@ -138,7 +139,9 @@ fn start_signed_in() {
         #[cfg(feature = "record")]
         &mut forges,
     ));
-    let stored = store.read_all(&platform);
+    let kept = Store::kept(b"temper.", None);
+    let mut stored = store.read_all(&platform);
+    stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
     #[cfg(feature = "record")]
     let recorder = Some(journey::Recorder::new(&journey::Facts {
         seed: facts.seed,
@@ -165,6 +168,7 @@ fn start_signed_in() {
         dom,
         platform,
         store,
+        kept,
         clipboard: clipboard::web::Clipboard::new(Rc::clone(&inbox), Report::Copied),
         history,
         timer,
@@ -284,6 +288,9 @@ impl<P: ShellPlatform> Shell<P> {
         #[cfg(feature = "record")]
         if duties.departs() {
             self.save_recording(true);
+        }
+        if let Some(look) = duties.keep_look {
+            self.kept.write(records::LOOK_KEY, &look, &mut self.platform).ok();
         }
         let mut requests = adapter::requests(duties.asked);
         requests.navigate = duties.navigate;

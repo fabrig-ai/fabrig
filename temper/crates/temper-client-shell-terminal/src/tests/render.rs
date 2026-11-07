@@ -196,6 +196,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }
+            | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }

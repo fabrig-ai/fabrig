@@ -43,6 +43,7 @@ fn pressed(welcome: bool) -> (Domain, crate::View, skein_lib::Token) {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }

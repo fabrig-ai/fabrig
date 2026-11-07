@@ -24,11 +24,7 @@ fn the_look_moves_by_its_acts() {
         assert_eq!(pages.look(), dark);
         let env = fixtures::env(&limits);
         let mut out = Queue::uncapped();
-        if before == light {
-            for act in [terminal::Act::Enter, terminal::Act::Theme, terminal::Act::Font] {
-                pages::step(&mut pages, &env, root.client(), Event::Act { act: Act::Terminal(act) }, &mut out);
-            }
-        }
+        pages.restore_look(before);
         pages::step(&mut pages, &env, root.client(), Event::Went { address: Address::Chat { task: 9 } }, &mut out);
         pages::step(&mut pages, &env, root.client(), Event::Act { act: Act::Mode { mode: Mode::Split } }, &mut out);
         pages::step(
@@ -38,13 +34,18 @@ fn the_look_moves_by_its_acts() {
             Event::Act { act: Act::MessageWords { words: Box::from(b"Keep these words".as_slice()) } },
             &mut out,
         );
-        pages::step(
-            &mut pages,
-            &fixtures::env(&limits),
-            root.client(),
-            Event::Act { act: Act::Terminal(act) },
-            &mut Queue::uncapped(),
+        let mut domain = crate::unlinked(&limits, fixtures::SEED);
+        domain.pages = pages;
+        let mut acts = Queue::uncapped();
+        crate::step(
+            &mut domain,
+            &env,
+            crate::Event::Act { action: Action::Pages(Act::Terminal(act)) },
+            &mut acts,
         );
+        assert_eq!(acts.pop(), Some(crate::Request::KeepLook { look: after }));
+        assert!(acts.is_empty());
+        let pages = domain.pages();
         assert_eq!(pages.look(), after);
         let font_note = if before.font == after.font { None } else { Some(Note::Font { font: after.font }) };
         assert_eq!(pages.notes().last(), font_note.as_ref());
@@ -52,6 +53,13 @@ fn the_look_moves_by_its_acts() {
         let chat = pages.chat().unwrap();
         assert_eq!(chat.mode, Mode::Split);
         assert_eq!(chat.words.as_ref(), b"Keep these words");
+    }
+    for look in [dark, light] {
+        let mut root = crate::unlinked(&limits, fixtures::SEED);
+        let mut out = Queue::uncapped();
+        crate::step(&mut root, &fixtures::env(&limits), crate::Event::LookKept { look }, &mut out);
+        assert_eq!(root.pages().look(), look);
+        assert!(out.is_empty(), "a restored look asks for nothing");
     }
     for (address, expected) in [
         (Address::Chat { task: 9 }, true),

@@ -1,4 +1,26 @@
-//! The small store's client records and sign-in address (temper/docs/design/client/README.md, 7).
+//! The small store’s client records and the kept look (temper/docs/design/client/README.md, 7 and 3.5).
+use temper_client_domain::pages::terminal::{Font, Look, Theme};
+
+/// The kept store’s look record (client/README.md, 3.5): three bytes, `0` or `1`.
+pub const LOOK_KEY: &[u8] = b"look";
+#[must_use]
+pub fn encode_look(look: Look) -> [u8; 3] {
+    [
+        if look.terminal { b'1' } else { b'0' },
+        match look.theme { Theme::Dark => b'0', Theme::Light => b'1' },
+        match look.font { Font::DejaVu => b'0', Font::Plex => b'1' },
+    ]
+}
+#[must_use]
+pub fn decode_look(value: &[u8]) -> Option<Look> {
+    let [terminal, theme, font] = value else { return None };
+    Some(Look {
+        terminal: match terminal { b'0' => false, b'1' => true, _ => return None },
+        theme: match theme { b'0' => Theme::Dark, b'1' => Theme::Light, _ => return None },
+        font: match font { b'0' => Font::DejaVu, b'1' => Font::Plex, _ => return None },
+    })
+}
+
 /// Seven bytes: `Shell::finish` counts only 16-byte request keys for its closing warning.
 pub const SIGN_IN_KEY: &[u8] = b"sign-in";
 #[derive(Debug, PartialEq, Eq)]

@@ -179,6 +179,7 @@ impl Life {
             dom,
             platform,
             store,
+            kept: Store::kept(b"temper.", None),
             clipboard: skein_ui_web::clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
             history: Rc::clone(&self.history),
             timer: (),
