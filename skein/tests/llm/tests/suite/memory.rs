@@ -913,7 +913,11 @@ const SELECTIVE_ARGUMENT_PEAK_CEILING: u64 = 71_000;
 fn selective_oversize_call_high_water_is_independent_of_the_argument_size() {
     let short = selective_peak(64, true, SELECTIVE_ARGUMENT_PEAK_CEILING);
     let long = selective_peak(1 << 18, true, SELECTIVE_ARGUMENT_PEAK_CEILING);
-    assert_eq!(short.0, long.0, "discarded arguments retain only their length");
+    // Before the item's late type tag, the unknown candidate may retain the
+    // short argument. A longer plain run can pass its cap without growing
+    // that storage, so a lower peak and less retained heap are valid.
+    assert!(long.0 <= short.0, "discarded arguments must not increase the peak: short={short:?}, long={long:?}");
+    assert!(long.1 <= short.1, "discarded arguments must not retain more heap: short={short:?}, long={long:?}");
 }
 
 #[test]

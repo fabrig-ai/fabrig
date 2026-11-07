@@ -213,15 +213,24 @@ pub struct Limits {
   escape must be followed at once by a low one's, and the pair is one
   character; a lone half of a pair is `Surrogate`. `\u0000` is a NUL in
   the text, which is valid UTF-8.
-- **UTF-8 is checked a byte at a time** (RFC 3629, 4): no overlong form,
-  no surrogate, nothing past U+10FFFF. A string's text arrives in scans
-  cut anywhere, so a character may span two of them, and the check keeps
-  its place between them.
+- **UTF-8 is checked by the tokenizer's own state machine** (RFC 3629, 4):
+  no overlong form, no surrogate, nothing past U+10FFFF. A string's text
+  arrives in scans cut anywhere, so a character may span two of them, and
+  the check keeps its place between them. Every byte but a plain run's
+  goes through it one at a time.
 - **The limit is decided at a character's first byte,** for the whole
   character, so whether a raw character fits never waits on whether its
   next bytes are valid; and at an escape's last byte, once it is known to
   spell a character, for what it spells. A surrogate pair cut by a bad
   digit is then an `Escape`, whatever the room left.
+- **A run of plain bytes is taken whole, and reads as its bytes one at a
+  time would.** A plain byte is ASCII a string holds as it is: `0x20` to
+  `0x7F`, but for `"` and `\`. Between characters it needs no escape and
+  no state of UTF-8, and it is valid, so nothing but the limit can stop
+  it. A run that passes the limit fails at the byte that passes it, and
+  the position says that byte (3.6). `Text`'s cap and `Skip` count a run
+  as they count its bytes. Where a run ends, by the cut of a scan or at a
+  byte that is not plain, says nothing about what comes next.
 
 ### 3.5 Numbers
 
@@ -316,6 +325,13 @@ let body = write.finish();               // exactly len bytes
   met, and the length last. What only its code gets wrong (a key outside
   an object, an end that closes nothing, a second value, a writing pass
   of another length than its measuring pass) is a bug, asserted.
+- **The writing pass measures nothing, and checks no string's text.** A
+  string's length and its check of UTF-8 are the measuring pass's; the
+  writing pass writes what it is given. A writing pass that writes more or
+  less than was measured is asserted, at the byte past the length or at
+  `finish`. Text that differs between the passes at the same length is a
+  bug of the caller's code that nothing asserts: it is written as it is,
+  UTF-8 or not. `number` and `json_text` check their text on both passes.
 - **`Limits { depth, length }`**, and `encoder_bound`: the stack and the
   document, which the writing pass holds until `finish` hands it over.
 - **Compact:** no whitespace. A string escapes `"`, `\` and the control
@@ -566,7 +582,11 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
   after `restart`. The collector: each disposition, a key named and one not, a duplicate named
   and unnamed, each count at its limit and one past it, a `Long` kept, a
   close in each state, and a restart that keeps its buffers. A compact
-  document read by index and written back.
+  document read by index and written back. Plain runs (3.4) against a
+  reference a byte at a time through the state machine: every byte value
+  at a run's edge, decoded, measured and written; and decoding, under each
+  retention, with the limit at a run's first, middle and last byte, and
+  every cut, the same outcome, text, length and position.
 - **Machine worlds** (testing-strategy.md, 2.4) in `tests/json`
   (`skein-json-world`): one tokenizer from a seed, in one loop with both
   its neighbours.
@@ -655,7 +675,14 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
   in every state. Then 5,000 generated documents written and read back;
   and texts and numbers drawn at random, 20,000 of each, which the writer
   writes exactly when the standard library and the grammar accept them.
-  The collector's: 10,000 generated and mutated documents under drawn
+  Text in runs, plain bytes between escapes, non-ASCII, control bytes and
+  what is not UTF-8: written, each measured and spelled as a naive reading
+  a byte at a time has it, refused exactly when the standard library
+  refuses it; and read in a string or a key through the world, cut
+  anywhere, under limits and `Text` caps drawn near the runs' lengths and
+  under `Skip`, each against the reference, asserting that a limit passed
+  inside a run, each error of a string's text just after a run, a `Long`
+  and a `Skipped` fell. The collector's: 10,000 generated and mutated documents under drawn
   filters, each against the pruned reference, asserting that every
   disposition, every count's failure, a duplicate, a `Long` and a skip of
   each kind of value fell; and documents with unnamed fields added at
@@ -699,9 +726,26 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
 - **UTF-8 is checked by the tokenizer's own code,** not by
   `core::str::from_utf8` under a scoped `#[expect]`. A string arrives in
   scans cut anywhere, so a character may span two of them; the check
-  runs a byte at a time in the same pass that undoes escapes and counts
-  the limit, and needs no exemption from the subset. The writer checks
-  its text with the same code.
+  runs in the same pass that undoes escapes and counts the limit, a plain
+  run (3.4) at once and every other byte through the state machine, and
+  needs no exemption from the subset. The writer checks its text with the
+  same code.
+- **A plain run costs no call per byte.** Test builds stay unoptimized
+  (testing-strategy.md, 8), so a call per byte costs what it costs, and
+  every tree's worlds read and write their strings here. A run is found by
+  a loop of a slice pattern and a match on the byte, which makes no call,
+  and handed on whole: to the limit once and to the text buffer once. A
+  table of what each byte is would take a call or an `as` per byte to index
+  under the subset. The text buffer is an `Intake`, for its `append`, which
+  takes a run in one call. Borrowed JSON's spelling (4) keeps to the state
+  machine, a byte at a time.
+- **The writing pass measures nothing** (4). The measuring pass refuses
+  what a caller's data gets wrong, and a caller runs one function over the
+  same data on both passes, so a check on the writing pass cannot change a
+  correct caller's output; it would be a whole pass over each string with
+  no use. Text that differs between the passes at the same length goes
+  unasserted: telling it would take a comparison of the two, and no check
+  cheap enough to keep tells it.
 - **Errors at the same byte are decided in a fixed order,** so that an
   outcome does not depend on how the bytes were cut: a delivery's length
   before its bytes, a byte's validity before the limit it would pass, and
