@@ -1,0 +1,5 @@
+draft = "hearth-apt-304"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-apt-304/inputs/request.md", "hearth/tests/mmdebstrap/src/recordings.rs", "hearth/tests/mmdebstrap/tests/suite/recordings.rs", "hearth/testing/hearth-recordings/src/lib.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "hearth/tiers"
