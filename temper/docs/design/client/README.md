@@ -6869,8 +6869,11 @@ own tests:
 - **Settings, Models after landing** (3.5): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
   including the named states and screenshots (`../draft/look-requests.md`,
-  section 4). Default: the client world's switch and add-by-name stories
-  across reloads; browser and real-provider checks remain after landing.
+  section 4). Default: the client world's switches and adding across
+  reloads, reads, failures, retries, retained names and unchanged reads;
+  view tables and gallery states for the read ages and expiring new tags;
+  a fake-provider row through a worker and agent. Browser and real-provider
+  checks remain after landing.
   The comparison includes Provider's chevron, the single-row add form
   and its section headings. Settings' shared H1 and the open project
   menu row keep their frame's design, as the repair request leaves them.

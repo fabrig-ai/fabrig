@@ -18,7 +18,11 @@ departures and open decisions below keep this draft.
     account rows. Settings, Models is
     `../client/README.md`, 3.5, *The `Models` tab*.
 - **Design departs:**
-  - 5, *Who reads*: smith's `protocol/agent.md`, 6.1: the agent makes the one request in a process of its own, `--list`, where smith's host half runs it as it runs a program's status, and no channel carries it, since a run's channel, domain and lifecycle hold nothing a read needs: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 5, *Who reads*: smith's `protocol/agent.md`, 6.1: the agent makes the one request in a process of its own, `--list`, where smith's host half runs it as it runs a program's status, and no run channel carries it, since a run's channel, domain and lifecycle hold nothing a read needs. The worker's channel carries the request and answer (jig's `protocol/channel.md`, 5.1 and 5.2): decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 5: skein's `llm.md`, 4.9 reads one page, at most 256 rows by default,
+    rather than every page of a provider's list. The cut of
+    `model-catalogue-3`, 2026-11-07 chose one bounded request; later pages
+    remain jig's `domain/engine.md`, section 16's deferred work.
   - 3, against 5's *A read that fails keeps what the store has*: jig's `domain/accounts.md`, 3.7: an account whose read fails after a good one keeps that good read's names, where 3 has its read failing take the stock, so that a provider's bad hour moves no picker. An account with no good read takes the stock, as 3 says: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 3: jig's `domain/accounts.md`, 3.7: a person's added name is offered whatever a list says, where 3's "its last read holds the name" would hide it, since 6 is the way to what a provider doesn't list: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 5, *The table*: jig's `domain/accounts.md`, 3.7: an account's first source says whether it has a list, so an Anthropic account with Claude Code first and a key after reads nothing, since the order decides who pays and a key's list doesn't say what that subscription serves: decided by the cut of `model-catalogue-3`, 2026-11-07.

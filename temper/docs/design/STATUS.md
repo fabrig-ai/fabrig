@@ -125,7 +125,11 @@ worker model lists; Settings has Models, with picker switches,
 adding by name, estimated prices and the omitted count. All models links to
 that project's Models tab. Worker reads retain each account's list and
 narrow the offer; Settings shows read ages, failures and Read again, and
-Settings and All models mark newly read models for a week. Page 07 keeps
+Settings and All models mark newly read models for a week. The fake-worker
+story supplies no real-provider result; that observation remains deferred
+(`protocol/configuration.md`, section 11). An omitted-count-only read can
+leave Models' count stale until another Frame arrives (`client/README.md`,
+3.5). Page 07 keeps
 one resolved default, the stock subscription clause, a lede about the offer
 and picker and a provider-neutral placeholder (`client/README.md`). Settings'
 select chevrons, sheet controls, connect actions and paths,

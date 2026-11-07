@@ -2972,6 +2972,7 @@ the release nor a first start. It moves no running work.
 - **What it marks.** A read marks the `accounts` document of whoever holds the
   account, and the deployment's, since its times moved. `me` is marked only when
   what it says moved: the decision changed the current settings, or the account's
-  `names` changed, which narrows its offer. A day's alarm alone marks nothing, nor
+  `names` changed, which narrows its offer, or its displayed `left_out` changed
+  (`../client/domain/contract.md`, 5.1). A day's alarm alone marks nothing, nor
   does a failed read, a repeat, a refused act or a read still held.
 - **A failed read** changes no setting and no name (accounts.md, 3.7).
