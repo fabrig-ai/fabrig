@@ -181,3 +181,91 @@ pub(crate) fn notes(b: &mut Builder, root: &Domain, w: &Words);
 
 - `pages::session::to_terminal(b, w, bindings)` draws ">_" in a browser's bar, bound to `Act::Terminal(terminal::Act::Enter)`; `chat.rs`, `new_chat.rs` and `configure.rs` call it where *Entered* says.
 - The look tokens are `browser.md`, 2.5, *A chat's terminal*'s, in `look.rs` under `TERMINAL`, `TERMINAL_LIGHT`, `TERMINAL_PLEX`, `TERMINAL_TOP`, `TERMINAL_WHERE`, `TERMINAL_STAR`, `TERMINAL_PLACE`, `TERMINAL_SEP`, `TERMINAL_TASK`, `TERMINAL_ACTS`, `TERMINAL_BTN`, `TERMINAL_RUN`, `TERMINAL_LINE`, `TERMINAL_HINT`, `TERMINAL_HEAD`, `TERMINAL_NOTE` and `TO_TERMINAL`, their names `temper-terminal`, `temper-terminal-light`, … and `temper-to-terminal`.
+
+## 6. The terminal's commands (temper-client-domain, `temper/docs/design/client/README.md`, 3.5, *Commands* to *Keys*)
+
+Added by `terminal-commands` to the module of 4; `terminal-browser` and `terminal-cards` build on it.
+
+```rust
+// temper/crates/temper-client-domain/src/pages/terminal.rs
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Command { Model, Effort, Draft, Pause, Close, StartOver, Goal, New, Chats, Theme, Font, Help, Exit }
+impl Command {
+    /// Every command, in the design's table's order.
+    pub const ALL: [Command; 13];
+    /// Its name as a person types it: b"/model", b"/start-over".
+    #[must_use]
+    pub fn name(self) -> &'static [u8];
+    /// The command that words name: exactly its name, nothing more.
+    #[must_use]
+    pub fn named(words: &[u8]) -> Option<Command>;
+}
+/// A list a command opened under the box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Listing { Model, Effort, Chats }
+/// A line the terminal writes after the conversation; page state, never sent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Note { Help, Unknown { words: Box<[u8]> }, Font { font: Font }, Closed }
+
+pub enum Act {
+    // 4's four, then:
+    /// A command pressed in the list or sent whole: the box's words cleared, then its act.
+    Run { command: Command },
+    /// Esc, and full screen left: the list closed, a confirmation drawn as a list
+    /// cancelled, and the box's words cleared where they begin "/"; nothing otherwise.
+    Dismiss,
+}
+
+// temper/crates/temper-client-domain/src/pages.rs
+impl Pages {
+    /// The list a command opened, while it is open.
+    #[must_use]
+    pub fn listing(&self) -> Option<terminal::Listing>;
+    /// The terminal's notes, oldest first, at most 8.
+    #[must_use]
+    pub fn notes(&self) -> &[terminal::Note];
+}
+```
+
+- `Run` does the page's own act: `Model`, `Effort` and `Chats` open their listing (`Chats` asking its read); `Draft` the act "Draft" or "+ Draft" binds; `Pause` `Act::Stop`; `Close` `Act::Close`; `StartOver` `Act::StartOver`; `Goal` the act "Start goal…" binds (`Act::OpenStart`); `New` `Act::Go` to `NewChat { draft: false }`; `Theme` and `Font` 4's acts, `Font` noting `Font`; `Help` noting `Help`; `Exit` 4's `Leave`.
+- A listing closes on every page act but the `Run` that opened it, words typed included.
+- The notes clear when the page's address changes.
+- While the terminal draws, a send (`Act::Send`, `NewChat`'s and `Configure`'s start) whose words begin "/" and hold no white space sends nothing: `named` gives a command, run as `Run`, or none, noted `Unknown`. On a chat that has ended, words that are no command note `Closed`.
+
+## 7. The look kept, and full screen (temper-client-domain and temper-client-shell-web, `temper/docs/design/client/README.md`, 3.5, *Its look, kept per browser*, *Entered*, *Left*, *Keys*)
+
+Made by `terminal-browser`.
+
+```rust
+// temper/crates/temper-client-domain/src/boundary.rs
+pub enum Event {
+    // …
+    /// At start, the kept store's look, where it holds one (README.md, 3.5).
+    LookKept { look: crate::pages::terminal::Look },
+    /// The browser left full screen, whoever left it.
+    ScreenLeft,
+}
+pub enum Request {
+    // …
+    /// Keep the look in the kept store: asked in the step that changed it.
+    KeepLook { look: crate::pages::terminal::Look },
+    /// Full screen, asked in the step of a person's act: `true` by ">_", `false` by "Exit" and `/exit`.
+    Screen { on: bool },
+}
+
+// temper/crates/temper-client-shell-web/src/records.rs
+/// The kept store's look record (README.md, 3.5): three bytes, `0` or `1`.
+pub const LOOK_KEY: &[u8] = b"look";
+#[must_use]
+pub fn encode_look(look: Look) -> [u8; 3];
+#[must_use]
+pub fn decode_look(value: &[u8]) -> Option<Look>;
+
+// temper/crates/temper-client-shell-web/src/host.rs
+pub enum Report { /* … */ Screen(skein_ui_web::screen::Report) }
+pub struct Duties { /* … */ pub keep_look: Option<[u8; 3]>, pub screen: Option<bool> }
+```
+
+- `Act::Terminal(Enter)` gives `KeepLook` and `Screen { on: true }`; `Leave` `KeepLook` and `Screen { on: false }`; `Theme` and `Font` `KeepLook`. `LookKept` sets the look and asks nothing.
+- `Report::Screen(Left)` gives `Event::ScreenLeft`, which the page takes as `Act::Terminal(Dismiss)`; `Entered` and `Refused` give nothing.
+- The shell reads `Store::kept(b"temper.", None)` at start, gives the host the `look` record, writes `keep_look` through it outside the transport, and carries `screen` by `skein_ui_web::screen::web::Screen` in the act's turn, beside the tab and the clipboard.
