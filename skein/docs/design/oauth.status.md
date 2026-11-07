@@ -1,8 +1,10 @@
 # oauth: status
 
-2026-11-06. Where skein's code lags or departs from [oauth.md](oauth.md).
+2026-11-07. Where skein's code lags or departs from [oauth.md](oauth.md).
 
-- **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
+- **Not yet:** 2.2, 6.3: no profile claims: a registration asks for none, and
+  neither a sign-in's nor a refresh's ID token gives any.
+  4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request
   of 2026-11-05 did not name them, and they stand among lib.md, 6's carriers.

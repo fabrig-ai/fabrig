@@ -282,7 +282,7 @@ design admits one with the printed link off
 (`protocol/configuration.md`). A duplicate person's identity panics
 at a start, which the user's request counts a bug
 (`domain/root.md`). Ready and the Model step name no email for a
-ChatGPT sign-in, which waits on jig's account-facts draft, and Ready
+sign-in or a program's login, which the plan `account-email` brings, and Ready
 draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading

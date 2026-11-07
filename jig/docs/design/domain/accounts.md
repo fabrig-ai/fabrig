@@ -102,6 +102,9 @@ Account
   uses        the payers it pays for (4.2)
 ```
 
+What its LLM provider says of it, its email among them, is kept beside it,
+in a record of its own (3.7).
+
 - **An LLM provider** is configuration: its number, its name for
   showing, its endpoints and models, the sources it offers and what each
   needs (a sign-in's registration, a program), and the facts its terms
@@ -131,7 +134,8 @@ Account
   an account with no signed-in source has no subject, and is told apart
   by its number and the display name its holder gives it. jig checks no
   subject for a program's source, since the program names no account it
-  is signed in to (smith's `protocol/programs.md`, section 4).
+  is signed in to (smith's `protocol/programs.md`, section 4); an email
+  its status names is a fact to show (3.7), never a subject.
 
 ### 3.2 Holders
 
@@ -398,6 +402,87 @@ cannot make, and panics.
 alongside the individual bounds. This sizes the retained source table;
 it does not reserve an output queue's room. Internal outputs are
 uncapped and grow with the admitted work.
+
+### 3.7 What a provider says
+
+What an LLM provider says of an account is kept apart from what jig
+decides about it (3.1): the account's record changes at people's acts, this
+one as often as a provider reports.
+
+```
+AccountFacts
+  account     the account's number
+  facts       at most 24
+
+Fact
+  kind        u16, the registry's
+  label       at most 32 bytes: which one, where a kind has several (a
+              usage window's name); empty otherwise
+  value       Value
+  seen        the wall time the provider first said this value
+  source      option: the account's source it came through
+  origin      u16, the registry's
+
+Value, one of
+  text        at most 255 bytes
+  count       u64
+  instant     a wall time
+  span        a duration
+  share       u16, in basis points, 0 to 10000
+  window      length: option span; used: option share;
+              resets: option instant; state: u16, the registry's
+```
+
+- **The registry** is this section's. A new kind, origin or window state
+  is a line here, and no change of the format; a new shape is the one change
+  the format still needs.
+
+  | Kind | Name | Shape | Audience | Said by |
+  |---|---|---|---|---|
+  | 1 | email | text | holder | a signed-in source's ID token, its `email` with `email_verified` true; a program's status, its `email`, on a usable answer |
+  | 2 | name | text | holder | a signed-in source's ID token, its `name` |
+  | 3 | plan | text | account | nothing yet |
+  | 4 | workspace | text | account | nothing yet |
+  | 5 | renews | instant | holder | nothing yet |
+  | 6 | ends | instant | holder | nothing yet |
+  | 7 | usage | window | account | nothing yet |
+
+  Origins: 1 a sign-in, 2 a refresh, 3 a call's answer, 4 a limit error, 5 a
+  program's status or event, 6 a provider's usage read. A window's states:
+  1 open, 2 warned, 3 limited.
+- **A fact is its kind and label.** A new report replaces the fact of the
+  same kind and label. A sign-in first drops every fact a sign-in or refresh
+  gave, so that one it no longer reports is gone; a refresh or a program's
+  report replaces only what it says. A report that says what the fact already
+  holds, in value, source and origin, writes nothing, so that `seen` is when
+  the provider first said it and an hourly refresh rewrites no record and marks
+  no document.
+- **A fact no source reports is absent,** never guessed. A claim that is
+  empty, past its bound or holds a control byte is not reported (skein's
+  `oauth.md`, 2.2; smith's `protocol/programs.md`, section 3). A report that
+  would pass 24 facts keeps those already held and drops the new one.
+- **A program's report:** a host's `logins` naming an email for a usable
+  login (`../protocol/channel.md`, 5.1) reports kind 1, origin 5, through
+  that program source. A login that lapses or a status that stops naming one
+  removes nothing, and a later report replaces it, from whichever host. A
+  source's facts are the account's: when two hosts' logins of one source name
+  two emails, the latest report stands (3.3).
+- **A source gone** takes the facts that came through it, sign-in and refresh
+  or program's alike, with the record rewritten in the decision that removes
+  it.
+- **Unknown kinds:** a fact whose kind, origin or window state this build does
+  not register is kept as it is and sent to no client.
+- **Who reads a fact:** a kind's audience is its holder alone, or whoever
+  sees the account; `../client/domain/contract.md`, 5.1 applies it to each
+  document's reader. For the deployment's accounts the holder's readers are
+  its owners (3.2).
+- **Gone with the account.** An account moved to another deployment moves
+  without its facts (section 6): the refresh that follows a move in, or its
+  next sign-in, reports them again.
+- **Not a secret, and no identity.** An email never tells accounts apart
+  (3.3), never opens a session, and is never checked against a subject. The ID
+  token stays in the secrets' store (`../protocol/store.md`, section 9).
+- **Kept as:** `../protocol/store.md`, 4.4 and 15.9.
 
 ## 4. Uses: whose work an account pays for
 
@@ -675,6 +760,10 @@ construction, never by a person deleting a copy.
 
 ## 7. Open questions
 
+- **An account's other facts:** kinds 3 to 7 (3.7) wait for each provider's
+  adapter to learn them, Claude Code's usage windows from its rate-limit
+  events first (`../draft/account-facts.md`, section 6). The user is still
+  deciding on them; the format holds them. Default: nothing says them.
 - **A stored default that reads as named:** a store from when Create
   recorded a task's default holds that default as a choice, so its task
   waits for it as named until it is amended through its chooser or closed.
