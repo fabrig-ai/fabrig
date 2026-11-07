@@ -1072,6 +1072,47 @@ impl World {
         self
     }
 
+    /// An owned forge on a box, before bootstrap (temper/docs/design/domain/testing.md, 6.4).
+    #[must_use]
+    pub fn with_box_setup(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "box setup precedes startup");
+        self.restart_config.under_box = true;
+        self.restart_config.forges[0].mode = forge_top::Mode::Owned;
+        let owner = self.restart_config.core.owners[0].identity.clone();
+        let mut owners = self.restart_config.core.owners.into_vec();
+        owners.push(people::InitialOwner { project: people::DEPLOYMENT, identity: owner });
+        self.restart_config.core.owners = owners.into_boxed_slice();
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.store.seed(
+            Box::new([Record::Forge {
+                row: Box::new(forge_top::Stored::Forge(forge_top::ForgeRecord {
+                    number: 1,
+                    kind: forge_top::Kind::Forgejo,
+                    mode: forge_top::Mode::Owned,
+                    state: forge_top::ForgeState::Kept,
+                    place: forge_top::Place {
+                        api: forge_top::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+                        git: Box::new([]),
+                        web: None,
+                    },
+                    read_only: false,
+                    bot: forge_top::Bot { login: b"temper".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+                    asked: false,
+                    first: None,
+                    git_program: None,
+                    person: None,
+                })),
+            }]),
+            Box::new([]),
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid box setup");
+        self
+    }
+
     /// Replace the forge client's admission bounds before the world's first input.
     /// The bootstrap rows and scripted worker retain their configured policy.
     #[must_use]
