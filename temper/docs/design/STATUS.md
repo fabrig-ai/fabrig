@@ -565,6 +565,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
