@@ -47,3 +47,20 @@ As the implementer's text has it, with the differences from the request's pages 
 ## Answers
 
 2026-11-06 (temper/ui). The user's rule, 2026-11-06: a plan executed by fab runs focused and fuzzy alone, and is complete when it lands. Walks and render checks follow landing, and file findings back to fab. So drop this task's throwaway-driver comparison and screenshots: don't start a browser to compare. temper/ui runs the render check after the plan lands.
+
+## Rebase (2026-11-07, step merge, foreman look-round-13/model-end/foreman-1)
+
+Rebase model-end, combining its Accounts completion changes with the landed forge rows and composer picker.
+The merge conflicts are in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+The landing includes `3221fbbb4141805786c3d29f27f61fdb51492686` (“Merge forge rows with the composer picker and recount shared tables”), which overlaps both shared counts.
+
+In `words.rs`, retain the landing’s forge and composer vocabulary and this task’s Accounts words.
+Recount `PHRASES`, `SEGMENTS`, and `ENGLISH_BYTES` using `english_declarations()` and its assertion in `src/tests/accounts.rs`; choosing either side’s constants loses the other side’s changes.
+
+In `samples.rs`, retain the landing’s `forges-added`, composer picker samples, disclosure mappings, and `picker_world` dispatch.
+Retain this task’s removal of `KeyReady`, replacement of the Ready samples with `accounts-added`, and rename to `accounts-renewed`, including their Accounts mockup mappings.
+The combined table should have `N = 293`; verify it against the combined entries and sorted `names.txt`.
+
+Review the automatic merges in `pages.rs`, `route.rs`, and gallery tests/worlds so both connection flows retain their completion behavior.
+Run the focused declaration, gallery names/model-sample, and Accounts/connect-model checks through heavy.
+Run `the_committed_journeys_are_their_print`; regenerate any stale prints with the journeys tool.
