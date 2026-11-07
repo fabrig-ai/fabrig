@@ -2150,6 +2150,20 @@ impl Joint {
         self.pump_component();
     }
 }
+impl Drop for Joint {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            // End the clients' volatile watches before the engine's restart oracle opens its own.
+            // Its immediate-work settle accepts live fleet deadlines left by the story.
+            self.component.drop_watches();
+            drop(self.component.pump(&mut self.transport));
+            for event in self.component.effects() {
+                self.engine.send(event);
+            }
+        }
+    }
+}
+
 impl Front<Temper> for Joint {
     fn bind(&mut self, who: ClientId, party: u64) {
         self.client_limits.insert(who, self.next_limits.take().unwrap_or(self.limits));

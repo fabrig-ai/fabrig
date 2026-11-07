@@ -197,7 +197,10 @@ fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]
     None
 }
 
-fn covers_repository(rule: &settings::LandingRule, repository: &temper_engine_domain_forge::Repository) -> bool {
+pub(super) fn covers_repository(
+    rule: &settings::LandingRule,
+    repository: &temper_engine_domain_forge::Repository,
+) -> bool {
     use jig_domain_authority::{Last, Pattern, pattern_at_most};
     use temper_engine_domain_forge::GateLast;
     let pattern = Pattern {
@@ -353,7 +356,11 @@ pub(super) fn read(
                 }
                 crate::ForgeRead::RevisionSetting { .. } => unreachable!("revision reads load their metadata"),
                 crate::ForgeRead::ProposalItems { key } => {
-                    crate::ForgeReadAnswer::ProposalItems(domain.forge.proposal_settings(key))
+                    let items = domain.forge.proposal_settings(key);
+                    crate::ForgeReadAnswer::ProposalItems {
+                        owned_approval: super::approvals::owned_approval(domain, &items),
+                        items,
+                    }
                 }
             };
             crate::Delivery::ForgeRead { reply, answer }

@@ -263,6 +263,7 @@ impl Driver {
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }
             | Delivery::Trials { .. }
+            | Delivery::Approvals { .. }
             | Delivery::Forges { .. }
             | Delivery::SourceSignedOut { .. }
             | Delivery::Application { .. }

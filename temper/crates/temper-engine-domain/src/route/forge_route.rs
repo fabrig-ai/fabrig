@@ -5591,8 +5591,9 @@ fn retain_review_wait(domain: &mut Domain, env: &Env<Limits>, task: u64, evidenc
     let Some(row) = domain.forge.change(task) else { return };
     let Some(facts) = landing_reviewers(domain, env, row, evidence) else { return };
     if domain.forge.keep_review_facts(env.wall, task, facts) {
-        let mut subjects = List::with_capacity(1);
+        let mut subjects = List::with_capacity(2);
         subjects.push(Token::new(task)).expect("one changed panel");
+        subjects.push(Token::new(crate::APPROVALS_SUBJECT)).expect("approvals beside the panel");
         domain
             .work
             .push(Work::Core(jig_domain_core::Event::Marked { connector: domain.config.forge_connector, subjects }));

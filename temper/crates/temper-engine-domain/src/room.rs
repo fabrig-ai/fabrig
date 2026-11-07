@@ -141,6 +141,21 @@ pub(crate) fn trial_rows(limits: &crate::Limits) -> u32 {
     limits.accounts.accounts.min(64).min(room)
 }
 
+/// Approvals fit the wire and one whole delivery at the largest row (domain/forge.md, 8.12).
+pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
+    let row = u32::try_from(size_of::<crate::ApprovalRow>())
+        .expect("approval row size fits u32")
+        .saturating_add(limits.forge.name_bytes.saturating_mul(2))
+        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"));
+    limits
+        .journal
+        .result_bytes
+        .max(limits.journal.transcript_bytes)
+        .checked_div(row)
+        .expect("an approval row has fields")
+        .min(32)
+}
+
 #[cfg(test)]
 #[path = "tests/room.rs"]
 mod tests;
