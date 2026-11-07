@@ -5,7 +5,7 @@ use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Queue, Secret, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Request, asked::State};
 
-fn code() -> ApprovalCode {
+pub(super) fn code() -> ApprovalCode {
     ApprovalCode::parse(b"WDJBMJHT").unwrap()
 }
 
@@ -24,7 +24,7 @@ fn the_approval_address_uses_the_tuis_address_and_shown_code() {
     }
 }
 
-fn exchange(mut out: Queue<Request>) -> Token {
+pub(super) fn exchange(mut out: Queue<Request>) -> Token {
     let mut found = None;
     while let Some(request) = out.pop() {
         if let Request::Client { request: jig_client::Request::Exchange { exchange, .. } } = request {
@@ -34,7 +34,7 @@ fn exchange(mut out: Queue<Request>) -> Token {
     found.expect("one approval exchange")
 }
 
-fn asked(state: Option<State>) -> Domain {
+pub(super) fn asked(state: Option<State>) -> Domain {
     let mut root = temper_client_domain::new(&f::limits(), f::SEED);
     f::event(
         &mut root,
@@ -74,7 +74,7 @@ fn asked(state: Option<State>) -> Domain {
     root
 }
 
-fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
+pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
     let Some(why) = why else { return };
     let link_answer = match why {
         NotSignedIn::LinkUsed => Some(w::SignInAnswer::LinkUsed),
