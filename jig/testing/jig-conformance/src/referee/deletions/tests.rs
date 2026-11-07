@@ -1,5 +1,5 @@
 use crate::referee::{
-    Naming, Observed, Outlives, Phase, Policy, Promise, Receipt, Referee, Scope, Snapshot, Source, Task,
+    Naming, Observed, Outlives, Phase, Policy, Promise, Receipt, Referee, Row, Scope, Snapshot, Source, Task,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -99,13 +99,30 @@ fn removed() -> (Referee, Snapshot) {
 }
 
 fn row(project: Option<u32>, task: Option<u64>, outlives: Option<Outlives>) -> Naming {
-    Naming { row: "row-key".into(), project, task, outlives }
+    Naming { row: Row::Application("row-key".into()), project, task, outlives }
 }
 
 fn assert_lost(referee: &mut Referee, snapshot: Snapshot, number: u64) {
     let violation = referee.observe(AT, Observed::Durable { number, snapshot }).expect_err("leftover row");
     assert_eq!(violation.promise, Promise::Lost);
     assert_eq!(violation.why, "a deleted project's row outlived it: row-key");
+}
+
+#[test]
+fn a_core_row_outliving_its_project_is_named_by_its_key() {
+    let (mut referee, _) = removed();
+    let snapshot = Snapshot {
+        naming: vec![Naming {
+            row: Row::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(TASK))),
+            project: Some(PROJECT),
+            task: None,
+            outlives: None,
+        }],
+        ..Snapshot::default()
+    };
+    let violation = referee.observe(AT, Observed::Durable { number: 3, snapshot }).expect_err("leftover core row");
+    assert_eq!(violation.promise, Promise::Lost);
+    assert_eq!(violation.why, "a deleted project's row outlived it: Tasks(Live(7))");
 }
 
 #[test]

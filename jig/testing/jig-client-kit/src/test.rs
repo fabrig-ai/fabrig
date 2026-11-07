@@ -171,16 +171,15 @@ fn fixture_with(limits: &domain::Limits, arranged: bool) -> &'static Fixture {
 /// Constructs the test application's root and view with their receiving bounds.
 #[must_use]
 pub fn new(limits: &domain::Limits, seed: u64) -> (domain::Domain, view::View<'static>) {
-    from_fixture(limits, seed, fixture(limits), false)
+    from_fixture(limits, seed, fixture(limits))
 }
 fn from_fixture(
     limits: &domain::Limits,
     seed: u64,
     fixture: &'static Fixture,
-    linked: bool,
 ) -> (domain::Domain, view::View<'static>) {
     let (words, family) = fixture.books;
-    let root = if linked { domain::new(limits, seed) } else { domain::unlinked(limits, seed) };
+    let root = domain::unlinked(limits, seed);
     (root, view::View::new(&fixture.bounds, limits, words, family, first::Address { project: 1, item: 1 }))
 }
 /// The same fixture with the application's byte transport attached.
@@ -191,14 +190,26 @@ pub fn linked(seed: u64) -> (domain::Domain, view::View<'static>) {
 /// A native fixture with the caller's declared request and document bounds.
 #[must_use]
 pub fn linked_with(limits: &domain::Limits, seed: u64) -> (domain::Domain, view::View<'static>) {
-    from_fixture(limits, seed, fixture(limits), true)
+    (linked_root(limits, seed), linked_view(limits))
+}
+/// The native fixture's root with the application's byte transport attached.
+#[must_use]
+pub fn linked_root(limits: &domain::Limits, seed: u64) -> domain::Domain {
+    domain::new(limits, seed)
+}
+/// The native fixture's view with the caller's declared receiving bounds.
+#[must_use]
+pub fn linked_view(limits: &domain::Limits) -> view::View<'static> {
+    let fixture = fixture(limits);
+    let (words, family) = fixture.books;
+    view::View::new(&fixture.bounds, limits, words, family, first::Address { project: 1, item: 1 })
 }
 /// Constructs the one arranged client used by the all-sections story.
 #[must_use]
 pub fn arranged(seed: u64) -> (domain::Domain, view::View<'static>) {
     use jig_client_view::{address::TaskSection, page::Arrangement};
     let limits = limits();
-    let (mut root, view) = from_fixture(&limits, seed, fixture_with(&limits, true), false);
+    let (mut root, view) = from_fixture(&limits, seed, fixture_with(&limits, true));
     domain::configure_arrangement(
         &mut root,
         Arrangement {

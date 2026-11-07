@@ -754,6 +754,21 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         ),
         ("engine.limits.overrides.hub.transcript_bytes", window, "the engine's resume window"),
         ("workers[0].limits.overrides.hub.transcript_bytes", window, "the engine's resume window"),
+        (
+            "engine.limits.overrides.hub.outcome_bytes",
+            agent.host_limits.outcome_bytes,
+            "the agent's outcome (agent.json profile.declared.tool_payload)",
+        ),
+        (
+            "workers[0].limits.overrides.hub.outcome_bytes",
+            agent.host_limits.outcome_bytes,
+            "the agent's outcome (agent.json profile.declared.tool_payload)",
+        ),
+        (
+            "application.limits.overrides.forge.client.op_bytes",
+            u64::from(engine.core.tasks.result_bytes),
+            "tasks.result_bytes",
+        ),
     ];
     for (index, (path, needs, of)) in rows.into_iter().enumerate() {
         engine.core.resume_bytes = TURN + 4;
@@ -764,6 +779,9 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         own.root.loads.transcript_bytes = TURN;
         own.root.loads.bytes = loaded;
         own.root.loads.reply_bytes = loaded;
+        engine.hub.outcome_bytes = agent.host_limits.outcome_bytes;
+        worker.limits.hub.outcome_bytes = agent.host_limits.outcome_bytes;
+        own.forge.client.op_bytes = engine.core.tasks.result_bytes;
         let mut found = Problems::empty();
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
         assert_eq!(&*lines(&found), b"", "{path} at equality");
@@ -775,7 +793,10 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
             4 => own.root.loads.bytes -= 1,
             5 => engine.hub.transcript_bytes -= 1,
             6 => worker.limits.hub.transcript_bytes -= 1,
-            _ => unreachable!("seven turn-bound relations"),
+            7 => engine.hub.outcome_bytes -= 1,
+            8 => worker.limits.hub.outcome_bytes -= 1,
+            9 => own.forge.client.op_bytes -= 1,
+            _ => unreachable!("ten turn and payload relations"),
         }
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
         assert_eq!(&*lines(&found), format!("{path}: {} bytes, short of {of}, {needs} bytes\n", needs - 1).as_bytes(),);

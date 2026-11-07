@@ -2,15 +2,13 @@
 
 2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
+Sections 2 and 8 have no known gap in endpoint bounds at hello and
+charter-supplied model names; the host keeps no model allowlist.
+
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
-Section 8 has no known gap in the change body's 3,584-byte maximum:
-the contract keeps the task's smaller words bound, and other texts keep
-their 1,024-byte maximum. The boundary encoding test holds a change at
-the body's maximum and the agent's 4,096-byte ownership limit through
-the hub codec without losing fields. Larger reports remain in section 12.
 Section 8's independent delivery grant for a Finite report is present:
 the policy's `modify` and the root's workspace delivery fact are both
 required, and delivery leaves the report and failure forms unchanged.

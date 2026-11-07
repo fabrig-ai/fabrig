@@ -101,7 +101,8 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         ("tasks.authority_bytes", 512),
         ("core.call_answer_bytes", 4096),
         ("tasks.spec_bytes", 512),
-        ("tasks.result_bytes", 128),
+        // Keep the merge identity, pull address and landing evidence in the result.
+        ("tasks.result_bytes", 512),
         ("tasks.delegates", 4),
         ("tasks.parameters", 5),
         ("tasks.contract_choices", 2),
@@ -247,7 +248,7 @@ fn delegate_input(authority: ChangeAuthority<'_>, repository: u64, coding_words:
         }
         None => json!({"connector":1,"kind":kind,"segments":["forge"],"terminal":"open","last":""}),
     };
-    json!({"batch":[{"executor":{"kind":"procedure","connector":1,"code":2},"spec":{"words":coding_words,"parameters":[{"name":1,"kind":"resource","connector":1,"resource":repository},{"name":2,"kind":"bytes","value":"main"}]},"contract":{"kind":"change","connector":1,"change_kind":1,"words":128},"authority":{"tools":1,"grants":[grant(2),grant(3),grant(4),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"agent","number":authority.coding_kind},{"kind":"agent","number":4}],"tasks":4,"depth":2},"budget":{"spend":10},"notes":0}}]})
+    json!({"batch":[{"executor":{"kind":"procedure","connector":1,"code":2},"spec":{"words":coding_words,"parameters":[{"name":1,"kind":"resource","connector":1,"resource":repository},{"name":2,"kind":"bytes","value":"main"}]},"contract":{"kind":"change","connector":1,"change_kind":1,"words":512},"authority":{"tools":1,"grants":[grant(2),grant(3),grant(4),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"agent","number":authority.coding_kind},{"kind":"agent","number":4}],"tasks":4,"depth":2},"budget":{"spend":10},"notes":0}}]})
 }
 
 fn readme_text<'a>(readme: &'a [u8], edit: &[u8]) -> (&'a str, String) {

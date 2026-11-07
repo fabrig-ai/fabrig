@@ -609,7 +609,9 @@ replay says the same clocks (`README.md`, 5.12).
   `.quiet-band`, `.facts`, `.btn.small`, and their rules at 760 px and under),
   in `temper.css`, scoped under the project's frame with its `--gf-*` variables,
   as Home's are, on tokens of its own, `temper-settings*`. A disabled select is
-  faint on no fill. A proposal of settings' card takes the conversation's
+  faint on no fill. Every select under Settings draws `files/chevron.svg` 14 px
+  in from its border, with 36 px of padding at its right, by one rule no other
+  scope in the stylesheet outweighs. A proposal of settings' card takes the conversation's
   `.proposal`, with `.proposal.superseded` at `opacity: .5` and `.proposal-state.ok`.
   The mock's `.proposal-split` is the review page's (`README.md`, 5.13).
   `Forges` and `Accounts` take the same values on their rows (`README.md`, 3.5,
@@ -1321,6 +1323,15 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **Settings, Models comparison** (2.5; `README.md`, 3.5): temper/ui owns
+  page 07 of `model-picker` beside the shipped page, its named states and
+  screenshots at 1440, 1280, 1000 and 420 px after landing
+  (`../draft/look-requests.md`, section 4). Default: host view and client
+  world checks; compilation alone establishes no rendered equality.
+  Include Provider's select chevron, the add form's single row and the
+  Provider and Add headings. The shared Settings H1 and open project
+  menu row keep their frame's design, as the repair request leaves them.
+
 - **A flow in a chat and its document** (2.5; `README.md`, 3.5): temper/ui
   compares both against `skein/docs/design/draft/diagrams/preview.html`
   after landing, at a width where the flow is horizontal, one where it
@@ -1334,7 +1345,11 @@ Not in the tier, each in the lowest world that shows it:
   Accounts return/history and sheet scroll, search, adoption and phone
   geometry; they do not compare all request pages. Default: findings
   after landing, with a passing repaired-story run and the unchanged
-  whole-tier budget established by the after-landing tier.
+  whole-tier budget established by the after-landing tier. Compare the
+  request-owned parts, including select chevrons, the source chooser,
+  Copy public's caption and four-line box, list margins, empty search,
+  More, control captions, connection actions and model-way paths. The
+  shared Settings H1 and open project menu row keep their frame's design.
 
 - **Whole questions and starting from Goals** (2.5, 7.2; `README.md`,
   3.5, 5.8, 5.14): the long question's context, evidence and choices, the

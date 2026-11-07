@@ -2,14 +2,30 @@
   "engine": {
     "limits": {
       "overrides": {
-        "tasks.tree_tasks": 1024
+        "tasks.tree_tasks": 1024,
+        "core.resume_bytes": 18431846,
+        "hub.transcript_bytes": 73727378,
+        "hub.turn_bytes": 18431842,
+        "hub.turn_queue_bytes": 147454736,
+        "tasks.inbox_bytes": 5226516,
+        "tasks.message_bytes": 63738,
+        "tasks.result_bytes": 63738
       }
     }
   },
   "application": {
     "limits": {
       "overrides": {
-        "forge.change_policy.questions": 4
+        "forge.change_policy.questions": 4,
+        "checkout.message_bytes": 63740,
+        "forge.client.op_bytes": 63738,
+        "forge_component.body_bytes": 127497,
+        "root.journal.transcript_bytes": 18431846,
+        "root.loads.bytes": 18432090,
+        "root.loads.read_bytes": 36863684,
+        "root.loads.reply_bytes": 18432090,
+        "root.loads.transcript_bytes": 18431842,
+        "forge.client.answer_bytes": 255570
       }
     }
   }

@@ -366,7 +366,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
         assert!(diff.contains(words), "H2 review includes {words}: {review}");
     }
     let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
-    check_result(ran, merge, &scripts);
+    check_result(ran, repaired, merge, &scripts);
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
     assert!(last.contains(&format!("PR #{PULL}")), "chat names the landed pull: {last}");
@@ -385,7 +385,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
 }
 
-fn check_result(ran: &Ran, merge: u64, scripts: &Value) {
+fn check_result(ran: &Ran, repaired: u64, merge: u64, scripts: &Value) {
     let change = document(ran, LANDED);
     assert_eq!(change["chip"]["phase"], "ended");
     let outcome = &change["result"]["value"]["change"];
@@ -395,7 +395,6 @@ fn check_result(ran: &Ran, merge: u64, scripts: &Value) {
     assert_eq!(result["cut"], false);
     let words = result["bytes"].as_str().expect("landed evidence");
     let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 8, "landed evidence: {words}");
     assert_eq!(lines[0], hex(merge));
     assert!(lines[1].ends_with("/playground/widget/pulls/2"));
     assert_eq!(lines[2], format!("Landed: pull request #{PULL} merged into main as {}.", &hex(merge)[..12]));
@@ -405,9 +404,19 @@ fn check_result(ran: &Ran, merge: u64, scripts: &Value) {
         scripts["cued"][3]["turns"][2]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("repair's report");
     assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
     assert_eq!(lines[4], format!("successful repair task 5: {repair}"));
-    assert_eq!(lines[5], "Producer report (historical; before repairs):");
-    assert!(!lines[6].is_empty() && producer.starts_with(lines[6]), "producer prefix: {words}");
-    assert!(lines[7].starts_with('[') && lines[7].ends_with(" bytes cut]"), "marked evidence truncation: {words}");
+    let whole = format!(
+        "repairs: 1: CI failed: / changes (pull_request)\n\
+         successful repair task 5: {repair}\n\
+         Producer report (historical; before repairs):\n{producer}\n\
+         checks at {head}: / check (pull_request) passed; / changes (pull_request) passed\n\
+         reviews: approved at {head}",
+        head = hex(repaired),
+    );
+    let evidence = words.splitn(4, '\n').nth(3).expect("evidence after the landing identity");
+    let (kept, marker) = evidence.rsplit_once("\n[").expect("marked evidence truncation");
+    assert!(whole.starts_with(kept), "retained evidence prefix: {words}");
+    let omitted: usize = marker.strip_suffix(" bytes cut]\n").expect("terminal cut marker").parse().expect("cut count");
+    assert_eq!(omitted, whole.len() - kept.len(), "exact omitted evidence bytes: {words}");
     assert!(told(query_at(ran, 1, 7)).contains(words), "change's requester heard the whole result");
 }
 

@@ -224,7 +224,7 @@ impl Server {
             Event::Stream { owner, up } if owner == self.input && !self.ending => match up {
                 Up::Bytes(bytes) => {
                     self.bytes.extend_from_slice(&bytes);
-                    if self.bytes.len() > crate::fake::FILE_BYTES as usize {
+                    if self.bytes.len() > crate::fake::MCP_INPUT_BYTES as usize {
                         self.end();
                     } else if self.bytes.last() == Some(&b'\n') {
                         let value: Value = serde_json::from_slice(&self.bytes).expect("MCP request JSON");

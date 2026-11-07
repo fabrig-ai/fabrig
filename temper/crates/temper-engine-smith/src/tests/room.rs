@@ -36,8 +36,7 @@ fn measured_limits() -> run::Limits {
 fn largest() -> engine::Assignment {
     let mut assignment = assignment();
     assignment.run.authority.tools = engine::RunPolicy::EVERY_FAMILY;
-    assignment.run.contract =
-        tasks::Contract::Change { connector: 1, kind: 1, words: jig_protocol_charter::CONTRACT_TEXT_MAX };
+    assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: u32::MAX };
     assignment
 }
 
