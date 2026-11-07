@@ -1130,6 +1130,9 @@ pub enum Word {
     SignInFull,
     SignInBusy,
     SignInNotReady,
+    SignInLinkUsed,
+    SignInLinkExpired,
+    SignInLinkUnknown,
     OutOfDateMain,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
@@ -1422,7 +1425,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 1968;
+const PHRASES: u32 = 1971;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1449,10 +1452,10 @@ const PHRASES: u32 = 1968;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3433;
+const SEGMENTS: u32 = 3434;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 47943;
-const ALL: [Word; 1301] = [
+const ENGLISH_BYTES: u32 = 48110;
+const ALL: [Word; 1304] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2542,6 +2545,9 @@ const ALL: [Word; 1301] = [
     Word::SignInFull,
     Word::SignInBusy,
     Word::SignInNotReady,
+    Word::SignInLinkUsed,
+    Word::SignInLinkExpired,
+    Word::SignInLinkUnknown,
     Word::OutOfDateMain,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
@@ -3608,6 +3614,9 @@ impl Word {
             Self::SignInFull => 1907,
             Self::SignInBusy => 1908,
             Self::SignInNotReady => 1909,
+            Self::SignInLinkUsed => 1917,
+            Self::SignInLinkExpired => 1918,
+            Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
@@ -4729,7 +4738,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
-        Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
+        Word::HomeNeedsEmpty => (&[b"Work carries on, and this page tells you what changed when you come back."], &[]),
         Word::HomeInARow => (&[b"Answer in a row"], &[]),
         Word::HomeQuestion => (&[b"a question"], &[]),
         Word::HomeProposal => (&[b"a proposal"], &[]),
@@ -5717,6 +5726,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. This link stays usable until ", b" UTC; after that, opening it has temper serve print a fresh one."], &[Number, HoleKind::Moment, HoleKind::Moment]),
         Word::SignInBusy => (&[b"temper is busy. This link stays usable until it expires: open it again in a moment."], &[]),
         Word::SignInNotReady => (&[b"temper is starting or stopping. This link stays usable until it expires: open it again in a moment."], &[]),
+        Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
+        Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
+        Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),

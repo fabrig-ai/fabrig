@@ -34,7 +34,7 @@ fn a_given_secret_spent_draws_a_fresh_link() {
     let link = given_link();
     finish_given_sign_in(&mut peer, &link);
     let exchange = peer.post_link(&link);
-    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUsed);
     assert_eq!(peer.link_count(), 1);
     assert!(peer.printed_link() != link, "replacement differs from the given link");
     let replacement = peer.printed_link();
@@ -55,7 +55,7 @@ fn a_given_secret_expires_a_span_from_its_taking() {
     peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady));
     peer.advance_time(Duration::from_nanos(1));
     let exchange = peer.post_link(&link);
-    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkExpired);
     assert!(peer.take_core().is_none());
     assert_eq!(peer.link_count(), 1);
     assert!(peer.printed_link() != link, "expired link replaced");
@@ -118,12 +118,12 @@ fn the_printed_link_signs_the_first_owner_in() {
     assert_eq!(answer.expires(), fixtures::expires().as_nanos());
 }
 #[test]
-fn a_spent_link_is_refused_and_a_fresh_one_printed() {
+fn a_spent_link_is_used_and_a_fresh_one_printed() {
     let mut peer = peer();
     let link = peer.printed_link();
     complete_sign_in(&mut peer);
     let exchange = peer.post_link(&link);
-    assert_eq!(peer.answered(exchange), Some(b"\x01".as_slice()));
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUsed);
     assert_ne!(peer.printed_link(), link);
 }
 #[test]
@@ -252,7 +252,7 @@ fn bearer(token: &[u8]) -> Box<[u8]> {
 fn fresh_link(peer: &mut Peer) -> Box<[u8]> {
     let spent = peer.printed_link();
     let exchange = peer.post_link(&spent);
-    assert_eq!(peer.answered(exchange), Some(b"\x01".as_slice()));
+    assert_eq!(decoded(peer, exchange), w::SignInAnswer::LinkUsed);
     let fresh = peer.printed_link();
     assert_ne!(fresh, spent);
     fresh
@@ -497,7 +497,7 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
 }
 
 #[test]
-fn a_returned_link_past_its_original_expiry_is_refused_and_replaced() {
+fn a_returned_link_past_its_original_expiry_is_expired_and_replaced() {
     for reply in retry_answers() {
         let mut peer = peer();
         let link = peer.printed_link();
@@ -507,14 +507,14 @@ fn a_returned_link_past_its_original_expiry_is_refused_and_replaced() {
         peer.answer_request(to, reply);
         peer.advance_time(skein_lib::Duration::from_secs(299));
         let exchange = peer.post_link(&link);
-        assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+        assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkExpired);
         assert_ne!(peer.printed_link(), link);
         assert!(peer.take_core().is_none());
     }
 }
 
 #[test]
-fn a_reserved_link_answers_its_secret_busy_and_another_refused_without_drawing() {
+fn a_reserved_link_answers_its_secret_busy_and_another_unknown_without_drawing() {
     let mut peer = peer();
     let link = peer.printed_link();
     let original = peer.post_link(&link);
@@ -527,7 +527,7 @@ fn a_reserved_link_answers_its_secret_busy_and_another_refused_without_drawing()
     let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure()));
     other.encode(&mut bytes).expect("measured link record");
     let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
-    assert_eq!(decoded(&peer, wrong), w::SignInAnswer::Refused);
+    assert_eq!(decoded(&peer, wrong), w::SignInAnswer::LinkUnknown);
     assert_eq!(peer.printed_link(), link);
     assert!(peer.take_core().is_none());
     peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
@@ -545,7 +545,10 @@ fn a_core_refusal_drops_the_reservation_and_the_next_attempt_prints_a_link() {
     let exchange = peer.post_link(&link);
     peer.refuse_sign_in();
     assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
-    assert_ne!(fresh_link(&mut peer), link);
+    let retried = peer.post_link(&link);
+    assert_eq!(decoded(&peer, retried), w::SignInAnswer::LinkUsed);
+    assert_eq!(peer.link_count(), 2);
+    assert_ne!(peer.printed_link(), link);
     complete_sign_in(&mut peer);
 }
 
@@ -589,5 +592,53 @@ fn a_services_sign_in_is_busy_for_busy_or_full() {
         peer.answer_request(to, reply);
         assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Busy);
         assert_eq!(peer.digest_kept(), None);
+    }
+}
+
+// The in-memory history's bound (jig/docs/design/protocol/client.md, 8).
+const REMEMBERED_LINKS: u32 = 8;
+#[test]
+fn a_link_that_cannot_sign_in_answers_why() {
+    // Expire this many links, then try the oldest. The ninth is forgotten.
+    for (label, past, used, empty, reserved, expected) in [
+        ("unknown 32 bytes", 0, false, false, false, w::SignInAnswer::LinkUnknown),
+        ("unknown empty", 0, false, true, false, w::SignInAnswer::LinkUnknown),
+        ("reserved unknown 32 bytes", 0, false, false, true, w::SignInAnswer::LinkUnknown),
+        ("reserved unknown empty", 0, false, true, true, w::SignInAnswer::LinkUnknown),
+        ("eighth expired", REMEMBERED_LINKS, false, false, false, w::SignInAnswer::LinkExpired),
+        ("ninth forgotten", REMEMBERED_LINKS + 1, false, false, false, w::SignInAnswer::LinkUnknown),
+        ("reserved used", 0, true, false, true, w::SignInAnswer::LinkUsed),
+        ("reserved expired", 1, false, false, true, w::SignInAnswer::LinkExpired),
+    ] {
+        let mut peer = peer();
+        let oldest = peer.printed_link();
+        if used {
+            finish_given_sign_in(&mut peer, &oldest);
+            peer.post_link(&oldest);
+        }
+        for _ in 0..past {
+            let link = peer.printed_link();
+            peer.advance_time(fixtures::limits().link_span);
+            peer.post_link(&link);
+        }
+        let live = peer.printed_link();
+        let reservation = if reserved {
+            peer.post_link(&live);
+            Some(pending_reply(&mut peer))
+        } else {
+            None
+        };
+        let secret = if empty { Box::<[u8]>::from([]) } else { Box::<[u8]>::from([0; LINK_SECRET_BYTES]) };
+        let link = if past == 0 && !used { fixtures::printed(&Secret::new(secret)) } else { oldest };
+        let count = peer.link_count();
+        let exchange = peer.post_link(&link);
+        assert_eq!(decoded(&peer, exchange), expected, "{label}");
+        assert_eq!(peer.link_count(), count, "{label}: no replacement of a live or reserved link");
+        assert_eq!(peer.printed_link(), live, "{label}");
+        assert!(peer.take_core().is_none(), "{label}");
+        if let Some(to) = reservation {
+            peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
+        }
+        finish_given_sign_in(&mut peer, &live);
     }
 }

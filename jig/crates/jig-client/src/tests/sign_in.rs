@@ -607,6 +607,9 @@ fn assert_link_told(c: &Client) {
 #[test]
 fn each_link_retry_answer_is_visible_and_told_until_the_next_sign_in() {
     for (answer, why, backoff) in [
+        (w::SignInAnswer::LinkUsed, NotSignedIn::LinkUsed, None),
+        (w::SignInAnswer::LinkExpired, NotSignedIn::LinkExpired, None),
+        (w::SignInAnswer::LinkUnknown, NotSignedIn::LinkUnknown, None),
         (w::SignInAnswer::NotReady, NotSignedIn::NotReady, Some((LEAST_BACKOFF, FIRST_BACKOFF))),
         (w::SignInAnswer::Busy, NotSignedIn::Busy, Some((LEAST_BACKOFF, FIRST_BACKOFF))),
         (
