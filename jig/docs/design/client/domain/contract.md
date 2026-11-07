@@ -1656,6 +1656,10 @@ designs (`../../protocol/client.md`):
 
 ## 11. Open questions
 
+- **Browser-approved sign-ins beyond loopback** (2), and a person's
+  sign-ins listed and each ended: `../../protocol/client.md`, section 15.
+  The built-in approval here signs in the approving browser's own party.
+
 - **Refusal paths within charter parts** (3.2): a malformed part in a
   settings change is refused at its charter's request item as out of shape
   or past its count. Naming the part and its `on` member needs a refusal

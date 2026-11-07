@@ -5,10 +5,15 @@ its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
-post-landing terminal walk, browser approval, recording and later
+post-landing terminal walk, TUI approval flow, recording and later
 surfaces remain deferred; the sign-in field takes `q` as text and
 Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
-`draft/tui.status.md`). The reference
+`draft/tui.status.md`). Browser-approved sign-in's engine configuration,
+native client-root half and web page at `/terminal` are built, with eleven
+gallery states and joint-client stories. The TUI's opener, lines and
+retry flow remain unbuilt (`client/README.md`, 7.1 and 11); the web's
+rendered check follows landing (`client/browser.md`, section 5). The
+reference
 merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer

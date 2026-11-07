@@ -771,6 +771,10 @@ the same capacities even when every run slot is occupied.
 
 ## 9. Open questions
 
+- **Approval beyond loopback** (3, clients): enabling it at a public
+  name waits for the between-hosts flow (`client.md`, section 15).
+  The optional `approval` boolean enables the loopback flow alone.
+
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at
   runtime as settings (`../domain/engine.md`, section 17).

@@ -7633,10 +7633,18 @@ own tests:
 
 ## 11. Open questions
 
-- **The TUI's later passes** (6.11 to 6.16): the browser's approval
-  above the paste (`../draft/tui.md`, 4.2), the recording at the host's
-  seam (its section 5), and everything of its sections 3 and 7. Default:
-  the first pass alone, in `../draft/tui.execution.md`'s order.
+- **The TUI's later passes** (6.11 to 6.16, 7.1): the TUI's flow above
+  the paste, using the root's approval half and the web's page: opening
+  its locally constructed address, showing the code and address when no
+  browser opens, drawing each outcome and asking again (`../draft/tui.md`,
+  4.2). Recording at the host's seam follows (its section 5), then the
+  surfaces of its section 3. Default: the first pass alone, in
+  `../draft/tui.execution.md`'s order.
+- **Approval between hosts and managing sign-ins** (7.1): a deployment
+  at a name, Google on the web, the code typed there with the ask's origin
+  and age shown, and the web's list of a person's sign-ins, each ended
+  from there (`../draft/tui.md`, section 7). Default: loopback, approved
+  by a browser signed in by the printed link.
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
   printed link into the TUI in another terminal and read the first
   screen (`../draft/tui.execution.md`, M1). Its frames' refinement

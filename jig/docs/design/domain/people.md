@@ -1066,6 +1066,10 @@ what outlives it (5.2).
 
 ## 12. Open questions
 
+- **A person's sign-ins listed and each ended** (3), browser-approved
+  ones among them: `../protocol/client.md`, section 15. Approval between
+  hosts also waits there; people still receives an ordinary sign-in.
+
 - **Acting as a person:** whether an approval should also be posted on a
   system as the person who gave it, so that the system's own protection
   requires it independently. jig holds no provider's credential; an

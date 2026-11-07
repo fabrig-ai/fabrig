@@ -174,10 +174,11 @@ listed in section 9.
    enables the printed link, or a browser's approval, the startup first
    checks that the clients' listener, a member of the application's own,
    is on a loopback address, and refuses the start, naming both, if it
-   is not (`configuration.md`, section 3, clients); only then does the
-   component give its secret, and `main` print its URL, on the
-   application's origin and route (`client.md`, section 8; `browser.md`,
-   section 11).
+   is not (`configuration.md`, section 3, clients). With the printed
+   link enabled, only after that check does the component give the link's
+   secret, and `main` print its URL, on the application's origin and
+   route (`client.md`, section 8; `browser.md`, section 11). Approval
+   alone prints nothing; its secret is drawn when a client asks.
 5. **The root's restart:** `iterate` gives the root its start, and the
    core's script asks for one step at a time; the protocol layer does the
    store's and the connectors' parts of each step as the root asks; the
@@ -432,6 +433,10 @@ Each within jig's suites' budgets.
   default and fuzzy suites.
 
 ## 9. Open questions
+
+- **Approval on a listener beyond loopback** (3): the public-name flow
+  and its transport are `client.md`, section 15's later work. Enabling
+  approval continues to require a loopback clients' listener.
 
 - **Generating the routing:** `iterate`'s routing has one shape, as the
   root's does; whether it is copied and filled, or generated.
