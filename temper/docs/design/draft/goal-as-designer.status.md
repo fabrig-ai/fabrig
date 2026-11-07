@@ -8,6 +8,17 @@ and 11.1, `../domain/worker.md`, section 5, and jig's `domain/hosts.md`,
 section 8. The saved-start exception and remaining reference-workflow
 gaps are below.
 
+Section 6's room is carried by `../protocol/configuration.md`, 13.8
+and 13.9, `../domain/agent.md`, 4.4, smith's `protocol/limits.md`, 3.10,
+and jig's `domain/hosts.md`, section 8 and `protocol/configuration.md`,
+section 6. The reference takes the permitted 63,740-byte fallback after
+`turn-in-transcript` refuses the larger pair. Its charter allowance is
+127,480, below the hub's 262,144: a whole fallback-sized spec fits,
+and a 131,072-byte section is cut at the worker. The fake-program table
+reaches 100,000 bytes; the 131,072-byte fake case and the live story's
+runtime result remain unestablished (`smith/docs/design/protocol/limits.status.md`,
+section 11). The stock's figures stay as they are.
+
 - **Design lags:**
   - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, the close-out lands before the landing, and each delegate's result wakes the goal. `reference-code-production.md` is read by tests and by stage one's judge (`temper/tools/stage-one/`), so folding this in changes their inputs.
   - 2, 7: `../protocol/configuration.md`, 13.9: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell, the close-out on a designer's charter.

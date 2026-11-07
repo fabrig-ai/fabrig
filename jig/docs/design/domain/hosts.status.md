@@ -16,6 +16,12 @@ The charter tests cover the grant's combinations, bounds and encoding;
 Open and verdict runs still receive no delivery grant. The shell
 departure below remains.
 
+Section 8 has no known gap in a change's `body` following the contract's
+words, or an independent report delivery's body taking the larger of
+those words and 1,024. The outcome still holds all fields and framing
+together; a field's bound alone does not promise that the whole fits.
+Section 12 defers the general message-rendering allowance.
+
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts
