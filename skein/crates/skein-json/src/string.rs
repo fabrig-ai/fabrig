@@ -1,12 +1,16 @@
 //! A string's text, decoded as it arrives (RFC 8259, section 7; json.md,
 //! 3): escapes undone, every byte checked as UTF-8, a control character
 //! refused, and the result held under the string limit.
+//! A plain run is taken whole (json.md, 3.4).
 //!
 //! The tokenizer scans to the next quote, so a piece ends at a quote or at
 //! the scan's maximum, anywhere in a character or an escape: the state
 //! between two pieces is a [`Text`].
 
-use skein_lib::{List, bytes};
+use alloc::boxed::Box;
+
+use skein_lib::stream::Read;
+use skein_lib::{Intake, bytes};
 
 use crate::tokenizer::Error;
 use crate::utf8::Utf8;
@@ -36,7 +40,8 @@ pub(crate) enum Retention {
 /// The reusable text buffer and the decoded length, including discarded text.
 #[derive(Debug)]
 pub(crate) struct Buffer {
-    pub(crate) bytes: List<u8>,
+    /// The text kept: an `Intake` for its `append`, which takes a run in one call (json.md, 7).
+    pub(crate) bytes: Intake,
     pub(crate) length: u64,
     pub(crate) retention: Retention,
     /// The first byte of the character or escape being decoded.
@@ -50,7 +55,7 @@ impl Buffer {
         self.retention = retention;
     }
 
-    fn room(&mut self, more: u32) -> Result<(), Error> {
+    pub(crate) fn room(&mut self, more: u32) -> Result<(), Error> {
         self.length = self.length.checked_add(u64::from(more)).ok_or(Error::TooLong)?;
         match self.retention {
             Retention::Strict(limit) => {
@@ -68,17 +73,46 @@ impl Buffer {
         Ok(())
     }
 
-    fn put(&mut self, bytes: &[u8]) {
+    pub(crate) fn put(&mut self, bytes: &[u8]) {
         let retain = match self.retention {
             Retention::Strict(_) => true,
             Retention::Capped(limit) => self.length <= u64::from(limit),
             Retention::Discard => false,
         };
         if retain {
-            for &byte in bytes {
-                self.bytes.push(byte).expect("room was reserved for the character");
-            }
+            self.bytes.append(bytes).expect("room was reserved for the character");
         }
+    }
+
+    /// The text kept, taken out; the buffer keeps its storage.
+    pub(crate) fn take(&mut self) -> Box<[u8]> {
+        let len = self.bytes.len();
+        self.bytes.meet(Read::Fill(len)).expect("the text is buffered")
+    }
+
+    /// A run of plain bytes (json.md, 3.4), the first at offset `first`. It
+    /// leaves what those bytes one at a time would.
+    fn run(&mut self, run: &[u8], first: u32) -> Result<(), Error> {
+        let count = u32::try_from(run.len()).expect("a scan's length fits u32");
+        match self.retention {
+            Retention::Strict(limit) => {
+                let left = u64::from(limit).checked_sub(self.length).expect("the text has fit so far");
+                if u64::from(count) > left {
+                    let fit = u32::try_from(left).expect("at most the string limit");
+                    let prefix = run.get(..skein_lib::usize_of(fit)).expect("the run passes the limit");
+                    self.room(fit)?;
+                    self.put(prefix);
+                    self.begun = first.checked_add(fit).expect("within the document limit");
+                    return self.room(1);
+                }
+            }
+            Retention::Capped(_) | Retention::Discard => {}
+        }
+        self.begun =
+            first.checked_add(count.checked_sub(1).expect("a run is not empty")).expect("within the document limit");
+        self.room(count)?;
+        self.put(run);
+        Ok(())
     }
 }
 
@@ -142,25 +176,52 @@ impl Decoded {
 /// first byte in the document. A closing quote is last.
 pub(crate) fn decode(text: Text, piece: &[u8], first: u32, out: &mut Buffer) -> Result<Piece, Error> {
     let mut text = text;
-    // Bounded by the piece, which is at most the scan's maximum.
-    for (at, &byte) in piece.iter().enumerate() {
-        if text == Text::Plain {
-            out.begun = first
-                .checked_add(u32::try_from(at).expect("a scan's length fits u32"))
-                .expect("within the document limit");
+    let mut rest = piece;
+    let mut at = first;
+    // Bounded by the piece: each round consumes a run or one byte.
+    loop {
+        match text {
+            Text::Plain => {
+                let after = after_plain(rest);
+                let count = rest.len().checked_sub(after.len()).expect("the remainder is a suffix");
+                if count > 0 {
+                    out.run(rest.get(..count).expect("the plain prefix"), at)?;
+                    at = at
+                        .checked_add(u32::try_from(count).expect("a scan's length fits u32"))
+                        .expect("within the document limit");
+                    rest = after;
+                }
+            }
+            Text::Char { .. }
+            | Text::Escape
+            | Text::Unicode { .. }
+            | Text::High { .. }
+            | Text::HighEscape { .. }
+            | Text::Low { .. } => {}
         }
-        let decoded = next(text, byte)?;
+        let [byte, after @ ..] = rest else { return Ok(Piece::More(text)) };
+        match text {
+            Text::Plain => out.begun = at,
+            Text::Char { .. }
+            | Text::Escape
+            | Text::Unicode { .. }
+            | Text::High { .. }
+            | Text::HighEscape { .. }
+            | Text::Low { .. } => {}
+        }
+        let decoded = next(text, *byte)?;
         out.room(u32::from(decoded.room))?;
         out.put(decoded.bytes());
         match decoded.after {
-            Some(after) => text = after,
+            Some(next) => text = next,
             None => {
-                assert!(at.checked_add(1) == Some(piece.len()), "a scan ends at its first quote");
+                assert!(after.is_empty(), "a scan ends at its first quote");
                 return Ok(Piece::Closed);
             }
         }
+        rest = after;
+        at = at.checked_add(1).expect("within the document limit");
     }
-    Ok(Piece::More(text))
 }
 
 /// Decodes one byte without allocating or retaining its string. The tokenizer
