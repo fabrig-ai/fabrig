@@ -122,6 +122,32 @@ fi
 export NEXTEST_DOUBLE_SPAWN=0
 export TEMPER_BUNDLE=${TEMPER_BUNDLE:-none}
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")")
+# Snapshot process working directories in one process, without opening their files.
+processes_in() {
+    python3 -I - "$1" "$2" <<'PYTHON'
+import os
+import sys
+
+scratch, store = sys.argv[1:]
+pids = []
+try:
+    processes = os.scandir("/proc")
+except OSError:
+    sys.exit(0)
+with processes:
+    for process in processes:
+        if not process.name.isdecimal():
+            continue
+        try:
+            cwd = os.readlink(process.path + "/cwd")
+        except OSError:
+            continue
+        if ((scratch and cwd.startswith(scratch + "/")) or
+                (store and (cwd == store or cwd.startswith(store + "/")))):
+            pids.append(process.name)
+print(" ".join(pids))
+PYTHON
+}
 # A kept deployment may already have processes. Only this sitting's new
 # processes belong to its cleanup, even when its box refuses a busy store.
 # Every process whose cwd is in this newly created private scratch was started
@@ -133,22 +159,10 @@ stop_owned() {
     [ "$launched" = true ] || return 0
     [ -d "$scratch" ] || return 0
     owned=
-    for process in /proc/[0-9]*; do
-        cwd=$(readlink "$process/cwd" 2>/dev/null || true)
-        case $cwd in
-            "$scratch"/*) owned="$owned ${process#/proc/}" ;;
-            *)
-                if [ -n "$store" ]; then
-                    case $cwd in
-                        "$store"|"$store"/*)
-                            case " $store_before " in
-                                *" ${process#/proc/} "*) ;;
-                                *) owned="$owned ${process#/proc/}" ;;
-                            esac
-                            ;;
-                    esac
-                fi
-                ;;
+    for process in $(processes_in "$scratch" "$store"); do
+        case " $store_before " in
+            *" $process "*) ;;
+            *) owned="$owned $process" ;;
         esac
     done
     for process in $owned; do kill -KILL "$process" 2>/dev/null || true; done
@@ -268,11 +282,7 @@ if [ "$rerun" = false ] && [ -z "${TEMPER_LIVE_ACCOUNT-}" ] && [ -z "$claude_ide
 fi
 store_before=
 if [ -n "$store" ] && [ -d "$store" ]; then
-    for process in /proc/[0-9]*; do
-        case $(readlink "$process/cwd" 2>/dev/null || true) in
-            "$store"|"$store"/*) store_before="$store_before ${process#/proc/}" ;;
-        esac
-    done
+    store_before=$(processes_in "" "$store")
 fi
 launched=true
 TMPDIR=$scratch ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --profile live-temper --ignore-default-filter \

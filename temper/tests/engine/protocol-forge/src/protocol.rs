@@ -406,6 +406,9 @@ impl Protocol {
     }
     pub fn run_for(&mut self, seconds: u64) {
         let end = self.env.now.saturating_add(Duration::from_secs(seconds));
+        // Transport fragments do not change the top's readiness or timers.
+        // Refresh its schedule only after an answer or a top step.
+        let mut schedule = None;
         for _ in 0..200_000 {
             self.joint.tick();
             // Only newly completed request lines: recording remains linear in requests.
@@ -414,13 +417,18 @@ impl Protocol {
                 .take_while(|line| line.ends_with(b"\r\n"))
                 .count();
             self.request_times.resize(self.request_times.len() + complete, self.env.wall);
-            self.take_answers();
-            if self.top.is_ready() {
+            if self.take_answers() {
+                schedule = None;
+            }
+            let (ready, deadline) = *schedule.get_or_insert_with(|| (self.top.is_ready(), self.top.next_deadline()));
+            if ready {
                 top::resume(&mut self.top, &self.env, &mut self.top_out);
                 self.take_top();
-            } else if self.top.next_deadline().is_some_and(|at| at <= self.env.now) {
+                schedule = None;
+            } else if deadline.is_some_and(|at| at <= self.env.now) {
                 top::fire(&mut self.top, &self.env, &mut self.top_out);
                 self.take_top();
+                schedule = None;
             } else if !self.joint.busy() {
                 if self.env.now >= end {
                     return;
@@ -428,9 +436,7 @@ impl Protocol {
                 let offset = self.joint.fake_env.now.as_nanos().saturating_sub(self.env.now.as_nanos());
                 let fake =
                     self.joint.domain.next_deadline().map(|at| Time::from_nanos(at.as_nanos().saturating_sub(offset)));
-                let next = self
-                    .top
-                    .next_deadline()
+                let next = deadline
                     .filter(|at| *at > self.env.now)
                     .unwrap_or(end)
                     .min(self.joint.component.next_deadline().filter(|at| *at > self.env.now).unwrap_or(end))
@@ -603,7 +609,8 @@ impl Protocol {
         assert!(self.pending.insert(self.serial, (self.generation, call, items, sample)).is_none(), "unique call");
         self.joint.call(self.serial, repository, op);
     }
-    fn take_answers(&mut self) {
+    fn take_answers(&mut self) -> bool {
+        let changed = !self.joint.answers.is_empty();
         for (id, answer) in core::mem::take(&mut self.joint.answers) {
             assert!(self.answered.insert(id), "call {id} answered once");
             let (generation, call, items, sample) = self.pending.remove(&id).expect("submitted call");
@@ -628,6 +635,7 @@ impl Protocol {
                 }));
             }
         }
+        changed
     }
     /// Completed HTTP request lines and their world-clock send times; no headers.
     pub fn requests(&self) -> impl Iterator<Item = (Wall, &[u8])> {

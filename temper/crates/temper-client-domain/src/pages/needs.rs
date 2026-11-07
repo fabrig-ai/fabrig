@@ -46,6 +46,7 @@ pub struct Answered {
     pub label: Label,
     pub at: Wall,
     held: Option<(Text, Time)>,
+    revision: Option<contract::Revision>,
     key: Option<Key>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -375,13 +376,19 @@ pub(crate) fn write_reply(pages: &mut Pages, object: ObjectKey, words: Box<[u8]>
         pages.needs.reply_beyond = beyond;
     }
 }
-fn question(page: &ReadValue) -> Option<&contract::Question> {
+fn words_title(page: &ReadValue) -> Option<&contract::DocumentText> {
     match page {
-        ReadValue::Question(question) => Some(question),
+        ReadValue::Question(question) => Some(&question.task.title),
+        ReadValue::PersonTask(task) => {
+            if crate::question::in_words(task) {
+                Some(&task.task.title)
+            } else {
+                None
+            }
+        }
         ReadValue::Task(_)
         | ReadValue::Proposal(_)
         | ReadValue::Escalation(_)
-        | ReadValue::PersonTask(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
@@ -402,13 +409,15 @@ fn question(page: &ReadValue) -> Option<&contract::Question> {
         | ReadValue::Deployment(_) => None,
     }
 }
-fn question_on(object: ObjectKey, words: Text) -> Option<contract::AnswerOn> {
+fn question_on(object: ObjectKey, words: Text, revision: Option<contract::Revision>) -> Option<contract::AnswerOn> {
     match object {
         ObjectKey::Question { task, message } => Some(contract::AnswerOn::Question { task, message, words }),
+        ObjectKey::PersonTask(task) => {
+            Some(contract::AnswerOn::Person { task, revision: revision?, answer: contract::PersonAnswer::Words(words) })
+        }
         ObjectKey::Task(_)
         | ObjectKey::Proposal(_)
         | ObjectKey::Escalation(_)
-        | ObjectKey::PersonTask(_)
         | ObjectKey::Result(_)
         | ObjectKey::Note { .. } => None,
     }
@@ -417,13 +426,12 @@ fn answerable(pages: &Pages, object: ObjectKey) -> Option<&Card> {
     for card in &pages.inbox.as_ref()?.cards {
         if card.object == object && card.key.is_none() && card.project.is_some() && pages.needs.line(object).is_none() {
             let page = card.page.as_ref()?;
-            question(page)?;
+            words_title(page)?;
             match object {
-                ObjectKey::Question { .. } => {}
+                ObjectKey::Question { .. } | ObjectKey::PersonTask(_) => {}
                 ObjectKey::Task(_)
                 | ObjectKey::Proposal(_)
                 | ObjectKey::Escalation(_)
-                | ObjectKey::PersonTask(_)
                 | ObjectKey::Result(_)
                 | ObjectKey::Note { .. } => return None,
             }
@@ -479,9 +487,10 @@ fn answer(pages: &mut Pages, env: &Env<Limits>, client: &Client, object: ObjectK
         temper_client_protocol_wire::CUE_BYTES
     };
     let Some(page) = &card.page else { return };
-    let Some(question) = question(page) else { return };
+    let Some(title) = words_title(page) else { return };
     let project = card.project.expect("answerable project");
-    let title = question.task.title.bytes().into();
+    let title = title.bytes().into();
+    let revision = acts::revision(page);
     let Ok(words) = Text::new(words, bound) else {
         pages.needs.toast = Some((Toasted::NotSent, env.now.saturating_add(TOAST)));
         return;
@@ -501,6 +510,7 @@ fn answer(pages: &mut Pages, env: &Env<Limits>, client: &Client, object: ObjectK
             label: label.clone(),
             at: env.wall,
             held: Some((words, env.now.saturating_add(HOLD))),
+            revision,
             key: None,
         })
         .expect("room for answer");
@@ -650,7 +660,8 @@ pub(super) fn fire(pages: &mut Pages, env: &Env<Limits>, out: &mut Queue<Request
         {
             changed = true;
             let (words, _) = line.held.take().expect("due answer");
-            let on = question_on(line.object, words).expect("only questions are held");
+            let on = question_on(line.object, words, line.revision)
+                .expect("only questions and person tasks in words are held");
             pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
             let key = Key { asker: Owner::Pages.asker(), number: pages.serial };
             line.key = Some(key);

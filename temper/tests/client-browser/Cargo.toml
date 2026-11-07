@@ -40,6 +40,7 @@ jig-client-fake-person-browser.workspace = true
 
 [dev-dependencies]
 jig-domain-core.workspace = true
+temper-fake.workspace = true
 temper-client-domain.workspace = true
 temper-playground-world.workspace = true
 skein-playground.workspace = true

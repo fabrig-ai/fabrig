@@ -20,7 +20,10 @@ mod github;
 mod history;
 mod issuer;
 mod public;
+pub mod reading;
+mod story;
 pub use history::reader_opens;
+pub use story::Stories;
 
 /// How long a story waits for what a page shows.
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(10);
@@ -168,9 +171,10 @@ impl Tier {
         configuration::demo(scratch.path(), &temper(), &bundle());
         Self { scratch, forged: forgery::request(), command: "box" }
     }
-    /// The demo on a private bundle, exercising the page's anchoring without the browser's.
+    /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
+    /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/browser.md, 4.3).
     #[must_use]
-    pub fn demo_without_anchoring(name: &str) -> Self {
+    pub fn reading(name: &str) -> Self {
         let tier = Self::demo(name);
         let private_bundle = tier.scratch.path().join("bundle");
         copy_bundle(&bundle(), &private_bundle);
@@ -182,28 +186,21 @@ impl Tier {
         let path = digest.path().join("temper.css");
         let mut css = fs::read(&path).expect("bundle stylesheet");
         css.extend_from_slice(
-            b"\n#app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; }\n",
+            b"\n@media (height: 801px) { #app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; margin-top: 7px !important; } }\n",
         );
         fs::write(path, css).expect("private stylesheet");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
         configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
-        tier
+        tier.with_replies(&reading::replies())
     }
     /// Script the demo model's replies, with each cue selecting one whole answer.
     #[must_use]
-    pub fn with_replies(self, replies: &[(&str, String)]) -> Self {
+    fn with_replies(self, replies: &[(String, String)]) -> Self {
         let path = self.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["demo"]["llm"]["asked"] = serde_json::json!(
-            replies
-                .iter()
-                .map(|(cue, text)| {
-                    serde_json::json!({"cue":cue,"turns":[{"lines":[{"text":text}],"finish":"stop","tokens":1}]})
-                })
-                .collect::<Vec<_>>()
-        );
+        value["application"]["demo"]["llm"]["asked"] = reading::scripts(replies);
         configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
         self
     }
@@ -254,6 +251,7 @@ impl Tier {
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         let sign_in = account_registration(&origin);
         account_provider(&mut value, &sign_in);
+        welcome_provider(&mut value, &sign_in);
         configuration::private(&path, &serde_json::to_vec(&value).expect("accounts deployment JSON"));
         let mut peer = issuer::peer(address, &sign_in);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held issuer listener");
@@ -379,6 +377,15 @@ fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) 
     }]);
 }
 
+/// The welcome's own provider on the same issuer, whose one subject would renew on the first
+/// provider (temper/docs/design/client/browser.md, 4.2). Provider 2 has its own stock models.
+fn welcome_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
+    value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(serde_json::json!({
+        "name":"Welcome provider", "number":2, "signed_in_plan":false, "endpoint":"fake",
+        "sources":{"keys":true,"sign_in":sign_in}
+    }));
+}
+
 /// Keep the built bundle immutable while giving this one-serve story its static issuer document.
 fn copy_bundle(from: &Path, to: &Path) {
     fs::create_dir(to).expect("private bundle directory");
@@ -402,6 +409,17 @@ mod tests {
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
+    fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
+        let document = jig_protocol_config::document(
+            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("account deployment admits stock settings");
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        core.defaults
+    }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
         let (_, deployment) =
@@ -414,16 +432,31 @@ mod tests {
     fn the_accounts_provider_keeps_the_stock_offer() {
         let mut value = tier_configuration().1;
         super::account_provider(&mut value, &super::account_registration("http://127.0.0.1:9"));
-        let document = jig_protocol_config::document(
-            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        let defaults = stock_defaults(&value);
+        assert_eq!(defaults.models.len(), 4);
+        assert!(defaults.models.iter().all(|entry| entry.model.provider == 1));
+    }
+    #[test]
+    fn the_welcome_provider_has_its_own_stock_offer() {
+        let mut value = tier_configuration().1;
+        let sign_in = super::account_registration("http://127.0.0.1:9");
+        super::account_provider(&mut value, &sign_in);
+        super::welcome_provider(&mut value, &sign_in);
+        let defaults = stock_defaults(&value);
+        assert!(defaults.models.iter().any(|entry| entry.model.provider == 2));
+    }
+    #[test]
+    fn the_sign_in_tiers_two_providers_pass_startup_validation() {
+        let (_, mut value) = tier_configuration();
+        let sign_in = super::account_registration("http://127.0.0.1:9");
+        super::account_provider(&mut value, &sign_in);
+        super::welcome_provider(&mut value, &sign_in);
+        let shape = temper_service::startup::shape(
+            &serde_json::to_vec(&value).expect("two-provider deployment JSON"),
+            &jig_protocol_config::Directories::working(),
         )
-        .expect("engine document");
-        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("account deployment admits stock settings");
-        let core = jig_protocol_config::core(&engine, [0; 16], 1);
-        assert_eq!(core.defaults.models.len(), 4);
-        assert!(core.defaults.models.iter().all(|entry| entry.model.provider == 1));
+        .expect("browser deployment admits two sign-in providers");
+        assert_eq!(shape, temper_service::startup::Shape::Standalone);
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {

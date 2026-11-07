@@ -171,60 +171,106 @@ fn expected(act: needs::Act) -> d::Action {
 fn has(view: &crate::View, words: &[u8]) -> bool {
     skein_lib::bytes::find(&f::main_text(view.tree()), words).is_some()
 }
+fn home_parts(root: &d::Domain, object: c::ObjectKey) {
+    let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+    assert_eq!(crate::pages::ask::card_kind(card), crate::words::Word::HomeQuestion);
+    let words = f::browser_words();
+    let asked = crate::pages::ask::read(card, &words);
+    let mut builder = skein_ui::Builder::new(&f::tree_limits());
+    let mut bindings = crate::frame::Bindings::new(128);
+    crate::pages::ask::home_body(&mut builder, root, &asked, &words, &mut bindings, 4);
+    let home = builder.finish();
+    let text = f::text(&home);
+    for words in [b"MakeProject answers".as_slice(), b"The box test reproduces"] {
+        assert!(skein_lib::bytes::find(&text, words).is_some());
+    }
+    for name in ["In jig’s store".as_bytes(), b"In temper serve", b"Reply", b"Later"] {
+        assert!(f::find(&home, Role::Button, name).is_some());
+    }
+    let choice = home
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some("In jig’s store".as_bytes()))
+        .unwrap();
+    assert_eq!(
+        bindings.decode(choice.binding.unwrap().token, Act::Press),
+        Some(expected(needs::Act::Choose { object, words: "In jig’s store".as_bytes().into() }))
+    );
+}
 #[test]
 fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
-    let mut view = f::browser_page_view(&root());
-    let styles = [
-        look::FLOW_HEAD,
-        look::ASK_META,
-        look::FLOW_Q,
-        look::ASK_CONTEXT,
-        look::ASK_SAW,
-        look::ASK_CHOICES,
-        look::PAIR,
-        look::NEXT_UP,
-    ];
-    let order: Vec<_> =
-        styles.iter().map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap()).collect();
-    assert!(order.windows(2).all(|p| p[0] < p[1]));
-    assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
-    assert_eq!(
-        styled(&view, look::FLOW_Q).name.as_deref(),
-        Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
-    );
-    assert_eq!(
-        styled(&view, look::ASK_META).name.as_deref(),
-        Some(b"welcome-stall \xc2\xb7 a question \xc2\xb7 under 1 min".as_slice())
-    );
-    let title = f::find(view.tree(), Role::Link, b"welcome-stall").unwrap();
-    assert_eq!(
-        crate::act(&mut view, title, Act::Press),
-        Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } }))
-    );
-    assert_eq!(styled(&view, look::ASK_SAW).role, Role::Disclosure);
-    assert_eq!(styled(&view, look::ASK_SAW).name.as_deref(), Some(b"What the agent saw".as_slice()));
-    assert!(!styled(&view, look::ASK_SAW).states.as_slice().contains(&skein_ui::State::Expanded));
-    assert_eq!(styled(&view, look::REC).role, Role::Text);
-    assert_eq!(styled(&view, look::REC).name.as_deref(), Some(b"recommended".as_slice()));
-    assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some("In jig’s store".as_bytes()));
-    let choice = styled(&view, look::RECOMMENDED);
-    let start = main(&view).iter().position(|n| n.id == choice.id).unwrap();
-    let end = start.checked_add(usize::try_from(choice.size).unwrap()).unwrap();
-    assert!(
-        !main(&view)[start..end]
-            .iter()
-            .any(|n| n.text.iter().any(|run| run.text.as_ref() == "In jig’s store".as_bytes()))
-    );
-    assert_eq!(
-        press(&mut view, "In jig’s store".as_bytes()),
-        expected(needs::Act::Choose { object: object(1), words: "In jig’s store".as_bytes().into() })
-    );
-    assert_eq!(
-        press(&mut view, b"In temper serve"),
-        expected(needs::Act::Choose { object: object(1), words: b"In temper serve".as_slice().into() })
-    );
-    assert_eq!(press(&mut view, "Reply…".as_bytes()), expected(needs::Act::OpenReply { object: object(1) }));
-    assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object: object(1) }));
+    for (root, object, title, task) in [
+        (Box::new(root()), object(1), b"welcome-stall".as_slice(), f::INBOX_TASK),
+        (
+            Box::new(word_person(QUESTION, false, false, c::Requester::Task(42))),
+            c::ObjectKey::PersonTask(f::INBOX_TASK),
+            b"Task 42",
+            42,
+        ),
+        (
+            Box::new(word_person(QUESTION, false, false, c::Requester::Person(73))),
+            c::ObjectKey::PersonTask(f::INBOX_TASK),
+            b"Review the plan",
+            f::INBOX_TASK,
+        ),
+    ] {
+        let mut view = f::browser_page_view(&root);
+        let styles = [
+            look::FLOW_HEAD,
+            look::ASK_META,
+            look::FLOW_Q,
+            look::ASK_CONTEXT,
+            look::ASK_SAW,
+            look::ASK_CHOICES,
+            look::PAIR,
+            look::NEXT_UP,
+        ];
+        let order: Vec<_> =
+            styles.iter().map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap()).collect();
+        assert!(order.windows(2).all(|p| p[0] < p[1]));
+        assert_eq!(styled(&view, look::FLOW_Q).role, Role::Heading { level: 1 });
+        assert_eq!(
+            styled(&view, look::FLOW_Q).name.as_deref(),
+            Some("Fix the dropped watch in jig’s store, or keep it alive in temper serve?".as_bytes())
+        );
+        assert!(
+            styled(&view, look::ASK_META)
+                .name
+                .as_ref()
+                .unwrap()
+                .ends_with(&skein_lib::bytes::concat(&[title, " · a question · under 1 min".as_bytes()]))
+        );
+        let title = f::find(view.tree(), Role::Link, title).unwrap();
+        assert_eq!(
+            crate::act(&mut view, title, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task } }))
+        );
+        assert_eq!(styled(&view, look::ASK_SAW).role, Role::Disclosure);
+        assert_eq!(styled(&view, look::ASK_SAW).name.as_deref(), Some(b"What the agent saw".as_slice()));
+        assert!(!styled(&view, look::ASK_SAW).states.as_slice().contains(&skein_ui::State::Expanded));
+        assert_eq!(styled(&view, look::REC).role, Role::Text);
+        assert_eq!(styled(&view, look::REC).name.as_deref(), Some(b"recommended".as_slice()));
+        assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some("In jig’s store".as_bytes()));
+        let choice = styled(&view, look::RECOMMENDED);
+        let start = main(&view).iter().position(|n| n.id == choice.id).unwrap();
+        let end = start.checked_add(usize::try_from(choice.size).unwrap()).unwrap();
+        assert!(
+            !main(&view)[start..end]
+                .iter()
+                .any(|n| n.text.iter().any(|run| run.text.as_ref() == "In jig’s store".as_bytes()))
+        );
+        assert_eq!(
+            press(&mut view, "In jig’s store".as_bytes()),
+            expected(needs::Act::Choose { object, words: "In jig’s store".as_bytes().into() })
+        );
+        assert_eq!(
+            press(&mut view, b"In temper serve"),
+            expected(needs::Act::Choose { object, words: b"In temper serve".as_slice().into() })
+        );
+        assert_eq!(press(&mut view, "Reply…".as_bytes()), expected(needs::Act::OpenReply { object }));
+        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+        home_parts(&root, object);
+    }
 }
 #[test]
 fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_rec() {
@@ -267,16 +313,19 @@ fn reply_form_focus_placeholder_value_and_all_acts() {
 #[test]
 fn plain_and_cut_words_have_no_choices_or_saw() {
     for (words, cut) in [("A plain question?\n\nSome context.", false), (QUESTION, true)] {
-        let root = fixture(words, cut, 1, false, d::address::Filter::ALL);
-        let view = f::browser_page_view(&root);
-        assert!(
-            !main(&view)
-                .iter()
-                .any(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)
+        for root in [
+            Box::new(fixture(words, cut, 1, false, d::address::Filter::ALL)),
+            Box::new(word_person(words, cut, false, c::Requester::Task(42))),
+            Box::new(word_person(words, false, cut, c::Requester::Task(42))),
+        ] {
+            let view = f::browser_page_view(&root);
+            assert!(
+                !main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)
                     || n.styles.as_slice().contains(&look::ASK_SAW))
-        );
-        assert!(f::find(view.tree(), Role::Button, "Reply…".as_bytes()).is_some());
-        assert!(has(&view, b"Some context.") || has(&view, b"Choice:"));
+            );
+            assert!(f::find(view.tree(), Role::Button, "Reply…".as_bytes()).is_some());
+            assert!(has(&view, b"Some context.") || has(&view, b"Choice:"));
+        }
     }
 }
 #[test]
@@ -513,7 +562,7 @@ pub(super) fn proposal(proposer: c::Proposer) -> c::Proposal {
             executor: task.chip.details.details.executor,
             spec: task.spec,
             authority: task.authority,
-            contract: task.result_contract,
+            contract: c::TaskContractDocument::Verdict { choices: List::uncapped(), cut: false },
             deadline: c::NewDeadline::Named,
             budget: 6,
             funder: task.budget.funder,
@@ -573,6 +622,22 @@ pub(super) fn person() -> c::PersonTask {
         cut: false,
         acts: offers(&[c::ActKind::Take, c::ActKind::HandBack]),
     }
+}
+fn word_person(words: &str, words_cut: bool, document_cut: bool, requester: c::Requester) -> d::Domain {
+    let mut person = person();
+    person.task.task = f::INBOX_TASK;
+    person.spec.specification.words =
+        c::DocumentText { bytes: c::Text::new(words.as_bytes().into(), 4096).unwrap(), cut: words_cut };
+    person.spec.cut = document_cut;
+    person.contract = c::TaskContractDocument::Report { words: 4096 };
+    person.requester = requester;
+    person.since = Some(Wall::EPOCH);
+    person.acts = offers(&[c::ActKind::Answer]);
+    kinds(&[(
+        c::ObjectKey::PersonTask(person.task.task),
+        c::Read::PersonTask { task: person.task.task },
+        c::ReadValue::PersonTask(Box::new(person)),
+    )])
 }
 fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
     let (mut root, _, watch) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &limits());
