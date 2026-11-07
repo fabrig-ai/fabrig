@@ -72,7 +72,7 @@ fn scripts(_: SocketAddr) -> Box<[Script]> {
             // The goal's first activation parks while its branch is confirmed.
             tool(b"wait", &json!({})),
             tool(b"edit", &json!({"path":"README.md","edits":[{"old":"# app\n","new":"# app\nGoal design\n"}]})),
-            tool(b"deliver", &json!({"title":"Goal design","body":"Write the goal's design."})),
+            tool(b"deliver", &json!({"fields":{"title":"Goal design","body":"Write the goal's design."}})),
             tool(b"change", &json!({"words":"Land the design","branch":"run","landing":"goal"})),
             tool(b"wait", &json!({})),
             tool(b"finish", &json!({"form":"report","text":REPORT,"fields":{}})),
@@ -119,7 +119,19 @@ fn branch_file(transport: &temper_fake_git_hosted::Typed, branch: &[u8]) -> Vec<
     else {
         panic!("branch commit")
     };
-    forge.domain.object(head).expect("branch object").tree.get(b"README.md".as_slice()).expect("branch README").to_vec()
+    commit_file(transport, head)
+}
+
+fn commit_file(transport: &temper_fake_git_hosted::Typed, head: u64) -> Vec<u8> {
+    let forge = transport.forge.borrow();
+    forge
+        .domain
+        .object(head)
+        .expect("published object")
+        .tree
+        .get(b"README.md".as_slice())
+        .expect("branch README")
+        .to_vec()
 }
 
 #[test]
@@ -135,7 +147,16 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
         );
     }
     let transport = FORGE.with(|slot| slot.borrow_mut().take().expect("captured public git transport"));
-    assert_eq!(branch_file(&transport, RUN_BRANCH), EDITED);
+    // The run branch is released when its goal closes (domain/forge.md, 11).
+    let run_head = ran
+        .forge()
+        .snapshots()
+        .iter()
+        .rev()
+        .flat_map(|snapshot| snapshot.branches.iter())
+        .find_map(|(name, head)| (name.as_ref() == RUN_BRANCH).then_some(*head))
+        .expect("the worker published the run branch before goal close");
+    assert_eq!(commit_file(&transport, run_head), EDITED);
     assert_eq!(branch_file(&transport, GOAL_BRANCH), EDITED);
     assert_eq!(ran.forge().main_file(b"README.md"), landing::README);
     let task: Value = serde_json::from_slice(&ran.calls().last().expect("ended goal").stdout).expect("task JSON");
@@ -145,6 +166,26 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
         "the goal ends done: {task}"
     );
     assert_eq!(task["task"]["result"]["value"]["report"]["bytes"], REPORT, "{task}");
+    let last_query = ran
+        .llm()
+        .iter()
+        .rev()
+        .find_map(|observation| if let Observation::Query { query, .. } = observation { Some(query) } else { None })
+        .expect("report's provider turn");
+    let texts: Vec<_> = last_query
+        .messages
+        .iter()
+        .flat_map(|message| &message.parts)
+        .filter_map(|part| match part {
+            Part::Text { text } => Some(String::from_utf8_lossy(text)),
+            Part::ToolOutput { output, .. } => Some(String::from_utf8_lossy(output)),
+            Part::ToolCall { .. } | Part::Opaque { .. } => None,
+        })
+        .collect();
+    assert!(
+        texts.iter().any(|text| text.contains("Result from task 2:") && text.contains("pull request #2 of acme/app")),
+        "the change landed before finish: {texts:?}"
+    );
     let mut delivered = false;
     for observed in ran.llm() {
         if let Observation::Query { query, .. } = observed {
@@ -163,7 +204,7 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
                                 false
                             }
                         });
-                        if is_delivery {
+                        if is_delivery && !delivered {
                             assert!(
                                 output.starts_with(b"delivered\nreceipt directory="),
                                 "delivery answer: {}",
