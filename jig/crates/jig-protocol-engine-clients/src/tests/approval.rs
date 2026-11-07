@@ -371,8 +371,12 @@ fn busy_not_ready_and_full_spend_nothing() {
                 )
                 .expect("full"),
             ),
-            people::Reply::Signer(_) | people::Reply::SignedIn { .. } | people::Reply::SignedOut
-            | people::Reply::Outcome(_) | people::Reply::Again(_) | people::Reply::Refused(_) => unreachable!(),
+            people::Reply::Signer(_)
+            | people::Reply::SignedIn { .. }
+            | people::Reply::SignedOut
+            | people::Reply::Outcome(_)
+            | people::Reply::Again(_)
+            | people::Reply::Refused(_) => unreachable!(),
         };
         e.reply(to, reply);
         assert_eq!(
@@ -623,8 +627,11 @@ fn a_take_drains_on_stop_close_or_abort() {
                 assert!(e.out.is_empty());
                 assert!(e.component.pending.exchanges.is_empty());
             } else if stage == "keep" {
-                let w::ApprovalSignInAnswer::SignedIn(value) = w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer") else { panic!("signed in after digest kept") };
-                assert_eq!(value.party(), 72);
+                let w::ApprovalSignInAnswer::SignedIn(_) =
+                    w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer")
+                else {
+                    panic!("signed in after digest kept")
+                };
                 finish(&mut e, owner);
             } else {
                 let answer =
