@@ -12,7 +12,7 @@ fn a_budget_question_climbs_two_owners_to_the_persons_inbox_and_a_raised_investi
     // a task cannot ask its own person. The answer recommends no budget raise.
     // The default/owner models stand for Codex/Opus; the query carries no effort.
     // The 70 s, 60 s, findings and cause are words, checked and never judged.
-    // Keeping the agreement as a standing rule is 4.4/5.6's part.
+    // The durable-note holder in testing.md, 5.3, holds the standing rule.
     // Singleton batches keep the investigation and advisor sequential. A1's
     // amendment is held until a5 parks and its medium document is read, so
     // the high choice belongs to its next run. Input cue rules tolerate news.
@@ -30,8 +30,8 @@ fn a_budget_question_climbs_two_owners_to_the_persons_inbox_and_a_raised_investi
     // a5 awaiting the amendment. Small admits the singleton tree.
     // Source journal pages follow their supplied cursors for all three
     // owners, keeping every parked attempt.
-    // Earlier steps stay unchanged; batch_member, held turns, delivery/tool
-    // helpers and 6.1's attempt rule are reused by calls within the library.
+    // Shared batch members, held turns, delivery/tool helpers and the
+    // attempt rule are reused by calls within the library.
     let ran = run_cluster_forge(
         case::PAUSE_WORKERS,
         &[],
