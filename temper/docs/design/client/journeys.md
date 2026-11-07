@@ -756,8 +756,9 @@ The `configure-chat-draft` request's hand-made `configure-chat/02.html`
 through `04.html` and its README are not journeys to reprint or land
 (section 7). Its document pane and modes are shared with `chat-draft`;
 the configuring proposal states, Start over and the rail strip are also
-drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
-`skein/docs/design/draft/diagrams.md`.
+drawn by the gallery (`browser.md`, 7.2). Its drawing and figure are a flow
+(`skein/docs/design/ui.md`, 10.1), drawn in the client; the gallery measures
+no box, so a print shows its fallback.
 The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; the gallery draws those
 states, including the card and the stock reference beside the page.
@@ -805,6 +806,12 @@ plan. temper/ui compares the request with main after landing, at the
 widths and open states in `../draft/look-requests.md`, 4.
 
 ## 10. Open questions
+
+- **The connect-flows comparison** (9): temper/ui compares the
+  hand-made request's 01–23 against main after landing, including the
+  open and named states, under `../draft/look-requests.md`, 4. Default:
+  gallery and journey print checks establish no rendered equality;
+  screenshots and any findings belong to that comparison.
 
 - **The fresh project's draft flow on a real box** (9, `chat-draft`):
   a person's recording alongside the fake-model journey, including finding

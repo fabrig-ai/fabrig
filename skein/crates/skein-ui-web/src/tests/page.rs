@@ -421,6 +421,40 @@ fn a_resize_draws_the_scene_and_keeps_the_fallback() {
 }
 
 #[test]
+fn a_drawing_reserves_its_scene_on_resize_and_says_its_height() {
+    for (look, height) in
+        [(fixtures::drawing_look(), None), (fixtures::scene_height_look(), Some(fixtures::DRAWING_HEIGHT))]
+    {
+        let (mut page, mut view) = (Page::new(look, &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+        assert!(page.scene.is_none());
+        page.apply(
+            &fixtures::patches(&mut view, 0, |b| {
+                main(b);
+                end(b);
+            }),
+            &mut Vec::new(),
+        );
+        page.resized(MAIN, 100, 50, &mut Vec::new());
+        assert!(page.scene.is_none(), "a tree with no drawing reserves no scene");
+        page.apply(&fixtures::patches(&mut view, 1, |b| drawing(b, b"one")), &mut Vec::new());
+        assert!(page.scene.is_none(), "a drawing reserves no scene before resize");
+        assert!(!page.html().contains("data-drawn"));
+        page.resized(DRAWING, 100, 50, &mut Vec::new());
+        assert_eq!(page.scene.as_ref().expect("resized drawing has a scene").height(), height);
+        let html = page.html();
+        assert!(html.contains("data-drawn=\"\""));
+        assert_eq!(html.contains("data-scene-height=\"\""), height.is_some());
+        if let Some(height) = height {
+            assert!(html.contains(&format!(
+                "<svg aria-hidden=\"true\" width=\"100\" height=\"{height}\" viewBox=\"0 0 100 {height}\">"
+            )));
+            page.resized(DRAWING, 100, height, &mut Vec::new());
+            assert_eq!(page.html(), html, "measuring the scene's own height changes nothing");
+        }
+    }
+}
+
+#[test]
 fn changed_drawing_data_draws_again_at_its_last_size() {
     let (mut page, mut view) =
         (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));

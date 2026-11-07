@@ -75,6 +75,9 @@ use core::ptr;
 use std::alloc::System;
 use std::process;
 
+#[cfg(test)]
+mod tests;
+
 /// The allocator: System's, counted.
 #[derive(Debug)]
 pub struct Counting;

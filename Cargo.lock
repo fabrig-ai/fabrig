@@ -1271,6 +1271,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-fake-store",
  "jig-protocol-tools",
+ "skein-fork",
  "skein-lib",
  "skein-world",
 ]
@@ -3330,6 +3331,13 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-tls-kit",
+]
+
+[[package]]
+name = "skein-fork"
+version = "0.0.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -5572,6 +5580,7 @@ dependencies = [
 name = "temper-one-process-world"
 version = "0.0.0"
 dependencies = [
+ "aho-corasick",
  "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",

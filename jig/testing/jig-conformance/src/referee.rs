@@ -7,11 +7,13 @@ mod application;
 mod compound;
 mod conversations;
 mod deletions;
+mod policy;
 mod positions;
 mod proposals;
 mod revisions;
 mod settings;
 pub use application::{ApplicationAnswer, ApplicationKey};
+pub use policy::PolicySnapshot;
 pub use revisions::Revision;
 pub use settings::SettingsRevision;
 
@@ -462,7 +464,7 @@ pub struct Referee {
     applications: application::Applications,
     deletions: deletions::Deletions,
     compounds: BTreeMap<Vec<u64>, compound::Compound>,
-    pub policy: Policy,
+    pub policy: PolicySnapshot,
     last: Snapshot,
     ended_budgets: BTreeMap<u64, u64>,
     commit: u64,
@@ -493,14 +495,14 @@ fn require(holds: bool, promise: Promise, why: impl Into<String>) -> Result<(), 
 impl Referee {
     /// Start with the scenario's independent policy and an empty durable store.
     #[must_use]
-    pub fn new(policy: Policy) -> Self {
+    pub fn new(policy: impl Into<PolicySnapshot>) -> Self {
         Self {
             proposals: proposals::Proposals::default(),
             revisions: revisions::Revisions::default(),
             applications: application::Applications::default(),
             deletions: deletions::Deletions::default(),
             compounds: BTreeMap::new(),
-            policy,
+            policy: policy.into(),
             last: Snapshot::default(),
             ended_budgets: BTreeMap::new(),
             commit: 0,

@@ -3,8 +3,10 @@
 2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Unlisted sections, including 7's requested focus bringing its node into
-view even when already focused, have no known gap.
-
+view even when already focused, have no known gap. A bound continuing
+list reports its foot near through the page's scroll and apply paths,
+without log following. Temper's retained sheet story exercises this path;
+no passing runtime result for its repaired version is supplied here.
 
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether

@@ -5,6 +5,21 @@ Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.
 
+Sections 3.2 and 4 have no known gap in routing an acceptance with a
+running-work choice to its retained decision, or answering `Unknown`
+when no such record exists. The core world's settings-edge table checks
+accepted and rejected task proposals, a party's withdrawn proposal,
+task replacements with Stays and Moves, and unchanged settings, task,
+decision record and pending replacement. Missing-proposal rows cover
+both proposers with and without a running-work choice.
+
+- **Departs:** 3.2, 4, from `ui-goal-asks-2`'s request for a replaced
+  proposal to answer decided first: automatic task replacement retains
+  no decision and answers `Unknown`. The answer of 2026-11-07 retained
+  that refusal and declined an archive or a new decider because this is
+  a ctl edge outside the happy path and spend binds. Section 11 keeps
+  the retention choice open.
+
 - **Not yet:** 5.1: an account's row carries no facts and no audience.
 - **Departs:** 5.1: an omitted template's preview and its new task's next-run
   model can differ while no supporting worker is ready. `Core::preview_llm`
