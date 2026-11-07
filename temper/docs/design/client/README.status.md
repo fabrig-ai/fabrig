@@ -692,3 +692,5 @@ work; no new real-model or phone press outcome is supplied.
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
+
+- **Not yet:** 3.5, a chat's document: a flow is not drawn. `host::page` draws nothing and names only temper's tokens, and `temper-client-view`'s limits leave `drawing_bytes`, `scene_marks` and `scene_bytes` at nothing, so every fence reads as code.
