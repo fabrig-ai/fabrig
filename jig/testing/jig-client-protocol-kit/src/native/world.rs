@@ -210,7 +210,7 @@ fn run_mode(seed: u64, script: Script, terminal: bool) -> (Outcome, Box<[u8]>) {
                         interval: Duration::from_millis(1),
                         status: Some(jig_client_view::regions::JigRegion::Link.region()),
                     },
-                    &super::Test::view_limits(&client.view),
+                    &super::Test::view_limits(&super::Seen::get(&mut client.seen, &client.env.limits).view),
                 )
                 .expect("terminal bounds"),
             );
