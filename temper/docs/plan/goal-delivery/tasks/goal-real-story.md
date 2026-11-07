@@ -5,6 +5,11 @@ kind = "feature"
 needs = ["goal-start"]
 files = [
   "temper/tests/real-loop/tests/suite/goal_delivery.rs",
+  "smith/crates/smith-agent-service/src/service/request.rs",
+  "smith/crates/smith-agent-service/src/service/opening.rs",
+  "smith/crates/smith-agent-service/src/service/stages.rs",
+  "smith/crates/smith-agent-service/src/service/effects.rs",
+  "smith/crates/smith-local-service/src/service.rs",
 ]
 effort = "high"
 minutes = 80
@@ -42,7 +47,8 @@ Read as worlds to follow: `temper/tests/real-loop/tests/suite/adoption_hold.rs` 
 - **May change:**
   - `temper/tests/real-loop/tests/suite/main.rs`: the `mod` line.
   - `temper/tests/real-loop/src/**`: a helper the story needs, added beside the existing ones. `model-catalogue-2/process-fixtures` writes `temper/tests/real-loop/tests/fixtures/**`, so stay out of that directory.
-- **Not here:** the ignored chat story in `adoption_hold.rs` stays ignored: a chat's run is Open, and never delivers. Production code: a defect here goes to the report's first line as a `Question:`, unless it is under the option below.
+  - The smith repair under `## Answers`, in the files it names, and its test.
+- **Not here:** the ignored chat story in `adoption_hold.rs` stays ignored: a chat's run is Open, and never delivers. Production code: a defect here goes to the report's first line as a `Question:`, unless it is under the option below or `## Answers`.
 - **Options:**
   - **Making a goal with its own branch:** no real-loop story has one yet. The goal's template carries the symbol: copy the shape of template 4 in `temper/docs/examples/reference/settings.json` (its `symbols` and its report contract) into this story's `Fixture.configure`, with `ended_by: result`, and start the task from that template as `temper help task` says. Change no shared fixture's defaults. If the settings path can't reach it, make the batch through the ctl's task creation, and say so.
   - **The project's checks:** the fake forge's files carry no mode (`skein_fake_forge_domain::api::File`), so an executable `.temper/pre-pr` can't be seeded this way. Leave it out, and name in the report that checks at delivery stand on `checks_must_pass` in the charter (`charter-delivery`, `goal-start`) and on smith's own tests. If the world can make one executable, add one that records it ran, and assert that.
@@ -59,3 +65,19 @@ Read as worlds to follow: `temper/tests/real-loop/tests/suite/adoption_hold.rs` 
 ## Report
 
 Its time; how the goal got its branch; what you did about checks; what the receipt said, word for word; and the bite.
+
+## Answers
+
+2026-11-07. **Assign a separate smith repair, or expand this task to repair `smith-agent-service`?** Expand this task: the story's acceptance can't hold without the repair, and it is a few lines. The story stays as pushed (`cca9ef3aad`): continue on it.
+
+The defect: `smith/crates/smith-agent-service/src/service/request.rs:35` takes the delivery rule from `outcome.change`, where `smith/docs/design/domain/run.md`, 3.1 and 8.4 make `deliver` a grant of its own. Smith's agent world hides it, as `smith/tests/agent/src/world.rs:449` hands its backend `charter.grants.deliver`.
+
+The repair:
+
+- `Opening::Started` keeps `deliver: Option<run::outcome::ChangeSpec>` beside `outcome`. `Opening::contract` and `Effects::contract` take it as a second argument, as the worlds' `Backend::contract` already does.
+- `stages.rs` passes `start.charter.grants.deliver.clone()`, `smith-local-service/src/service.rs` passes `charter.grants.deliver`, and `request.rs` reads the kept value. `outcome.change` no longer supplies it.
+- No wire, charter or stored format changes. Smith's wire already carries the grant. Anything past this list in smith's or the worker's production code is still a `Question:`.
+
+Its test, first and failing, in the lowest tier that shows it: a story in `smith/tests/agent-process/tests/suite/` (package `smith-agent-process-world`, focused, whose real service holds the defect), beside `coding.rs`. A report charter with a `deliver` grant and `modify` reaches the model, which is offered `deliver` with the grant's fields, and its delivery is answered before it finishes with a report. Use `wire::edit_charter`, as `opening.rs` there does. Run it by name, then `heavy cargo clippy` on the packages you changed.
+
+Then resume at step 2. The bite and the report's other items still stand. Say in the report that smith's production code changed, and why.
