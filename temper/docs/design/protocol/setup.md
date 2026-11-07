@@ -2292,19 +2292,23 @@ runs it (section 7).
     that bound, 874,120, so that a task's row stays within the journal's
     carrier (`root.journal.transcript_bytes`, below);
   - the machine's concurrency where `standard` sets another than the box
-    had, the hub's and the fleet's slots and workers and the clients'
-    streams and their carriers (configuration.md, 13.4), each at what
-    the box had.
+    had, the fleet's workers and the clients' streams and their carriers
+    (configuration.md, 13.4), each at what the box had. `standard`'s
+    `fleet.slots`, 4, holds the worker's `slots` with no override.
   `standard` holds the owner's grants (16), their names' segments (8),
   the notes' scopes past them, the watch room and the reference's
   charters and executors, so none of small's overrides for them stays.
 - **Its worker's `limits`** are jig's `standard` profile with those of
   the hub's that it, sized for any agent, sets past smith's agent
   (configuration.md, section 7, the worker's check against the agent),
-  and the machine's concurrency, and no other: `hub.accounts` 4, the
-  agent's accounts; `hub.run_calls` 48, the agent's calls; and
-  `hub.event_bytes`, the agent's advertised message bytes.
+  and no other: `hub.accounts` 4, the agent's accounts; `hub.run_calls`
+  48, the agent's calls; and `hub.event_bytes`, the agent's advertised
+  message bytes. `standard`'s `hub.slots`, 4, holds its `slots`, 4, so
+  that two chats and a goal's agents run side by side
+  (configuration.md, 13.4).
 - **Its `application.limits`** are temper's `standard` with
+  `checkout.workspaces` and `git_component.operations` 4, the least the
+  worker's slots take (`../domain/worker.md`, section 6);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`
@@ -2655,7 +2659,7 @@ override.
   writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
-- **One worker,** in the process, its `root` `workspaces` in the data
+- **One worker,** in the process, with 4 slots (8.1), its `root` `workspaces` in the data
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
