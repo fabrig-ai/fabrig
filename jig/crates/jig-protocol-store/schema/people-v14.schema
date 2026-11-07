@@ -164,7 +164,7 @@ record ProjectPolicySetting { project: u32 }
 enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: SettingNumber }
 record OutcomeRestored { proposal: u64 to: u32 left_out: list 256 Setting }
 enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged }
-enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector }
+enum SettingMember { documents, name_segments, name_segment_bytes, path, heading, connector, stored_policy }
 enum SettingRule { maximum, minimum, registered }
 record SettingDetail { member: SettingMember document: u32 segment: u32 rule: SettingRule supplied: u32 bound: u32 }
 record MalformedSettings { setting: Setting fault: SettingFault detail: option SettingDetail }

@@ -289,6 +289,7 @@ fn document_refusal_details_read_back() {
         domain::SettingMember::Path,
         domain::SettingMember::Heading,
         domain::SettingMember::Connector,
+        domain::SettingMember::StoredPolicy,
     ] {
         for rule in [domain::SettingRule::Maximum, domain::SettingRule::Minimum, domain::SettingRule::Registered] {
             people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {

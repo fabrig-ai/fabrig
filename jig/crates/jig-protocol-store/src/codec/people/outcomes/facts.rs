@@ -980,6 +980,7 @@ fn encode_setting_detail(
                 domain::SettingMember::Path => wire::SettingMember::Path,
                 domain::SettingMember::Heading => wire::SettingMember::Heading,
                 domain::SettingMember::Connector => wire::SettingMember::Connector,
+                domain::SettingMember::StoredPolicy => wire::SettingMember::StoredPolicy,
             },
             rule: match value.rule {
                 domain::SettingRule::Maximum => wire::SettingRule::Maximum,
@@ -1003,6 +1004,7 @@ fn decode_setting_detail(value: &wire::SettingDetail) -> domain::SettingDetail {
             wire::SettingMember::Path => domain::SettingMember::Path,
             wire::SettingMember::Heading => domain::SettingMember::Heading,
             wire::SettingMember::Connector => domain::SettingMember::Connector,
+            wire::SettingMember::StoredPolicy => domain::SettingMember::StoredPolicy,
         },
         rule: match value.rule() {
             wire::SettingRule::Maximum => domain::SettingRule::Maximum,

@@ -285,7 +285,18 @@ fn setting_values_keep_their_byte_bound_at_the_row_entrance() {
     assert_eq!(
         core.start_failure(),
         Some(Failure::Settings {
-            failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape, detail: None },
+            failure: crate::settings::Failure {
+                setting: Setting::Charter(1),
+                fault: Fault::Shape,
+                detail: Some(people::SettingDetail {
+                    member: people::SettingMember::StoredPolicy,
+                    document: 0,
+                    segment: 0,
+                    rule: people::SettingRule::Maximum,
+                    supplied: u32::try_from(bytes).expect("small charter"),
+                    bound: env.limits.run_bytes,
+                }),
+            },
             changed: true,
         })
     );

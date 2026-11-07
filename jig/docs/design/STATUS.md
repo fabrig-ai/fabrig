@@ -7,7 +7,13 @@ clients. Only the secret's take makes the approving browser's party's
 sign-in; bearers cannot read or decide approvals. An admitted take's
 reservation can outlive expiry (`protocol/client.status.md`, section 8).
 Approval between hosts and listing sign-ins remain deferred
-(`protocol/client.md`, section 15). The deployment's sole-owner read is
+(`protocol/client.md`, section 15). Both profiles hold returning
+redirects of 16,384 bytes and a browser's request head of 24,593;
+configuration refuses a driver that holds less than its parts. An
+over-long listener answer fails its own sign-in at once with a specific
+page; carrying its length and bound beyond `SignInAgain` to the
+application's page remains deferred (`protocol/configuration.md`,
+sections 6 and 9). The deployment's sole-owner read is
 built, including
 during restore, answering none with no owner, several or an unreadable
 roster (`domain/people.md`, section 4). Agents in a host's own process

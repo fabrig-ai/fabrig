@@ -117,7 +117,7 @@ On your first run, read the draft, the design documents it touches and their sta
 
 Where a request settles its changes with no shape for the code to follow, as one made of documents does, write no design, say so in your report note, and make its changes.
 
-On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository. The cut never waits for or reacts to its changes.
+The core subscribes you to the landings on each branch your changes target as the first change into it is made; don't subscribe to them with `subscribe_forge`, which refuses a duplicate. The cut never waits for or reacts to its changes.
 ```
 
 Part on question question_answered question_ended question_owed:
