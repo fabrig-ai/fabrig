@@ -347,9 +347,8 @@ connector's system.
   the same name while the run lives, after a backoff, once the earlier
   relay of it has ended. The backoff is `host_backoff` before the second
   ask and doubles before each later one, to at most 64 times
-  `host_backoff`, so a host that stays busy is asked a few times a
-  minute; an ask that would start past the caller's deadline is not
-  made, and the call returns busy, or unknown where an ask went
+  `host_backoff`; an ask that would start at or past the caller's
+  deadline is not made, and the call returns busy, or unknown where an ask went
   unanswered. A host is owed that a name is decided once and
   answered from its record when asked again (host.md, section 2); a name
   carries the start's activation number, so no later activation reuses
