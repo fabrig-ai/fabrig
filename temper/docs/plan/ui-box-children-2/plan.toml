@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/ui-box-children-2/inputs/request.md", "temper/crate
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "agents-stop"
+title = "serve's first signal stops its agents, each ending its Claude Code program, before serve closes its worker and exits, so a box's stop leaves no chat's claude behind"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 8"
+
+[[slice]]
+id = 1
+story = "A chat's Claude Code turn held when serve is stopped is interrupted by its agent, which exits, before serve closes its worker and ends drained"
+parts = ["agents-stop"]
+walk = false
