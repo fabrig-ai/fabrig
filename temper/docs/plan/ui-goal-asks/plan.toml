@@ -1,0 +1,5 @@
+draft = "ui-goal-asks"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-goal-asks/inputs/request.md", "temper/crates/temper-engine-smith/src/answers.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
