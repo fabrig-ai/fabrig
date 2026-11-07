@@ -21,17 +21,21 @@ standing rules `notes/common.md`. The design each batch cites is pushed with it.
 | stock | `bound` | stock, mechanics | the step test holding what temper gives charter 11's first request to 16,384 bytes on both shapes |
 | proposal-read | `proposal-read` | | jig's core: a run's read of one proposal of settings, a task's of its project or a party's, decided by the settings family |
 | see | `see` | declare, stock, document | `see`'s parser and routing; the settings addresses, `revisions`, `revision N`, `help`, `more`; the bound, `see:` lines, not-yet and unknown; the skeleton for the forge's and the proposal's addresses |
+| see | `see-forge` | see | `file OWNER/NAME PATH [BRANCH]`, `settings landing`, `settings gates OWNER/NAME`, from the forge's reads and the landing state |
+| see-proposal | `see-proposal` | see, proposal-read, see-forge | `proposal tN/K` and `pN/K` over jig's run read, rendered in `temper-settings-form` |
+| close | `close` | every task | M1's state in the execution file; no status entry of M1's left |
 | propose | `propose` | declare, see | `propose_settings`' asking mechanics: a document's repository as `OWNER/NAME`, a large set in parts held by the engine, approvals judged at the call for the chat's project, the answer saying where the card waits and whose decision it is (both forms) |
 | document | `document` | declare | `document` writes the chat's one note by section (write, append, replace), the root splicing it and writing through jig's note family; the client reads a `document` call as a `note` call |
 
-Further batches (being written by the `see` designer): `see-forge` (`file`, `settings
-landing`, `settings gates`) and `see-proposal`.
+Every part of the request is in the plan (fifteen tasks).
 
 ## Critical path, as it stands
 
-`family` (45 min), `declare` (180), `document` (240), `see` (240), then `see-forge`,
-`see-proposal` and `propose` beside each other: about 705 implementer-minutes to `see`.
-`stock` (150) and `bound` (90) run beside `document`; `proposal-read` (150) from the start.
+`family` (45 min), `declare` (180), `document` (240), `see` (240), then `propose`
+(330), then `close` (20): about 1,055 implementer-minutes. Beside it: `see-forge` (150)
+then `see-proposal` (150) after `see`; `stock` (150) and `bound` (90) beside
+`document`; `workspace` (60) after `declare`; `proposal-read` (150), `client` (180),
+`claude-start` (120) and `mechanics` (60) from the start.
 
 ## Shared pieces, for the heads-ups
 
@@ -59,6 +63,17 @@ landing`, `settings gates`) and `see-proposal`.
   the asking bit (3,975) and charter 11's delegation (`stock`); a project made before
   keeps its own policy until its owner accepts a proposal.
 - **`temper-client-domain`:** `Address::Ask { project }` and `ASKING_TEMPLATE` (`client`).
+
+## Overlaps inside the plan
+
+- `propose`, `see-forge` and `see-proposal` all write
+  `temper/tests/engine/domain/tests/suite/configuring.rs`: `propose` rows in its proposal
+  tables, `see-forge` and `see-proposal` a `mod` line beside `mod fixture;` and the
+  removal of their rows in `see`'s address table, apart from each other's lines;
+  `see-proposal` follows `see-forge`, which both write `temper-engine-smith/src/see.rs`.
+- `document` and `client` both write `temper-client-domain` and `temper-client-view`, in
+  different files (`pages/chat.rs`, `pages/document.rs` against `chats.rs`,
+  `settings.rs`, `configure.rs`).
 
 ## Overlaps with drafts beside this one
 

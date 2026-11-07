@@ -49,3 +49,8 @@
 - **A test's oracle or helper that your change's correct behaviour trips is yours** to
   repair in the same task, keeping what it checks for everything else, and named in the
   report.
+- **An item a later task of this plan constructs or calls** (a variant, a function, a
+  field your task declares as the surface for it, as `see`'s `SeeReading::Head`, `File`
+  and `Proposal`, or `route/see/proposal.rs`'s `answered`) may carry a scoped
+  `#[expect(dead_code, reason = "constructed by the task TASK of ui-ask-m1")]`,
+  pre-approved; the later task removes it when it uses the item, and both reports say so.

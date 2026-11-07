@@ -1578,12 +1578,15 @@ are its second milestone's (section 10).
   every project the parser names is the chat's own; a person's views, which are a
   client's (jig's `domain/engine.md`, section 11). Its reads are the run's, so
   that a member's chat reads what a member's configuring chat reads.
-- **Its tests:** one table in the engine's domain world, a row an address, beside
-  the configuring agent's settings reads (`testing.md`, 6.4): each answer's first
-  line and a part of its text, its body within the bound, its `see:` line or its
-  error; a long setting read whole through `more`; a refusal of the `settings`
-  family; the store unchanged by every read. The parser's rows in the root's own
-  tests, the token's and the cut's in `temper-engine-smith`'s.
+- **Its tests:** tables in the engine's domain world, a row an address, beside
+  the configuring agent's settings reads (`testing.md`, 6.4): the settings, history
+  and page addresses; the forge's, in a world with a project's landing and a
+  repository; a proposal waiting, rejected and accepted. Each row checks the
+  answer's first line and a part of its text, its body within the bound, its `see:`
+  line or its error; a long setting and a long file read whole through `more`; a
+  refusal of the `settings` family; the store unchanged by every read. The parser's
+  rows in the root's own tests, the token's, the cut's and the texts' in
+  `temper-engine-smith`'s.
 
 #### 8.4.2 `propose_settings`, its asking form
 

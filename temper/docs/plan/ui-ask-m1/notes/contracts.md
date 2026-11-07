@@ -413,6 +413,23 @@ pub enum ProposalRead {
 | `temper/crates/temper-settings-form/src/render.rs` (or a module beside it) | (exists) | `see-proposal`: a proposal's and a decided proposal's text |
 | `jig/crates/jig-domain-core/src/vocabulary.rs`, `reads/settings.rs`, `reads.rs`, `reads/rows.rs`, `documents/objects.rs`, `routing/run/calls.rs` | (exist) | `proposal-read` |
 
+### 9.6 The later tasks' files and lines (`see-forge`, `see-proposal`)
+
+Beside 9.5, as `see` was pushed (its story table in `configuring.rs`, `SeeFlight` and
+`SeeReading` crate-private, `route/see/proposal.rs` with the stubs `read` and `answered`):
+
+| File | Written by | What |
+|---|---|---|
+| `temper/tests/engine/domain/tests/suite/configuring/asking_forge.rs` | `see-forge` (new) | its story; a child of `configuring`, its one line `mod asking_forge;` in `configuring.rs` beside `mod fixture;` |
+| `temper/tests/engine/domain/tests/suite/configuring/asking_proposal.rs` | `see-proposal` (new) | its story; its line `mod asking_proposal;` beside the other |
+| `temper/tests/engine/domain/tests/suite/configuring.rs`, `an_asking_chat_reads_each_address` | `see` | `see-forge`: its rows `settings landing`, `settings gates OWNER/NAME` and `file OWNER/NAME README.md` out of the table, read in its own story; `see-proposal`: its row `proposal t1/1` alike |
+| `temper/crates/temper-engine-domain/src/route/see.rs` | `see` | `see-forge` and `see-proposal`: a lint expectation on `SeeReading`'s variant each constructs (`Head` and `File`; `Proposal`) removed, or a `pub(crate)` the module needs, each one line, nothing else |
+| `temper/crates/temper-settings-form/src/proposal.rs` | `see-proposal` (new) | 9.5's "a module beside it", exported from `lib.rs` |
+| `temper/crates/temper-engine-smith/src/tests/see.rs` | `see` | `see-forge`: rows of `landing_text` and `gates_text` |
+
+- `see-proposal` runs after `see-forge`: both remove adjacent rows of `see`'s table and
+  both write `temper-engine-smith/src/see.rs`.
+
 ## 10. `document` and `propose_settings`' asking form
 
 `temper/docs/design/domain/agent.md`, 8.4.2 and 8.4.3. Section 9 is `see`'s.
