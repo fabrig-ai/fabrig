@@ -31,10 +31,13 @@ styles in the worlds; a merge update already holding its base and a
 rebase overtaking a later push still lack real-Forgejo conformance
 (`forge-client.md`, `forge.md`). The viewport story awaits its runtime
 check after landing (`browser.md`).
-The shared world helpers preserve heap accounting and failure traces with
-less work; their six individual instruction measurements establish no
-whole-suite CPU total, and remaining allocator, fixture, product and
-startup cost work is deferred (`testing.md`, sections 5, 7 and 9).
+The focused cost repairs and shared world helpers establish no
+whole-suite CPU total within 30 CPU s. Selected instruction ratios
+estimate 5.311441 CPU s saved by the focused repairs, without proving
+their at-least-6 aim; process-world instruction pairs remain unknown.
+Remaining allocator, fixture, product and startup cost work, and a
+profiler supporting the process operations, are deferred (`testing.md`,
+sections 5, 7 and 9).
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
 llm-connection depart from
