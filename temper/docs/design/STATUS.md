@@ -390,10 +390,15 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 Service, engine and joined-client fixtures, words and command startup have
-the profiled cost repairs; remaining representation and algorithm work is
-deferred. Individual instruction savings establish no whole-suite CPU
-total, so the focused suite's 30 CPU s budget remains unproved
-(`domain/testing.md`, 6.1 and 11).
+the profiled cost repairs, alongside fake preparation, page ordering,
+projection updates, protocol scheduling queries, gallery checks and the
+launcher. Remaining representation and algorithm work is deferred.
+Individual instruction savings establish no whole-suite CPU total, so the
+focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
+6.1 and 11). The hangup/rebind and Linux killed-box stories moved whole
+into the process tier and compiled; their runtime there and the tier's
+margin after the estimated 15.9 CPU s transfer remain unobserved
+(`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
 and its CPU-budget overages remain. Reusable listener ports come from
 process-held blocks below Linux's configured ephemeral range; macOS uses

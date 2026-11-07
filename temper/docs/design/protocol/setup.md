@@ -3554,10 +3554,8 @@ relies on.
   starting the stop's order; a hangup during a stop closing nothing; a
   second termination after a hangup closing them. On the shipped binary,
   in `crates/temper/tests/suite/box_listeners/lifetime.rs`, a box started
-  ignoring hangups runs on; and in the process tier, in
-  `crates/temper/tests/suite/box_lifetime.rs`, a hangup stops a box, nothing
-  left, its log's last line `Stopped`, and, on Linux, a box killed takes
-  its steps with it.
+  ignoring hangups runs on: one focused path through `main`. The running
+  steps' process boundaries are checked in 13.4.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
@@ -3777,6 +3775,12 @@ the preparation relies on stays here:
 The tier, its budget and its referee are `../domain/testing.md`'s (2.6). What
 it checks of this document:
 
+- **The box's lifetime with running steps** (7.1, 7.2), in
+  `crates/temper/tests/suite/box_lifetime.rs`: a hangup stops a box whose
+  playground steps run, nothing left, its log's last line `Stopped`,
+  and the same retained configuration binds again; and, on Linux, a
+  killed box takes its running steps with it. These checks need real
+  processes and their deaths; 13.1 holds the stop decisions below them.
 - **Its directories:** every command a test runs is given the three
   directories' flags, each a scratch directory of the test's own; the
   owned example is copied as a configuration directory (8.1). No test
@@ -3910,6 +3914,21 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **Repeated admission during fake-box preparation** (7.5): share a
+  checked protocol document and typed deployment between preparation,
+  step assembly and peer validation, preserving admission of every
+  changed retained/source document and the order of refusals. Ordinary
+  boxes still discover their environment and generate independent fresh
+  provider keys. Default: retain those checks and keys; further startup
+  cost work follows `../domain/testing.md`, section 11, with its measured
+  causes in `temper/docs/development/limits-heavy.md`.
+
+- **The running steps' lifetime proof after landing** (13.4): check
+  hangup, retained rebinding and Linux's killed-box descendants through
+  the process tier, within its standing budget. The separate killed-test
+  story checks another ownership link; it does not replace killing a
+  box whose playground steps run (`../domain/testing.md`, 2.6 and 11).
 
 - **Four agents on a laptop** (8.1, 8.3): measure their combined resident
   memory, including any program an agent launches, after landing. The
