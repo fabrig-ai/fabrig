@@ -17,6 +17,8 @@ pub struct Tui {
     pub host: Host,
     pub who: ClientId,
     pub keeps: Vec<Option<Secret>>,
+    pub opens: Vec<Box<[u8]>>,
+    pub approval_asks: usize,
     pub address: Option<Box<[u8]>>,
     pub closed: bool,
 }
@@ -30,7 +32,8 @@ impl Tui {
         let wall = world.front().engine.env.wall;
         let seed = world.front().seed;
         let host = Host::new(&Settings { limits }, seed, now, wall);
-        let mut tui = Self { host, who, keeps: Vec::new(), address: None, closed: false };
+        let mut tui =
+            Self { host, who, keeps: Vec::new(), opens: Vec::new(), approval_asks: 0, address: None, closed: false };
         tui.report(
             world,
             Report::Start(Start {
@@ -96,6 +99,9 @@ impl Tui {
     fn carry(&mut self, world: &mut World<Temper, Joint>, duties: Duties) {
         let now = world.now();
         for request in duties.asked {
+            if let jig_client::Request::Exchange { message: jig_client::Message::ApprovalAsk(_), .. } = &request {
+                self.approval_asks += 1;
+            }
             world.front().carry(self.who, now, request);
         }
         if let Some(credential) = duties.keep {
@@ -105,7 +111,8 @@ impl Tui {
         if let Some(address) = duties.address {
             self.address = Some(address);
         }
-        if duties.open.is_some() {
+        if let Some(address) = duties.open {
+            self.opens.push(address);
             self.report(world, Report::Opened { opened: true });
         }
         self.closed |= duties.close;
