@@ -184,9 +184,6 @@ impl Driver {
             } else {
                 request
             };
-            if let engine::Request::Party(engine::PartyRequest::Catalogue { models }) = &request {
-                self.immediate.push(engine::Request::Party(engine::PartyRequest::Catalogue { models: models.clone() }));
-            }
             let request = match self.protocol.play(request) {
                 Ok(events) => {
                     self.events.extend(events);
