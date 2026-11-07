@@ -1,5 +1,11 @@
 use super::*;
-use crate::{host::Report, journey::{Sent, redact::tests::{World, written}}};
+use crate::{
+    host::Report,
+    journey::{
+        Sent,
+        redact::tests::{World, written},
+    },
+};
 use skein_ui_screen::Size;
 use temper_client_shell_web::journey::{Kind, Shape};
 
@@ -20,9 +26,13 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         ("bearer", bearer.as_slice(), Some(What::Shape(Shape::Bearer))),
     ];
     let mut failures = Vec::new();
-    if codes != vec![Box::<[u8]>::from(shown)] { failures.push("browse code reader".to_owned()); }
+    if codes != vec![Box::<[u8]>::from(shown)] {
+        failures.push("browse code reader".to_owned());
+    }
     for (name, bytes, expected) in cases {
-        if scan_bytes(bytes, &codes, &empty) != expected { failures.push(format!("{name}: bytes")); }
+        if scan_bytes(bytes, &codes, &empty) != expected {
+            failures.push(format!("{name}: bytes"));
+        }
         // A field is checked before replay; no valid seam is needed to report it.
         if let Some(what) = expected {
             let found = scan(&written(&[Line::Signed(bytes.into())]), &empty).expect("field scan");
@@ -46,16 +56,33 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         world.report(Report::Resize(Size { rows: 0, columns: 0 }));
         let mut records = crate::journey::lines(&world.save()).expect("world lines");
         for record in &mut records {
-            if let Line::Mark(print) | Line::End(print) = record { *print = None; }
+            if let Line::Mark(print) | Line::End(print) = record {
+                *print = None;
+            }
         }
         let file = written(&records);
         match scan(&file, &empty) {
             Ok(found) => {
-                if found.map(|found| found.what) != expected { failures.push(format!("{name}: frame result")); }
+                if found.map(|found| found.what) != expected {
+                    failures.push(format!("{name}: frame result"));
+                }
                 if let Some(found) = found {
                     let turn = 1;
-                    let at = records.iter().enumerate().filter(|(_, line)| matches!(line, Line::Deadline(_))).nth(usize::try_from(turn - 1).expect("turn index")).expect("deadline").0;
-                    if found != (Found { line: u32::try_from(at + 1).expect("line"), record: "deadline", place: Place::Frame { turn }, what: found.what }) {
+                    let at = records
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, line)| matches!(line, Line::Deadline(_)))
+                        .nth(usize::try_from(turn - 1).expect("turn index"))
+                        .expect("deadline")
+                        .0;
+                    if found
+                        != (Found {
+                            line: u32::try_from(at + 1).expect("line"),
+                            record: "deadline",
+                            place: Place::Frame { turn },
+                            what: found.what,
+                        })
+                    {
                         failures.push(format!("{name}: frame location"));
                     }
                 }
@@ -67,14 +94,22 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
     if scan_bytes(b"code=WDJB-MJHT", &codes, &originals) != Some(What::Original) {
         failures.push("original still sought inside allowed code".to_owned());
     }
-    for address in [b"http://host/?other=code=WDJB-MJHT".as_slice(), b"http://host/?code=abcdefgh", b"http://host/?code=WDJB-MJHTsuffix"] {
-        if !super::codes(&[Line::Browse(address.into())]).is_empty() { failures.push("invalid browse query admitted".to_owned()); }
+    for address in [
+        b"http://host/?other=code=WDJB-MJHT".as_slice(),
+        b"http://host/?code=abcdefgh",
+        b"http://host/?code=WDJB-MJHTsuffix",
+    ] {
+        if !super::codes(&[Line::Browse(address.into())]).is_empty() {
+            failures.push("invalid browse query admitted".to_owned());
+        }
     }
     // A wire-refused sign-in body is no original: a matching shape remains a refusal.
     for message in [Sent::SignInApproval, Sent::SignInLink] {
         let records = [Line::Send { exchange: 1, message: message(key.clone().into()), credential: None }];
         let originals = crate::journey::originals(&records, &[]);
-        if !originals.sought().is_empty() || scan(&written(&records), &originals).expect("shape in refused body").is_none() {
+        if !originals.sought().is_empty()
+            || scan(&written(&records), &originals).expect("shape in refused body").is_none()
+        {
             failures.push("wire-refused body hidden".to_owned());
         }
     }

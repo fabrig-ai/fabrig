@@ -1,5 +1,8 @@
 use super::*;
-use crate::{host::{Duties, Host, Report}, journey::{Facts, Kind, Recorder, Replay, Sent, Streamed, lines, prove, scan, scan_bytes}};
+use crate::{
+    host::{Duties, Host, Report},
+    journey::{Facts, Kind, Recorder, Replay, Sent, Streamed, lines, prove, scan, scan_bytes},
+};
 use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
@@ -42,9 +45,19 @@ fn places(bytes: &[u8]) -> Vec<Line> {
         Line::Mark(Some(value())),
         Line::End(Some(value())),
     ];
-    for message in [Sent::Authorize, Sent::ApprovalAsk, Sent::ApprovalRead, Sent::ApprovalDecide,
-        Sent::SignInApproval, Sent::Request, Sent::Read, Sent::Watch, Sent::Unwatch,
-        Sent::StreamGone, Sent::SignInLink] {
+    for message in [
+        Sent::Authorize,
+        Sent::ApprovalAsk,
+        Sent::ApprovalRead,
+        Sent::ApprovalDecide,
+        Sent::SignInApproval,
+        Sent::Request,
+        Sent::Read,
+        Sent::Watch,
+        Sent::Unwatch,
+        Sent::StreamGone,
+        Sent::SignInLink,
+    ] {
         result.push(send(message(body(bytes)), None));
     }
     result
@@ -58,7 +71,13 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
     let link = vec![0; 32];
     let given = b"fake&given";
     let sources = [
-        ("approval take", Kind::Approval, approval.as_slice(), vec![send(Sent::SignInApproval(body(&approval)), None)], vec![]),
+        (
+            "approval take",
+            Kind::Approval,
+            approval.as_slice(),
+            vec![send(Sent::SignInApproval(body(&approval)), None)],
+            vec![],
+        ),
         ("credential start", Kind::Credential, credential.as_ref(), vec![Line::Credential(credential.clone())], vec![]),
         ("credential keep", Kind::Credential, credential.as_ref(), vec![Line::Keep(Some(credential.clone()))], vec![]),
         ("bearer send", Kind::Bearer, bearer.as_slice(), vec![send(Sent::SignOut, Some(bearer.into()))], vec![]),
@@ -120,15 +139,25 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
     let original = lines(&file).expect("pasted lines");
     let after = lines(&redacted.recording).expect("redacted pasted lines");
     for (before, after) in original.iter().zip(&after) {
-        if let (Line::Key { key: Key::Paste(before), event: before_event }, Line::Key { key: Key::Paste(after), event: after_event }) = (before, after) {
-            if before == after { failures.push("native pasted link: base64 secret unchanged".to_owned()); }
-            if before_event == after_event { failures.push("native pasted link: decimal-byte event unchanged".to_owned()); }
+        if let (
+            Line::Key { key: Key::Paste(before), event: before_event },
+            Line::Key { key: Key::Paste(after), event: after_event },
+        ) = (before, after)
+        {
+            if before == after {
+                failures.push("native pasted link: base64 secret unchanged".to_owned());
+            }
+            if before_event == after_event {
+                failures.push("native pasted link: decimal-byte event unchanged".to_owned());
+            }
             if scan_bytes(before, &[], &redacted.originals) != Some(crate::journey::What::Original) {
                 failures.push("native pasted link: base64 secret not scanned".to_owned());
             }
         }
     }
-    if prove(&redacted.recording).is_err() { failures.push("native pasted link: redaction is stale".to_owned()); }
+    if prove(&redacted.recording).is_err() {
+        failures.push("native pasted link: redaction is stale".to_owned());
+    }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -148,9 +177,16 @@ impl World {
         Self::at_address(b"127.0.0.1:8367")
     }
     pub fn at_address(address: &[u8]) -> Self {
-        let facts = Facts { seed: 7, now: Time::ZERO, wall: Wall::EPOCH,
-            size: Size { rows: 16, columns: 100 }, scheme: Scheme::Dark,
-            address: address.into(), kept: Vec::new(), credential: None };
+        let facts = Facts {
+            seed: 7,
+            now: Time::ZERO,
+            wall: Wall::EPOCH,
+            size: Size { rows: 16, columns: 100 },
+            scheme: Scheme::Dark,
+            address: address.into(),
+            kept: Vec::new(),
+            credential: None,
+        };
         let (host, start) = facts.start();
         let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
         world.report(start);
@@ -174,14 +210,24 @@ impl World {
         self.recorder.save(&mut self.host)
     }
     pub fn exchange(&mut self, approval: bool) -> Token {
-        lines(&self.save()).expect("recorded lines").iter().rev().find_map(|line| {
-            if let Line::Send { exchange, message, .. } = line {
-                let wanted = if approval { matches!(message, Sent::SignInApproval(_)) }
-                    else { matches!(message, Sent::ApprovalAsk(_)) };
-                if wanted { return Some(Token::new(*exchange)); }
-            }
-            None
-        }).expect("sign-in exchange")
+        lines(&self.save())
+            .expect("recorded lines")
+            .iter()
+            .rev()
+            .find_map(|line| {
+                if let Line::Send { exchange, message, .. } = line {
+                    let wanted = if approval {
+                        matches!(message, Sent::SignInApproval(_))
+                    } else {
+                        matches!(message, Sent::ApprovalAsk(_))
+                    };
+                    if wanted {
+                        return Some(Token::new(*exchange));
+                    }
+                }
+                None
+            })
+            .expect("sign-in exchange")
     }
 }
 
@@ -208,11 +254,16 @@ fn redacted_approval_proves_and_replays_to_its_end() {
     assert_eq!(redacted.originals.count(Kind::Approval), 1);
     assert_eq!(redacted.originals.count(Kind::Credential), 1);
     assert_eq!(redacted.originals.count(Kind::Bearer), 1);
-    assert_eq!(scan(&original, &redacted.originals).expect("scan original").expect("original").place, crate::journey::Place::Field);
+    assert_eq!(
+        scan(&original, &redacted.originals).expect("scan original").expect("original").place,
+        crate::journey::Place::Field
+    );
     let proved = prove(&redacted.recording).expect("redacted live proof");
     assert_eq!(scan(&proved, &redacted.originals).expect("last scan"), None);
     let mut replay = Replay::new(&proved).expect("redacted replay");
     let mut marks = 0;
-    while replay.next().expect("redacted duties").is_some() { marks += 1; }
+    while replay.next().expect("redacted duties").is_some() {
+        marks += 1;
+    }
     assert!(marks > 0, "replayed to end");
 }
