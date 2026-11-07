@@ -493,7 +493,7 @@ fn a_failed_goals_heading_says_why() {
 }
 #[test]
 fn otherwise_it_counts_what_landed() {
-    assert_heading(document(), DONE, TOTAL, b"6 of 9 tasks landed.");
+    assert_heading(document(), DONE, TOTAL, b"6 of 9 tasks done.");
 }
 #[test]
 fn no_byline_with_no_report() {
@@ -693,7 +693,11 @@ fn delegate(number: u64, title: &[u8], phase: c::ChipPhase) -> c::TreeRow {
 }
 fn landed(number: u64, title: &[u8]) -> c::TreeRow {
     let mut row = delegate(number, title, c::ChipPhase::Ended);
-    row.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+    row.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Change {
+        kind: 1,
+        part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(number) },
+        words: text(b"Done."),
+    }));
     row
 }
 fn ended_line(row: c::TreeRow) -> c::TaskLine {
@@ -923,28 +927,43 @@ fn a_waits_line_says_waits() {
 }
 #[test]
 fn landed_rows_fold_under_n_landed_with_their_end() {
-    let root = side_root(with_rows(
-        &[landed(14, b"No time")],
-        &[ended_line(landed(11, b"Earlier")), ended_line(landed(13, b"Later"))],
-    ));
+    let mut person = landed(11, b"Person");
+    person.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Words(text(b"Blue"))));
+    let mut advisor = landed(13, b"Advisor");
+    advisor.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"Advice"))));
+    let root = side_root(with_rows(&[landed(14, b"No time")], &[ended_line(person), ended_line(advisor)]));
     for words in [fixtures::browser_words(), fixtures::words()] {
         let tree = draw(&root, &words).0;
         let at = styled(&tree, look::GOAL_LANDED_FOLD);
         assert_eq!(tree.nodes()[at].role, Role::Disclosure);
-        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"3 landed".as_slice()));
+        assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"1 landed".as_slice()));
         assert!(!tree.nodes()[at].states.as_slice().contains(&skein_ui::State::Expanded));
+        let bar = styled(&tree, look::GOAL_BAR);
+        assert_eq!(tree.nodes()[bar].name.as_deref(), Some(b"1 landed of 3".as_slice()));
+        let cells = &tree.nodes()[bar + 1..node_end(&tree, bar)];
+        assert!(cells[0].styles.is_empty());
+        assert!(cells[1].styles.is_empty());
+        assert!(cells[2].styles.as_slice().contains(&look::GOAL_BAR_LANDED));
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Link
+                && [b"Person".as_slice(), b"Advisor"].contains(&node.name.as_deref().unwrap_or_default())
+            {
+                assert!(index < at, "done rows stay outside the fold");
+            }
+        }
         let expected = if words.shell == crate::words::Shell::Terminal {
             [
-                row_words(&[b"Earlier", " · ".as_bytes(), b"06:20"]),
-                row_words(&[b"Later", " · ".as_bytes(), b"06:20"]),
+                row_words(&[b"Person", " · ".as_bytes(), b"done 06:20"]),
+                row_words(&[b"Advisor", " · ".as_bytes(), b"done 06:20"]),
                 row_words(&[b"No time"]),
             ]
         } else {
-            [row_words(&[b"Earlier", b"06:20"]), row_words(&[b"Later", b"06:20"]), row_words(&[b"No time"])]
+            [row_words(&[b"Person", b"done 06:20"]), row_words(&[b"Advisor", b"done 06:20"]), row_words(&[b"No time"])]
         };
         assert_eq!(lines(&tree).as_ref(), expected);
     }
 }
+
 fn section_text(tree: &Tree, name: &[u8]) -> Box<[u8]> {
     for (at, node) in tree.nodes().iter().enumerate() {
         if node.role == Role::Region && node.name.as_deref() == Some(name) {

@@ -684,10 +684,6 @@ work; no new real-model or phone press outcome is supplied.
   `documents.text_bytes`, so past it the card shows no choices and no sign of the
   cut. 3.5, *Needs you*, a funds card's words name a budget proposal whether or not
   one waits.
-- **Not yet:** 5.14, *With nothing to fund it*, and *Where it opens*: Goals' "Start
-  one from a draft" goes to `Chats`, the sheet has no Draft field, and it starts a
-  goal with no budget. 3.5, *Goals*, and 5.8: "N landed" and "N of M tasks landed."
-  count every delegate ended done.
 - **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
