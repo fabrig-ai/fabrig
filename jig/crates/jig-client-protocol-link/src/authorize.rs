@@ -14,7 +14,9 @@ impl Link {
                     out.push(Request::Authorized(Authorized::Busy));
                     return;
                 }
-                ExchangeKind::SignIn
+                ExchangeKind::Approval(_)
+                | ExchangeKind::SignInApproval
+                | ExchangeKind::SignIn
                 | ExchangeKind::SignOut { .. }
                 | ExchangeKind::Attempt { .. }
                 | ExchangeKind::Read { .. }

@@ -2395,6 +2395,17 @@ contract's reads, watches and requests, they take:
 
 ## 14. Later
 
+- **A charter's stored-policy size refusal** (5.3;
+  `../draft/per-wake.md`, section 8): name the charter, its stored
+  bytes and `root.journal.run_bytes`, for example `charter 5: stored
+  policy: supplied 70112; maximum root.journal.run_bytes 65536`.
+  The user approved adding the refusal-detail member in place across
+  client wire 19 and the people store on 2026-11-07, keeping the refusal
+  kinds and adding no version bump or migration before v0.1.0.
+  This remains separate work across jig and the clients rendering that
+  detail. Until then the engine's refusal is the charter's `shape`, as
+  5.3 states; the local decoder's part paths remain available.
+
 - **The settings reference's help pointer** (5.3): `settings-fields`'s
   `reserve_time` description says "See settings help". The field table
   that generates it needs to name `temper help settings`, with a check

@@ -17,6 +17,8 @@ pub(crate) struct Link {
 }
 #[derive(Debug)]
 pub(crate) enum Waiting {
+    ApprovalWhose { digest: [u8; 32] },
+    ApprovalCore { digest: [u8; 32] },
     Authorize { sign_in: u64, authorization: skein_oauth_issuer::Authorization },
     Core { held: Option<u64> },
     LinkGet { sign_in: u64, digest: Secret },
@@ -54,6 +56,7 @@ pub(crate) enum CarriedRequest {
 }
 #[derive(Debug)]
 pub(crate) enum Answer {
+    Approval(w::SignedIn),
     SignedIn(w::SignedIn),
     Minted { credential: Secret, expires: skein_lib::Wall },
     Service(w::KeyedAnswer),
@@ -114,4 +117,28 @@ pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
         different |= a ^ b;
     }
     different == 0
+}
+
+impl Waiting {
+    pub(crate) fn approval_take(&self) -> bool {
+        match self {
+            Self::ApprovalWhose { .. } | Self::ApprovalCore { .. } | Self::Keep { answer: Answer::Approval(_), .. } => {
+                true
+            }
+            Self::Authorize { .. }
+            | Self::Core { .. }
+            | Self::LinkGet { .. }
+            | Self::SignOut { .. }
+            | Self::Watch { .. }
+            | Self::Keep { .. }
+            | Self::Get { .. }
+            | Self::Made { .. }
+            | Self::Moving { .. }
+            | Self::Read { .. }
+            | Self::ApplicationRead { .. }
+            | Self::Ask { .. }
+            | Self::Carry { .. }
+            | Self::Checked { .. } => false,
+        }
+    }
 }

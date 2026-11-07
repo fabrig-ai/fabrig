@@ -62,7 +62,7 @@ fn sign_in_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, S
                 ),
                 look::REFUSED,
             ),
-            None => (words.say(Word::Refused, &[]), look::REFUSED),
+            Some(NotSignedIn::Approval(_)) | None => (words.say(Word::Refused, &[]), look::REFUSED),
         }),
     }
 }

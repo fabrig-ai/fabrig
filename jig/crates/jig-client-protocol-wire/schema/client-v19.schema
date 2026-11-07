@@ -50,6 +50,17 @@ record SignInsFull { sign_ins: u32, earliest: u64, link_until: u64 }
 enum SignInAnswer { signed_in: SignedIn, refused, not_ready, busy, full: SignInsFull, link_used, link_expired, link_unknown }
 record SignOut {}
 enum SignOutAnswer { signed_out, not_ready }
+record ApprovalAsk {}
+record ApprovalAsked { secret: secret 32 code: fixed 8 expires: u64 }
+enum ApprovalAskAnswer { asked: ApprovalAsked, refused, not_ready, busy }
+record ApprovalRead { code: fixed 8 }
+record ApprovalWaiting { asked: u64 }
+enum ApprovalState { waiting: ApprovalWaiting, approved, taken, refused, expired, unknown, not_a_browser, signed_out, not_ready, busy }
+record ApprovalDecide { code: fixed 8 approve: bool }
+enum ApprovalDecided { approved, refused, used, expired, unknown, not_a_browser, signed_out, not_ready, busy }
+record ApprovalSignIn { secret: secret 64 }
+record ApprovalFull { sign_ins: u32 earliest: u64 until: u64 }
+enum ApprovalSignInAnswer { signed_in: SignedIn, waiting, refused, expired, used, unknown, not_ready, busy, full: ApprovalFull }
 record DocumentText { bytes: text 65536 cut: bool }
 record ChipExecutorAgent { charter: u32 }
 record ChipExecutorProcedure { connector: u16 kind: u32 }

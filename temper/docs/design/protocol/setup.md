@@ -2675,6 +2675,12 @@ override.
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
+- **Its sign-ins:** `engine.clients`' `link` and `approval` both
+  `true`, in both documents and the owned example (8.1): the printed
+  link (7.2) and a terminal approved by the person's browser
+  (`../client/README.md`, 7.1), on the clients' loopback listener
+  (configuration.md, section 3, clients). The box prints the link
+  alone; the approval prints nothing.
 - **Its limits:** the owned example's (8.1), the `standard` profiles,
   among them `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's
@@ -3926,6 +3932,14 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **The TUI's browser sign-in and its walk** (8.3): its host and view
+  ask, open the locally constructed `/terminal?code=...` address or show
+  it with the code when no browser opens, draw each outcome and offer to
+  ask again (`../client/README.md`, 7.1; `../draft/tui.execution.md`, M2).
+  The fresh-box terminal walk follows that flow's landing; recording
+  follows in M3. A public-name deployment and its Google sign-in remain
+  `../draft/tui.md`, section 7's later pass.
 
 - **Links for several members or a pasted App** (5.3, 17.2): several
   members need a family of links and a connecting owner's evidence; a

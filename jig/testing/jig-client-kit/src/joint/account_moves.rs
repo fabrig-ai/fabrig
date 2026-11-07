@@ -124,7 +124,10 @@ impl Story {
                             .expect("real joint request");
                     }
                     client::UnlinkedRequest::Told { told } => self.told.push(told),
-                    client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_) => {
+                    client::UnlinkedRequest::ApprovalAct(_)
+                    | client::UnlinkedRequest::Approval(_)
+                    | client::UnlinkedRequest::SignOut
+                    | client::UnlinkedRequest::Authorized(_) => {
                         panic!("unlinked client doors only")
                     }
                 }

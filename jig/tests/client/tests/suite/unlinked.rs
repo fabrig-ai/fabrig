@@ -30,7 +30,10 @@ fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<UnlinkedRequest
     while let Some(request) = out.pop() {
         match request {
             UnlinkedRequest::Down { down } => front.down(CLIENT, NOW, WALL, down).expect("Jig transport operation"),
-            UnlinkedRequest::Told { .. } | UnlinkedRequest::Authorized(_) => {}
+            UnlinkedRequest::Told { .. }
+            | UnlinkedRequest::ApprovalAct(_)
+            | UnlinkedRequest::Approval(_)
+            | UnlinkedRequest::Authorized(_) => {}
             UnlinkedRequest::SignOut => panic!("unlinked client emits domain operations"),
         }
     }
@@ -128,6 +131,8 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
                 other @ (UnlinkedRequest::Told { .. }
                 | UnlinkedRequest::Down { .. }
                 | UnlinkedRequest::SignOut
+                | UnlinkedRequest::ApprovalAct(_)
+                | UnlinkedRequest::Approval(_)
                 | UnlinkedRequest::Authorized(_)) => panic!("carried account key must not be saved: {other:?}"),
             }
         }

@@ -6,8 +6,10 @@ losing track of things after compaction, small user-related
 preferences that are remembered behind the hood and influence LLM
 choices and judgement, things that the UI needs to show", "pretty much
 like Claude memories but maybe with some slight organization". The
-user adopted a part of section 5 on 2026-11-05 (its status says what);
-the rest is not adopted, and no plan takes it up until the user does. It
+user adopted a part of section 5 on 2026-11-05 (its status says what), and
+section 3, narrowed, for temper's Ask temper on 2026-11-07
+(`temper/docs/design/draft/ask-temper.md`, section 7); the rest is not
+adopted, and no plan takes it up until the user does. It
 starts from jig's notes as they stand (`../domain/engine.md`, section
 10; `jig-domain-notes`), and its first consumer is temper's chats, whose
 document is drawn beside their conversation (the look request
@@ -123,7 +125,9 @@ document is drawn beside their conversation (the look request
   plan takes it up until then (2026-11-04).
 - **Preferences:** a person's across the deployment, or per project;
   whether the person confirms each before it is kept, or sees it kept
-  and corrects it.
+  and corrects it. For temper's Ask temper, settled: across the
+  deployment, kept when the person asks, and seen and corrected on their
+  page (`temper/docs/design/draft/ask-temper.md`, section 7).
 - **Working notes and compaction:** whether a working note replaces
   part of the summary smith writes, or only sits beside it.
 - **Documents:** whether a task that isn't a chat shows one. A chat's
