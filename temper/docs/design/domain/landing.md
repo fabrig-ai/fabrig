@@ -248,11 +248,11 @@ For a project with no prepare command, one member per repository:
   asked for, even when a read sees it before the update's outcome
   returns: the preparing change takes its own branch's move as its
   update. This is the one move `forge.md`, 8.5 takes as the change's
-  that is not forward. Another hand's push between that read and the
-  rebase is carried into the candidate, as a merge update carries it
-  under `queue` (skein's `forge-client.md`, 7.3: the forge's update
-  checks no head); a head moved by another identity at any other time
-  is drift.
+  that is not forward. Another hand's push present when the forge reads
+  the branch is carried into the candidate. A push made after that read
+  can be dropped by the rebase's forced push (skein's `forge-client.md`,
+  7.3: the forge's update checks no head). A head moved by another
+  identity at any other time is drift.
 - **Lost.** A rebase whose answer is lost is looked for and made again as
   any update is, and a prepare let go decides again as `forge.md`, 10
   says, at the head and main it was asked for. A copy landing once the
@@ -702,6 +702,12 @@ across a restart of the binary. The forge's world holds:
 - **Prepare's rebase or merge:** a rebase keeps main linear and forces
   the member's branch; a merge never forces and leaves merge commits.
   Default: the rebase.
+- **A late prepare copy** (5.2): how often it rewrites a candidate under
+  proof, costs another CI run or a drift hold, or drops a later push,
+  awaits measurement with the update's real time (skein's
+  `forge-client.md`, 11; `forge.md`, 20). Default: the lifetime stays and
+  a moved head after prepare is drift; every merge still names its exact
+  checked head.
 - **A judgement gate's key** as a patch id of the member's diff, which a
   rebase over conflicting lines would keep and a clean prepare (the
   mechanism here) may not; kept as clean prepares until a project needs

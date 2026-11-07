@@ -1292,6 +1292,11 @@ worker added later, 4.6's hung worker.
 
 ### 15.7 Later
 
+- **The engine's refusal text on the worker** (15.3): the text is sent
+  over the channel, but jig's worker link retains only the reason code
+  for its note. Keeping the words for a worker's stderr needs a change
+  through that link. Default: the engine prints the words and the
+  worker prints its code, suppressing repeats as 15.3 says.
 - **TLS on the workers' listener, contained process trees, and workers
   on other hosts,** with hosts apart (section 14): a worker alone on
   another machine is the same document, its `engine` in TLS (jig's

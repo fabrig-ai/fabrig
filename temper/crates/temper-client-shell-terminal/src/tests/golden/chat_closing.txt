@@ -21,7 +21,6 @@ Where:
   [13] Chats
   [14] demo
   [15] Chats
-T1 · Using the default model
 * waiting on 1 delegate
 [16] Close
 0 spent · of 1
@@ -46,6 +45,7 @@ Conversation:
       [17] Task 2 ↗
     wait:
       `wait`
+  the default model
 Close this chat?
   ## Close this chat?
   You can still read it, but it can’t be reopened.

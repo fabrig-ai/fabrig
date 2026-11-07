@@ -608,3 +608,39 @@ fn a_match_past_the_last_is_absent() {
     assert_eq!(face.find(&find), Found::Absent);
     assert!(face.failure().is_none());
 }
+
+#[test]
+fn a_boxed_find_keeps_every_match_and_reports_truncation() {
+    let mut face = face();
+    let find = Find::text(b"");
+    assert_eq!(face.find_boxed(&find), Found::Pending);
+    let Request::Find { op, query, .. } = face.requests().next().unwrap() else { panic!("find") };
+    assert!(query.boxes);
+    let first = Seen { node: 101, name: b"First".as_slice().into(), ..seen(b"") };
+    let second = Seen { node: 102, name: b"Second".as_slice().into(), ..seen(b"") };
+    let mut nodes = List::with_capacity(2);
+    nodes.push(first.clone()).unwrap();
+    nodes.push(second.clone()).unwrap();
+    face.event(&Event::Found { op, seen: nodes, more: 1 });
+    assert_eq!(face.find_boxed(&find), Found::Node(FOUND_TARGET));
+    let (matches, more) = face.boxed_matches();
+    assert_eq!(matches, [first, second]);
+    assert_eq!(more, 1, "a caller can reject an incomplete measurement");
+    assert!(face.requests().next().is_none(), "reading all matches issues no further query");
+}
+
+#[test]
+fn a_boxed_find_measures_its_matches_without_measuring_the_scope() {
+    let mut face = face();
+    let find =
+        Find::text(b"").within(Box::new([skein_fake_person::Target::Role { role: Role::Main, name: Box::new([]) }]));
+    assert_eq!(face.find_boxed(&find), Found::Pending);
+    let Request::Find { op, query: scope, .. } = face.requests().next().unwrap() else { panic!("scope find") };
+    assert!(!scope.boxes, "resolving the scope needs no geometry");
+    let mut nodes = List::with_capacity(1);
+    nodes.push(seen(b"")).unwrap();
+    face.event(&Event::Found { op, seen: nodes, more: 0 });
+    let terminal = query(&mut face);
+    assert!(terminal.boxes, "each terminal match is measured");
+    assert_eq!(terminal.within, Some(9_000_000_000));
+}

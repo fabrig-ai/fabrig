@@ -2,6 +2,13 @@
 
 2026-11-06. Where temper's code lags or departs from [landing.md](landing.md).
 
+- **Not yet:** 5.2, 16: the real-process story
+  `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`
+  has no supplied passing result at three threads after update recovery.
+  The forge world covers a lost prepare found or made again and landed,
+  and a late copy's drift hold; that is not the real-Forgejo restart
+  proof. The process trial is reserved for after landing.
+
 - **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
