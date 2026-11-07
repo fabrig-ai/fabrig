@@ -140,6 +140,10 @@ impl<'b, B: Backend> Run<'b, B> {
 
     /// The completion of `token`, which must come.
     pub(crate) fn wait(&mut self, process: B::Process, token: Token) -> Complete {
+        self.reap(process);
+        if let Some(complete) = self.arrived.remove(&token) {
+            return complete;
+        }
         self.backend.wait_begins("the conformance operation's completion", PATIENCE);
         let complete = self.within(process, token, PATIENCE);
         complete
@@ -165,6 +169,13 @@ impl<'b, B: Backend> Run<'b, B> {
     /// The completion of whichever of two operations, each on its own
     /// process or both on one, comes first: its token says which.
     pub(crate) fn either(&mut self, a: (B::Process, Token), b: (B::Process, Token)) -> Complete {
+        self.reap(a.0);
+        self.reap(b.0);
+        for token in [a.1, b.1] {
+            if let Some(complete) = self.arrived.remove(&token) {
+                return complete;
+            }
+        }
         self.backend.wait_begins("either conformance operation's completion", PATIENCE);
         let deadline = self.later(PATIENCE);
         loop {
