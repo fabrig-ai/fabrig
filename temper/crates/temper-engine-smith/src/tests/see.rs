@@ -154,7 +154,7 @@ fn errors_and_pages_use_the_address_form() {
     assert_eq!((text, error), ("Done\nsee: file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME\n".into(), false));
     assert_eq!(
         rendered("proposal t1/1", 0, SeeAnswer::Proposal(Box::new(temper_engine_domain::SeeProposal::Unknown)), 20_000),
-        ("see proposal t1/1: not there yet.".into(), true)
+        ("see proposal t1/1: not read: no such proposal of settings. This says nothing about the settings: see settings lists those waiting.".into(), true)
     );
     for (answer, next) in [
         (

@@ -87,7 +87,6 @@ pub(crate) enum SeeReading {
     Settings,
     Head,
     File,
-    #[expect(dead_code, reason = "constructed by the task see-proposal of ui-ask-m1")]
     Proposal,
 }
 

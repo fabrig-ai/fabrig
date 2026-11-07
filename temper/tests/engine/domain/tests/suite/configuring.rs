@@ -1,6 +1,7 @@
 //! Scripted stock configuring chats through the root and jig's store
 //! (temper/docs/design/domain/testing.md, 6.4; temper/docs/design/domain/agent.md, 8.1).
 mod asking_forge;
+mod asking_proposal;
 mod fixture;
 use fixture::*;
 use jig_domain_core::{self as core, settings as s};
@@ -1151,7 +1152,6 @@ fn an_asking_chat_reads_each_address() {
             "landing-rule:",
             false,
         ),
-        ("proposal t1/1", "see proposal t1/1: not there yet.", "not there yet.", true),
         ("me", "see me: not there yet.", "not there yet.", true),
         ("task 4 tree", "see task 4 tree: not there yet.", "not there yet.", true),
         ("goals ended", "see goals ended: not there yet.", "not there yet.", true),
