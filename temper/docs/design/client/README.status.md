@@ -2,6 +2,15 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
+the merge into Needs you, project and goal filters, Home and goal bands,
+rail and banner totals, and Later under the change's task key. A kind
+filter takes no approvals; the terminal inbox stays unchanged. Unknown,
+refused or ended watches contribute no rows. The proposal's card and page
+say what an owned-Forgejo approval holds against. Client and view tables
+cover these states; the joined world holds the Forgejo card and files-page
+link. Rendered comparison and real reviews remain section 11's later work.
+
 Sections 3.5 and 5.5 have no known gap in bounds-refusal words above
 the composer, in either shell: all ten bounds, differing shortfalls,
 missing figures and refused-hello figures have view-table coverage.

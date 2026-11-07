@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [setup.md](setup.md).
 
+Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
+given values include its person's login, managed and fake entries give
+none, and local reconcile answers become `Is` or `Gone`. Convert, paste
+and GitHub reconcile compare the kept `AppMade` and `AppId` and the App's
+account type before sending `PersonOf`; absent or invalid evidence is
+`NotTheirs`. Failed reads send no person answer. The given-value and
+lifecycle tables cover these decisions; they establish no live GitHub
+account observation (`skein/docs/design/forge-github.status.md`, 13).
+The connector's remaining scope gap is in `../domain/forge.status.md`, 4.6.
+
 Sections 8.2 and 8.3 have no known gap in generated documents holding
 providers, endpoints, sources and endpoint limits, with models supplied
 as binary defaults. Provider discovery remains section 15's later work.

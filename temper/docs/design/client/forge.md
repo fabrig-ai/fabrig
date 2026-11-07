@@ -1423,6 +1423,12 @@ made by the forge connector from what it keeps of the change
 
 ## 10. Open questions
 
+- **The approval card on a real forge** (4.1): after-landing QA checks
+  the rendered look, owned-Forgejo sign-in and a real human review on each
+  forge (`../domain/testing.md`, section 11). Default: the joint-world
+  Forgejo card and files-page link in 6.3 of that document, with client
+  and view tables for both kinds and the reasons for no review link.
+  Those checks establish no rendered comparison or real review.
 - **A repository link in a folded forge row** (5.4): the summary stays
   words and the link lives in the body's Repositories. Offering it while
   folded needs a row whose navigation and disclosure are separate controls.
