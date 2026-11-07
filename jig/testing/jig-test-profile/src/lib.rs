@@ -461,10 +461,7 @@ pub fn effect_fixture(seed: u64, requirement: bool) -> (root::Config, root::Limi
     authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
-    configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
-        .expect("checked rules"))
-    .rules()
-    .clone();
+    configuration.core.defaults.rules = domain.rules().clone();
     configuration.first.procedures = Box::new([jig_test_connector::ProcedureSpec {
         number: 1,
         actions: Box::new([

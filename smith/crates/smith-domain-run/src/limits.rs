@@ -1,7 +1,8 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks limit compatibility and representable capacities, without knowing live ownership.
 //!
-//! Contract: smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
+//! Contract: smith/docs/design/protocol/limits.md, section 3.10;
+//! smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use skein_lib::Duration;
 
@@ -37,7 +38,8 @@ pub struct Limits {
     pub conversations: u32,
     /// Bytes a run holds beyond inline slab fields: its charter and separate
     /// workspace, including Brief cells, instructions, title/text payloads and every
-    /// Directory cell, name, conflict Box cell and path.
+    /// Directory cell, name, conflict Box cell and path. The allowance follows twice
+    /// `tool_payload`, with a minimum of 65,536 bytes.
     pub run_bytes: u64,
 
     /// Host-written main Brief sections. Exact count is checked before section
@@ -117,7 +119,8 @@ pub struct Limits {
     /// Largest aggregate result ownership beyond its inline declaration,
     /// counting every field/item container, name and value as
     /// `outcome::owned_bytes` does. A larger finish is feedback, before
-    /// shape judgement or any checks/Delivery.
+    /// shape judgement or any checks/Delivery. Follows `tool_payload`, with a
+    /// minimum of 4,096 bytes.
     pub outcome_bytes: u64,
     /// How long a repository's checks may run.
     pub check_timeout: Duration,
@@ -201,7 +204,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     Ok(Limits {
         runs: 1,
         conversations: inputs.conversations,
-        run_bytes: 1 << 16,
+        run_bytes: u64::from(inputs.tool_payload).saturating_mul(2).max(1 << 16),
         brief_sections: inputs.sections,
         host_part: inputs.host,
         room: inputs.room,
@@ -231,7 +234,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         nudges: 1,
         guide_bytes: inputs.guide,
         io_timeout: Duration::from_secs(5),
-        outcome_bytes: 4096,
+        outcome_bytes: u64::from(inputs.tool_payload).max(4096),
         delivery_timeout: Duration::from_secs(60),
         check_timeout: inputs.check_timeout,
         wrap_up: inputs.wrap_up,

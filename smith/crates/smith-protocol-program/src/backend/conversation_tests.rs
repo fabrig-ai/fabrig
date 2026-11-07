@@ -823,7 +823,8 @@ fn reply_bound_diagnostics() {
 fn input_bound_diagnostics() {
     for (bound, accepted) in [(2, true), (1, false)] {
         let mut backend = active();
-        backend.settings.translation.client.answer = bound;
+        backend.settings.translation.client.input = bound;
+        assert!(backend.settings.translation.client.answer > 2);
         if accepted {
             accepted_record(backend, TOOL_RECORD);
         } else {
@@ -879,7 +880,8 @@ fn report_backend() -> Backend {
 fn result_diagnostics() {
     for (bound, accepted) in [(2, true), (1, false)] {
         let mut backend = report_backend();
-        backend.settings.translation.client.answer = bound;
+        backend.settings.translation.client.input = bound;
+        assert!(backend.settings.translation.client.answer > 2);
         let record = br#"{"type":"result","structured_output":{"outcome":{}}}"#;
         if accepted {
             accepted_record(backend, record);

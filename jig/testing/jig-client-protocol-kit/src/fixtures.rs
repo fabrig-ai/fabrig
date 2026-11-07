@@ -227,7 +227,12 @@ pub fn server_limits() -> jig_test_service::server::Limits {
 }
 #[must_use]
 pub fn server() -> jig_test_service::server::Server {
-    jig_test_service::server::Server::new(address(), &server_limits())
+    server_with(&server_limits())
+}
+/// The same server using limits already admitted by the caller.
+#[must_use]
+pub fn server_with(limits: &jig_test_service::server::Limits) -> jig_test_service::server::Server {
+    jig_test_service::server::Server::new(address(), limits)
 }
 
 #[must_use]

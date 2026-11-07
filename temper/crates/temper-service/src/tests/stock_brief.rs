@@ -210,6 +210,60 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             "charter {number} open={open} keeps fixed declarations"
         );
     }
+    reference_spec_receiving_rows();
+}
+
+// The whole-spec table, including these receiving rows, measures 0.104 s CPU.
+fn reference_spec_receiving_rows() {
+    let configuration = fixtures::stock_configuration(63_740, 48_000).expect("reference agent");
+    let limits = configuration.service.limits.domain.run;
+    let mut assignment = assignment(2, false, 0);
+    let settings: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/settings.json")).unwrap();
+    let coder = settings["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["setting"]["kind"] == "charter" && item["setting"]["number"] == 2_u32)
+        .unwrap();
+    assignment.run.policy.instructions = coder["set"]["instructions"].as_str().unwrap().as_bytes().into();
+    assignment.run.policy.shell = true;
+    assignment.run.policy.model.output = 48_000;
+    assignment.sections = Box::new([temper_engine_domain::BriefSection {
+        kind: temper_engine_domain::BriefKind::Core(jig_domain_brief::Core::Task),
+        body: temper_engine_domain::BriefBody::Text(Box::default()),
+    }]);
+    let empty = temper_engine_smith::charter(&assignment);
+    let mounted = workspace(true);
+    let owned_room = run::charter_room(Some(&mounted), &limits).unwrap();
+    let rendered_room = u64::from(run::brief_room(&empty, Some(&mounted), &limits).unwrap());
+    let room = owned_room
+        .checked_sub(empty.owned_bytes().unwrap())
+        .unwrap()
+        .min(rendered_room.checked_sub(run::brief_bytes(&empty.brief).unwrap()).unwrap());
+    let room = usize::try_from(room).unwrap();
+    eprintln!("reference coding section room={room}");
+    assert!(room >= 63_740, "the reference coding charter must hold a whole spec");
+    let past_room = room.checked_add(1).unwrap();
+    for (size, whole) in [(63_740, true), (room, true), (past_room, false), (131_072, false)] {
+        let mut charter = temper_engine_smith::charter(&assignment);
+        charter.brief.sections[0].text = vec![b's'; size].into();
+        let mut original = temper_engine_smith::charter(&assignment);
+        original.brief.sections[0].text = vec![b's'; size].into();
+        temper_engine_smith::fit_brief(&mut charter, Some(&mounted), &limits);
+        assert!(charter.owned_bytes().unwrap() <= owned_room);
+        assert!(run::brief_bytes(&charter.brief).unwrap() <= rendered_room);
+        if whole {
+            assert_eq!(charter, original, "section of {size} stays whole");
+        } else {
+            let text = &charter.brief.sections[0].text;
+            let kept = text.iter().take_while(|byte| **byte == b's').count();
+            let lost = size.checked_sub(kept).unwrap();
+            assert_eq!(&text[kept..], format!("\n[cut {lost} bytes; whole: the task's activity]\n").as_bytes());
+            assert!(kept < size);
+        }
+        assert_eq!(without_brief(charter), without_brief(original));
+    }
 }
 
 fn whole_spec_sections(

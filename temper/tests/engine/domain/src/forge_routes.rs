@@ -20,6 +20,9 @@ use temper_engine_forge_world::{self as forge_world, translate};
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
 
+// A live result's label is 17 bytes, its separator 2, and its two task numbers at most 20 each.
+const RESULT_MESSAGE_BYTES: u32 = 59;
+
 // Writes for the forge change world with no landing members.
 const EMPTY_LANDING_WRITES: u32 = 8_696;
 
@@ -135,6 +138,12 @@ pub struct StoryLimits {
     pub landing_members: Option<u32>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
+    pub authority_batch: Option<u32>,
+    pub tasks_batch: Option<u32>,
+    pub task_delegates: Option<u32>,
+    pub tree_tasks: Option<u32>,
+    pub inbox_messages: Option<u32>,
+    pub inbox_bytes: Option<u32>,
     pub brief: Option<engine::BriefLimits>,
     pub stall: Option<Duration>,
     pub spec_bytes: Option<u32>,
@@ -303,6 +312,12 @@ impl World {
             stall,
             spec_bytes,
             result_bytes,
+            authority_batch,
+            tasks_batch,
+            task_delegates,
+            tree_tasks,
+            inbox_messages,
+            inbox_bytes,
             forge_charter,
             kinds,
             questions,
@@ -322,9 +337,6 @@ impl World {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
-            }
-            if let Some(bytes) = result_bytes {
-                limits.tasks.result_bytes = bytes;
             }
             limits.people.amendment_bytes =
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
@@ -365,9 +377,9 @@ impl World {
                     limits.forge.client.resources = limits.tasks.tasks * limits.forge.resources_per_task;
                     limits.forge.output = FORGE_OUTPUT;
                 }
-                limits.tasks.project_tasks = 12;
-                limits.tasks.delegates = 4;
-                limits.tasks.tree_tasks = 12;
+                limits.tasks.project_tasks = if authority_batch.is_some() { tasks.unwrap_or(12) } else { 12 };
+                limits.tasks.delegates = task_delegates.unwrap_or(4);
+                limits.tasks.tree_tasks = tree_tasks.unwrap_or(12);
                 limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
@@ -388,10 +400,10 @@ impl World {
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
                 limits.tasks.contract_choices = 3;
-                limits.tasks.inbox_messages = 8;
-                limits.tasks.inbox_bytes = 1024;
+                limits.tasks.inbox_messages = inbox_messages.unwrap_or(8);
+                limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(1024);
                 limits.authority.executors = 5;
-                limits.authority.batch = 2;
+                limits.authority.batch = authority_batch.unwrap_or(2);
                 limits.authority.grants = 10;
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
@@ -410,8 +422,8 @@ impl World {
                 limits.fleet.slots = slots.unwrap_or(2);
                 limits.fleet.workstreams = slots.unwrap_or(2);
                 // The core's inbox census and waiting entries cover every live task.
-                limits.people.inbox_tasks = 24;
-                limits.people.inbox_recipients = 32;
+                limits.people.inbox_tasks = if authority_batch.is_some() { limits.tasks.tasks * 2 } else { 24 };
+                limits.people.inbox_recipients = 32.max(limits.tasks.inbox_messages * 2 + 8);
             }
             if with_read {
                 limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(256);
@@ -518,7 +530,7 @@ impl World {
                         authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
-                    rules.ceiling.delegation.tasks = 12;
+                    rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
                     rules.ceiling.delegation.depth = 4;
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
@@ -551,7 +563,9 @@ impl World {
                     limits.tasks.authority_grants = 14;
                     limits.authority.executors = 7;
                     limits.tasks.executor_kinds = 7;
-                    limits.tasks.result_bytes = 256;
+                    // Verification evidence has 256 bytes beside the live result label.
+                    limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
+                    limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
                         limits.forge.landing_members = slots;
@@ -734,6 +748,21 @@ impl World {
                 // A shipped brief brings its own room: results hold it, forge sections read it.
                 limits.journal.result_bytes = limits.journal.result_bytes.max(brief.brief_bytes);
                 limits.forge.brief_bytes = limits.forge.brief_bytes.max(brief.read_bytes);
+            }
+            if let Some(batch) = tasks_batch {
+                limits.tasks.batch = batch;
+            }
+            if let Some(bytes) = result_bytes {
+                // A task row owns three result texts and its inbox beside the fixture's carrier.
+                let growth = bytes.saturating_sub(limits.tasks.result_bytes).saturating_mul(4);
+                limits.journal.transcript_bytes += growth;
+                limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(limits.journal.transcript_bytes);
+                limits.loads.bytes = limits.loads.bytes.max(limits.journal.transcript_bytes);
+                limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.journal.transcript_bytes);
+                limits.tasks.result_bytes = bytes;
+                limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(bytes);
+                limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(bytes);
+                limits.journal.result_bytes = limits.journal.result_bytes.max(bytes);
             }
             if let Some(spec_bytes) = spec_bytes {
                 limits.tasks.spec_bytes = spec_bytes;
@@ -944,6 +973,18 @@ impl World {
         store_limits.authority.executors = limits.authority.executors;
         store_limits.tasks.charters = limits.tasks.charters;
         store_limits.tasks.contract_choices = limits.tasks.contract_choices;
+        if timing.authority_batch.is_some() {
+            store_limits.authority.batch = limits.authority.batch;
+            store_limits.tasks.tasks = limits.tasks.tasks;
+            store_limits.tasks.project_tasks = limits.tasks.project_tasks;
+            store_limits.tasks.tree_tasks = limits.tasks.tree_tasks;
+            store_limits.tasks.delegates = limits.tasks.delegates;
+            store_limits.tasks.batch = limits.tasks.batch;
+            store_limits.tasks.inbox_messages = limits.tasks.inbox_messages;
+        }
+        if timing.result_bytes.is_some() {
+            store_limits.forge.client.op_bytes = limits.forge.client.op_bytes;
+        }
         if stock.is_some() {
             store_limits.forge.issue_policy = limits.forge.issue_policy;
             store_limits.forge.client.op_bytes = limits.forge.client.op_bytes;
@@ -1071,6 +1112,10 @@ impl World {
     pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
         assert!(!self.root.ready(), "question capacity precedes bootstrap");
+        // Keep the question story's report room beside its live result label.
+        self.env.limits.tasks.result_bytes += RESULT_MESSAGE_BYTES;
+        self.env.limits.forge.client.op_bytes =
+            self.env.limits.forge.client.op_bytes.max(self.env.limits.tasks.result_bytes);
         self.env.limits.tasks.tasks = tasks;
         self.env.limits.tasks.project_tasks = tasks;
         self.env.limits.tasks.tree_tasks = tasks;
@@ -1087,6 +1132,7 @@ impl World {
         self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
         let mut codec = crate::store::widest();
         codec.tasks = self.env.limits.tasks;
+        codec.forge.client.op_bytes = self.env.limits.forge.client.op_bytes;
         codec.people.spec_bytes = self.env.limits.tasks.spec_bytes;
         codec.authority = self.env.limits.authority;
         codec.people.words = self.env.limits.people.words;
@@ -2123,7 +2169,8 @@ pub fn change_world_funded(
                         ]),
                         inputs: Box::new([]),
                     },
-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 },
+                    // Reserve 32 bytes for landing identity beside its live result label.
+                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 + RESULT_MESSAGE_BYTES },
                     authority: child_authority,
                     symbolic_grants: Box::new([tasks::Grant {
                         connector: 0,
