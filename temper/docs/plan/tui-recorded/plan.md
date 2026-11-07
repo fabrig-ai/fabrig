@@ -18,21 +18,17 @@
 | | `approval-story` | `approval-host`, `approval-lines` | `temper/tests/client` | 120 |
 | `tui-journeys` | `originals` | none | `temper-client-shell-web`'s `journey` (three kinds, `Originals::new`, `redact_field`, `scan::{original, shape}`) | 75 |
 | | `tui-lines` | none | `temper-client-shell-tui`'s `journey` (feature `record`; the file's lines) | 120 |
-| | further tasks | | written in the next batch (below) | |
-
-### The next batch, as it stands
-
-- `tui-replay` (`tui-lines`, `approval-host`): `Facts`, `Recorder`, `Replay`, `prove`, `event`, in the host's world.
-- `tui-redact` (`originals`, `tui-replay`): the TUI's originals, fields, `redact`, `codes`, `scan`, red first per original and place; `temper-client-shell-web` as `record`'s dependency.
-- `tui-record` (`tui-replay`): the run's recorder, its keys and saves; `temper`'s feature `record`.
-- `tui-walk` (`tui-replay`): the walk file and its checks, natively.
-- `tui-print` (`tui-redact`, `approval-lines`): `tools/journeys` takes, proves, scans and prints TUI journeys; `theme::palette`; the reprint test.
-- `tui-again` (`tui-print`, `tui-record`, `tui-walk`): `again` for a TUI journey, the TUI in a pseudo-terminal and the approval in Chromium.
-- `first-journey` (`tui-again`, `approval-story`): `sign-in-approved`'s walk and README, recorded by `again`, committed with its prints.
+| | `tui-replay` | `tui-lines`, `approval-host` | `temper-client-shell-tui`'s `journey` (`Facts`, `Recorder`, `Replay`, `prove`, `event`) | 180 |
+| | `tui-redact` | `originals`, `tui-replay` | `journey`'s TUI originals, fields, `redact`, `codes`, `scan`; `temper-client-shell-web` as `record`'s dependency | 150 |
+| | `tui-record` | `tui-replay` | the run's recorder, its keys and saves; `temper`'s feature `record` | 150 |
+| | `tui-walk` | `tui-replay` | `journey`'s walk file, `follows`, `shows`, `browsed` | 75 |
+| | `tui-print` | `tui-redact`, `approval-lines` | `tools/journeys` (the TUI's `add`, print, reprint, tests); `temper-client-tui`'s `theme::palette`; the generated files and empty overlay | 210 |
+| | `tui-again` | `tui-print`, `tui-record`, `tui-walk` | `tools/journeys`' `again` for a TUI journey | 240 |
+| | `first-journey` | `tui-again`, `approval-story` | `sign-in-approved`: its walk and README by hand, the rest by `again` | 90 |
 
 ## Critical path
 
-`tui-surface` (60) → `approval-host` (180) → `tui-replay` → `tui-redact` → `tui-print` → `tui-again` → `first-journey`: about 1,000 implementer-minutes as estimated now. `originals` and `tui-lines` start at once beside `tui-surface`; `approval-lines` runs beside `approval-host`.
+`tui-surface` (60) → `approval-host` (180) → `tui-replay` (180) → `tui-redact` (150) → `tui-print` (210) → `tui-again` (240) → `first-journey` (90): about 1,110 implementer-minutes. Off it: `originals` (75) and `tui-lines` (120) from the start; `approval-lines` (150) beside `approval-host`; `approval-story` (120) after both; `tui-record` (150) and `tui-walk` (75) beside `tui-redact` and `tui-print`. Twelve tasks, about 1,800 implementer-minutes in all.
 
 ## Decisions
 
@@ -49,4 +45,6 @@
 - **The browser's journeys** (`temper-client-shell-web`'s `journey`, `tools/journeys`, `docs/design/client/journeys/`): `originals` adds to the shared redaction and scan, additions only; `tui-print` and `tui-again` add the TUI's beside the browser's in `tools/journeys`. The browser's recordings and prints are never touched.
 - **`temper-client-domain`:** no change. The root's `asked`, `Domain::asked()` and `print_approve` already give the TUI what it needs.
 - **`tui-lines` and `approval-host`** both add one line to `temper-client-shell-tui/src/lib.rs` (`mod journey`, `mod opener`) at the same time; nothing else of theirs meets.
+- **`temper-client-shell-tui`'s `journey` module** is written by `tui-lines`, then `tui-replay`, then `tui-redact`, `tui-record` and `tui-walk` at once: the three meet only in `src/journey.rs`'s `mod` and `pub use` lines (and `tui-redact`'s `Cargo.toml` feature line), each told to keep its hunk there.
+- **`.config/gate/read-by-tests.txt`** gains `temper/docs/design/client/tui/journeys/**` (`tui-print`): the journeys' test reads the TUI journeys' READMEs and overlay.
 - **Drafts beside this one:** none of their files is this plan's (`ui-stop-coding-row`'s one-process and jig routing, `ui-live-cheap-2`'s `forge_land`, `wake-followups`' engine store).
