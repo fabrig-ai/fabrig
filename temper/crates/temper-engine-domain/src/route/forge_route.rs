@@ -211,6 +211,29 @@ pub(super) fn person_forge_user(domain: &Domain, project: u32, forge: u16, perso
     Some(user)
 }
 
+/// A person's account on each forge of the project's repositories (domain/agent.md, 8.1).
+pub(super) fn person_forges(domain: &Domain, project: u32, person: u64) -> Box<[super::PersonForge]> {
+    let repositories = domain.forge.readable_repositories(project);
+    let capacity = u32::try_from(repositories.len()).expect("bounded repositories");
+    let mut seen = skein_lib::Set::with_capacity(capacity);
+    let mut forges = List::with_capacity(capacity);
+    for repository in repositories {
+        let forge = repository.provider.forge;
+        if !seen.insert(forge).expect("at most one forge per repository") {
+            continue;
+        }
+        let user = person_forge_user(domain, project, forge, person);
+        let writer = match user {
+            Some(user) => domain.forge.is_writer(forge, user),
+            None => false,
+        };
+        forges
+            .push(super::PersonForge { host: repository.host.clone(), user, writer })
+            .expect("at most one forge per repository");
+    }
+    forges.into_boxed()
+}
+
 /// Whether a party counts as a person for approvals in a project: known on a forge
 /// of its repositories, as a user who isn't that forge's retained writer
 /// (domain/forge.md, 4 and 8.9).

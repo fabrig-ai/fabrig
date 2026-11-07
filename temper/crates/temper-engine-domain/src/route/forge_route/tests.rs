@@ -800,7 +800,10 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     let first = config.forges.first().expect("configured fixture forge").clone();
     let third = forge::Configured { number: 3, ..first.clone() };
     config.forges = Box::new([first, third]);
-    let (mut domain, env) = crate::tests::resume_fixture::root_with_config(config);
+    let mut limits = crate::tests::resume_fixture::limits();
+    limits.forge.repositories = 3; // Two forges and a second repository on the first.
+    limits.forge.client.repositories = 3;
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
     domain.forge.restore_begin(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
@@ -945,6 +948,67 @@ fn human_forge_identity_is_known_on_its_own_forge_and_is_not_its_writer() {
             );
         }
         assert_eq!(super::human_forge_identity(&domain, 5, 1), counted, "key {key:?}, writer forge {writer_forge}");
+    }
+}
+
+#[test]
+fn person_forges_names_each_forge_once_with_its_own_user_and_writer() {
+    use super::forge;
+    for (key, writer, second_repository, users) in [
+        (forge::user_key(1, 7), false, false, [Some(7), None]),
+        (forge::user_key(3, 7), false, false, [None, Some(7)]),
+        (forge::user_key(1, 7), true, false, [Some(7), None]),
+        (
+            jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject },
+            false,
+            false,
+            [None, None],
+        ),
+        (forge::user_key(1, 7), false, true, [Some(7), None]),
+    ] {
+        let (mut domain, env) = forge_party(key.clone());
+        let mut repository = adopted(3);
+        repository.host = b"other.example".as_slice().into();
+        let forge_env = env.with(env.limits.forge);
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Repository(repository) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        if writer {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore {
+                    record: forge::Stored::Writer(skein_forge_client::Writer { forge: 1, author: 7 }),
+                },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        if second_repository {
+            let mut repository = adopted(1);
+            repository.provider.repository = 2;
+            repository.home = false;
+            repository.host = b"another.example".as_slice().into();
+            repository.name = b"second".as_slice().into();
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore { record: forge::Stored::Repository(repository) },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        assert_eq!(domain.forge.readable_repositories(5).len(), if second_repository { 3 } else { 2 });
+        let [first, other] = users;
+        assert_eq!(
+            super::person_forges(&domain, 5, 1).as_ref(),
+            &[
+                crate::PersonForge { host: b"forge.example".as_slice().into(), user: first, writer },
+                crate::PersonForge { host: b"other.example".as_slice().into(), user: other, writer: false },
+            ],
+            "key {key:?}, writer {writer}, second repository {second_repository}"
+        );
     }
 }
 
