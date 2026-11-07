@@ -100,12 +100,15 @@ a due expiry marks and delivers the changed offer.
   request has it show in each project it touches and in every project whose owner can
   decide it; a row names the lowest 32, the bound of that list on the client's wire.
 
+- **Not yet:** 8: a standing refusal keeps no figures, and the fleet has no
+  `bounds_refusal`, so a run every admitted host is too small for, as after a
+  charter grows past them, reads `TaskRunWait::Host`
+  (`jig-domain-fleet/src/history.rs`, `jig-domain-core/src/documents/task_wait.rs`);
+  the client wire drops the failing charter's number of a shortfall's turns,
+  time and waiting (`jig-protocol-engine-clients/src/translate/deployment.rs`).
+
 - **Departs:** 6: `Core::new` without a start is ready, because the
-  core's unit fixtures need no start; every root starts it. 8: the
-  client wire drops the failing charter's number of a
-  shortfall's turns, time and waiting
-  (`jig-protocol-engine-clients/src/translate/deployment.rs`), because its
-  shortfall arms carry no charter; a client wire version adds it.
+  core's unit fixtures need no start; every root starts it.
   4.2: the core's answers to parties cross the engine's client translation
   with optional refusal and ending facts always empty; the fields and
   the choice to fill them or drop them in a client wire version are in
