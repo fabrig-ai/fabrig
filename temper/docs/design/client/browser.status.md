@@ -43,6 +43,8 @@ keeps it; publication is not a cutoff on a handed change's commit.
   the text and a preceding measurement-stage line. Batching narrows a
   changing page's query window without making it atomic; the request
   `ui-public-story`'s timer-driven explanation remains unproved (section 5).
+- **Not yet:** 8.4: `browser_public`'s landings check takes no queue member, and the
+  tier's library holds no table of the page's forms (the plan `ui-public-queue`).
 - **Departs:** 8.4: `browser_public` accepts the 401 resource-load console
   text throughout the walk, including its public reads, because a stream
   around sign-out can correctly answer for an ended session. The request

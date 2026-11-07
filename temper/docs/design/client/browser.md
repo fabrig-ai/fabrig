@@ -1882,5 +1882,8 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
-  show yet." or the stock queue's merge, by whether the merge came before the read.
+  hold nothing a browser alone shows (4.6). Its landings page reads the queue's one
+  member while the change waits, and below it "No landings to show yet." or the stock
+  queue's merge, by whether the merge came before the read. One run reads only one of
+  these, so the tier's library holds them all as a table in the focused suite, and
+  refuses any other line.
