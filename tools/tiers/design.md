@@ -619,6 +619,12 @@ runs then measure the suites with process CPU; the mode's introduction
 requires no CPU comparison or change to budgets, timeouts or build settings.
 Per-test CPU within a shared process remains outside this mode's contract.
 
+Two differences from the inproc-runner request remain to reconcile (11.4,
+11.6, 11.8): whether estimates use previous process times with test counts
+as fallback, rather than sums of kept per-test wall times; and whether
+every failure gets an alone diagnostic, including a first-test failure.
+Neither choice has a recorded reason for departing from that request.
+
 A caller running the after-landing tier calls this entry point
 (section 10). The trees' old `scripts/browser.sh` scripts retire in their
 own trees' branches.
@@ -805,7 +811,9 @@ only processes have it (section 11). In a one-process run:
   earlier test` label, each leaked process and each unobserved test;
 - a process's `kind` is `"tests"`, `"fresh"` (after a crash) or `"alone"`
   (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
-  process's CPU is in the suite's: every process the run started is.
+  process's CPU is in the suite's: every process with a record is counted.
+  A forced kill can leave a started process without a record; its CPU is
+  unknown and excluded, so the sum is a lower bound (11.7).
 
 An unobserved attempt is neither passed nor failed. In a nextest run, a
 caller that reads JUnit itself sees it as a `test abort` failure, and maps

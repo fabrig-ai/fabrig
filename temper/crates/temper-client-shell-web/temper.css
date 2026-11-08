@@ -284,11 +284,11 @@ html:root[data-night]:has(#app) {
 
 /* ==== ui: night ==== */
 /* A faint glow at the top right, over the whole window, with a fine grain so that it shows no rings. */
-:root[data-night]:has(body #app) body { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E"), radial-gradient(ellipse 38vw 460px at 100% 120px, var(--gf-glow) 0, var(--gf-glow-fade) 45%, transparent 80%), var(--gf-paper); background-attachment: fixed; }
+:root[data-night]:has(body #app) body { background: url(files/night-grain.svg), radial-gradient(ellipse 38vw 460px at 100% 120px, var(--gf-glow) 0, var(--gf-glow-fade) 45%, transparent 80%), var(--gf-paper); background-attachment: fixed; }
 :root[data-night] #app, :root[data-night] #app > main:where(:not(.temper-terminal)) { background: transparent; }
 
-:root[data-night] #app > .temper-session:where(:not(.temper-terminal)) .temper-session-composer > button { background-color: var(--gf-primary); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a0f22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19V5m-6 6 6-6 6 6'/%3E%3C/svg%3E"); }
-:root[data-night] #app:has(> .temper-rail) .temper-goal-composer button { background-color: var(--gf-primary); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a0f22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19V5m-6 6 6-6 6 6'/%3E%3C/svg%3E"); }
+:root[data-night] #app > .temper-session:where(:not(.temper-terminal)) .temper-session-composer > button { background-color: var(--gf-primary); background-image: url(files/send-night.svg); }
+:root[data-night] #app:has(> .temper-rail) .temper-goal-composer button { background-color: var(--gf-primary); background-image: url(files/send-night.svg); }
 :root[data-night] #app > .temper-session:where(:not(.temper-terminal)) .temper-session-composer > button:disabled,
 :root[data-night] #app:has(> .temper-rail) .temper-goal-composer button:disabled { background-color: var(--gf-line-2); background-image: url(files/send.svg); }
 
@@ -1409,11 +1409,11 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* A moon by day and a sun by night, at the rail’s foot. */
 #app > .temper-rail > .temper-night-switch { position: absolute; right: 16px; bottom: 24px; width: 30px; height: 30px; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
 #app > .temper-rail > .temper-night-switch::before { content: ''; position: absolute; inset: 7px; background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
-          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+  -webkit-mask: url(files/moon.svg) center / contain no-repeat;
+          mask: url(files/moon.svg) center / contain no-repeat; }
 #app > .temper-rail > .temper-night-switch[aria-pressed="true"]::before {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3Cpath d='M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1'/%3E%3C/svg%3E");
-          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3Cpath d='M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1'/%3E%3C/svg%3E"); }
+  -webkit-mask-image: url(files/sun.svg);
+          mask-image: url(files/sun.svg); }
 #app > .temper-rail > .temper-night-switch:hover { background: var(--gf-hover); color: var(--gf-ink); }
 /* The tab bar, a phone's alone. */
 #app > .temper-tabbar { display: none; }

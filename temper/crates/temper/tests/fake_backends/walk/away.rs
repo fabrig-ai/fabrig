@@ -161,6 +161,9 @@ fn toggle_off(client: &mut NativeClient) -> bool {
         .and_then(|node| node.name.clone());
     name.is_some_and(|name| press(client, &name))
 }
+fn begin_finished(client: &mut NativeClient) -> bool {
+    press(client, b"Skip") || (named(client, Role::Region, b"To begin").is_none() && words(client, b"Landing: "))
+}
 impl Referee<NativeClient> for Judge {
     #[expect(clippy::too_many_lines, reason = "one referee follows the Away switch, overturn and both Home answers")]
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
@@ -181,7 +184,7 @@ impl Referee<NativeClient> for Judge {
                 self.page = Page::Home;
             }
             Page::Home => match self.visit {
-                Visit::Enable if press(client, b"Skip") => self.page = Page::Skipped,
+                Visit::Enable if begin_finished(client) => self.page = Page::Skipped,
                 Visit::Decisions if words(client, b"Landing: ") => self.page = Page::Decided,
                 Visit::Enable | Visit::Decisions => {}
             },
