@@ -730,3 +730,11 @@ second time, and the check's message names the rule. In hearth's
 render, constant-index reads, one-row tables,
 `let [x] = … else { panic!(…) }`, `.first().expect` and the names
 `actual` and `observed` were each a grep.
+
+## 11. Later
+
+Adopting the one-process collector for a caller's focused and fuzzy
+steps is a separate change, tree by tree (`tools/tiers/design.md`, 8).
+The gate and after-landing runs then measure suite CPU per process;
+outcome checks alone establish no saving or budget margin. Per-test CPU
+within a shared process remains unmeasured (8.1).
