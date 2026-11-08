@@ -67,22 +67,37 @@ place: `temper/docs/design/client/README.md`, 6.11 to 6.16 and 7.1;
 
 ## Parts and tasks
 
-| Task | Needs | Crates | Wave |
-|---|---|---|---|
-| `jig-expiry` | | jig-client-protocol-link, jig-client | 1 |
-| `skein-background` | | skein-ui-screen-terminal, skein/tests/ui-screen | 1 |
-| `tui-local` | | temper-client-tui (note, state, view) | 1 |
-| `box-side` | | temper (link_file, serve), temper-box | 1 |
+| Task | Needs | Crates and files | Wave | Minutes |
+|---|---|---|---|---|
+| `jig-expiry` | | jig-client-protocol-link, jig-client | 1 | 60 |
+| `skein-background` | | skein-ui-screen-terminal, skein/tests/ui-screen | 1 | 150 |
+| `tui-local` | | temper-client-tui (note, state, view) | 1 | 120 |
+| `box-side` | | temper (link_file, serve), temper-box, box stories, help box.md | 1 | 180 |
+| `host-local` | tui-local, jig-expiry | temper-client-shell-tui (host, journey) | 2 | 240 |
+| `tui-colours` | tui-local | temper-client-tui (theme, goldens), the TUI print's tests, reprint | 2 | 90 |
+| `run` | host-local, skein-background, tui-colours | temper-client-shell-tui (run, limits, its suite) | 3 | 150 |
+| `joint` | host-local | temper/tests/client (tui harness, component, stories) | 3 | 150 |
+| `binary-tui` | run, box-side | temper (tui.rs, commands), help reference | 4 | 120 |
+| `again` | binary-tui, tui-colours, joint | tools/journeys (tui_again), `sign-in-approved`, last status entries | 5 | 90 |
 
-Later batches (designed above, specs to follow): `host-local` (the host seam and its
-journey records; needs `tui-local`, `jig-expiry`), `tui-colours` (the theme on the
-terminal's colours and the reprint; needs `tui-local`), `run` (the run's file read, note
-write and background wait; needs `host-local`, `skein-background`), `joint` (the joint
-world's stories; needs `host-local`), `binary-tui` (bare `temper`'s address, the note and
-the scheme at start; needs `run`, `box-side`), `again` (`sign-in-approved` recorded again;
-needs `binary-tui`, `tui-colours`).
+One writer per crate per wave: `temper-client-tui` is `tui-local`'s then `tui-colours`'s;
+`temper-client-shell-tui` is `host-local`'s then `run`'s (`skein-background` adds one
+literal field to its `limits.rs`, `host-local` one literal to `run.rs`); the `temper`
+crate is `box-side`'s then `binary-tui`'s (`run` adds one literal to `tui.rs`).
+
+## Status entries
+
+The design's **Not yet** entries in `temper/docs/design/client/README.status.md` are
+consecutive bullets, and git conflicts on deletions of neighbouring lines. So a task
+deletes its own entry only where no task running beside it deletes a neighbour:
+`box-side`, `tui-local`, `run` and `joint` delete theirs; `again`, last, deletes
+`host-local`'s, `tui-colours`'s and `binary-tui`'s and restores the paragraph above them.
+`box-side` and `tui-local`, both of wave 1 and already released, delete neighbouring
+entries: the second of them to merge conflicts there, resolved by keeping both deletions.
+`journeys.status.md`: `host-local` deletes its entry, `again` the other two.
 
 ## Critical path
 
-`tui-local` → `host-local` → `run` → `binary-tui` → `again`, about 2 + 3 + 2.5 + 2 + 1.5
-implementer-hours.
+`tui-local` (2 h) → `host-local` (4 h) → `run` (2.5 h) → `binary-tui` (2 h) → `again`
+(1.5 h): about 12 implementer-hours. `tui-colours` and `skein-background` run beside
+`host-local` and are ready before `run` needs them; `joint` runs beside `run`.
