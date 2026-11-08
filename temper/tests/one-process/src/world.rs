@@ -1262,11 +1262,11 @@ impl ServiceObserver {
     /// Decode durable records under the scenario's configured record bounds.
     pub(crate) fn with_codec(
         mut self,
-        codec: jig_protocol_store::codec::View,
-        families: temper_protocol_store::Bounds,
+        codec: &jig_protocol_store::codec::View,
+        families: &temper_protocol_store::Bounds,
     ) -> Self {
-        self.codec = codec;
-        self.families = families;
+        self.codec = *codec;
+        self.families = *families;
         self
     }
 }

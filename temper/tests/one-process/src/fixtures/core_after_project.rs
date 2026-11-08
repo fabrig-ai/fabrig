@@ -141,28 +141,28 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
     service.adopt_signals(inherited.signal).expect("service signal");
     Proc::Service(Box::new(ServiceHost::new(
         service,
-        ServiceObserver::started(root, inherited).with_codec(codec, families),
+        ServiceObserver::started(root, inherited).with_codec(&codec, &families),
         parameters,
     )))
 }
 
-fn call(name: &str, arguments: Value) -> Value {
+fn call(name: &str, arguments: &Value) -> Value {
     json!({"lines":[{"call":name,"arguments":arguments}],"finish":"tool_calls","tokens":1})
 }
 fn provider() -> skein_fake_peers::llm::Peer {
     let mut value: Value = serde_json::from_slice(temper_playground::stories::A.llm).expect("fixture provider");
     value["cued"] = json!([
         {"cue":"@incident-goal","turns":[
-            call("change", json!({"words":"@incident-edit"})), call("wait", json!({})),
-            call("finish", json!({"form":"report","text":"Done: earlier goal ended","fields":{}}))]},
+            call("change", &json!({"words":"@incident-edit"})), call("wait", &json!({})),
+            call("finish", &json!({"form":"report","text":"Done: earlier goal ended","fields":{}}))]},
         {"cue":"@incident-edit","turns":[
-            call("shell", json!({"command":"echo fixed > conflict.txt"})),
-            call("finish", json!({"form":"change","text":"","fields":{"title":"Earlier change","body":"Fixed"}}))]},
+            call("shell", &json!({"command":"echo fixed > conflict.txt"})),
+            call("finish", &json!({"form":"change","text":"","fields":{"title":"Earlier change","body":"Fixed"}}))]},
         {"cue":"Review this change at the named head","turns":[
-            call("finish", json!({"form":"verdict","label":"1","text":"approved","fields":{},"items":[]}))]}
+            call("finish", &json!({"form":"verdict","label":"1","text":"approved","fields":{},"items":[]}))]}
     ]);
     value["asked"] = json!([]);
-    value["otherwise"] = json!([call("finish", json!({"form":"report","text":"Done","fields":{}}))]);
+    value["otherwise"] = json!([call("finish", &json!({"form":"report","text":"Done","fields":{}}))]);
     value["pace"]["reply_ms"] = 0.into();
     let document = temper_fake::llm::Document::decode(&serde_json::to_vec(&value).expect("provider bytes"))
         .expect("provider document");
@@ -190,6 +190,7 @@ pub struct Outcome {
     pub native: bool,
     pub gate: String,
 }
+#[expect(clippy::struct_excessive_bools, reason = "the story records each independent client and shutdown handoff")]
 struct Judge {
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
@@ -295,6 +296,7 @@ impl Judge {
     }
 }
 impl skein_world::Referee<Proc> for Judge {
+    #[expect(clippy::too_many_lines, reason = "the referee keeps the incident acts in their required order")]
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         let (services, rest) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut services[0] else { panic!("service first") };
@@ -307,7 +309,7 @@ impl skein_world::Referee<Proc> for Judge {
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
-            self.first_link = link.clone();
+            self.first_link.clone_from(&link);
             if self.warm {
                 self.calls(caller);
             } else {
@@ -547,32 +549,7 @@ impl skein_world::Referee<Proc> for Judge {
                 self.target,
                 self.fresh_at,
                 self.store.borrow().rows.len(),
-                self.seen.borrow().gate
-            ) + &format!(
-                "; tasks {:?}; changes {:?}",
-                self.store
-                    .borrow()
-                    .rows
-                    .values()
-                    .filter_map(|row| match row {
-                        root::Record::Core(core::Record::Tasks(
-                            tasks::Stored::Live(task) | tasks::Stored::Ended(task),
-                        )) => Some((task.number, task.executor, &task.phase, &task.retry_notice)),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>(),
-                self.store
-                    .borrow()
-                    .rows
-                    .values()
-                    .filter_map(|row| match row {
-                        root::Record::Forge { row } => match row.as_ref() {
-                            temper_engine_domain_forge::Stored::Change(row) => Some(&row.change.state),
-                            _ => None,
-                        },
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
+                self.seen.borrow().gate,
             )
         })
     }
@@ -657,14 +634,13 @@ fn phase(
             Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
         });
         simulation.spawn_root(skein_sim::Handle::new(native.raw()), |root| {
-            let mut steps = Vec::new();
-            for address in [temper_client_domain::Address::Home { project: 3 }] {
-                steps.push(skein_fake_person::Step::Go { address });
-                steps.push(skein_fake_person::Step::See {
+            let steps = vec![
+                skein_fake_person::Step::Go { address: temper_client_domain::Address::Home { project: 3 } },
+                skein_fake_person::Step::See {
                     find: skein_fake_person::Find::text(PROJECT.as_bytes()),
                     within: fixtures::PERSON_WAIT,
-                });
-            }
+                },
+            ];
             Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::pages(root, steps.into()), None))))
         });
         simulation.spawn_root(skein_sim::Handle::new(fresh.raw()), |root| {
@@ -689,6 +665,7 @@ fn phase(
     (disk, Rc::try_unwrap(seen).expect("released referee").into_inner())
 }
 
+#[must_use]
 pub fn whole_sequence() -> [Outcome; 2] {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Restart);
