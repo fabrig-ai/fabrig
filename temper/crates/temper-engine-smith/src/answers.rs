@@ -1267,6 +1267,11 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
             text.number(u64::from(limit))?;
             text.add(b" at once): wait for its decision")
         }
+        CapacityCause::Subscriptions { limit } => {
+            text.add(b": it holds its most subscriptions (at most ")?;
+            text.number(u64::from(limit))?;
+            text.add(b", counting the topics the engine keeps for a goal); unsubscribe one it made to make room")
+        }
         CapacityCause::PlacedHolds { .. }
         | CapacityCause::ProjectPlacedHolds { .. }
         | CapacityCause::PartyPlacedHolds { .. }
@@ -1280,7 +1285,6 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
         | CapacityCause::Holdings { .. }
         | CapacityCause::HoldWaiters { .. }
         | CapacityCause::References { .. }
-        | CapacityCause::Subscriptions { .. }
         | CapacityCause::Funders { .. }
         | CapacityCause::Writers { .. } => Ok(()),
     }

@@ -130,12 +130,6 @@ visibility, and `ask.txt` says it is no setting, done by its owner outside
 the chat.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
-- **Not yet:** 4.3: a run's `subscribe` refused for its task's full
-  subscriptions answers `Refused: task N busy` and no more:
-  `temper-engine-smith/src/answers.rs`, `task_capacity`, renders the
-  `Subscriptions` cause as nothing, so a goal whose room its own topics
-  filled read its own task as busy to itself (the request
-  `goal-call-faults` of 2026-11-08, item 2).
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
   `change` on `gpt-6-luna`. The model's response to the declaration and
