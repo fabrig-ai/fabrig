@@ -128,3 +128,23 @@ sends after sign-in, for `again`.
 
 - For `again`: `temper/docs/design/client/tui/journeys/sign-in-approved/` recorded again;
   the committed-prints test red until then.
+
+## Answers
+
+2026-11-08. *Add `tui-foot` as a dependency to finish the rendered screen and key rows, or
+defer them?* Neither: no dependency is added, and the three rows assert the host's side
+alone. What the frame draws is the view's: `tui-foot`'s `the_foot_says_each_state` holds
+each list's Esc event, the help note's lines and the TUI's unknown note, and `joint`'s
+step 2 holds Esc closing the commands' list through the shipped host (the notes on the
+launchpad are drawn by `tui-launchpad`, so a dependency on `tui-foot` alone would not reach
+them). In `each_event_becomes_its_acts`:
+- `Send` of `/zz`: nothing sent, the root given `Act::Terminal(Dismiss)`, the TUI told
+  `Told::Unknown { words: Some("/zz") }` and `Told::Cleared` (`Tui::unknown()` reads it);
+  not the drawn sentence.
+- `Command { Help }`: the root given `Act::Terminal(Run { command: Help })`, its notes
+  holding `Help`; not the drawn lines.
+- Escape: a key the reader makes nothing of gives `tui::escape(&self.view)`'s event, and
+  `event_of` the same (on this base the view's, whatever it is); `Dismiss` gives
+  `Act::Terminal(Dismiss)` and `Told::Cleared`. Not the list closing on the frame.
+The rows already written on `6ff83cf774` that test these directly stand; keep them, drop
+`foot.rs` from `## Left`, and report the acceptance met. Nothing else changes.

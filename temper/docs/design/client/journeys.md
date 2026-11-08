@@ -844,13 +844,24 @@ the states its message names in words.
 The `night-mode` request's hand-made `night-mode/01.html` to `03.html` and
 its `night.js` are not journeys to reprint or land (section 7): the landing,
 Ask temper as "Start" opens it, and `chat-draft`'s Split, under the night
-look, with the switch at the rail's foot. The gallery's `-night` states draw
+look, with the switch at the rail's foot. The gallery's `night-*` states draw
 those three pages through the view (`browser.md`, 7.2); every journey's
 print draws the switch, unpressed, since no recording keeps a night look.
 temper/ui compares the three requests with main after landing
 (`../draft/look-requests.md`, 4).
 
 ## 10. Open questions
+
+- **The two-step Home and night requests** (9): temper/ui compares
+  `ask-temper-start`, `to-begin-two-steps` and `night-mode` against main
+  after landing at 1440, 1000 and 420 px, with menus, disclosures and
+  each named state (`../draft/look-requests.md`, section 4). Use
+  `project-landing`'s two-step print, the `home-begin-*` states and the
+  three `night-*` states; include Home with content while To begin shows
+  (`README.status.md`, 3.5). Default: replayed prints and hand-made
+  gallery inputs, with no recording of a night choice; print equality
+  establishes no rendered equality. Findings are filed back, and repairs
+  carry the request's trailer.
 
 - **Renewing `chat-draft` after stock removal** (8, 9): temper/ui walks
   it anew after landing, following the Draft link to the chat the goal

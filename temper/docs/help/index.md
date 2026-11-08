@@ -25,6 +25,8 @@ temper runs software work for people: agents take tasks on the repositories of a
 
 ## The map
 
+- temper help tui: close the full-screen terminal client while keeping
+  its sign-in, or end that sign-in through the line client.
 - temper help ctl: the command line through which an agent works in a
   deployment for a person: calls, keys, kept requests, waits, exit
   statuses.

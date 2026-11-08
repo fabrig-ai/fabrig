@@ -236,7 +236,7 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             }),
         };
         let seed = skein_shell::seed().expect("kernel seed");
-        let mut run = Run::new(settings, root, user, seed, Fd::new(0), Fd::new(1), signals).expect("TUI descriptors");
+        let mut run = local_run(settings, root, user, seed, signals);
         let mut kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
         let exit = skein_shell::drive(&mut kernel, clock, &mut run);
         Ok((run, exit, seed))
@@ -258,6 +258,15 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
     })
+}
+
+fn local_run(mut settings: Settings, root: Fd, user: u32, seed: u64, signals: Fd) -> Run {
+    let link = settings.link_file.take();
+    let run = Run::new(settings, root, user, seed, Fd::new(0), Fd::new(1), signals).expect("TUI descriptors");
+    let Some(path) = link else { return run };
+    let Some(parent) = crate::path(&path).parent() else { return run };
+    let Ok(root) = skein_shell::open_root(parent) else { return run };
+    run.with_local_link(root, &path)
 }
 
 fn keep_address(parent: &std::path::Path, bytes: Box<[u8]>, user: u32, seed: u64, clock: &Clock) {

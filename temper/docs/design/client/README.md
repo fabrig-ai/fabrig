@@ -1975,8 +1975,9 @@ keeps (`../protocol/configuration.md`, section 2).
     "Try again", while one of the person's trials is failed, whatever the
     intro says (`../domain/trial.md`, 6.3). Running or answered adds no line.
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
-  - *Needs you* and *Chats,* as on any Home, and left out, empty, while
-    To begin shows, since its steps stand for them.
+  - *Needs you* and *Chats* are left out while To begin shows, even with
+    a need or a chat started from another page (the look request
+    `to-begin-two-steps`). Once the card goes, they read as on any Home.
 
   **To begin,** on a project's Home while a step is left and the person
   has not skipped it on that project, a project the welcome made or any
@@ -6764,7 +6765,10 @@ it (6.14). `temper open` stays the tests' line client
     (skein-shell's `read_private_file`): absent, unreadable, too large or
     not private reads as none. The binary reads it once at start, for
     bare `temper`'s address (6.11); the run reads it at each duty `local`
-    (6.13), for the sign-in (6.14).
+    (6.13), for the sign-in (6.14). The binary opens a separate root for
+    the link's parent; the run resolves only its filename beneath that
+    root and closes the descriptor on shutdown. A parent that cannot be
+    opened reads as no link, without refusing the TUI's state directory.
   - *A stale file grants nothing.* Its address and its secret come from
     one file, written by the engine that holds the listener. A restart
     forgets links, and a spent link is dead (jig's `protocol/client.md`,
@@ -8436,6 +8440,19 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **The two-step Home and night look after landing** (3.5, 5.3): temper/ui
+  compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
+  main at 1440, 1000 and 420 px, with menus and disclosures open and
+  each state their messages name (`../draft/look-requests.md`, 4).
+  Include both steps left, each alone, done and skipped, Home with a need
+  or chat while the card shows, and the restricted navigation on Home
+  and Ask temper. Check the night switch, reload, the three night pages
+  and readability elsewhere. The night palette is the user's first pass
+  to refine; system preference and the placeholder's night look remain
+  `browser.md`, section 5's choices. Default: focused tables, gallery
+  states and replayed prints establish no rendered equality or browser
+  reload result. The implementation gap remains in `README.status.md`.
 
 - **Other account-act refusal reasons** (5.5): key and sign-in acts can
   answer not offered for several core causes. Saying why and what to do

@@ -2,6 +2,19 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
+Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
+switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
+their prints derive `data-night` from the kept look. The scoped day
+palettes preserve Accounts and connection fallbacks; the stronger night
+root overrides them. Embedded images and the independent terminal
+palettes retain the literals permitted by the token task. No known
+implementation gap remains in these rules. The `home-begin-*` states
+cover two steps and the cut navigation. The existing history story has
+the night reload row, compiled but not run; it adds no test function.
+Section 5 keeps the rendered comparison, reload proof, palette refinement,
+system preference and night placeholder separate. The nonempty Home
+sections' suppression gap is `README.status.md`, 3.5's.
+
 Sections 2.5 and 7.2 have no known implementation gap in the
 `ask-temper-place` repairs: the bar's tag is visible, its separator is
 hidden on a phone, and the spend paragraph stays hidden. First-run
