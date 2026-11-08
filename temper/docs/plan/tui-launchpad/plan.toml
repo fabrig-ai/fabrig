@@ -59,3 +59,42 @@ id = 4
 story = "A focused field whose token's look says label false draws the focus mark, then its placeholder or value and the cursor, with no NAME: before it"
 parts = ["screen-label"]
 walk = false
+
+[[part]]
+id = "screen-entries"
+title = "skein's screen lays an item's mark, a description in its own paint, and one blank row between a spaced node's children"
+mode = "direct"
+needs = ["screen-label"]
+design = "skein/docs/design/ui-screen.md, 5.3"
+
+[[slice]]
+id = 5
+story = "A spaced log of marked items draws each entry's glyph in its own paint with its blocks hanging under it, a blank row between entries, and an options menu's names bold beside their dim words"
+parts = ["screen-entries"]
+walk = false
+
+[[part]]
+id = "view-shared"
+title = "temper-client-view's shared words and data, which the browser's terminal builds from and the TUI says alike; see's phrases in a run's line"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 6
+story = "temper_client_view::shared says the quiet line, the running line, the commands' words, a need's line, Home's headline and a run's line as the browser's tree holds them; see changes then see change 1 to 3 reads Listed changes, read 3 changes"
+parts = ["view-shared"]
+walk = false
+
+[[part]]
+id = "domain-home"
+title = "Home's composer asks Ask temper: its choice is template 5's, StartChat starts a new Ask temper chat, and command words sent there are the terminal's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 7
+story = "On Home with the terminal look, ChatWords then StartChat creates a chat of template 5 and shows it; /help sent whole notes Help and sends nothing; the choice is template 5's"
+parts = ["domain-home"]
+walk = false

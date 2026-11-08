@@ -18,7 +18,8 @@ descriptions and rows retained. No known gap remains in that wording.
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
-live first screen, themes and closing. Section 10's frame goldens,
+themes and closing, beyond the **Not yet** entries of the launchpad, its
+commands and a chat below. Section 10's frame goldens,
 host rows, simulated loop and joined-client stories are present. The
 post-landing walk and later passes remain section 11's work; no real
 terminal or macOS runtime result is supplied here.
@@ -86,6 +87,43 @@ remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
+
+- **Not yet:** 3.5, *its calls*, and 6.14, *Its words*: `see`'s phrases in
+  a run's line, and the view's shared surface's words,
+  `temper_client_view::shared` (Home's headline, a chat's state, a need's
+  line, a run's line, the running line, the closed line, a chat's
+  heading, the commands' words and offers, the notes, the terminal's
+  phrases), are not built: `see` reads "see ×N".
+
+- **Not yet:** 3.5, *Home*, *In the TUI*: Home's composer asks no one:
+  its `StartChat` starts no Ask temper chat, its choice is not template
+  5's, and its command words are not the terminal's.
+
+- **Not yet:** 6.14, *The commands* and *The chat's question*, *Its
+  words*: the shared surface's lists, the models, the efforts, the
+  chats, a confirmation, the chat's question and a card's line, are not
+  built.
+
+- **Not yet:** 6.14, the TUI's state and events, and 6.15, `sel`, the
+  regions, the tokens and their looks: `temper-client-tui` holds the
+  first pass's alone.
+
+- **Not yet:** 6.14, *The foot* and *The commands*: no box, running line,
+  quiet line, list or note is drawn; the first screen's bottom row says
+  "q to quit".
+
+- **Not yet:** 6.13, *Its pages*, *The look* and *The TUI's events*, and
+  6.16, *Closing*: the root stays at the inbox, a `Show` is dropped, the
+  root's look is the browser's default, and `/exit` closes nothing.
+
+- **Not yet:** 6.14, *The launchpad*: the TUI draws the first screen,
+  "Connected to HOST:PORT as NAME" and its projects.
+
+- **Not yet:** 6.14, *A chat* and *The chat's question*: no chat is
+  drawn.
+
+- **Not yet:** 10, *The TUI in the joint world*: no story asks temper
+  from the launchpad and reads the chat it starts.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs

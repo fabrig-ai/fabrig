@@ -112,7 +112,14 @@ host chose (its own design says how).
     region's inner width, so that a background shows as a band from the
     region's inner start to its inner end (5.3);
   - *a label* (`label`): whether a text field or a text area under it
-    lays its name before its value, as by default, or not (5.4).
+    lays its name before its value, as by default, or not (5.4);
+  - *a mark* (`mark`), or none: a glyph and its paint, laid in place of
+    `- ` before an unnumbered item under it (5.3);
+  - *its descriptions' paint* (`described`), or none: the paint a node
+    under it lays its description in, over its region's, in place of the
+    tokens' own (5.3);
+  - *spaced* (`spaced`): one blank row between each two children of the
+    node that carries it, and of no node under it (5.3).
   The nearest token whose look aligns `End`, or bands, decides it for
   the nodes under it.
 - **The focus's paint,** laid last over the focused node's cells; the
@@ -257,6 +264,19 @@ the tree's nodes and the frame's cells.
   lines take, from its region's inner start to its inner end, with its
   paint, before its text is laid on them; its indentation and a short
   line's end are painted with it.
+- **A mark:** an unnumbered item under a token whose look gives a mark is
+  laid with the mark's glyph and a space where the text shell writes
+  `- `, the glyph in the mark's paint over the item's; its later lines
+  and blocks hang at the same indentation as under `- `. A numbered item
+  keeps its number.
+- **A description's paint:** a node under a token whose look gives a
+  `described` paint lays its description in that paint over its
+  region's, in place of its tokens' paints, so that a name and its words
+  differ (an options menu's command and what it does).
+- **Spaced:** the children of a node whose own token is `spaced` are laid
+  with one blank row between each two, in the region's paint, never
+  before the first or after the last; a child laid as no row takes no
+  gap.
 - **Not laid:** what the text shell does not print (ui-text.md, section
   5), but the placeholder, which the full-screen shell draws (5.4); a
   shortcut is the node's own words' to say.
