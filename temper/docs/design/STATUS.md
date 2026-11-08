@@ -23,7 +23,15 @@ tests keeping them out. The design departs from the request in the top
 bar's link region, which the terminal prints, the GitHub App's setup
 pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
 follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
-9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
+9.1; `client/browser.status.md`, 2.5). Its render check's six misses are
+repaired by `look-round-22`: the welcome's top bar ends with the person's
+name and "Sign out"; while `me` is read the top bar stands over an empty
+busy main; the public pages offer "Sign in" with or without Google; the
+column's field names are 14 px; the night ground fills the window; and
+the Google endings take the typographic apostrophe. The welcome's bar
+before `me` lacks the welcome's look, and no test walks the heading's
+focus from that main (`client/browser.status.md`, 2.3 and 2.5;
+`protocol/sign-in.status.md`, 4.3). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
 The local box's private link file, holding the engine's local link

@@ -5,7 +5,10 @@
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain
 with no bundle served; the Google client's tables cover each ending with
-a sheet and without one. Their rendered comparison is
+a sheet and without one. Every ending's words take the client's
+typographic apostrophe, the missing address's "this account’s address"
+among them, by `look-round-22`, and the endings' table refuses a
+straight or escaped one in any. Their rendered comparison is
 `../client/browser.md`, section 5's, after landing.
 
 Section 9.9's start refusal is present: non-null `machine.owned.sign_in`

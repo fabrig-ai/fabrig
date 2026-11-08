@@ -1001,6 +1001,21 @@ place of any address's page. The view's tables cover each place in both
 shells; temper/ui's rendered comparison follows landing (`browser.md`,
 section 5).
 
+Sections 3.5, The welcome, *Its frame* and *Its steps*, and 5.1, *the
+top bar* and *while `me` is read*, have no known implementation gap, by
+`look-round-22`: the welcome's top bar draws, after its steps, the
+outside pages' end, signed in the person's name and "Sign out"; while
+`me` is read, `outside::reading_me` holds and `build` draws the top bar
+over an empty main marked busy, with no banner, no page body and the
+terminal look waiting, at every address but the sign-in page, the
+`Authorize` and approval places and the pages not about the work. The
+main is kept empty, not left out, because skein's outline asks exactly
+one main of every tree (skein's `ui.md`, 14). The frame's table covers
+`Chats`, `NewChat`, `Welcome` and a kept terminal look before `me` in
+both shells, and the welcome's tables its end; the welcome's journeys
+are reprinted with it. temper/ui's rendered comparison follows landing
+(`browser.md`, section 5).
+
 Sections 3.5, 5.1 and 5.12 have the browser's approval page in the
 column, its root state and actions, the asked time, the signed-out
 state with Google's way back to the page and its code where that way
