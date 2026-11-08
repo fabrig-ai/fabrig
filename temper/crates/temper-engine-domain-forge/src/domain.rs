@@ -194,6 +194,8 @@ pub struct Domain {
     pub(crate) changes: Map<u64, ChangeRow>,
     pub(crate) steps: Map<Token, PendingStep>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
+    // Volatile input for the next change step, never restored (domain/forge.md, 8.3).
+    review_requests: Map<u64, skein_forge::api::Commit>,
     makings: Map<Token, goal_branch::Making>,
     pub(crate) panel_ci: Map<u64, change::Ci>,
     pub(crate) issues: Map<u64, IssueRow>,
@@ -696,6 +698,7 @@ impl Domain {
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
             start_conflicts: Map::with_capacity(l.changes),
+            review_requests: Map::with_capacity(l.changes),
             makings: Map::with_capacity(l.holds),
             panel_ci: Map::with_capacity(l.changes),
             issues: Map::with_capacity(l.issues),
@@ -1626,6 +1629,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
                     break;
                 }
+            }
+        }
+        Event::ReviewRequested { task, head } => {
+            if let Some(row) = d.changes.get(&task)
+                && !row.terminal()
+            {
+                d.review_requests.insert(task, head).expect("one review request per change");
+                d.procedure_wakes.insert(task, true).expect("one pending wake per change");
             }
         }
         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept, merge_job, pending } => {
@@ -3133,6 +3144,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, merge_job, pending: dependencies } =
         input;
     heard.start_conflict = d.start_conflict(task);
+    heard.review_request = d.review_requests.get(&task).copied();
     if heard.released {
         release_change(d, env, task, out);
         heard.released = false;
@@ -3173,6 +3185,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.merge_job = merge_job;
         pending.pending = dependencies;
         pending.heard.start_conflict = heard.start_conflict;
+        pending.heard.review_request = heard.review_request;
         pending.queue_repair_active = queue_repair_active;
         pending.gates = gates;
         pending.woken = true;
@@ -3719,6 +3732,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
             row.delegate_status
         },
         start_conflict: d.start_conflict(row.task),
+        review_request: d.review_requests.get(&row.task).copied(),
         effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },
         ..pending.heard
     }
@@ -3776,6 +3790,8 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     for _ in 0_u32..16 {
         let effect_prior = row.change.clone();
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        d.review_requests.remove(&row.task);
+        heard.review_request = None;
         let advanced = stepped.change != row.change;
         row.change = stepped.change;
         let decision = stepped.decision;
@@ -6476,6 +6492,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
     if !row.terminal() {
         return;
     }
+    d.review_requests.remove(&row.task);
     d.review_facts.remove(&row.task);
     d.review_since.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {

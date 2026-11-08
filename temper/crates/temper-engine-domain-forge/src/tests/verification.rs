@@ -306,6 +306,7 @@ fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
         delegate_running: false,
         delegate_live: false,
+        review_request: None,
         start_conflict: None,
         lacking: None,
         spend: None,

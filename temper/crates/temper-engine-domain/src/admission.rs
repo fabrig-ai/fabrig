@@ -139,6 +139,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::RelayRefused { .. }
             | forge::Event::Relayed { .. }
             | forge::Event::StartConflicted { .. }
+            | forge::Event::ReviewRequested { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::ReleaseChange { .. }
