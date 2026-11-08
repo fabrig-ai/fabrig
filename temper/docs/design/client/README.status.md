@@ -909,6 +909,20 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Not yet:** 3.5, *Team*: no `Team { project }` address and no
+  `pages::team` (`temper-client-domain`'s `address.rs` and `pages.rs`).
+- **Not yet:** 3.5, *Team*, *Its reads*: Team reads nothing; `team::facts`
+  and `team::people` answer `None` (`temper-client-domain`'s
+  `pages/team.rs`).
+- **Not yet:** 3.5, *Team*: the view draws no Team page
+  (`temper-client-view`'s `root.rs`).
+- **Not yet:** 3.5, *Team*, *In the rail*, and 5.3: the rail draws no
+  "Team" and the switcher's menu no "Team for PROJECT", and the project's
+  document is read on Team alone, so the rail's parts are given no count
+  of people.
+- **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
+  triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
+  so no read gives `team::Facts`' `triager`, and its line is never drawn.
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its
