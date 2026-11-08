@@ -2979,12 +2979,13 @@ fn view_reads(out: &mut Queue<Request>) -> skein_lib::List<(jig_client::Handle, 
     reads
 }
 fn view_blocks(texts: &[&[u8]]) -> skein_lib::List<c::Block> {
-    skein_lib::List::from_boxed(
-        texts
-            .iter()
-            .map(|text| c::Block::Text(c::Text::new(Box::from(*text), u32::try_from(text.len()).unwrap()).unwrap()))
-            .collect(),
-    )
+    let mut blocks = skein_lib::List::with_capacity(u32::try_from(texts.len()).unwrap());
+    for text in texts {
+        blocks
+            .push(c::Block::Text(c::Text::new(Box::from(*text), u32::try_from(text.len()).unwrap()).unwrap()))
+            .unwrap();
+    }
+    blocks
 }
 fn show_view_text(f: &mut f::Fixture, texts: &[&[u8]], project: u32) {
     let mut task = f::task();
@@ -3003,6 +3004,7 @@ fn show_view_text(f: &mut f::Fixture, texts: &[&[u8]], project: u32) {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks shared reads, their bound and their release")]
 fn view_addresses_share_reads_and_release_on_departure() {
     use crate::pages::chat::Shown;
     struct Case<'a> {
@@ -3013,14 +3015,13 @@ fn view_addresses_share_reads_and_release_on_departure() {
         reads: u32,
         oldest: Option<&'a Shown>,
     }
-    let bounded_text: Box<[_]> = (0..32).map(numbered_view_text).collect();
-    let overflow_text: Box<[_]> = (0..33).map(numbered_view_text).collect();
-    let bounded: Box<[_]> = bounded_text.iter().map(AsRef::as_ref).collect();
-    let overflow: Box<[_]> = overflow_text.iter().map(AsRef::as_ref).collect();
-    let bounded_addresses: Box<[_]> = (0..32).map(numbered_view_address).collect();
-    let newest_addresses: Box<[_]> = (1..33).map(numbered_view_address).collect();
-    let at_bound: Box<[_]> = bounded_addresses.iter().map(AsRef::as_ref).collect();
-    let newest: Box<[_]> = newest_addresses.iter().map(AsRef::as_ref).collect();
+    let bounded = numbered_views(0, 32);
+    let overflow = numbered_views(0, 33);
+    let newest = numbered_views(1, 33);
+    let bounded_text = borrowed_view_bytes(&bounded.texts);
+    let overflow_text = borrowed_view_bytes(&overflow.texts);
+    let at_bound = borrowed_view_bytes(&bounded.addresses);
+    let newest = borrowed_view_bytes(&newest.addresses);
     for (name, case) in [
         (
             "turn",
@@ -3073,10 +3074,10 @@ fn view_addresses_share_reads_and_release_on_departure() {
         (
             "at bound",
             Case {
-                texts: &bounded,
+                texts: bounded_text.as_slice(),
                 draft: None,
                 project: fixtures::PROJECT,
-                expected: &at_bound,
+                expected: at_bound.as_slice(),
                 reads: 32,
                 oldest: Some(&Shown::Asking),
             },
@@ -3084,10 +3085,10 @@ fn view_addresses_share_reads_and_release_on_departure() {
         (
             "newest past bound",
             Case {
-                texts: &overflow,
+                texts: overflow_text.as_slice(),
                 draft: None,
                 project: fixtures::PROJECT,
-                expected: &newest,
+                expected: newest.as_slice(),
                 reads: 32,
                 oldest: None,
             },
@@ -3121,6 +3122,28 @@ fn view_addresses_share_reads_and_release_on_departure() {
             assert!(unique.insert(address.clone(), ()).unwrap().is_none(), "equal addresses share one read: {name}");
         }
     }
+}
+
+struct NumberedViews {
+    texts: skein_lib::List<Box<[u8]>>,
+    addresses: skein_lib::List<Box<[u8]>>,
+}
+fn numbered_views(first: u64, end: u64) -> NumberedViews {
+    let count = u32::try_from(end.checked_sub(first).unwrap()).unwrap();
+    let mut texts = skein_lib::List::with_capacity(count);
+    let mut addresses = skein_lib::List::with_capacity(count);
+    for number in first..end {
+        texts.push(numbered_view_text(number)).unwrap();
+        addresses.push(numbered_view_address(number)).unwrap();
+    }
+    NumberedViews { texts, addresses }
+}
+fn borrowed_view_bytes(values: &skein_lib::List<Box<[u8]>>) -> skein_lib::List<&[u8]> {
+    let mut borrowed = skein_lib::List::with_capacity(values.len());
+    for value in values {
+        borrowed.push(value.as_ref()).unwrap();
+    }
+    borrowed
 }
 
 fn numbered_view_address(number: u64) -> Box<[u8]> {
@@ -3203,7 +3226,15 @@ fn view_answers_keep_drawings_until_a_new_revision_answers() {
         ("absent", jig_client::Readout::Family { family: wire::FORGE, record: None }, Shown::Failed, 0),
         ("not served", jig_client::Readout::NotServed { family: Some(wire::FORGE), served: None }, Shown::Failed, 0),
     ] {
-        let (mut pages, mut client) = chat_pages();
+        let mut pages = crate::pages::Pages::new();
+        let mut client = f::opened().client;
+        crate::pages::step(
+            &mut pages,
+            &fixtures::env(&fixtures::limits()),
+            &client,
+            crate::pages::Event::Went { address: crate::Address::Chat { task: f::TASK } },
+            &mut Queue::uncapped(),
+        );
         let settings = settings_watch(&mut client);
         view_settings(&mut client, settings, VIEW_REVISION);
         chat_told(&mut pages, &client, Told::Changed { handle: crate::forge::ways::handle() });
