@@ -1,0 +1,35 @@
+╭─ screen · A long painted ti╮
+│ Inside                     │
+╰────────────────────────────╯
+              Written at 07:42
+- Words
+  A band paints the
+  indentation and the
+  remaining room, wrapping
+──────────────────────────────
+> Ask: type here
+──────────────────────────────
+Commands                  Live
+--
+aaabbbbbbcccccccccccccccccccca
+adddddddddddddddddddddddddddda
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+..............................
+..............................
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ffffffffffffffffffffffffffffff
+ggggggghhhhhhhhh..............
+ffffffffffffffffffffffffffffff
+..............................
+--
+a: back #202020 bold
+b: fore #FF0000 back #202020 bold
+c: fore #0000FF back #202020 italic
+d: back #202020
+e: back #004000
+f: bold
+g: reverse
+h: dim reverse
+cursor 9 7

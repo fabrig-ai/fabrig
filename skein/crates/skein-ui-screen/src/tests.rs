@@ -11,7 +11,7 @@ const INK: Paint = Paint { fore: Some(RED), bold: true, italic: true, ..Paint::N
 const PAPER: Paint = Paint { back: Some(GREEN), dim: true, underline: true, reverse: true, ..Paint::NONE };
 const BASE: Paint = Paint { back: Some(Rgb { red: 0, green: 0, blue: 0 }), ..Paint::NONE };
 const BORDER: Border =
-    Border { corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: INK, title: true };
+    Border { corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: INK, title: true, sides: true };
 const REGION: RegionLook = RegionLook {
     region: Region { owner: Owner { number: 1 }, number: 1 },
     place: Place::Body,
@@ -20,7 +20,12 @@ const REGION: RegionLook = RegionLook {
     pad: 1,
     paint: PAPER,
 };
-const STYLE: StyleLook = StyleLook { style: Style { owner: Owner { number: 1 }, token: 1 }, paint: INK };
+const STYLE: StyleLook = StyleLook {
+    style: Style { owner: Owner { number: 1 }, token: 1 },
+    paint: INK,
+    align: crate::Align::Start,
+    band: false,
+};
 const GLYPHS: Glyphs = Glyphs { focus: '>', mask: '●' };
 
 #[test]
@@ -101,6 +106,15 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
         (
             "control border across",
             &[RegionLook { border: Some(Border { across: '\n', ..BORDER }), ..REGION }][..],
+            &[STYLE][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "control corner without sides",
+            &[RegionLook {
+                border: Some(Border { sides: false, corners: ['\n', '╮', '╰', '╯'], ..BORDER }), ..REGION
+            }][..],
             &[STYLE][..],
             GLYPHS,
             false,
