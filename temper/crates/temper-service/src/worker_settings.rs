@@ -249,3 +249,33 @@ const _: () = assert!(
     crate::values::SOURCE_NAME_BYTES == smith_host_domain::SourceName::BYTES,
     "engine and worker source name bounds agree"
 );
+
+impl Agent {
+    pub(crate) fn tool_payload(&self) -> u32 {
+        self.tool_payload
+    }
+    pub(crate) fn host_ask_input(&self) -> u32 {
+        self.limits.bodies.host_ask_input
+    }
+    pub(crate) fn host_reply_text(&self) -> u32 {
+        self.limits.bodies.host_reply_text
+    }
+    pub(crate) fn turn_body(&self) -> u32 {
+        self.limits.bodies.turn_body
+    }
+    pub(crate) fn outcome_bytes(&self) -> u64 {
+        self.host_limits.outcome_bytes
+    }
+    pub(crate) fn run_limits(&self) -> &smith_domain_run::Limits {
+        &self.run_limits
+    }
+    pub(crate) fn bounds(&self) -> &jig_domain_link::Bounds {
+        &self.bounds
+    }
+    pub(crate) fn programs(&self) -> &[settings::Program] {
+        &self.programs
+    }
+    pub(crate) fn resolves_endpoint(&self, name: &[u8]) -> bool {
+        self.endpoints.resolve(name).is_some()
+    }
+}

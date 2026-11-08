@@ -238,4 +238,5 @@ pub fn github_identity(
     Ok(wire::identity(&value))
 }
 
+#[cfg(feature = "worker")]
 pub use crate::worker::translate::{Assigned, preparation, value, work, workspace};
