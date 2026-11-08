@@ -8,7 +8,13 @@ and no `wall_hard_s`. The gate figures beside it agree with the user's
 word recorded in `budgets.toml`. Section 8 keeps the unset focused entries
 and gate-share measurement outside the runner deferred.
 
-- **Not yet:** 4: a `df` that fails in `run --cpu`'s last disk wait, the one before nextest, is no failed disk check: `subprocess.CalledProcessError` passes `main`'s handler, so the run ends in a traceback and exit 1, not 2. `step` and `list_tests` catch it. 7.5: the same `df` before `cpu-run`'s build passes that launcher's handler too, with exit 1 in place of a failed build's 2. The request for plain commands names neither, so its plan left both.
+- **Not yet:** 11.1 to 11.8, 11.10, and 10.3's one-process directory: the
+  one-process mode's run, `tools/tiers/one_process.py` with its lanes, its
+  fixtures and `test_one_process.py`, is not built.
+  10.1, 10.2 and 11.9: `execute_one_process`, `summary`'s reading of a
+  one-process directory, `suite`'s `cpu_by` and the `processes` key, and
+  `tools/tiers/one-process` are not built.
+  4: a `df` that fails in `run --cpu`'s last disk wait, the one before nextest, is no failed disk check: `subprocess.CalledProcessError` passes `main`'s handler, so the run ends in a traceback and exit 1, not 2. `step` and `list_tests` catch it. 7.5: the same `df` before `cpu-run`'s build passes that launcher's handler too, with exit 1 in place of a failed build's 2. The request for plain commands names neither, so its plan left both.
 - **Design departs:** from the user's request for plain commands, and the code with it. The plan's cut decided each; no signature of section 10 changes.
   - 7.3: SIGKILL goes to every process left in the command's session, not to its process group alone, because nextest gives each test a group of its own, and a signal to the command's group would leave tests running once nextest is dead. SIGTERM goes to the group, as asked.
   - 7.3, 10.2: in a starved run, an attempt with a record and a JUnit abort by SIGTERM or SIGKILL is starved, not failed, where the request names only a pending attempt and an abort with no record, because SIGTERM first makes such an abort the usual end of an overrun, and failing it would return 100 for a run that only starved. Its cost: a test that died of either signal by itself in a starved run reads as starved.

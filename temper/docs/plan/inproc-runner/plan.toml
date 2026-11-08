@@ -21,3 +21,29 @@ id = 1
 story = "Under TIERS_ONE_PROCESS a starved deadline writes the skein-world: starved: line, last, and unwinds with StarvedPass; the process runs on; under NEXTEST it exits 0 and elsewhere fails, as now"
 parts = ["starved"]
 walk = false
+
+[[part]]
+id = "runner"
+title = "one_process.py runs a binary's selected tests in one process, binaries in parallel under the caller's prefix, CPU per process from wait4"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 11"
+
+[[slice]]
+id = 2
+story = "run() on fixture binaries leaves run.json, results.json, junit.xml and command-output.txt: a crash and its fresh process, a hang cancelled by the global timeout, a starved pass, a failure that passes alone, a split binary"
+parts = ["runner"]
+walk = false
+
+[[part]]
+id = "summary"
+title = "summary reads a one-process run with tests' CPU null and processes' summed; execute_one_process's exit statuses; tools/tiers/one-process by hand"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 10.2"
+
+[[slice]]
+id = 3
+story = "A one-process directory reads as a summary with cpu_by process and its processes; execute_one_process returns 1, 100, 0 or 4 as execute does; a nextest run's summary only gains cpu_by and processes"
+parts = ["summary"]
+walk = false
