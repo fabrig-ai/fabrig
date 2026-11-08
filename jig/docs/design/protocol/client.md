@@ -1068,6 +1068,12 @@ recipient.
   counts for accounts per list, sources per account and sign-ins per
   list, checked by the link within the held document's decoded room
   (`../client/domain/client.md`, sections 14 and 16).
+- **Transport credit lasts through the terminal answer.** Every emitted
+  exchange counts until its `Reply` or `Lost`, including a cancelled
+  watch's opening and cleanup calls. Ending a logical attempt does not
+  free its transport credit. `Link::in_flight` is the greater of the
+  logical reservations and unfinished transport exchanges; a late
+  terminal frees the latter without ending the logical operation twice.
 - **The transport's:** an exchange's deadline, and what it buffers of the
   stream and of the small store's writes.
 - **The component's:** streams in all, whatever their sign-ins (section
@@ -1101,6 +1107,11 @@ recipient.
 
 Each within jig's suites' budgets.
 
+- **The client link's admission:** a watch ended by its stream while its
+  opening and cleanup HTTP calls remain in the browser's fetch table.
+  Authorization waits for credit, then receives its code; both replies
+  and failures release credit, with one watch terminal throughout
+  (`jig-client-protocol-link`'s stream table).
 - **Step tests** in `jig-client-protocol-wire` and each application's
   wire: generated, as skein's `codec.md`, section 6 has them; the fixed
   envelope read across versions among them.
@@ -1167,6 +1178,11 @@ Each within jig's suites' budgets.
 
 ## 15. Open questions
 
+- **Waiting for people during sign-in** (8, 18): whether authorization,
+  minting and approval sign-in should wait within a sign-in bound while
+  people restore. Local transport admission (section 13) does not settle
+  that readiness policy. No retry interval or wait bound is chosen here;
+  section 18's stopping-only refusal remains the contract.
 - **Remembering why a printed link failed** (8): recognising a used or
   expired link across a restart, or beyond the last 8 remembered links,
   would need longer-lived history. Default: the bounded in-memory digests;
