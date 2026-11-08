@@ -85,13 +85,16 @@ client crates, jig's client crates, skein's and `temper-shell`:
 | `local` | `shell-local` | temper-shell (new: `directories`, `link_file`); temper (`directories.rs`, `link_file.rs` gone, one `lib.rs` line) | | 75 |
 | `ctl` | `ctl-start` | temper-client-shell-cli (`start`); temper (`ctl.rs`) | | 40 |
 | `version` | `client-version` | temper-client (new: package, build script, `--version`) | | 75 |
+| `table` | `shell-table` | temper-shell (`commands`, `rows`, `help`); temper (`commands.rs`, `help.rs`) | `shell-local` | 90 |
+| `tui` | `tui-start` | temper-client-shell-tui (`start`), temper-client-shell-terminal (`address`); temper (`tui.rs`, `open.rs`, `src/tests/tui.rs`) | `shell-local` | 90 |
+| `story` | `ctl-story` | temper's process tier (`tests/suite/client_binary.rs`, `support/ctl.rs`' `Call::by`); `tools/tiers/packages.toml`; the story's status entry | `client-version` | 60 |
+| `client` | `client-table` | temper-client (table, parser, help, dispatch); the plan's status entries closed, M1's state | `shell-table`, `tui-start`, `ctl-start`, `client-version` | 90 |
 
-Later batches (being written): `shell-table` (temper-shell's `commands`, `rows`,
-`help`; temper's `commands.rs`, `help.rs`), `tui-start`
-(temper-client-shell-tui's `start`, temper-client-shell-terminal's `address`;
-temper's `tui.rs`, `open.rs`), `ctl-story` (the process tier's story,
-compiled), `client-table` (temper-client's table, help and dispatch; the
-status files closed).
+`shell-table` and `tui-start` both change `temper` in one wave, a stated
+departure from one writer per crate: their files are disjoint (`commands.rs`,
+`help.rs` against `tui.rs`, `open.rs`, `src/tests/tui.rs`), and neither touches
+`lib.rs`. `ctl-story` writes in `temper`'s tests beside them, in files of its
+own.
 
 ## Overlaps
 
@@ -113,6 +116,7 @@ status files closed).
 
 ## Critical path
 
-As it stands: `shell-local` (75) → `shell-table` (90) → `client-table` (90):
-about 4.3 hours from the first push, with `tui-start` beside `shell-table`, and
-`ctl-start`, `client-version` and `ctl-story` beside them.
+`shell-local` (75) → `shell-table` (90) → `client-table` (90): about 4.3 hours
+from the first push. Beside it: `shell-local` → `tui-start` (90), done with
+`shell-table`; `ctl-start` (40) and `client-version` (75) from the start;
+`client-version` → `ctl-story` (60).
