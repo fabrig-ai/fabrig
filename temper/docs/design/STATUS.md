@@ -400,7 +400,8 @@ work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/root.md`); how the engine is to learn its workers' reply bound is the
+design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
