@@ -262,9 +262,14 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
         u64::from(defaults.policies.len()),
         Setting::Policy(1),
     )?;
+    let mut resolution = *core;
+    // Measure the complete catalogue resolution before this byte bound can omit models.
+    resolution.run_bytes = u32::MAX;
     for charter in &defaults.charters {
         let setting = Setting::Charter(charter.number);
-        let needed = jig_domain_core::charter_owned_bytes(charter).expect("bounded stock charter");
+        let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &resolution)
+            .expect("stock charter resolves against its catalogue");
+        let needed = jig_domain_core::charter_owned_bytes(&resolved).expect("bounded resolved stock charter");
         floor(b"core.run_bytes", u64::from(core.run_bytes), needed, setting)?;
         floor(
             b"core.settings.alternatives",
@@ -556,6 +561,7 @@ fn coordinator(models: &[CatalogueModel]) -> Charter {
     let (shared, parts) = sections(include_bytes!("stock/coordinator.md"));
     let mut value = charter(5, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
     value.parts = parts;
+    value.policy.waiting = Duration::ZERO;
     value.policy.resume = false;
     value.policy.shell = false;
     value.wake = COORDINATOR_WAKE;
