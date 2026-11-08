@@ -599,6 +599,7 @@ impl Judge {
         }
         true
     }
+    #[expect(clippy::too_many_lines, reason = "the case adapter explicitly refuses unsupported real-loop steps")]
     fn advance(&mut self, now: Time, root: &mut cluster::Root) {
         use calls::Step;
         if !self.prepare_calls(root) {
@@ -699,6 +700,9 @@ impl Judge {
             Step::Terminal(_) => panic!("Terminal unsupported"),
             Step::Browse { .. } => panic!("Browse unsupported"),
             Step::Authorize => panic!("Authorize unsupported"),
+            Step::AuthorizeHeld => panic!("AuthorizeHeld unsupported"),
+            Step::HoldIssuerSocket => panic!("HoldIssuerSocket unsupported"),
+            Step::IssuerRejected => panic!("IssuerRejected unsupported"),
             Step::Return => panic!("Return unsupported"),
             Step::ClaudeTurn { .. } => panic!("ClaudeTurn unsupported"),
         }
@@ -983,6 +987,9 @@ fn describe(step: &calls::Step) -> String {
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),
+        Step::AuthorizeHeld => "AuthorizeHeld".into(),
+        Step::HoldIssuerSocket => "HoldIssuerSocket".into(),
+        Step::IssuerRejected => "IssuerRejected".into(),
         Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),

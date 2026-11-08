@@ -160,9 +160,9 @@ default-filter = "binary(=process) & (package(/^temper(-|$)/) | package(=git-tra
 global-timeout = "25m"
 test-threads = 3
 
-# The walks that sign in to ChatGPT on the fake box, where the callback's port is fixed.
+# The one walk that signs in to ChatGPT on the fake box, where the callback's port is fixed.
 [[profile.process-temper.overrides]]
-filter = "package(=temper) & binary(=process) & (test(/^fake_backends::walk::sign_in::/) | test(=fake_backends::walk::status::a_plans_project_has_its_brief_on_a_return_past_the_sitting))"
+filter = "package(=temper) & binary(=process) & test(=fake_backends::walk::sign_in::a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create)"
 test-group = "temper-sign-in-callback"
 
 # The after-landing tier, under --run-ignored only: the owned-forge landing pair on the
