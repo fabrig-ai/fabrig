@@ -67,6 +67,12 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+Sections 6.13 and 6.14's no-project command composer has no known
+implementation gap. The host's focused key-and-frame regression covers
+completion, command execution, Escape, ordinary words, quit keys,
+revision stability, navigation and separation from the sign-in field.
+The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap. Section 10's joined story covers the running line

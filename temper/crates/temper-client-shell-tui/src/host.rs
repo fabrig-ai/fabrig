@@ -351,17 +351,21 @@ impl Host {
         root::step(&mut self.root, &self.env, event, &mut self.out);
     }
 
+    fn typed(&mut self, value: Box<[u8]>) {
+        if self.root.client().link().state == Link::SignedOut {
+            self.tell(Told::Typed { value });
+        } else if self.root.pages().chat().is_some() {
+            self.act(Act::MessageWords { words: value });
+        } else if self.root.pages().chats().is_some() {
+            self.act(Act::ChatWords { words: value });
+        } else {
+            self.tell(Told::CommandWords { value });
+        }
+    }
+
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
-            tui::Event::Typed { value } => {
-                if self.root.client().link().state == Link::SignedOut {
-                    self.tell(Told::Typed { value });
-                } else if self.root.pages().chat().is_some() {
-                    self.act(Act::MessageWords { words: value });
-                } else {
-                    self.act(Act::ChatWords { words: value });
-                }
-            }
+            tui::Event::Typed { value } => self.typed(value),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
             }
@@ -379,7 +383,10 @@ impl Host {
                     });
                 }
             },
-            tui::Event::Command { command: TuiCommand::Exit } => self.close(duties),
+            tui::Event::Command { command: TuiCommand::Exit } => {
+                self.tell(Told::Cleared);
+                self.close(duties);
+            }
             tui::Event::Command { command: TuiCommand::New } => {
                 if let Some(project) = self.root.pages().project() {
                     self.went(Address::Home { project });
@@ -410,7 +417,7 @@ impl Host {
         } else if let Some(chats) = self.root.pages().chats() {
             &chats.words
         } else {
-            b""
+            self.state().command_words()
         }
     }
 
