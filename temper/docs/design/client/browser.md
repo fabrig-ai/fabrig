@@ -799,12 +799,14 @@ replay says the same clocks (`README.md`, 5.12).
     with `scrollbar-gutter: auto` at every width, where the shell's pane keeps a
     stable gutter on both edges. It restates none of the shell's document rules,
     which `terminal.css` restates as a page outside `#app` must.
-- **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
-  `temper.css` under `/* ==== ui: settings ==== */`: on the page
-  `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
-  a chat's document's, `.temper-doc-flow`, which holds the
-  picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
-  under the chats' marker.
+- **Ask temper's ways** (`README.md`, 3.5 and 5.16) are `ask-temper-ways`'s rules, in
+  `temper.css`: the opening's, `.temper-ways` with its tabs, axis, panel, card, legend
+  and act, under `/* ==== ui: settings ==== */`, where `.temper-starter`'s stand; a
+  path's, `.temper-ways-path` and its marks, under `/* ==== ui: chats ==== */`, which a
+  reply's views share. Where skein draws an element otherwise than the request's page (a
+  tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
+  SVG laid out by width where the page has two), the selector names what is drawn and
+  keeps the request's declarations.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -1466,7 +1468,9 @@ setup across desktop and phone widths. The twelve test functions in
     before and after a reload (`README.md`, 2). Before that chat, at
     420 px, Home's To begin and its Start open Ask temper's page, whose
     composer and model picker end above the three tabs' top (2.5, *The
-    project's frame*).
+    project's frame*), and whose ways show their tabs, Agents review
+    current; "Draft first" pressed shows its line, its path and "Use this"
+    (`README.md`, 3.5).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, its board and task
@@ -1945,11 +1949,17 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; "Ways to begin", Send disabled while the words are empty |
-| `ask-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
-| `ask-reference-draft` | `ask-reference` in Draft: the reference alone, the composer under it |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; the lede and the ways, Agents review current and shown with "Keep it", Send disabled while the words are empty |
+| `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and "Use this" |
+| `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" shown: its two landings, the goal branch's bar dimmer, "verify" before main |
+| `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
+| `ask-ways-card-person` | `ask-ways-approve` with "you approve" pressed: a person's card, the role and what they decide |
+| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way: a fourth tab, "Yours", current and shown, its path, no act |
+| `ask-ways-refused` | `ask-ways-approve` with "Use this" refused for too few approvers: the forge, the role, how many it asks and how many can, under the foot |
+| `ask-ways-member` | a member's page: the tabs and the paths, no act |
+| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review current with no act, To begin's first step done |
 | `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
-| `ask-sending` | the Ask temper start out; starters and Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
+| `ask-sending` | the Ask temper start out; Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-chat` | the solo world’s T10 as an Ask temper chat, conversation and proposal in its layout, its path through Ask temper |
 | `ask-chat-proposal` | `ask-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
