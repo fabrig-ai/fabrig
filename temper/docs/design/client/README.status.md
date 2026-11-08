@@ -909,9 +909,6 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
-- **Not yet:** 3.5, *Team*, *Its reads*: Team reads nothing; `team::facts`
-  and `team::people` answer `None` (`temper-client-domain`'s
-  `pages/team.rs`).
 - **Not yet:** 3.5, *Team*, *In the rail*, and 5.3: the rail draws no
   "Team" and the switcher's menu no "Team for PROJECT", and the project's
   document is read on Team alone, so the rail's parts are given no count

@@ -232,6 +232,9 @@ impl Session {
         }
         open.first().copied()
     }
+    pub(crate) fn answered_here(&self, object: ObjectKey) -> bool {
+        self.line(object).is_some()
+    }
     #[must_use]
     pub fn later(&self, object: ObjectKey) -> bool {
         self.later.as_slice().contains(&object)
