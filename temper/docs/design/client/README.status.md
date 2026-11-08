@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
@@ -869,3 +869,8 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+- **Not yet:** 3.5, 5.5: *A refused account act*: a declaration refused
+  *name taken* or *not offered*, and a resume refused *not offered*, draw
+  jig's word alone, and `ConnectModel` checks the person's own source of a
+  declared name on *not offered*, not *name taken* (the request
+  `ui-account-again` of 2026-11-08).
