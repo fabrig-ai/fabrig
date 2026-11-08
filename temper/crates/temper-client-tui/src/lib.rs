@@ -9,6 +9,7 @@ mod event;
 pub mod limits;
 pub mod look;
 mod note;
+mod place;
 mod state;
 pub mod theme;
 mod view;
@@ -18,9 +19,10 @@ pub use box_line::BoxLine;
 pub use event::{Event, LOG_COMMAND};
 pub use limits::limits;
 pub use note::Note;
+pub use place::place;
 pub use state::{BoxState, Browser, Local, Refusal, Signing, Told, Tui};
 pub use theme::{Scheme, theme};
-pub use view::{View, build, escape, event, offered, work_runs};
+pub use view::{Arrow, View, arrow, build, escape, event, offered, work_runs};
 
 #[cfg(test)]
 mod tests;

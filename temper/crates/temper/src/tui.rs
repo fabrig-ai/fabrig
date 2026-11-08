@@ -86,6 +86,14 @@ pub fn selected_address(given: Option<SocketAddr>, link: Option<&[u8]>, saved: O
 }
 
 #[must_use]
+pub fn on_box(link: Option<&[u8]>, engine: SocketAddr) -> bool {
+    match link.map(open::target) {
+        Some(Ok(open::Target::Link { engine: linked, .. })) => linked == engine,
+        Some(Ok(open::Target::Address { .. }) | Err(_)) | None => false,
+    }
+}
+
+#[must_use]
 pub fn link_path(environment: &[EnvironmentEntry], working: &[u8]) -> Option<PathBuf> {
     let data = link_file::deployment(environment, working)?;
     link_file::path(&data, lookup(environment, b"XDG_RUNTIME_DIR"), cfg!(target_os = "linux"))
@@ -185,10 +193,11 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
         .and_then(|bytes| kept(bytes.expose()));
     let link_file =
         std::env::current_dir().ok().and_then(|working| link_path(&environment, working.as_os_str().as_bytes()));
-    let engine = {
-        let link =
-            if given.is_none() { link_file.as_deref().and_then(|path| link_file::read(path, user)) } else { None };
-        selected_address(given, link.as_ref().map(skein_lib::Secret::expose), saved)
+    let (engine, boxed) = {
+        let link = link_file.as_deref().and_then(|path| link_file::read(path, user));
+        let bytes = link.as_ref().map(skein_lib::Secret::expose);
+        let engine = selected_address(given, if given.is_none() { bytes } else { None }, saved);
+        (engine, on_box(bytes, engine))
     };
     let note = read_note(&directory, engine, user);
     let scheme = scheme(&environment);
@@ -224,6 +233,7 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
             scheme,
+            boxed,
             link_file: link_file.map(|path| path.as_os_str().as_bytes().into()),
             note,
             files: Some(files),

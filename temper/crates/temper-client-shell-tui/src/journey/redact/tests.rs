@@ -253,6 +253,8 @@ impl World {
             wall: Wall::EPOCH,
             size: Size { rows: 16, columns: 100 },
             scheme: Scheme::Dark,
+            background: None,
+            boxed: false,
             address: address.into(),
             local: false,
             note: None,

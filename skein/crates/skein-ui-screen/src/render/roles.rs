@@ -70,8 +70,40 @@ pub(super) fn item(
     out.item_annotation(at);
     if n.size == 1 {
         content(tree, at, info, theme, focused, out, frame);
+    } else if n.role == Role::Item {
+        let end = item_text_end(tree, at);
+        let mut next = at.saturating_add(1);
+        for child in at.saturating_add(1)..end {
+            if child < next {
+                continue;
+            }
+            let text = tree.get(child).expect("item text exists");
+            content(tree, child, info, theme, focused, out, frame);
+            words::states(text, info.get(child).expect("text information exists").paint, out, frame);
+            next = child.saturating_add(text.size);
+        }
+        if end > at.saturating_add(1) {
+            out.finish_annotated(tree, info, frame);
+        }
     }
     indent.saturating_add(2)
+}
+
+/// The leading text children share the item's marked line; its first block ends it.
+pub(super) fn item_text_end(tree: &Tree, at: u32) -> u32 {
+    let item = tree.get(at).expect("item exists");
+    let mut next = at.saturating_add(1);
+    for child in at.saturating_add(1)..at.saturating_add(item.size) {
+        if child < next {
+            continue;
+        }
+        let node = tree.get(child).expect("item child exists");
+        if node.role != Role::Text {
+            break;
+        }
+        next = child.saturating_add(node.size);
+    }
+    next
 }
 
 pub(super) fn empty_header_row(tree: &Tree, at: u32) -> bool {

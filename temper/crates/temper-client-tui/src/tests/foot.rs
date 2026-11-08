@@ -26,7 +26,7 @@ fn model() -> c::MeModel {
         provider: None,
         window: 8192,
         output: 1024,
-        efforts: List::from_boxed(Box::new([text(b"high")])),
+        efforts: List::from_boxed(Box::new([text(b"low"), text(b"high")])),
         effort: Some(text(b"high")),
         prices: c::ModelPrices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
         description: None,
@@ -77,6 +77,15 @@ pub(super) fn root_state(
     if let Some(project) = me.projects.get_mut(0) {
         project.templates = List::from_boxed(Box::new([template(1), template(5)]));
         if picker {
+            project.defaults = List::from_boxed(Box::new([c::MeDefault {
+                template: d::pages::chats::ASKING_TEMPLATE,
+                choice: c::LlmChoice {
+                    account: Some(1),
+                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    subagents: List::with_capacity(0),
+                    later: None,
+                },
+            }]));
             project.models = List::from_boxed(Box::new([model()]));
         }
     }
@@ -277,7 +286,15 @@ fn act(root: &mut Domain, action: d::pages::Act) {
 }
 fn draw(part: foot::Foot) -> crate::View {
     let (root, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
-    let body = view::Body::Launchpad(view::launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW));
+    let body = if part.rule.is_some() {
+        view::Body::Chat(view::chat::Chat {
+            to_end: 0,
+            entries: Box::default(),
+            notes: foot::Notes { lines: Box::default() },
+        })
+    } else {
+        view::Body::Launchpad(view::launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW))
+    };
     let mut view = f::view();
     view::signed(&mut view, &view::Signed { body, foot: part }, &mut Queue::uncapped());
     view
@@ -292,7 +309,7 @@ fn active_command_name_is_plain_weight() {
     f::build(&mut view, &Tui::new(f::ADDRESS), &root);
     let size = Size { columns: 80, rows: 24 };
     for scheme in [Scheme::Dark, Scheme::Light] {
-        let theme = crate::theme(scheme);
+        let theme = crate::theme(scheme, None);
         let mut focus = Focus::default();
         let mut frame = Frame::new(size);
         for active in [b"/model".as_slice(), b"/new"] {
@@ -337,7 +354,7 @@ fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_u
             }
         }
     }
-    assert_eq!(commands, 6);
+    assert_eq!(commands, 7);
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
@@ -361,7 +378,15 @@ fn the_foot_says_each_state() {
             "/",
             None,
             None,
-            &[Command::Model, Command::New, Command::Chats, Command::Theme, Command::Help, Command::Exit][..],
+            &[
+                Command::Model,
+                Command::Effort,
+                Command::New,
+                Command::Chats,
+                Command::Theme,
+                Command::Help,
+                Command::Exit,
+            ][..],
         ),
         ("launchpad prefix", true, false, "/c", None, None, &[Command::Chats][..]),
         ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
@@ -369,6 +394,7 @@ fn the_foot_says_each_state() {
         ("whitespace", true, false, "/new ", None, Some("Ask temper"), &[][..]),
         ("unicode whitespace", true, false, "/new\u{a0}", None, Some("Ask temper"), &[][..]),
         ("models", true, false, "", Some(Listing::Model), None, &[][..]),
+        ("launchpad efforts", true, false, "", Some(Listing::Effort), None, &[][..]),
         ("efforts", true, true, "", Some(Listing::Effort), None, &[][..]),
         ("chats", true, false, "", Some(Listing::Chats), None, &[][..]),
     ] {
@@ -463,6 +489,7 @@ fn the_foot_says_each_state() {
     assert!(failures.is_empty(), "foot read rows: {failures:?}");
     read_states();
     quiet_states();
+    rule_states();
     question_states();
     note_states();
 }
@@ -560,11 +587,11 @@ fn read_states() {
         let mut focus = skein_ui_screen::Focus::default();
         let mut frame = skein_ui_screen::Frame::new(size);
         f::build(&mut view, &tui, &initial);
-        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut focus, &mut frame);
         tui.step(Told::Link { link: jig_client::Link::SignedOut });
         tui.step(Told::Local { local: next });
         f::build(&mut view, &tui, &f::signed_out());
-        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut focus, &mut frame);
         assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
     }
 }
@@ -618,6 +645,89 @@ fn quiet_states() {
     part.composer.as_mut().unwrap().refusal = Some(b"This message was refused.".as_slice().into());
     assert!(has(draw(part).tree(), look::REFUSED, b"This message was refused."));
 }
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "rule rows compare semantic parts and rendered lines"
+)]
+fn rule_states() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let words = f::words();
+    let title = "What can you tell…";
+    let all = "Hello / What can you tell… T2 on box:40691";
+    for (columns, expected) in [
+        (80, all),
+        (48, all),
+        (47, "Hello / What can you tell… T2"),
+        (35, "Hello / What can you tell… T2"),
+        (34, "What can you tell… T2"),
+        (27, "What can you tell… T2"),
+        (26, ""),
+        (0, all),
+    ] {
+        for list in [false, true] {
+            let mut root = root(true, true, true, false, false);
+            if list {
+                act(&mut root, d::pages::Act::MessageWords { words: b"/".as_slice().into() });
+            }
+            let mut tui = Tui::new(b"127.0.0.1:40691");
+            tui.step(Told::Size { columns });
+            tui.step(Told::Boxed);
+            let mut part = foot::read(&root, &tui, &words, f::NOW);
+            let read = part.rule.as_ref().unwrap();
+            assert_eq!(read.project.as_ref(), b"Demo");
+            assert_eq!(read.place.as_ref(), b"box:40691");
+            assert_eq!(read.task, 9);
+            assert_eq!(part.list.is_some(), list);
+            part.rule = Some(foot::Rule {
+                project: b"Hello".as_slice().into(),
+                title: title.as_bytes().into(),
+                task: 2,
+                place: b"box:40691".as_slice().into(),
+            });
+            let view = draw(part);
+            let tree = view.tree();
+            let region = tree.nodes().iter().find(|node| node.region == Some(look::BOX)).unwrap();
+            let at = f::index(tree, region.id);
+            let heading_at = at.checked_add(1).unwrap();
+            let heading = &tree.nodes()[heading_at];
+            assert_eq!(heading.role, Role::Heading { level: 1 });
+            let parts = &tree.nodes()[heading_at.checked_add(1).unwrap()
+                ..heading_at.checked_add(usize::try_from(heading.size).unwrap()).unwrap()];
+            assert!(
+                parts
+                    .iter()
+                    .filter(|node| !node.styles.is_empty())
+                    .all(|node| node.styles.as_slice().contains(&look::RULE_TITLE))
+            );
+            let paints: Vec<_> =
+                parts.iter().filter(|node| !node.styles.is_empty()).map(|node| node.styles.as_slice()[0]).collect();
+            let semantic: &[skein_ui::Style] = if columns == 0 || columns >= 48 {
+                &[look::NAME, look::FAINT, look::NAME, look::HINT, look::HINT, look::ADDRESS]
+            } else if columns >= 35 {
+                &[look::NAME, look::FAINT, look::NAME, look::HINT]
+            } else {
+                &[look::NAME, look::HINT]
+            };
+            assert_eq!(paints, semantic, "columns {columns}, list {list}");
+            for scheme in [Scheme::Dark, Scheme::Light] {
+                let size = Size { columns: if columns == 0 { 80 } else { columns }, rows: 24 };
+                let mut frame = Frame::new(size);
+                render(tree, &crate::theme(scheme, None), size, &mut Focus::default(), &mut frame);
+                let lines = String::from_utf8(frame.print().into_vec()).unwrap();
+                let rule = lines.lines().find(|line| line.starts_with('─')).unwrap();
+                let actual = rule.trim_matches('─').trim();
+                assert_eq!(actual, expected, "columns {columns}, list {list}, {scheme:?}");
+                if !expected.is_empty() {
+                    assert!(rule.ends_with(" ──"), "{rule}");
+                }
+            }
+        }
+    }
+    let root = root(true, true, true, false, false);
+    let part = foot::read(&root, &Tui::new(b"127.0.0.1:40691"), &words, f::NOW);
+    assert_eq!(part.rule.unwrap().place.as_ref(), b"127.0.0.1:40691");
+}
 fn question(primary: Option<usize>, empty: bool) -> shared::Question {
     shared::Question {
         object: c::ObjectKey::Task(9),
@@ -645,10 +755,13 @@ fn question_states() {
         (None, true, &["1. Tell it something else"][..], None),
     ] {
         let mut part = foot::read(&root, &tui, &words, f::NOW);
+        let title = part.rule.as_ref().unwrap().title.clone();
         part.list = foot::lists::question_list(question(primary, empty), None, &words);
         let view = draw(part);
         let field = f::find(view.tree(), Role::TextArea, b"Message");
         assert_eq!(field.placeholder, None);
+        assert!(view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&look::RULE_TITLE)
+            && f::text(view.tree(), node).as_ref() == title.as_ref()));
         let items: Vec<_> = view.tree().nodes().iter().filter(|node| node.role == Role::MenuItem).collect();
         assert_eq!(items.len(), names.len());
         for (index, (item, name)) in items.iter().zip(names).enumerate() {
@@ -681,12 +794,13 @@ fn note_states() {
     tui.step(Told::Unknown { words: Some(b"/font".as_slice().into()) });
     let notes: foot::Notes = foot::read_notes(&root, &tui, &words);
     let want = [
-        "/model  Change the model, from the next turn",
-        "/new    Start a new chat",
-        "/chats  Open another chat",
-        "/theme  Dark or light",
-        "/help   Commands and keys",
-        "/exit   Close temper",
+        "/model   Change the model, from the next turn",
+        "/effort  Change the effort",
+        "/new     Start a new chat",
+        "/chats   Open another chat",
+        "/theme   Dark or light",
+        "/help    Commands and keys",
+        "/exit    Close temper",
         "Enter sends",
         "Tab completes a command",
         "PgUp and PgDn read back",
@@ -736,7 +850,7 @@ fn the_foots_are_their_goldens() {
     let mut views = List::with_capacity(6);
     let words = f::words();
     for (_, _, size, kind, _) in &rows {
-        let mut root = root(true, true, false, false, false);
+        let mut root = root(true, true, *kind == 2, false, false);
         if *kind == 1 {
             act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
         }
@@ -745,6 +859,12 @@ fn the_foots_are_their_goldens() {
         part.needs = d::pages::needs::Count { count: 1, cut: false };
         part.columns = size.columns;
         if *kind == 2 {
+            part.rule = Some(foot::Rule {
+                project: b"Hello".as_slice().into(),
+                title: "What landed…".as_bytes().into(),
+                task: 2,
+                place: b"box".as_slice().into(),
+            });
             part.list = foot::lists::question_list(question(Some(1), false), None, &words);
         }
         views.push(draw(part)).unwrap();
@@ -753,6 +873,7 @@ fn the_foots_are_their_goldens() {
     for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
+                background: Some(crate::theme::palette(*scheme)[0].1),
                 name,
                 tree: view.tree(),
                 scheme: *scheme,
@@ -763,4 +884,39 @@ fn the_foots_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+}
+
+#[test]
+fn the_launchpad_effort_list_changes_homes_choice() {
+    let mut root = root(true, true, false, false, false);
+    let mut view = f::view();
+    let tui = Tui::new(f::ADDRESS);
+    let me = root.pages().me(root.client()).unwrap();
+    assert_eq!(root.pages().choice().chosen(me).unwrap().main.effort.as_ref().unwrap().bytes(), b"high");
+    act(&mut root, d::pages::Act::ChatWords { words: b"/effort".as_slice().into() });
+    f::build(&mut view, &tui, &root);
+    let item = f::find(view.tree(), Role::MenuItem, b"/effort");
+    assert_eq!(crate::event(&view, item.id, Act::Press), Some(TuiEvent::Command { command: Command::Effort }));
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Effort }));
+    f::build(&mut view, &tui, &root);
+    let head = b"Effort. A change applies from the next turn.";
+    let heading = f::find(view.tree(), Role::Text, head);
+    assert_eq!(heading.styles.as_slice(), [look::LIST_HEAD]);
+    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+    assert!(f::index(view.tree(), field.id) < f::index(view.tree(), heading.id));
+    for (name, index) in [(b"low".as_slice(), 0), (b"high".as_slice(), 1)] {
+        let item = f::find(view.tree(), Role::MenuItem, name);
+        assert_eq!(
+            crate::event(&view, item.id, Act::Press),
+            Some(TuiEvent::Act { act: d::pages::Act::Choice(d::pages::choice::Act::Effort { index }) })
+        );
+    }
+    let item = f::find(view.tree(), Role::MenuItem, b"low");
+    let Some(TuiEvent::Act { act: action }) = crate::event(&view, item.id, Act::Press) else {
+        unreachable!("effort option carries the root's act");
+    };
+    act(&mut root, action);
+    let me = root.pages().me(root.client()).unwrap();
+    assert_eq!(root.pages().choice().chosen(me).unwrap().main.effort.as_ref().unwrap().bytes(), b"low");
+    assert!(root.pages().chat().is_none());
 }

@@ -2,6 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 9: `launchpad-chat/04` lacks the person's opening question,
+  a fast chat's fault (finding-465, `post-landing-probes`), so its frame
+  doesn't show the dim person's words of `../README.md`, 6.15; it is
+  recorded again with that repair.
+
 - **Not yet:** 3.2 and 4.1: the start fact `front` and the report record
   `box-line`, written, read and replayed (`tui-seam`, `tui-box-front`).
 - **Not yet:** 5: the secret of a `box-line` record's `link` redacted and

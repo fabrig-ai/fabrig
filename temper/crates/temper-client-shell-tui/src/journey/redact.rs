@@ -83,6 +83,8 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Seed(_)
         | Line::Clocks { .. }
         | Line::Screen { .. }
+        | Line::Background(_)
+        | Line::Box
         | Line::Turn { .. }
         | Line::Start
         | Line::Due
@@ -150,6 +152,8 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }
+            | Line::Background(_)
+            | Line::Box
             | Line::Address(_)
             | Line::Stored { .. }
             | Line::Turn { .. }

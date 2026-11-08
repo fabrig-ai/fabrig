@@ -258,7 +258,7 @@ fn the_states_steps_are_its_table() {
     }
 }
 
-type Facts<'a> = (u16, Option<jig_client::contract::ObjectKey>, Option<&'a [u8]>, u64, u64, u64);
+type Facts<'a> = (u16, Option<jig_client::contract::ObjectKey>, Option<&'a [u8]>, u64, u64, u64, Option<u64>, bool);
 
 #[test]
 fn the_surface_state_changes_only_when_its_facts_change() {
@@ -270,38 +270,53 @@ fn the_surface_state_changes_only_when_its_facts_change() {
     let out = Told::Link { link: Link::SignedOut };
     // columns, aside, unknown, focus, box writes, revision.
     let rows: &[(&str, &[Told], Facts<'_>)] = &[
-        ("initial", &[], (0, None, None, 1, 0, 0)),
-        ("zero columns", &[Told::Size { columns: 0 }], (0, None, None, 1, 0, 0)),
-        ("size", core::slice::from_ref(&size), (80, None, None, 1, 0, 1)),
-        ("same size", &[size.clone(), size.clone()], (80, None, None, 1, 0, 1)),
-        ("resize", &[size.clone(), Told::Size { columns: 40 }], (40, None, None, 1, 0, 2)),
-        ("went", &[Told::Went], (0, None, None, 2, 1, 1)),
-        ("went twice", &[Told::Went, Told::Went], (0, None, None, 3, 2, 2)),
-        ("cleared", &[Told::Cleared], (0, None, None, 1, 1, 1)),
-        ("cleared twice", &[Told::Cleared, Told::Cleared], (0, None, None, 1, 2, 2)),
-        ("aside", core::slice::from_ref(&aside), (0, Some(object), None, 1, 0, 1)),
-        ("same aside", &[aside.clone(), aside.clone()], (0, Some(object), None, 1, 0, 1)),
-        ("clear aside", &[aside.clone(), Told::Aside { object: None }], (0, None, None, 1, 0, 2)),
+        ("initial", &[], (0, None, None, 1, 0, 0, None, false)),
+        ("zero columns", &[Told::Size { columns: 0 }], (0, None, None, 1, 0, 0, None, false)),
+        ("size", core::slice::from_ref(&size), (80, None, None, 1, 0, 1, None, false)),
+        ("same size", &[size.clone(), size.clone()], (80, None, None, 1, 0, 1, None, false)),
+        ("resize", &[size.clone(), Told::Size { columns: 40 }], (40, None, None, 1, 0, 2, None, false)),
+        ("went", &[Told::Went], (0, None, None, 2, 1, 1, None, false)),
+        ("went twice", &[Told::Went, Told::Went], (0, None, None, 3, 2, 2, None, false)),
+        ("cleared", &[Told::Cleared], (0, None, None, 1, 1, 1, None, false)),
+        ("cleared twice", &[Told::Cleared, Told::Cleared], (0, None, None, 1, 2, 2, None, false)),
+        ("aside", core::slice::from_ref(&aside), (0, Some(object), None, 1, 0, 1, None, false)),
+        ("same aside", &[aside.clone(), aside.clone()], (0, Some(object), None, 1, 0, 1, None, false)),
+        ("clear aside", &[aside.clone(), Told::Aside { object: None }], (0, None, None, 1, 0, 2, None, false)),
         (
             "different aside",
             &[aside.clone(), Told::Aside { object: Some(jig_client::contract::ObjectKey::Task(10)) }],
-            (0, Some(jig_client::contract::ObjectKey::Task(10)), None, 1, 0, 2),
+            (0, Some(jig_client::contract::ObjectKey::Task(10)), None, 1, 0, 2, None, false),
         ),
-        ("no aside", &[Told::Aside { object: None }], (0, None, None, 1, 0, 0)),
-        ("unknown", core::slice::from_ref(&unknown), (0, None, Some(b"/font"), 1, 0, 1)),
-        ("same unknown", &[unknown.clone(), unknown.clone()], (0, None, Some(b"/font"), 1, 0, 1)),
-        ("clear unknown", &[unknown.clone(), Told::Unknown { words: None }], (0, None, None, 1, 0, 2)),
+        ("no aside", &[Told::Aside { object: None }], (0, None, None, 1, 0, 0, None, false)),
+        ("unknown", core::slice::from_ref(&unknown), (0, None, Some(b"/font"), 1, 0, 1, None, false)),
+        ("same unknown", &[unknown.clone(), unknown.clone()], (0, None, Some(b"/font"), 1, 0, 1, None, false)),
+        ("clear unknown", &[unknown.clone(), Told::Unknown { words: None }], (0, None, None, 1, 0, 2, None, false)),
         (
             "different unknown",
             &[unknown.clone(), Told::Unknown { words: Some(Box::from(*b"/goal")) }],
-            (0, None, Some(b"/goal"), 1, 0, 2),
+            (0, None, Some(b"/goal"), 1, 0, 2, None, false),
         ),
-        ("no unknown", &[Told::Unknown { words: None }], (0, None, None, 1, 0, 0)),
-        ("first link", core::slice::from_ref(&live), (0, None, None, 2, 0, 1)),
-        ("same link", &[live.clone(), live.clone()], (0, None, None, 2, 0, 1)),
-        ("sign in shown again", &[live.clone(), out.clone()], (0, None, None, 3, 0, 2)),
-        ("same sign out", &[live.clone(), out.clone(), out.clone()], (0, None, None, 3, 0, 2)),
-        ("sign in again", &[live.clone(), out.clone(), live.clone()], (0, None, None, 4, 0, 3)),
+        ("no unknown", &[Told::Unknown { words: None }], (0, None, None, 1, 0, 0, None, false)),
+        ("first link", core::slice::from_ref(&live), (0, None, None, 2, 0, 1, None, false)),
+        ("same link", &[live.clone(), live.clone()], (0, None, None, 2, 0, 1, None, false)),
+        ("sign in shown again", &[live.clone(), out.clone()], (0, None, None, 3, 0, 2, None, false)),
+        ("same sign out", &[live.clone(), out.clone(), out.clone()], (0, None, None, 3, 0, 2, None, false)),
+        ("sign in again", &[live.clone(), out.clone(), live.clone()], (0, None, None, 4, 0, 3, None, false)),
+        ("left off", &[Told::LeftOff { task: Some(7) }], (0, None, None, 1, 0, 1, Some(7), false)),
+        (
+            "same left off",
+            &[Told::LeftOff { task: Some(7) }, Told::LeftOff { task: Some(7) }],
+            (0, None, None, 1, 0, 1, Some(7), false),
+        ),
+        (
+            "clear left off",
+            &[Told::LeftOff { task: Some(7) }, Told::LeftOff { task: None }],
+            (0, None, None, 1, 0, 2, None, false),
+        ),
+        ("no left off", &[Told::LeftOff { task: None }], (0, None, None, 1, 0, 0, None, false)),
+        ("went clears left off", &[Told::LeftOff { task: Some(7) }, Told::Went], (0, None, None, 2, 1, 2, None, false)),
+        ("boxed", &[Told::Boxed], (0, None, None, 1, 0, 1, None, true)),
+        ("same boxed", &[Told::Boxed, Told::Boxed], (0, None, None, 1, 0, 1, None, true)),
     ];
     let mut failures = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
     for (name, steps, want) in rows {
@@ -309,7 +324,16 @@ fn the_surface_state_changes_only_when_its_facts_change() {
         for told in *steps {
             tui.step(told.clone());
         }
-        let found = (tui.columns(), tui.aside(), tui.unknown(), tui.focus(), tui.box_written(), tui.revision());
+        let found = (
+            tui.columns(),
+            tui.aside(),
+            tui.unknown(),
+            tui.focus(),
+            tui.box_written(),
+            tui.revision(),
+            tui.left_off(),
+            tui.boxed(),
+        );
         if found != *want {
             failures.push(*name).unwrap();
         }
