@@ -88,6 +88,91 @@ fn await_end(world: &mut World, task: u64) {
     panic!("task {task} ended")
 }
 
+fn change_keys(world: &World) -> Vec<Key> {
+    world.store.rows.keys().filter(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))).cloned().collect()
+}
+
+fn assert_design_first_recipe() {
+    let settings: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../../../docs/examples/reference/settings.json"))
+            .expect("reference settings");
+    let coordinator = &settings["items"][0]["set"];
+    let shared = coordinator["instructions"].as_str().expect("shared instructions");
+    let results = coordinator["parts"][2]["instructions"].as_str().expect("result instructions");
+    for words in [shared, results] {
+        assert!(words.contains("Use after only for live prerequisites"), "the recipe must limit after to live tasks");
+        assert!(
+            words.contains(
+                "once design has landed into g, cite its path and section in words and omit its ended task from after"
+            ),
+            "the recipe must cite landed design without an ended dependency"
+        );
+    }
+    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    assert!(ask.contains("Use after only for live prerequisites"), "Ask temper must propose live dependencies");
+    assert!(ask.contains(
+        "once design has landed into g, cite its path and section in words and omit its ended task from after"
+    ));
+}
+
+fn assert_ended_design_refused(world: &mut World, goal: &engine::Assignment, design: u64, words: &str) {
+    let assigned = world.assigned.len();
+    let made = live_task(world, goal.task).made;
+    let changes = change_keys(world);
+    let input = serde_json::json!({"words": words, "landing": "goal", "after": [design]}).to_string();
+    let answer = mine(world, goal, DEPENDENT_CALL, input.as_bytes());
+    let engine::CallAnswer::DelegationRefused(problem) = answer else { panic!("ended dependency refused: {answer:?}") };
+    assert_eq!(problem.why, tasks::Refusal::Dependencies);
+    assert_eq!(live_task(world, goal.task).made, made, "refusal creates no task");
+    assert_eq!(change_keys(world), changes, "refusal creates no change");
+    assert_eq!(world.assigned.len(), assigned, "refusal starts no producer");
+}
+
+#[test]
+fn a_design_first_recipe_cites_landed_design_without_an_ended_dependency() {
+    let (mut world, goal, branch) = running_goal();
+    let base = branch_tip(&mut world, &branch);
+    let design_head = deliver(&mut world, &goal, base, b"docs/design/input.md");
+    let design = make_delivery(&mut world, &goal, DELIVERY_CALL);
+    land_delivery(&mut world, design, design_head);
+    assert!(matches!(ended(&world, design).expect("design ended").phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert_file(&mut world, &branch, b"docs/design/input.md");
+    read_news(&mut world, &goal);
+
+    let words = "Implement docs/design/input.md, section 1, landed into g";
+    assert_ended_design_refused(&mut world, &goal, design, words);
+    let assigned = world.assigned.len();
+    let input = serde_json::json!({"words": words, "landing": "goal"}).to_string();
+    let answer = mine(&mut world, &goal, DEPENDENT_CALL + 1, input.as_bytes());
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("citing change admitted: {answer:?}") };
+    let coding = made[0].task;
+    assert!(live_task(&world, coding).dependencies.is_empty());
+    let producer = reviews::next_assignment(&mut world, assigned);
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(coding));
+    assert_eq!(producer.workspace.repositories[0].start, engine::ForgeStart::Base(branch.clone()));
+    let start = branch_tip(&mut world, &branch);
+    assert_file(&mut world, &branch, b"docs/design/input.md");
+    let head = early_start::push(&mut world, &producer, start, b"implementation");
+    world.tick();
+    status(&mut world, head, raw::Check::Passed);
+    finish_run(
+        &mut world,
+        &producer,
+        tasks::TaskResult::Change {
+            title: tasks::ChangeTitle::new(b"Implement the landed design".as_slice().into()),
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            words: b"pushed".as_slice().into(),
+        },
+    );
+    land_delivery(&mut world, coding, head);
+    assert_file(&mut world, &branch, b"docs/design/input.md");
+    assert_file(&mut world, &branch, b"implementation");
+    early_start::stop(&mut world, &goal);
+    assert_design_first_recipe();
+}
+
 #[test]
 fn a_goals_delivery_lands_into_its_goal_branch_by_a_change() {
     let (mut world, goal, branch) = running_goal();

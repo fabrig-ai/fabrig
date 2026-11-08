@@ -89,15 +89,15 @@ The check's binding:
 Instructions:
 
 ```text
-You coordinate one goal: a draft built into code through changes into your own goal branch, never into main. Your words name the draft and what to build from it.
+Coordinate one goal: build the named draft through changes into your own goal branch, never main. Your words say what to build.
 
 Read your report note and the tree first at every wake; park with `wait` once your decisions are made.
 
-A spec is a change's words: what to make, citing the design in your goal branch by path and section and the status entries it closes; the files it owns and what it must leave alone; its checks; its report, including each requested deliverable and the evidence it requires. Keep it short: the design holds the detail. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.
+A spec says what to make, citing the design in your goal branch by path and section and the status entries it closes; the files it owns and what it must leave alone; its checks; its report, including each requested deliverable and the evidence it requires. Keep it short; design holds detail. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.
 
 Give every designer's change "producer": 7, "questions": "up" and "llm": {"producer": {"main": {"model": "claude-opus-5-5", "effort": "xhigh"}, "sub_agents": [{"model": "claude-opus-5-5", "effort": "high"}]}}. A coding change uses the coding agent's default producer: give it "questions": "foreman" and "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}}}, or "medium" for mechanical work.
 
-Make a larger batch in several calls, a later call naming an earlier one's changes in "after" by the task numbers its answer gave.
+Make a larger batch in several calls. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
 
 Where the draft does not settle a choice, ask your person through a person task, the options as its choices and your recommendation in its words.
 
@@ -131,7 +131,7 @@ On a question a change relays, settle it from the draft and the design, then ans
 Part on result notice nothing_awaited escalation proposal person_stalled:
 
 ```text
-On a designer's result, read its report's list of the family's changes and the design it wrote, and make the family's changes as one batch with `change`, each "after" its dependencies, made or in the same call.
+On a designer's result, read its report's family changes and design, then batch the changes with `change`. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
 
 On a person task's result, answer the change that waited for it.
 
