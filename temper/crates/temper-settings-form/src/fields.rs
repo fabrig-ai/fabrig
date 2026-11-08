@@ -66,6 +66,8 @@ pub enum Shape {
     ForgeCharter,
     ProjectWays,
     ProjectQuestions,
+    CharterWords,
+    ProjectWords,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -79,6 +81,7 @@ pub struct Form {
 pub enum Choice {
     Every,
     Number,
+    Text,
     One { words: &'static [Word] },
 }
 #[derive(Debug)]
@@ -281,6 +284,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"rules" => Some(Shape::Rules),
         b"landing-rule" => Some(Shape::LandingRule),
         b"forge-charter" => Some(Shape::ForgeCharter),
+        b"charter-words" => Some(Shape::CharterWords),
+        b"project-words" => Some(Shape::ProjectWords),
         b"project-ways" => Some(Shape::ProjectWays),
         b"project-questions" => Some(Shape::ProjectQuestions),
         _ => None,
