@@ -19,6 +19,7 @@ pub mod paths;
 pub mod public;
 mod root;
 pub mod sign_in;
+mod views;
 pub mod words;
 pub use limits::{Limits, valid};
 pub use root::{View, act, act_event, build, event, href, opening_tab};
