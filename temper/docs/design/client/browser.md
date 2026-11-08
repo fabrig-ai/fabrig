@@ -706,13 +706,16 @@ replay says the same clocks (`README.md`, 5.12).
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
   at the foot, four links in four columns as wide as their words, Home,
-  Needs you, Work and Ask, each on one line at any phone's width, a "Needs
-  you" count included, and three while `me` offers no Ask temper (the look
+  Needs, Work and Ask, each on one line at any phone's width, the Needs
+  count included, and three while `me` offers no Ask temper (the look
   request `ask-temper-place`),
-  the page leaving it room; while To begin shows, three equal tabs, on Home
-  and on Ask temper's page, whose chat layout draws no tab bar otherwise,
-  its composer and model picker standing wholly over them, the page's foot
-  raised by the tabs' 64 px and the safe area (`README.md`, 3.5 and 5.3). The link's state
+  the page leaving it room; while To begin shows, three equal tabs. Ask
+  temper's page and an Ask temper chat, the Ask tab's, keep the tabs, where
+  every other chat layout draws none, its composer and model picker standing
+  wholly over them, the page's foot raised by the tabs' 64 px and the safe
+  area (`README.md`, 3.5 and 5.3). Needs you's open card takes the top bar
+  with its own, `temper-needs-bar` (`README.md`, 3.5, *Needs you*), as a
+  chat's bar does, the night switch keeping its place. The link's state
   shows at the rail's foot, with its dot, while it is not live. The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
@@ -758,9 +761,14 @@ replay says the same clocks (`README.md`, 5.12).
   tab bar's padding, a chat's foot, and the toast, 88 px over it, clear of the
   tabs.
 - **What a phone presses,** at 760 px and under: a control scrolled into view
-  stops clear of the tab bar, and the connection flows' primaries, Settings'
-  and a dialog's stand at least 44 px tall. Every other control keeps what the
-  mock draws.
+  stops clear of the tab bar, and every target stands at least 44 px tall to
+  a press (`../draft/surfaces.md`, section 10): the connection flows'
+  primaries, Settings' and a dialog's, and every control of the frame, Home,
+  Needs you, Work, Ask temper's page and an Ask temper chat. A control the mockups draw smaller,
+  the Away chip's 36 px pill, the night switch's 30 px circle, a way's tab,
+  keeps its drawing and takes a 44 px target around it, by its padding or a
+  transparent `::after` over it. A link inside a line of words is no target
+  of its own. Every other page keeps what the mock draws.
 - **No frame but the top bar outside a project** (`README.md`, 5.1; the
   look request `outside-pages`): a page that is no project's has no
   navigation, switcher or menu, at any width; the top bar is drawn as

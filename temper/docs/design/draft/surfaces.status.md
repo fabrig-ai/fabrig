@@ -22,8 +22,8 @@
     the status agent write a project's brief from what the engine keeps,
     not from owners' Nows, and its byline says nothing of them.
   - 4: `../client/README.md`, 3.5, *Needs you*, has no why, no "Stop
-    asking" or "Keep asking", no "What reaches you" lede, no Only you, no
-    Tell temper at its foot and no terminal command to talk a need
+    asking" or "Keep asking", no "What reaches you" lede, no Only you,
+    and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
   - 6: no design holds Team, an area's owner or a role's card
@@ -50,12 +50,14 @@
     the configuration's limits (`../protocol/configuration.md`, section 7),
     an owner changing them. Its section 11 defers both (*Deployment's
     later parts*).
-  - 9: no design holds Tell temper.
-  - 10: no design holds Tell temper on a phone, or Team and How work runs
-    reached from Home's project rows. `../client/README.md`, 5.3, names
-    the tab "Needs you", where this section and `phone-home.html` have
-    "Needs", and reaches Deployment by the switcher's menu, a phone having
-    no person's menu, where this section has it from the person's menu.
+  - 9: `../client/README.md`, 3.5, *Tell temper*, files with the
+    project's triager alone, and shows only once the engine files a
+    person's word: `../domain/findings.md`, section 4, names no such
+    filer and no kind for it, and its section 6's triager is a setting no
+    project holds yet (`../domain/landing.md`, 13.1); no design has the
+    brief tell what became of a finding (`../domain/forge.md`, 5.7). Its
+    routing to an area's owner is P5b's (`whole-story.execution.md`,
+    section 3).
   - 11: `../client/README.md`, 6.13 and 6.14, hold the launchpad as
     11.1 draws it but for its team lines and `/draft` and `/talk` in
     Start, 11.4's commands but for `/draft`, `/talk` and `/tell`, and
@@ -88,6 +90,18 @@
     and `../client/journeys.md` records none of this section's four
     journeys.
 - **Design departs:**
+  - 10 and 13: on a phone, `../client/README.md`, 5.3, reaches Team, How
+    work runs and Deployment by the switcher's menu alone, where this
+    section has Team and How work runs from Home's project rows too and
+    Deployment from the person's menu: `phone-home.html` draws no
+    project rows and no phone draws a person's menu, and the mockups'
+    parts bind (13). Decided by the cut of `ui-p5a-phone`.
+  - 10: `../client/browser.md`, 2.5, *What a phone presses*, holds every
+    target at 44 pixels on the frame and the four tabs' pages, Ask
+    temper's chats among them; a goal's, a task's, another chat's and How
+    work runs' controls keep the greenfield mock's sizes, as the request
+    `ui-phone` of 2026-11-05 has them (`../client/browser.status.md`).
+    Decided by the cut of `ui-p5a-phone`: section 10 draws the four tabs.
   - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and

@@ -5067,18 +5067,35 @@ and what is current is the view's. Its rules:
 | "Home", "Needs you", "Work", "How work runs", "Deployment" | always, To begin's cut aside | |
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
-rail's navigation: they are Deployment's tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
-bar showing the switcher alone, and the tab bar closes the page: in the
-browser, a navigation named "Sections" after the main, with "Home",
-"Needs you", "Work" and "Ask", named "Ask temper" and shown, and current, as the
-rail's "Ask temper" is, drawn at phone width alone (`browser.md`, 2.5),
-"Needs you" with its count and "Work" current as the rail's are. How work runs
-and Deployment are reached by the switcher's "How work runs for PROJECT" and
-"Deployment" (below). While To begin shows, "Home", "Ask" and
-"Deployment" alone (above). A chat's layout draws no tab bar on a phone, but
-Ask temper's page while To begin shows, whose three tabs close it under the
-composer (3.5). The Away switch is a chip in the top
-bar, on the rail's terms. The terminal has no tab bar.
+rail's navigation: they are Deployment's tabs and the Repositories tab's (3.5).
+
+**On a phone** (`../draft/surfaces.md`, section 10; the whole story's
+`phone-home.html`, `phone-need.html` and `phone-tell.html`), at 760 px and
+under, the rail is a top bar showing the switcher alone, and the tab bar closes
+the page: in the browser, a navigation named "Sections" after the main, drawn
+at phone width alone (`browser.md`, 2.5). Its tabs are one pure function of the
+domain's, `temper_client_domain::pages::rail::tabs(&Parts) -> Tabs`, over the
+rail's parts, which the browser draws from and decides nothing again:
+
+| Tab | Shows when | Current on |
+|---|---|---|
+| "Home" | always | as the rail's "Home" |
+| "Needs", with its count after it in the signal colour, "N+" where cut, named by its words, "Needs 2" | the rail's "Needs you" shows: its count while more than zero | as the rail's "Needs you" |
+| "Work" | the rail's "Work" shows | as the rail's "Work" |
+| "Ask", named "Ask temper" | the rail's "Ask temper" shows | as the rail's "Ask temper": Ask temper's page, an Ask temper chat and `Tell` |
+| "Deployment" | To begin's cut holds, the rail's "Work" not shown | as the rail's "Deployment" |
+
+So four tabs in four columns as wide as their words, or To begin's three,
+"Home", "Ask" and "Deployment", equal, and one fewer while `me` offers no Ask
+temper. Team, How work runs and Deployment are reached by the switcher's "Team
+for PROJECT", "How work runs for PROJECT" and "Deployment" (below), the phone
+drawing no rail's foot and no person's menu. A chat's layout draws no tab bar
+on a phone, but Ask temper's page and an Ask temper chat, the Ask tab's, whose
+tabs close it under the composer (3.5). The Away switch is a chip in the top
+bar, on the rail's terms. Every target the top bar and the tab bar draw, the
+switcher, the Away chip, the night switch and each tab, is at least 44 pixels
+tall to a press (`browser.md`, 2.5, *What a phone presses*). The terminal has
+no tab bar.
 
 **No navigation outside a project** (5.1; the look request
 `outside-pages`): a page that is no project's is drawn under the top

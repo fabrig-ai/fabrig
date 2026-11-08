@@ -44,6 +44,19 @@ reaches Ask temper by "Ask temper to change this" alone. The
 post-landing walk, M3b's views and preferences remain section 11's
 work.
 
+- **Not yet:** 5.3, *On a phone*: no `rail::tabs`; the browser's tab bar
+  decides its tabs from the rail's parts in the view, says "Needs you"
+  where the table has "Needs", and is hidden under Ask temper's page and
+  an Ask temper chat but while To begin shows; the top bar's switcher,
+  Away chip and night switch are pressed on the mock's sizes, not 44
+  pixels (`temper-client-view/src/frame.rs`).
+
+- **Not yet:** 3.5, *Tell temper*, whole: no `Tell` address, no region at
+  Needs you's foot, no link under Ask temper's composer. The engine files
+  no person's word as a finding and no project's settings name a triager
+  (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
+  so it waits for both, with nothing in its place.
+
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
 Ask temper's page watches its project's `ways` while open, and its domain
@@ -1157,6 +1170,12 @@ one main of every tree (skein's `ui.md`, 14). The frame's table covers
 both shells, and the welcome's tables its end; the welcome's journeys
 are reprinted with it. temper/ui's rendered comparison follows landing
 (`browser.md`, section 5).
+
+- **Not yet:** 3.5, *Needs you*, *On a phone*: no `temper-needs-bar`; at a
+  phone's width the open card stands under the frame's top bar, its place
+  drawn as `.flow-head`'s dots and kicker, a "Next:" line under it, its
+  question at 23 px and its choices at 54 px
+  (`temper-client-view/src/pages/needs.rs`).
 
 Sections 3.5, 5.1 and 5.12 have the browser's approval page in the
 column, its root state and actions, the asked time, the signed-out
