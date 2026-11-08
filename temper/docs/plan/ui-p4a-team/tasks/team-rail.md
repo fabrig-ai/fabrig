@@ -210,3 +210,12 @@ rerun until it lands and this trunk takes main; then do the base check first.
 now?* Same answer: the stop was right; change nothing. At 21:17Z `origin/main`
 (e62fc406e0) still has no `pages/rail.rs`, so ui-p1-rail hasn't landed. Don't
 rerun until it lands and this trunk takes main; then do the base check first.
+
+2026-11-08. *Run team-rail-14 again found no `pages/rail.rs` on its base: what
+now?* The stop was right for its base, but ui-p1-rail has now landed: at 21:25Z
+`origin/main` (0d6f7a9b65) holds `pages/rail.rs` with `facts` and `parts`, and
+`frame.rs` draws the rail from `rail::parts`. This trunk (dd0550b3d2) hasn't
+taken that main yet. Rerun once it has; then the base check passes and you go
+on. In the check, `RAIL_NAV` is the style of the slot that holds the rail's
+`entries` (`frame.rs`, after the switcher), where "Work" and "How work runs"
+are drawn: that is what "holding" means; Team's entry goes in `entries`.
