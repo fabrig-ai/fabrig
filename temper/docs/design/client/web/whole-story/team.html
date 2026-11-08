@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <style>body{margin:0;background:#f7f7f5}</style>
 <link rel="stylesheet" href="whole-story.css">
+<script src="whole-story.js"></script>
 </head>
 <body>
 <div class="app">
@@ -28,6 +29,7 @@
       <a href="#">Deployment</a>
       <a href="#">Owner</a>
     </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
   </nav>
 
   <main class="main">
@@ -44,7 +46,7 @@
           <table class="tbl">
             <thead><tr><th>Area</th><th>Paths</th><th>Owner</th><th>Their Now</th><th>This week</th></tr></thead>
             <tbody>
-              <tr><td class="strong">Protocol core</td><td class="mono">include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md</td><td><span class="who p">You</span></td><td>Two questions wait on you.</td><td class="muted">–</td></tr>
+              <tr><td class="strong">Protocol core</td><td class="mono">include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md</td><td><span class="who p">You</span></td><td>One question waits on you.</td><td class="muted">–</td></tr>
               <tr><td class="strong">I/O layer</td><td class="mono">src/io/ · examples/</td><td><span class="who p">You</span></td><td>Nothing open.</td><td class="muted">–</td></tr>
               <tr><td class="strong">Tests and proof</td><td class="mono">tests/ · fuzzing · tiers</td><td><span class="who a">Prover</span></td><td>One finding overnight, reproduced; its fix waits on your answer.</td><td>$21 of $40</td></tr>
               <tr class="sel"><td class="strong">Rust port</td><td class="mono">vsr-rs, whole</td><td><span class="who a">Porter</span></td><td>Two landings behind; porting the witness catch-up check.</td><td>$49 of $60</td></tr>
