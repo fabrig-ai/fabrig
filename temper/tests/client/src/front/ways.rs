@@ -13,12 +13,27 @@ pub enum Reader {
     Member,
 }
 
+#[derive(Clone, Copy)]
+pub enum Repository {
+    CiAndTiers,
+    Neither,
+    Yours,
+}
+
 /// The stock's kinds and draft goal, with the world's short agent charters.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one fixture joins the stock, policy and reader identity")]
 pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
+    with_repository(seed, limits, reader, None)
+}
+
+/// Keep existing callers' repositories; path stories adopt CI and both tiers or neither.
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "one fixture joins the stock, policy and reader identity")]
+pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repository: Option<Repository>) -> Joint {
     let mut engine_limits = engine_limits();
     engine_limits.tasks.charters = 5;
+    engine_limits.tasks.spec_bytes = engine_limits.tasks.spec_bytes.max(512);
+    engine_limits.tasks.parameters = 4;
     engine_limits.people.amendment_bytes = 8192;
     engine_limits.people.requests = 12;
     engine_limits.people.people = 6; // Box owner, forge collaborators and the deployment service.
@@ -94,6 +109,7 @@ pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
     store.seed(accounts, Box::new([]));
     let component = crate::component::Composition::with_provider(&config, limits.client.domain, identity.key.provider);
     let restart = oracle::config::copy(&config);
+    let repository_config = oracle::config::copy(&config);
     let mut joint = Joint::with_engine(seed, limits, store, [config, restart], &engine_limits, 1);
     joint.component = component;
     joint.sign_in_identity = Some(identity.clone());
@@ -103,11 +119,11 @@ pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
         joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
             held: None,
             reply_to: ReplyTo::new(Token::new(700)),
-            identity,
+            identity: identity.clone(),
         }));
         joint.engine.settle();
     }
-    if matches!(reader, Reader::BoxOwner) {
+    if matches!(reader, Reader::BoxOwner) || repository.is_some() {
         let mut adoption = temper_engine_domain_world::fixtures::adoption(1);
         adoption.owner = b"acme".as_slice().into();
         adoption.name = b"shop".as_slice().into();
@@ -120,6 +136,110 @@ pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
             carried: None,
             request: engine::Application::Forge(temper_engine_domain_forge::Ask::Adopt(adoption)),
         }));
+        joint.engine.settle();
+    }
+    if let Some(repository) = repository {
+        let mut store = joint.engine.take_store();
+        if matches!(repository, Repository::Neither) {
+            let saved = store
+                .rows
+                .values()
+                .find_map(|record| match record {
+                    engine::Record::Forge { row } => match row.as_ref() {
+                        temper_engine_domain_forge::Stored::Repository(row) => {
+                            let mut row = row.clone();
+                            row.ci = false;
+                            Some(engine::Record::Forge {
+                                row: Box::new(temper_engine_domain_forge::Stored::Repository(row)),
+                            })
+                        }
+                        _ => None,
+                    },
+                    engine::Record::Core(_) => None,
+                })
+                .expect("adopted repository");
+            store.seed(Box::new([saved]), Box::new([]));
+        }
+        let mut config = repository_config;
+        if matches!(repository, Repository::CiAndTiers | Repository::Yours) {
+            let tiers = [
+                (b"slow".as_slice(), temper_engine_domain_forge::Follows::Landing),
+                (b"goal".as_slice(), temper_engine_domain_forge::Follows::Goals),
+            ]
+            .map(|(name, follows)| engine::TierCheck {
+                name: name.into(),
+                workflow: name.into(),
+                ignored: Box::new([]),
+                artifact: b"tests".as_slice().into(),
+                format: temper_engine_domain_forge_tiers::Format::Lines,
+                follows,
+                span_ms: 0,
+            });
+            assert!(
+                config
+                    .landings
+                    .insert(
+                        1,
+                        engine::ProjectLanding {
+                            by: engine::Way::Queue,
+                            merge_job: None,
+                            repositories: Box::new([engine::RepositoryChecks {
+                                repository: skein_forge::api::Repository { forge: fixtures::FORGE, repository: 7 },
+                                gates: Box::new([]),
+                                tiers: Box::new(tiers),
+                            }]),
+                            after: engine::AfterLandingCheck { tier_retries: 0, verification_bound_ms: 7_200_000 },
+                        }
+                    )
+                    .is_ok()
+            );
+        }
+        let restart = oracle::config::copy(&config);
+        let component =
+            crate::component::Composition::with_provider(&config, limits.client.domain, identity.key.provider);
+        joint = Joint::with_engine(seed, limits, store, [config, restart], &engine_limits, 1);
+        joint.component = component;
+        joint.sign_in_identity = Some(identity.clone());
+        if matches!(reader, Reader::Member) {
+            joint.caller = fixtures::asking_member(&mut joint.engine);
+        } else {
+            joint.engine.send(engine::Event::Party(engine::PartyInput::SignedIn {
+                held: None,
+                reply_to: ReplyTo::new(Token::new(702)),
+                identity,
+            }));
+            joint.engine.settle();
+        }
+        if matches!(repository, Repository::Yours) {
+            use temper_engine_domain_forge::{self as forge, settings};
+            let own = settings::LandingRule {
+                pattern: forge::GatePattern {
+                    segments: Box::new([b"branch".as_slice().into()]),
+                    last: forge::GateLast::Open(Box::new([])),
+                },
+                enforce: true,
+                ci: false,
+                up_to_date: true,
+                gates: Box::new([settings::RuleGate {
+                    number: 1,
+                    blocking: true,
+                    freshness: forge::JudgeFreshness::Clean,
+                }]),
+                approvals: Box::new([]),
+            };
+            joint.engine.send(kinds::change(
+                joint.engine.session(),
+                kinds::revision(&joint.engine.store.rows),
+                72,
+                Box::new([kinds::item(2, 1, 1, &settings::Value::Rule(own))]),
+            ));
+            joint.engine.settle();
+        }
+        joint.engine.send(engine::Event::Credential {
+            number: 1,
+            generation: 1,
+            valid: skein_lib::Duration::from_secs(3600),
+        });
         joint.engine.settle();
     }
     joint.last_commit = joint.engine.store.header().commits;
