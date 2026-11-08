@@ -613,6 +613,12 @@ incomplete record.
 
 ## 8. Later
 
+Switching a caller's focused and fuzzy steps to section 11's mode is a
+separate change of that caller, tree by tree. The gate and after-landing
+runs then measure the suites with process CPU; the mode's introduction
+requires no CPU comparison or change to budgets, timeouts or build settings.
+Per-test CPU within a shared process remains outside this mode's contract.
+
 A caller running the after-landing tier calls this entry point
 (section 10). The trees' old `scripts/browser.sh` scripts retire in their
 own trees' branches.
@@ -801,9 +807,10 @@ only processes have it (section 11). In a one-process run:
   (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
   process's CPU is in the suite's: every process the run started is.
 
-An unobserved attempt is neither passed nor failed: a caller that reads the
-run's JUnit itself sees it as a `test abort` failure, and maps it to its own
-unobserved result by `unobserved`. A cancelled attempt that has a record
+An unobserved attempt is neither passed nor failed. In a nextest run, a
+caller that reads JUnit itself sees it as a `test abort` failure, and maps
+it to its own unobserved result by `unobserved`. In a one-process run it
+has no JUnit case (11.8). A cancelled attempt that has a record
 is starved, not failed (7.3): that caller sees it as a `test abort` failure
 too, and `tests`' `starved` counts it. These keys and their meanings are the
 contract; a key may be added, none removed or changed in meaning.
@@ -991,10 +998,10 @@ nothing.
 - **A long binary is split.** Where a binary's estimate is more than the
   total over the lanes (the selection's estimate divided by the lanes), its
   tests in libtest's order are dealt into
-  `min(lanes, ceil(estimate / share), tests)` contiguous runs of about equal
-  estimate, a process each, and each run keeps at least one test: a process
-  given no names would run every test of its binary. A process's names stay
-  within 256 KiB of arguments; more splits it further.
+  `min(selected test count, lanes, ceil(estimate / share))` contiguous runs
+  of about equal estimate, a process each, and each run keeps at least one
+  test: a process given no names would run every test of its binary. A
+  process's names stay within 256 KiB of arguments; more splits it further.
 - **Test groups.** A process counts once against each test group any of its
   tests is in, and starts only while each such group's processes stay within
   its `max-threads` (an integer, or `num-cpus`: the lanes). A lane free and the
