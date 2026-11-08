@@ -1,0 +1,32 @@
+draft = "look-ask-ways"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-ask-ways/inputs/request.md", "temper/docs/design/draft/stock-ways.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "state"
+title = "Ask temper's opening keeps its shown tab and open stop as the page's state, and toasts a way's act with its revision"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "drawing"
+title = "A path drawn as the look request draws it: across or down the page, its bars as ends and goal branches, its stops pressed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.16"
+
+[[slice]]
+id = 1
+story = "The opening's state and the path's drawing exist, each tested alone"
+parts = ["state", "drawing"]
+walk = false

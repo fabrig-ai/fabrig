@@ -6122,9 +6122,15 @@ on this tab.
   once more against the revision it names; a refusal is said in jig's
   words with the forge's reason, as an approval too few people can give
   names the forge, the role, how many it asks and how many can
-  (`../protocol/configuration.md`, 13.2); answered, the subject's next
-  document shows the way current. How the page draws the ways is the look
-  request `ask-temper-ways`'s.
+  (`../protocol/configuration.md`, 13.2); answered, a toast names the way
+  and the revision, "You approve is this project's way now, as revision
+  12." or, kept, "Agents review is now this project's own, as revision
+  12.", and the subject's next document shows the way current. The tab
+  shown and the stop whose card is open are the page's state, in no
+  address: the current way's tab as the page opens; kept by the way's
+  place across documents while it stands, else the current one again;
+  the card closed by another tab or a change of the shown path. The page
+  draws them as 3.5, *Ask temper's page*, says.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
@@ -6493,7 +6499,8 @@ terminal draw the same path.
   watch names a newer revision. Until it answers, the block says
   "Drawing VIEW…"; a read refused or failed says in a line that the view
   could not be drawn, and the address.
-- **Drawn:** a path as temper's own drawing kind beside skein's flows:
+- **Drawn:** a path as temper's own drawing kind beside skein's flows,
+  in fabrig.ai's language as the look request `ask-temper-ways` draws it:
   its stops on a line, a person's and an agent's above it, code's below,
   the line rising to each judgement and falling back, the dotted line
   no merge tool crosses, each branch's bar, the landing branch's at its
@@ -6502,11 +6509,45 @@ terminal draw the same path.
   line over its path; a proposal its two paths, "Before" and "After"; a
   charter its card, `who`, `name` and `facts`, as a list of terms; a
   `not_drawn` its words. The drawing's fallback, which the terminal
-  prints and a narrow page keeps, is a stop a line, its words and its
-  actor in words ("produce, an agent").
+  prints, is a stop a line, its words and its actor in words ("produce,
+  an agent").
+- **Its layout,** of the box's width `W` alone:
+  - *across,* 140 pixels high, where `W` is 560 or more and its stops
+    stand at least 48 pixels apart: the dotted line
+    at 72; a person's and an agent's marks at 40, their words over them
+    at 22; code's at 106, its words under it at 131; the stops before the
+    last bar evenly from 12 to `W − 68`, the first's words anchored at its
+    start, the others' at their middle; a goal's branch's bar in a stop's
+    place, dimmer, its words over the dotted line at 88; the landing
+    branch's bar at `W − 8`, its words ending there at 88. The line runs
+    along the base row through code's stops and the bars, rising to each
+    judgement over 0.42 of a step and falling back over as much, a cubic
+    curve each way, and ends at the landing branch's bar: above the
+    dotted line it takes the
+    signal's faint tone, below it the line's, two tones in place of the
+    request's fade, since a scene carries no gradient (skein's `ui.md`,
+    11.2).
+  - *down the page,* narrower, in a column 360 pixels wide centred in the
+    box: the dotted line down its middle at 178; a person's and an
+    agent's marks at its right, at 206, their words after them; code's
+    at its left, at 150, its words before them; a stop every 40 pixels
+    from 16, the landing branch's bar across the line's foot 38 under the
+    last stop, its words before it; the scene's height its own, 14 under
+    that bar (skein's `ui.md`, 11.2).
+- **Pressed,** on Ask temper's page alone (3.5): each stop but a bar is a
+  group whose transparent area, 60 by 52 above the line and 60 by 44
+  below it across, a row 28 high down the page, carries its act, so that
+  a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
+  the open stop has a pale ring of 15 behind its mark and its words in
+  ink, bold, and, across, the scene grows 14 pixels at its foot for its
+  card's caret, a point under the open stop whose base meets the card's
+  top edge, the card following the drawing with no gap (3.5); down the
+  page there is no caret. Its fallback's lines are then buttons doing the same,
+  expanded while their card shows, for the keyboard, a screen reader and
+  the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
-  opening its card, the views `queue`, `task N tree` and `task N
-  timeline`, and the TUI's drawing of views, temper/tui's.
+  in a reply opening its card, the views `queue`, `task N tree` and
+  `task N timeline`, and the TUI's drawing of views, temper/tui's.
 
 ## 6. The terminal shells
 
