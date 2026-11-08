@@ -9,11 +9,11 @@ use serde_json::json;
 )]
 fn an_asking_chat_reads_a_proposal() {
     let mut world = World::stock();
-    let owner = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &owner, 1, CHAT);
+    let owner = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_charter(&mut world.driver, &owner, 1, CHAT);
     let items = charter_item(value, b"Push each complete change.");
     let first = propose(&mut world.driver, &owner, 2, 1, &items);
-    let asking = world.chat(5, world.owner, 21);
+    let asking = world.chat(ASK_TEMPLATE, world.owner, 21);
     let mut party = None;
     for (index, state) in
         ["waiting", "rejected", "accepted", "unknown", "party waiting", "party rejected"].into_iter().enumerate()

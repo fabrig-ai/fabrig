@@ -300,7 +300,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.policy.tools = jig_domain_tasks::Tools(3072);
     assert_eq!(*charter, expected);
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
-    assert_eq!(words.len(), 7142);
+    assert_eq!(words.len(), 7335);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
     for heading in ["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"]
     {
