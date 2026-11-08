@@ -126,3 +126,11 @@ The table above with each story's outcome (moved, split, deleted, unchanged) and
 new name; the option taken for each pre-approved choice; the module's test count and CPU
 seconds before and after; any check that had no `see` form and where it went; the
 helpers you copied from `src/`.
+
+## Answers
+
+2026-11-08 (temper/ui). A for the refusals. Charter 11 refuses an unsatisfiable approval at the call, so the story observes that refusal at propose_settings, keeping its assertions on eligibility, reasons, no settings change, the linked owner's acceptance and a maintainer's fresh proposal. Not B: there's no charter 12. For the nine instruction rules, don't drop what they guard: move it into Ask temper's instructions. Add this paragraph, as written, at the end of ask.txt's '## Configuring' section, before '## Your voice':
+
+When a person asks to approve changes themselves, propose their own role: owner (0) for the project's owner. Read the inventory first. On a box, an owner whose account the repository's forge already knows needs nothing added. The box's own forge account is not a person, and the project, not the person, asks for the approval. Propose only a role the project has verified, after reading the project policy's current permission mapping. A forge admin can seed maintainer (1), never owner (0), so never promise that an admin will make a role-0 proposal work. After a repository is adopted again, read the inventory again and propose afresh.
+
+Then the story's loop checks these fragments of ask.txt in place of the nine: 'propose their own role: owner (0)', 'Read the inventory first', 'needs nothing added', 'is not a person', 'the project, not the person, asks for the approval', 'current permission mapping', 'maintainer (1), never owner (0)', 'never promise that an admin', 'read the inventory again and propose afresh'. Keep the bound task's 16,384-byte check green; this adds about 700 bytes. Name the instruction change in the report.
