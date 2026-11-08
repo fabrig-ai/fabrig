@@ -1,7 +1,7 @@
 use super::fixtures::{self, chat as f};
 use crate::pages::{
     Act, Request,
-    chat::{Chat, Sending},
+    chat::{Chat, OPENING_WEIGHT, Sending},
 };
 use jig_client::{Event, Readable, Told, Watchable, contract as c};
 use skein_lib::{Duration, Queue, Time};
@@ -30,46 +30,79 @@ fn opening_a_chat_watches_task_and_reads_its_first_activity_page() {
     assert!(out.is_empty());
 }
 #[test]
-fn a_fast_completed_chat_reads_back_to_its_opening() {
-    use jig_client::thread::window::End;
-    let mut f = f::opened();
-    let mut task = f::task();
-    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
-    let request = skein_lib::bytes::copy_of(task.spec.specification.words.bytes());
-    f::deliver(&mut f.client, f.watch, task);
-    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
-    while f.out.pop().is_some() {}
-    let cursor = c::Cursor::new(Box::from(*b"opening"), 7).unwrap();
-    let page = completed_activity(Some(cursor.clone()));
-    f.chat.told(Time::ZERO, &f.client, Told::Page { handle: f.chat.activity, page: activity_answer(page) }, &mut f.out);
-    assert_eq!(
-        f.out.pop(),
-        Some(Request::Client(Event::Read {
+fn a_chat_opens_to_its_opening_or_a_screen_and_a_half() {
+    use jig_client::thread::window::{Edge, Edges, End};
+    for (name, target) in [("short", 288), ("under", OPENING_WEIGHT - 1), ("long", OPENING_WEIGHT)] {
+        let mut f = f::opened();
+        let mut task = f::task();
+        f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+        let request = skein_lib::bytes::copy_of(task.spec.specification.words.bytes());
+        f::deliver(&mut f.client, f.watch, task);
+        f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+        while f.out.pop().is_some() {}
+        let cursor = c::Cursor::new(Box::from(*b"opening"), 7).unwrap();
+        let words = if name == "short" {
+            skein_lib::bytes::copy_of(FAST_REPLY)
+        } else {
+            // Two lines, one message and one text block carry the reply's bytes.
+            let mut words = skein_lib::bytes::zeroed(usize::try_from(target - 4 * u64::from(c::LINE_ROOM)).unwrap());
+            words.fill(b'x');
+            words
+        };
+        let page = completed_activity(Some(cursor.clone()), &words);
+        let mut weight = 0_u64;
+        for row in &page.rows {
+            weight = weight.checked_add(row.weight()).unwrap();
+        }
+        assert_eq!(weight, target, "{name}");
+        let edges = Edges { before: Edge::End, after: Edge::More(cursor.clone()) };
+        f.chat.told(
+            Time::ZERO,
+            &f.client,
+            Told::Page { handle: f.chat.activity, page: activity_answer(page) },
+            &mut f.out,
+        );
+        let older = Some(Request::Client(Event::Read {
             handle: f.chat.activity,
             read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
-        })),
-        "the completed first page reads back to the opening"
-    );
-    let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
-        .unwrap();
-    f.chat.told(
-        Time::ZERO,
-        &f.client,
-        Told::Page {
-            handle: f.chat.activity,
-            page: activity_answer(c::ActivityPage { rows, before: None, after: None, cut: false }),
-        },
-        &mut f.out,
-    );
-    assert!(f.chat.thread.lines.edges.reaches(End::After));
-    assert_eq!(f.chat.thread.lines.rows.len(), 3);
-    assert_eq!(f.chat.request(&f.client).unwrap().0, request.as_ref());
-    assert!(f.out.is_empty(), "the opening ends the initial read");
+        }));
+        if name == "long" {
+            assert!(f.out.is_empty(), "{name}: the weight ends the opening read");
+            assert!(f.chat.thread.reading.is_none());
+            assert_eq!(f.chat.thread.lines.edges, edges, "the first page keeps its older cursor");
+            assert!(!f.chat.thread.lines.edges.reaches(End::After));
+            chat_act(&mut f.chat, &f.client, Act::Older, &mut f.out);
+            assert_eq!(f.out.pop(), older, "the person reads from the retained cursor");
+        } else {
+            assert_eq!(f.out.pop(), older, "{name}: below the weight reads on");
+            if name == "short" {
+                let mut rows = skein_lib::List::with_capacity(1);
+                rows.push(owner_activity(
+                    1,
+                    c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false },
+                ))
+                .unwrap();
+                f.chat.told(
+                    Time::ZERO,
+                    &f.client,
+                    Told::Page {
+                        handle: f.chat.activity,
+                        page: activity_answer(c::ActivityPage { rows, before: None, after: None, cut: false }),
+                    },
+                    &mut f.out,
+                );
+                assert!(f.chat.thread.lines.edges.reaches(End::After));
+                assert_eq!(f.chat.thread.lines.rows.len(), 3);
+                assert_eq!(f.chat.request(&f.client).unwrap().0, request.as_ref());
+            }
+        }
+        assert!(f.out.is_empty(), "{name}: no additional read");
+    }
 }
-fn completed_activity(before: Option<c::Cursor>) -> c::ActivityPage {
+const FAST_REPLY: &[u8] = b"Hello from the local fake model.";
+fn completed_activity(before: Option<c::Cursor>, words: &[u8]) -> c::ActivityPage {
     let mut blocks = skein_lib::List::with_capacity(1);
-    blocks.push(c::Block::Text(fixtures::acts::text(b"Hello from the local fake model."))).unwrap();
+    blocks.push(c::Block::Text(c::Text::new(words.into(), u32::try_from(words.len()).unwrap()).unwrap())).unwrap();
     let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(reply))) =
         f::activity_reply(c::Speaker::Assistant, blocks, 2)
     else {
@@ -1141,7 +1174,10 @@ fn an_empty_opening_page_keeps_an_announced_tail_read() {
         chat.told(
             Time::ZERO,
             &client,
-            Told::Page { handle: chat.activity, page: activity_answer(completed_activity(Some(cursor.clone()))) },
+            Told::Page {
+                handle: chat.activity,
+                page: activity_answer(completed_activity(Some(cursor.clone()), FAST_REPLY)),
+            },
             &mut out,
         );
         assert_eq!(
