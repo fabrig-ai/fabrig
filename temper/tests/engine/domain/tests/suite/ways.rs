@@ -648,7 +648,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
 #[expect(clippy::too_many_lines, reason = "the fixture names the stock, adoption and restored tiers together")]
 fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     let mut limits = kinds::limits();
-    limits.tasks.charters = 5;
+    limits.tasks.charters = 12; // The stock's charter lines, kind 9, run up to charter 12.
     limits.tasks.spec_bytes = 512;
     limits.tasks.parameters = 4;
     limits.people.requests = 8; // Adoption, chat and the owner's settings change.

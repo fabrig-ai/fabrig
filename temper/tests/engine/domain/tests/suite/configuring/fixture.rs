@@ -17,7 +17,7 @@ pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
 // Stock has nine charters, fourteen grants and fifteen executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 10;
+const CHARTERS: u32 = 12; // The stock's charter lines, kind 9, run up to charter 12.
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;

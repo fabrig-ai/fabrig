@@ -525,7 +525,7 @@ fn revision_world() -> ClientWorld {
     limits.people.initial_owners = 2;
     limits.people.requests = 16;
     limits.settings.history = 4;
-    limits.tasks.charters = 8;
+    limits.tasks.charters = 12; // The stock's charter lines, kind 9, run up to charter 12.
     let mut config = restore_configuration(&limits);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.number = 6;
