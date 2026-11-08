@@ -70,7 +70,7 @@ impl Referee<NativeClient> for Person {
                 self.finished = true;
                 client.close();
             }
-            Next::Failed { step, .. } => panic!("Ready failed at semantic step {step}"),
+            Next::Failed { step, why } => panic!("Ready failed at semantic step {step}: {why:?}"),
         }
     }
     fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {
@@ -126,17 +126,7 @@ pub fn ready(root: &Path, link: &str, mode: Mode) {
         .expect("numeric client listener");
     assert!(address.ip().is_loopback(), "fake sitting stays on loopback");
     let within = Duration::from_secs(30);
-    let steps = Box::new([
-        Step::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(1)) } },
-        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
-        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
-        Step::See { find: Find::named(Role::TextField, b"Owner"), within },
-        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
-        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
-        Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
-        Step::Press { find: Find::named(Role::Button, b"Adopt") },
-        Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
-    ]);
+    let steps = adoption_steps(within);
     let root = skein_shell::open_root(root).expect("sitting scratch root");
     let clock = Clock::new();
     let mut world = real::World::new(Person {
@@ -165,4 +155,20 @@ pub fn ready(root: &Path, link: &str, mode: Mode) {
     let ended = world.run(&clock, Duration::from_secs(40));
     assert!(ended.procs.iter().all(Host::is_empty), "sitting client drained");
     println!("signed-in Ready client completed");
+}
+
+fn adoption_steps(within: Duration) -> Box<[Step<Address>]> {
+    Box::new([
+        Step::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(1)) } },
+        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
+        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
+        Step::See { find: Find::named(Role::TextField, b"Owner"), within },
+        Step::See { find: Find::exactly_named(Role::Check, format!("{OWNER}/{NAME}").as_bytes()), within },
+        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
+        Step::See { find: Find::named(Role::Button, format!("Adopt {OWNER}/{NAME}").as_bytes()), within },
+        Step::Press { find: Find::named(Role::Button, b"Adopt") },
+        Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
+    ])
 }
