@@ -836,6 +836,11 @@ impl Domain {
                     return None;
                 }
             }
+            for (_, pending) in &self.landing.pending {
+                if pending.entry < *number {
+                    return None;
+                }
+            }
             return Some(*number);
         }
         None

@@ -141,6 +141,9 @@ impl Forge {
                         self.record_requests();
                         self.socket = None;
                         self.server = None;
+                        // Queued server outputs belong to the closed connection.
+                        while self.down.pop().is_some() {}
+                        while self.events.pop().is_some() {}
                         if setup {
                             engine.setup.up(skein_io::Event::Closed { owner });
                         } else {

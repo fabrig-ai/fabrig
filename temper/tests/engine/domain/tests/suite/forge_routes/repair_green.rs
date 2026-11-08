@@ -104,6 +104,8 @@ fn wait_cancelled(world: &mut World, change: u64, repair: u64) {
     assert!(!matches!(row(world, change).change.state, State::Repairing { .. } | State::Held { .. }));
     assert_eq!(task(world, change).made, MADE);
     assert!(row(world, change).producer_failure.is_none());
+    world.signed_in = None;
+    world.sign_in();
     let shown = temper_engine_domain_world::tier_task_show::show(world, repair);
     assert_eq!(shown.status, 0);
     assert!(contains(&shown.stdout, b"CI passed at head"), "{}", String::from_utf8_lossy(&shown.stdout));
