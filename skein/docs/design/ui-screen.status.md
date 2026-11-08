@@ -18,3 +18,5 @@ tree. Section 10 keeps the deferred rendering and input work.
   (`Focus::rows`). 6.2: a field's keys while an options menu follows it;
   PageUp and PageDown by the body's rows less one, clearing and setting
   `follow`, where today they move it by nine rows.
+- **Not yet:** 3 and 5.4: `label` on a token's look, a text field or
+  area laid with no name.

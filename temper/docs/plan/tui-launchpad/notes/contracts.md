@@ -89,4 +89,8 @@ pub struct Focus {
   fields. Each fills the literals the compiler names in `temper-client-tui`
   (`src/theme.rs`, `src/tests/theme.rs`) with what draws as before: `sides: true`,
   `align: Align::Start`, `band: false`, `active: Paint::NONE`.
+- **Added after the first release, compatibly:** the task `screen-label` adds
+  `StyleLook::label: bool` (true lays a text field's or area's name before its value, as
+  now; false lays its value or placeholder alone after its focus columns), and fills
+  `temper-client-tui`'s literals with `label: true`.
 - What temper's theme sets them to is section 3's.

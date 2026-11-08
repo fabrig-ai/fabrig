@@ -110,7 +110,9 @@ host chose (its own design says how).
     end (5.2);
   - *a band* (`band`): each row its lines take painted across its
     region's inner width, so that a background shows as a band from the
-    region's inner start to its inner end (5.3).
+    region's inner start to its inner end (5.3);
+  - *a label* (`label`): whether a text field or a text area under it
+    lays its name before its value, as by default, or not (5.4).
   The nearest token whose look aligns `End`, or bands, decides it for
   the nodes under it.
 - **The focus's paint,** laid last over the focused node's cells; the
@@ -278,7 +280,9 @@ the tree's nodes and the frame's cells.
   gone from the tree, or no longer one a person acts on, leaves the
   focus none.
 - **A text field** takes one row: `NAME: ` and its value from the offset
-  that keeps the caret in view; an empty value shows its placeholder in
+  that keeps the caret in view, or, where its token's look says no
+  label, its value alone after its focus columns, its name still the
+  tree's; an empty value shows its placeholder in
   the placeholder's paint, if it has one. A secret's value is the
   theme's mask, once per character, and never its bytes. A text area
   wraps its value as lines (5.1).
