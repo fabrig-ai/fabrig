@@ -273,3 +273,14 @@ record ForgeCharter { charter: u32 }
 enum QuestionsRoute { none, foreman, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
+# What reaches a person (temper/docs/design/domain/forge.md, 5.10).
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachClass { decide, ask, ask_away, wait }
+record ReachKindOf { kind: ReachKind }
+record ReachSet { number: u8 }
+enum ClassSubject { kind: ReachKindOf, set: ReachSet }
+record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
+record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
+record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
+enum ReachReason { kind, set: ReachSet, always }
+record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }

@@ -2,9 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.2: the client wire and the store hold no
-  `ProjectClasses` and the wire no `Reach` (`ui-reaches/reach-wire`).
-
 - **Not yet:** 13.2: kind 8 has no value of the forge's, no stock and no
   reader of its record (`ui-reaches/classes-value`).
 
