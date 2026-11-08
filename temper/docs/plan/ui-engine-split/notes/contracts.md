@@ -109,11 +109,13 @@ wrappers over `TABLE`, so their callers don't change.
   `features = ["worker"]`. Without the feature, these names stay and
   compile, so that code written against them builds both ways:
   `Worker`, `WorkerRuntime` and `settings::Agent` (uninhabited), the
-  `Service` methods `reuse_workspaces`, `dump_llm` and `worker_domain`
-  (doing nothing, or `None`), and `startup::with_setup_given` and the
-  other startup functions, with their worker parameters. Only with it:
-  `startup::{worker_part, worker_alone, WorkerPart}`, `program_sources`
-  and `Service::configure_program_sources`.
+  `Service` methods `reuse_workspaces` and `dump_llm` (doing nothing),
+  and `startup::with_setup_given` and the other startup functions, with
+  their worker parameters. Only with it:
+  `startup::{worker_part, worker_alone, WorkerPart}`, `program_sources`,
+  `Service::configure_program_sources` and `Service::worker_domain`
+  (its type is the worker's root's; `engine-limits` moves the method
+  into an `impl Service` of `worker.rs`).
 
 ## 6. `temper-engine-shell` (tasks `engine-forge`, `engine-serve`)
 
