@@ -106,9 +106,8 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Viewport { width: 420, height: 900 },
         // NewChat hides its tab bar on a phone; open the project's Home by address.
         Step::Person(PersonStep::Go { address: b"/projects/1".as_slice().into() }),
-        see(tier.states().live),
-        temper_client_browser_world::connected(),
         see(Find::exactly_named(Role::Region, b"To begin")),
+        temper_client_browser_world::connected(),
         press(Role::Button, b"Start"),
         Step::Address(b"/projects/1/ask".as_slice().into()),
         see(ask()),

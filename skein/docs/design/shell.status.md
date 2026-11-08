@@ -2,6 +2,13 @@
 
 2026-11-08. Where skein's code lags or departs from [shell.md](shell.md).
 
+Section 6 has no known gap in closing a panic report with its thread's
+`panicked at` line and message after one forced backtrace. The fail-stop
+test world checks that a 1,024-byte tail retains that closing text when
+it fits; the report exceeds the tail. Sections 3 and 13's parent-death
+exec is Linux's; macOS returns `Unsupported` and its alternative remains
+section 10's question.
+
 Section 6.3 has no known gap in requested hangup handling, preserving a
 hangup ignored at startup, or `Kept::on_abort` restoring the terminal
 before a panic's report. The macOS build and runtime gaps in section 9

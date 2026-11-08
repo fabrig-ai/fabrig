@@ -2,6 +2,12 @@
 
 2026-11-08. Where smith's code lags or departs from [shell.md](shell.md).
 
+Section 2.2 has no known gap in Linux's `--program-child` startup for
+programs that die when their agent aborts. The shell supplies its own
+process ID on Linux and no parent on macOS; the child mode is Unix-only
+and absent from the portable face. macOS's direct launch and deferred
+crash lifetime are protocol/programs.md, sections 5.1 and 9's.
+
 - **Not yet:**
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
