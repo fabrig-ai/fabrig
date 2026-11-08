@@ -296,17 +296,17 @@ repository's gates are still the document's
 (`protocol/configuration.md`, `domain/landing.md`), and the forge's
 world tells none of their stories (`domain/forge.md`,
 `domain/testing.md`). A goal's own branch and its landing are built,
-but for the held landing's story, ignored for a restart fault
-(`domain/forge.md`). A change relays its agents' questions through a
+and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, but the restore's stories in the domain world and
-the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories run but
+one, which, with the joined client world's, stays ignored: a setting
+reset to a default the forge does not report to jig loses its state at
+restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
