@@ -54,6 +54,13 @@ pub fn fresh_fixture(seed: u64) -> (Joint, Root) {
     front.engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[(b"work", b"hello", 42)]));
     (front, root)
 }
+/// A box's welcome with only the deployment owner and no project's role.
+#[must_use]
+pub fn tui_first_run_fixture(seed: u64) -> (Joint, Root) {
+    let (mut front, mut root) = fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::FirstRun, false);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    without_deployment_account((front, root))
+}
 /// An empty first run offers a real provider but holds no account yet.
 #[must_use]
 pub fn empty_welcome_fixture(seed: u64) -> (Joint, Root) {
@@ -83,9 +90,10 @@ pub fn forge_fixture(seed: u64) -> (Joint, Root) {
 enum WelcomeForge {
     None,
     Empty,
+    FirstRun,
     Connected,
     Owned,
-    Playground { running: bool },
+    Playground { running: bool, printed: bool },
 }
 #[must_use]
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
@@ -452,7 +460,12 @@ fn fixture_root(
             policy.roles[0].period_spend = spend;
             config.core.defaults.rules.period_spend = policy.period_spend.checked_mul(2).expect("fixture spend fits");
         }
-        config.under_box |= forge_setup || matches!(forge, WelcomeForge::Empty);
+        config.under_box |= forge_setup || matches!(forge, WelcomeForge::Empty | WelcomeForge::FirstRun);
+        if forge == WelcomeForge::FirstRun {
+            for owner in &mut config.core.owners {
+                owner.project = 0;
+            }
+        }
         let place = temper_engine_domain_forge::Place {
             api: temper_engine_domain_forge::Address { host: b"forge.test".as_slice().into(), port: 443, tls: None },
             git: b"https://forge.test".as_slice().into(),
@@ -487,7 +500,7 @@ fn fixture_root(
                 asked: forge_setup,
             }]);
         }
-        if matches!(forge, WelcomeForge::Playground { .. }) || matches!(forge, WelcomeForge::Empty) {
+        if matches!(forge, WelcomeForge::Playground { .. } | WelcomeForge::Empty | WelcomeForge::FirstRun) {
             config.forges = Box::new([]);
         }
         let mut engine_limits = engine_limits();
@@ -502,7 +515,7 @@ fn fixture_root(
         // Each extra grant adds one entry to each of the four fleet routing cohorts.
         engine_limits.journal.writes =
             engine_limits.journal.writes.checked_add((engine_limits.fleet.grants - 2) * 4).expect("grant cohorts fit");
-        if trial_story || forge == WelcomeForge::Owned || matches!(forge, WelcomeForge::Empty) {
+        if trial_story || matches!(forge, WelcomeForge::Owned | WelcomeForge::Empty | WelcomeForge::FirstRun) {
             super::first_run_projects(&mut config, &mut engine_limits);
         }
         if trial_story {
@@ -538,6 +551,9 @@ fn fixture_root(
             )
             .expect("playground fixture"),
         );
+    }
+    if matches!(forge, WelcomeForge::Playground { printed: true, .. }) {
+        front.offer_printed_link(limits);
     }
     front.bind(CLIENT, fixtures::PARTY);
     let mut root = if tools {
@@ -791,8 +807,16 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
 /// The playground, unchosen or running, beside the real root's account and forge facts.
 #[must_use]
 pub fn playground_fixture(seed: u64, running: bool) -> (Joint, Root) {
+    playground_root(seed, running, false)
+}
+/// The same browser's playground with a local link for the TUI beside it.
+#[must_use]
+pub fn tui_playground_fixture(seed: u64) -> (Joint, Root) {
+    playground_root(seed, false, true)
+}
+fn playground_root(seed: u64, running: bool, printed: bool) -> (Joint, Root) {
     let (mut front, mut root) =
-        fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Playground { running }, false);
+        fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Playground { running, printed }, false);
     if !running {
         event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
         (front, root) = without_deployment_account((front, root));

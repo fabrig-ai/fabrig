@@ -211,6 +211,13 @@ pub fn world(seed: u64) -> World<Temper, Joint> {
 pub fn tui_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_printed_link(seed, domain_limits()))
 }
+/// A front's first run offers the printed link beside the handed local link.
+#[must_use]
+pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
+    let (mut front, _) = crate::front::account_acts::tui_first_run_fixture(seed);
+    front.offer_printed_link(domain_limits());
+    world_with(seed, front)
+}
 /// The launchpad asks Ask temper through the shipped TUI host.
 #[must_use]
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
