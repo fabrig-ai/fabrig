@@ -18,6 +18,10 @@ files = [
   "temper/docs/help/chat.md",
   "temper/docs/design/protocol/configuration.status.md",
   "temper/docs/design/domain/agent.status.md",
+  "temper/crates/temper-service/src/tests/fixtures.rs",
+  "temper/crates/temper-service/src/tests/root_checks.rs",
+  "temper/crates/temper/tests/support/configuration.rs",
+  "temper/crates/temper/tests/suite/configuration.rs",
 ]
 effort = "high"
 minutes = 90
@@ -178,3 +182,30 @@ Acceptance:
 As the implementer's text says, and: the drafter's bytes and sha256 as the test
 reads them; each reader whose list or count changed; the help pages' sizes before
 and after against their bounds; anything regenerated.
+
+## Answers
+
+2026-11-08. **May the test worlds' limits that refuse the new stock
+(`authority.executors` 14, `tasks.charters` 8, `core.templates` 4,
+`tasks.executor_kinds` 14) be raised to admit it?** Yes. Acceptance 4's "none
+is raised here" is about the box's limits, `temper init`'s document and the
+deployment profile (`configuration.md`, 13.4: sixteen executor places, which
+hold the stock's fifteen). A test world whose override is sized to the stock's
+own count, as `tests/fixtures.rs`' "The stock catalogue holds eight charters"
+is, reads the stock as the lists of acceptance 4 do, and moves with it: set each
+such override to the new stock's need, `tasks.charters` 9, `core.templates` 5,
+`authority.executors` 15 and `tasks.executor_kinds` 15, and its comment's count
+with it. Found so far: `temper-service`'s `tests/fixtures.rs` (`ENGINE`) and
+`tests/root_checks.rs` (`ENGINE_OVERRIDES`); `temper`'s
+`tests/support/configuration.rs` (both blocks) and `tests/suite/configuration.rs`;
+an `rg` over `temper/` for `"tasks.charters"`, `"core.templates"`,
+`"authority.executors"` and `"tasks.executor_kinds"` finds the others (the
+`temper` tests' `engine.json` fixtures, `support/*.rs`, `temper-playground`'s
+documents and stories): change those that a test you run, or a test of the
+same world, refuses for the stock, and name each in the report. Leave an override
+sized for another reason (a test's own refusal, as `forge_land.rs`' 2 or
+`forge_route`'s 6) and one set below the stock where no stock policy is checked.
+`stock.rs`' floor test rows (`the stock's rules need 14 executors`, `the stock
+offers 8 charters`) take the new figures as any other reader. None goes past 16,
+the box's figure: if one would, stop with `Question:` as acceptance 4 says.
+

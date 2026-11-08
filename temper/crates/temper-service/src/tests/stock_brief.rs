@@ -112,12 +112,12 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     for (number, open, non_brief, remaining) in [
         (1, false, 43_177, 356_958),
         (1, true, 41_087, 359_048),
-        (2, false, 36_104, 364_031),
-        (4, false, 32_670, 367_465),
+        (2, false, 28_984, 371_151),
+        (4, false, 25_550, 374_585),
         (5, false, 45_093, 355_042),
-        (6, false, 33_894, 366_241),
-        (9, false, 31_337, 368_798),
-        (10, false, 31_052, 369_083),
+        (6, false, 26_774, 373_361),
+        (9, false, 24_217, 375_918),
+        (10, false, 23_932, 376_203),
         (11, true, 10_510, 389_625),
     ] {
         let assignment = assignment(number, open, 14_592);
