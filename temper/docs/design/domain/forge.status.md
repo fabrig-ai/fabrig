@@ -335,9 +335,6 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
   - 5.9: "Only goals call it" is held by the root, where the request leaves it to
     charter 1's words: goals and chats share that charter, so a chat's call answers
     ask (`agent.status.md`, 4.3).
-- **Not yet:** 5.10: no crate `temper-protocol-reaches` holds the kinds,
-  the classes, a project's table, its patterns, the judgement or Stop
-  asking's offers (`ui-reaches/reach-kit`).
 
 - **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
