@@ -1,5 +1,5 @@
 //! One accepted stream and its opening (protocol/channel.md, 10.3).
-use crate::Limits;
+use crate::{Limits, Loss};
 use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait};
 use skein_lib::{Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -26,6 +26,8 @@ pub(crate) struct Connection {
     pub above: Queue<Event>,
     pub below: Queue<Lower>,
     pub terminal: bool,
+    pub loss: Option<Loss>,
+    pub ended: bool,
     pub heard: bool,
     pub hello_deadline: Option<Time>,
     pub ping: Option<Time>,
@@ -46,6 +48,8 @@ impl Connection {
             above: Queue::uncapped(),
             below: Queue::uncapped(),
             terminal: false,
+            loss: None,
+            ended: false,
             heard: false,
             hello_deadline: None,
             ping: None,

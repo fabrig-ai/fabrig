@@ -333,6 +333,7 @@ impl Joined {
                     self.engine_event(engine::Event::Down { channel, down, parts: Box::new([]), values: Box::new([]) });
                 }
             }
+            engine::Request::Ended { .. } => {}
             engine::Request::Lost { .. } | engine::Request::Closed => self.engine_root.push(request),
         }
     }
@@ -408,6 +409,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }
                 | engine::Request::Closed => None,
             })

@@ -8,6 +8,7 @@ pub(crate) enum WriteRoom {
     Free,
     Withheld,
     One,
+    Held,
 }
 pub(crate) struct Net {
     pub peer: ScriptedPeer,
@@ -51,7 +52,7 @@ impl Net {
                     assert!(self.right.replace(right).is_none());
                 }
                 stream::OutputDown::Cancel { right } => {
-                    if self.right.take() == Some(right) {
+                    if self.write_room != WriteRoom::Held && self.right.take() == Some(right) {
                         self.events.push_back(LowerEvent::Write(stream::OutputUp::Settled {
                             right,
                             outcome: stream::OutputOutcome::Cancelled,
@@ -88,7 +89,7 @@ impl Net {
         if let Some(event) = self.events.pop_front() {
             return Some(event);
         }
-        if self.write_room != WriteRoom::Withheld
+        if !matches!(self.write_room, WriteRoom::Withheld | WriteRoom::Held)
             && let Some(right) = self.right.take()
         {
             if self.write_room == WriteRoom::One {
