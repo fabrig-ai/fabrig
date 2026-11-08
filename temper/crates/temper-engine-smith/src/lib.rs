@@ -87,6 +87,8 @@ pub enum Problem {
     },
     Type(&'static [u8]),
     Range(&'static [u8]),
+    /// A member beside `changes` belongs in each change (domain/agent.md, 4.3.1).
+    Beside(&'static [u8]),
     UnknownTool,
     /// A forge read's answer has a kind no agent read asks for (domain/agent.md, 8).
     Unasked(&'static str),
