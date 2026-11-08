@@ -47,7 +47,8 @@ fn deployments_resolve_as_the_box_without_flags() {
     assert!(failures.is_empty(), "deployment rows: {failures:?}");
 }
 
-const FIRST: &[u8] = super::OPEN_LINK;
+const FIRST: &[u8] =
+    b"http://127.0.0.1:7000/jig/v1/sign-in/link?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice();
 
 #[test]
 fn keeping_replaces_the_whole_private_file_and_forgetting_is_quiet() {

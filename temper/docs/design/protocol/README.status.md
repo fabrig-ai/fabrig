@@ -59,11 +59,6 @@ deferred failure accounting.
 The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
 are designed and not yet built:
 
-- **Not yet:** 4.1, 5: `temper-shell`: the commands' table and its
-  renderings, the directories, `help` and the link file are
-  `crates/temper`'s (`commands.rs`, `directories.rs`, `help.rs`,
-  `link_file.rs`), rendered under `temper` alone.
-
 - **Not yet:** 4.1, 5: `temper-service` has no `worker` feature: the
   worker's half is always built, and nothing refuses a worker's
   document in a build without it.

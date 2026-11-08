@@ -1,4 +1,4 @@
-use crate::directories::{Directories, EnvironmentEntry, resolve};
+use crate::directories::{Directories, EnvironmentEntry, program_environment, resolve};
 use skein_shell::Origin;
 const WORKING: &[u8] = b"/work";
 fn home() -> Vec<EnvironmentEntry> {
@@ -9,12 +9,12 @@ fn defaults() -> Directories {
 }
 #[test]
 fn the_default_directories_answer_nothing() {
-    assert_eq!(defaults().program_environment(&home(), WORKING, b"temper").as_ref(), b"");
+    assert_eq!(program_environment(&defaults(), &home(), WORKING, b"temper").as_ref(), b"");
 }
 #[test]
 fn flags_naming_the_defaults_answer_nothing() {
     let dirs = resolve(&defaults().flags(), &home(), WORKING).expect("child flags").0;
-    assert_eq!(dirs.program_environment(&home(), WORKING, b"temper").as_ref(), b"");
+    assert_eq!(program_environment(&dirs, &home(), WORKING, b"temper").as_ref(), b"");
 }
 #[test]
 fn each_directory_is_named_only_off_its_own_default() {
@@ -34,7 +34,7 @@ fn each_directory_is_named_only_off_its_own_default() {
         let mut environment = home();
         environment.extend(variables.iter().map(|name| (name.as_bytes().into(), b"/moved".as_slice().into())));
         let dirs = resolve(&[], &environment, WORKING).expect("variables").0;
-        assert_eq!(dirs.program_environment(&environment, WORKING, b"temper").as_ref(), expected.as_bytes());
+        assert_eq!(program_environment(&dirs, &environment, WORKING, b"temper").as_ref(), expected.as_bytes());
     }
 }
 #[test]
@@ -55,16 +55,16 @@ fn a_directory_off_its_default_alone_is_named() {
         environment.extend(variables.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())));
         let flags: Vec<Box<[u8]>> = flags.iter().map(|flag| flag.as_bytes().into()).collect();
         let dirs = resolve(&flags, &environment, WORKING).expect("directory").0;
-        assert_eq!(dirs.program_environment(&environment, WORKING, word.as_bytes()).as_ref(), expected.as_bytes());
+        assert_eq!(program_environment(&dirs, &environment, WORKING, word.as_bytes()).as_ref(), expected.as_bytes());
     }
 }
 #[test]
 fn no_home_names_all_three() {
-    assert_eq!(defaults().program_environment(&[], WORKING, b"temper").as_ref(), b"TEMPER_CONFIG=/home/person/.config/temper TEMPER_DATA=/home/person/.local/share/temper TEMPER_CACHE=/home/person/.cache/temper temper");
+    assert_eq!(program_environment(&defaults(), &[], WORKING, b"temper").as_ref(), b"TEMPER_CONFIG=/home/person/.config/temper TEMPER_DATA=/home/person/.local/share/temper TEMPER_CACHE=/home/person/.cache/temper temper");
 }
 #[test]
 fn the_default_directories_only_need_a_different_binary_word() {
-    assert_eq!(defaults().program_environment(&home(), WORKING, b"~/bin/temper").as_ref(), b"~/bin/temper");
+    assert_eq!(program_environment(&defaults(), &home(), WORKING, b"~/bin/temper").as_ref(), b"~/bin/temper");
 }
 #[test]
 fn moved_directories_and_the_binary_share_short_words() {
@@ -75,7 +75,7 @@ fn moved_directories_and_the_binary_share_short_words() {
         origins: [Origin::Flag; 3],
     };
     assert_eq!(
-        dirs.program_environment(&home(), WORKING, b"~/bin/temper").as_ref(),
+        program_environment(&dirs, &home(), WORKING, b"~/bin/temper").as_ref(),
         b"TEMPER_CONFIG=~/a TEMPER_DATA=~/b TEMPER_CACHE=/moved ~/bin/temper"
     );
 }
@@ -102,7 +102,7 @@ fn the_words_survive_a_shell() {
     std::fs::set_permissions(binary_path, std::fs::Permissions::from_mode(0o700)).expect("executable");
     let environment = vec![(b"HOME".as_slice().into(), home_path.into())];
     let word = crate::printed::path_word(&binary, Some(home_path));
-    let script = dirs.program_environment(&environment, WORKING, &word);
+    let script = program_environment(&dirs, &environment, WORKING, &word);
     let output = std::process::Command::new("sh")
         .args([std::ffi::OsStr::new("-c"), std::ffi::OsStr::from_bytes(&script)])
         .current_dir(scratch.path())
@@ -124,7 +124,7 @@ fn the_widest_directories_fit_the_wire() {
     const WORD_BYTES: usize = 49206;
     let path = vec![b'\''; PATH_BYTES].into_boxed_slice();
     let dirs = Directories { config: path.clone(), data: path.clone(), cache: path, origins: [Origin::Flag; 3] };
-    let words = dirs.program_environment(&[], WORKING, b"temper");
+    let words = program_environment(&dirs, &[], WORKING, b"temper");
     assert_eq!(words.len(), WORD_BYTES);
     let record =
         w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: words })
@@ -145,12 +145,12 @@ fn a_binary_word_past_the_answer_bound_gives_way_to_temper() {
     let widest = Directories { config: path.clone(), data: path.clone(), cache: path, origins: [Origin::Flag; 3] };
     for (dirs, environment, room) in [(defaults(), home(), BOUND), (widest, vec![], BOUND - WIDEST_PREFIX)] {
         let at_bound = vec![b'a'; room];
-        let words = dirs.program_environment(&environment, WORKING, &at_bound);
+        let words = program_environment(&dirs, &environment, WORKING, &at_bound);
         assert_eq!(words.len(), BOUND);
         assert!(words.ends_with(&at_bound));
         let past_bound = vec![b'a'; room + 1];
-        let words = dirs.program_environment(&environment, WORKING, &past_bound);
+        let words = program_environment(&dirs, &environment, WORKING, &past_bound);
         assert!(words.len() <= BOUND, "a binary past the bound must give way");
-        assert_eq!(words, dirs.program_environment(&environment, WORKING, b"temper"));
+        assert_eq!(words, program_environment(&dirs, &environment, WORKING, b"temper"));
     }
 }

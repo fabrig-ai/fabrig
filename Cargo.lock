@@ -4911,6 +4911,7 @@ dependencies = [
  "temper-real-loop-world",
  "temper-service",
  "temper-settings-form",
+ "temper-shell",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -6075,6 +6076,18 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "temper-client-protocol-wire",
+]
+
+[[package]]
+name = "temper-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
+ "skein-io",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "temper-docs",
 ]
 
 [[package]]
