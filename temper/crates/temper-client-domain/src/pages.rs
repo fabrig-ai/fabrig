@@ -2553,6 +2553,9 @@ pub(crate) fn forge_progress(root: &mut crate::Domain, env: &Env<Limits>, out: &
 }
 
 fn configure_stock_ways(pages: &mut Pages, client: &Client) {
+    if pages.stock_ways.is_none() {
+        return;
+    }
     let asking = match (&pages.chats, address_project(&pages.address)) {
         (Some(chats), Some(project)) => chats.chat_counts(client, pages.me(client), project),
         (Some(_), None) | (None, Some(_) | None) => false,
