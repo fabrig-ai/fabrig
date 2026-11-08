@@ -11,16 +11,21 @@ requests of 2026-11-08); `launchpad-chat/README.md`'s last frame.
 
 ## Parts and tasks
 
-| Part | Task | Crates | Needs | Minutes |
-|---|---|---|---|---|
-| `rule-title` | `rule-title` | skein-ui-screen | | 40 |
-| `look` | `look` | temper-client-tui (+ call sites) | | 80 |
-| `seam` | `seam` | temper-client-shell-tui, temper's `tui.rs` | | 70 |
+| Part | Task | Request item | Crates (files) | Needs | Minutes |
+|---|---|---|---|---|---|
+| `rule-title` | `rule-title` | 5 | skein-ui-screen (`Canvas::title`) | | 40 |
+| `look` | `look` | 2, 3, 4, and the shared surface | temper-client-tui (+ call sites in the host, tools/journeys) | | 80 |
+| `seam` | `seam` | 3, 5 | temper-client-shell-tui (`Start`, run, journey), temper's `tui.rs` | | 70 |
+| `left-off` | `left-off` | 1 | temper-client-tui (`view/launchpad.rs`, `view.rs`) | `look` | 60 |
+| `chat-rule` | `chat-rule` | 5 | temper-client-tui (`view/chat.rs`, `view/foot.rs`, `look.rs`, `theme.rs`, `words.rs`), the joint world's heading | `rule-title`, `look` | 75 |
+| `left-off` | `arrows` | 1, 3, 5 | temper-client-shell-tui (`host.rs`: arrows, theme's background, `Told::Boxed`) | `seam`, `left-off` | 45 |
+| `journeys` | `journeys` | the journey, the account | the TUI journeys' recording and prints, three status files | `arrows`, `chat-rule` | 60 |
 
-Later batches add `left-off` (the launchpad's arrows, view and host),
-`chat-rule` (the chat's title in the rule above the box) and `journeys`
-(recording `launchpad-chat` again, the look request's account, the
-status entries closed).
+`left-off` and `chat-rule` share `temper-client-tui` in one wave, a
+stated departure from one writer per crate: `look` lays every name both
+need first (tokens, state, events), and their files are disjoint, each
+spec naming the other's as not its own (goldens by screen, fixtures in
+their own test files).
 
 ## Decisions
 
@@ -67,8 +72,10 @@ status entries closed).
 ## Overlaps
 
 - `tui-native-secret` (integration): its `world-file` branch changed
-  `temper/tests/client/src/tui.rs`; task `seam` adds the two `Start`
-  fields' literals there (compiler-forced). Its `serve-file` branch wrote
+  `temper/tests/client/src/tui.rs` and `tests/suite/tui.rs`; task `seam`
+  adds the two `Start` fields' literals in the first (compiler-forced),
+  and task `chat-rule` changes the second's chat heading assertion to
+  the rule's words. Its `serve-file` branch wrote
   the link file this plan reads for "on a box".
 - `post-landing-probes`' finding-465 repair (a fast chat losing its
   opening question) is in the TUI's chat: expect a catch-up merge in
@@ -82,5 +89,7 @@ status entries closed).
 
 ## Critical path
 
-`look` (80) → `chat-rule` → `journeys`, with `seam` (70) → `arrows`
-beside it; about four hours of implementer time end to end as it stands.
+`look` (80) → `chat-rule` (75) → `journeys` (60), about 3.6 hours, with
+`seam` (70) and `left-off` (60) → `arrows` (45) finishing beside
+`chat-rule`; `rule-title` (40) is off the path. Three tasks start at
+once (`rule-title`, `look`, `seam`), two more when `look` lands.
