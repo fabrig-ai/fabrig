@@ -105,14 +105,93 @@ fn a_close_s_answer_and_stream_ending_yield_one_terminal() {
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
     assert_eq!(harness.closed_count(), 1);
 }
+// The browser reserves one fetch beyond the link's exchange limit for cleanup.
+const AUTHORIZATION_ROOM: u32 = 1;
+const CLEANUP_ROOM: u32 = 1;
+// The fixture's small go record fits inside the wire location allowance.
+const ANSWER_BYTES: u32 = w::CEILINGS.authorize_go_location;
+#[derive(Clone, Copy)]
+enum FinishedExchange {
+    Answered,
+    Failed,
+}
+fn authorize_when_room(
+    harness: &mut fixtures::Harness,
+    fetch: &mut skein_ui_web::fetch::Fetch,
+) -> Option<(Token, u64)> {
+    if harness.link.in_flight() >= AUTHORIZATION_ROOM {
+        return None;
+    }
+    harness.link.step(Time::ZERO, Event::Authorize { query: Box::from(b"client_id=app".as_slice()) }, &mut harness.out);
+    let Some(Request::Exchange { exchange, message: Message::Authorize(_), .. }) = harness.out.pop() else {
+        panic!("one authorization exchange");
+    };
+    match fetch.begin(u32::try_from(exchange.raw()).unwrap(), ANSWER_BYTES, &[]) {
+        Some(ticket) => Some((exchange, ticket)),
+        None => {
+            harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
+            None
+        }
+    }
+}
 #[test]
-fn a_stream_ending_before_the_close_answer_yields_one_terminal() {
-    let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
-    let (_, name) = harness.opening();
-    let close = harness.close();
-    harness.stream_record(&fixtures::ending(name, w::WatchEnd::Closed));
-    harness.answer(close, &fixtures::close_answer());
-    assert_eq!(harness.closed_count(), 1);
+fn a_stream_end_keeps_authorization_waiting_for_its_http_exchanges() {
+    for finish in [FinishedExchange::Answered, FinishedExchange::Failed] {
+        let base = fixtures::limits();
+        let limits = Limits::new(*base.client(), AUTHORIZATION_ROOM).unwrap();
+        let mut harness = fixtures::Harness::new(&limits);
+        let mut fetch = skein_ui_web::fetch::Fetch::new(AUTHORIZATION_ROOM + CLEANUP_ROOM);
+        harness.open(fixtures::WATCH, fixtures::frame_subject());
+        harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+        let (opening, name) = harness.opening();
+        let opened = fetch.begin(u32::try_from(opening.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
+        harness.clear();
+        let close = harness.close();
+        let closed = fetch.begin(u32::try_from(close.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
+        harness.clear();
+        harness.stream_record(&fixtures::ending(name, w::WatchEnd::Closed));
+        assert_eq!(harness.closed_count(), 1, "the stream ends the watch once");
+        harness.clear();
+
+        let pending = authorize_when_room(&mut harness, &mut fetch);
+        assert!(
+            !harness.has(&Request::Authorized(Authorized::Lost)),
+            "cancelled watch calls still fill fetch; authorization must wait instead of getting Lost"
+        );
+        assert!(pending.is_none(), "the first authorization waits for transport credit");
+        for (exchange, ticket) in [(opening, opened), (close, closed)] {
+            match finish {
+                FinishedExchange::Answered => {
+                    assert!(fetch.finish(ticket, 200, &[]).is_some());
+                    harness.answer(exchange, &[]);
+                }
+                FinishedExchange::Failed => {
+                    assert!(fetch.fail(ticket).is_some());
+                    harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
+                }
+            }
+        }
+        assert_eq!(harness.closed_count(), 0, "late HTTP terminals do not end the watch twice");
+        harness.clear();
+        let (exchange, ticket) = authorize_when_room(&mut harness, &mut fetch).expect("the terminal frees credit");
+        let location = b"https://app.example.com/callback?code=one";
+        let answer = w::AuthorizeAnswer::Go(
+            w::AuthorizeGo::new(&w::CEILINGS, w::AuthorizeGoParts { location: Box::from(location.as_slice()) })
+                .unwrap(),
+        );
+        let mut writer = skein_lib::Writer::new(skein_lib::usize_of(answer.measure()));
+        answer.encode(&mut writer).unwrap();
+        assert!(fetch.piece(ticket, &writer.finish()).is_none());
+        let Some(skein_ui_web::fetch::Report::Answered { body, .. }) = fetch.finish(ticket, 200, &[]) else {
+            panic!("a whole authorization answer");
+        };
+        harness.answer(exchange, &body);
+        assert_eq!(
+            harness.out.pop(),
+            Some(Request::Authorized(Authorized::Go { location: Box::from(location.as_slice()) }))
+        );
+        assert!(harness.out.is_empty());
+    }
 }
 #[test]
 fn a_heartbeat_keeps_each_watch_alive() {
