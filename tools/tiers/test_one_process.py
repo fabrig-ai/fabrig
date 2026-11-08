@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
@@ -57,7 +58,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertIn(('ok ' if scenario in ('pass', 'expected-panic') else 'failed ') + name, logfile.read_text())
 
 
-class RunnerTests(unittest.TestCase):
+class RunnerFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-test-')
         self.addCleanup(temporary.cleanup)
@@ -81,7 +82,8 @@ class RunnerTests(unittest.TestCase):
         self.env['CARGO_HOME'] = str(self.root / 'cargo-home')
         self.listing = {'rust-suites': {}, 'rust-build-meta': {
             'target-directory': str(self.root / 'target'), 'base-output-directories': ['debug'],
-            'non-test-binaries': {'fixture-id': [{'name': 'helper', 'path': str(self.root / 'helper'), 'kind': 'bin'}]},
+            'non-test-binaries': {'fixture-id': [{'name': 'helper', 'path': 'debug/helper', 'kind': 'bin-exe'},
+                                               {'name': 'library', 'path': 'debug/library.so', 'kind': 'dylib'}]},
             'build-script-out-dirs': {'fixture-id': str(self.root / 'out')}, 'linked-paths': {}}}
         self.binary()
 
@@ -92,15 +94,74 @@ class RunnerTests(unittest.TestCase):
             'testcases': {name: {'ignored': name == 'ignored', 'filter-match': {'status': 'matches'}}
                           for name in names}})
 
-    def invoke(self, limits=None):
+    def prepare(self):
         (self.root / 'listing.json').write_text(json.dumps(self.listing) + '\n')
         (self.root / 'metadata.json').write_text(json.dumps(self.metadata) + '\n')
+
+    def invoke(self, limits=None):
+        self.prepare()
         with contextlib.redirect_stdout(io.StringIO()):
             self.run(self.command, self.env, self.directory, 'default', limits or {}, self.config)
         self.results = json.loads((self.directory / 'results.json').read_text())
         self.record = json.loads((self.directory / 'run.json').read_text())
         return self.results
 
+
+class EndToEndTests(RunnerFixture):
+    def test_execute_outcomes(self):
+        cpu = runpy.run_path(str(HERE / 'cpu.py'))
+        execute = cpu['execute_one_process']
+        # Keep the native fixture's lane count deterministic through the public call.
+        execute.__globals__['runpy'] = mock.Mock(run_path=lambda path: {'run': self.run})
+        rows = [('crash', 100), ('hang', 0), ('starved', 0),
+                ('state', 100), ('split', 0), ('empty', 4)]
+        for case, status in rows:
+            with self.subTest(case=case):
+                self.directory = self.root / case
+                self.env['FIXTURE_CASE'] = case
+                self.run.__globals__['LANES'] = 2 if case == 'split' else 1
+                self.config.write_text('[profile.default]\n' +
+                                       ('global-timeout="1s"\n' if case == 'hang' else ''))
+                if case == 'state':
+                    self.binary(names=('a_sets', 'b_reads'), native='state')
+                else:
+                    self.binary(names=() if case == 'empty' else ('a', 'b', 'c'))
+                self.prepare()
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    code = execute(self.command, self.env, self.directory, 'default', {}, self.config)
+                self.assertEqual(code, status)
+                summary = cpu['summary'](self.directory)
+                if case == 'hang':
+                    self.assertEqual(summary['unobserved'], [dict(
+                        binary_id='fixture::suite', test_name='c', attempt=1)])
+                    self.assertIn('c: unobserved', output.getvalue())
+                elif case == 'starved':
+                    self.assertEqual(summary['verdict'], 'starved')
+                elif case == 'state':
+                    self.assertIn('may depend on an earlier test', output.getvalue())
+                    self.assertEqual(next(t for t in summary['tests']
+                                          if t['test_name'] == 'b_reads')['alone'], 'passed')
+                elif case == 'split':
+                    self.assertEqual([p['binary_id'] for p in summary['processes']],
+                                     ['fixture::suite', 'fixture::suite'])
+                self.assertIn(output.getvalue().splitlines()[-1],
+                              (self.directory / 'command-output.txt').read_text())
+
+    def test_command_empty_selection(self):
+        self.binary(names=())
+        self.prepare()
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'))
+        result = subprocess.run([str(HERE / 'one-process'), '--out', str(self.directory),
+                                 'default', '-p', 'fixture'], cwd=self.root, env=env,
+                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, timeout=10)
+        self.assertEqual(result.returncode, 4, result.stdout)
+        self.assertEqual(json.loads((self.directory / 'results.json').read_text())['selected'], 0)
+
+
+class RunnerTests(RunnerFixture):
     def test_passing_binary_and_prefix(self):
         self.binary(names=('a', 'b', 'c', 'expected_panic', 'ignored'))
         self.command.extend(['-Pdefault', '--status-level=fail', '--no-capture',
@@ -136,6 +197,13 @@ class RunnerTests(unittest.TestCase):
     def test_unterminated_output(self):
         self.env['FIXTURE_CASE'] = 'unterminated'
         self.assertEqual([t['outcome'] for t in self.invoke()['tests']], ['passed'] * 3)
+
+    def test_descendant_descriptors(self):
+        self.env.update(FIXTURE_CASE='descriptors',
+                        FIXTURE_DESCRIPTOR_CHECK=str(FIXTURES / 'descriptors.py'))
+        self.binary(names=('a',))
+        result = self.invoke()
+        self.assertEqual(result['tests'][0]['outcome'], 'passed', result['tests'][0]['output'])
 
     def test_crash_fresh_and_before_first(self):
         self.env['FIXTURE_CASE'] = 'crash'

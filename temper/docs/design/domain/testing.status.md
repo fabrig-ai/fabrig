@@ -147,9 +147,6 @@ facts on `Committed` for `Write::Merge`. The no-link cases keep the stock
 permission mapping, owner-role refusal after admin adoption and fresh
 maintainer-role acceptance. These are scripted worlds on fake Forgejo.
 
-- **Not yet:** 6.1: no focused or fuzzy run of temper's binaries a binary to a
-  process (`tools/tiers/design.md`, 11) has shown yet that a memory scenario
-  reads only its own spans after the tests before it in its process.
 - **Not yet:** 6.4: the box's approval-identity and approval-wait stories
   have no GitHub row: their fixtures offer Forgejo alone. Setup and
   connector tables cover GitHub's identity evidence and link decisions,

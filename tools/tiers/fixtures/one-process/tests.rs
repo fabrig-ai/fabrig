@@ -17,6 +17,14 @@ fn scenario() -> String {
 
 #[test]
 fn a() {
+    if scenario() == "descriptors" {
+        let output = std::process::Command::new("python3")
+            .args(["-I", "-B"])
+            .arg(std::env::var_os("FIXTURE_DESCRIPTOR_CHECK").unwrap())
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    }
     if scenario() == "unterminated" {
         print!("no newline");
     }
@@ -27,8 +35,9 @@ fn a() {
         assert!(std::env::var_os("NEXTEST").is_none());
         assert_eq!(std::env::var("CARGO_MANIFEST_DIR").unwrap(), cwd.to_str().unwrap());
         assert_eq!(std::env::var("CARGO_PKG_NAME").unwrap(), "fixture");
-        assert_eq!(std::env::var("CARGO_BIN_EXE_helper").unwrap(), cwd.join("helper").to_str().unwrap());
-        assert_eq!(std::env::var("NEXTEST_BIN_EXE_helper").unwrap(), cwd.join("helper").to_str().unwrap());
+        assert_eq!(std::env::var("CARGO_BIN_EXE_helper").unwrap(), cwd.join("target/debug/helper").to_str().unwrap());
+        assert_eq!(std::env::var("NEXTEST_BIN_EXE_helper").unwrap(), cwd.join("target/debug/helper").to_str().unwrap());
+        assert!(std::env::var_os("CARGO_BIN_EXE_library").is_none());
         assert_eq!(std::env::var("OUT_DIR").unwrap(), cwd.join("out").to_str().unwrap());
         assert!(
             std::env::split_paths(&std::env::var_os("LD_LIBRARY_PATH").unwrap())
