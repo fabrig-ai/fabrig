@@ -63,10 +63,6 @@ are designed and not yet built:
   worker's half is always built, and nothing refuses a worker's
   document in a build without it.
 
-- **Not yet:** 4.1, 5: `temper-engine-shell`, serve: its host and start
-  are `crates/temper`'s (`lib.rs`, `host.rs`, `bundle.rs`), the worker's
-  half inline, with no `WorkerHalf`.
-
 - **Not yet:** 4.2: `crates/temper-engine` doesn't exist: no engine's
   binary, table, refusal of another shape's document, `versions` or
   `--version`.

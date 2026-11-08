@@ -1,5 +1,5 @@
 //! Resolve the four configured issuer hosts before starting any sign-in IO.
-use crate::{server_name, service, trust};
+use super::{server_name, service, trust};
 use service::clients::fetch::{Endpoint, Runtime, Transport};
 use skein_lib::List;
 use std::net::ToSocketAddrs;

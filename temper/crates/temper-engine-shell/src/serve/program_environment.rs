@@ -1,5 +1,6 @@
-use crate::directories::{Directories, EnvironmentEntry, program_environment, resolve};
+use super::{Directories, EnvironmentEntry, program_environment};
 use skein_shell::Origin;
+use temper_shell::directories::resolve;
 const WORKING: &[u8] = b"/work";
 fn home() -> Vec<EnvironmentEntry> {
     vec![(Box::from(b"HOME".as_slice()), Box::from(b"/home/person".as_slice()))]
@@ -101,7 +102,7 @@ fn the_words_survive_a_shell() {
     .expect("test binary");
     std::fs::set_permissions(binary_path, std::fs::Permissions::from_mode(0o700)).expect("executable");
     let environment = vec![(b"HOME".as_slice().into(), home_path.into())];
-    let word = crate::printed::path_word(&binary, Some(home_path));
+    let word = super::printed::path_word(&binary, Some(home_path));
     let script = program_environment(&dirs, &environment, WORKING, &word);
     let output = std::process::Command::new("sh")
         .args([std::ffi::OsStr::new("-c"), std::ffi::OsStr::from_bytes(&script)])
