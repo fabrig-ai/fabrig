@@ -6,7 +6,11 @@ use crate::{
 use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::Scheme;
+use temper_client_tui::{BoxLine, Scheme};
+
+pub(in crate::journey) fn printed_link() -> Box<[u8]> {
+    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into()
+}
 
 pub(in crate::journey) fn written(records: &[Line]) -> Box<[u8]> {
     let mut bytes = Vec::new();
@@ -88,6 +92,13 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
         ("bearer send", Kind::Bearer, bearer.as_slice(), vec![send(Sent::SignOut, Some(bearer.into()))], vec![]),
         ("bearer stream", Kind::Bearer, bearer.as_slice(), vec![Line::Stream(Some(bearer.into()))], vec![]),
         ("link send", Kind::Link, link.as_slice(), vec![send(Sent::SignInLink(body(&link)), None)], vec![]),
+        (
+            "box-line link",
+            Kind::Link,
+            link.as_slice(),
+            vec![Line::BoxLine([b"link ".as_slice(), &printed_link()].concat().into())],
+            vec![],
+        ),
         ("given text", Kind::Given, given.as_slice(), vec![], vec![Box::<[u8]>::from(given.as_slice())]),
     ];
     let mut failures = Vec::new();
@@ -248,6 +259,9 @@ impl World {
         Self::at_address(b"127.0.0.1:8367")
     }
     pub fn at_address(address: &[u8]) -> Self {
+        Self::with_front(address, false)
+    }
+    fn with_front(address: &[u8], front: bool) -> Self {
         let facts = Facts {
             seed: 7,
             now: Time::ZERO,
@@ -257,8 +271,8 @@ impl World {
             background: None,
             boxed: false,
             address: address.into(),
-            front: false,
-            local: false,
+            front,
+            local: front,
             note: None,
             kept: Vec::new(),
             credential: None,
@@ -346,30 +360,102 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 
 #[test]
 fn found_links_are_redacted_even_when_never_sent() {
-    let encoded = "A".repeat(43);
-    let url = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={encoded}").into_bytes().into_boxed_slice();
+    let url = printed_link();
+    let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
     let mut failures = Vec::new();
-    for sent in [false, true] {
-        let mut records = vec![Line::Found(Some(url.clone()))];
+    for (name, source, sent) in [
+        ("found never sent", Line::Found(Some(url.clone())), false),
+        ("found sent", Line::Found(Some(url.clone())), true),
+        ("box-line never sent", Line::BoxLine([b"link ".as_slice(), &url].concat().into()), false),
+    ] {
+        let mut records = vec![source];
         if sent {
             records.push(send(Sent::SignInLink(body(&[0; 32])), None));
         }
+        records.push(Line::Mark(Some([b"Welcome: ".as_slice(), &url].concat().into())));
         let redacted = redact(&written(&records), &[]).expect("found lines");
         if redacted.originals.count(Kind::Link) != 1 {
-            failures.push(format!("sent={sent}: link original absent"));
+            failures.push(format!("{name}: link original absent"));
         }
         let after = lines(&redacted.recording).expect("redacted found");
         if after.first() == records.first() {
-            failures.push(format!("sent={sent}: found secret unchanged"));
+            failures.push(format!("{name}: link secret unchanged"));
+        }
+        if after.last() == records.last() {
+            failures.push(format!("{name}: printed link in mark unchanged"));
         }
         if scan_bytes(&url, &[], &redacted.originals) != Some(crate::journey::What::Original) {
-            failures.push(format!("sent={sent}: found URL-base64 not scanned"));
+            failures.push(format!("{name}: link URL-base64 not scanned"));
         }
-        if let Some(Line::Found(Some(bytes))) = after.first()
-            && scan_bytes(bytes, &[], &redacted.originals).is_some()
+        let redacted_url = if let Some(Line::Found(Some(bytes))) = after.first() {
+            Some(bytes.clone())
+        } else if let Some(Line::BoxLine(bytes)) = after.first()
+            && let Some(BoxLine::Link { url }) = BoxLine::read(bytes)
         {
-            failures.push(format!("sent={sent}: redacted found refused"));
+            Some(url.into_exposed())
+        } else {
+            None
+        };
+        if redacted_url
+            .as_deref()
+            .and_then(|bytes| jig_client_protocol_http::printed(&mapping, bytes).ok())
+            .is_none_or(|link| link.secret.expose() != [b'x'; 32])
+        {
+            failures.push(format!("{name}: redacted link unreadable or wrong secret"));
+        }
+        for line in after {
+            for (field, _) in fields_mut(&mut line.clone()) {
+                if scan_bytes(field, &[], &redacted.originals).is_some() {
+                    failures.push(format!("{name}: redacted {} refused", line.kind()));
+                }
+            }
         }
     }
+    for (name, bytes) in [
+        ("log containing the printed link", [b"log ".as_slice(), &url].concat()),
+        ("unknown box word", [b"other ".as_slice(), &url].concat()),
+        ("link without URL", b"link ".to_vec()),
+        ("unreadable link", b"link not-a-link".to_vec()),
+        (
+            "wrong prefix",
+            [b"link http://127.0.0.1:8367/other/v1/sign-in/link?secret=".as_slice(), &b"A".repeat(43)].concat(),
+        ),
+        ("unreadable secret", b"link http://127.0.0.1:8367/jig/v1/sign-in/link?secret=!".to_vec()),
+    ] {
+        if !originals(&[Line::BoxLine(bytes.into())], &[]).sought().is_empty() {
+            failures.push(format!("{name}: not a link original"));
+        }
+    }
+    let mut world = World::with_front(b"127.0.0.1:8367", true);
+    world.report(Report::Front(BoxLine::Link { url: skein_lib::Secret::new(url.clone()) }));
+    let now = Time::from_nanos(world.now);
+    let wall = Wall::from_nanos(world.now);
+    world.host.clocks(now, wall);
+    world.recorder.turn(now, wall);
+    world.recorder.mark(&mut world.host);
+    world.recorder.deadline(world.host.deadline());
+    let recording = world.save();
+    let records = lines(&recording).expect("welcome records");
+    assert!(
+        !records.iter().any(|line| matches!(line, Line::Send { message: Sent::SignInLink(_), .. })),
+        "the printed link was never sent"
+    );
+    assert!(
+        records.iter().any(|line| {
+            if let Line::Mark(Some(print)) = line {
+                return find_from(print, &url, 0).is_some();
+            }
+            false
+        }),
+        "the mark drew the printed link whole"
+    );
+    let redacted = redact(&recording, &[]).expect("redact welcome");
+    let proved = prove(&redacted.recording).expect("redacted welcome proof");
+    assert!(scan(&proved, &redacted.originals).expect("welcome scan").is_none(), "redacted welcome scan");
+    let mut replay = Replay::new(&proved).expect("welcome replay");
+    let frame = replay.next().expect("welcome duties").expect("welcome mark").frame;
+    let hidden_url = url_base64(&[b'x'; 32]);
+    assert!(find_from(&frame.text(), &url, 0).is_none(), "welcome no longer draws the printed link's original");
+    assert!(find_from(&frame.text(), &hidden_url, 0).is_some(), "welcome draws the redacted link");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

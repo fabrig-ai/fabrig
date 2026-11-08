@@ -7,9 +7,6 @@
   doesn't show the dim person's words of `../README.md`, 6.15; it is
   recorded again with that repair.
 
-- **Not yet:** 5: the secret of a `box-line` record's `link` redacted and
-  scanned as a *link* original, its URL-base64 form among them
-  (`tui-redact`, `tui-box-front`).
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
   link from the box's stdout (8.2), so it cannot drive a box whose TUI is
