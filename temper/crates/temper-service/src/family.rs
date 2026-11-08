@@ -1788,6 +1788,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::View(_) => None,
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(
                 limits,
