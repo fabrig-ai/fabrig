@@ -2,12 +2,9 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.2: the client wire and the store hold no
-  `ProjectClasses` and the wire no `Reach` (`ui-reaches/reach-wire`).
-
 - **Not yet:** 13.2, 13.4: the forge holds no kind 8: no value, no stock,
-  no judgement and no erasure with its project, and the store no codec for
-  it (`ui-reaches/classes-value`).
+  no judgement and no erasure with its project, and the store's codec
+  refuses its record (`ui-reaches/classes-value`).
 
 - **Not yet:** 13.2: the stock declares no kind 8 to jig, so no project
   sets one; the client wire's `settings_kind` refuses 8, no read in a
