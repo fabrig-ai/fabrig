@@ -10,6 +10,12 @@ or another role gives the reason and no primary. The view tables cover
 both forge kinds. The joined world's Forgejo link is checked without
 a browser; real-forge and render evidence remains section 10's later work.
 
+Section 9's row for the stock ways has no known gap: the project's
+subject `ways` and its read `View` are made by the root, carried by the
+family and read by Ask temper's page and a chat's `view` blocks. The
+page's drawing of the ways is the look request `ask-temper-ways`'s
+(`README.md`, 5.13 and 11).
+
 Sections 5.1 and 5.4 have no known implementation gap in the paged
 search-and-scroll picker or the shared connection panels and setup in
 Forges rows. A completed empty search quotes its trimmed query and hides
@@ -65,6 +71,13 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
   code records no reason, and a code task gives the admin's form the
   tokens' rule.
+- **Design departs:** 9.1, from the look request `outside-pages` of
+  2026-11-08, decided by its plan's cut: the GitHub App's setup pages carry
+  `files/pages.css`'s rules inline but its `@font-face` rules, where the
+  request has the same rules, so they draw in the system's sans: their
+  `default-src 'none'` fetches nothing. A test in
+  `temper-service/src/setup/routes.rs` holds the inline style to the sheet's
+  other rules.
 - **Design departs:** 5.4, from the request `ui-repo-link` of 2026-11-06,
   decided by its plan's cut: a folded forge row's repository stays plain,
   with its link in the body's Repositories, because the summary's description

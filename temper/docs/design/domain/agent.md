@@ -1711,9 +1711,11 @@ host:
 
 ## 10. Open questions
 
-- **Ask temper after M1** (8.4): M2 supplies the remaining reads and
-  person-scoped access; M3 supplies views and sketches; M4 supplies preferences
-  (`../draft/ask-temper.execution.md`, section 3). The ChatGPT and Claude Code walk and the
+- **Ask temper after M1 and M3a** (8.4, 8.4.1): M2 supplies the remaining
+  reads and person-scoped access; M3b supplies the other views, the Showing
+  part's paragraph on sketches and the actors' marks; M4 supplies preferences
+  (`../draft/ask-temper.execution.md`, section 3). The ChatGPT and Claude Code
+  walk, a real model's use of `see ways` and of the `view` block, and the
   user's judgement of `ask.txt` follow landing.
 
 - **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge

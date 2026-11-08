@@ -11,10 +11,18 @@ section 15 keeps that after-landing work.
 
 Section 7.2's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
-link file at startup and each new Link and removes it when its loop
+link file at each `LocalLink`, never a printed link, and removes it when its loop
 returns (`../client/README.md`, 6.12). No known implementation gap
 remains in those additions; a forced kill can leave a stale file as
-designed.
+designed. Section 13.4's box stories
+(`crates/temper/tests/suite/box_listeners.rs`) hold the file's link at stdout's address and apart from every printed
+link, and left as it was when the first printed link is spent.
+
+- **Not yet:** 13.4: the file's secret on no log: the fresh box's story
+  reads stdout, stderr and `box.log` for it, not `serve.log`, which
+  holds serve's stderr. By reading, serve writes none there: its host
+  keeps each local link in the file and prints none
+  (`crates/temper/src/host.rs`).
 
 Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
 given values include its person's login, managed and fake entries give

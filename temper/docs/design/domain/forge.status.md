@@ -9,6 +9,14 @@ eligibility across the project's repositories. The focused rule tables
 and branch-pattern fuzzy story are present; their real-forge observation
 remains section 20's after-landing work.
 
+Section 8.13 has no known gap: the crate `temper-engine-domain-ways`
+derives a branch's path from what the root gathers in the answering
+decision, for the `ways` read, `see ways` and the `View` read alike. A
+focused table holds the look request's three paths with CI and both
+tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
+random rules, finds no agent's stop for an update, a merge, a prepare,
+a proof or a turn, and every path ending at a bar.
+
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
 connector's change steps and landings use its separate sequence range.

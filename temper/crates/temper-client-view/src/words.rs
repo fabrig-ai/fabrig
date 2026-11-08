@@ -616,6 +616,8 @@ pub enum Word {
     SettingsFor,
     ProjectNotYours,
     NoProjectLine,
+    ProjectName,
+    NoProjectSetUp,
     TokensDescription,
     TokensApi,
     TokensGit,
@@ -1208,6 +1210,7 @@ pub enum Word {
     SignInLinkExpired,
     SignInLinkUnknown,
     OutOfDateMain,
+    OutOfDateHow,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
     Kind,
@@ -1473,6 +1476,7 @@ pub enum Word {
     ApproveUnknownBody,
     ApproveSignedOut,
     ApproveSignedOutBody,
+    ApproveSignedOutGoogle,
     ApproveBusy,
     ApproveBusyBody,
     ApproveCode,
@@ -1555,7 +1559,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2110;
+const PHRASES: u32 = 2114;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1582,10 +1586,10 @@ const PHRASES: u32 = 2110;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3713;
+const SEGMENTS: u32 = 3717;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52061;
-const ALL: [Word; 1428] = [
+const ENGLISH_BYTES: u32 = 52262;
+const ALL: [Word; 1432] = [
     Word::ViewAsking,
     Word::ViewFailed,
     Word::ViewNow,
@@ -2176,6 +2180,8 @@ const ALL: [Word; 1428] = [
     Word::SettingsFor,
     Word::ProjectNotYours,
     Word::NoProjectLine,
+    Word::ProjectName,
+    Word::NoProjectSetUp,
     Word::TokensDescription,
     Word::TokensApi,
     Word::TokensGit,
@@ -2747,6 +2753,7 @@ const ALL: [Word; 1428] = [
     Word::SignInLinkExpired,
     Word::SignInLinkUnknown,
     Word::OutOfDateMain,
+    Word::OutOfDateHow,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
     Word::Kind,
@@ -3006,6 +3013,7 @@ const ALL: [Word; 1428] = [
     Word::ApproveUnknownBody,
     Word::ApproveSignedOut,
     Word::ApproveSignedOutBody,
+    Word::ApproveSignedOutGoogle,
     Word::ApproveBusy,
     Word::ApproveBusyBody,
     Word::ApproveCode,
@@ -3076,6 +3084,7 @@ impl Word {
             Self::ApproveUnknownBody => 4166,
             Self::ApproveSignedOut => 4167,
             Self::ApproveSignedOutBody => 4168,
+            Self::ApproveSignedOutGoogle => 4185,
             Self::ApproveBusy => 4169,
             Self::ApproveBusyBody => 4170,
             Self::ApproveCode => 4171,
@@ -3639,6 +3648,8 @@ impl Word {
             Self::SettingsFor => 2200,
             Self::ProjectNotYours => 2201,
             Self::NoProjectLine => 2197,
+            Self::ProjectName => 2198,
+            Self::NoProjectSetUp => 2199,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
             Self::ModelAddKey => 2102,
@@ -3993,6 +4004,7 @@ impl Word {
             Self::SignInLinkExpired => 1918,
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
+            Self::OutOfDateHow => 184,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
@@ -4936,6 +4948,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApproveUnknownBody => (&[b"temper doesn\xe2\x80\x99t know this code. Check the code your terminal shows, or ask again there."], &[]),
         Word::ApproveSignedOut => (&[b"Sign in first"], &[]),
         Word::ApproveSignedOutBody => (&[b"This browser isn\xe2\x80\x99t signed in to temper. Open the sign-in link temper printed first, then open this page\xe2\x80\x99s address again: your terminal shows it."], &[]),
+        Word::ApproveSignedOutGoogle => (&[b"This browser isn\xe2\x80\x99t signed in to temper. Sign in, and this page comes back with your terminal\xe2\x80\x99s code."], &[]),
         Word::ApproveBusy => (&[b"temper couldn\xe2\x80\x99t answer just now"], &[]),
         Word::ApproveBusyBody => (&[b"It is starting or stopping, busy, or out of reach. Try again in a moment."], &[]),
         Word::ApproveCode => (&[b"Code"], &[]),
@@ -5369,7 +5382,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::SettingsFor => (&[b"Settings for ", b""], &[Name]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
-        Word::NoProjectLine => (&[b"Make one from the project switcher."], &[]),
+        Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
+        Word::ProjectName => (&[b"Project name"], &[]),
+        Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
         Word::ModelAddKey => (&[b"Add key"], &[]),
@@ -6264,7 +6279,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ContinueGoogle => (&[b"Continue with Google"], &[]),
         Word::SignedOutMain => match shell {
             Shell::Terminal => (&[b"Signed out."], &[]),
-            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper printed."], &[]),
+            Shell::Browser => (&[b"To sign in, open a sign-in link temper printed."], &[]),
         },
         Word::SignInFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. This link stays usable until ", b" UTC; after that, opening it has temper serve print a fresh one."], &[Number, HoleKind::Moment, HoleKind::Moment]),
         Word::SignInBusy => (&[b"temper is busy. This link stays usable until it expires: open it again in a moment."], &[]),
@@ -6272,6 +6287,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
         Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
         Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
+        Word::OutOfDateHow => (&[b"Run the temper the engine runs."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),

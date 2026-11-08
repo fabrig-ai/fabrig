@@ -14,6 +14,7 @@ use temper_client_world::{
 
 const TUI: ClientId = ClientId(1_000);
 const ELSEWHERE: ClientId = ClientId(1_001);
+const SECOND_TUI: ClientId = ClientId(1_002);
 const SIGN_OUT: Token = Token::new(1);
 const CONNECTED: &str = "temper · Project 1";
 const SIGN_IN: &str = "Sign in this terminal to 127.0.0.1:8367";
@@ -205,8 +206,9 @@ fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
 #[test]
 fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     let mut world = fixtures::tui_world(fixtures::SEED);
-    let link = world.front().latest_link().expect("the engine's printed link");
-    assert!(link == front::printed_link(), "the file starts with the given printed link");
+    let link = world.front().local_link().expect("the engine's local link");
+    assert!(link != front::printed_link(), "the file's link must differ from the printed link");
+    assert!(Some(&link) != world.front().latest_link().as_ref(), "the file holds only the local link");
     let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, None);
     assert!(tui.text().contains("Connecting to 127.0.0.1:8367"));
     tui.run(&mut world, fixtures::WITHIN);
@@ -220,38 +222,77 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     assert_eq!(tui.approval_asks, 0);
     assert!(tui.opens.is_empty());
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
+    assert!(
+        world.front().local_link().is_some_and(|next| next != link),
+        "the file's sign-in draws the next local link"
+    );
     file_secret_is_in_no_frame(&tui, &link);
 }
 
 #[test]
-fn a_tui_after_a_browser_spent_the_link_signs_in_by_the_next() {
-    let mut world = fixtures::tui_world(fixtures::SEED);
-    // A second shipped host spends the printed link as a browser would.
-    let mut elsewhere = Tui::start(&mut world, ELSEWHERE, None);
-    elsewhere.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
-    elsewhere.run(&mut world, fixtures::WITHIN);
-    assert!(elsewhere.credential().is_some());
-    let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, None);
-    assert_eq!(tui.reads, 1);
-    tui.run(&mut world, STEP);
-    assert_eq!(tui.reads, 1, "the used answer waits a second before reading again");
-    assert!(tui.credential().is_none());
-    assert_eq!(tui.approval_asks, 0);
-    tui.run(&mut world, fixtures::WITHIN);
-    tui.run(&mut world, fixtures::WITHIN);
-    assert!((2..=3).contains(&tui.reads), "reads={}", tui.reads);
-    assert!(
-        world.front().latest_link().expect("the newly drawn link") != front::printed_link(),
-        "trying the spent link draws the next one"
-    );
-    assert!(tui.credential().is_some(), "reads={}; sends={}; notes={:?}", tui.reads, tui.sign_in_sends, tui.notes);
-    assert!(tui.text().contains(CONNECTED));
-    assert!(tui.text().contains(PROJECTS));
-    assert!(tui.status().ends_with("● Live"));
-    assert!(tui.credential().is_some());
-    assert_eq!(tui.sign_in_sends, 2);
-    assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+fn a_tui_from_the_file_and_a_browser_by_the_printed_link_sign_in_in_either_order() {
+    for (row, order) in [
+        ("printed first", [ELSEWHERE, TUI].as_slice()),
+        ("file first", [TUI, ELSEWHERE].as_slice()),
+        ("a second TUI", [TUI, SECOND_TUI, ELSEWHERE].as_slice()),
+    ] {
+        let mut world = fixtures::tui_world(fixtures::SEED);
+        let mut file_links = Vec::new();
+        let mut hosts = Vec::new();
+        for &who in order {
+            let link = world.front().local_link().expect("the engine's local link");
+            assert!(link != front::printed_link(), "{row}: the local link is never the printed link");
+            assert!(
+                world.front().latest_link() == Some(front::printed_link()),
+                "{row}: the printed link stays unchanged"
+            );
+            // A shipped host pastes the printed link as a browser would.
+            let mut host = if who == ELSEWHERE {
+                let mut host = Tui::start(&mut world, who, None);
+                host.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+                host
+            } else {
+                assert!(
+                    file_links.iter().all(|previous| previous != &link),
+                    "{row}: each TUI reads the next local link"
+                );
+                file_links.push(link.clone());
+                Tui::with_file(&mut world, who, None, File::Engine, None)
+            };
+            host.run(&mut world, fixtures::WITHIN);
+            if who != ELSEWHERE {
+                assert_eq!(host.reads, 1, "{row}: the file signs in at its first read");
+                assert_eq!(host.approval_asks, 0, "{row}: the file needs no approval");
+                assert!(host.opens.is_empty(), "{row}: the file opens nothing");
+            }
+            assert_eq!(host.sign_in_sends, 1, "{row}: each host sends one sign-in");
+            assert!(host.credential().is_some(), "{row}: each host keeps a credential");
+            assert_eq!(host.keeps.len(), CREDENTIAL_WRITES, "{row}");
+            assert!(host.text().contains(CONNECTED), "{row}: the launchpad is connected");
+            assert!(host.text().contains(PROJECTS), "{row}: the launchpad draws its commands");
+            assert!(host.status().ends_with("● Live"), "{row}: each host is live");
+            if who != ELSEWHERE {
+                assert!(
+                    world.front().local_link().is_some_and(|next| next != link),
+                    "{row}: spending the file's link draws the next"
+                );
+            }
+            assert!(
+                world.front().latest_link() == Some(front::printed_link()),
+                "{row}: signing in draws no printed link"
+            );
+            assert!(
+                world.front().local_link().is_some_and(|next| next != front::printed_link()),
+                "{row}: the next local link is never printed"
+            );
+            hosts.push(host);
+        }
+        for host in &hosts {
+            for link in &file_links {
+                file_secret_is_in_no_frame(host, link);
+            }
+        }
+    }
 }
 
 #[test]
@@ -280,7 +321,7 @@ fn a_stale_files_link_falls_back_with_nothing_alarming() {
 #[test]
 fn an_expired_sign_in_is_renewed_from_the_file() {
     let mut world = fixtures::tui_world(fixtures::SEED);
-    let link = world.front().latest_link().expect("the engine's printed link");
+    let link = world.front().local_link().expect("the engine's local link");
     // This world's wall starts at the epoch, with no representable hour before it.
     let expired = Note::Until(Wall::from_nanos(1));
     let credential = Secret::new(Box::new([0; 40]));
@@ -296,6 +337,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert_eq!(tui.approval_asks, 0);
     assert!(tui.opens.is_empty());
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
+    assert!(world.front().local_link().is_some_and(|next| next != link), "renewal spends the file's local link");
     file_secret_is_in_no_frame(&tui, &link);
 }
 

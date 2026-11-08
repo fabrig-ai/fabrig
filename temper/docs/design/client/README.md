@@ -1440,8 +1440,9 @@ keeps (`../protocol/configuration.md`, section 2).
     alike, moves on to the inbox, its address replacing the welcome's,
     and the store's state is not judged: the rest of this entry holds
     where the document shows it.
-  - *Its frame* is temper's brand link to the welcome, `/welcome`
-    (named "temper"), temper box's line and the steps alone: no person's name or "Sign
+  - *Its frame* is the top bar (5.1; the look request `outside-pages`):
+    temper's mark, a link to `/` (named "temper"), temper box's line and
+    the steps alone: no person's name or "Sign
     out", no project, navigation or link state, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
@@ -1941,18 +1942,25 @@ keeps (`../protocol/configuration.md`, section 2).
     forge's link is drawn. In the ticked line, the browser's ORG/NAME is
     the repository's link where it has an address (`forge.md`, 5.4, *A
     repository's link*): "ORG/NAME ↗", then " made".
-- **With no project yet** (`../draft/first-run-projects.md`, 2 and 4): until the
-  playground's start or the welcome's Ready makes one, the
-  Chats page's head and list and `NewChat`'s layout give way to the level-1
-  heading "No project yet" and "Setting temper up makes your first
-  project.", with "Set up temper", to the welcome, which opens at the
-  step left undone (The welcome, above); and, while the
-  playground is offered and none is read (3.5, The welcome; 4.8),
-  "Try the playground". With no welcome (3.5, The welcome) the page
-  offers neither, and its line reads "Make one from the project
-  switcher.": "+ New project" there makes one
-  (`../draft/first-run-projects.md`, 7). The navigation offers no project's entries
-  (5.3), and the project's place in it reads "No project yet".
+- **With no project yet** (`../draft/first-run-projects.md`, 2 and 4;
+  the look request `outside-pages`): signed in, `me` read and naming no
+  project, every address draws the column (5.1) in place of its page,
+  but the sign-in page, the `Authorize` and approval places, the pages
+  not about the work and `Welcome`: the level-1 heading "No project yet"
+  and "Make your first one, or ask an owner to add you to theirs.",
+  then the form "New project", its field named "Project name" above it
+  and "Create", filled, beside it, the switcher's form and acts (5.3,
+  *Projects in the rail*), its refusal under them. With the welcome
+  (3.5, The welcome), the column holds instead "Setting temper up makes
+  your first project.", "Set up temper", filled, to the welcome, which
+  opens at the step left undone (The welcome, above), and, while the
+  playground is offered and none is read (3.5, The welcome; 4.8), "Try
+  the playground", outlined. This replaces Chats' and `NewChat`'s
+  bodies with no project and what any other address drew under the
+  frame, the accounts' banner among them (the playground's line while
+  it is leaving stays); the top bar offers no navigation (5.1), so the
+  column's acts are the way on. Until the deployment's read answers,
+  the address's page is drawn as for a person with a project.
 - **A project with no repository** (`../draft/first-run-projects.md`,
   5): a project has none while the `forges` watch has delivered its
   rows and none of their `repositories` names it (4.6); with the
@@ -2398,8 +2406,8 @@ keeps (`../protocol/configuration.md`, section 2).
     deployment's in each the person owns; "N+" where its document is cut, and no
     count before it is delivered. A card marked later still counts. The open
     project's rows of `approvals` add to it, "N+" where that document is cut too.
-    `me`'s `needs_total`, with every row of `approvals` added, stays the banner's
-    navigation's.
+    `me`'s `needs_total`, with every row of `approvals` added, is shown
+    nowhere outside a project: the top bar offers no navigation (5.1).
   - *The approvals,* the forge side's watch of the subject `approvals` (4.6),
     held for the session as `dismissed` is, from when `me` is first delivered
     while the link is live: a watch refused or ended is kept as such, with no
@@ -2479,7 +2487,7 @@ keeps (`../protocol/configuration.md`, section 2).
     its login in small type, and "Sign out"; with "Sign out did not reach
     the engine." beside it as 6.6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
-    menu's (5.3). With no project, the banner has them (5.1).
+    menu's (5.3). With no project, the top bar has "Sign out" (5.1).
   - *How work runs* is 5.13.
   - *A repository being made,* on the `Repositories` tab, is a row among them,
     by the forge's row's `makings` whose `into` names this project (4.6), the
@@ -3060,7 +3068,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *A place of its own,* `Place::Approve { code }`, at `/terminal`
     (`browser.md`, 2.3), beside `Authorize`: no page's address, so the
     pages and the forge's side are left as at any place that isn't
-    theirs (3.3), and the frame is the banner alone (5.1). `code` is an
+    theirs (3.3), and the frame is the top bar alone (5.1). `code` is an
     `ApprovalCode` (jig's wire), or none. Its state is the root's, in a
     module of its own, `approve`, beside `authorize`: made when the place
     is gone to, dropped when it is left, and kept nowhere, the small
@@ -3081,11 +3089,14 @@ keeps (`../protocol/configuration.md`, section 2).
     field with the alert below. A typed code changes no address. The page never
     lists the approvals that wait: the engine reads one by its code
     alone.
-  - *Its states,* each a card as the sign-in page's (`browser.md`,
-    2.5), under temper's mark, its level-1 heading and its words, CODE
-    the code as shown (`WDJB-MJHT`):
+  - *Its states,* each in the column (5.1; `browser.md`, 2.5, *Outside
+    a project*), its level-1 heading, its words, then its acts, the
+    first filled and the others outlined, CODE the code as shown
+    (`WDJB-MJHT`), large, in mono, on the surface; "Check" filled beside
+    the field, the field named "Code" above them; while deciding,
+    "Approving…" or "Refusing…" stands in the acts' place:
 
-    | State | Heading | The card | Its acts |
+    | State | Heading | The column | Its acts |
     |---|---|---|---|
     | asking for a code | "Sign in a terminal?" | "Type the code your terminal shows.", the field | "Check" |
     | a typed code that doesn't read | "Sign in a terminal?" | the same, the field as typed, and the alert "That isn't a terminal's code. Type the eight letters your terminal shows." | "Check" |
@@ -3099,6 +3110,7 @@ keeps (`../protocol/configuration.md`, section 2).
     | used | "Code already used" | "This code was already approved or refused. If your terminal isn't signed in, ask again there." | none |
     | unknown | "Unknown code" | "temper doesn't know this code. Check the code your terminal shows, or ask again there." | "Type a code" |
     | signed out | "Sign in first" | "This browser isn't signed in to temper. Open the sign-in link temper printed first, then open this page's address again: your terminal shows it." | none |
+    | signed out, Google's way given (the view's `Ways`, `google` and an origin) | "Sign in first" | "This browser isn't signed in to temper. Sign in, and this page comes back with your terminal's code." | "Continue with Google", to `ORIGIN/sign-in/google?then=PATH`, PATH the approval's printed address with its code, `/terminal?code=CODE` (`/terminal` with none), percent-encoded as the sign-in page's (`../protocol/sign-in.md`, section 7) |
     | busy, not ready or lost | "temper couldn't answer just now" | "It is starting or stopping, busy, or out of reach. Try again in a moment." | "Try again" |
 
   - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
@@ -3124,7 +3136,12 @@ keeps (`../protocol/configuration.md`, section 2).
     the cookie (`browser.md`, 2.4), so the answer says they reached the
     engine without it, and the remedy is the same. The printed link's
     sign-in lands on `/welcome` (`browser.md`, 2.4), so the person comes
-    back by the address their terminal shows.
+    back by the address their terminal shows; a Google deployment prints
+    no link, and its "Continue with Google" returns to the approval with
+    its code, so a person signing a terminal in there is never stuck
+    (the look request `outside-pages`). The page's codes, acts and
+    `then` are the TUI's too (7.1): only its states' look and words are
+    the browser's.
   - *Busy:* a read or a decision answered busy, not ready or lost.
     "Try again" reads the approval again, from its code, so that a
     decision lost on its way back shows as it stands.
@@ -4286,32 +4303,25 @@ client removes no account and closes no chat of its own.
   the mockups' order:
   - *the rail (5.3):* on a project page, every page but `Welcome`
     while a project is open and the link is neither signed out nor out
-    of date, in place of the banner below. In the browser the tab bar
+    of date, in place of the top bar below. In the browser the tab bar
     (5.3) follows the main;
-  - *a banner,* on any other page: temper's name; the project the
-    person is in alone,
-    as the switcher, a disclosure named by the open project's name,
-    "Projects" while none is open (section 11), which holds the
-    projects to choose from, the open one first and pressed, then the
-    others, each a button by the name `me` gives it, which no other
-    project of the deployment shares (jig's `domain/core.md`, 6.1),
-    its visible and accessible name the same words; with no project,
-    "No project yet" in its place (3.5, With no project yet);
-    the navigation (5.3) after the switcher, as in
-    the mockups; while the playground runs and is not leaving (4.8),
-    "Set up temper", a link that sends `EndPlayground` (5.6); the
-    link's state, one word for each of
-    `jig-client`'s `Link` states ("Signed out", "Connecting" while
-    starting, "Live", "Offline", "Out of date"), and "Behind" while a
-    page's watch reopens; the person's name and "Sign out"; all but
-    temper's name (text, not a link: the navigation's Inbox and Chats
-    lead home; the user's pick, 10-23) in one disclosure, "Menu",
-    which a browser folds
-    behind its ☰ at phone width alone (`browser.md`, 2.5) and the
-    terminal and the fake person find whole; on `Welcome`, temper's
-    name alone until the deployment's read answers, then temper's
-    name, temper box's line and the welcome's steps alone (3.5, The
-    welcome);
+  - *the top bar,* on any other page, the frame wherever the rail
+    isn't (the look request `outside-pages`; `browser.md`, 2.5,
+    *Outside a project*): temper's mark, "temper", a link to `/`; then,
+    signed in, at its right: "Offline" while the link is offline and
+    "Behind" while a page's watch reopens, as the rail's foot shows them,
+    the person's name, "Sign out did not reach the engine." while that
+    holds (6.6), and "Sign out" once `me` is read or while that alert
+    shows.
+    Nothing else: no menu, no switcher, no navigation, no "Set up
+    temper". Its link region holds the link's state's word in every
+    state, as the rail's foot's does, so that the terminal's first line
+    prints it (6.4); the browser shows the region only while it says
+    "Offline", so no "Signed out", "Connecting" or "Live" shows there.
+    Until `me` is read, the top bar shows its mark alone, so that no
+    other frame shows before the first page. On `Welcome`, temper's mark alone until the
+    deployment's read answers, then temper box's line and the welcome's
+    steps after it (3.5, The welcome);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project
@@ -4325,36 +4335,45 @@ client removes no account and closes no chat of its own.
     (4.8); on every other page, `Welcome`, the accounts and the forges
     pages and a chat's page among them, while it is leaving alone;
     above the main, after the accounts' banner where both show,
-    the rail's or the banner's "Set up temper" being the way out while
+    the rail's "Set up temper" being the way out while
     it runs (the user, 2026-11-03); while the link is signed out or out
     of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
     heading, but `Home`'s, whose headline changes with what it says:
-    "Home";
+    "Home". Under the top bar the main is *the column* (`browser.md`,
+    2.5, *Outside a project*): its level-1 heading, its words, then its
+    acts, the first filled, the others outlined, a quiet link after
+    them; a field and its act share a form. The sign-in page, the
+    `Authorize` place, the approval page, the pages not about the work
+    (below) and no project yet (3.5, *With no project yet*) are drawn
+    in it; `Welcome`'s main is its own (3.5, The welcome);
   - *at the approval place* (3.5, *The approval page*), in the browser
-    alone: the banner, as at the `Authorize` place, then the page's
-    card as the main, whatever the link's state; no rail, tab bar,
+    alone: the top bar, as at the `Authorize` place, then the page's
+    column as the main, whatever the link's state; no rail, tab bar,
     accounts' or playground's banner, and no paragraph of the pages
-    not about the work (below), whose words the card's own states
+    not about the work (below), whose words the column's own states
     take.
 
   Then skein-ui diffs it and keeps the tree.
 - **The pages not about the work** (jig's `client/domain/pages.md`,
   section 8). While the link is signed out or out of date, `me` has
-  ended (jig's `client/domain/client.md`, 8.2). The banner is then
-  temper's name and the link's state alone, no navigation is offered,
-  and the main, in place of the page at the address, is one paragraph
-  of temper's words with no heading:
+  ended (jig's `client/domain/client.md`, 8.2). The top bar is then
+  temper's mark alone (the terminal's link region with it, 6.4), no
+  navigation is offered, and the main, in place of the page at the
+  address, is the column: the link's state its level-1 heading,
+  "Signed out" or "Out of date", and temper's words under it, one
+  paragraph:
   - *signed out:* in the shell's words, which the view takes at
-    construction: the terminal's "Signed out." (6.6); the browser's
-    "Signed out. To sign in, open a sign-in link temper printed."
-    (`browser.md`, 2.4);
+    construction: the browser's "To sign in, open a sign-in link temper
+    printed." (`browser.md`, 2.4); the terminal's heading alone, which
+    says it (6.6);
   - *signed out, with a way of signing in:* in the browser alone, in
-    place of the paragraph, the sign-in page: temper's mark, the
-    heading "Sign in", and a link for each way the view was given at
-    construction, "Continue with Google" to `/sign-in/google?then=PATH`,
-    `PATH` the page's printed address (`../protocol/sign-in.md`,
-    section 7);
+    place of the column above, the sign-in page's column: the heading
+    "Sign in", and a link for each way the view was given at
+    construction, "Continue with Google", filled, to
+    `/sign-in/google?then=PATH`, `PATH` the page's printed address
+    (`../protocol/sign-in.md`, section 7), then "Read public
+    projects", quiet;
   - *signed out by Sign out, with a forge that signs in through
     temper:* the sign-in page, under its heading, for each such forge,
     "You signed out. FORGE keeps its own sign-in: sign out there too.",
@@ -4363,10 +4382,11 @@ client removes no account and closes no chat of its own.
   - *signed out at the authorization:* the `Authorize` place's sign-in
     page, "to continue to FORGE" under its heading, its link's `then`
     the authorization's address (`../protocol/sign-in.md`, 9.3);
-  - *signed out at the approval:* the approval page's own card, "Sign
-    in first" (3.5, *The approval page*), in place of the paragraph and
-    of the sign-in page: the approval is offered on loopback alone, where
-    the printed link is the browser's way in;
+  - *signed out at the approval:* the approval page's own column, "Sign
+    in first" (3.5, *The approval page*), in place of the column above
+    and of the sign-in page: with Google's way given, its "Continue with
+    Google" returns to the approval with its code; without it, the
+    printed link is the browser's way in;
   - *signed out, the link's sign-in not taken:* while the link's view
     says why its last sign-in installed nothing and the link stays
     usable (jig's `client/domain/client.md`, section 12,
@@ -4394,8 +4414,8 @@ client removes no account and closes no chat of its own.
     as unknown (jig's `protocol/client.md`, section 8). A page reached with
     no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
-    this client speaks: "This temper is out of date: run the temper the
-    engine runs." What is pending stays in the small store (jig's
+    this client speaks: "Run the temper the engine runs." under "Out of
+    date". What is pending stays in the small store (jig's
     `client/domain/client.md`, 8.2).
 
   Both are phrases of temper's phrasebook: `jig-client`'s `words` has
@@ -4517,7 +4537,7 @@ page (5.1): a navigation named by the open project, in this order:
   is fixed until `../draft/template-places.md` is taken up;
 - at its foot: the Away switch, while 3.5's *Away* shows it; while the
   playground runs and is not leaving (4.8),
-  "Set up temper", as the banner has it (5.1); the link's state, as
+  "Set up temper", the playground's way out (5.6); the link's state, as
   5.1 has it, the browser hiding it while live; "Behind" while a
   page's watch reopens, beside the link's region in the browser, so
   that it shows while the link is live, and in the region in the
@@ -4572,37 +4592,16 @@ Ask temper's page while To begin shows, whose three tabs close it under the
 composer (3.5). The Away switch is a chip in the top
 bar, on the rail's terms. The terminal has no tab bar.
 
-**The banner's navigation,** on a page that is no project's (5.1).
-In the mockups' top bar's order: "Inbox", with the count of what needs
-the person from `me`, omitted when zero; "Chats"; then, for the project
-the person is in, "Changes"; and after them "Adopt a
-repository", to `Adopt { project }`; then "Forges", to `Forges`, with
-a dot, amber while a forge sets up or connects and red while one needs
-the person (`forge.md`, 5.4), its state also in words, "a forge is
-setting up" or "a forge needs you", a text node of its own after the
-entry's name; current on `Forges` and `ConnectForge`; and last,
-"Accounts", to `Accounts`, with a dot, amber while an account is
-limited and red while one needs the person (5.5, Each state), its
-state also in words, "an account is limited" or "an account needs
-you", a text node of its own after the entry's name, read from the
-person's own accounts, the playground's provider's left out: red for a
-deciding source refused, needing a sign-in, misconfigured or
-unloaded, before amber for one limited; current on `Accounts` and
-`ConnectModel`; both whatever the project. With no project chosen, the
-project's entries are not offered. The mockups' "Tasks", a list of a
-project's tasks, is not in the navigation (the user's pick, 10-23): Goals covers what a task list is for. Their "Workers", the deployment's
-hosts, is no entry either: Settings' Builders tab reads them (3.5), and
-changing them is the engine's configuration's. "Adopt
-a repository" and "Forges" are offered whatever the person's role: the
-engine judges each, and a refusal says why, since the client never
-computes what a party may do.
+**No navigation outside a project** (5.1; the look request
+`outside-pages`): a page that is no project's is drawn under the top
+bar, which offers none; with no project yet, the column's acts are the
+way on (3.5, *With no project yet*).
 
-**Projects in the banner** (`../draft/first-run-projects.md`, 7). The
-banner names the project the person is in alone, by the name `me` gives
-it, and a chevron; pressed, a switcher lists the person's other
-projects from `me`, the open one marked, each choosing its project as a
-project's entry does. On a narrow screen the switcher is the menu
-panel's first row (`browser.md`, 2.5).
+**No switcher outside a project** (`../draft/first-run-projects.md`,
+7; the look request `outside-pages`): the top bar names no project;
+`me` read with no project, the column's "New project" makes the first
+(3.5, *With no project yet*), and once one is open the rail's switcher
+lists them.
 
 **Projects in the rail:** the same switcher, a bordered box with its
 chevron, its menu a panel under it: each project, the open one first
@@ -4636,12 +4635,11 @@ a project keeps the page where it can (3.5): on `Home`, `Changes`, `Settings`,
 
 The acts of both, each one act and one request (3.6):
 
-- **Rename,** on the open project's row in the banner, and after the
-  rows in the rail, offered while `me`'s role on
+- **Rename,** after the rows in the rail, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
   reads too (5.6); jig judges the request (jig's `domain/people.md`,
   5.1). Pressed, the open project's row is the form, "Rename PROJECT",
-  in the banner and the rail alike, and the rail's "Rename PROJECT"
+  and the rail's "Rename PROJECT"
   leaves its acts while the form is open. The form holds the name's
   field, filling the row, its value the project's name and the focus on
   it, then "Save", primary and small. The field's Enter or "Save" sends
@@ -5100,9 +5098,8 @@ repository, and the cues the playground's, copied in from its read:
   set up temper", "set up temper" its link, which sends `EndPlayground`
   (4.8); while it is leaving, "Leaving the playground…" in its place,
   with no link (5.1). Beside it, the rail's foot offers "Set up temper",
-  or the frame's banner leads its corner with it on a page that is no
-  project's, the same act, while the playground runs and is not
-  leaving: the way out, prominent (5.1, 5.3).
+  the same act, while the playground runs and is not leaving: the way
+  out, prominent (5.1, 5.3).
 - **The playground's start,** on `NewChat`, at the head of its thread
   (3.5; the first run's first step): the status "Ready"; while its start is
   out or its read answers starting (4.8), the status "Starting" and its
@@ -6681,8 +6678,8 @@ command.
 
 - **The link's state** is the first line's (6.4). Its change changes
   the tree, so the page is printed again.
-- **Signing out** is `Settings`' "Sign out" (3.5), or the banner's on
-  a page that is no project's: the domain asks it, and
+- **Signing out** is `Settings`' "Sign out" (3.5), or the top bar's on
+  a page that is no project's (5.1): the domain asks it, and
   the host gives `jig-client` `SignOut`, which sends jig's sign-out.
   Signed out: the host has the native shell keep none, which leaves
   DIRECTORY's token a zero-byte file, read as none; the main says
@@ -6692,7 +6689,7 @@ command.
   again, run temper open DIRECTORY LINK with a link temper serve
   printed`. A sign-out that did not reach the engine leaves the person
   signed in (jig's
-  `client/domain/client.md`, section 12): the rail or the banner says
+  `client/domain/client.md`, section 12): the rail or the top bar says
   "Sign out did not reach the engine.", and "Sign out" is offered
   again.
 - **Another party's kept work:** while the small store holds requests
@@ -6874,11 +6871,15 @@ it (6.14). `temper open` stays the tests' line client
   link (6.14).
 - **The engine's link, kept at rest.** While the printed link is
   enabled (section 7), the running engine, `temper serve` alone or under
-  `temper box`, keeps its live printed link, the address and the secret
-  together, in a private file, so that a TUI on the same machine signs
-  in with nothing to paste (6.14). The secret is otherwise held only in
-  jig's memory and on the engine's stdout (jig's `protocol/client.md`,
-  section 8, *The printed link*); the file is never in the configuration
+  `temper box`, keeps its live local link, a one-time secret of its own
+  beside the printed link's (jig's `protocol/client.md`, section 8, *The
+  local link*), with the address, in a private file, so that a TUI on
+  the same machine signs in with nothing to paste (6.14). The file never
+  holds the printed link's secret: a TUI's sign-in spends the file's
+  link alone, and the printed link stays live for the person's browser,
+  never touched, printed again or spent by a TUI. The file's secret is
+  otherwise held only in jig's memory: never on serve's stdout or
+  stderr, nor in a log; the file is never in the configuration
   directory, which holds no secret.
   - *Where:* on Linux, `$XDG_RUNTIME_DIR/temper/printed-link-KEY`, where
     `XDG_RUNTIME_DIR` is an absolute path (a tmpfs, never backed up);
@@ -6896,13 +6897,15 @@ it (6.14). `temper open` stays the tests' line client
   - *Written* whole, `0o600`, a synced temporary replacing it, in a
     directory the engine makes `0o700` with its missing parents and
     refuses unless it is this user's with no group or other bits, as the
-    TUI's own (above): the printed link's URL as the engine prints it,
-    then a line feed. Serve writes it at each `Link` its startup hears and
-    prints, and once at its start under `temper box` with the box's first
-    secret (`../protocol/setup.md`, 7.2), whose URL serve makes as the box
-    does and prints none of. A write that fails is one line on stderr,
-    `temper serve: link file PATH: WHY`, naming no secret, and serve
-    goes on.
+    TUI's own (above): the local link's URL, made as serve makes the
+    printed link's, then a line feed. Serve writes it at each `LocalLink`
+    its startup hears, once its clients' listener is up, and prints none
+    of it: at its start, and each time the component draws the next,
+    after a TUI spent the last or a sign-in found it expired. A `Link` is
+    printed alone and never written, and `temper box`'s first secret,
+    the printed link's (`../protocol/setup.md`, 7.2), is never written
+    either. A write that fails is one line on stderr, `temper serve: link
+    file PATH: WHY`, naming no secret, and serve goes on.
   - *Removed* when serve exits, by any way out it has. An engine killed
     outright leaves it, and its link then grants nothing (below).
   - *Read* as a private file of this user's, at most 4,096 bytes
@@ -6922,8 +6925,12 @@ it (6.14). `temper open` stays the tests' line client
     one-time and live at most 2 hours, at rest and readable by any
     process running as the person, the box's own agents among them.
     Those can already read the TUI's credential (`token`, above), so this
-    adds little. *The way back:* the file holds the address alone, and
-    the sign-in takes one step, the paste or the browser's approval.
+    adds little. The file's link is its own, the user's pick of
+    2026-11-08, so it adds nothing to the printed link's exposure, and a
+    `temper` started before the person opens the printed link leaves that
+    link to the browser. *The way back:* the file holds the address
+    alone, and the sign-in takes one step, the paste or the browser's
+    approval.
 
 ### 6.13 Its host and the seam
 
@@ -7190,14 +7197,17 @@ rest*), with nothing pasted and no key pressed:
   SHA-256, to tell a fresh link from it.
 - **Signed in:** the launchpad, as by a link pasted; the credential
   kept (6.13), and the note `Until` the sign-in's expiry.
-- **Answered `link_used` or `link_expired`:** a sign-in by a spent or
-  expired link draws a fresh one when none is live, which the engine
-  prints and keeps (jig's `protocol/client.md`, section 8; 6.12). So the
-  host reads the file again a second later, at most twice for one need,
-  and signs in by a link whose digest differs from the one answered; the
-  same link read again waits another second, within those two reads.
-  This is the common way: a browser signed in by the printed link first
-  spent it, and the TUI's try draws the next.
+- **Answered `link_used` or `link_expired`:** the engine draws the next
+  local link when a TUI spends one, and a sign-in by a spent or expired
+  one draws a fresh one when none is live, which the engine keeps in the
+  file and never prints (jig's `protocol/client.md`, section 8, *The
+  local link*; 6.12). So the host reads the file again a second later,
+  at most twice for one need, and signs in by a link whose digest
+  differs from the one answered; the same link read again waits another
+  second, within those two reads. This is the way when the file's link
+  expired, or another TUI spent the link this one read. A browser signed
+  in by the printed link, before or after, leaves the file's link
+  live.
 - **Any other end** (refused, `link_unknown`, not ready, busy, full, no
   answer), the reads spent, or the file read finding none: the TUI falls
   back to the sign-in screen as it is with no file, which asks the
@@ -7777,8 +7787,9 @@ temper's:
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
   held } }`). The secret is in the command line only until the sign-in
   spends it; the client root passes it on and keeps nothing of it. The
-  running engine also keeps its live link at rest, for a TUI on the same
-  machine (6.12, *The engine's link, kept at rest*).
+  running engine also keeps a local link of its own at rest, never the
+  printed one, for a TUI on the same machine (6.12, *The engine's link,
+  kept at rest*).
 - **A sign-in held is kept** (jig's `domain/people.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -7953,14 +7964,13 @@ was answered with. A box enables it beside the printed link
   - *Not asked while the TUI signs in from the engine's link* (6.14):
     the approval is asked when that ends with the TUI signed out, as the
     sign-in screen opens.
-  - *The browser's way in after the TUI's link:* a printed link is
-    one-time, so a TUI signed in from the engine's link (6.14) spends the
-    link the box's terminal shows. Opened in the browser, it is answered
-    used, "This link was already used. A fresh one is in your terminal."
-    (5.1), and the engine draws the next, prints it and keeps it in its
-    file (6.12), as after any spent link (jig's `protocol/client.md`,
-    section 8): that next link is the browser's way in, as today, and the
-    approval page (3.5) asks for the browser signed in first.
+  - *The browser's way in beside the TUI's link:* a TUI signed in from
+    the engine's link (6.14) spends the engine's local link, never the
+    printed link (6.12; jig's `protocol/client.md`, section 8, *The local
+    link*), so the link the box's terminal shows stays live for the
+    browser, before the TUI signs in or after it. That link is the
+    browser's way in, and the approval page (3.5) asks for the browser
+    signed in first.
   - *Never shown:* the secret and the credential are never drawn on
     the screen or logged. A recording keeps them in the person's
     private file; `add` redacts them before any recording or print is
@@ -8446,8 +8456,10 @@ own tests:
   engine restarted under it, "Offline" then "Live" and `me` still drawn;
   signed out elsewhere, back at signing in with the token erased, noted
   signed out and never signed in from the engine's link; a fresh TUI
-  signed in from the engine's link with no key pressed, after a browser
-  spent the first one too; a stale file's dead link falling back to the
+  signed in from the engine's link with no key pressed, the file's link
+  never the printed link's, and the printed link signing a browser in
+  after it and before it; a second TUI signed in from the link drawn
+  when the first spent its own; a stale file's dead link falling back to the
   sign-in screen with no refusal drawn; an expired sign-in renewed from
   the file; the file's secret in no frame; and signed in, the launchpad
   drawn for the person's project, a question asked from its box, the
@@ -8630,9 +8642,25 @@ own tests:
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. Views,
-  sketches and preferences join at M3 and M4 of
+  an opening led by a question remains a separate look decision. The other
+  views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
+  sets" and "Ways to begin" give way to the ways as tabs drawn from the
+  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
+  card opening in place: the look request `ask-temper-ways`, its plan
+  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
+  the acts in the domain, drawn by no page until then.
+- **Views after landing and M3b** (5.16): temper/ui compares a path, a
+  way, a proposal's two paths and a charter's card in a reply and in the
+  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
+  keeps, against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed opening its card, the
+  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
+  at an older revision, and a decided proposal's paths, wait for a read of
+  the settings as a revision left them. Default: the focused tables and
+  gallery samples, which establish no rendered look.
 
 - **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the
   launchpad, its commands and a chat, the side pane and drafting, needs
@@ -8659,10 +8687,13 @@ own tests:
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
-  by a browser signed in by the printed link.
+  by a browser signed in by the printed link, or by Google's way where it
+  is given (3.5, *The approval page*).
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, start bare
-  `temper` in another terminal and read the launchpad with nothing
-  pasted; check renewal after expiry and refusal to renew after a
+  `temper` in another terminal before opening the printed link and read
+  the launchpad with nothing pasted, then open the printed link in the
+  browser and see it sign in, with no fresh link printed (6.12); check
+  renewal after expiry and refusal to renew after a
   sign-out noted before the expiry slack. With no usable engine's link
   file, paste the printed link, then sign in through the browser's
   approval and check refusal and asking again
@@ -9044,10 +9075,6 @@ own tests:
   every need and then the updates (`../../help/inbox.md`), so that a long list
   of updates, which no page of the browser's reads, says "N+" of a whole list of
   needs. It never says less than there is. Default: "N+", as that request has it.
-- **"Inbox" on the banner** (5.3): a page that is no project's keeps the
-  banner's "Inbox", with `me`'s count, to the unfiltered *Needs you*, where the
-  rail says "Needs you"; that request names the rail and the tab bar alone.
-  Default: "Inbox".
 - **A goal hearing a choice, as a story** (3.5, *What the client keeps*;
   `../domain/agent.md`, 8.2): that request asks one live walk of a scripted goal
   asking in the line form, a person pressing its recommended choice on Home and
@@ -9141,7 +9168,7 @@ own tests:
   request of 2026-11-05 settled: a line says its name and its forge.
 - **The form's place:** among a project's settings (`forge.md`, 5.3),
   which `Settings` (3.5) links and does not hold. Default: a page of its
-  own, from `Settings`, Home and the banner's navigation.
+  own, from `Settings` and Home.
 - **The forge's `Refused`, split** into its causes (another project
   writes the repository; the project has a home; another deployment's
   branches under the prefix), so the form names the one. Default: the
@@ -9450,8 +9477,8 @@ own tests:
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, the offered one unless they wrote
-  another, before finishing the welcome, from the banner's new project
-  (5.3) or ctl. The user's to decide: open it, or make "Hello 2".
+  another, before finishing the welcome, from the column's or the rail's
+  new project (5.3) or ctl. The user's to decide: open it, or make "Hello 2".
   Default: Ready opens the person's project of that name and makes no
   other
   name, the reading the draft's status records while the user is

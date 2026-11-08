@@ -475,7 +475,9 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
 #[test]
 fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
     let root = f::welcome_root(Step::Welcome, true);
-    let view = f::page_view(&root);
+    let mut view = f::page_view(&root);
+    let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
+    assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
     let tree = view.tree();
     assert!(
         tree.nodes()
@@ -489,6 +491,10 @@ fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
     assert!(f::find(tree, Role::Button, b"Sign out").is_none());
     assert!(f::frame_statuses(tree).is_empty());
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
+    assert_eq!(tree.nodes()[banner].styles.as_slice(), [crate::look::TOP]);
+    let brand = &tree.nodes()[banner + 1];
+    assert_eq!(brand.name.as_deref(), Some(b"temper".as_slice()));
+    assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::TOP_END)));
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
     let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
     let runs: Vec<_> = banner[line + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
@@ -703,16 +709,16 @@ fn the_steps_tick_forge_and_model_facts_in_both_shells() {
 }
 
 #[test]
-fn the_welcome_brand_goes_to_the_store_decision() {
+fn the_welcome_brand_goes_to_the_inbox() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let root = f::welcome_root(step, true);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let brand = node(view.tree(), Role::Link, "temper");
-            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/welcome".as_slice()));
+            assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/".as_slice()));
             assert_eq!(
                 crate::act(&mut view, brand, Act::Press),
-                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Welcome } }))
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Inbox { filter: d::address::Filter::ALL } }))
             );
         }
     }
@@ -859,7 +865,8 @@ fn an_unavailable_welcome_keeps_the_signed_out_and_out_of_date_frame() {
         let mut root = f::welcome_root(Step::Welcome, true);
         f::root_event(&mut root, event);
         let view = f::page_view(&root);
-        node(view.tree(), Role::Disclosure, "Menu");
+        assert!(f::find(view.tree(), Role::Disclosure, b"Menu").is_none());
+        assert_eq!(f::styles(view.tree(), Role::Banner).as_ref(), [Box::from([crate::look::TOP])]);
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Welcome to temper").is_none());
     }
 }

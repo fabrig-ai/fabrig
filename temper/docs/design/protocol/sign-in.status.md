@@ -2,6 +2,12 @@
 
 2026-11-08. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
+Section 4.3 has no known gap in the endings' header and column, linking
+the served bundle's `files/pages.css` by its digest, and reading plain
+with no bundle served; the Google client's tables cover each ending with
+a sheet and without one. Their rendered comparison is
+`../client/browser.md`, section 5's, after landing.
+
 Section 9.9's start refusal is present: non-null `machine.owned.sign_in`
 beside non-null `application.sign_in` names the owned sign-in path and
 says "a box's sign-in takes application.sign_in null". The startup table
