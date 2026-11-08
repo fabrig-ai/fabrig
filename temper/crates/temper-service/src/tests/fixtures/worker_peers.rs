@@ -17,11 +17,14 @@ const LINK_RECORDS: u32 = 6;
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum LinkRecord {
     Hello,
+    Lost,
     Turn(u32),
     Answer(u32),
 }
 
 pub(crate) struct LinkPeer {
+    pub(crate) now: Time,
+    pub(crate) received: usize,
     pub(crate) records: List<LinkRecord>,
     pub(crate) component: engine_link::Component,
     pub(crate) out: Queue<engine_link::Request>,
@@ -57,6 +60,8 @@ impl LinkPeer {
             stall: prepared.link.stall,
         };
         Self {
+            now: fixtures::NOW,
+            received: 0,
             records: List::with_capacity(LINK_RECORDS),
             component: engine_link::Component::new(
                 &limits,
@@ -76,10 +81,10 @@ impl LinkPeer {
         }
     }
     pub(crate) fn open(&mut self, worker: &mut crate::Worker) {
-        worker.iterate(fixtures::NOW, Wall::EPOCH);
-        worker.up(fixtures::NOW, io::Event::Connecting { owner: self.owner, socket: Token::new(44) });
-        worker.up(fixtures::NOW, io::Event::Connected { owner: self.owner });
-        self.component.down(fixtures::NOW, engine_link::Event::Accepted { connection: Token::new(1) }, &mut self.out);
+        worker.iterate(self.now, Wall::EPOCH);
+        worker.up(self.now, io::Event::Connecting { owner: self.owner, socket: Token::new(44) });
+        worker.up(self.now, io::Event::Connected { owner: self.owner });
+        self.component.down(self.now, engine_link::Event::Accepted { connection: Token::new(1) }, &mut self.out);
         for _ in 0_u16..1000 {
             if let Some(engine_link::Request::Hello { .. }) = self.turn(worker) {
                 return;
@@ -97,7 +102,7 @@ impl LinkPeer {
         panic!("worker sends its answer");
     }
     pub(crate) fn turn(&mut self, worker: &mut crate::Worker) -> Option<engine_link::Request> {
-        worker.iterate(fixtures::NOW, Wall::EPOCH);
+        worker.iterate(self.now, Wall::EPOCH);
         self.exchange(worker)
     }
     // Exchange demanded bytes while leaving root entrances queued for inspection.
@@ -110,13 +115,14 @@ impl LinkPeer {
             }
             match request {
                 io::Request::Output { down: stream::OutputDown::Room { right, .. }, .. } => worker.up(
-                    fixtures::NOW,
+                    self.now,
                     io::Event::Output {
                         owner: self.owner,
                         up: stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted },
                     },
                 ),
                 io::Request::Output { down: stream::OutputDown::Send { bytes, .. }, .. } => {
+                    self.received += bytes.len();
                     self.engine_bytes.append(&bytes).unwrap();
                 }
                 io::Request::Stream { down: stream::Down::Demand { read, .. }, .. } => self.worker_read = Some(read),
@@ -159,11 +165,13 @@ impl LinkPeer {
                     }
                     return Some(request);
                 }
+                engine_link::Request::Lost { .. } => {
+                    self.records.push(LinkRecord::Lost).expect("bounded link records");
+                }
+                engine_link::Request::Close { .. } | engine_link::Request::Abort { .. } => {}
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
-                | engine_link::Request::Close { .. }
-                | engine_link::Request::Abort { .. }
-                | engine_link::Request::Lost { .. }
+
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }
         }
@@ -171,13 +179,13 @@ impl LinkPeer {
             self.lower(LowerEvent::Read(stream::Up::Bytes(bytes)));
         }
         if let Some(bytes) = demanded_bytes(&mut self.worker_read, &mut self.worker_bytes) {
-            worker.up(fixtures::NOW, io::Event::Stream { owner: self.owner, up: stream::Up::Bytes(bytes) });
+            worker.up(self.now, io::Event::Stream { owner: self.owner, up: stream::Up::Bytes(bytes) });
         }
         None
     }
     pub(crate) fn lower(&mut self, event: LowerEvent) {
         self.component.down(
-            fixtures::NOW,
+            self.now,
             engine_link::Event::Lower { connection: Token::new(1), event },
             &mut self.out,
         );

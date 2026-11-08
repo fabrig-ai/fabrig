@@ -266,6 +266,48 @@ fn the_links_loss_waits_behind_a_held_assignment() {
 }
 
 #[test]
+fn a_worker_whose_engine_records_wait_keeps_its_link() {
+    let mut stand = socket_stand();
+    let mut peer = LinkPeer::new();
+    peer.open(&mut stand.worker);
+    while stand.worker.notes().pop().is_some() {}
+    load(&mut stand.worker, WATERMARK);
+    let room = stand.worker.held.room();
+    for _ in 0..room {
+        stand.worker.link(fixtures::NOW, assignment());
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    }
+    stand.worker.link(fixtures::NOW, assignment());
+    assert_eq!(stand.worker.held.room(), 0);
+    assert_eq!(stand.worker.engine.len(), 1);
+    let received = peer.received;
+    let mut service = super::worker::alone_service();
+    service.worker = Some(stand.worker);
+    for seconds in 1..=20 {
+        let now = fixtures::NOW.saturating_add(Duration::from_secs(seconds));
+        peer.now = now;
+        peer.component.fire(now, &mut peer.out);
+        // Settle demanded headers and bodies on this second's clock. The
+        // backlog stays at the watermark throughout every service pass.
+        for _ in 0..32 {
+            let worker = service.worker.as_mut().unwrap();
+            // The concrete peer takes the socket requests before the service
+            // publishes them to its separate IO machine.
+            load(worker, 0);
+            peer.turn(worker);
+            assert!(
+                !peer.records.iter().any(|record| *record == fixtures::worker_peers::LinkRecord::Lost),
+                "the engine lost a healthy worker at {seconds}s while its records waited"
+            );
+            assert!(worker.notes().is_empty(), "the worker's linked link gives no loss fact");
+        }
+        crate::iterate(&mut service, now, Wall::EPOCH);
+        load(service.worker.as_mut().unwrap(), WATERMARK);
+    }
+    assert!(peer.received > received, "the idle worker's pings reach the engine");
+}
+
+#[test]
 fn the_link_is_not_read_until_its_last_output_is_taken() {
     let mut stand = socket_stand();
     let mut engine = LinkPeer::new();
