@@ -29,7 +29,7 @@ serde_json.workspace = true
 
 [dev-dependencies]
 skein-heap.workspace = true
-temper-service.workspace = true
+temper-service = { workspace = true, features = ["worker"] }
 skein-fake-forge-domain.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

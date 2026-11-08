@@ -267,9 +267,9 @@ members = [
     "temper/testing/temper-github-app",
     "temper/testing/temper-fixtures",
     "temper/crates/temper",
-    "temper/crates/temper-shell",
     "temper/crates/temper-client",
     "temper/crates/temper-client-bundle",
+    "temper/crates/temper-version",
     "temper/tests/engine/protocol-forge",
     "temper/crates/temper-client-shell-terminal",
     "temper/crates/temper-client-shell-tui",
@@ -285,7 +285,9 @@ members = [
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-init",
+    "temper/crates/temper-shell",
     "temper/crates/temper-forge-setup-shell",
+    "temper/crates/temper-engine-shell",
     "temper/crates/temper-worker-protocol-git",
     "temper/crates/temper-client-protocol-wire",
     "temper/tools/git-transcripts",
@@ -293,10 +295,12 @@ members = [
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
+    "temper/crates/temper-protocol-brief",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
+    "temper/crates/temper-engine",
     "temper/crates/temper-engine-domain-forge-change",
     "temper/crates/temper-engine-domain-forge-landing",
     "temper/crates/temper-engine-domain-forge-tiers",
@@ -569,20 +573,23 @@ temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
+temper-shell = { path = "temper/crates/temper-shell" }
 temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
+temper-version = { path = "temper/crates/temper-version" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper = { path = "temper/crates/temper" }
-temper-shell = { path = "temper/crates/temper-shell" }
-temper-service = { path = "temper/crates/temper-service" }
+temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
+temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }
+temper-engine-shell = { path = "temper/crates/temper-engine-shell" }
 temper-engine-smith = { path = "temper/crates/temper-engine-smith" }
 temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain-forge-change" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }

@@ -1,14 +1,15 @@
 //! The shell's adapter over the temper composition (jig's protocol/service.md, 7).
 //! Start refusals name their cause (temper/docs/design/protocol/README.md, 4).
-use crate::directories::Directories;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};
 use temper_service::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_service::{End, Service, Stop};
+use temper_shell::directories::Directories;
 
 pub struct Host {
     pub service: Service,
+    binary: String,
     directories: Directories,
     pub(super) store: Box<[u8]>,
     pub(super) link_file: Option<std::path::PathBuf>,
@@ -22,9 +23,14 @@ pub struct Host {
 impl Host {
     #[must_use]
     pub fn new(service: Service, directories: Directories) -> Self {
+        Self::with_binary("temper", service, directories)
+    }
+    #[must_use]
+    pub fn with_binary(binary: &str, service: Service, directories: Directories) -> Self {
         let store = directories.data.clone();
         Self {
             service,
+            binary: binary.into(),
             directories,
             store,
             link_file: None,
@@ -40,9 +46,9 @@ impl Host {
     }
     pub(super) fn keep_link(&self, url: &[u8]) {
         if let Some(path) = &self.link_file
-            && let Err(why) = crate::link_file::keep(path, url, skein_shell::effective_user())
+            && let Err(why) = super::link_file::keep(path, url, skein_shell::effective_user())
         {
-            eprintln!("temper serve: link file {why}");
+            eprintln!("{} serve: link file {why}", self.binary);
         }
     }
 }
@@ -88,10 +94,16 @@ impl skein_shell::Host for Host {
             return None;
         }
         if let Some(long) = self.watch.held() {
-            eprint!("{}", long_pass_line(long));
+            eprint!("{}", long_pass_line(&self.binary, long));
         }
-        let (lines, code) =
-            ending(self.service.end(), self.output_failed, &self.directories, &self.store, self.service.unsettled());
+        let (lines, code) = ending_with_binary(
+            &self.binary,
+            self.service.end(),
+            self.output_failed,
+            &self.directories,
+            &self.store,
+            self.service.unsettled(),
+        );
         eprint!("{lines}");
         Some(Exit::Code(code))
     }
@@ -107,14 +119,14 @@ impl skein_shell::Host for Host {
         while let Some(note) = self.service.listening().pop() {
             let clients =
                 matches!(&note, temper_service::Note::Listening { listener: temper_service::Listening::Clients, .. });
-            let lines = note_line(note);
+            let lines = note_line(&self.binary, note);
             eprint!("{lines}");
             if self.wait_check && clients {
-                crate::restart_fault::cut_at_listen();
+                super::restart_fault::cut_at_listen();
             }
         }
         while let Some(note) = self.service.notes().pop() {
-            let lines = note_line(note);
+            let lines = note_line(&self.binary, note);
             eprint!("{lines}");
         }
         while let Some(link) = self.service.links().pop() {
@@ -137,7 +149,7 @@ impl skein_shell::Host for Host {
         }
         self.watch.ended(Part::Drain, self.clock.now().now);
         if let Some(long) = self.watch.pass_ended() {
-            eprint!("{}", long_pass_line(long));
+            eprint!("{}", long_pass_line(&self.binary, long));
         }
     }
 }
@@ -146,7 +158,7 @@ pub(crate) fn read_handover(
     read: &temper_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_service::HandoverUnread> {
     use temper_service::HandoverUnread;
-    match skein_shell::read_private_file(crate::path(&read.path), read.max, skein_shell::effective_user()) {
+    match skein_shell::read_private_file(super::path(&read.path), read.max, skein_shell::effective_user()) {
         Ok(value) => {
             let bytes = value.expose();
             let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
@@ -156,11 +168,11 @@ pub(crate) fn read_handover(
         Err(skein_shell::Unread::NotAFile) => Err(HandoverUnread::NotAFile),
         Err(skein_shell::Unread::TooLarge { .. }) => Err(HandoverUnread::TooLarge),
         Err(skein_shell::Unread::Unsafe(why)) => Err(HandoverUnread::Unsafe(why)),
-        Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(crate::errno(error))),
+        Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(super::errno(error))),
     }
 }
 fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> {
-    match std::fs::remove_file(crate::path(&remove.path)) {
+    match std::fs::remove_file(super::path(&remove.path)) {
         Ok(()) => Ok(()),
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(why) => Err(why.raw_os_error().expect("unlink returns an errno")),
@@ -169,7 +181,8 @@ fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> 
 
 /// The terminal stderr and status shared by the shell and its real-loop host.
 #[must_use]
-pub fn ending(
+pub fn ending_with_binary(
+    binary: &str,
     end: Option<&End>,
     output_failed: bool,
     _directories: &Directories,
@@ -178,19 +191,19 @@ pub fn ending(
 ) -> (String, u8) {
     let mut lines = match end {
         Some(End::Stopped(why)) => match why {
-            Stop::Start(found) => crate::problems(&temper_service::startup::Problems::jig(
-                found.clone(),
-                &jig_protocol_config::Path::root(),
-            )),
+            Stop::Start(found) => super::problems(
+                binary,
+                &temper_service::startup::Problems::jig(found.clone(), &jig_protocol_config::Path::root()),
+            ),
             Stop::Room(short) => {
-                format!("temper serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
+                format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&short.words()))
             }
             Stop::RestorePage { range, failure } => {
-                format!("temper serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
+                format!("{binary} serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
             }
             Stop::StartRefused { phase, failure } => {
                 let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
-                format!("temper serve: restart refused during {during}: {}\n", start_failure(failure))
+                format!("{binary} serve: restart refused during {during}: {}\n", start_failure(failure))
             }
             Stop::ForgeFit { phase, failure } => {
                 let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
@@ -199,18 +212,29 @@ pub fn ending(
                     None => String::new(),
                 };
                 format!(
-                    "temper serve: restart refused during {during}: forge{family} {:?}, held {}, additional {}, limit {}\n",
+                    "{binary} serve: restart refused during {during}: forge{family} {:?}, held {}, additional {}, limit {}\n",
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
-            Stop::Binding => "temper serve: deployment namespace binding refused\n".into(),
+            Stop::Binding => format!("{binary} serve: deployment namespace binding refused\n"),
             Stop::StoreOpen { why } => {
-                let deployment = crate::path(store);
+                let deployment = super::path(store);
                 let (lines, exit) = temper_service::refused_start(why, deployment.display().to_string().as_bytes());
-                return (String::from_utf8(lines.into_vec()).expect("refusal is UTF-8"), exit);
+                let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
+                let mut named = String::new();
+                for line in lines.lines() {
+                    use std::fmt::Write as _;
+                    writeln!(
+                        named,
+                        "{binary} serve: {}",
+                        line.strip_prefix("temper serve: ").expect("service refusal prefix")
+                    )
+                    .expect("writing into a string");
+                }
+                return (named, exit);
             }
             Stop::FrameTooLarge { number, task, bytes, limit } => format!(
-                "temper serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes\n"
+                "{binary} serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes\n"
             ),
             Stop::Journal { why } => {
                 let why = match why {
@@ -222,10 +246,10 @@ pub fn ending(
                     }
                     temper_service::JournalStop::Counter => "the commit counter at its end".into(),
                 };
-                format!("temper serve: the engine's journal stopped: {why}\n")
+                format!("{binary} serve: the engine's journal stopped: {why}\n")
             }
-            Stop::CommitFailed { number } => format!("temper serve: commit {number} failed\n"),
-            Stop::Hooks => "temper serve: webhooks listener failed\n".into(),
+            Stop::CommitFailed { number } => format!("{binary} serve: commit {number} failed\n"),
+            Stop::Hooks => format!("{binary} serve: webhooks listener failed\n"),
             Stop::Listener { listener, address, error } => {
                 let name = match listener {
                     temper_service::Listening::Clients => "client",
@@ -246,7 +270,7 @@ pub fn ending(
                     Some(skein_io::Error::Other) => "other",
                     None => "closed",
                 };
-                format!("temper serve: {name} listener {address} failed: {why}\n")
+                format!("{binary} serve: {name} listener {address} failed: {why}\n")
             }
         },
         None | Some(End::Drained | End::Aborted) => String::new(),
@@ -257,7 +281,7 @@ pub fn ending(
             let (entry, task) = (write.entry, write.task);
             writeln!(
                 lines,
-                "temper serve: stopped before task {task}'s forge write {entry} settled; the next start settles it"
+                "{binary} serve: stopped before task {task}'s forge write {entry} settled; the next start settles it"
             )
             .expect("format stop diagnostic");
         }
@@ -326,10 +350,10 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
     line
 }
 
-fn long_pass_line(long: LongPass) -> String {
+fn long_pass_line(binary: &str, long: LongPass) -> String {
     use std::fmt::Write as _;
     let mut line = format!(
-        "temper serve: long pass: {} ms, {} {} ms of it, past the {} ms bound",
+        "{binary} serve: long pass: {} ms, {} {} ms of it, past the {} ms bound",
         long.took.as_millis(),
         long.part.name(),
         long.part_took.as_millis(),
@@ -343,12 +367,13 @@ fn long_pass_line(long: LongPass) -> String {
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps each operator line at the host")]
-pub(crate) fn note_line(note: temper_service::Note) -> String {
+#[must_use]
+pub fn note_line(binary: &str, note: temper_service::Note) -> String {
     match note {
         temper_service::Note::CoreWaiting { why } => {
-            format!("temper serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
+            format!("{binary} serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
         }
-        temper_service::Note::CoreAnswers => "temper serve: the core answers again\n".into(),
+        temper_service::Note::CoreAnswers => format!("{binary} serve: the core answers again\n"),
         temper_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -359,19 +384,20 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
             format!("forge {forge}'s person: {words}\n")
         }
         temper_service::Note::RunFailed(diagnostic) => run_failure_line(
+            binary,
             diagnostic.task,
             diagnostic.run,
             diagnostic.attempt,
             diagnostic.failure,
             &diagnostic.detail,
         ),
-        temper_service::Note::RunRefused(diagnostic) => run_refusal_line(diagnostic),
+        temper_service::Note::RunRefused(diagnostic) => run_refusal_line(binary, diagnostic),
         temper_service::Note::HelloRefused { channel, text } => {
-            format!("temper serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
+            format!("{binary} serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
         }
         temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
             format!(
-                "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
+                "{binary} serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
                 String::from_utf8_lossy(&tool)
             )
         }
@@ -381,24 +407,24 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
                 None => "None".into(),
             };
             format!(
-                "temper serve: brief read refused task={task} section={} stage={stage} error={error}\n",
+                "{binary} serve: brief read refused task={task} section={} stage={stage} error={error}\n",
                 String::from_utf8_lossy(section)
             )
         }
         temper_service::Note::BriefFailed { task, counts, reason } => {
             format!(
-                "temper serve: brief failed task={task} counts={counts} reason={}\n",
+                "{binary} serve: brief failed task={task} counts={counts} reason={}\n",
                 String::from_utf8_lossy(&reason)
             )
         }
         temper_service::Note::CallAdmissionRefused { task, attempt, tool, layer, reason } => {
             format!(
-                "temper serve: call admission refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}\n",
+                "{binary} serve: call admission refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}\n",
                 String::from_utf8_lossy(&tool)
             )
         }
         temper_service::Note::Patched { of, patch, counts } => {
-            format!("temper serve: {of:?} patch {patch}: {} records, {} commits\n", counts.records, counts.commits)
+            format!("{binary} serve: {of:?} patch {patch}: {} records, {} commits\n", counts.records, counts.commits)
         }
         temper_service::Note::Listening { listener, addr } => {
             let name = match listener {
@@ -416,16 +442,16 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
             format!("refused {} {address} {reason}\n", String::from_utf8_lossy(&worker))
         }
         temper_service::Note::ForgeLacking { number, names } => {
-            format!("temper serve: forge {number}: App lacks {}\n", String::from_utf8_lossy(&names))
+            format!("{binary} serve: forge {number}: App lacks {}\n", String::from_utf8_lossy(&names))
         }
-        temper_service::Note::SetUpRefused { number, why } => set_up_refused_line(number, why),
+        temper_service::Note::SetUpRefused { number, why } => set_up_refused_line(binary, number, why),
         temper_service::Note::Playground { line } | temper_service::Note::BoxLink { line } => {
             format!("{}\n", String::from_utf8_lossy(&line))
         }
-        temper_service::Note::ForgeStopped { number, why } => stopped_line(number, why),
-        temper_service::Note::ForgeSetupStopped { number, why } => setup_stopped_line(number, why),
+        temper_service::Note::ForgeStopped { number, why } => stopped_line(binary, number, why),
+        temper_service::Note::ForgeSetupStopped { number, why } => setup_stopped_line(binary, number, why),
         temper_service::Note::ForgeNotConnected { number, why } => {
-            format!("temper serve: forge {number}: not connected: {why}\n")
+            format!("{binary} serve: forge {number}: not connected: {why}\n")
         }
 
         temper_service::Note::ForgeSignIn { number, client, why } => {
@@ -441,16 +467,16 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
                 Unserved::NoSource => "the temper sign-in source is not ready".into(),
                 Unserved::NoRoom => "no room for its meta within clients.bundle_bytes".into(),
             };
-            format!("temper serve: forge {number}: no sign-in through temper: {why}\n")
+            format!("{binary} serve: forge {number}: no sign-in through {binary}: {why}\n")
         }
-        temper_service::Note::ForgeOrigin { number, origin } => origin_line(number, &origin),
+        temper_service::Note::ForgeOrigin { number, origin } => origin_line(binary, number, &origin),
         temper_service::Note::ForgeUnkept { number, installation } => {
-            format!("temper serve: forge {number}: installation {installation}: not kept\n")
+            format!("{binary} serve: forge {number}: installation {installation}: not kept\n")
         }
     }
 }
 // temper/docs/design/domain/worker.md, 4.3: one bounded, escaped operator line.
-fn run_refusal_line(diagnostic: temper_service::RunRefusalDiagnostic) -> String {
+fn run_refusal_line(binary: &str, diagnostic: temper_service::RunRefusalDiagnostic) -> String {
     let temper_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
         jig_domain_host::Refusal::Busy => (String::from("Busy"), b"".as_slice()),
@@ -464,11 +490,18 @@ fn run_refusal_line(diagnostic: temper_service::RunRefusalDiagnostic) -> String 
             | jig_domain_host::Invalid::Messages,
         ) => (format!("{reason:?}"), b"".as_slice()),
     };
-    run_detail_line(format!("temper serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
+    run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
 }
 
-fn run_failure_line(task: u64, run: u64, attempt: u64, failure: jig_domain_host::Failure, detail: &[u8]) -> String {
-    run_detail_line(format!("temper serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
+fn run_failure_line(
+    binary: &str,
+    task: u64,
+    run: u64,
+    attempt: u64,
+    failure: jig_domain_host::Failure,
+    detail: &[u8],
+) -> String {
+    run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
 }
 
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {
@@ -483,15 +516,15 @@ fn run_detail_line(mut line: String, detail: &[u8]) -> String {
     line
 }
 
-fn origin_line(number: u16, origin: &skein_forge::github::redirect::Origin) -> String {
+fn origin_line(binary: &str, number: u16, origin: &skein_forge::github::redirect::Origin) -> String {
     let scheme = if origin.tls { "https" } else { "http" };
     format!(
-        "temper serve: forge {number}: refused job-log origin {scheme}://{}:{}\n",
+        "{binary} serve: forge {number}: refused job-log origin {scheme}://{}:{}\n",
         String::from_utf8_lossy(&origin.host),
         origin.port
     )
 }
-fn set_up_refused_line(number: u16, why: temper_engine_domain_forge::SetUpRefusal) -> String {
+fn set_up_refused_line(binary: &str, number: u16, why: temper_engine_domain_forge::SetUpRefusal) -> String {
     use temper_engine_domain_forge::SetUpRefusal;
     let why = match why {
         SetUpRefusal::NotUnderTheBox => "not under the box",
@@ -499,20 +532,20 @@ fn set_up_refused_line(number: u16, why: temper_engine_domain_forge::SetUpRefusa
         SetUpRefusal::Busy => "busy",
         SetUpRefusal::Invalid => "invalid: the organization, repository or project name is empty or too long",
     };
-    format!("temper serve: forge {number}: set up refused: {why}\n")
+    format!("{binary} serve: forge {number}: set up refused: {why}\n")
 }
 
-fn setup_stopped_line(number: u16, why: temper_service::SetupStopped) -> String {
+fn setup_stopped_line(binary: &str, number: u16, why: temper_service::SetupStopped) -> String {
     use temper_service::{SetupPlan, SetupStopped, SetupWhy};
     let why = match why {
-        SetupStopped::NotPrepared => "prepare it with `temper forge prepare`".into(),
+        SetupStopped::NotPrepared => format!("prepare it with `{binary} forge prepare`"),
         SetupStopped::Missing => "setup host missing".into(),
         SetupStopped::Busy => "setup host busy".into(),
         SetupStopped::Removal { path, errno } => {
-            format!("removing the handover: {}: errno {errno}", crate::path(&path).display())
+            format!("removing the handover: {}: errno {errno}", super::path(&path).display())
         }
         SetupStopped::Unreadable { path, why } => {
-            format!("the handover is unreadable: {}: {why:?}", crate::path(&path).display())
+            format!("the handover is unreadable: {}: {why:?}", super::path(&path).display())
         }
         SetupStopped::Stopped { plan, step } => {
             let reason = match step.why {
@@ -542,7 +575,7 @@ fn setup_stopped_line(number: u16, why: temper_service::SetupStopped) -> String 
             format!("{action} stopped at {:?}: {reason}", step.stage)
         }
     };
-    format!("temper serve: forge {number}: Not connected: {why}\n")
+    format!("{binary} serve: forge {number}: Not connected: {why}\n")
 }
 
 fn refusal(reason: temper_service::Refusal) -> String {
@@ -561,7 +594,7 @@ fn refusal(reason: temper_service::Refusal) -> String {
         },
     }
 }
-fn stopped_line(number: u16, why: skein_forge_connection::Stopped) -> String {
+fn stopped_line(binary: &str, number: u16, why: skein_forge_connection::Stopped) -> String {
     use skein_forge_connection::{StartRead, Stopped, Value};
     match why {
         Stopped::Invalid { value } => {
@@ -571,14 +604,16 @@ fn stopped_line(number: u16, why: skein_forge_connection::Stopped) -> String {
                 Value::Key => "app_key",
                 Value::Secret => "webhook_secret",
             };
-            format!("temper serve: forge {number}: {member}: invalid\n")
+            format!("{binary} serve: forge {number}: {member}: invalid\n")
         }
-        Stopped::KeyRefused => format!("temper serve: forge {number}: app_key: refused\n"),
+        Stopped::KeyRefused => format!("{binary} serve: forge {number}: app_key: refused\n"),
         Stopped::TokenRefused { installation, status } => {
-            format!("temper serve: forge {number}: /app/installations/{installation}/access_tokens: status {status}\n")
+            format!(
+                "{binary} serve: forge {number}: /app/installations/{installation}/access_tokens: status {status}\n"
+            )
         }
         Stopped::OtherUser { user } => {
-            format!("temper serve: forge {number}: start answered as user {user}\n")
+            format!("{binary} serve: forge {number}: start answered as user {user}\n")
         }
         Stopped::Refused { read, status } => {
             let path = match read {
@@ -588,7 +623,7 @@ fn stopped_line(number: u16, why: skein_forge_connection::Stopped) -> String {
                 StartRead::User => "/api/v1/user",
                 StartRead::ApiSettings => "/api/v1/settings/api",
             };
-            format!("temper serve: forge {number}: {path}: status {status}\n")
+            format!("{binary} serve: forge {number}: {path}: status {status}\n")
         }
     }
 }
@@ -603,7 +638,7 @@ fn github_start_refusals_name_their_paths() {
         (Stopped::Refused { read: StartRead::Mint, status: 401 }, "/app/installations/{id}/access_tokens: status 401"),
         (Stopped::Refused { read: StartRead::Viewer, status: 401 }, "/graphql viewer: status 401"),
     ] {
-        assert_eq!(stopped_line(1, why), format!("temper serve: forge 1: {words}\n"));
+        assert_eq!(stopped_line("temper", 1, why), format!("temper serve: forge 1: {words}\n"));
     }
 }
 
@@ -611,22 +646,25 @@ fn github_start_refusals_name_their_paths() {
 fn records_and_installation_notes_name_the_forge_and_reason() {
     use temper_service::{NotConnected, Note};
     assert_eq!(
-        note_line(Note::ForgeNotConnected { number: 7, why: NotConnected::Unreadable }),
+        note_line("temper", Note::ForgeNotConnected { number: 7, why: NotConnected::Unreadable }),
         "temper serve: forge 7: not connected: its records are unreadable\n"
     );
     assert_eq!(
-        note_line(Note::ForgeNotConnected {
-            number: 7,
-            why: NotConnected::OtherForge {
-                kind: skein_forge_connection::settings::Kind::Forgejo,
-                api: Box::from("fake.test:443")
+        note_line(
+            "temper",
+            Note::ForgeNotConnected {
+                number: 7,
+                why: NotConnected::OtherForge {
+                    kind: skein_forge_connection::settings::Kind::Forgejo,
+                    api: Box::from("fake.test:443")
+                }
             }
-        }),
+        ),
         "temper serve: forge 7: not connected: its records were made for forgejo at fake.test:443\n"
     );
 
     assert_eq!(
-        note_line(Note::ForgeUnkept { number: 7, installation: 93 }),
+        note_line("temper", Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"
     );
 }
@@ -644,7 +682,7 @@ fn forge_sign_in_notes_name_each_unserved_reason() {
         (Unserved::NoRoom, "no room for its meta within clients.bundle_bytes"),
     ] {
         assert_eq!(
-            note_line(Note::ForgeSignIn { number: 7, client: b"forgejo".as_slice().into(), why }),
+            note_line("temper", Note::ForgeSignIn { number: 7, client: b"forgejo".as_slice().into(), why }),
             format!("temper serve: forge 7: no sign-in through temper: {words}\n")
         );
     }
@@ -655,12 +693,13 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
     use jig_protocol_store::{Family, Older, OpenRefusal};
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for older in [Older::Unleveled, Older::Unrecorded, Older::Layout(Family::Application), Older::Directory] {
         let why = OpenRefusal::OlderBuild { why: older };
         for store in ["/data/deployment", "/elsewhere/store"] {
             let expected = format!("temper serve: {}\n", why.words().join(store));
-            let (line, code) = ending(
+            let (line, code) = ending_with_binary(
+                "temper",
                 Some(&End::Stopped(Stop::StoreOpen { why: why.clone() })),
                 false,
                 &directories,
@@ -680,7 +719,7 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
 fn other_endings_keep_their_exit_behavior() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     let mut problems = jig_protocol_config::Problems::empty();
     problems.push(jig_protocol_config::Path::root().member(b"deployment"), jig_protocol_config::What::Refers);
     for (end, output_failed, expected, code) in [
@@ -758,7 +797,7 @@ fn other_endings_keep_their_exit_behavior() {
         (None, false, "", 1),
     ] {
         assert_eq!(
-            ending(end.as_ref(), output_failed, &directories, b"/data/store", &[]),
+            ending_with_binary("temper", end.as_ref(), output_failed, &directories, b"/data/store", &[]),
             (expected.into(), code),
             "{end:?}, output failed {output_failed}"
         );
@@ -775,7 +814,10 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
             (([127, 0, 0, 1], 41733).into(), "127.0.0.1:41733"),
             (([0, 0, 0, 0, 0, 0, 0, 1], 41733).into(), "[::1]:41733"),
         ] {
-            assert_eq!(note_line(Note::Listening { listener, addr }), format!("listening {name} {printed}\n"));
+            assert_eq!(
+                note_line("temper", Note::Listening { listener, addr }),
+                format!("listening {name} {printed}\n")
+            );
         }
     }
 }
@@ -783,10 +825,13 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
 #[test]
 fn hello_refusal_notes_print_the_channel_and_words_exactly() {
     assert_eq!(
-        note_line(temper_service::Note::HelloRefused {
-            channel: 7,
-            text: b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32".as_slice().into(),
-        }),
+        note_line(
+            "temper",
+            temper_service::Note::HelloRefused {
+                channel: 7,
+                text: b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32".as_slice().into(),
+            }
+        ),
         "temper serve: hello refused channel=7: charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32\n",
     );
 }
@@ -798,7 +843,7 @@ fn worker_link_notes_print_each_address_and_refusal_exactly() {
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {
         assert_eq!(
-            note_line(Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(address) }),
+            note_line("temper", Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(address) }),
             format!("linked worker-a {printed}\n")
         );
         for (reason, expected) in [
@@ -813,7 +858,10 @@ fn worker_link_notes_print_each_address_and_refusal_exactly() {
             (Refusal::Peer(42), "code-42"),
         ] {
             assert_eq!(
-                note_line(Note::Refused { worker: b"worker-a".as_slice().into(), address: Box::new(address), reason }),
+                note_line(
+                    "temper",
+                    Note::Refused { worker: b"worker-a".as_slice().into(), address: Box::new(address), reason }
+                ),
                 format!("refused worker-a {printed} {expected}\n")
             );
         }
@@ -836,7 +884,7 @@ fn setup_stops_print_the_forge_plan_and_typed_step_without_a_subject() {
         ),
     ] {
         assert_eq!(
-            note_line(Note::ForgeSetupStopped { number: 3, why }),
+            note_line("temper", Note::ForgeSetupStopped { number: 3, why }),
             format!("temper serve: forge 3: Not connected: {line}\n")
         );
     }
@@ -858,10 +906,13 @@ fn the_shell_removes_only_the_named_handover_and_reports_unlink_failure() {
     std::fs::create_dir(&path).expect("handover fixture");
     std::fs::write(path.join("held"), b"").expect("handover fixture");
     let errno = remove_handover(&removal).expect_err("an unlink failure is never acknowledged as removed");
-    let line = note_line(temper_service::Note::ForgeSetupStopped {
-        number: removal.forge,
-        why: temper_service::SetupStopped::Removal { path: removal.path.clone(), errno },
-    });
+    let line = note_line(
+        "temper",
+        temper_service::Note::ForgeSetupStopped {
+            number: removal.forge,
+            why: temper_service::SetupStopped::Removal { path: removal.path.clone(), errno },
+        },
+    );
     assert!(line.contains("removing the handover:") && line.contains(path.to_str().expect("handover fixture")));
     std::fs::remove_dir_all(&path).expect("handover fixture");
     std::fs::write(&path, b"").expect("handover fixture");
@@ -904,10 +955,10 @@ fn the_shell_trims_only_the_handovers_final_newline() {
 fn a_drained_end_prints_each_unsettled_write() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     let unfinished =
         [temper_service::Unsettled { entry: 17, task: 3 }, temper_service::Unsettled { entry: 22, task: 9 }];
-    assert_eq!(ending(Some(&End::Drained), false, &directories, b"/data/store", &unfinished), (
+    assert_eq!(ending_with_binary("temper", Some(&End::Drained), false, &directories, b"/data/store", &unfinished), (
         "temper serve: stopped before task 3's forge write 17 settled; the next start settles it\ntemper serve: stopped before task 9's forge write 22 settled; the next start settles it\n".into(), 0
     ));
 }
@@ -934,7 +985,7 @@ fn forge_fit_endings_name_phase_family_set_and_measured_limit() {
     use temper_engine_domain_forge::{RecordKind, RestoreFit, RestoreSet};
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (family, set, held, additional, limit, detail) in [
         (
             Some(RecordKind::Binding),
@@ -950,7 +1001,7 @@ fn forge_fit_endings_name_phase_family_set_and_measured_limit() {
             phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 7 }),
             failure: RestoreFit { family, set, held, additional, limit },
         });
-        let (line, code) = ending(Some(&end), false, &directories, b"/data/deployment", &[]);
+        let (line, code) = ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]);
         assert_eq!(line, format!("temper serve: restart refused during connector 7 restore: {detail}\n"));
         assert_eq!(code, 1);
     }
@@ -961,7 +1012,7 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
     use jig_domain_core::start::{Failure, Phase};
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (phase, words) in [
         (Some(Phase::LoadCore), "core restore"),
         (Some(Phase::LoadInbox), "inbox census"),
@@ -978,7 +1029,7 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
     ] {
         let end = End::Stopped(Stop::StartRefused { phase, failure: Failure::ProjectPolicy { project: 3 } });
         assert_eq!(
-            ending(Some(&end), false, &directories, b"/data/deployment", &[]),
+            ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
             (format!("temper serve: restart refused during {words}: project 3: policy refused\n"), 1)
         );
     }
@@ -1040,7 +1091,7 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
     };
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
-    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (failure, words) in [
         (None, "store load failed"),
         (Some(Failure { cause: Cause::Range(RangeFailure::Cursor), row: None }), "Range(Cursor)"),
@@ -1066,7 +1117,7 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
     ] {
         let end = End::Stopped(Stop::RestorePage { range: temper_service::RestoreRangeKind::Tasks, failure });
         assert_eq!(
-            ending(Some(&end), false, &directories, b"/data/deployment", &[]),
+            ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
             (format!("temper serve: restore tasks: {words}\n"), 1)
         );
     }
@@ -1095,17 +1146,20 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
         (Note::ForgeLink { forge: 7, note: LinkNote::Replaced }, "forge 7's person: replaced\n"),
         (Note::ForgeLink { forge: 7, note: LinkNote::Cleared }, "forge 7's person: cleared\n"),
     ] {
-        assert_eq!(note_line(note), expected);
+        assert_eq!(note_line("temper", note), expected);
     }
-    let line = note_line(Note::ReadRefused {
-        task: 7,
-        attempt: 2,
-        tool: b"read_file".as_slice().into(),
-        layer: "authority",
-        reason: "connector read denied",
-        findings: Box::new([]),
-        error: None,
-    });
+    let line = note_line(
+        "temper",
+        Note::ReadRefused {
+            task: 7,
+            attempt: 2,
+            tool: b"read_file".as_slice().into(),
+            layer: "authority",
+            reason: "connector read denied",
+            findings: Box::new([]),
+            error: None,
+        },
+    );
     assert!(line.contains("task=7 attempt=2 tool=read_file layer=authority reason=connector read denied"));
     assert!(line.contains("findings=[]"));
 }
@@ -1113,16 +1167,22 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
 #[test]
 fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
     assert_eq!(
-        note_line(temper_service::Note::BriefReadRefused {
-            task: 7,
-            section: b"pull",
-            stage: "item",
-            error: Some(skein_forge::api::Error::InvalidAnswer),
-        }),
+        note_line(
+            "temper",
+            temper_service::Note::BriefReadRefused {
+                task: 7,
+                section: b"pull",
+                stage: "item",
+                error: Some(skein_forge::api::Error::InvalidAnswer),
+            }
+        ),
         "temper serve: brief read refused task=7 section=pull stage=item error=InvalidAnswer\n"
     );
     assert_eq!(
-        note_line(temper_service::Note::BriefReadRefused { task: 7, section: b"ci", stage: "checks", error: None }),
+        note_line(
+            "temper",
+            temper_service::Note::BriefReadRefused { task: 7, section: b"ci", stage: "checks", error: None }
+        ),
         "temper serve: brief read refused task=7 section=ci stage=checks error=None\n"
     );
 }
@@ -1130,25 +1190,31 @@ fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
 #[test]
 fn brief_failure_line_names_how_it_counts_and_why() {
     assert_eq!(
-        note_line(temper_service::Note::BriefFailed {
-            task: 7,
-            counts: "permanent",
-            reason: b"pull: the forge's answer did not match its read".as_slice().into(),
-        }),
+        note_line(
+            "temper",
+            temper_service::Note::BriefFailed {
+                task: 7,
+                counts: "permanent",
+                reason: b"pull: the forge's answer did not match its read".as_slice().into(),
+            }
+        ),
         "temper serve: brief failed task=7 counts=permanent reason=pull: the forge's answer did not match its read\n"
     );
 }
 
 #[test]
 fn refused_job_log_origin_note_names_only_the_origin() {
-    let line = note_line(temper_service::Note::ForgeOrigin {
-        number: 7,
-        origin: skein_forge::github::redirect::Origin {
-            tls: true,
-            host: b"unrelated.example.test".as_slice().into(),
-            port: 443,
+    let line = note_line(
+        "temper",
+        temper_service::Note::ForgeOrigin {
+            number: 7,
+            origin: skein_forge::github::redirect::Origin {
+                tls: true,
+                host: b"unrelated.example.test".as_slice().into(),
+                port: 443,
+            },
         },
-    });
+    );
     assert_eq!(line, "temper serve: forge 7: refused job-log origin https://unrelated.example.test:443\n");
 }
 
@@ -1166,7 +1232,7 @@ fn failed_run_note(detail: &[u8]) -> temper_service::Note {
 #[test]
 fn failed_run_stderr_escapes_control_bytes_on_one_line() {
     assert_eq!(
-        note_line(failed_run_note(b"exit 1: bad\nstream\r\t\0\x1b\x7f\xff")),
+        note_line("temper", failed_run_note(b"exit 1: bad\nstream\r\t\0\x1b\x7f\xff")),
         "temper serve: task 3 run 7 attempt 2 failed Run(Model): exit 1: bad\\nstream\\r\\t\\x00\\x1b\\x7f\\xff\n"
     );
 }
@@ -1175,7 +1241,7 @@ fn failed_run_stderr_escapes_control_bytes_on_one_line() {
 fn failed_run_stderr_keeps_a_bounded_tail() {
     let mut detail = vec![b'x'; 4097];
     detail[0] = b'y';
-    let line = note_line(failed_run_note(&detail));
+    let line = note_line("temper", failed_run_note(&detail));
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
     assert_eq!(line, format!("{prefix}{}\n", "x".repeat(4096)));
 }
@@ -1196,20 +1262,23 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
         (Refusal::Invalid(Invalid::Grants), "Invalid(Grants)"),
         (Refusal::Invalid(Invalid::Messages), "Invalid(Messages)"),
     ] {
-        assert_eq!(note_line(refused_run_note(reason)), format!("{prefix}{class}: \n"));
+        assert_eq!(note_line("temper", refused_run_note(reason)), format!("{prefix}{class}: \n"));
     }
     for (cause, class) in [(StartCause::Other, "Other"), (StartCause::Grants, "Grants")] {
         let reason =
             Refusal::Invalid(Invalid::Start { cause, why: b"charter\n\r\t\0\x1b\x7f\xff\\\"".as_slice().into() });
         assert_eq!(
-            note_line(refused_run_note(reason)),
+            note_line("temper", refused_run_note(reason)),
             format!("{prefix}Invalid(Start({class})): charter\\n\\r\\t\\x00\\x1b\\x7f\\xff\\\\\\\"\n")
         );
     }
     let mut why = vec![b'x'; 4097];
     why[0] = b'y';
     assert_eq!(
-        note_line(refused_run_note(Refusal::Invalid(Invalid::Start { cause: StartCause::Other, why: why.into() }))),
+        note_line(
+            "temper",
+            refused_run_note(Refusal::Invalid(Invalid::Start { cause: StartCause::Other, why: why.into() }))
+        ),
         format!("{prefix}Invalid(Start(Other)): {}\n", "x".repeat(4096))
     );
 }
@@ -1223,7 +1292,7 @@ fn long_pass_line_names_the_pass_its_longest_part_and_the_bound() {
         more: 0,
     };
     assert_eq!(
-        long_pass_line(long),
+        long_pass_line("temper", long),
         "temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound\n"
     );
 }
@@ -1237,7 +1306,7 @@ fn long_pass_line_counts_the_other_long_passes() {
         more: 3,
     };
     assert_eq!(
-        long_pass_line(long),
+        long_pass_line("temper", long),
         "temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound; 3 more since the last line\n"
     );
 }
@@ -1245,14 +1314,28 @@ fn long_pass_line_counts_the_other_long_passes() {
 #[test]
 fn core_wait_notes_name_the_reason_and_recovery() {
     use temper_service::{CoreWait, Note};
-    for (note, expected) in [
+    for (binary, note, expected) in [
         (
+            "temper",
             Note::CoreWaiting { why: CoreWait::Starting { step: None } },
             "temper serve: the core is not answering: starting: loading the core's records\n",
         ),
-        (Note::CoreAnswers, "temper serve: the core answers again\n"),
+        ("temper", Note::CoreAnswers, "temper serve: the core answers again\n"),
+        ("temper-engine", Note::CoreAnswers, "temper-engine serve: the core answers again\n"),
     ] {
-        assert_eq!(note_line(note), expected);
+        assert_eq!(note_line(binary, note), expected);
         assert!(expected.len() <= 240);
     }
+}
+
+/// The box's ending, preserving its public call path.
+#[must_use]
+pub fn ending(
+    end: Option<&End>,
+    output_failed: bool,
+    directories: &Directories,
+    store: &[u8],
+    unsettled: &[temper_service::Unsettled],
+) -> (String, u8) {
+    ending_with_binary("temper", end, output_failed, directories, store, unsettled)
 }
