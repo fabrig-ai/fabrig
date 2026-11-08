@@ -53,13 +53,13 @@ pub struct Stop { pub actor: Actor, pub step: Step, pub words: Box<[u8]>, pub op
 /// `repository` is `OWNER/NAME`, none for a project with no repository.
 pub struct Path { pub repository: Option<Box<[u8]>>, pub branch: Box<[u8]>, pub stops: Box<[Stop]> }
 
-pub const STOPS: usize = 32;   // a path's most stops
+pub const STOPS: usize = 24;   // a path's most stops
 pub const FACTS: usize = 4;    // a card's most facts
 pub const WORDS: usize = 64;   // a stop's words' most bytes
 pub const WHO: usize = 128;    // a card's `who`
 pub const NAME: usize = 64;    // a card's `name`
 pub const LABEL: usize = 32;   // a fact's label
-pub const VALUE: usize = 384;  // a fact's value
+pub const VALUE: usize = 128;  // a fact's value
 
 impl Stop { pub fn same(&self, other: &Stop) -> bool }   // actor, step, words and opens equal; cards ignored
 impl Path { pub fn same(&self, other: &Path) -> bool }   // every stop `same`, in order, and as many
@@ -221,10 +221,10 @@ record OpensRule { kind: u32 scope: u32 number: u32 }
 record OpensGate { number: u32 }
 record OpensTier { name: bytes 32 }
 enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, tier: OpensTier, queue, turn }
-record Fact { label: text 32 value: text 384 }
+record Fact { label: text 32 value: text 128 }
 record Card { who: text 128 name: text 64 facts: list 4 Fact }
 record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
-record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 32 Stop }
+record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 24 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
 record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
@@ -245,6 +245,13 @@ ViewRead`, last. `lib.rs` gains `ways_panel` / `decode_ways_panel` and
 `decode_changes_panel` are. A `StockWay`'s `items` are what "Use this" sends:
 each `ProposalItem`'s `edit` `set` with the kind's value encoded as
 `temper_engine_smith::kinds::encode` encodes it, or `removed`.
+
+`STOPS` 24 and `VALUE` 128 (the answer of 2026-11-08 to `ways-family`):
+at 32 and 384 the worst `WaysPanel` passed Small's decision allowance,
+65,536 bytes, even its own path alone. At 24 and 128 the worst the root
+makes, the stock's three ways and the own path, each of 24 agent stops
+with the largest card `derive` makes, fits it; the look request's longest
+path has 22 stops, and "Can"'s longest words are 110 bytes.
 
 ## 4. The root's boundary (task `ways-surface`)
 
