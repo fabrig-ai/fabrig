@@ -51,8 +51,14 @@ its services with the TUI in front.
 | `linked` | `forges-linked` | temper-client-protocol-wire (+ `linked: false` literals) | | 45 |
 | `linked` | `serve-sign-in` | temper (serve's stdin), temper-service (`local_secret`, `linked`) | `jig-sign-in`, `forges-linked` | 75 |
 
-The box's side (`protocol/setup.md`, 7.6) and the TUI's (`client/README.md`,
-6.17) are being designed; their tasks follow in the next pushes.
+| `tui-front` | `tui-surface` | temper-client-tui (the whole surface: `BoxLine`, state, events, words, tokens, `work_runs`) | | 120 |
+| `tui-front` | `domain-front` | temper-client-domain (`linked`, `welcome::signed_in`, the playground read again) | `forges-linked` | 75 |
+| `box-front` | `box-lines` | temper-box (`front`: the box's lines' words and bytes) | | 45 |
+| `box-front` | `box-front` | temper-box (the host runs the front: spawn, descriptors, serve's 64 bytes, `tui.log`, its end, stop, give up) | `box-lines` | 150 |
+| `box-front` | `front-lines` | temper-box (the box's lines sent, the terminal's lines to `box.log` and the front) | `box-front` | 120 |
+
+The rest of the box's side (`binary-front`) and of the TUI's (`tui-seam`,
+`tui-welcome`, `tui-front-views`, `world-front`) follow in the next pushes.
 
 ## Overlaps
 

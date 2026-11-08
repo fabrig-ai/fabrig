@@ -982,3 +982,30 @@ terminal checks remain section 11's after-landing work.
   decoded and encoded false (`forges-linked`, `tui-box-front`).
 - **Not yet:** 4.6, `linked` true from the printed link's first sign-in, the
   document delivered again then (`serve-sign-in`, `tui-box-front`).
+- **Not yet:** 6.17, the TUI's surface in front of a box: `BoxLine` read
+  and printed, the state's front, printed link, last lines, box state,
+  question and `/log` note, the events `Stop`, `Stay` and `Log`,
+  `work_runs`, and the front's words and tokens (`tui-surface`,
+  `tui-box-front`).
+- **Not yet:** 4.8 and 6.17, `Side::linked`, `welcome::signed_in`, and the
+  playground read again when the `forges` watch gains or loses its fake
+  row (`domain-front`, `tui-box-front`).
+- **Not yet:** 6.13, 6.16 and 6.17, the seam's `Start.front` and
+  `Report::Front`, the handed link's sign-in with `held`, the box's lines
+  read and their end closing the run, Ctrl+C and `/exit` in front, `/log`
+  sent, the host back at the start's address once `me` drops its project,
+  and the recording's `front` fact and `box-line` record (`tui-seam`,
+  `tui-box-front`).
+- **Not yet:** 6.17, the welcome, before and after the person signed in
+  (`tui-welcome`, `tui-box-front`).
+- **Not yet:** 6.17, the playground's header and quiet line, the quit
+  question, the box's state on the quiet line, the give up's note and
+  `/log` offered with its note (`tui-front-views`, `tui-box-front`).
+- **Not yet:** 6.11 and 6.17, `temper internal tui --box`: descriptor 3
+  read, the terminal opened and its foreground taken, the run given its
+  front (`binary-front`, `tui-box-front`).
+- **Not yet:** 6.17, the joint world's stories of a TUI in front of a box
+  (`world-front`, `tui-box-front`).
+- **Not yet:** 6.17, *The place*: "box" and "box:PORT" wait for
+  `tui-launchpad-2`'s `place` on main; until then the TUI in front names
+  its place by its `HOST:PORT`, as on any engine (`tui-box-front`).

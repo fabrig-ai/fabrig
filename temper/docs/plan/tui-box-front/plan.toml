@@ -36,3 +36,23 @@ id = 1
 story = "A child takes its parent's terminal and gives it back; jig takes a given local link and says the printed link's sign-in; the forges document carries linked"
 parts = ["foreground", "jig-sign-in", "linked"]
 walk = false
+
+[[part]]
+id = "tui-front"
+title = "The TUI in front of a box: signed in by the handed link, the welcome following the browser, the playground, quitting that stops the box, the box's state and /log"
+mode = "direct"
+needs = ["linked"]
+design = "temper/docs/design/client/README.md, 6.17"
+
+[[part]]
+id = "box-front"
+title = "temper box runs its TUI in front as a child: the handed link, the box's lines, the terminal's lines to box.log, its end the box's stop, --no-tui"
+mode = "direct"
+needs = ["linked", "foreground"]
+design = "temper/docs/design/protocol/setup.md, 7.6"
+
+[[slice]]
+id = 2
+story = "temper box in a terminal runs the TUI in front: signed in with nothing pasted, the welcome follows the browser's steps, the playground says so, quitting asks while work runs and stops the box, and a failing step shows on the quiet line and in /log"
+parts = ["tui-front", "box-front"]
+walk = false

@@ -71,5 +71,16 @@
     column of padding at either end. These are the landing account's
     explained differences; real-terminal refinement remains
     `../client/README.md`, section 11's after-landing check.
+  - 1, 4.1 and 4.3, the user's decision of 2026-11-08, the look request
+    `tui-box-front`: `temper box` run in a terminal starts the TUI in
+    front of its services, where 4.1 has only `temper` start it; there
+    the welcome, following the browser's steps read-only, is its first
+    screen, where 4.3 has the launchpad's; it signs in by a link the box
+    hands it on a descriptor with nothing to read, paste or approve,
+    where 1 and 4.2 have it signed in from the browser or by a paste; and
+    Ctrl+C or `/exit` there stops the box with it, asking first while
+    work runs, where 4.1's closing is the TUI's alone. `temper box
+    --no-tui`, or a box with no terminal, runs as before
+    (`../client/README.md`, 6.17; `../protocol/setup.md`, 7.6).
 - **Open:**
   - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.
