@@ -32,12 +32,7 @@ those words and 1,024. The outcome still holds all fields and framing
 together; a field's bound alone does not promise that the whole fits.
 Section 12 defers the general message-rendering allowance.
 
-- **Not yet:** 6.3, 8: a refused start other than a transcript's is
-  the invalid class at the hub link (`jig-domain-hub-link`'s
-  `payload::ending`), where section 8 has it permanent; an agent has no
-  way to refuse a start for want of room (`FromAgent::StartBusy`), so
-  jig's test worker refuses smith's busy as an invalid start.
-  3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
+- **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts
   a task's message together itself, rendering its words by
