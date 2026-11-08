@@ -57,8 +57,12 @@ its services with the TUI in front.
 | `box-front` | `box-front` | temper-box (the host runs the front: spawn, descriptors, serve's 64 bytes, `tui.log`, its end, stop, give up) | `box-lines` | 150 |
 | `box-front` | `front-lines` | temper-box (the box's lines sent, the terminal's lines to `box.log` and the front) | `box-front` | 120 |
 
-The rest of the box's side (`binary-front`) and of the TUI's (`tui-seam`,
-`tui-welcome`, `tui-front-views`, `world-front`) follow in the next pushes.
+| `tui-front` | `tui-welcome` | temper-client-tui (`view/welcome.rs`, the welcome's dispatch) | `tui-surface`, `domain-front` | 120 |
+| `tui-front` | `tui-front-views` | temper-client-tui (`view/front.rs`, the playground's header and quiet line, the quit question, the box's state, `/log`) | `tui-surface` | 130 |
+
+The seam (`tui-seam`), the binary's commands (`front-command`,
+`binary-front`), the help pages, the joint world and the account follow in
+the next push.
 
 ## Overlaps
 

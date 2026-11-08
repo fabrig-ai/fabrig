@@ -71,22 +71,24 @@ section 15's contained-tree work.
   `tui-box-front`).
 - **Not yet:** 7.6, *The box's lines*: their words, bytes, bound and cut,
   `temper_box::front` (`box-lines`, `tui-box-front`).
-- **Not yet:** 7.6 and its pointers in 7.1 to 7.3: temper-box's host
-  running the front, its spawn, descriptors and local link's URL, both
-  secrets on serve's first stdin, the terminal unused while it runs, the
-  block's words in `box.log`, `tui.log` and its tail, its end as the stop,
-  the stop and the give up with it, the terminal after it and the exit
-  (`box-front`, `tui-box-front`).
-- **Not yet:** 7.6, *The box's lines* and *The terminal is the front's*:
-  the host sending `link`, `log`, `restarting`, `running` and `gave-up`
-  lines, the terminal's lines in `box.log` in its stead, and the 256
-  lines held (`front-lines`, `tui-box-front`).
+- **Not yet:** 7.6, 7.1, 7.2 and 7.3: temper-box's host running the
+  front, its spawn, descriptors and local link's URL, both secrets on
+  serve's first stdin, no block on the terminal and its words in
+  `box.log`, `tui.log` and its tail, its end as the stop, the stop and the
+  give up with it, and the exit (`box-front`, `tui-box-front`).
+- **Not yet:** 7.6, *The box's lines*, *The terminal is the front's* and
+  *The terminal after the front*: the host sending `link`, `log`,
+  `restarting`, `running` and `gave-up` lines, the terminal's lines in
+  `box.log` in its stead, the 256 lines held, and a failed front named on
+  the terminal after it (`front-lines`, `tui-box-front`).
 - **Not yet:** 7.6, *Its command*: `temper internal tui --box
   http://HOST:PORT` (`front-command`, `tui-box-front`).
 - **Not yet:** 7.6, *When*, *The sign-in it hands* and *The terminal after
   the front*: the binary's `--no-tui`, the front's condition, the local
   link drawn, the foreground taken back; 13.1's focused story
   (`binary-front`, `tui-box-front`).
+- **Not yet:** 7.6: `temper help box` and `temper help tui` say nothing of
+  the TUI in front or `--no-tui` (`box-help`, `tui-box-front`).
 - **Not yet:** 7.2, *Its children*: the owned-forge Claude Code landing
   story (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) has no

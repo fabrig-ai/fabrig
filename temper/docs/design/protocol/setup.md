@@ -2110,8 +2110,9 @@ and the terminal's foreground skein's `shell.md`, 6.3.
   file, with no controlling terminal, or where 7.2 *Where the box draws
   none* holds, it runs with no front, byte for byte as 7.1 to 7.5 say.
 - **Its command:** `temper internal tui --box http://HOST:PORT`,
-  `HOST:PORT` the printed link's own origin, as the block's last line
-  names it (7.2). On Linux the box spawns it through `temper internal
+  `HOST:PORT` the clients' listener, on loopback (configuration.md,
+  section 2), never the configured public origin, which a browser's
+  printed link may name (7.2, *The sign-in block*). On Linux the box spawns it through `temper internal
   forge-child --parent BOX --signal terminate --`, as every step, on
   macOS directly (7.1, *A step's start*). Its environment is the box's,
   `LISTEN_FDS` and `LISTEN_PID` dropped as for a step given no listener.
@@ -2135,12 +2136,13 @@ and the terminal's foreground skein's `shell.md`, 6.3.
   draws the first local link's, 32 bytes as jig's sign-in component draws
   one (jig's `protocol/client.md`, section 8), once, before it starts
   anything, and gives both to serve's first start (7.1, *The first link's
-  secret*). The local link's URL, made as the printed link's from the
-  same origin and route, at most 4,096 bytes, goes on the front's fd 3
-  alone: never an argument, the environment, a log or a file. The front
-  signs in by it before serve is up, its connection waiting in the
-  listener's backlog as a browser's does (7.2), and the printed link stays
-  the browser's.
+  secret*). The local link's URL, made at the clients' listener with no
+  public origin, so that its host is the front's address, on the link
+  route, at most 4,096 bytes, goes on the front's fd 3 alone: never an
+  argument, the environment, a log or a file. The front
+  signs in by it, its connection waiting in the listener's backlog until
+  serve is up, as a browser's does (7.2), and the printed link stays the
+  browser's.
 - **The terminal is the front's** while it runs: the box writes nothing
   on its stdout or its stderr. The first block's link goes to the front
   alone, its first `link` line, and the block's other lines, its blank
