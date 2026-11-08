@@ -1,0 +1,35 @@
+draft = "tui-launchpad"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-launchpad/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/docs/design/draft/chat-reading.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/ask-temper.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "screen-looks"
+title = "skein's screen draws a region framed by rules, a border title's end part, end-aligned lines and bands"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-screen.md, 5.2"
+
+[[slice]]
+id = 1
+story = "A fixture tree at 80 by 24 draws its header's title with the address at the border's end, a line flush right, a banded paragraph across its region and a field between two rules; at 30 by 12 the address goes first and the title is cut"
+parts = ["screen-looks"]
+walk = false
+
+[[part]]
+id = "screen-lists"
+title = "skein's screen lays an options menu from a focused field with its active item, and its body follows a log's end until the person pages up"
+mode = "direct"
+needs = ["screen-looks"]
+design = "skein/docs/design/ui-screen.md, 5.3"
+
+[[slice]]
+id = 2
+story = "A field with an options menu after it draws the menu one row an item with its names' column and the active item banded; Down, Enter and Tab move, press and complete it; a log with an end request shows its end as it grows, and stays put once paged up"
+parts = ["screen-lists"]
+walk = false
