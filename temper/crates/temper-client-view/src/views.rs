@@ -95,6 +95,11 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
         }
         w::View::Charter(charter) => card(b, charter.card()),
         w::View::Rule(rule) => card(b, rule.card()),
+        w::View::Roles(roles) => {
+            for role in roles.roles() {
+                card(b, role.card());
+            }
+        }
         w::View::NotDrawn(value) => line(b, Role::Paragraph, value.words()),
     }
 }

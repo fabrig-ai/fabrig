@@ -1,6 +1,6 @@
 //! A branch's path (temper/docs/design/domain/forge.md, 8.13).
 use alloc::boxed::Box;
-mod cards;
+pub(crate) mod cards;
 mod derive;
 mod rules;
 /// Who acts at a stop (domain/forge.md, 8.13).

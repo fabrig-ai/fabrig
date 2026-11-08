@@ -26,8 +26,6 @@ workflows report, and the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
 stand. The workflows by name are section 20's.
 
-- **Not yet:** 8.13, *The project's roles* (`roles-view`,
-  `look-round-25`): no view lists the agents a project's work runs.
 - **Not yet:** 8.13, *CI's card* (`ci-card`, `look-round-25`): the card
   has no fact "Workflows", and `ways::Repository` no `workflows`.
 - **Not yet:** 4 and 4.7 (`workflows-read`, `look-round-25`): the

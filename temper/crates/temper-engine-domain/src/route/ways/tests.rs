@@ -21,21 +21,7 @@ fn fixture() -> (Domain, Env<crate::Limits>) {
     let mut member = policy.roles.first().unwrap().clone();
     member.number = people::Role::Member.number();
     policy.roles = Box::new([member, policy.roles.first().unwrap().clone()]);
-    config.core.defaults.templates = Box::new([core::Template {
-        number: 4,
-        name: b"goal".as_slice().into(),
-        executor: TemplateExecutor::Charter(COORDINATOR),
-        contract: jig_domain_tasks::Contract::Report { words: 32 },
-        shallower: 0,
-        budget: people::TemplateBudget::AsAllowed { cap: None },
-        deadline: people::TemplateDeadline::None,
-        tracked: Some(1),
-        flags: jig_domain_tasks::Flags::PLAIN,
-        label: 0,
-        grace: None,
-        llm: None,
-        resources: Box::new([people::Symbol { connector: 0, symbol: super::super::forge_route::GOAL_BRANCH_SYMBOL }]),
-    }]);
+    config.core.defaults.templates = Box::new([goal_template()]);
     let mut later = config.core.defaults.templates[0].clone();
     later.number = 6;
     later.executor = TemplateExecutor::Chosen;
@@ -54,6 +40,24 @@ fn fixture() -> (Domain, Env<crate::Limits>) {
     limits.documents.roles = 2;
     limits.authority.roles = 2; // Owner and member.
     resume_fixture::root_with_records(config, &limits, &records)
+}
+
+fn goal_template() -> core::Template {
+    core::Template {
+        number: 4,
+        name: b"goal".as_slice().into(),
+        executor: TemplateExecutor::Charter(COORDINATOR),
+        contract: jig_domain_tasks::Contract::Report { words: 32 },
+        shallower: 0,
+        budget: people::TemplateBudget::AsAllowed { cap: None },
+        deadline: people::TemplateDeadline::None,
+        tracked: Some(1),
+        flags: jig_domain_tasks::Flags::PLAIN,
+        label: 0,
+        grace: None,
+        llm: None,
+        resources: Box::new([people::Symbol { connector: 0, symbol: super::super::forge_route::GOAL_BRANCH_SYMBOL }]),
+    }
 }
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
@@ -132,6 +136,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks the project inputs and the roles those inputs run")]
 fn inputs_gather_the_repository_start_and_readers_roles() {
     for (name, adopted, home, goal, way, merge_job, expected_repository, expected_start) in [
         ("no repository", false, false, false, 0, false, None, ways::Start::Chat),
@@ -218,6 +223,84 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             );
         }
     }
+    // Stock ways differ in the agents they run, even without any usable account.
+    for (goal, review, duplicate, missing, foreman, names) in [
+        (false, false, false, false, false, &["Chat", "Ask temper", "Coding agent", "Status agent"][..]),
+        (false, true, false, false, false, &["Chat", "Ask temper", "Coding agent", "Reviewer", "Status agent"][..]),
+        (
+            true,
+            false,
+            false,
+            false,
+            false,
+            &["Chat", "Ask temper", "Coordinator", "Coding agent", "Foreman", "Status agent"][..],
+        ),
+        (false, true, true, false, false, &["Chat", "Ask temper", "Coding agent", "Status agent"][..]),
+        (false, false, false, true, false, &["Chat", "Coding agent"][..]),
+        (false, false, false, false, true, &["Chat", "Ask temper", "Coding agent", "Foreman", "Status agent"][..]),
+    ] {
+        let (mut domain, env) = roles_fixture(goal, review, duplicate, missing, foreman);
+        let mut expected = None;
+        for address in [b"roles".as_slice(), b"ROLES", b"roles @revision 3", b"roles extra"] {
+            let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+            view::read(
+                &mut domain,
+                &env,
+                &mut decision,
+                skein_lib::ReplyTo::new(Token::new(70)),
+                1,
+                PROJECT,
+                address.into(),
+            );
+            crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false)
+                .unwrap();
+            let mut released = Queue::uncapped();
+            crate::resume(&mut domain.journal, &mut released);
+            let Some(crate::JournalOutput::Deliver(crate::Delivery::ForgeRead {
+                answer: crate::ForgeReadAnswer::View(view),
+                ..
+            })) = released.pop()
+            else {
+                panic!("view answer")
+            };
+            if address.starts_with(b"roles ") {
+                let ways::View::NotDrawn(_) = view.as_ref() else { panic!("invalid roles address: {address:?}") };
+                continue;
+            }
+            let ways::View::Roles(roles) = view.as_ref() else { panic!("roles answer") };
+            assert_eq!(roles.len(), names.len(), "goal {goal}, review {review}");
+            for ((number, card), name) in roles.iter().zip(names) {
+                assert_eq!(card.name.as_ref(), name.as_bytes(), "goal {goal}, review {review}");
+                let who = match card.name.as_ref() {
+                    b"Chat" => "For each chat",
+                    b"Ask temper" => "When you ask",
+                    b"Coordinator" => "For each goal",
+                    b"Coding agent" | b"Reviewer" => "For each change",
+                    b"Foreman" => "When a coding agent asks",
+                    b"Status agent" => "When you look at Home after landings",
+                    _ => panic!("unexpected role"),
+                };
+                assert_eq!(card.who.as_ref(), who.as_bytes());
+                let can = match card.name.as_ref() {
+                    b"Ask temper" => "read temper's records and the forge; propose settings; never change anything",
+                    b"Status agent" => "read the facts in its task; never merge",
+                    _ => {
+                        "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge"
+                    }
+                };
+                assert_eq!(card.facts.len(), 3);
+                for (fact, label) in card.facts.iter().zip([b"Model".as_slice(), b"Can", b"Asked to"]) {
+                    assert_eq!(fact.label.as_ref(), label);
+                }
+                assert_eq!(card.facts[1].value.as_ref(), can.as_bytes(), "charter {number}");
+                assert!(skein_lib::bytes::find(&card.facts[0].value, b"no account runs it now").is_some());
+            }
+            if let Some(expected) = &expected {
+                assert_eq!(view.as_ref(), expected);
+            }
+            expected = Some(view.as_ref().clone());
+        }
+    }
 }
 
 #[test]
@@ -295,4 +378,124 @@ fn an_agent_uses_the_first_held_model_or_its_first_fallback() {
         }
         assert_eq!(agents::select(order, offered.as_slice()), expected, "{order:?}: {offer:?}");
     }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    clippy::fn_params_excessive_bools,
+    reason = "the view table varies independent role sources in one shared fixture"
+)]
+fn roles_fixture(
+    goal: bool,
+    review: bool,
+    duplicate: bool,
+    missing: bool,
+    foreman: bool,
+) -> (Domain, Env<crate::Limits>) {
+    let mut config = resume_fixture::config(7);
+    let mut limits = resume_fixture::limits();
+    limits.tasks.charters = 10;
+    limits.templates = 6;
+    let mut charters = List::uncapped();
+    for number in 1..=10 {
+        if missing && (number == 8 || number == 9) {
+            continue;
+        }
+        let mut charter = config.core.defaults.charters[0].clone();
+        charter.number = number;
+        if number == 8 || number == 9 {
+            charter.policy.inspect = false;
+            charter.policy.modify = false;
+            charter.policy.shell = false;
+            charter.policy.agents = false;
+            charter.policy.tools.0 = if number == 8 { jig_domain_core::ToolFamilies::JIG.settings } else { 0 };
+        }
+        charters.push(charter).unwrap();
+    }
+    config.core.defaults.charters = charters.into_boxed();
+    let mut template = goal_template();
+    let mut templates = List::uncapped();
+    for (number, charter) in [(1, 1), (4, 5), (5, 8)] {
+        template.number = number;
+        template.executor = TemplateExecutor::Charter(charter);
+        templates.push(template.clone()).unwrap();
+    }
+    config.core.defaults.templates = templates.into_boxed();
+    let (mut domain, env) = resume_fixture::root_with_records(config, &limits, &[]);
+    let mut defaults = List::uncapped();
+    for (kind, number, value) in [
+        (3, 1, settings::Value::Charter(3)),
+        (3, 2, settings::Value::Charter(if duplicate { 3 } else { 4 })),
+        (
+            7,
+            1,
+            settings::Value::Ways(settings::ProjectWays {
+                drafts: goal,
+                goals: goal,
+                changes: true,
+                away: false,
+                way: 4,
+            }),
+        ),
+        (
+            6,
+            1,
+            settings::Value::Questions(if foreman {
+                temper_engine_domain_forge_change::Route::Foreman
+            } else {
+                temper_engine_domain_forge_change::Route::None
+            }),
+        ),
+    ] {
+        defaults
+            .push(settings::Stock {
+                kind,
+                scope: if kind == 3 { 0 } else { PROJECT },
+                number,
+                value: settings::SizedValue { size: 32, value },
+            })
+            .unwrap();
+    }
+    if review {
+        defaults
+            .push(settings::Stock {
+                kind: 2,
+                scope: 0,
+                number: 1,
+                value: settings::SizedValue {
+                    size: 32,
+                    value: settings::Value::Rule(settings::LandingRule {
+                        pattern: forge::GatePattern {
+                            segments: Box::new([b"branch".as_slice().into()]),
+                            last: forge::GateLast::Open(Box::new([])),
+                        },
+                        enforce: true,
+                        ci: false,
+                        up_to_date: false,
+                        gates: Box::new([settings::RuleGate {
+                            number: 2,
+                            blocking: true,
+                            freshness: forge::JudgeFreshness::Clean,
+                        }]),
+                        approvals: Box::new([]),
+                    }),
+                },
+            })
+            .unwrap();
+    }
+    domain.forge.give_settings_defaults(defaults.into_boxed());
+    people::step(
+        &mut domain.core.people,
+        &env.with(env.limits.people),
+        people::Event::SignedIn {
+            reply_to: skein_lib::ReplyTo::new(Token::new(69)),
+            person: 1,
+            sign_in: 1,
+            identity: people::Identity { key: forge::user_key(1, 7), login: Box::new([]), name: Box::new([]) },
+            kind: people::Kind::Person,
+            held: None,
+        },
+        &mut Queue::uncapped(),
+    );
+    (domain, env)
 }

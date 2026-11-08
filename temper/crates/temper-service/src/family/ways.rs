@@ -81,6 +81,18 @@ pub(super) fn view_answer(view: ways::View, limits: &w::Limits) -> Option<Box<[u
         ways::View::Rule { kind, number, card: value } => {
             w::View::Rule(w::RuleView::new(limits, w::RuleViewParts { kind, number, card: card(value, limits)? }).ok()?)
         }
+        ways::View::Roles(values) => {
+            let mut roles = List::with_capacity(limits.roles_view_roles);
+            for (charter, value) in values {
+                roles
+                    .push(
+                        w::CharterView::new(limits, w::CharterViewParts { charter, card: card(value, limits)? })
+                            .ok()?,
+                    )
+                    .ok()?;
+            }
+            w::View::Roles(w::RolesView::new(limits, w::RolesViewParts { roles }).ok()?)
+        }
         ways::View::NotDrawn(words) => w::View::NotDrawn(w::NotDrawn::new(limits, w::NotDrawnParts { words }).ok()?),
     };
     let answer = w::ViewAnswer::new(limits, w::ViewAnswerParts { view }).ok()?;

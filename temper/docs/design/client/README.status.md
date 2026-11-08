@@ -55,10 +55,6 @@ document's top-level `view` blocks are split out, read through `View` and
 redrawn at a newer revision, drawn as temper's path drawing kind with a
 stop a line as the terminal's fallback.
 
-- **Not yet:**
-  - 4.6 and 5.16 (`roles-view`, `look-round-25`): `View` has no `roles`,
-    and no address reads one.
-
 Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
 have no known gap in Ask temper's opening, by the look request
 `ask-temper-ways` (its account `473ce6d2fe`): no heading, the lede, the

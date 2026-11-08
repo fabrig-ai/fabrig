@@ -3038,6 +3038,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one mapping table checks the paths, role cards and setting items together")]
 fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let (path, expected) = ways_path();
     let document = ways_document(&path);
@@ -3105,9 +3106,30 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             ),
         ),
         (
-            ways::View::Charter { charter: 3, card },
+            ways::View::Charter { charter: 3, card: card.clone() },
             w::View::Charter(
-                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card }).unwrap(),
+                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card.clone() })
+                    .unwrap(),
+            ),
+        ),
+        (
+            ways::View::Roles(Box::new([(3, card.clone()), (9, card)])),
+            w::View::Roles(
+                w::RolesView::new(
+                    &w::CEILINGS,
+                    w::RolesViewParts {
+                        roles: List::from_boxed(Box::new([
+                            w::CharterView::new(
+                                &w::CEILINGS,
+                                w::CharterViewParts { charter: 3, card: expected_card.clone() },
+                            )
+                            .unwrap(),
+                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 9, card: expected_card })
+                                .unwrap(),
+                        ])),
+                    },
+                )
+                .unwrap(),
             ),
         ),
         (
@@ -3444,6 +3466,12 @@ fn the_worst_small_changes_document_fits_its_decision() {
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
     let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();
+    let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
+    assert!(
+        worst_view <= u64::from(delivery_bytes),
+        "ViewAnswer: {worst_view} encoded bytes; decision allowance: {delivery_bytes}"
+    );
     let value_bytes = u32::try_from(ways::VALUE).unwrap();
     // Approval and tier stops are smaller: words and name at most 64 bytes,
     // with one fact of VALUE bytes for a tier, or two short approval facts.
