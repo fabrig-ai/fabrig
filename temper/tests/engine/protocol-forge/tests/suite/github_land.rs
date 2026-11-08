@@ -362,7 +362,6 @@ fn direct_landing_finish_and_two_writes() {
 }
 
 #[test]
-#[ignore = "needs: ruleset knob on the GitHub joint"]
 fn ruleset_refuses_merge_without_landing() {
     // QA: skein forge-github.md 7 (405 rule violation -> Protected); Q3.
     // Missing Setup.protection must expose a required approval on main,
@@ -479,7 +478,6 @@ fn pending_ci_across_token_hour_completes_on_fresh_token() {
 }
 
 #[test]
-#[ignore = "needs: cut after applied merge before confirming read on the GitHub joint"]
 fn restart_after_merge_before_read_never_merges_twice() {
     // QA: domain/forge.md 6, 16; protocol/forge.md 10; Q5.
     let mut world = Protocol::github(746);
