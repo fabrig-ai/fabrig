@@ -86,3 +86,13 @@ Acceptance:
 The generator's moves, the checks, N and the CPU seconds, each broken
 rule and the seed that caught it, and your implementation and check
 minutes apart.
+
+## Answers
+
+2026-11-08. *Who adds the missing `Address::Role` / `Address::Rule` arms
+in the domain's matches?* Neither this task nor its prerequisite: the
+trunk already has them (`ce8d221c87`, *Keep Home matches exhaustive after
+role pages merge*, in `pages.rs`, `pages/all_home.rs` and `pages/away.rs`
+of `temper-client-domain`). Merge the trunk (`ui-p2-home/integration`)
+into this branch, keep the pushed draft `526e7d6736`, and go on with the
+steps; this task still edits no production file.
