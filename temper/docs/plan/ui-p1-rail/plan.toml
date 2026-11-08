@@ -1,0 +1,58 @@
+draft = "ui-p1-rail"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-p1-rail/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/web/whole-story/README.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "addresses"
+title = "Work's, Members' and Limits' addresses, and Work's five addresses sharing the goals', changes' and chats' reads"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.3"
+
+[[part]]
+id = "rail"
+title = "The rail as surfaces.md 2 draws it: Work, Team, How work runs, the new box, Deployment, All projects, from one function of its parts"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "work"
+title = "Work's one list, its head and filters, with Goals and Changes as its filters"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "help"
+title = "The help pages say the rail, Work and Deployment"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 1
+story = "The rail draws Home, Needs you, Work, Ask temper, How work runs, the new box and Deployment from rail::parts, in the browser and the terminal"
+parts = ["addresses", "rail"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Work on a project lists its goals, its changes, its chats with work and its drafts, each once, Goals and Changes its filters"
+parts = ["work"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Every help page names the rail's entries and Deployment's tabs as the client draws them"
+parts = ["help"]
+walk = false
