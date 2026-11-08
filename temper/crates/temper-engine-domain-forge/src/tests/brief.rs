@@ -348,6 +348,146 @@ fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
     take(&mut d)
 }
 
+const REVIEWED: [u8; 32] = [7; 32];
+
+fn request_source() -> BriefSource {
+    BriefSource::Request {
+        item: BriefItem { repository: REPO.repository, number: 1 },
+        head: BriefCommit(HEAD),
+        reviewed: BriefCommit(REVIEWED),
+    }
+}
+
+fn request_domain() -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.last_head = Some(HEAD);
+    row.gate_remarks = Box::new([GateRemark { number: 1, head: HEAD, words: b"not this gate".as_slice().into() }]);
+    outputs(&mut d, Event::Change { row });
+    d
+}
+
+fn request_review(id: u64, commit: [u8; 32], body: &[u8]) -> skein_forge::api::Review {
+    skein_forge::api::Review {
+        id,
+        provenance: skein_forge::api::Provenance::Original,
+        revision: 1,
+        author: 42,
+        verdict: skein_forge::api::Verdict::RequestChanges,
+        commit,
+        key: None,
+        body: body.into(),
+        at: env().now,
+        official: false,
+    }
+}
+
+#[test]
+fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
+    let mut d = request_domain();
+    let owner = planned_read(&mut d, request_source(), 4608);
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Reviews {
+            reviews: Box::new([
+                request_review(11, REVIEWED, b"Please retain the blank line."),
+                request_review(12, HEAD, b"Other head's review"),
+            ]),
+            more: false
+        }),
+        &mut out,
+    ));
+    let Some(Request::BriefClient {
+        event: skein_forge_client::Event::Read { owner: call, read: Read::Remarks { review: 11, .. }, .. },
+    }) = out.pop()
+    else {
+        panic!("read the kept review's remarks: {out:?}")
+    };
+    assert_eq!(call, owner);
+    assert!(out.is_empty());
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Remarks {
+            remarks: Box::new([skein_forge::api::Remark {
+                id: 21,
+                author: 42,
+                path: b"src/lib.rs".as_slice().into(),
+                line: 9,
+                body: b"Keep both appended lines.".as_slice().into(),
+            }]),
+            more: false
+        }),
+        &mut out,
+    ));
+    let bytes = take(&mut d);
+    assert_eq!(
+        bytes.as_ref(),
+        b"Review: Please retain the blank line.\nRemark at src/lib.rs:9 Keep both appended lines.\n"
+    );
+}
+
+#[test]
+fn a_request_without_remarks_ends_with_an_explicit_marker() {
+    for reviews in [
+        [].as_slice(),
+        [request_review(12, HEAD, b"Other head's review")].as_slice(),
+        [request_review(11, REVIEWED, b"")].as_slice(),
+    ] {
+        let mut d = request_domain();
+        let owner = planned_read(&mut d, request_source(), 4608);
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(
+            &mut d,
+            owner,
+            Ok(Answer::Reviews { reviews: reviews.into(), more: false }),
+            &mut out
+        ));
+        if let Some(Request::BriefClient {
+            event: skein_forge_client::Event::Read { read: Read::Remarks { review: 11, .. }, .. },
+        }) = out.pop()
+        {
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
+                &mut out
+            ));
+        }
+        let bytes = take(&mut d);
+        assert!(bytes.ends_with(b"[the request for changes gave no remarks]\n"), "{}", text(&bytes));
+        assert!(!text(&bytes).contains("Gate remarks:"));
+        assert!(bytes.len() <= 4608);
+    }
+}
+
+#[test]
+fn a_requests_section_refuses_a_moved_change_head() {
+    let mut d = request_domain();
+    let source = BriefSource::Request {
+        item: BriefItem { repository: REPO.repository, number: 1 },
+        head: BriefCommit([8; 32]),
+        reviewed: BriefCommit(REVIEWED),
+    };
+    outputs(&mut d, Event::PlanBrief { section: SECTION, source, partner: None });
+    let out = outputs(
+        &mut d,
+        Event::GatherPlanned {
+            section: SECTION,
+            parts: 2,
+            bytes: 512,
+            ci_budget: SHIPPED_CI,
+            deadline: env().now.saturating_add(Duration::from_secs(30)),
+        },
+    );
+    let [Request::BriefSized { section: SECTION, size: Err(why) }] = out.as_ref() else { panic!("moved: {out:?}") };
+    assert_eq!(*why, brief_words::MOVED);
+}
+
 #[test]
 fn four_thousand_bytes_of_gate_remarks_reach_the_repair_whole() {
     let remarks = [b'r'; 4000];

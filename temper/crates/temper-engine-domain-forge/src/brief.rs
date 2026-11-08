@@ -55,6 +55,7 @@ pub(crate) struct BriefFetch {
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
     changed: Box<[Box<[u8]>]>,
     file_page: u32,
+    request: Option<RequestReviews>,
     review_ids: Box<[u64]>,
     next_review: u32,
     checks: Box<[skein_forge::api::Status]>,
@@ -62,6 +63,14 @@ pub(crate) struct BriefFetch {
     max_job_bytes: u32,
     words: BriefWords,
     ci: Option<crate::brief_ci::Section>,
+}
+
+/// A request quotes the reviewed head while the section stays pinned to the change's head
+/// (domain/forge.md, 8.4).
+#[derive(Hash, Debug)]
+struct RequestReviews {
+    reviewed: BriefCommit,
+    has_remarks: bool,
 }
 
 #[derive(Hash, Debug)]
@@ -216,6 +225,7 @@ pub(super) fn brief_pull(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        request: None,
         review_ids: Box::new([]),
         next_review: 0,
         checks: Box::new([]),
@@ -357,7 +367,14 @@ pub(crate) fn brief_answer(
         Ok(skein_forge::api::Answer::Reviews { reviews, .. }) if fetch.stage == BriefStage::Reviews => {
             let mut ids = List::with_capacity(u32::try_from(reviews.len()).expect("bounded review list"));
             for review in reviews {
-                if review.commit == fetch.head.0 {
+                let reviewed = match &fetch.request {
+                    Some(request) => request.reviewed,
+                    None => fetch.head,
+                };
+                if review.commit == reviewed.0 {
+                    if let Some(request) = &mut fetch.request {
+                        request.has_remarks |= !review.body.is_empty();
+                    }
                     append(&mut fetch.words, b"Review: ");
                     append(&mut fetch.words, &review.body);
                     append(&mut fetch.words, b"\n");
@@ -369,6 +386,9 @@ pub(crate) fn brief_answer(
         }
         Ok(skein_forge::api::Answer::Remarks { remarks, .. }) if fetch.stage == BriefStage::Remarks => {
             for remark in remarks {
+                if let Some(request) = &mut fetch.request {
+                    request.has_remarks = true;
+                }
                 append(&mut fetch.words, b"Remark at ");
                 append(&mut fetch.words, &remark.path);
                 append(&mut fetch.words, b":");
@@ -437,6 +457,11 @@ pub(crate) fn brief_answer(
     } else if let Some(ci) = fetch.ci {
         crate::held::ready_ci(domain, fetch.owner, ci, fetch.bytes, out);
     } else {
+        if let Some(request) = &fetch.request
+            && !request.has_remarks
+        {
+            append(&mut fetch.words, b"[the request for changes gave no remarks]\n");
+        }
         let read = brief_part(&fetch.words, fetch.parts, fetch.bytes);
         crate::held::ready(domain, fetch.owner, read, out);
     }
@@ -536,7 +561,10 @@ pub(crate) fn gather(
             None => BriefRead::Failed(UNNAMED),
         }),
         BriefSource::Ci { item, head } => brief_ci(domain, owner, item, head, parts, bytes, max_job_bytes, out),
-        BriefSource::Reviews { item, head } => brief_reviews(domain, owner, item, head, parts, bytes, out),
+        BriefSource::Reviews { item, head } => brief_reviews(domain, owner, item, head, None, parts, bytes, out),
+        BriefSource::Request { item, head, reviewed } => {
+            brief_reviews(domain, owner, item, head, Some(reviewed), parts, bytes, out)
+        }
         BriefSource::Pull { item, head } => brief_pull(domain, owner, item, head, parts, bytes, out),
     };
     if let Some(read) = read {
@@ -604,11 +632,13 @@ fn keep_check(fetch: &mut BriefFetch, log: Box<[u8]>, truncated: bool) {
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "a request pins both the change head and the reviewed head")]
 pub(super) fn brief_reviews(
     domain: &mut Domain,
     owner: Token,
     item: BriefItem,
     head: BriefCommit,
+    reviewed: Option<BriefCommit>,
     parts: u32,
     bytes: u32,
     out: &mut Queue<Request>,
@@ -628,7 +658,7 @@ pub(super) fn brief_reviews(
     let repository = row.repository;
     let mut words = BriefWords::with_capacity(bytes, false);
     for remark in &row.gate_remarks {
-        if remark.head == head.0 {
+        if reviewed.is_none() && remark.head == head.0 {
             append(&mut words, b"Gate remarks: ");
             append(&mut words, &remark.words);
             append(&mut words, b"\n");
@@ -651,6 +681,10 @@ pub(super) fn brief_reviews(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        request: match reviewed {
+            Some(reviewed) => Some(RequestReviews { reviewed, has_remarks: false }),
+            None => None,
+        },
         review_ids: Box::new([]),
         next_review: 0,
         checks: Box::new([]),
@@ -713,6 +747,7 @@ pub(super) fn brief_ci(
         comparison: None,
         changed: Box::new([]),
         file_page: 1,
+        request: None,
         review_ids: Box::new([]),
         next_review: 0,
         checks: Box::new([]),
