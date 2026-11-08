@@ -4,14 +4,14 @@ use temper_forge_setup::{check::Checked, problem};
 use temper_service::startup::Named;
 
 #[derive(Debug)]
-pub(crate) struct Deployment {
+pub struct Deployment {
     pub named: Named,
     pub checked: Checked,
     pub limits: temper_box::limits::Limits,
     pub demo: Option<temper_fake::demo::Demo>,
 }
 
-pub(crate) fn check_with(
+pub fn check_with(
     bytes: &[u8],
     directories: &config::Directories,
     given: &temper_service::stock::Given,
@@ -71,7 +71,7 @@ pub(crate) fn check_with(
     let limits = box_limits(&named.overrides)?;
     Ok(Deployment { named, checked, limits, demo })
 }
-pub(crate) fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
+pub fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
     check_with(bytes, directories, &temper_service::stock::Given::Stock)
 }
 
