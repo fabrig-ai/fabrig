@@ -5,8 +5,8 @@
 Section 7.3 has no known gap in the gate entries: Skein's `default` is
 `cpu_suite_s` alone at 40, with the header's Skein line naming the user's
 word of 11-08 for it and of 11-07 for the fuzzy 120; Temper's fuzzy entry
-is `cpu_suite_s` alone at 120, after Jig's entry, with the requested
-comment after Jig's and no `wall_hard_s`. The other gate figures agree
+is `cpu_suite_s` alone at 180, by the user's word of 11-08, after Jig's
+entry, with its comment after Jig's and no `wall_hard_s`. The other gate figures agree
 with the user's word recorded in `budgets.toml`. Section 8 keeps the unset focused entries
 and gate-share measurement outside the runner deferred.
 
