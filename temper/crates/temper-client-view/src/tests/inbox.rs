@@ -809,6 +809,7 @@ fn questions_answer_inside_a_folded_disclosure_and_keep_refusals() {
 
 #[test]
 fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
+    stop_asking_numbers();
     let mut view = fixtures::page_view(&fixtures::inbox_root());
     let mut controls = skein_lib::List::with_capacity(4);
     for node in view.tree().nodes() {
@@ -852,5 +853,53 @@ fn an_unanswered_inbox_claims_no_empty_in_the_terminal() {
         let view = fixtures::page_view(&answered.root);
         assert!(fixtures::find(view.tree(), Role::Paragraph, b"Nothing needs you.").is_some());
         assert_eq!(fixtures::find(view.tree(), Role::Paragraph, b"No updates.").is_some(), filter.kind.is_none());
+    }
+}
+
+fn stop_asking_numbers() {
+    use temper_client_domain::pages::{self, stop_asking::Act as Stop};
+    use temper_protocol_reaches::Offer;
+    for owner in [true, false] {
+        let mut root = super::needs::stop_root(owner, true);
+        let object = c::ObjectKey::Question { task: fixtures::INBOX_TASK, message: 1 };
+        let mut view = fixtures::page_view(&root);
+        let link = fixtures::find(view.tree(), Role::Button, b"Stop asking").unwrap();
+        let (node, first) =
+            fixtures::terminal_command(view.tree(), &view.limits().tree, link, b"Stop asking", b"Reached you because");
+        let action = crate::act(&mut view, node, first).unwrap();
+        assert_eq!(action, temper_client_domain::Action::Pages(pages::Act::StopAsking(Stop::Open { object })));
+        fixtures::root_event(&mut root, Event::Act { action });
+        let mut view = fixtures::page_view(&root);
+        let field = fixtures::find(view.tree(), Role::TextField, b"Which changes").unwrap();
+        let action = crate::act(&mut view, field, Act::Input { value: b"wire safe".as_slice().into() }).unwrap();
+        fixtures::root_event(&mut root, Event::Act { action });
+        fixtures::build(&mut view, &root);
+        let offers = subtree(view.tree(), styled(view.tree(), look::WHY_OFFERS));
+        let mut controls = skein_lib::List::with_capacity(3);
+        for node in offers {
+            if node.role == Role::Button {
+                controls.push(node.id).expect("two offers and Keep asking");
+            }
+        }
+        for (control, offer) in controls.iter().zip([Offer::Words(1), Offer::Split(1)]) {
+            let word: &[u8] = if owner { b"Apply" } else { b"Propose" };
+            let (node, first) =
+                fixtures::terminal_command(view.tree(), &view.limits().tree, *control, word, b"Let agents decide");
+            assert_eq!(
+                crate::act(&mut view, node, first),
+                Some(temper_client_domain::Action::Pages(pages::Act::StopAsking(if owner {
+                    Stop::Apply { offer }
+                } else {
+                    Stop::Propose { offer }
+                })))
+            );
+        }
+        let keep = fixtures::find(view.tree(), Role::Button, b"Keep asking").unwrap();
+        let (node, first) =
+            fixtures::terminal_command(view.tree(), &view.limits().tree, keep, b"Keep asking", b"Let agents decide");
+        assert_eq!(
+            crate::act(&mut view, node, first),
+            Some(temper_client_domain::Action::Pages(pages::Act::StopAsking(Stop::Keep)))
+        );
     }
 }

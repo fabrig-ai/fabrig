@@ -2173,6 +2173,16 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-terminal-details .temper-settings-proposal-items { color: var(--dim); }
 
 /* ==== ui: needs ==== */
+#app .temper-why > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--gf-muted); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+#app .temper-why > button:hover { color: var(--gf-ink); }
+#app .temper-why-offers { display: flex; flex-direction: column; gap: 8px; }
+#app .temper-why-offers > section { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#app .temper-why-offers .temper-why { margin: 0; font-size: 14px; color: var(--gf-ink-2); }
+#app .temper-why-offers button { flex-shrink: 0; align-self: flex-start; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app .temper-why-offers > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app .temper-why-offers input { width: 100%; padding: 8px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
+#app .temper-why-offers button:disabled, #app .temper-why button:disabled { opacity: .45; cursor: default; }
+
 #app :is(.temper-needs, .temper-home) .temper-ask > .temper-why { font-size: 14px; color: var(--gf-ink-2); margin-top: -8px; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }

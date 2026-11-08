@@ -445,9 +445,7 @@ pub(crate) fn home_body(
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
     };
     text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-    if let Some(why) = crate::shared::why(root, w, needs::Need::Card(card)) {
-        text(b, Role::Paragraph, &why, look::WHY);
-    }
+    super::needs::why_line(b, root, w, bindings, needs::Need::Card(card));
     whole_parts(b, asked, w, bindings);
     if asked.parsed.is_none()
         && let Some(page) = &card.page
