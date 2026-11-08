@@ -14,7 +14,7 @@ use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
 const OTHER: u32 = 17;
 const NEWEST: u32 = 8;
 const NEXT: u32 = 9;
-const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, away: true, way: 3 };
+const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, way: 3 };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -131,7 +131,9 @@ fn value(asked: Asked) -> Box<[u8]> {
             let record = w::ProjectWays::new(
                 &w::CEILINGS,
                 w::ProjectWaysParts {
-                    skein_bools: [value.drafts, value.goals, value.changes, value.away],
+                    drafts: value.drafts,
+                    goals: value.goals,
+                    changes: value.changes,
                     way: value.way,
                 },
             )
@@ -379,10 +381,7 @@ fn kind_six_is_read_on_the_tab_alone() {
 fn no_value_is_the_stock() {
     let mut f = fixture();
     page(&mut f.root, f.read, Some(none()));
-    assert_eq!(
-        f.root.forge().ways(f::PROJECT),
-        Some(Ways { drafts: true, goals: false, changes: false, away: false, way: 0 })
-    );
+    assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways { drafts: true, goals: false, changes: false, way: 0 }));
     page(&mut f.root, f.classes_read, Some(none()));
     assert_eq!(f.root.forge().classes(f::PROJECT), Some(&Classes::stock(Way::AgentsReview)));
     let out = go(&mut f.root, Address::Settings { project: f::PROJECT });

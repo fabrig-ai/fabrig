@@ -116,7 +116,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
                         let drafts =
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
-                        super::project_ways(root, read, drafts, true, true, false, out);
+                        super::project_ways(root, read, drafts, true, true, out);
                     }
                     w::Read::Deployment => super::deployment_read(root, read, true, out),
                     _ => {}

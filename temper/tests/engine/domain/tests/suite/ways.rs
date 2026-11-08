@@ -94,7 +94,7 @@ fn change(driver: &mut Driver, key: u8, items: Box<[core_settings::Item]>) {
 }
 
 fn own_ways() -> settings::ProjectWays {
-    settings::ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 0 }
+    settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }
 }
 
 fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {

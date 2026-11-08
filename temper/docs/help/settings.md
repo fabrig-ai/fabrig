@@ -14,9 +14,9 @@ number, or project for ways, questions and classes; rules have no number:
 `project-ways 2`, `project-questions 2`, `project-classes 2`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
-  and Changes filters and the Away switch show, and which offered template with
+  and Changes filters show, and which offered template with
   `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
-  two filters and the switch and uses 0. Goals and Changes hide no rail entry;
+  two filters and uses 0. Goals and Changes hide no rail entry;
   work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.

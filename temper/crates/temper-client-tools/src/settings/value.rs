@@ -42,8 +42,6 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.goals());
             out.key(b"changes");
             out.boolean(value.changes());
-            out.key(b"away");
-            out.boolean(value.away());
             out.key(b"way");
             out.unsigned(u64::from(value.way()));
             out.object_end();

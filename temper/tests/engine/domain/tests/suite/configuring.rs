@@ -673,7 +673,7 @@ fn a_proposal_selects_the_template_it_installs() {
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
         value["number"] = json!(8);
         value["tracked"] = json!(1);
-        let ways = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":8});
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":8});
         let mut items = vec![
             json!({"setting":{"kind":"template","number":8},"set":value}),
             json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
@@ -750,12 +750,8 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         }
         let before = world.settings_rows();
         let against = world.head().number;
-        let ways = kinds::item(
-            7,
-            PROJECT,
-            1,
-            &Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, away: true, way }),
-        );
+        let ways =
+            kinds::item(7, PROJECT, 1, &Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way }));
         world.driver.send(kinds::change(world.owner, against, 22, Box::new([ways, item])));
         world.driver.settle();
         if accepted {
@@ -782,7 +778,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     for (completion, kind, value) in [
-        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
         (
             3,
@@ -799,7 +795,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
 fn a_projects_stored_ways_read_as_stored() {
     use serde_json::json;
     for (kind, value) in [
-        ("project-ways", json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1})),
+        ("project-ways", json!({"drafts":true,"goals":true,"changes":true,"way":1})),
         ("project-classes", json!({"items":[{"kind":"implementation","words":"","class":"decide"}],"sets":[]})),
     ] {
         let mut world = World::new(member_config());
@@ -1361,7 +1357,7 @@ fn settings_and_named_documents_use_the_host_answer_allowance() {
         "{policy}"
     );
     for (completion, kind, value) in [
-        (101, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (101, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"way":0}"#),
         (102, "project-questions", r#""none""#),
     ] {
         let (text, _) = settings_whole(

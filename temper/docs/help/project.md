@@ -22,7 +22,7 @@ A project is where work happens: the repositories adopted into it, one of them i
 - **Its policy** is its own: what its work may do and spend, and what
   each role may start (temper help policy).
 - **Its ways,** in `project-ways`, govern drafts in chats, Work's Goals and
-  Changes filters, the Away switch and the way a goal starts by. The filters'
+  Changes filters and the way a goal starts by. The filters'
   switches hide no rail entry; their work stays under Work's All filter.
   Its `project-questions` setting gives a change's question route when its
   maker names none (temper help settings).

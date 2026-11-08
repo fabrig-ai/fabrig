@@ -702,7 +702,7 @@ fn world_in_layout(
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
                             if setting.kind() == 7 && (goals.is_some() || drafts) {
-                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
@@ -4669,7 +4669,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                 {
                     match setting.kind() {
                         7 => {
-                            project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                            project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
                         }
                         8 => project_classes(&mut root, read, &mut out),
                         _ => panic!("gallery setting read"),
@@ -4709,20 +4709,17 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
-#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
 pub(super) fn project_ways(
     root: &mut Domain,
     read: Token,
     drafts: bool,
     goals: bool,
     changes: bool,
-    away: bool,
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
-            .expect("gallery project ways");
+    let ways = v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { drafts, goals, changes, way: 0 })
+        .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
     let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
@@ -4906,12 +4903,9 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         let ways = v::ProjectWays::new(
             &v::CEILINGS,
             v::ProjectWaysParts {
-                skein_bools: [
-                    all && name != "settings-drafts-off",
-                    shown && name != "settings-goals-off",
-                    all && name != "settings-changes-off",
-                    all && name != "settings-away-off",
-                ],
+                drafts: all && name != "settings-drafts-off",
+                goals: shown && name != "settings-goals-off",
+                changes: all && name != "settings-changes-off",
                 way: if shown { 4 } else { 0 },
             },
         )

@@ -678,7 +678,7 @@ fn report_front() -> Joint {
                 template.deadline = jig_domain_people::TemplateDeadline::None;
             }
         }
-        let value = Value::Ways(ProjectWays { drafts: false, goals: true, changes: false, away: false, way: 0 });
+        let value = Value::Ways(ProjectWays { drafts: false, goals: true, changes: false, way: 0 });
         let mut stock = config.kinds_stock.into_vec();
         stock.push(Stock {
             kind: 7,

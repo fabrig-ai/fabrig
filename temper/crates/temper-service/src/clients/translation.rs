@@ -285,7 +285,7 @@ mod tests {
     fn a_clients_project_ways_reaches_the_root_typed() {
         use temper_engine_domain_forge::settings::{ProjectWays, Value};
         for (kind, value) in [
-            (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 })),
+            (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: 4 })),
             (8, Value::Classes(temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview))),
         ] {
             let bytes = temper_engine_smith::kinds::encode(&value);

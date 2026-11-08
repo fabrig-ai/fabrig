@@ -274,7 +274,9 @@ impl World {
             let value = w::ProjectWays::new(
                 &w::CEILINGS,
                 w::ProjectWaysParts {
-                    skein_bools: [true, false, true, true],
+                    drafts: true,
+                    goals: false,
+                    changes: true,
                     way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
                 },
             )

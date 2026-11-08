@@ -427,8 +427,8 @@ fn sign_out_lost_moves_with_it() {
 
 use d::forge::ways::{Asked, Control, Route, Ways};
 use skein_lib::Token;
-const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, away: true, way: 11 };
-const SWITCHES: [(&str, &str, &str); 4] = [
+const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, way: 11 };
+const SWITCHES: [(&str, &str, &str); 3] = [
     (
         "Chats can write drafts",
         "A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.",
@@ -436,7 +436,6 @@ const SWITCHES: [(&str, &str, &str); 4] = [
     ),
     ("Goals", "Bigger work from a draft: a plan, tasks, landing.", "Shown"),
     ("Changes", "The landing queue, as Work's filter.", "Shown"),
-    ("Away switch", "Lets agents decide within limits while you’re away.", "Shown"),
 ];
 const QUESTIONS: &str = "Questions a goal can answer from its plan";
 fn settings() -> Address {
@@ -563,27 +562,19 @@ fn changed_ways(change: &c::ChangeSettings) -> Ways {
     let mut reader = skein_lib::Reader::new(sent_value(change, 7));
     let value = w::ProjectWays::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    Ways {
-        drafts: value.drafts(),
-        goals: value.goals(),
-        changes: value.changes(),
-        away: value.away(),
-        way: value.way(),
-    }
+    Ways { drafts: value.drafts(), goals: value.goals(), changes: value.changes(), way: value.way() }
 }
 #[test]
 fn the_shows_section_reads_kind_seven() {
-    for (shown, pressed) in [
-        (Ways::STOCK, [true, false, false, false]),
-        (Ways { drafts: false, ..Ways::STOCK }, [false; 4]),
-        (SHOWN, [true; 4]),
-    ] {
+    for (shown, pressed) in
+        [(Ways::STOCK, [true, false, false]), (Ways { drafts: false, ..Ways::STOCK }, [false; 3]), (SHOWN, [true; 3])]
+    {
         let root = how(Some(shown));
         for browser in [false, true] {
             let view = how_view(&root, browser);
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             let section = section_nodes(view.tree(), b"What the project shows");
-            assert_eq!(section.iter().filter(|n| n.role == Role::Check).count(), 4);
+            assert_eq!(section.iter().filter(|n| n.role == Role::Check).count(), 3);
             for (index, (label, small, on)) in SWITCHES.iter().enumerate() {
                 let row = setting_row(view.tree(), label.as_bytes());
                 assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
@@ -621,7 +612,6 @@ fn a_switch_sends_the_whole_record_with_its_part_changed() {
                 0 => expected.drafts = false,
                 1 => expected.goals = false,
                 2 => expected.changes = false,
-                3 => expected.away = false,
                 _ => unreachable!(),
             }
             assert_eq!(changed_ways(&change), expected);
@@ -696,7 +686,7 @@ fn kinds_of_seven_are_disabled_together_while_one_is_out() {
             .iter()
             .filter(|n| n.role == Role::Choice || n.styles.as_slice().contains(&look::SETTINGS_SWITCH))
             .collect();
-        assert_eq!(controls.len(), 6);
+        assert_eq!(controls.len(), 5);
         let ids: Vec<_> = controls
             .iter()
             .map(|n| {

@@ -72,7 +72,7 @@ pub(crate) fn profile_evidence(dir: &Path, edit: fn(&mut Vec<Item>)) {
         ),
         (
             json!({"kind":"project-ways", "project":PROJECT}),
-            br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4}"#.as_slice(),
+            br#"{"drafts":true,"goals":true,"changes":true,"way":4}"#.as_slice(),
         ),
     ] {
         let value: Value = serde_json::from_slice(bytes).expect("authority fixture");

@@ -92,7 +92,7 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read) -
     );
     if let Some((goals, way)) = ways {
         let record =
-            w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [true, goals, false, false], way })
+            w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals, changes: false, way })
                 .unwrap();
         let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut writer).unwrap();

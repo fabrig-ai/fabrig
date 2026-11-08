@@ -7,16 +7,14 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "kind 7 holds four independent project choices")]
 pub struct Ways {
     pub drafts: bool,
     pub goals: bool,
     pub changes: bool,
-    pub away: bool,
     pub way: u32,
 }
 impl Ways {
-    pub const STOCK: Self = Self { drafts: true, goals: false, changes: false, away: false, way: 0 };
+    pub const STOCK: Self = Self { drafts: true, goals: false, changes: false, way: 0 };
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Route {
@@ -561,7 +559,6 @@ fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
                 drafts: value.drafts(),
                 goals: value.goals(),
                 changes: value.changes(),
-                away: value.away(),
                 way: value.way(),
             })
         }
@@ -613,7 +610,9 @@ fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
             let record = w::ProjectWays::new(
                 &bounds,
                 w::ProjectWaysParts {
-                    skein_bools: [value.drafts, value.goals, value.changes, value.away],
+                    drafts: value.drafts,
+                    goals: value.goals,
+                    changes: value.changes,
                     way: value.way,
                 },
             )

@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 384;
+pub const N: usize = 383;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -930,7 +930,6 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-changes-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
-        Sample { name: "settings-away-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-all-hidden", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-chat-open", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -2931,7 +2930,6 @@ fn home_domain(name: &str) -> Domain {
                             false,
                             with_goals || home_away,
                             home_away,
-                            home_away || away_sample,
                             &mut out,
                         );
                         continue;

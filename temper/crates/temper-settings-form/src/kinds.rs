@@ -133,16 +133,13 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
     Ok(out.finish())
 }
 fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
-    let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"away", b"way"])?;
+    let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"way"])?;
     w::ProjectWays::new(
         &d.kinds,
         w::ProjectWaysParts {
-            skein_bools: [
-                boolean(d, &fields, b"drafts")?,
-                boolean(d, &fields, b"goals")?,
-                boolean(d, &fields, b"changes")?,
-                boolean(d, &fields, b"away")?,
-            ],
+            drafts: boolean(d, &fields, b"drafts")?,
+            goals: boolean(d, &fields, b"goals")?,
+            changes: boolean(d, &fields, b"changes")?,
             way: number(d, &fields, b"way")?,
         },
     )
@@ -318,8 +315,6 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.goals());
             out.key(b"changes");
             out.boolean(value.changes());
-            out.key(b"away");
-            out.boolean(value.away());
             out.key(b"way");
             out.unsigned(u64::from(value.way()));
             out.object_end();

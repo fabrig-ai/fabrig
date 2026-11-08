@@ -2353,8 +2353,6 @@ pub enum Path {
     ProjectWaysGoals,
     /// The `changes` field of `ProjectWays`.
     ProjectWaysChanges,
-    /// The `away` field of `ProjectWays`.
-    ProjectWaysAway,
     /// The `way` field of `ProjectWays`.
     ProjectWaysWay,
     /// Bytes after `ProjectWays`.
@@ -15416,8 +15414,12 @@ impl ProjectQuestions {
 /// Movable fields of `ProjectWays`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ProjectWaysParts {
-    /// Boolean fields in schema order.
-    pub skein_bools: [bool; 4],
+    /// The `drafts` field.
+    pub drafts: bool,
+    /// The `goals` field.
+    pub goals: bool,
+    /// The `changes` field.
+    pub changes: bool,
     /// The `way` field.
     pub way: u32,
 }
@@ -15425,33 +15427,31 @@ pub struct ProjectWaysParts {
 /// `ProjectWays` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ProjectWays {
-    skein_bools: [bool; 4],
+    drafts: bool,
+    goals: bool,
+    changes: bool,
     way: u32,
 }
 
 impl ProjectWays {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ProjectWaysParts) -> Result<Self, Problem> {
-        let ProjectWaysParts { skein_bools, way } = parts;
-        let value = Self { skein_bools, way };
+        let ProjectWaysParts { drafts, goals, changes, way } = parts;
+        let value = Self { drafts, goals, changes, way };
         Ok(value)
     }
 
     /// Reads the `drafts` field.
     #[must_use]
-    pub fn drafts(&self) -> bool { { let [value, _, _, _] = self.skein_bools; value } }
+    pub fn drafts(&self) -> bool { self.drafts }
 
     /// Reads the `goals` field.
     #[must_use]
-    pub fn goals(&self) -> bool { { let [_, value, _, _] = self.skein_bools; value } }
+    pub fn goals(&self) -> bool { self.goals }
 
     /// Reads the `changes` field.
     #[must_use]
-    pub fn changes(&self) -> bool { { let [_, _, value, _] = self.skein_bools; value } }
-
-    /// Reads the `away` field.
-    #[must_use]
-    pub fn away(&self) -> bool { { let [_, _, _, value] = self.skein_bools; value } }
+    pub fn changes(&self) -> bool { self.changes }
 
     /// Reads the `way` field.
     #[must_use]
@@ -15459,7 +15459,7 @@ impl ProjectWays {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ProjectWaysParts { ProjectWaysParts { skein_bools: self.skein_bools, way: self.way } }
+    pub fn into_parts(self) -> ProjectWaysParts { ProjectWaysParts { drafts: self.drafts, goals: self.goals, changes: self.changes, way: self.way } }
 
 }
 
@@ -29755,21 +29755,18 @@ impl ProjectWays {
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size
     }
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_drafts = &self.drafts();
+        let field_drafts = &self.drafts;
         writer.put(&[u8::from(*field_drafts)])?;
-        let field_goals = &self.goals();
+        let field_goals = &self.goals;
         writer.put(&[u8::from(*field_goals)])?;
-        let field_changes = &self.changes();
+        let field_changes = &self.changes;
         writer.put(&[u8::from(*field_changes)])?;
-        let field_away = &self.away();
-        writer.put(&[u8::from(*field_away)])?;
         let field_way = &self.way;
         writer.put(&field_way.to_be_bytes())?;
         Ok(())
@@ -29786,9 +29783,8 @@ impl ProjectWays {
         let decoded_drafts = match reader.u8().ok_or(Problem { path: Path::ProjectWaysDrafts, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysDrafts, reason: skein_codec::Reason::Bool }) };
         let decoded_goals = match reader.u8().ok_or(Problem { path: Path::ProjectWaysGoals, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysGoals, reason: skein_codec::Reason::Bool }) };
         let decoded_changes = match reader.u8().ok_or(Problem { path: Path::ProjectWaysChanges, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysChanges, reason: skein_codec::Reason::Bool }) };
-        let decoded_away = match reader.u8().ok_or(Problem { path: Path::ProjectWaysAway, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectWaysAway, reason: skein_codec::Reason::Bool }) };
         let decoded_way = reader.u32().ok_or(Problem { path: Path::ProjectWaysWay, reason: skein_codec::Reason::Short })?;
-        Ok(Self { skein_bools: [decoded_drafts, decoded_goals, decoded_changes, decoded_away], way: decoded_way })
+        Ok(Self { drafts: decoded_drafts, goals: decoded_goals, changes: decoded_changes, way: decoded_way })
     }
 }
 
@@ -39469,8 +39465,7 @@ impl ProjectWays {
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(1_u64)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
-        size = size.checked_add(4_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(4_u64)?;
         size.checked_add(0)
     }
 
@@ -39485,7 +39480,6 @@ impl ProjectWays {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -42176,8 +42170,8 @@ mod golden_tests {
         ("record_charter_value_full", || { let value = CharterValue::new(&CEILINGS, CharterValueParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, CharterValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_project_questions_smallest", || { let value = ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: Route::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectQuestions::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_project_questions_full", || { let value = ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: Route::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectQuestions::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_project_ways_smallest", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [false, false, false, false], way: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_project_ways_full", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [true, true, true, true], way: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1, 1, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_ways_smallest", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { drafts: false, goals: false, changes: false, way: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_project_ways_full", || { let value = ProjectWays::new(&CEILINGS, ProjectWaysParts { drafts: true, goals: true, changes: true, way: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProjectWays::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_reach_kind_of_smallest", || { let value = ReachKindOf::new(&CEILINGS, ReachKindOfParts { kind: ReachKind::Wording }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReachKindOf::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_reach_kind_of_full", || { let value = ReachKindOf::new(&CEILINGS, ReachKindOfParts { kind: ReachKind::Wording }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReachKindOf::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_class_subject_kind_smallest", || { let value = ClassSubject::Kind(ReachKindOf::new(&CEILINGS, ReachKindOfParts { kind: ReachKind::Wording }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ClassSubject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -42196,8 +42190,8 @@ mod golden_tests {
         ("enum_setting_value_charter_full", || { let value = SettingValue::Charter(CharterValue::new(&CEILINGS, CharterValueParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_value_questions_smallest", || { let value = SettingValue::Questions(ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: Route::None }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_value_questions_full", || { let value = SettingValue::Questions(ProjectQuestions::new(&CEILINGS, ProjectQuestionsParts { route: Route::None }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_setting_value_ways_smallest", || { let value = SettingValue::Ways(ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [false, false, false, false], way: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_setting_value_ways_full", || { let value = SettingValue::Ways(ProjectWays::new(&CEILINGS, ProjectWaysParts { skein_bools: [true, true, true, true], way: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 1, 1, 1, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_value_ways_smallest", || { let value = SettingValue::Ways(ProjectWays::new(&CEILINGS, ProjectWaysParts { drafts: false, goals: false, changes: false, way: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_value_ways_full", || { let value = SettingValue::Ways(ProjectWays::new(&CEILINGS, ProjectWaysParts { drafts: true, goals: true, changes: true, way: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 1, 1, 1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_value_classes_smallest", || { let value = SettingValue::Classes(ProjectClasses::new(&CEILINGS, ProjectClassesParts { items: skein_lib::List::with_capacity(0), sets: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_value_classes_full", || { let value = SettingValue::Classes(ProjectClasses::new(&CEILINGS, ProjectClassesParts { items: { let mut items = skein_lib::List::with_capacity(1); items.push(ClassItem::new(&CEILINGS, ClassItemParts { subject: ClassSubject::Kind(ReachKindOf::new(&CEILINGS, ReachKindOfParts { kind: ReachKind::Wording }).expect("golden within ceilings")), words: Box::from([0_u8, 127_u8, 255_u8].as_slice()), class: ReachClass::Decide }).expect("golden within ceilings")).expect("one slot"); items }, sets: { let mut items = skein_lib::List::with_capacity(1); items.push(PathSet::new(&CEILINGS, PathSetParts { number: u8::MAX, name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), patterns: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 1, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_sized_value_smallest", || { let value = SizedValue::new(&CEILINGS, SizedValueParts { value: SettingValue::Rule(LandingRule::new(&CEILINGS, LandingRuleParts { pattern: RulePattern::new(&CEILINGS, RulePatternParts { segments: Box::from([].as_slice()), last: PatternLast::Exact(Segment::new(&CEILINGS, SegmentParts { name: Box::from([].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"), enforce: false, ci: false, up_to_date: false, gates: skein_lib::List::with_capacity(0), approvals: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")), size: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SizedValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

@@ -503,7 +503,6 @@ What a project shows and the way its goals start. With none stored, drafts is tr
 - `drafts`: true or false. Whether chats can write drafts.
 - `goals`: true or false. Whether the rail shows Goals.
 - `changes`: true or false. Whether the rail shows Changes.
-- `away`: true or false. Whether the rail shows the Away switch.
 - `way`: integer, 0 to 4,294,967,295. The template a goal starts by: one the project offers with tracked set, or 0 for the first.
 
 ## project-questions

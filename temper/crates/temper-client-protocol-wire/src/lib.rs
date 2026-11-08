@@ -6,7 +6,7 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
-#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
+#[expect(clippy::similar_names, reason = "the schema names the approval fields rule and role")]
 pub mod v1;
 
 /// Kinds with typed settings values at temper's entrances
