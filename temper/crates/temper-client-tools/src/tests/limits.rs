@@ -13,7 +13,6 @@ fn each_ceiling_is_within_the_client_limit_it_reads_from() {
 #[test]
 fn the_tools_preset_covers_deployments_with_its_windows_and_retries() {
     let mut terminal = temper_client_shell_terminal::limits::native().client;
-    terminal.client.domain.projects = 9;
     terminal.client.domain.rows = limits::ROWS;
     terminal.client.domain.text = limits::TEXT;
     terminal.client.domain.turn_text = limits::TEXT;

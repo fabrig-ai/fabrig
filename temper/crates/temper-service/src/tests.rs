@@ -1,10 +1,10 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+mod core_wait;
 pub(crate) mod fixtures;
 mod limits;
 mod long_pass;
-mod core_wait;
 mod store_route;
 
 mod store;

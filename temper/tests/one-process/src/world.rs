@@ -455,6 +455,23 @@ impl Person {
             .expect("saved native client"),
         );
     }
+    /// Open a saved sign-in with an explicit receiving preset for a recovery story.
+    pub(crate) fn saved_with_limits(&mut self, limits: &temper_client_shell_terminal::limits::Limits) {
+        self.client = Some(
+            NativeClient::new(
+                ClientSettings {
+                    engine: skein_io::Addr::Ip(fixtures::CLIENTS),
+                    directory: b"private".as_slice().into(),
+                    limits: *limits,
+                },
+                self.root.take().expect("saved client root"),
+                1000,
+                fixtures::SEED,
+                Start::Token,
+            )
+            .expect("saved native client with explicit limits"),
+        );
+    }
     fn new(root: Fd, scenario: Story) -> Self {
         let (playground_steps, playground_replies) = if matches!(scenario, Story::PlaygroundA) {
             stories::playground::person()

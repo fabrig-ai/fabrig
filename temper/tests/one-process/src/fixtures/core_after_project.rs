@@ -1,6 +1,6 @@
-//! The root stays ready after project 3 and after reopening its store; native
-//! clients reject its three-project me document at their two-project limit.
-//! See temper/docs/design/domain/root.md, 4, 5.7, 9.1, and protocol/README.md, 8.2.
+//! No core wait: the gate is open and the root ready; a two-membership client
+//! rejects the mandatory `me` after project three (temper/docs/design/client/tools.md, 12;
+//! jig/docs/design/client/domain/contract.md, 5.1), and meets those memberships again at restart.
 use crate::{
     ctl::{Caller, Command},
     fixtures,
@@ -188,6 +188,7 @@ pub struct Outcome {
     pub calls: usize,
     pub fresh: usize,
     pub native: bool,
+    pub legacy_rejected: bool,
     pub gate: String,
 }
 #[expect(clippy::struct_excessive_bools, reason = "the story records each independent client and shutdown handoff")]
@@ -197,6 +198,8 @@ struct Judge {
     disk: Rc<RefCell<skein_fake_machine::Machine>>,
     seen: Rc<RefCell<Outcome>>,
     warm: bool,
+    whole: bool,
+    legacy: bool,
     stage: Stage,
     target: usize,
     answered: usize,
@@ -226,11 +229,48 @@ impl Judge {
         caller.commands.push_back(command);
     }
     fn calls(&mut self, caller: &mut Caller) {
+        let project = "3";
         self.queue(
             caller,
-            &[&["project", "show", "3"], &["me"], &["account", "list"], &["settings", "show"]],
+            &[&["project", "show", project], &["me"], &["account", "list"], &["settings", "show"]],
             Stage::Calls,
         );
+    }
+    fn after_prior(&mut self, caller: &mut Caller) {
+        let account = self.account();
+        self.queue(caller, &[&["account", "forget", &account, "--key", "forget-program"]], Stage::Forget);
+    }
+    fn after_forget(&mut self, caller: &mut Caller) {
+        self.readings = caller.answers.len();
+        let mut commands = vec![vec!["settings", "show", "rules", "--json"]];
+        for number in ["1", "2", "4", "6", "9", "10"] {
+            commands.push(vec!["settings", "show", "charter", number, "--json"]);
+        }
+        for kind in ["template", "policy"] {
+            for number in ["1", "2"] {
+                commands.push(vec!["settings", "show", kind, number, "--json"]);
+            }
+        }
+        self.target = caller.answers.len() + commands.len();
+        for words in commands {
+            Self::command(caller, &words);
+        }
+        self.stage = Stage::ReadSettings;
+    }
+    fn after_apply(&mut self, caller: &mut Caller) {
+        self.queue(
+            caller,
+            &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "refused-declaration"]],
+            Stage::Declare,
+        );
+    }
+    fn make(&mut self, caller: &mut Caller) {
+        let mut commands = Vec::new();
+        if self.whole {
+            commands.push(["account", "list"].as_slice());
+        }
+        commands.push(["project", "make", PROJECT, "--key", "incident-project"].as_slice());
+        self.queue(caller, &commands, Stage::Make);
     }
     fn account(&self) -> String {
         self.store
@@ -314,57 +354,64 @@ impl skein_world::Referee<Proc> for Judge {
                 self.calls(caller);
             } else {
                 Self::sign_in(caller, &link);
-                for words in [
-                    vec!["account", "add-key", "1", "/setup/llm.key", "--deployment", "--key", "incident-key"],
-                    vec![
-                        "forge",
-                        "connect",
-                        "forgejo-admin",
-                        "/setup/admin.token",
-                        "--api",
-                        "127.0.0.1:3000",
-                        "--git",
-                        "http://127.0.0.1:3000",
-                        "--key",
-                        "incident-forge",
-                    ],
-                    vec!["forge", "list", "--until", "connected:1"],
-                    vec!["project", "make", "Earlier work", "--key", "earlier-project"],
-                    vec!["account", "declare", "1", "claude_code", LOGIN, "--key", "program-account"],
-                    vec![
-                        "repository",
-                        "adopt",
-                        "--project",
-                        "2",
-                        "--owner",
-                        "acme",
-                        "--name",
-                        "app",
-                        "--landing",
-                        "main",
-                        "--key",
-                        "incident-adoption",
-                    ],
-                    vec![
-                        "goal",
-                        "start",
-                        "--project",
-                        "2",
-                        "--charter",
-                        "1",
-                        "--as-allowed",
-                        "--deadline",
-                        "2030-01-01T00:00Z",
-                        "@incident-goal",
-                        "--key",
-                        "earlier-goal",
-                    ],
-                ] {
-                    Self::command(caller, &words);
+                if self.whole {
+                    let commands = [
+                        vec!["account", "add-key", "1", "/setup/llm.key", "--deployment", "--key", "incident-key"],
+                        vec![
+                            "forge",
+                            "connect",
+                            "forgejo-admin",
+                            "/setup/admin.token",
+                            "--api",
+                            "127.0.0.1:3000",
+                            "--git",
+                            "http://127.0.0.1:3000",
+                            "--key",
+                            "incident-forge",
+                        ],
+                        vec!["forge", "list", "--until", "connected:1"],
+                        vec!["project", "make", "Earlier work", "--key", "earlier-project"],
+                        vec!["account", "declare", "1", "claude_code", LOGIN, "--key", "program-account"],
+                        vec![
+                            "repository",
+                            "adopt",
+                            "--project",
+                            "2",
+                            "--owner",
+                            "acme",
+                            "--name",
+                            "app",
+                            "--landing",
+                            "main",
+                            "--key",
+                            "incident-adoption",
+                        ],
+                        vec![
+                            "goal",
+                            "start",
+                            "--project",
+                            "2",
+                            "--charter",
+                            "1",
+                            "--as-allowed",
+                            "--deadline",
+                            "2030-01-01T00:00Z",
+                            "@incident-goal",
+                            "--key",
+                            "earlier-goal",
+                        ],
+                    ];
+                    for words in &commands {
+                        Self::command(caller, words);
+                    }
+                    Self::command(caller, &["settings", "show", "charter", "1", "--json"]);
+                    self.target = caller.commands.len();
+                    self.stage = Stage::Goal;
+                } else {
+                    Self::command(caller, &["project", "make", "Earlier work", "--key", "earlier-project"]);
+                    self.target = 2;
+                    self.stage = Stage::Goal;
                 }
-                Self::command(caller, &["settings", "show", "charter", "1", "--json"]);
-                self.target = 9;
-                self.stage = Stage::Goal;
             }
             self.handed = true;
         }
@@ -381,42 +428,53 @@ impl skein_world::Referee<Proc> for Judge {
         self.check_answers(caller, now);
         if self.handed && caller.answers.len() >= self.target {
             match self.stage {
-                Stage::Goal if self.ended_goal() => {
-                    let saved: Value = serde_json::from_slice(&caller.answers[8].output).expect("initial charter");
-                    for (file, instructions) in [
-                        (b"/setup/prior-two.json".as_slice(), "Complete the earlier work."),
-                        (b"/setup/prior-three.json".as_slice(), "Complete the earlier work fully."),
-                    ] {
-                        let mut charter = saved["value"].clone();
-                        charter["instructions"] = instructions.into();
-                        let prior = serde_json::to_vec(
-                            &json!({"items":[{"setting":{"kind":"charter","number":1},"set":charter}]}),
-                        )
-                        .expect("prior settings");
-                        temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), file, &prior);
-                    }
-                    assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "earlier change landed");
-                    self.queue(
-                        caller,
-                        &[
-                            &["settings", "apply", "/setup/prior-two.json", "--against", "1", "--key", "revision-two"],
+                Stage::Goal if !self.whole || self.ended_goal() => {
+                    if self.whole {
+                        let saved: Value =
+                            serde_json::from_slice(&caller.answers.last().expect("initial charter answer").output)
+                                .expect("initial charter");
+                        for (file, instructions) in [
+                            (b"/setup/prior-two.json".as_slice(), "Complete the earlier work."),
+                            (b"/setup/prior-three.json".as_slice(), "Complete the earlier work fully."),
+                        ] {
+                            let mut charter = saved["value"].clone();
+                            charter["instructions"] = instructions.into();
+                            let prior = serde_json::to_vec(
+                                &json!({"items":[{"setting":{"kind":"charter","number":1},"set":charter}]}),
+                            )
+                            .expect("prior settings");
+                            temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), file, &prior);
+                        }
+                        assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "earlier change landed");
+                        self.queue(
+                            caller,
                             &[
-                                "settings",
-                                "apply",
-                                "/setup/prior-three.json",
-                                "--against",
-                                "2",
-                                "--key",
-                                "revision-three",
+                                &[
+                                    "settings",
+                                    "apply",
+                                    "/setup/prior-two.json",
+                                    "--against",
+                                    "1",
+                                    "--key",
+                                    "revision-two",
+                                ],
+                                &[
+                                    "settings",
+                                    "apply",
+                                    "/setup/prior-three.json",
+                                    "--against",
+                                    "2",
+                                    "--key",
+                                    "revision-three",
+                                ],
                             ],
-                        ],
-                        Stage::PriorRevisions,
-                    );
+                            Stage::PriorRevisions,
+                        );
+                    } else {
+                        self.make(caller);
+                    }
                 }
-                Stage::PriorRevisions => {
-                    let account = self.account();
-                    self.queue(caller, &[&["account", "forget", &account, "--key", "forget-program"]], Stage::Forget);
-                }
+                Stage::PriorRevisions => self.after_prior(caller),
                 Stage::Forget => {
                     let forgotten = caller.answers.last().expect("forget terminal");
                     assert!(
@@ -425,21 +483,7 @@ impl skein_world::Referee<Proc> for Judge {
                         String::from_utf8_lossy(&forgotten.output),
                         String::from_utf8_lossy(&forgotten.error)
                     );
-                    self.readings = caller.answers.len();
-                    let mut commands = vec![vec!["settings", "show", "rules", "--json"]];
-                    for number in ["1", "2", "4", "6", "9", "10"] {
-                        commands.push(vec!["settings", "show", "charter", number, "--json"]);
-                    }
-                    for kind in ["template", "policy"] {
-                        for number in ["1", "2"] {
-                            commands.push(vec!["settings", "show", kind, number, "--json"]);
-                        }
-                    }
-                    self.target = caller.answers.len() + commands.len();
-                    for words in commands {
-                        Self::command(caller, &words);
-                    }
-                    self.stage = Stage::ReadSettings;
+                    self.after_forget(caller);
                 }
                 Stage::ReadSettings => {
                     self.prepare_settings(caller);
@@ -449,16 +493,8 @@ impl skein_world::Referee<Proc> for Judge {
                         Stage::Apply,
                     );
                 }
-                Stage::Apply => self.queue(
-                    caller,
-                    &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "refused-declaration"]],
-                    Stage::Declare,
-                ),
-                Stage::Declare => self.queue(
-                    caller,
-                    &[&["account", "list"], &["project", "make", PROJECT, "--key", "incident-project"]],
-                    Stage::Make,
-                ),
+                Stage::Apply => self.after_apply(caller),
+                Stage::Declare => self.make(caller),
                 Stage::Make => {
                     let domain = service.service.engine_domain().expect("engine root");
                     assert!(
@@ -476,11 +512,20 @@ impl skein_world::Referee<Proc> for Judge {
                     self.calls(caller);
                 }
                 Stage::Calls => {
+                    let domain = service.service.engine_domain().expect("engine root");
+                    assert!(domain.ready(), "root ready after answering the calls");
+                    self.seen.borrow_mut().gate = format!(
+                        "ready={}, start={:?}; {:?}",
+                        domain.ready(),
+                        domain.start_phase(),
+                        service.service.pending(now)
+                    );
                     self.seen.borrow_mut().calls = 4;
                     if !self.fresh_handed {
                         Self::sign_in(fresh, &self.first_link);
                         self.fresh_handed = true;
                     }
+                    eprintln!("core calls answered: {}; gate {}", self.seen.borrow().calls, self.seen.borrow().gate);
                     self.stage = Stage::Native;
                 }
                 Stage::Native => {
@@ -507,11 +552,22 @@ impl skein_world::Referee<Proc> for Judge {
                         );
                         self.seen.borrow_mut().fresh = 1;
                         if !self.native_started {
-                            person.saved();
+                            if self.legacy {
+                                let mut limits = stories::client_limits();
+                                limits.client.client.domain.projects = 2;
+                                person.saved_with_limits(&limits);
+                            } else {
+                                person.saved();
+                            }
                             self.native_started = true;
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                         }
-                        if person.finished {
+                        if self.legacy && now >= self.deadline {
+                            assert!(!person.finished, "two memberships cannot decode the mandatory me");
+                            assert!(service.service.engine_domain().expect("engine root").ready());
+                            self.seen.borrow_mut().legacy_rejected = true;
+                            self.stage = Stage::Done;
+                        } else if person.finished {
                             self.seen.borrow_mut().native = true;
                             self.stage = Stage::Done;
                         }
@@ -558,8 +614,11 @@ impl skein_world::Referee<Proc> for Judge {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the world composes its service, clients and fake peers in one loop")]
 fn phase(
     warm: bool,
+    whole: bool,
+    legacy: bool,
     mut disk: skein_fake_machine::Machine,
     store: Rc<RefCell<Store>>,
     transport: &temper_fake_git_hosted::Typed,
@@ -586,6 +645,8 @@ fn phase(
                 disk: machine.0.clone(),
                 seen: seen.clone(),
                 warm,
+                whole,
+                legacy,
                 stage: Stage::Setup,
                 target: 0,
                 answered: 0,
@@ -666,15 +727,25 @@ fn phase(
 }
 
 #[must_use]
-pub fn whole_sequence() -> [Outcome; 2] {
+pub fn sequence(whole: bool) -> [Outcome; 2] {
+    run_sequence(whole, false)
+}
+
+/// The unchanged file store created while the shipped client could receive only two memberships.
+#[must_use]
+pub fn legacy_store() -> [Outcome; 2] {
+    run_sequence(false, true)
+}
+
+fn run_sequence(whole: bool, legacy: bool) -> [Outcome; 2] {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Restart);
     let transport = forge();
     let store = Rc::new(RefCell::new(Store::new()));
     let mut disk = temper_playground::machine::fresh();
     temper_playground::machine::setup(&mut disk);
-    let (disk, before) = phase(false, disk, store.clone(), &transport);
-    let (_, after) = phase(true, disk, store, &transport);
+    let (disk, before) = phase(false, whole, legacy, disk, store.clone(), &transport);
+    let (_, after) = phase(true, whole, false, disk, store, &transport);
     [before, after]
 }
 
