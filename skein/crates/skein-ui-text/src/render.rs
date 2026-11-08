@@ -72,6 +72,7 @@ struct Parent {
     end: u32,
     indent: u32,
     next: Option<u64>,
+    name: Option<u32>,
 }
 #[derive(Debug)]
 struct PendingItem {
@@ -161,6 +162,10 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
             Some(p) => p.indent,
             None => 0,
         };
+        let mut name = match parents.top() {
+            Some(p) => p.name,
+            None => None,
+        };
         let n = tree.get(index).expect("preorder node exists");
         let end = index.saturating_add(n.size);
         if title == Some(index) || link == Some(index) {
@@ -179,7 +184,7 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
             continue;
         }
         let number = item_number(&mut parents, n.role);
-        match node(tree, index, indent, number, print) {
+        match node(tree, index, indent, number, &mut name, print) {
             Some(indent) => {
                 if n.role.is_list_item() {
                     pending
@@ -198,7 +203,7 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
                 if let Some(first) = n.ordered {
                     next = Some(u64::from(first));
                 }
-                parents.push(Parent { end, indent, next }).expect("parents fit tree nodes");
+                parents.push(Parent { end, indent, next, name }).expect("parents fit tree nodes");
             }
             None => {
                 position(tree, index, offset, &mut print.text);
@@ -227,7 +232,14 @@ fn item_number(parents: &mut Stack<Parent>, role: Role) -> Option<u64> {
     parent.next = Some(number.checked_add(1).expect("u32 first number and tree item count fit u64"));
     Some(number)
 }
-fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Print) -> Option<u32> {
+fn node(
+    tree: &Tree,
+    at: u32,
+    indent: u32,
+    number: Option<u64>,
+    name: &mut Option<u32>,
+    print: &mut Print,
+) -> Option<u32> {
     let n = tree.get(at).expect("preorder node exists");
     match n.role {
         Role::Page | Role::Table | Role::Group | Role::Slot => Some(indent),
@@ -248,8 +260,8 @@ fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Prin
         | Role::ChoiceGroup
         | Role::Select
         | Role::Tabs
-        | Role::Drawing => Some(group(n, indent, &mut print.text)),
-        Role::Log => Some(log(n, indent, &mut print.text)),
+        | Role::Drawing => Some(group(tree, at, indent, name, &mut print.text)),
+        Role::Log => Some(log(tree, at, indent, name, &mut print.text)),
         Role::Description => Some(indent.saturating_add(2)),
         Role::Item | Role::TreeItem => {
             start(&mut print.text, indent);
@@ -323,16 +335,20 @@ fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Prin
         }
     }
 }
-fn log(n: &Node, indent: u32, out: &mut List<u8>) -> u32 {
-    let indent = group(n, indent, out);
+fn log(tree: &Tree, at: u32, indent: u32, name: &mut Option<u32>, out: &mut List<u8>) -> u32 {
+    let n = tree.get(at).expect("log exists");
+    let indent = group(tree, at, indent, name, out);
     if n.binding.is_some() {
         start(out, indent);
         raw(out, b"(up, down: more lines)\n");
     }
     indent
 }
-fn group(n: &Node, indent: u32, out: &mut List<u8>) -> u32 {
+fn group(tree: &Tree, at: u32, indent: u32, previous: &mut Option<u32>, out: &mut List<u8>) -> u32 {
+    let n = tree.get(at).expect("group exists");
     if let Some(name) = &n.name {
+        let offset = out.len();
+        let own_line = out.last() == Some(&b'\n');
         start(out, indent);
         safe(out, name, indent, false);
         colon(out, name);
@@ -342,7 +358,19 @@ fn group(n: &Node, indent: u32, out: &mut List<u8>) -> u32 {
             raw(out, b" ");
             safe(out, description, indent.saturating_add(2), false);
         }
-        finish(n, out);
+        let before_states = out.len();
+        states(n, out);
+        let plain = own_line && out.len() == before_states && (n.role != Role::Disclosure || n.description.is_none());
+        if plain {
+            if let Some(ancestor) = *previous
+                && tree.get(ancestor).expect("named ancestor exists").name.as_deref() == Some(name.as_ref())
+            {
+                out.truncate(offset);
+                return indent;
+            }
+            *previous = Some(at);
+        }
+        raw(out, b"\n");
         indent.saturating_add(2)
     } else {
         indent
