@@ -225,7 +225,7 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     b.value(tui.field(), tui.written());
     b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(copy_of(tui.address()))]));
     b.bind(Binding { owner: look::OWNER, token: look::LINK });
-    b.focus(tui.openings());
+    b.focus(tui.focus());
     b.close();
     if let Some((line, style)) = sign_in_line(tui, root, words) {
         text(b, Role::Paragraph, &line, Some(style));

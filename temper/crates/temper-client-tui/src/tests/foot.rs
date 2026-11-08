@@ -471,6 +471,38 @@ fn read_states() {
         }
         assert_eq!(crate::escape(&view), Some(TuiEvent::Act { act: d::pages::Act::Cancel }));
     }
+    // The first connection's composer must not consume the sign-in field's focus request.
+    for (name, initial, link, local, next) in [
+        (
+            "sign-in after starting",
+            Box::new(f::starting().0),
+            jig_client::Link::Starting,
+            crate::Local::Idle,
+            crate::Local::Idle,
+        ),
+        (
+            "sign-in after engine-link fallback",
+            Box::new(f::signed_out()),
+            jig_client::Link::SignedOut,
+            crate::Local::Signing,
+            crate::Local::Ended,
+        ),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Link { link });
+        tui.step(Told::Local { local });
+        let mut view = f::view();
+        let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+        let mut focus = skein_ui_screen::Focus::default();
+        let mut frame = skein_ui_screen::Frame::new(size);
+        f::build(&mut view, &tui, &initial);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        tui.step(Told::Link { link: jig_client::Link::SignedOut });
+        tui.step(Told::Local { local: next });
+        f::build(&mut view, &tui, &f::signed_out());
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
+    }
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search and collect the quiet line's nodes")]
 #[expect(clippy::disallowed_types, reason = "test assertions collect the signal nodes")]
