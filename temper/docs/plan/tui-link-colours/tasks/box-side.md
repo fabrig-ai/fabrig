@@ -132,3 +132,14 @@ Acceptance:
 
 As the implementer's text says; the bound chosen for the line, the stories that kill a
 serve, and each row's failure seen.
+
+## Rebase (2026-11-08, step merge, foreman tui-link-colours/box-side/foreman-1)
+
+resolve the status-file conflict by preserving both completed-feature deletions
+Rebase onto the current integration tip.
+The sole conflicting path is `temper/docs/design/client/README.status.md`.
+Commit `4bcf13170b` (merged by `0920482a03`) removes the 6.12/6.14 `temper-client-tui` sign-in progress gap.
+This branch’s `1ed3cc4783` removes the adjacent 6.12 “The engine’s link, kept at rest” gap.
+Resolve the conflict with both entries absent; preserve every other status entry.
+Keep the branch’s deletion in `temper/docs/design/protocol/setup.status.md`.
+No code change is indicated by this merge refusal.
