@@ -256,3 +256,15 @@ pub fn run_github(
 
 pub mod settings;
 pub mod settings_items;
+
+/// Run a story's deferred peer recipe on its privately prepared scratch.
+#[must_use]
+pub fn run_forge_with_on(
+    scratch: Scratch,
+    fixture: forge::Fixture,
+    recipe: ForgeRecipe,
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Ran {
+    let outcome = world::run_forge(&scratch, fixture, no_scripts, None, Some(recipe), steps);
+    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
+}
