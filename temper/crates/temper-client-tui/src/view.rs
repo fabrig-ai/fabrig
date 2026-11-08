@@ -289,6 +289,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             | temper_client_domain::Address::Settings { .. }
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Team { .. }
             | temper_client_domain::Address::Role { .. }
             | temper_client_domain::Address::Rule { .. }
             | temper_client_domain::Address::Repositories { .. }

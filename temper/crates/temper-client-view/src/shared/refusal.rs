@@ -139,6 +139,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
             | Address::Task { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }

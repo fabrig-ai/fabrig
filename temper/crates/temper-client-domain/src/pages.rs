@@ -48,6 +48,7 @@ pub mod report;
 pub mod start_goal;
 pub mod switcher;
 pub mod task;
+pub mod team;
 pub mod terminal;
 pub mod welcome;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
@@ -929,6 +930,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
                 }
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
+                Address::Team { .. } => out.push(Request::Show { address: Address::Team { project } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } | Address::Role { .. } | Address::Rule { .. } => {
                     out.push(Request::Show { address: Address::Settings { project } });
@@ -1023,6 +1025,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
@@ -1296,6 +1299,7 @@ fn rail_chats(address: &Address) -> bool {
         | Address::Task { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Role { .. }
@@ -1402,6 +1406,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Goals { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Repositories { .. }
@@ -1423,6 +1428,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
@@ -1549,6 +1555,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Goals { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -2024,6 +2031,7 @@ fn address_project(address: &Address) -> Option<u32> {
         Address::Home { project }
         | Address::Goals { project, .. }
         | Address::Changes { project }
+        | Address::Team { project }
         | Address::Settings { project }
         | Address::Models { project }
         | Address::Builders { project }
@@ -2247,6 +2255,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Goals { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }

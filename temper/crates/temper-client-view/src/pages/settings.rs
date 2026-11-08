@@ -140,6 +140,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::Home { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }

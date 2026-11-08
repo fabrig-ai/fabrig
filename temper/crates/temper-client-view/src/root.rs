@@ -142,6 +142,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::ConnectForge { .. }
             | temper_client_domain::Address::Home { .. }
             | temper_client_domain::Address::Changes { .. }
+            | temper_client_domain::Address::Team { .. }
             | temper_client_domain::Address::Settings { .. }
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
@@ -172,6 +173,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::ConnectForge { .. }
             | temper_client_domain::Address::Home { .. }
             | temper_client_domain::Address::Changes { .. }
+            | temper_client_domain::Address::Team { .. }
             | temper_client_domain::Address::Settings { .. }
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }

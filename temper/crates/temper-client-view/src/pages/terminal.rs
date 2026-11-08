@@ -108,6 +108,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
                 | Address::Goals { .. }
                 | Address::Home { .. }
                 | Address::Changes { .. }
+                | Address::Team { .. }
                 | Address::Settings { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }
