@@ -76,8 +76,8 @@ a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
 opened call rows, earlier-page loading, Latest, cards at their calls and
 the remaining TUI controls stay in section 11, owned by temper/tui.
 The shared reader still reparses closed blocks; the gap from the user's
-read-once requirement remains `../draft/chat-reading.status.md`, 3,
-and section 11's parsed-block work. Request differences remain explicit
+read-once requirement remains section 11's parsed-block work and
+`../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,

@@ -10,8 +10,8 @@
   terminal reads it, and the terminal's commands are
   `../client/README.md`, 6.13 to 6.16, with what they leave out in its
   section 11. The newest goal, opened call rows, earlier-page loading
-  and "Latest ↓", and cards at their calls remain section 11's work for
-  temper/tui; the
+  and "Latest ↓", and cards at their calls remain `../client/README.md`,
+  section 11's work for temper/tui; the
   read-once requirement remains `chat-reading.status.md`, 3, for temper/ui.
   Sections 4 and 5 have no lag: 4.2's TUI side is `../client/README.md`, 6.13 and 7.1,
   and 5 is `../client/tui/journeys.md`. Section 8's journey-format
