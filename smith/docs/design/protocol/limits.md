@@ -971,6 +971,10 @@ losslessly by count.
 
 ## 13. Open questions
 
+- **A cut sub-agent answer's rest** (3.10, 6): retaining it for a
+  continuation is domain/run.md, section 15's question. Default: keep
+  only the capped answer and tell its asker to ask a new child, narrower;
+  no additional retained-answer room is declared.
 - **Calls past `calls_per_response`:** whether skein marks the calls
   beyond the bound as calls of their own, answered as not run, so the
   completion completes, as an oversized call's does.
