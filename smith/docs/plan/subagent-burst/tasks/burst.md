@@ -3,7 +3,7 @@ id = "burst"
 part = "burst"
 kind = "feature"
 needs = []
-files = ["smith/tests/agent-process/tests/suite/program_children.rs", "smith/tests/agent-process/src/program_world.rs", "smith/tests/agent-process/src/program_world/**", "smith/tests/fake-claude/src/print.rs", "smith/tests/fake-claude/src/story.rs", "smith/docs/design/domain/run.status.md", "smith/docs/design/protocol/limits.status.md", "smith/docs/design/STATUS.md"]
+files = ["smith/tests/agent-process/tests/suite/program_children.rs", "smith/tests/agent-process/src/program_world.rs", "smith/tests/agent-process/src/program_world/**", "smith/tests/fake-claude/src/print.rs", "smith/tests/fake-claude/src/story.rs", "smith/tests/fake-claude/src/mcp.rs", "smith/tests/fake-claude/src/commands.rs", "smith/tests/fake-claude/src/fake.rs", "smith/tests/fake-claude/tests/suite/mcp.rs", "smith/docs/design/domain/run.status.md", "smith/docs/design/protocol/limits.status.md", "smith/docs/design/STATUS.md"]
 effort = "high"
 minutes = 240
 +++
@@ -193,3 +193,20 @@ message and location, the bound and why a burst reached it, the fix,
 the row at the bound's tier, what each row costs in CPU (the eight
 together), the options above you took, and your implementation and
 check minutes apart.
+
+## Answers
+
+2026-11-08. *May burst edit the fake's MCP client and effect wiring for
+the all-at-once option?* Yes. Option 2 is pre-approved and cannot be
+built truthfully in `print.rs` and `Step` alone: the client keeps one
+pending request and its reply notice carries no id. Ownership extends to
+`smith/tests/fake-claude/src/mcp.rs` (pending calls kept by id, its unit
+tests beside it), `commands.rs` and `fake.rs` (an id carried through
+`Effect::McpCall` and `Notice::Reply`), and the client's matching and
+cancellation cases in `smith/tests/fake-claude/tests/suite/mcp.rs`
+(rows of an existing table where one fits). This is the fake only: no
+production protocol, no other fake behaviour; the existing sequential
+`Together` keeps its order and its tests unchanged. Resume from
+`a390303c3b`; the eight rows stay as pushed, and run with the new
+variant as option 2 says.
+
