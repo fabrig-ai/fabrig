@@ -57,7 +57,20 @@ fn making_row(rng: &mut Rng) -> forge::Stored {
     })
 }
 fn person_fact(rng: &mut Rng) -> forge::PersonFact {
-    if rng.below(2) == 0 {
+    if rng.below(3) == 0 {
+        let subject = if rng.below(2) == 0 {
+            temper_protocol_reaches::Subject::Set(u8::try_from(rng.below(256)).expect("u8"))
+        } else {
+            temper_protocol_reaches::Subject::Kind(
+                temper_protocol_reaches::Kind::ALL[usize::try_from(rng.below(10)).expect("kind index")],
+            )
+        };
+        forge::PersonFact::KeepAsking {
+            project: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            subject,
+            at: rng.next_u64(),
+        }
+    } else if rng.below(2) == 0 {
         forge::PersonFact::ToBegin { project: u32::try_from(rng.below(4_294_967_296)).expect("u32") }
     } else {
         forge::PersonFact::GoalFrom {

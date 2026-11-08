@@ -31,12 +31,6 @@ record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
 
-# A person's dismissals (client/README.md, 4.6).
-record ToBegin { project: u32 }
-record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
-enum PersonFact { to_begin: ToBegin goal_from: GoalFrom }
-record Dismiss { what: PersonFact }
-versioned record Dismissals { dismissed: list 8192 PersonFact }
 # A model's trial (temper/docs/design/domain/trial.md, 6).
 record TryAccount { account: u32 again: bool }
 enum TrialStep { starts, answers }
@@ -62,6 +56,15 @@ record Looked { project: u32 }
 enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
 enum ReachClass { decide, ask, ask_away, wait }
 record ReachSet { number: u8 }
+record ReachKindOf { kind: ReachKind }
+enum ClassSubject { kind: ReachKindOf, set: ReachSet }
+# A person's dismissals (client/README.md, 4.6).
+record ToBegin { project: u32 }
+record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
+record KeepAsking { project: u32 subject: ClassSubject at: u64 }
+enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
+record Dismiss { what: PersonFact }
+versioned record Dismissals { dismissed: list 8192 PersonFact }
 enum ReachReason { kind, set: ReachSet, always }
 record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
 record SetAway { project: u32 on: bool until: option u64 }
@@ -281,8 +284,6 @@ enum QuestionsRoute { none, foreman, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge.md, 5.10).
-record ReachKindOf { kind: ReachKind }
-enum ClassSubject { kind: ReachKindOf, set: ReachSet }
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
 record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
 record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }

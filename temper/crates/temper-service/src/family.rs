@@ -297,6 +297,11 @@ pub fn to_root(
                 }
                 w::Request::Dismiss(value) => {
                     let what = match value.into_parts().what {
+                        w::PersonFact::KeepAsking(value) => forge::PersonFact::KeepAsking {
+                            project: value.project(),
+                            subject: temper_protocol_reaches::subject_from(value.subject()),
+                            at: value.at(),
+                        },
                         w::PersonFact::ToBegin(value) => forge::PersonFact::ToBegin { project: value.project() },
                         w::PersonFact::GoalFrom(value) => forge::PersonFact::GoalFrom {
                             project: value.project(),
@@ -1407,6 +1412,7 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
 
 /// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoding map for forge documents")]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
@@ -1414,6 +1420,17 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {
                 let value = match row {
+                    forge::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(
+                        w::KeepAsking::new(
+                            limits,
+                            w::KeepAskingParts {
+                                project,
+                                subject: temper_protocol_reaches::subject_record(subject),
+                                at,
+                            },
+                        )
+                        .ok()?,
+                    ),
                     forge::PersonFact::ToBegin { project } => {
                         w::PersonFact::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
                     }

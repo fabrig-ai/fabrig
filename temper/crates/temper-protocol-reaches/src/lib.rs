@@ -27,7 +27,7 @@ pub const PATTERN_BYTES: usize = 80; // a pattern
 pub const PATHS: usize = 16; // paths in one call
 pub const PATH_BYTES: usize = 256; // a path
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Kind {
     Wording,
     Retry,
@@ -49,7 +49,7 @@ pub enum Class {
     Wait,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Subject {
     Kind(Kind),
     Set(u8),

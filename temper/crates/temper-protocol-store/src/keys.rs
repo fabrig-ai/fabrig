@@ -243,6 +243,24 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Dismissed { party, what } => {
             writer.tag(DISMISSED).u64(*party);
             match what {
+                forge::PersonFact::KeepAsking { project, subject, at } => {
+                    writer.tag(2).u64(u64::from(*project));
+                    match subject {
+                        temper_protocol_reaches::Subject::Kind(kind) => {
+                            writer.tag(0);
+                            for (number, candidate) in temper_protocol_reaches::Kind::ALL.iter().enumerate() {
+                                if candidate == kind {
+                                    writer.u64(u64::try_from(number).expect("kind number fits"));
+                                    break;
+                                }
+                            }
+                        }
+                        temper_protocol_reaches::Subject::Set(number) => {
+                            writer.tag(1).u64(u64::from(*number));
+                        }
+                    }
+                    writer.u64(*at);
+                }
                 forge::PersonFact::ToBegin { project } => {
                     writer.tag(0).u64(u64::from(*project));
                 }
@@ -350,6 +368,17 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
                     project: u32::try_from(reader.u64()?).ok()?,
                     chat: reader.u64()?,
                     goal: reader.u64()?,
+                    at: reader.u64()?,
+                },
+                2 => forge::PersonFact::KeepAsking {
+                    project: u32::try_from(reader.u64()?).ok()?,
+                    subject: match reader.tag()? {
+                        0 => temper_protocol_reaches::Subject::Kind(
+                            *temper_protocol_reaches::Kind::ALL.get(usize::try_from(reader.u64()?).ok()?)?,
+                        ),
+                        1 => temper_protocol_reaches::Subject::Set(u8::try_from(reader.u64()?).ok()?),
+                        _ => return None,
+                    },
                     at: reader.u64()?,
                 },
                 _ => return None,

@@ -172,6 +172,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     let mut rows = List::with_capacity(wire::DISMISSED);
     for what in document.into_parts().dismissed.into_boxed() {
         let what = match what {
+            w::PersonFact::KeepAsking(_) => continue,
             w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project() },
             w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
                 project: value.project(),

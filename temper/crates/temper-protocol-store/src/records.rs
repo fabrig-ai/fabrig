@@ -62,6 +62,13 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Call { key, answer } => w::Value::Call(entries::encode_call(key, answer)),
         d::Stored::Dismissed { party, what } => {
             let what = match what {
+                d::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(
+                    w::KeepAsking::new(
+                        &w::CEILINGS,
+                        w::KeepAskingParts { project: *project, subject: encode_subject(*subject), at: *at },
+                    )
+                    .expect(FITS),
+                ),
                 d::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(
                     w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).expect(FITS),
                 ),
@@ -123,6 +130,11 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
+                w::PersonFact::KeepAsking(value) => d::PersonFact::KeepAsking {
+                    project: value.project(),
+                    subject: decode_subject(value.subject())?,
+                    at: value.at(),
+                },
                 w::PersonFact::ToBegin(value) => d::PersonFact::ToBegin { project: value.into_parts().project },
                 w::PersonFact::GoalFrom(value) => d::PersonFact::GoalFrom {
                     project: value.project(),
@@ -292,4 +304,18 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         failing_test_test_id: forge.tiers.test_id_bytes,
         ..w::CEILINGS
     })
+}
+
+fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject {
+    let record = temper_protocol_reaches::subject_record(subject);
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("subject measure"));
+    record.encode(&mut writer).expect("measured subject room");
+    w::ClassSubject::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching subject records")
+}
+fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {
+    use temper_client_protocol_wire::v1;
+    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+    record.encode(&mut writer).or(Err(Undecodable))?;
+    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+    Ok(temper_protocol_reaches::subject_from(&record))
 }

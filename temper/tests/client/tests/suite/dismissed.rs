@@ -99,9 +99,14 @@ impl Story {
                             request:
                                 jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, request, .. } },
                         } = &request
-                            && [WHAT, GOAL_FROM]
-                                .iter()
-                                .any(|fact| Some(request) == dismissed::ask(*fact, &self.env.limits.forge).as_ref())
+                            && [
+                                dismissed::ask(WHAT, &self.env.limits.forge).expect("fixture fits wire bounds"),
+                                dismissed::ask(GOAL_FROM, &self.env.limits.forge).expect("fixture fits wire bounds"),
+                                keep_asking_request(10),
+                                keep_asking_request(20),
+                            ]
+                            .iter()
+                            .any(|asked| asked == request)
                         {
                             probe.attempt = Some(*attempt);
                         }
@@ -143,19 +148,17 @@ impl Story {
         self.dismiss_fact(who, key, WHAT);
     }
     fn dismiss_fact(&mut self, who: ClientId, key: Key, fact: PersonFact) {
+        self.dismiss_request(who, key, dismissed::ask(fact, &self.env.limits.forge).expect("dismissal request"));
+    }
+    fn dismiss_request(&mut self, who: ClientId, key: Key, request: jig_client::Ask) {
         let probe = &mut self.probes[who.0];
         probe.sent = Some(key);
+        probe.attempt = None;
+        probe.answers.clear();
         Temper::step(
             &mut probe.root,
             &self.env,
-            Event::Client {
-                event: jig_client::Event::Send {
-                    key,
-                    name: None,
-                    request: dismissed::ask(fact, &self.env.limits.forge).expect("dismissal request"),
-                },
-            }
-            .into(),
+            Event::Client { event: jig_client::Event::Send { key, name: None, request } }.into(),
             &mut probe.out,
         );
         self.pump();
@@ -228,6 +231,80 @@ fn a_second_dismissal_is_answered_as_the_first() {
     story.dismiss(INBOX_CLIENT, SECOND);
     story.answered_dismissed(INBOX_CLIENT);
     assert_eq!(story.rows(), rows);
+    for (number, at) in [(2200, 10), (2201, 10), (2202, 20)] {
+        let key = Key { asker: Owner::Forge.asker(), number };
+        story.dismiss_request(CLIENT, key, keep_asking_request(at));
+        story.answered_dismissed(CLIENT);
+        let what = forge::PersonFact::KeepAsking {
+            project: PROJECT,
+            subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+            at,
+        };
+        let mut expected = rows.clone();
+        expected.push((
+            StoreKey::Forge(forge::Key::Dismissed { party: fixtures::PARTY, what }),
+            Record::Forge { row: Box::new(forge::Stored::Dismissed { party: fixtures::PARTY, what }) },
+        ));
+        assert_eq!(story.rows(), expected, "only the latest KeepAsking remains");
+        // The forge side's dismissal watch is handle 2; read its wire facts before the reader filters them.
+        let watched = story.probes[INBOX_CLIENT.0]
+            .root
+            .person()
+            .client()
+            .document(jig_client::Handle { asker: Owner::Forge.asker(), number: 2 })
+            .expect("second device's dismissal watch");
+        let Some(jig_client::Latest::Family(record)) = watched.latest else {
+            panic!("second device's facts delivered")
+        };
+        let document = wire::decode_dismissals(&record.bytes, &w::CEILINGS).expect("dismissal document");
+        assert_eq!(document.dismissed().len(), 2);
+        let facts = document.dismissed().iter().collect::<Vec<_>>();
+        let w::PersonFact::KeepAsking(value) = facts[1] else { panic!("keep asking fact") };
+        assert_eq!(
+            (value.project(), value.subject(), value.at()),
+            (
+                PROJECT,
+                &temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+                    temper_protocol_reaches::Kind::Tests
+                )),
+                at
+            )
+        );
+        assert_eq!(story.fact(INBOX_CLIENT), Some(true), "To begin still reads its fact");
+    }
+}
+
+fn keep_asking_request(at: u64) -> jig_client::Ask {
+    let what = w::PersonFact::KeepAsking(
+        w::KeepAsking::new(
+            &w::CEILINGS,
+            w::KeepAskingParts {
+                project: PROJECT,
+                subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+                    temper_protocol_reaches::Kind::Tests,
+                )),
+                at,
+            },
+        )
+        .expect("fixture fits wire bounds"),
+    );
+    let record = w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::Dismiss(
+                w::Dismiss::new(&w::CEILINGS, w::DismissParts { what }).expect("fixture fits wire bounds"),
+            ),
+        },
+    )
+    .expect("fixture fits wire bounds");
+    jig_client::Ask::Family {
+        scope: c::Scope::Project(PROJECT),
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::requesting(&record),
+        },
+    }
 }
 
 #[test]

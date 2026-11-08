@@ -1573,6 +1573,19 @@ fn dismiss_and_dismissals_round_trip() {
     let limits = fixtures::limits();
     assert_eq!(crate::DISMISSED, 8192, "client/README.md, 4.6: a party's fact bound");
     for what in [
+        v1::PersonFact::KeepAsking(
+            v1::KeepAsking::new(
+                &limits,
+                v1::KeepAskingParts {
+                    project: u32::MAX,
+                    subject: v1::ClassSubject::Set(
+                        v1::ReachSet::new(&limits, v1::ReachSetParts { number: u8::MAX }).unwrap(),
+                    ),
+                    at: u64::MAX,
+                },
+            )
+            .unwrap(),
+        ),
         v1::PersonFact::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap()),
         v1::PersonFact::GoalFrom(
             v1::GoalFrom::new(
