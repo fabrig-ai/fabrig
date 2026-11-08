@@ -392,6 +392,7 @@ out, to the transport:
 out, to the application's startup:
   Link { secret }                              the printed link's one-time secret, each time one is drawn (section 8)
   LocalLink { secret }                         the local link's one-time secret, each time one is drawn, kept and never printed (section 8)
+  LinkSignedIn                                 the printed link signed a person in, each time (section 8)
 ```
 
 - **`Minted` carries the sign-in's expiry,** its wall time, beside the
@@ -685,6 +686,15 @@ recipient.
   startup prints again, unless the printed link is live or reserved
   (below), or the secret is remembered as a local link's: a native
   client that tries the local link never makes the startup print.
+  - *Signed in by it, said:* each time people answers signed in to a
+    sign-in whose reserved secret was the printed link's, a sign-in made
+    or a held one kept (below), the component says `LinkSignedIn` to the
+    application's startup, carrying nothing, so that an application can
+    tell its people that the link was used, as a box's front end shows
+    (temper's `client/README.md`, 4.6). The local link, a `Mint`, a
+    service's sign-in, an approval's take and every refusal say nothing.
+    It is memory alone: what an application keeps of it is gone at a
+    restart, as the links are.
   - *The local link,* for the person's native clients on that machine:
     at start, beside the printed link, the component draws a second
     one-time secret from its generator and gives it to the application's
@@ -703,10 +713,12 @@ recipient.
       expired, and the next sign-in whose secret isn't live, whatever
       secret it tried, draws a fresh local link, unless one is live or
       reserved.
-    - *Never given:* `link_secret` (below) is the printed link's alone,
-      and where the printed link isn't enabled there is no local link
-      either. A restart forgets both links, and the startup keeps the
-      local link the new component gives.
+    - *Its first, given or drawn:* the startup may give the first local
+      link's secret, `local_secret`, as it gives the printed link's
+      (*A secret given*, below); every later one is drawn. Where the
+      printed link isn't enabled there is no local link either. A restart
+      forgets both links, and the startup keeps the local link the new
+      component gives.
     - *Its exposure* is where the startup keeps it: whoever can read
       that can sign in as the owner, once, within its span, as whoever
       can read the printed link's output can, so it is kept as privately
@@ -742,6 +754,14 @@ recipient.
     and a component started with none given draws its first. A secret of
     any other length is refused at start, as unusable settings; one given
     where the printed link is not enabled is dropped, no link being live.
+    The first local link's secret may be given alike, `local_secret`, so
+    that the startup can hand it to a native client it starts itself, as a
+    box hands its front end one (temper's `protocol/setup.md`, 7.6): taken
+    in the first local link's draw's place, its `link_span` from that
+    taking, no `LocalLink` said for it, spent and drawn again as any local
+    link; refused at start for any length but 32 bytes, and dropped where
+    the printed link is not enabled. The two given are two links: one
+    equal to the other is refused at start too.
   - *The secret is the link's, or its exchange's.* A sign-in that finds
     the secret live, the printed link's or the local link's, before its
     expiry, reserves that link for its exchange until people answers.

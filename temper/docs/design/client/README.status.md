@@ -977,3 +977,8 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 4.6, the forges document's `linked`: the wire's field,
+  decoded and encoded false (`forges-linked`, `tui-box-front`).
+- **Not yet:** 4.6, `linked` true from the printed link's first sign-in, the
+  document delivered again then (`serve-sign-in`, `tui-box-front`).
