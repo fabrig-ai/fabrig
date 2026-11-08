@@ -19,3 +19,5 @@ mod fuzzy {
 }
 
 mod public;
+
+mod invalid_end;

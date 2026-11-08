@@ -2,6 +2,9 @@
 
 2026-11-08. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 7.2's immutable failed run end retains the invalid-result kind
+computed for its attempt. No known gap remains in this field.
+
 Section 7.3's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored

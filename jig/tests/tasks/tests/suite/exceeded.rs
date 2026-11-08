@@ -105,7 +105,7 @@ fn a_bound_hold_clears_an_earlier_retry_notice_and_keeps_committed_work() {
     assert_eq!(record.replies, replies);
     assert!(w.records.values().any(|row| matches!(row, Stored::Activity(row)
     if row.task == TASK && row.line == Line::RunEnded {
-        attempt: NEXT, end: EndKind::Failed { class: Class::Run }, spent: SPENT,
+        attempt: NEXT, end: EndKind::Failed { class: Class::Run, invalid_result: None }, spent: SPENT,
     })));
     past_backoff(&mut w);
     assert_eq!(w.record(TASK).phase, HELD);

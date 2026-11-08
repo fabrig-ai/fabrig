@@ -17,6 +17,10 @@ The browser boundary check remains later work (section 14).
   so the client can claim all watches are in use. The sign-in's distinct
   line does not cover this path (`../protocol/README.status.md`, 8.2).
 
+Section 6.1's run-ended text and JSON retain the invalid-result cause.
+The renderer tables distinguish each contract kind and unreadable result;
+task help explains both. No known gap remains in this diagnostic.
+
 Section 5.3 has no known implementation gap in settings files, the form,
 apply and show carrying ordered charter parts and a template's later
 choice. The decoder names malformed parts by their path before sending;
