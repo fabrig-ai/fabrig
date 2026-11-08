@@ -38,7 +38,7 @@ fn single(role: Role, submit: bool, disabled: bool) -> Tree {
     shown(b)
 }
 fn focus(tree: &Tree, at: u32) -> Focus {
-    Focus { node: Some(tree.get(at).expect("fixture node").id), caret: 3, scroll: 12, honoured: 7 }
+    Focus { node: Some(tree.get(at).expect("fixture node").id), caret: 3, scroll: 12, honoured: 7, ..Focus::default() }
 }
 fn input(value: &[u8], node: NodeId) -> Command {
     Command::Act { node, act: Act::Input { value: bytes::copy_of(value) } }
@@ -175,15 +175,36 @@ fn focus_walks_enabled_bound_controls_and_wraps_both_ends() {
     }
 }
 #[test]
+#[expect(clippy::disallowed_types, reason = "the diagnostic reports every paging row")]
+#[expect(clippy::disallowed_macros, reason = "failed paging rows share one diagnostic")]
+#[expect(clippy::use_debug, reason = "failed rows report the key, command and focus")]
 fn pages_scroll_and_control_c_closes_on_every_focus() {
+    use core::fmt::Write;
+    let mut failures = String::new();
     let tree = focus_tree();
+    for (rows, key, start, following, end, follow, wanted) in [
+        (0, Key::PageUp, 12, true, 11, false, Command::Moved),
+        (0, Key::PageDown, 12, true, 13, true, Command::Moved),
+        (1, Key::PageUp, 12, true, 11, false, Command::Moved),
+        (1, Key::PageDown, 12, true, 13, true, Command::Moved),
+        (10, Key::PageUp, 12, true, 3, false, Command::Moved),
+        (10, Key::PageDown, 12, true, 21, true, Command::Moved),
+        (10, Key::PageUp, 0, true, 0, false, Command::Moved),
+    ] {
+        let mut focus = Focus { scroll: start, rows, follow: following, ..Focus::default() };
+        let got = command(&key, &tree, &mut focus, &LIMITS);
+        if got != wanted || (focus.scroll, focus.follow) != (end, follow) {
+            writeln!(failures, "{key:?} rows {rows} start {start}: {got:?} {focus:?}").expect("diagnostic");
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
     for node in tree.nodes() {
         for (key, scroll, expected) in [
             (Key::PageUp, 3, Command::Moved),
             (Key::PageDown, 21, Command::Moved),
             (Key::Control(b'c'), 12, Command::Close),
         ] {
-            let mut focus = Focus { node: Some(node.id), scroll: 12, ..Focus::default() };
+            let mut focus = Focus { node: Some(node.id), scroll: 12, rows: 10, ..Focus::default() };
             assert_eq!(command(&key, &tree, &mut focus, &LIMITS), expected, "{key:?}, {:?}", node.role);
             assert_eq!(focus.scroll, scroll);
         }
@@ -194,7 +215,7 @@ fn pages_scroll_and_control_c_closes_on_every_focus() {
         (Key::PageDown, u32::MAX, u32::MAX, Command::Nothing),
         (Key::Control(b'c'), 0, 0, Command::Close),
     ] {
-        let mut focus = Focus { scroll: start, ..Focus::default() };
+        let mut focus = Focus { scroll: start, rows: 10, ..Focus::default() };
         assert_eq!(command(&key, &tree, &mut focus, &LIMITS), expected);
         assert_eq!(focus.scroll, end);
     }
@@ -344,4 +365,155 @@ fn disabled_and_noninteractive_focus_never_emit_acts() {
     ] {
         assert_eq!(command(&key, &empty, &mut Focus::default(), &LIMITS), Command::Nothing, "{key:?}");
     }
+}
+
+fn options(role: Role, text: &[u8], disabled: bool) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Form);
+    b.open(role);
+    b.name(b"Field");
+    b.value(text, 0);
+    b.bind(binding());
+    b.state(State::SubmitsOnEnter);
+    b.close();
+    b.open(Role::Menu);
+    b.state(State::Options);
+    for (name, disabled) in [(b"/model".as_slice(), disabled), (b"/new", true), (b"/help", disabled)] {
+        b.open(Role::MenuItem);
+        b.name(name);
+        b.bind(binding());
+        if disabled {
+            b.state(State::Disabled);
+        }
+        b.close();
+    }
+    b.close();
+    cancel(&mut b, false);
+    b.close();
+    b.close();
+    shown(b)
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "the diagnostic reports every options key row")]
+#[expect(clippy::disallowed_macros, reason = "failed options rows share one diagnostic")]
+#[expect(clippy::use_debug, reason = "failed rows report the key, command and focus")]
+fn fields_options_move_press_complete_and_keep_escape() {
+    use core::fmt::Write;
+    let mut failures = String::new();
+    for role in [Role::TextField, Role::TextArea] {
+        let tree = options(role, b"/", false);
+        let field = tree.get(2).expect("field").id;
+        let first = tree.get(4).expect("first item").id;
+        let last = tree.get(6).expect("last item").id;
+        let cancel = tree.get(7).expect("cancel").id;
+        for (key, active, wanted, next, caret) in [
+            (Key::Down, first, Command::Moved, last, 1),
+            (Key::Down, last, Command::Nothing, last, 1),
+            (Key::Up, last, Command::Moved, first, 1),
+            (Key::Up, first, Command::Nothing, first, 1),
+            (Key::Enter, last, Command::Act { node: last, act: Act::Press }, last, 1),
+            (Key::Tab, last, input(b"/help", field), last, 5),
+            (Key::Escape, last, Command::Act { node: cancel, act: Act::Press }, last, 1),
+        ] {
+            let mut focus = Focus { node: Some(field), caret: 1, active: Some(active), ..Focus::default() };
+            let got = command(&key, &tree, &mut focus, &LIMITS);
+            if got != wanted || (focus.node, focus.active, focus.caret) != (Some(field), Some(next), caret) {
+                writeln!(failures, "{role:?} {key:?} active {active:?}: {got:?} {focus:?}").expect("diagnostic");
+            }
+        }
+        // Field's five name bytes plus /help's five bytes take ten bytes.
+        for (bound, wanted, caret) in [(10, input(b"/help", field), 5), (9, Command::Nothing, 1)] {
+            let mut focus = Focus { node: Some(field), caret: 1, active: Some(last), ..Focus::default() };
+            let limits = Limits { text_per_node: bound, ..LIMITS };
+            let got = command(&Key::Tab, &tree, &mut focus, &limits);
+            if got != wanted || focus.caret != caret || focus.node != Some(field) {
+                writeln!(failures, "{role:?} completion bound {bound}: {got:?} {focus:?}").expect("diagnostic");
+            }
+        }
+        let tree = options(role, b"different", false);
+        let mut focus = Focus {
+            node: Some(tree.get(2).expect("field").id),
+            active: Some(tree.get(6).expect("item").id),
+            ..Focus::default()
+        };
+        if command(&Key::Tab, &tree, &mut focus, &LIMITS) != Command::Moved
+            || focus.node != Some(tree.get(4).expect("first item").id)
+            || focus.active.is_some()
+        {
+            writeln!(failures, "{role:?} unmatched Tab: {focus:?}").expect("diagnostic");
+        }
+        let tree = options(role, b"/", true);
+        let field = tree.get(2).expect("field").id;
+        let cancel = tree.get(7).expect("cancel").id;
+        for (key, wanted, next) in [
+            (Key::Down, Command::Moved, cancel),
+            (Key::Up, Command::Moved, cancel),
+            (Key::Tab, Command::Moved, cancel),
+            (Key::Enter, Command::Act { node: field, act: Act::Submit }, field),
+            (Key::Escape, Command::Act { node: cancel, act: Act::Press }, field),
+        ] {
+            let mut focus = Focus { node: Some(field), ..Focus::default() };
+            let got = command(&key, &tree, &mut focus, &LIMITS);
+            if got != wanted || focus.node != Some(next) || focus.active.is_some() {
+                writeln!(failures, "{role:?} all disabled {key:?}: {got:?} {focus:?}").expect("diagnostic");
+            }
+        }
+    }
+    let tree = options_scopes();
+    for (field, target) in
+        [(b"Outer".as_slice(), b"Outer item".as_slice()), (b"Inner", b"Inner item"), (b"Nearest", b"Nearest item")]
+    {
+        let field = named(&tree, field);
+        let target = named(&tree, target);
+        let mut focus = Focus { node: Some(field), ..Focus::default() };
+        let got = command(&Key::Enter, &tree, &mut focus, &LIMITS);
+        if got != (Command::Act { node: target, act: Act::Press }) || focus.node != Some(field) {
+            writeln!(failures, "scoped field {field:?}: {got:?} {focus:?}").expect("diagnostic");
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
+}
+
+fn named(tree: &Tree, name: &[u8]) -> NodeId {
+    for node in tree.nodes() {
+        if node.name.as_deref() == Some(name) {
+            return node.id;
+        }
+    }
+    unreachable!("named fixture node exists")
+}
+
+fn options_scopes() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Form);
+    scoped_field(&mut b, b"Outer");
+    b.open(Role::Form);
+    scoped_field(&mut b, b"Inner");
+    scoped_menu(&mut b, b"Inner item");
+    b.close();
+    // The closed inner form's field does not belong to this menu.
+    scoped_menu(&mut b, b"Outer item");
+    scoped_field(&mut b, b"Nearest");
+    scoped_menu(&mut b, b"Nearest item");
+    b.close();
+    b.close();
+    shown(b)
+}
+fn scoped_field(b: &mut Builder, name: &[u8]) {
+    b.open(Role::TextField);
+    b.name(name);
+    b.bind(binding());
+    b.close();
+}
+fn scoped_menu(b: &mut Builder, name: &[u8]) {
+    b.open(Role::Menu);
+    b.state(State::Options);
+    b.open(Role::MenuItem);
+    b.name(name);
+    b.bind(binding());
+    b.close();
+    b.close();
 }

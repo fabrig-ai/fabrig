@@ -101,6 +101,8 @@ pub struct Theme {
     pub base: Paint,
     pub focus: Paint,
     pub placeholder: Paint,
+    /// A band across an options menu's active item, beneath the focus paint.
+    pub active: Paint,
     pub regions: Box<[RegionLook]>,
     pub styles: Box<[StyleLook]>,
     pub glyphs: Glyphs,

@@ -34,6 +34,7 @@ pub fn theme() -> Theme {
         base: Paint::NONE,
         focus: Paint { reverse: true, ..Paint::NONE },
         placeholder: Paint { dim: true, ..Paint::NONE },
+        active: BAND_PAINT,
         regions: Box::new([
             RegionLook {
                 region: TOP,
@@ -572,6 +573,82 @@ pub fn end_title() -> Tree {
     b.open(Role::Text);
     b.style(END);
     b.text(Run::Plain, b"long end");
+    b.close();
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+// Thirty one-line log entries and a three-row bottom field expose nine body rows.
+pub fn following(entries: u32, request: Option<u64>, continues: bool, body_focus: bool) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Log);
+    if let Some(request) = request {
+        b.end_request(request);
+    }
+    if continues {
+        b.state(State::Continues);
+    }
+    if body_focus {
+        button(&mut b, b"Before");
+    }
+    for entry in 1..=entries {
+        leaf(&mut b, Role::Paragraph, skein_lib::Decimal::of(u64::from(entry)).as_bytes());
+    }
+    b.close();
+    b.open(Role::Region);
+    b.region(RULES);
+    b.open(Role::TextField);
+    b.name(b"Ask");
+    b.value(b"", 0);
+    b.bind(binding());
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn options(disabled_second: bool, omit_second: bool, descriptions: bool) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    leaf(&mut b, Role::Paragraph, b"Conversation");
+    b.open(Role::Region);
+    b.region(RULES);
+    b.open(Role::Form);
+    b.open(Role::TextField);
+    b.name(b"Command");
+    b.value(b"/", 0);
+    b.bind(binding());
+    b.close();
+    b.open(Role::Menu);
+    b.state(State::Options);
+    for (name, description, selected, disabled) in [
+        (b"/model".as_slice(), b"Change the model".as_slice(), false, false),
+        (b"/new", b"Start a new chat\nNot this line", true, disabled_second),
+        (b"/chats", b"Open another chat", false, true),
+        (b"/theme", b"Dark or light", false, false),
+        (b"/help", b"Commands and keys", false, false),
+    ] {
+        if omit_second && selected {
+            continue;
+        }
+        b.open(Role::MenuItem);
+        b.name(name);
+        b.bind(binding());
+        if descriptions {
+            b.description(description);
+        }
+        if selected {
+            b.state(State::Selected);
+        }
+        if disabled {
+            b.state(State::Disabled);
+        }
+        b.style(RED);
+        b.close();
+    }
     b.close();
     b.close();
     b.close();

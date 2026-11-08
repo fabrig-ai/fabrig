@@ -691,6 +691,21 @@ impl Canvas {
     }
 }
 
+/// The sanitized width, saturated at the widest possible row.
+pub(super) fn text_width(bytes: &[u8]) -> u16 {
+    let mut cells = 0_u16;
+    let mut next = 0;
+    for at in 0..bytes.len() {
+        if at < next {
+            continue;
+        }
+        let (glyph, length) = decode(bytes.get(at..).expect("text offset exists"));
+        next = at.saturating_add(length);
+        cells = cells.saturating_add(u16::from(width(glyph)));
+    }
+    cells
+}
+
 /// One malformed byte becomes one replacement; no decoded text is collected.
 fn decode(bytes: &[u8]) -> (char, usize) {
     let Some(lead) = bytes.first().copied() else { return ('\u{fffd}', 0) };
