@@ -40,9 +40,8 @@ Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers neither configuring chat nor Ask temper
-on Settings. The opening retains the configuring page's starters and
-reference, as the renamed-page draft specifies. The post-landing walk,
-M3b's views and preferences remain section 11's work.
+on Settings. The post-landing walk, M3b's views and preferences remain
+section 11's work.
 
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
@@ -53,9 +52,39 @@ with the project's policy joined where a way's `delegation` holds, offers
 "Keep it" only while To begin's first step is left. A turn's and a chat
 document's top-level `view` blocks are split out, read through `View` and
 redrawn at a newer revision, drawn as temper's path drawing kind with a
-stop a line as the terminal's fallback. Ask temper's page draws no ways,
-tabs or acts: that is the look request `ask-temper-ways`'s, as 5.13 says
-(section 11). Rendered comparison of the drawing follows landing.
+stop a line as the terminal's fallback.
+
+Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
+have no known gap in Ask temper's opening, by the look request
+`ask-temper-ways` (its account `473ce6d2fe`): no heading, the lede, the
+ways' tabs in the read's order with the current one's "now", the axis,
+the shown way's line, its path laid out across or down the page by the
+box's width with its stops pressed, a stop's card from the read with its
+caret across, the legend and "Use this" or "Keep it", disabled while out,
+with a refusal in jig's words and a toast naming the revision. The tab
+shown and the open stop are the page's state on `StockWays`. The
+starters, temper's own way's card and the reference's pane, act and
+mode are gone, and the client compiles no reference. The opening's
+rendered comparison and walk remain section 11's after-landing work.
+
+- **Design departs:** 3.5 and 5.16, from the request `ask-temper-ways` of
+  2026-11-08, decided by its plan's cut, as 5.16 and `browser.md`, 2.5
+  give the reasons:
+  - one drawing laid out by the box's width, down the page under 560 px
+    or where its stops would stand closer than 48, where the request's
+    page holds two SVGs toggled at a 760 px window;
+  - the line in two tones, the signal's faint one above the dotted line
+    and the line's below, where the request fades it, since a scene
+    carries no gradient;
+  - the card's caret drawn by the scene under the open stop, the card
+    following with no gap, where the request places a `::before` by a
+    percentage, the card 14 px under the path;
+  - a stop a group with no ARIA, the fallback's buttons taking the
+    keyboard and carrying Expanded, where the request's stop has
+    `role="button"`, `tabindex` and `aria-expanded`, and its
+    `:focus-visible` rules;
+  - only the shown way's panel and an open card in the tree, where the
+    request's page hides the others.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -78,7 +107,8 @@ order, and a second TUI by the next local link (section 10). The base
 uses the terminal's default colours,
 focus uses the accent, active command names are plain while inactive names
 and question choices stay bold, and the run chooses its scheme from COLORFGBG,
-else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
+else OSC 11 with a 200 ms wait, else dark, before Start, asking the
+background at every start and carrying the answer in Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
 roots, the launchpad without input, no approval request and
@@ -93,6 +123,24 @@ implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
 The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+
+Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
+the look request `tui-chat-title-below` have no known implementation gap:
+the binary reads the engine's link file at start whatever the address,
+for `Start.boxed`; `place` words the engine's place; the band is the
+answered background moved by `BAND_STEP`, with the person's words dim
+after an accent "❯" where none answered, and the palette has no `sel`;
+up to three left-off chats take Up, Down, Enter and Esc while the
+launchpad's box is empty, before skein's key reader; `/effort` is offered
+on the launchpad wherever `/model` is; `tui-bullets` draws a Markdown
+bullet "•"; and a chat's title, cut to 20 characters, its number and the
+place lie in the rule above the box, the top line, `tui-chat-top` and
+`tui-star` gone. View, theme, place, host and golden rows cover each, in
+both schemes and with and without a band. `launchpad-chat` shows the rule
+with its address as the place and lacks its opening question until
+finding-465's repair (`tui/journeys.status.md`, 9). The real-terminal look
+of each, "box" among them, is section 11's after-landing check, owned by
+temper/tui.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
@@ -292,8 +340,7 @@ geometry, with no passing runtime result supplied here (`browser.status.md`,
   four-line box by rule; its rendered height remains section 11's
   after-landing comparison.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
-  the offer, effort choice, Ask temper's chooser and connected-account
-  starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
+  the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
 
@@ -544,27 +591,11 @@ read's head explicit.
   An agent's task's Close is drawn at each width by its gallery state, the walk of the
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
-- **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
-  or "Start from it", and no test presses them on a box: the view's tests and the gallery's
-  `ask-reference` and `ask-reference-draft` alone draw them. The walk of the request
-  `ui-walk-3` pressed both at each width, on a first project and a fresh one, by hand. The fake model
-  answers their words with its fallback, so no walk on record has an Ask temper run
-  follow them.
-- **Design departs:** 3.5, *Ask temper's page* and *temper's own way, beside the page*,
-  from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture and the table's Workers and QA stand in
-  `../draft/own-way.status.md`. Beside them:
-  - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
-    has them, where the request's page has a small level 3 title over large level 2 sections;
-  - its section 3 says of a goal's branch "whose tests run along the way", where the request has
-    it checked "by CI and a review on the way": the reference's goal branches have neither
-    (`../draft/reference-code-production.md`, sections 6 and 10);
-  - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
-    skein's reader draws no row header;
+- **Design departs:** 3.5, *Ask temper's page*, from the request
+  `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
+  request's plan's cut:
   - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
     rule reaches every chat; a phone keeps its 20 and 16;
-  - the card's steps are a list with no marker and the pane a region of slots, where the request's
-    page has an `ol`, an `article` and `section`s;
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
@@ -703,9 +734,9 @@ read's head explicit.
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
 - **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
-  decided by its plan's cut: a starter's or a suggested request's press asks for the composer's focus on a phone too,
+  decided by its plan's cut: a suggested request's press asks for the composer's focus on a phone too,
   where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
-  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
+  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for it and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
 - **Not yet:** 3.5:

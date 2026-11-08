@@ -109,7 +109,7 @@ fn path(b: &mut Builder, path: &w::BranchPath, label: &[u8], address: &[u8], wor
         };
         stops.push(paths::Stop { mark, words: stop.words() }).expect("wire bounds path stops");
     }
-    if paths::path(b, label, stops.as_slice()).is_err() {
+    if paths::path(b, label, stops.as_slice(), None).is_err() {
         failed(b, address, words);
     }
 }

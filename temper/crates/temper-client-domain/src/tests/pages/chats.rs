@@ -162,7 +162,6 @@ fn a_chat_started_by_sending_opens_asking_for_its_composer() {
         (Address::NewChat { draft: false }, Some(Act::StartChat)),
         (Address::NewChat { draft: true }, Some(Act::StartChat)),
         (Address::Ask { project: fixtures::PROJECT }, Some(Act::StartChat)),
-        (Address::Ask { project: fixtures::PROJECT }, Some(Act::Starter { words: b"Hello".as_slice().into() })),
         (Address::NewChat { draft: false }, None),
     ] {
         let mut page = Page::new(asking_me(), address.clone());
@@ -193,72 +192,34 @@ fn a_chat_opened_otherwise_asks_for_nothing() {
 }
 
 #[test]
-fn a_starter_starts_once_with_its_words() {
-    use crate::{Address, pages::Act};
-    let me = asking_me();
-    let charter = ASKING;
-    let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
-    page.words(b"Unsent draft");
-    page.act(Act::Starter { words: b"My starter".as_slice().into() });
-    page.act(Act::Starter { words: b"Another starter".as_slice().into() });
-    page.act(Act::StartChat);
-    let task = page.task();
-    assert_eq!(task.executor, Executor::Agent { charter });
-    assert_eq!(task.spec.words.bytes(), b"My starter");
-    assert_eq!(page.pages.chats().expect("chats").words.as_ref(), b"My starter");
-    assert!(page.pages.chats().expect("chats").start.is_some());
-}
-
-#[test]
-fn starters_outside_ask_do_nothing() {
-    use crate::{Address, pages::Act};
-    for address in [
-        Address::Home { project: fixtures::PROJECT },
-        Address::Chats { filter: ChatsFilter::All },
-        Address::Settings { project: fixtures::PROJECT },
-    ] {
-        let mut page = Page::new(asking_me(), address);
-        page.words(b"Unsent draft");
-        page.act(Act::Starter { words: b"My starter".as_slice().into() });
-        assert!(page.out.is_empty());
-        if let Some(chats) = page.pages.chats() {
-            assert_eq!(chats.words.as_ref(), b"Unsent draft");
-            assert!(chats.start.is_none());
-        }
-    }
-}
-
-#[test]
 fn a_refused_start_keeps_the_words() {
     use crate::{Address, pages::Act};
-    for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
-        let mut me = asking_me();
-        me.projects.get_mut(0).expect("project").creating = None;
-        let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
-        page.words(b"My workflow");
-        page.act(act.clone());
-        let chats = page.pages.chats().expect("chats");
-        assert_eq!(chats.refusal, Some(jig_client::shapes::NotOffered::Creating));
-        assert_eq!(chats.words.as_ref(), b"My workflow");
-        assert!(chats.start.is_none());
-        assert!(page.out.is_empty());
+    let mut me = asking_me();
+    me.projects.get_mut(0).expect("project").creating = None;
+    let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
+    page.words(b"My workflow");
+    page.act(Act::StartChat);
+    let chats = page.pages.chats().expect("chats");
+    assert_eq!(chats.refusal, Some(jig_client::shapes::NotOffered::Creating));
+    assert_eq!(chats.words.as_ref(), b"My workflow");
+    assert!(chats.start.is_none());
+    assert!(page.out.is_empty());
 
-        let mut page = Page::new(asking_me(), Address::Ask { project: fixtures::PROJECT });
-        page.words(b"My workflow");
-        page.act(act);
-        let key = page.pages.chats().expect("chats").start.expect("start");
-        while page.out.pop().is_some() {}
-        let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused {
-            refusal: Refusal::NotOffered,
-            at: None,
-        }));
-        page.event(crate::pages::Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
-        let chats = page.pages.chats().expect("chats");
-        assert_eq!(chats.outcome, Some(outcome));
-        assert_eq!(chats.words.as_ref(), b"My workflow");
-        assert!(chats.start.is_none());
-        assert!(page.out.is_empty());
-    }
+    let mut page = Page::new(asking_me(), Address::Ask { project: fixtures::PROJECT });
+    page.words(b"My workflow");
+    page.act(Act::StartChat);
+    let key = page.pages.chats().expect("chats").start.expect("start");
+    while page.out.pop().is_some() {}
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused {
+        refusal: Refusal::NotOffered,
+        at: None,
+    }));
+    page.event(crate::pages::Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
+    let chats = page.pages.chats().expect("chats");
+    assert_eq!(chats.outcome, Some(outcome));
+    assert_eq!(chats.words.as_ref(), b"My workflow");
+    assert!(chats.start.is_none());
+    assert!(page.out.is_empty());
 }
 
 fn llm(model: &[u8]) -> LlmChoice {
@@ -305,20 +266,18 @@ fn a_start_from_ask_keeps_its_templates_models() {
         (true, None, true),
         (true, Some(llm(b"unoffered")), false),
     ] {
-        for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
-            let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
-            page.words(b"My workflow");
-            assert_eq!(page.pages.choice.requested, Some(expected.clone()));
-            if edited {
-                page.pages.choice.requested = requested.clone();
-            }
-            assert_eq!(page.pages.choice.valid(&me), valid);
-            page.act(act);
-            if valid {
-                assert_eq!(page.task().llm, requested);
-            } else {
-                assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
-            }
+        let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
+        page.words(b"My workflow");
+        assert_eq!(page.pages.choice.requested, Some(expected.clone()));
+        if edited {
+            page.pages.choice.requested = requested.clone();
+        }
+        assert_eq!(page.pages.choice.valid(&me), valid);
+        page.act(Act::StartChat);
+        if valid {
+            assert_eq!(page.task().llm, requested);
+        } else {
+            assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
         }
     }
 }
@@ -1253,59 +1212,6 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
     }
     assert_eq!(count, 1, "one chips watch for both lists");
     assert_eq!(watched.unwrap().as_slice(), [120, 110], "newest chat, then lower-numbered tie");
-}
-
-#[test]
-#[expect(clippy::disallowed_macros, reason = "ordinary test snapshots page state apart from its render counter")]
-fn reference_opens_only_at_ask_without_a_request() {
-    use crate::{
-        Address,
-        pages::{Act, chat::document::Mode},
-    };
-    for address in [
-        Address::Ask { project: fixtures::PROJECT },
-        Address::NewChat { draft: false },
-        Address::Chats { filter: ChatsFilter::All },
-        Address::Home { project: fixtures::PROJECT },
-        Address::Chat { task: fixtures::acts::TASK },
-    ] {
-        let mut page = Page::new(asking_me(), address.clone());
-        let reference = match page.pages.chats() {
-            Some(chats) => chats.reference,
-            None => None,
-        };
-        assert_eq!(reference, None);
-        let before = format!("{:?}", (page.pages.chats(), page.pages.chat(), page.pages.task()));
-        if let Address::Ask { .. } = address {
-            page.act(Act::Mode { mode: Mode::Draft });
-            assert_eq!(page.pages.chats().unwrap().reference, None);
-            assert!(page.out.is_empty());
-        }
-        page.act(Act::ShowReference);
-        assert!(page.out.is_empty(), "{address:?}");
-        if let Address::Ask { .. } = address {
-            assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));
-            page.act(Act::ShowReference);
-            assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));
-            assert!(page.out.is_empty());
-            for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
-                page.act(Act::Mode { mode });
-                let chats = page.pages.chats().unwrap();
-                assert_eq!(chats.reference, Some(mode));
-                assert!(chats.start.is_none());
-                assert!(page.out.is_empty());
-            }
-            page.event(crate::pages::Event::Went { address: Address::NewChat { draft: false } });
-            page.event(crate::pages::Event::Went { address });
-            assert_eq!(page.pages.chats().unwrap().reference, None);
-        } else {
-            assert_eq!(
-                format!("{:?}", (page.pages.chats(), page.pages.chat(), page.pages.task())),
-                before,
-                "{address:?}"
-            );
-        }
-    }
 }
 
 #[test]

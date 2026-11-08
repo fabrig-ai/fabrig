@@ -3,6 +3,10 @@
 use temper_fixtures::client_documents as documents;
 mod chat_work;
 mod views;
+mod ways;
+pub(super) fn ways_world(name: &str) -> Domain {
+    ways::world(name)
+}
 pub(super) fn view_world(name: &str) -> Domain {
     views::world(name)
 }
@@ -411,7 +415,7 @@ fn world_in_layout(
     copies: bool,
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
-    let to_begin = settings == Some("ask-first-run");
+    let to_begin = settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
@@ -436,6 +440,7 @@ fn world_in_layout(
     let mut forge_watch = None;
     let mut accounts_watch = None;
     let mut settings_chat_watch = None;
+    let mut settings_watch = None;
     let settings_chat = settings.filter(|name| name.starts_with("ask-chat-"));
     let mut playground_read = false;
     // Every response answers an open/read, including the playground family read.
@@ -463,6 +468,10 @@ fn world_in_layout(
                             }
                             if settings_chat.is_some() {
                                 settings_chat_frame(&mut me);
+                            }
+                            if settings == Some("ask-ways-member") {
+                                me.projects.get_mut(0).expect("ways project").role = c::HeldRole::Member;
+                                me.deployment_role = None;
                             }
                             if let Then::Hosts { role: false, .. } = then {
                                 me.deployment_role = None;
@@ -593,12 +602,15 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Deployment(Box::new(doc)))
                         }
-                        c::Subject::Settings => Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
-                            newest: 0,
-                            settings: List::with_capacity(0),
-                            held: List::with_capacity(0),
-                            pending: List::with_capacity(0),
-                        }))),
+                        c::Subject::Settings => {
+                            settings_watch = Some(watch);
+                            Some(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                                newest: 0,
+                                settings: List::with_capacity(0),
+                                held: List::with_capacity(0),
+                                pending: List::with_capacity(0),
+                            })))
+                        }
                         c::Subject::Chips { tasks } if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
                             let mut chips = List::with_capacity(tasks.len());
                             for number in &tasks {
@@ -845,6 +857,10 @@ fn world_in_layout(
                             }
                             continue;
                         }
+                        w::Watch::Ways(subject) if asking && !asking_chat => {
+                            ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Landing(_)
                         | w::Watch::Landings(_)
@@ -892,6 +908,9 @@ fn world_in_layout(
         && !name.starts_with("ask-chat-proposal")
     {
         finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
+    }
+    if let Some(name) = settings.filter(|name| name.starts_with("ask-ways-")) {
+        ways::press(&mut root, name, settings_watch.expect("ways settings watch"), &mut out);
     }
     (root, accounts_watch)
 }
