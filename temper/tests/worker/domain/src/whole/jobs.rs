@@ -155,6 +155,7 @@ impl World {
                 self.owed.push_back(Event::Done { owner, done });
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
+            Request::Link(host::LinkUp::Draining) => {}
             Request::Stop => self.stops += 1,
             Request::ReadList { .. }
             | Request::CancelRead { .. }

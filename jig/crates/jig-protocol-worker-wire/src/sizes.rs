@@ -133,6 +133,7 @@ pub fn largest_body(sizes: &Sizes, kind: Kind) -> Option<u32> {
 
 fn body(limits: &v9::Limits, kind: Kind) -> Option<u32> {
     let bytes = match kind {
+        Kind::Draining => v9::Draining::encoded_bound(limits),
         Kind::Hello => v9::Hello::encoded_bound(limits),
         Kind::Turn => v9::Turn::encoded_bound(limits),
         Kind::Call => v9::Call::encoded_bound(limits),
@@ -204,10 +205,11 @@ pub fn worker_cap(sizes: &Sizes) -> Option<WorkerCap> {
         .checked_add(frame(&limits, Kind::AccountRefused)?)?;
     let mut bytes = frame(&limits, Kind::Hello)?.checked_add(sizes.slots.checked_mul(run)?)?;
     bytes = bytes.checked_add(sizes.accounts.checked_mul(notices)?)?;
+    bytes = bytes.checked_add(frame(&limits, Kind::Draining)?)?;
     // LongDone is the shortest fact: task + attempt + value tag + header.
     let fact_frames = sizes.facts / 25;
     let run_frames = sizes.turns.checked_add(1)?.checked_add(sizes.calls)?;
-    let mut frames = 1_u32.checked_add(sizes.slots.checked_mul(run_frames)?)?;
+    let mut frames = 2_u32.checked_add(sizes.slots.checked_mul(run_frames)?)?;
     frames = frames.checked_add(sizes.accounts.checked_mul(3)?)?.checked_add(fact_frames)?;
     bytes = bytes
         .checked_add(frame(&limits, Kind::Logins)?)?

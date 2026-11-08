@@ -3,14 +3,22 @@ use super::{config, server_name, service, trust};
 use skein_lib::List;
 use skein_oauth_accounts as driver;
 
-pub(super) fn resolve(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
+/// A sign-in host that did not resolve at start (temper/docs/design/protocol/configuration.md,
+/// section 2): loopback port 0, which no listener can hold, so its exchanges fail at their connect.
+const HELD: std::net::SocketAddr =
+    std::net::SocketAddr::V4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::LOCALHOST, 0));
+
+pub(super) fn resolve(
+    engine: &config::Engine,
+    lookup: fn(&str, u16) -> Option<std::net::SocketAddr>,
+) -> Result<service::AccountsRuntime, String> {
     let mut runtime = service::AccountsRuntime {
         trust: None,
         providers: List::with_capacity(u32::try_from(engine.llm.providers.len()).expect("provider count")),
     };
     for provider in &engine.llm.providers {
         let Some(registration) = &provider.sign_in else { continue };
-        let endpoint = endpoint(&registration.token, &registration.endpoint_transport)?;
+        let endpoint = endpoint(&registration.token, &registration.endpoint_transport, lookup)?;
         let mut origins = List::<driver::Origin>::with_capacity(3);
         for uri in [Some(&*registration.issuer), Some(&*registration.keys), registration.revocation.as_deref()]
             .into_iter()
@@ -23,7 +31,7 @@ pub(super) fn resolve(engine: &config::Engine) -> Result<service::AccountsRuntim
             origins
                 .push(driver::Origin {
                     uri: origin.into(),
-                    endpoint: endpoint_for_origin(origin, &registration.endpoint_transport)?,
+                    endpoint: endpoint_for_origin(origin, &registration.endpoint_transport, lookup)?,
                 })
                 .expect("three configured origins");
         }
@@ -52,12 +60,19 @@ fn origin(uri: &[u8]) -> Result<(&[u8], u16), String> {
         uri[start..].iter().position(|byte| matches!(byte, b'/' | b'?' | b'#')).map_or(uri.len(), |at| start + at);
     Ok((&uri[..end], port))
 }
-fn endpoint(uri: &[u8], configured: &config::Transport) -> Result<driver::Endpoint, String> {
+fn endpoint(
+    uri: &[u8],
+    configured: &config::Transport,
+    lookup: fn(&str, u16) -> Option<std::net::SocketAddr>,
+) -> Result<driver::Endpoint, String> {
     let (origin, _) = origin(uri)?;
-    endpoint_for_origin(origin, configured)
+    endpoint_for_origin(origin, configured, lookup)
 }
-fn endpoint_for_origin(uri: &[u8], configured: &config::Transport) -> Result<driver::Endpoint, String> {
-    use std::net::ToSocketAddrs;
+fn endpoint_for_origin(
+    uri: &[u8],
+    configured: &config::Transport,
+    lookup: fn(&str, u16) -> Option<std::net::SocketAddr>,
+) -> Result<driver::Endpoint, String> {
     let (_, port) = origin(uri)?;
     let authority =
         std::str::from_utf8(uri).map_err(|why| why.to_string())?.split_once("://").expect("checked scheme").1;
@@ -74,10 +89,6 @@ fn endpoint_for_origin(uri: &[u8], configured: &config::Transport) -> Result<dri
     } else {
         (authority, port)
     };
-    let address = (host, port)
-        .to_socket_addrs()
-        .map_err(|why| why.to_string())?
-        .next()
-        .ok_or("sign-in endpoint has no address")?;
+    let address = lookup(host, port).unwrap_or(HELD);
     Ok(driver::Endpoint { address, transport: transport(configured)? })
 }

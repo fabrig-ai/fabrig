@@ -753,3 +753,16 @@ fn list_answers_decode_rows_and_every_failure() {
         assert_eq!(up(decoded), jig_domain_host::LinkUp::ListRead { read: 7, outcome });
     }
 }
+
+#[test]
+fn an_empty_draining_record_becomes_the_hubs_draining_notice() {
+    use jig_protocol_worker_wire as wire;
+    let limits = codec();
+    let record = wire::Draining::new(&limits, wire::DrainingParts {}).expect("draining");
+    let mut bytes = skein_lib::Writer::new(0);
+    record.encode(&mut bytes).expect("empty encoding");
+    let bytes = bytes.finish();
+    let decoded = translate::decode(wire::Kind::Draining.number(), &bytes, &limits).expect("draining record");
+    assert_eq!(up(decoded), jig_domain_host::LinkUp::Draining);
+    assert!(translate::decode(wire::Kind::Draining.number(), &[0], &limits).is_none());
+}

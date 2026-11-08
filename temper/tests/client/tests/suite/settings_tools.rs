@@ -329,7 +329,6 @@ fn ctl_accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u
 }
 
 #[test]
-#[ignore = "temper/docs/design/protocol/configuration.md, 13.2 and 13.4: a restored shared project default loses its retained state at restart"]
 fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let mut world = restore_world();
     let agent = fixtures::agent(&mut world);

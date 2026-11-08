@@ -120,15 +120,7 @@ unknown-proposal explanation; the generated help states the same limit.
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone; the
-  joined story of a settings file of each kind proposed, shown, accepted
-  and restored (`tests/client`'s `settings_tools.rs`,
-  `each_kind_through_ctl_proposed_shown_accepted_and_restored`),
-  ignored: it passes up to its restart, where a project's rule 1 reset to
-  the every-project default, which the forge does not report to jig,
-  loses its retained state (`../protocol/configuration.md`, 13.2 and 13.4;
-  jig's `domain/engine.md`, 17.5; `../protocol/configuration.status.md`);
-  the joint component correlates
+  FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
   forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
