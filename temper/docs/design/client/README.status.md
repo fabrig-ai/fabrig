@@ -40,9 +40,8 @@ Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers neither configuring chat nor Ask temper
-on Settings. The opening retains the configuring page's starters and
-reference, as the renamed-page draft specifies. The post-landing walk,
-M3b's views and preferences remain section 11's work.
+on Settings. The post-landing walk, M3b's views and preferences remain
+section 11's work.
 
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
@@ -53,9 +52,39 @@ with the project's policy joined where a way's `delegation` holds, offers
 "Keep it" only while To begin's first step is left. A turn's and a chat
 document's top-level `view` blocks are split out, read through `View` and
 redrawn at a newer revision, drawn as temper's path drawing kind with a
-stop a line as the terminal's fallback. Ask temper's page draws no ways,
-tabs or acts: that is the look request `ask-temper-ways`'s, as 5.13 says
-(section 11). Rendered comparison of the drawing follows landing.
+stop a line as the terminal's fallback.
+
+Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
+have no known gap in Ask temper's opening, by the look request
+`ask-temper-ways` (its account `473ce6d2fe`): no heading, the lede, the
+ways' tabs in the read's order with the current one's "now", the axis,
+the shown way's line, its path laid out across or down the page by the
+box's width with its stops pressed, a stop's card from the read with its
+caret across, the legend and "Use this" or "Keep it", disabled while out,
+with a refusal in jig's words and a toast naming the revision. The tab
+shown and the open stop are the page's state on `StockWays`. The
+starters, temper's own way's card and the reference's pane, act and
+mode are gone, and the client compiles no reference. The opening's
+rendered comparison and walk remain section 11's after-landing work.
+
+- **Design departs:** 3.5 and 5.16, from the request `ask-temper-ways` of
+  2026-11-08, decided by its plan's cut, as 5.16 and `browser.md`, 2.5
+  give the reasons:
+  - one drawing laid out by the box's width, down the page under 560 px
+    or where its stops would stand closer than 48, where the request's
+    page holds two SVGs toggled at a 760 px window;
+  - the line in two tones, the signal's faint one above the dotted line
+    and the line's below, where the request fades it, since a scene
+    carries no gradient;
+  - the card's caret drawn by the scene under the open stop, the card
+    following with no gap, where the request places a `::before` by a
+    percentage, the card 14 px under the path;
+  - a stop a group with no ARIA, the fallback's buttons taking the
+    keyboard and carrying Expanded, where the request's stop has
+    `role="button"`, `tabindex` and `aria-expanded`, and its
+    `:focus-visible` rules;
+  - only the shown way's panel and an open card in the tree, where the
+    request's page hides the others.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -311,8 +340,7 @@ geometry, with no passing runtime result supplied here (`browser.status.md`,
   four-line box by rule; its rendered height remains section 11's
   after-landing comparison.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
-  the offer, effort choice, Ask temper's chooser and connected-account
-  starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
+  the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
 
@@ -706,9 +734,9 @@ read's head explicit.
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
 - **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
-  decided by its plan's cut: a starter's or a suggested request's press asks for the composer's focus on a phone too,
+  decided by its plan's cut: a suggested request's press asks for the composer's focus on a phone too,
   where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
-  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
+  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for it and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
 - **Not yet:** 3.5:

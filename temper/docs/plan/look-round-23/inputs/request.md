@@ -1,45 +1,24 @@
-# look-ask-ways: Ask temper's opening as ways to pick, drawn
+# look-round-23: the ways page's render-check misses
 
-Step 4 of `temper/docs/design/draft/stock-ways.md`'s section 7: the look request `Look-request: ask-temper-ways` on `origin/look-requests`, found by its trailer. Its whole message is the request, "States the pages do not show" and "Before it lands" above all. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5. The user's word of 2026-11-08: it works for real, with every prerequisite in place, and no row of its account is deferred. Those prerequisites are now on main:
-- section 3 (`ui-ways-rules`);
-- sections 4 to 6, the `ways` read, the derived paths and the views (`ui-ask-m3a`);
-- a box owner's link on the owned Forgejo (finding-444's repair).
+A look plan: the render check after `look-ask-ways` landed, for `Look-request: ask-temper-ways` on `origin/look-requests`, found by its trailer. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5. Everything else passes: the opening, the order, "now", the words, the live acts ("Use this", the refusal, "Keep it", "Yours"), the paths derived from the settings, and the phone's vertical path.
 
-## What it builds
+## Tasks
 
-Every state the message names:
-- no heading, and the lede alone;
-- the three tabs in one control, ordered from more of you to more of your agents, the current one marked "now";
-- each tab's line, its path drawn from the `ways` read (stops, marks, the line, main's bar, dimmer for a goal's branch), its legend and its acts;
-- on a phone, the path down the page;
-- a stop's card under the path, its caret at the stop, from the read;
-- "Use this" as jig's `ChangeSettings` of the read's items, with a toast naming the revision, and a refusal in words;
-- "Keep it", marking To begin's first step done while it's left;
-- "Yours" for a project matching no way;
-- no act for a person who may not change settings;
-- the terminal's path as text;
-- the opening gone after a first message;
-- what it replaces, gone.
+1. **No outline on the path's drawing.** Every stop's hit area, star, code square, main's bar and SVG label gains a 1 px ink stroke (`rgb(24,24,27)` by day, `rgb(250,250,250)` by night), which makes the labels look bold. It comes from skein's `[data-drawn] > svg :is(g,line,polyline,path,rect,circle,text)` (`skein/crates/skein-ui-bundle/skein-ui.css`, near line 25). The request has `stroke: none` on them. Fix it in temper's own rules for the path, scoped to it, leaving skein's rule as it is.
+2. **The gallery at 420 runs the path down the page,** as live does. Today it squeezes the 720×140 scene to 75 px high, with 8 px labels.
+3. **At 1000, the path scales as the request's does:** 658×127.94, not redrawn at 658×140. Today that puts the open card 12 px low.
+4. **The open card's spacing on a phone:** the request's 14 px gap above the card. Live it sits 14 px higher. The phone's caret stays hidden, as in the request.
+5. **A card shows its charter's first sentence whole,** as the request does: "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do." Today the 128-byte fact bound cuts it mid-word, at "…judge them against wh". Size that fact's bound to hold a first sentence. Past the bound, cut on a word with "…".
+6. **"Open the reviewer ›" opens the reviewer's charter,** not Settings' general How work runs. The same goes for every card's charter or rule link (`temper/crates/temper-client-view/src/pages/ask_page.rs`, near line 214).
+7. **The CI card names the repository's CI workflows,** as the request's unpictured states ask, not "the repository's CI" alone.
+8. **The terminal prints "Ways of working:" and "The way a change goes:" once each.** Today `temper open` repeats each.
 
-Nothing on the page is drawn by hand: every path, mark and card comes from the `ways` read. The tab and card switch in place, as the page's state.
-
-## Its tests
-
-Focused and fuzzy only:
-- the opening drawn from a `ways` read over a project with CI and both tiers, matching the request's three pages;
-- the same with neither, without "check" and the tiers' stops;
-- "Yours";
-- "Use this" refused for too few approvers, in words;
-- "Keep it" marking the step done;
-- no acts for a reader who may not change settings.
-
-A browser case is a row of an existing table test, within the cap of 12. Journeys that the opening's change makes stale are regenerated with `temper-client-journeys again`, as generation.
+A browser case is a row of an existing table test, within the cap of 12. The gallery's prints are regenerated as the common notes say.
 
 ## Sources
 
-- `temper/docs/design/draft/stock-ways.md`
 - `temper/docs/design/draft/look-requests.md`
-- `temper/docs/design/draft/ask-temper.md`
+- `temper/docs/design/draft/stock-ways.md`
 
 
 ## For every task of this plan

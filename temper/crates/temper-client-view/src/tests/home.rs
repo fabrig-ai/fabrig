@@ -1293,18 +1293,7 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
         absent(&text, "Shop has no repository yet.");
         absent(&text, "connected as");
     }
-    let mut root = d::unlinked(&f::domain_limits(), f::SEED);
-    drive(
-        &mut root,
-        d::Event::Start { address: Address::Home { project: f::PROJECT }, kept: List::with_capacity(0), with: None },
-    );
-    for event in [
-        jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
-        jig_client::Event::SignIn { with: jig_client::With::Transport },
-        jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-    ] {
-        drive(&mut root, d::Event::Client { event });
-    }
+    let root = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits()).0;
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let text = f::main_text(view.tree());
         absent(&text, "Adopt a repository");

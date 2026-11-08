@@ -802,8 +802,8 @@ keeps (`../protocol/configuration.md`, section 2).
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
     composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
-    from a new chat, its draft, `Ask`, a starter and a suggested request
-    alike. "Start goal" is none of these: it opens the goal's page, its heading
+    from a new chat, its draft, `Ask` and a suggested request alike.
+    "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
   - *Opened any other way,* its composer asks for nothing. From a list or a
     link, a new entry, the chat opens on its heading, so that a person reading
@@ -1462,8 +1462,9 @@ keeps (`../protocol/configuration.md`, section 2).
     where the document shows it.
   - *Its frame* is the top bar (5.1; the look request `outside-pages`):
     temper's mark, a link to `/` (named "temper"), temper box's line and
-    the steps alone: no person's name or "Sign
-    out", no project, navigation or link state, and no accounts' banner
+    the steps, then the top bar's right as on any other page outside a
+    project: the link region, and, signed in, the person's name and "Sign
+    out" (5.1). No project, navigation or switcher, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
     temper is for, in fixed words: "**temper box** · on this machine,
@@ -1472,7 +1473,8 @@ keeps (`../protocol/configuration.md`, section 2).
     (`temper/docs/help/server.md`), the welcome being a quick way to
     try temper, not a deployment's wizard (the user, 2026-11-04). Each
     step's heading is the page's level-1 heading.
-  - *Its steps,* at the frame's end, are a list named Steps of four links,
+  - *Its steps,* after temper box's line, before the top bar's right, are
+    a list named Steps of four links,
     each to its own step in every state: Welcome to `/welcome?at=welcome`,
     Forge, Model and Ready to their `?at=`, with no choice or way. They
     are the welcome's own, not the flows' list (5.2, A flow's parts), which
@@ -4339,9 +4341,16 @@ client removes no account and closes no chat of its own.
     prints it (6.4); the browser shows the region only while it says
     "Offline", so no "Signed out", "Connecting" or "Live" shows there.
     Until `me` is read, the top bar shows its mark alone, so that no
-    other frame shows before the first page. On `Welcome`, temper's mark alone until the
-    deployment's read answers, then temper box's line and the welcome's
-    steps after it (3.5, The welcome);
+    other frame shows before the first page. On `Welcome`, temper box's
+    line and the welcome's steps follow the mark once the deployment's
+    read answers; its right is as on every other page, before that read
+    too (3.5, The welcome);
+  - *while `me` is read,* the top bar alone, at every address but the
+    sign-in page, the `Authorize` and approval places and the pages not
+    about the work (below), which draw without `me`: no banner, an empty
+    main marked busy and no tab bar, and the browser's terminal look waits
+    too, so that no page's body shows before `me` says which project is open
+    (the look request `outside-pages`);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project
@@ -8777,22 +8786,14 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. The other
-  views, sketches and preferences join at M3b and M4 of
+  instructions. The other views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
-- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
-  sets" and "Ways to begin" give way to the ways as tabs drawn from the
-  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
-  card opening in place: the look request `ask-temper-ways`, its plan
-  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
-  the acts in the domain, drawn by no page until then.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's card in a reply and in the
-  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
-  keeps, against the look request's pages, and walks a real Ask temper
-  chat asked to show a way. M3b adds a stop pressed opening its card, the
-  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  chat's document at 1440, 1000 and 420 px, across and down the page,
+  against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed in a reply opening
+  its card, the views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
   of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
   at an older revision, and a decided proposal's paths, wait for a read of
   the settings as a revision left them. Default: the focused tables and
@@ -9279,8 +9280,8 @@ own tests:
   the focus on its summary, and no toast.
 - **A press that starts a chat, on a phone** (3.5, *Where the focus stands on a
   chat*; the request `ui-composer-focus` of 2026-11-06): the tree has no width, so
-  a starter's or a suggested request's press asks for the composer's focus there
-  too, and a browser that lets a press's activation outlive the answer may raise
+  a suggested request's press asks for the composer's focus there too,
+  and a browser that lets a press's activation outlive the answer may raise
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
