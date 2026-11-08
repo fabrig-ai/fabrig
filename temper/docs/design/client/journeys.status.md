@@ -5,9 +5,12 @@
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
 The five journeys' prints include the unpressed night switch, with no
-night choice in their recordings. No known implementation gap remains
-in this drawing route; the nonempty Home sections' suppression remains
-`README.status.md`, 3.5's gap. Temper/ui's rendered comparison of all
+night choice in their recordings. All five browser journeys' prints
+remain current; Home's suppression of populated Needs you and Chats
+changes none of them. The gallery names the populated
+suppressed state `home-begin-with-needs` (`browser.md`, 7.2).
+No known implementation gap remains
+in this drawing route. Temper/ui's rendered comparison of all
 three requests remains section 10's after-landing work; replayed prints
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.

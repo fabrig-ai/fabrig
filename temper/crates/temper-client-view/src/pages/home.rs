@@ -69,11 +69,13 @@ pub(crate) fn main(
     if let Some(away) = &facts.away {
         decided(b, w, bindings, project, away, root.pages().overturn_busy(), times);
     }
-    needs(b, root, w, bindings, project, &facts, times, rows, sign_in);
-    if !facts.to_begin() && root.has_goals(project) {
-        goals(b, root, w, bindings, project, times);
-    } else {
-        chats(b, root, w, bindings, project, facts.to_begin(), times);
+    if !facts.to_begin() {
+        needs(b, root, w, bindings, project, &facts, times, rows, sign_in);
+        if root.has_goals(project) {
+            goals(b, root, w, bindings, project, times);
+        } else {
+            chats(b, root, w, bindings, project, times);
+        }
     }
     foot(b, w, bindings, project, &facts, times);
     crate::confirm::main(b, root, w, bindings, rows);
@@ -406,10 +408,6 @@ fn inbox_address(project: u32) -> Address {
     Address::Inbox { filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None } }
 }
 #[expect(clippy::too_many_arguments, reason = "Home passes its project, facts, time and row bound to its section")]
-#[expect(
-    clippy::too_many_lines,
-    reason = "Home keeps its needs head, answered lines, first card and other rows in presentation order"
-)]
 fn needs(
     b: &mut Builder,
     root: &Domain,
@@ -437,9 +435,6 @@ fn needs(
         None => Box::default(),
     };
     let count = open.len();
-    if count == 0 && facts.to_begin() {
-        return;
-    }
     b.open(Role::Region);
     b.style(look::HOME_NEEDS);
     b.name(&w.say(if facts.away.is_some() { Word::HomeStillNeeds } else { Word::NeedsYou }, &[]));
@@ -454,7 +449,7 @@ fn needs(
         w.say(if facts.away.is_some() { Word::HomeStillNeeds } else { Word::NeedsYou }, &[])
     };
     text(b, Role::Heading { level: 2 }, &heading, if count > 0 { Some(look::HOME_SIGNAL) } else { None });
-    if count > 1 && !facts.to_begin() && w.shell == Shell::Browser {
+    if count > 1 && w.shell == Shell::Browser {
         go(b, bindings, &w.say(Word::HomeInARow, &[]), inbox_address(project), Some(look::HOME_IN_A_ROW));
     }
     b.close();
@@ -474,49 +469,47 @@ fn needs(
             needs::Need::Card(card) => ask(b, root, card, w, bindings, times, rows),
             needs::Need::Approval(row) => super::approval::card(b, root, row, w, bindings, times, sign_in, false),
         }
-        if !facts.to_begin() {
-            let mut others = open.iter().skip(1).take(ROWS).peekable();
-            if others.peek().is_some() {
-                b.open(Role::List);
-                b.style(look::HOME_ROWS);
-                for card in others {
-                    b.open(Role::Item);
-                    let (title, short, _) = need_words(card, w);
-                    let title = match card {
-                        needs::Need::Card(card) => {
-                            let asked = super::ask::read(card, w);
-                            if card.page.is_none() {
-                                title
-                            } else {
-                                match asked.kind {
-                                    super::ask::Kind::Funds { .. } => need_sentence(&title, &short, w),
-                                    super::ask::Kind::Question
-                                    | super::ask::Kind::Proposal
-                                    | super::ask::Kind::Held
-                                    | super::ask::Kind::PersonTask => short,
+        let mut others = open.iter().skip(1).take(ROWS).peekable();
+        if others.peek().is_some() {
+            b.open(Role::List);
+            b.style(look::HOME_ROWS);
+            for card in others {
+                b.open(Role::Item);
+                let (title, when) = match card {
+                    needs::Need::Card(card) => {
+                        let asked = super::ask::read(card, w);
+                        let title = if card.page.is_none() {
+                            super::ask::need_title(card, w)
+                        } else {
+                            match asked.kind {
+                                super::ask::Kind::Funds { .. } => {
+                                    w.say(Word::HomeAskLine, &[Hole::Name(asked.title), Hole::Name(asked.short)])
                                 }
+                                super::ask::Kind::Question
+                                | super::ask::Kind::Proposal
+                                | super::ask::Kind::Held
+                                | super::ask::Kind::PersonTask => asked.short,
                             }
-                        }
-                        needs::Need::Approval(_) => short,
-                    };
-                    let when = match card {
-                        needs::Need::Card(card) => super::ask::need_when(card, w, times),
-                        needs::Need::Approval(row) => super::approval::when(row, w, times),
-                    };
-                    let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
-                    crate::link(b, &label, bindings.insert(Act::Needs(needs::Act::Open { object: card.object() })));
-                    row_words(b, w, &title, &when);
-                    b.close();
-                    b.close();
-                }
+                        };
+                        (title, super::ask::need_when(card, w, times))
+                    }
+                    needs::Need::Approval(row) => {
+                        (super::approval::question(row, w), super::approval::when(row, w, times))
+                    }
+                };
+                let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
+                crate::link(b, &label, bindings.insert(Act::Needs(needs::Act::Open { object: card.object() })));
+                row_words(b, w, &title, &when);
+                b.close();
                 b.close();
             }
-            if w.shell == Shell::Browser {
-                match first {
-                    needs::Need::Card(card) if card.page.is_none() => {}
-                    needs::Need::Card(_) | needs::Need::Approval(_) => {
-                        phone_need(b, first, count, w, bindings, project);
-                    }
+            b.close();
+        }
+        if w.shell == Shell::Browser {
+            match first {
+                needs::Need::Card(card) if card.page.is_none() => {}
+                needs::Need::Card(_) | needs::Need::Approval(_) => {
+                    phone_need(b, first, count, w, bindings, project);
                 }
             }
         }
@@ -600,15 +593,7 @@ fn goals(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
     b.close();
 }
 
-fn chats(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    beginning: bool,
-    times: &mut Times,
-) {
+fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     use jig_client::contract::EndedGroup;
     let chats = root.pages().chats();
     let (live, page) = match chats {
@@ -627,9 +612,6 @@ fn chats(
         None => (&[][..], false),
     };
     let count = live_rows.len().checked_add(ended.len()).expect("two bounded windows fit");
-    if count == 0 && beginning {
-        return;
-    }
     b.open(Role::Region);
     b.style(look::HOME_CHATS);
     b.name(&w.say(Word::Chats, &[]));

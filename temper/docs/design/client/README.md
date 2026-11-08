@@ -420,7 +420,9 @@ keeps (`../protocol/configuration.md`, section 2).
   (`temper-session`; *Ask temper's page,* below). The rail stays
   on every chat: the user's choice in `configure-chat-in-settings`, which
   supersedes the mock's rail-less chat. On a phone, at 760 px or less, rail
-  and tab bar go. A chat differs from an Ask temper chat only in its path: a
+  and tab bar go, but for the rail's night switch, at the chat's bar's right
+  (5.3), and the tab bar of Ask temper's page while To begin shows (*Ask
+  temper's page,* below). A chat differs from an Ask temper chat only in its path: a
   chat's path is "PROJECT / Chats /", "‹" on a phone a
   link to `Chats`; an Ask temper chat's is "PROJECT / Ask temper /", "‹" on a
   phone a link to `Ask { project }`, the rail's "Ask temper" current.
@@ -2180,8 +2182,6 @@ keeps (`../protocol/configuration.md`, section 2).
       signal ground, "TITLE: SHORT", the whole a link to *Needs you*,
       with "Answer" across it for one card and "Answer, one at a time"
       for more; the browser's alone.
-    - *While To begin shows* (the mock's `freshHome`): the card alone,
-      with no lines under it and no "Answer in a row".
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -2868,9 +2868,13 @@ keeps (`../protocol/configuration.md`, section 2).
     new line". Its picker is on that row, as a chat's: a choice there is this
     chat's alone, and Ask temper's models, charter 11's, stay a setting
     (5.13), which this chat can change. On a
-    phone the frame's top bar and tab bar go, so that the composer keeps
-    the foot, and with them the model's line and the composer's hint,
-    as the configure-chat look request draws it.
+    phone the frame's top bar goes, and with it the model's line and the
+    composer's hint, as the configure-chat look request draws it; the tab
+    bar goes too, so that the composer keeps the foot, but while To begin
+    shows: then its three tabs, "Home", "Ask" and "Settings", close the
+    page under the composer, as on Home (5.3; the look request
+    `to-begin-two-steps`, whose rail and tab bar hold on Ask temper's page
+    as Start opens it). The night switch stands at the bar's right (5.3).
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so
@@ -4508,7 +4512,12 @@ page (5.1): a navigation named by the open project, in this order:
 - the night switch, a browser's, the rail's last child, after its foot and drawn
   at the foot's right: a button named "Night mode", pressed while the night look
   is on, a moon by day and a sun by night, drawn by style; on a phone, at the top
-  bar's right. Pressing it turns the look, on every page of that browser, and
+  bar's right. It shows on every page that draws the rail, at every width,
+  wherever the rail's other parts go: in the rail folded beside a chat's Split,
+  at the folded rail's foot; on a phone's chat layout (3.5, *One layout for
+  every chat*), where the rail and its top bar go, at the right of the chat's
+  own bar, which keeps room for it (the look request `night-mode`, which
+  places it at the rail's foot or a phone's top bar). Pressing it turns the look, on every page of that browser, and
   keeps it (*Its look, kept per browser,* 3.5; `browser.md`, 2.5, *Night*). The
   terminal has none.
 
@@ -4531,7 +4540,9 @@ browser, a navigation named "Sections" after the main, with "Home",
 and "Settings" while it doesn't, with "Ask" after "Chats", named "Ask temper" and shown, and current, as the rail's "Ask temper" is, drawn at phone width alone
 (`browser.md`, 2.5); with Goals shown, Settings is reached by the
 switcher's "Settings for PROJECT". While To begin shows, "Home", "Ask" and
-"Settings" alone (above). The Away switch is a chip in the top
+"Settings" alone (above). A chat's layout draws no tab bar on a phone, but
+Ask temper's page while To begin shows, whose three tabs close it under the
+composer (3.5). The Away switch is a chip in the top
 bar, on the rail's terms. The terminal has no tab bar.
 
 **The banner's navigation,** on a page that is no project's (5.1).
@@ -8448,13 +8459,17 @@ own tests:
   main at 1440, 1000 and 420 px, with menus and disclosures open and
   each state their messages name (`../draft/look-requests.md`, 4).
   Include both steps left, each alone, done and skipped, Home with a need
-  or chat while the card shows, and the restricted navigation on Home
-  and Ask temper. Check the night switch, reload, the three night pages
-  and readability elsewhere. The night palette is the user's first pass
+  and a chat left out while either step remains, and their return after
+  the last step or a skip. Check the restricted navigation on Home
+  and Ask temper, its three tabs on a phone and composer above them.
+  Check the night switch at every width, in the rail folded beside a
+  Split, open and closed, and at a phone's chat bar, reload, the three
+  night pages, their shadows, and readability
+  elsewhere. The night palette is the user's first pass
   to refine; system preference and the placeholder's night look remain
   `browser.md`, section 5's choices. Default: focused tables, gallery
   states and replayed prints establish no rendered equality or browser
-  reload result. The implementation gap remains in `README.status.md`.
+  reload result.
 
 - **Other account-act refusal reasons** (5.5): key and sign-in acts can
   answer not offered for several core causes. Saying why and what to do

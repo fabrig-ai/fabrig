@@ -674,7 +674,9 @@ replay says the same clocks (`README.md`, 5.12).
   at the foot, five links in five columns as wide as their words, each on
   one line at any phone's width, a "Needs you" count included, and four
   while `me` offers no Ask temper (the look request `ask-temper-place`),
-  the page leaving it room. The link's state
+  the page leaving it room; while To begin shows, three equal tabs, on Home
+  and on Ask temper's page, whose chat layout draws no tab bar otherwise,
+  its composer standing over them (`README.md`, 3.5 and 5.3). The link's state
   shows at the rail's foot, with its dot, while it is not live. The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
@@ -863,6 +865,16 @@ replay says the same clocks (`README.md`, 5.12).
     its send arrow drawn in those words; a disabled send is the second line's
     ground. The day's literal greys become the night's lines and hover, and the
     dark line icons drawn as images are turned light, `filter: invert(.85)`.
+  - *Shadows keep their colour:* the night set names no shadow's colour, so
+    each drawn shadow takes the day's token at night, as the request's overlay
+    leaves them: the project picker's and the person menu's `0 12px 32px
+    rgba(24, 24, 27, .12)`, the model menu's `.14`, the starter and scale
+    cards' `0 1px 2px rgba(24, 24, 27, .04)`, the selected Split's `0 1px 2px
+    rgba(0, 0, 0, .08)`, Latest's `0 2px 8px rgba(24, 24, 27, .1)`, and the
+    dialogs', the entry's, the cards' and the other menus' alike. The night
+    draws its own rings alone, as the overlay does: a card's edge and To
+    begin's card in the night's line, the selected effort with none, and the
+    composer's focus ring in the hover.
   - *The glow:* small and faint, at the window's top right, over the whole
     window, as the body's ground under a transparent `#app` and main: the
     overlay's radial gradients over its fractal-noise grain, so that it draws
@@ -872,7 +884,13 @@ replay says the same clocks (`README.md`, 5.12).
     `position: sticky`; its icon a mask of 16 px line art in the muted colour,
     a moon, and a sun while pressed; the hover's ground and ink on hover. On a
     phone, at 760 px and under, fixed 18 px from the top and 14 px from the
-    right, over the top bar.
+    right, over the top bar. It stays where the rail's other parts go: in the
+    rail folded beside a Split, 56 px wide, centred at its foot, 24 px over
+    it, and at the open folded rail's foot as on any rail; on a phone's chat
+    layout (`#app:has(> .temper-session)`), where the rail draws no box of its
+    own (`display: contents`) and none of its other parts, fixed at the right
+    of the chat's bar and centred on its height, the bar's right padding
+    growing by the switch's width and an 8 px gap.
   - *What stays:* a chat's terminal keeps its own theme, dark or light, at
     night (2.5, *A chat's terminal*); the placeholder's first paint is the
     day's, since it draws before the shell reads the kept look. The rest of the
@@ -1484,14 +1502,18 @@ Not in the tier, each in the lowest world that shows it:
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` after
   landing, including their named states, open menus and disclosures at
   1440, 1000 and 420 px (`../draft/look-requests.md`, section 4).
-  Include `home-begin-*`, Home with a need or chat under To begin,
-  Ask temper's restricted rail, and `night-home`, `night-ask` and
-  `night-chat-split`. Check the faint top-right glow without rings and
-  readability on every other page; refine the first night palette with
-  the user. Run the history story's night reload row after landing.
-  Default: tokens, focused tables and gallery prints establish no
-  rendered equality or browser runtime result. Home's suppression gap
-  remains `README.status.md`, 3.5's required work.
+  Include `home-begin-*`, Home with a need and a chat left out with
+  either step left, and their return after the last step or a skip.
+  Check Ask temper's restricted rail, its three tabs at 420 with the
+  composer above them, and `night-home`, `night-ask` and `night-chat-split`,
+  the switch in the
+  folded rail open and closed and at a phone's chat bar, and the night's
+  shadows against their day values (2.5, *Shadows keep their colour*). Check
+  the faint top-right glow without rings and readability on every other
+  page; refine the first night palette with the user. Run the history
+  story's night reload row after landing. Default: tokens, focused
+  tables and gallery prints establish no rendered equality or browser
+  runtime result.
 
 - **Ask temper's repaired bar and first-run gallery** (2.5, 7.2):
   temper/ui compares the `ask-temper-place` tag at 1440 and 1000 px as
@@ -1851,8 +1873,8 @@ from the engine's own answers, is where the look is tuned.
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
 | `home-skip-refused` | hand-made Home deliveries: Skip refused; the alert under the note and Skip offered again |
-| `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
-| `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in Settings |
+| `home-begin-with-needs` | hand-made Home deliveries: To begin showing, with one question and one chat delivered and neither drawn: no Needs you and no Chats under the card |
+| `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in Settings; its Ask temper chat delivered and not drawn: no Chats under the card |
 | `night-home` | `home-begin-ask-left` with the night switch pressed: the night look, the switch a sun (the look request `night-mode`'s page 01) |
 | `night-ask` | Ask temper as "Start" opens it on the first run's project, template 5 listed, at night (its page 02) |
 | `night-chat-split` | `chat-draft-split` at night: a chat beside its draft (its page 03) |
