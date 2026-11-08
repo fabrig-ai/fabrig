@@ -15,8 +15,8 @@ below remain outside that replacement.
 M3a is built: `see ways`, the `view` block and the views `path`, `way`,
 `proposal` and `charter` drawn in a reply and the chat's document from
 the engine's one derivation, and the instructions' first step of Showing.
-The ways on Ask temper's page are the look request `ask-temper-ways`'s,
-and the walk follows landing.
+Ask temper's page draws the ways from the same read, by the look request
+`ask-temper-ways`, and the walk follows landing.
 
 ## Gaps and departures
 

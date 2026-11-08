@@ -12,9 +12,8 @@ a browser; real-forge and render evidence remains section 10's later work.
 
 Section 9's row for the stock ways has no known gap: the project's
 subject `ways` and its read `View` are made by the root, carried by the
-family and read by Ask temper's page and a chat's `view` blocks. The
-page's drawing of the ways is the look request `ask-temper-ways`'s
-(`README.md`, 5.13 and 11).
+family and read by Ask temper's page, which draws them as its opening
+(`README.md`, 3.5), and by a chat's `view` blocks.
 
 Sections 5.1 and 5.4 have no known implementation gap in the paged
 search-and-scroll picker or the shared connection panels and setup in

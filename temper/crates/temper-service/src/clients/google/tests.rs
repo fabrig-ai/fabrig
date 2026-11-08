@@ -119,6 +119,7 @@ fn endings_draw_the_column_and_link_the_bundles_sheet() {
             (pages::busy(sheet, b"/sign-in"), false, false),
         ] {
             let text = core::str::from_utf8(&body).unwrap();
+            assert!(!text.contains("&#39;") && !text.contains('\''), "typographic apostrophes: {text}");
             assert!(text.starts_with("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper</title>"));
             if sheet.is_some() {
                 assert!(text.contains("<link rel=\"stylesheet\" href=\"/bundle/d1/files/pages.css\">"));
@@ -188,11 +189,11 @@ fn checked_nonmembers_and_unverified_addresses_mint_nothing() {
     for (payload, ending) in [
         (
             br#"{"email":"other@example.com","email_verified":true}"#.as_slice(),
-            b"other@example.com can&#39;t sign in here".as_slice(),
+            "other@example.com can’t sign in here".as_bytes(),
         ),
-        (br#"{"email":"sam@example.com","email_verified":false}"#, b"Google hasn&#39;t verified sam@example.com"),
-        (br#"{"name":"No address","email_verified":true}"#, b"Google hasn&#39;t verified this account&#39;s address"),
-        (overlong.as_bytes(), b"Google hasn&#39;t verified this account&#39;s address"),
+        (br#"{"email":"sam@example.com","email_verified":false}"#, "Google hasn’t verified sam@example.com".as_bytes()),
+        (br#"{"name":"No address","email_verified":true}"#, "Google hasn’t verified this account’s address".as_bytes()),
+        (overlong.as_bytes(), "Google hasn’t verified this account’s address".as_bytes()),
     ] {
         let (mut service, mut issuer) = world::world(2);
         service.adopt_bundle(fixtures::bundle::bundle());
@@ -226,7 +227,7 @@ fn mint_refused_at_the_sign_in_capacity_answers_busy() {
         b"first-sub",
         b"/sign-in/google",
     );
-    world::ending(&peer, b"HTTP/1.1 503", b"temper couldn&#39;t sign you in just now");
+    world::ending(&peer, b"HTTP/1.1 503", "temper couldn’t sign you in just now".as_bytes());
     assert!(!core::str::from_utf8(peer.received()).unwrap().contains("jig-sign-in="));
 }
 #[test]
