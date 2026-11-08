@@ -205,3 +205,8 @@ rerun until it lands and this trunk takes main; then do the base check first.
 now?* Same answer: the stop was right; change nothing. At 21:09Z `origin/main`
 (cb577eef0c) still has no `pages/rail.rs`, so ui-p1-rail hasn't landed. Don't
 rerun until it lands and this trunk takes main; then do the base check first.
+
+2026-11-08. *Run team-rail-13 again found no `pages/rail.rs` on its base: what
+now?* Same answer: the stop was right; change nothing. At 21:17Z `origin/main`
+(e62fc406e0) still has no `pages/rail.rs`, so ui-p1-rail hasn't landed. Don't
+rerun until it lands and this trunk takes main; then do the base check first.
