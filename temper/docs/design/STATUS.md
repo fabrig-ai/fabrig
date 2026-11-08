@@ -337,10 +337,10 @@ step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, and the domain world's restore stories run but
-one, which, with the joined client world's, stays ignored: a setting
-reset to a default the forge does not report to jig loses its state at
-restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories and the
+joined client world's run, a setting reset to a default the forge does
+not report to jig keeping its state at restart (`protocol/configuration.md`,
+`client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -760,7 +760,12 @@ than the test; the six tests that need a person name what in their
 reasons, and the playground's heap at start and the forge's two-change
 hint profile are bound in the focused suite, the heap on figures past a
 quarter above 11-03's (`domain/testing.md`, 2.6, 2.7 and 11;
-`playground.md`, 9). The copy stories' world and the
+`playground.md`, 9). Story A walks in the one-process world, but its
+memory test stays ignored, since skein gives a service world's observer
+no way to keep its storage outside the process's span, and the cluster's
+4.6 process story stays ignored for a fixture that expects models in the
+startup configuration, so ws's drain stands on jig's tests alone
+(`playground.md`, 9; `domain/testing.md`, 2.6 and 5.3). The copy stories' world and the
 issuer's log story depart from the request `walks-lower`, and polling past a
 hook that delivers nothing stands on the forge's world alone
 (`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from

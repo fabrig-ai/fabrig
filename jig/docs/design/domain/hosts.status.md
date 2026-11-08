@@ -10,6 +10,13 @@ adds no host-side deferred work.
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
 
+Section 6.7 has no known gap in a worker's hub saying it drains: a
+shutdown's `CancelAll` sends `LinkUp::Draining` before anything its
+cancelled runs send, and a shut hub sends it again after each opening
+(`jig-domain-host/src/domain.rs`, `step`; the hub's tests
+`a_shutdown_says_draining_before_any_cancelled_runs_answer` and
+`a_shutting_hub_says_draining_again_after_each_opening`).
+
 Section 5.1 has no known implementation gap in serializing list reads
 with source checks and sign-outs, giving smith the grant's value below
 the hub, or cancelling a read on link loss without an answer. A read
