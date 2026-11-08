@@ -27,3 +27,6 @@ pub use source::{
     ENVIRONMENT_BYTES, ENVIRONMENT_ENTRIES, Error, Programs, configuration_directory, environment, keeps,
 };
 pub use status::{EMAIL_BYTES, Method, SIGN_IN, SIGN_OUT, STATUS, STATUS_BYTES, SUBSCRIPTION, Status, email, status};
+
+/// The agent binary mode that execs a program to die with its agent (protocol/programs.md, 5.1).
+pub const PROGRAM_CHILD_FLAG: &str = "--program-child";

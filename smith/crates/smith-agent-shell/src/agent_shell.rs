@@ -573,7 +573,7 @@ fn run_configured(
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
-    let configuration = decoded
+    let mut configuration = decoded
         .resolve(errors.as_mut())
         .map_err(config::ConfigurationRefusal::detail)
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
@@ -584,6 +584,16 @@ fn run_configured(
         Some(program) => Some(open_program(program, errors.as_mut())?),
         None => None,
     };
+    if let Some(program) = &mut configuration.service.program {
+        #[cfg(target_os = "linux")]
+        {
+            program.parent = Some(std::process::id());
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            program.parent = None;
+        }
+    }
     let mut agent = Agent::new(
         configuration,
         Resources {

@@ -588,40 +588,69 @@ fn the_answer_carries_budget_usage_and_bound_in_the_runs_unit() {
 fn a_hosts_standard_error_keeps_its_last_bytes_whatever_its_deliveries() {
     use skein_io::{Event as IoEvent, Request as IoRequest};
     use skein_lib::{Time, Token, stream};
-    for cut in [20, 1] {
-        let mut process = crate::Process::new(Token::new(7), &process_limits(), 8, endpoints()).expect("channel");
-        let owner = process.io_owner();
-        let mut below = Queue::with_capacity(16);
-        let mut above = Queue::with_capacity(8);
-        process.spawn(launch(), Time::ZERO, &mut below);
-        below.pop();
-        let event = IoEvent::Spawned {
-            owner,
-            child: Token::new(8),
-            pipes: Box::new([Token::new(9), Token::new(10), Token::new(11)]),
-        };
-        process.from_io(Time::ZERO, event, &mut above, &mut below);
-        while below.pop().is_some() {}
-        for bytes in b"abcdefghijklmnopqrst".chunks(cut) {
-            let up = stream::Up::Bytes(Box::from(bytes));
-            process.from_io(Time::ZERO, IoEvent::Stream { owner: Token::new(11), up }, &mut above, &mut below);
+    // The host's kept detail bound (smith/docs/design/domain/host.md, section 4).
+    const PANIC_DETAIL_BYTES: usize = 1024;
+    let report = panic_report("main", "agent.rs:42:7", "the burst panicked");
+    let panic_detail = &report.as_bytes()[report.len() - PANIC_DETAIL_BYTES..];
+    assert!(panic_detail.ends_with(b"thread 'main' panicked at agent.rs:42:7:\nthe burst panicked\n"));
+    for (stderr, detail_bytes, expected) in [
+        (report.as_bytes(), u32::try_from(PANIC_DETAIL_BYTES).expect("detail bound fits"), panic_detail),
+        (b"abcdefghijklmnopqrst".as_slice(), 8, b"mnopqrst".as_slice()),
+    ] {
+        for cut in [20, 1, 4096] {
+            let mut process =
+                crate::Process::new(Token::new(7), &process_limits(), detail_bytes, endpoints()).expect("channel");
+            let owner = process.io_owner();
+            let mut below = Queue::with_capacity(16);
+            let mut above = Queue::with_capacity(8);
+            process.spawn(launch(), Time::ZERO, &mut below);
+            below.pop();
+            let event = IoEvent::Spawned {
+                owner,
+                child: Token::new(8),
+                pipes: Box::new([Token::new(9), Token::new(10), Token::new(11)]),
+            };
+            process.from_io(Time::ZERO, event, &mut above, &mut below);
+            while below.pop().is_some() {}
+            for bytes in stderr.chunks(cut) {
+                let up = stream::Up::Bytes(Box::from(bytes));
+                process.from_io(Time::ZERO, IoEvent::Stream { owner: Token::new(11), up }, &mut above, &mut below);
+                assert_eq!(
+                    below.pop(),
+                    Some(IoRequest::Stream {
+                        stream: Token::new(11),
+                        down: stream::Down::Demand { read: stream::Read::Arrived { max: 4096 }, room: 0 }
+                    })
+                );
+            }
+            for closed in [Token::new(9), Token::new(10), Token::new(11), owner] {
+                process.from_io(Time::ZERO, IoEvent::Closed { owner: closed }, &mut above, &mut below);
+            }
             assert_eq!(
-                below.pop(),
-                Some(IoRequest::Stream {
-                    stream: Token::new(11),
-                    down: stream::Down::Demand { read: stream::Read::Arrived { max: 4096 }, room: 0 }
-                })
+                above.pop(),
+                Some(crate::ProcessEvent::Unspawned { agent: Token::new(7), detail: Box::from(expected) })
             );
+            assert!(above.is_empty());
         }
-        for closed in [Token::new(9), Token::new(10), Token::new(11), owner] {
-            process.from_io(Time::ZERO, IoEvent::Closed { owner: closed }, &mut above, &mut below);
-        }
-        assert_eq!(
-            above.pop(),
-            Some(crate::ProcessEvent::Unspawned { agent: Token::new(7), detail: Box::from(&b"mnopqrst"[..]) })
-        );
-        assert!(above.is_empty());
     }
+}
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "programming-model.md, section 10.2: formatting a deterministic panic report fixture"
+)]
+fn panic_report(name: &str, location: &str, message: &str) -> String {
+    use core::fmt::Write;
+
+    // Each numbered frame is over 16 bytes: 256 frames exceed a 4096-byte stderr read.
+    const FRAMES: usize = 256;
+    let mut backtrace = String::new();
+    for frame in 0..FRAMES {
+        writeln!(backtrace, "{frame:4}: agent::run::poll").expect("write a frame");
+    }
+    let line = alloc::format!("thread '{name}' panicked at {location}:\n{message}\n");
+    alloc::format!("\n{line}stack backtrace:\n{backtrace}\n{line}")
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-05. Where smith's code lags or departs from [host.md](host.md).
+2026-11-08. Where smith's code lags or departs from [host.md](host.md).
 
 - **Not yet:**
   - 2, 9.1: live content in one process. The inline agent's LLM deltas

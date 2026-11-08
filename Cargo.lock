@@ -3000,6 +3000,7 @@ name = "skein-fail-stop-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
+ "skein-lib",
 ]
 
 [[package]]
