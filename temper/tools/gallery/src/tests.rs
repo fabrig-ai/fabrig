@@ -154,6 +154,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "team",
         heading: "Who owns what on shop",
         parts: &[
+            Part::Links {
+                style: temper_client_view::look::RAIL_NAV,
+                names: &["Home", "Needs you 3", "Work", "Team", "How work runs"],
+            },
             Part::Named { role: Role::Paragraph, name: "Two of you." },
             Part::Named { role: Role::Text, name: "You" },
             Part::Named { role: Role::Paragraph, name: "Owner of shop" },
@@ -168,6 +172,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "team-alone",
         heading: "Who owns what on shop",
         parts: &[
+            Part::Absent { role: Role::Link, name: "Team" },
             Part::Named { role: Role::Paragraph, name: "Just you." },
             Part::Named { role: Role::Text, name: "You" },
             Part::Named { role: Role::Paragraph, name: "Nothing waits on you." },

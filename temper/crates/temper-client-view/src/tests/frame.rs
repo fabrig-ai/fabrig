@@ -1669,8 +1669,9 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            // Work's changes and chat notes open even without a goal template.
-            assert_eq!(out.len(), 3, "changes, notes and the new project's ways: {out:?}");
+            // Work's changes and notes, the rail's people and the project's ways open without a goal template.
+            const PROJECT_READS: u32 = 4;
+            assert_eq!(out.len(), PROJECT_READS, "changes, people, notes and the new project's ways: {out:?}");
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
             }) = out.pop()
@@ -1681,6 +1682,20 @@ fn goals_opens_in_its_projects_frame() {
                 Some(subject),
                 temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
             );
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read {
+                                what: jig_client::Readable::Jig(jig_client::contract::Read::Project { project }),
+                                ..
+                            },
+                    },
+            }) = out.pop()
+            else {
+                panic!("rail's project people")
+            };
+            assert_eq!(project, fixtures::PROJECT);
             let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

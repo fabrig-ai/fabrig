@@ -489,7 +489,14 @@ pub(super) fn with_people(root: &mut d::Domain, people: u32) {
         jig_client_protocol_link::translate::documents::project(jig_client_test_records::owner_project_record(), &link)
             .unwrap();
     document.number = f::PROJECT;
-    let member = document.members.get(0).unwrap().clone();
+    let reader = &root.pages().me(root.client()).unwrap().party;
+    let member = c::ProjectMember {
+        party: reader.number,
+        kind: c::PartyKind::Person,
+        name: reader.name.clone(),
+        login: reader.login.clone(),
+        role: c::HeldRole::Owner,
+    };
     document.members = List::with_capacity(people);
     for number in 0..people {
         document.members.push(c::ProjectMember { party: u64::from(number), ..member.clone() }).unwrap();
@@ -849,27 +856,57 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             },
         },
     );
-    let view = f::page_view(&root);
-    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
-    skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
-    let text = String::from_utf8_lossy(print.text.as_slice());
-    assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in [
-        "[2] All projects · 2 projects (pressed)",
-        "[7] How work runs for Shop",
-        "[8] Deployment",
-        "[9] Home",
-        "[10] Needs you (current)",
-        "[11] Work",
-        "[12] How work runs",
-        "[13] Draft",
-        "[14] Change",
-        "[15] Deployment",
+    for (people, first_line, lines) in [
+        (
+            None,
+            "== Inbox == Offline; Behind",
+            &[
+                "[2] All projects · 2 projects (pressed)",
+                "[7] How work runs for Shop",
+                "[8] Deployment",
+                "[9] Home",
+                "[10] Needs you (current)",
+                "[11] Work",
+                "[12] How work runs",
+                "[13] Draft",
+                "[14] Change",
+                "[15] Deployment",
+            ][..],
+        ),
+        (
+            Some(2),
+            "== Who owns what on Shop == Offline; Behind",
+            &[
+                "[2] All projects · 2 projects",
+                "[7] Team for Shop (current)",
+                "[8] How work runs for Shop",
+                "[9] Deployment",
+                "[10] Home",
+                "[11] Needs you",
+                "[12] Work",
+                "[13] Team (current)",
+                "[14] How work runs",
+                "[15] Draft",
+                "[16] Change",
+                "[17] Deployment",
+            ][..],
+        ),
     ] {
-        assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
+        if let Some(people) = people {
+            f::root_event(&mut root, Event::Went { place: d::Place::Address(Address::Team { project: f::PROJECT }) });
+            with_people(&mut root, people);
+        }
+        let view = f::page_view(&root);
+        let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+        skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
+        let text = String::from_utf8_lossy(print.text.as_slice());
+        assert_eq!(text.lines().next(), Some(first_line));
+        for line in lines {
+            assert!(text.lines().any(|s| s.trim() == *line), "{line}: {text}");
+        }
+        assert!(!text.contains("Sections:"));
+        assert!(!text.contains("Sign out"));
     }
-    assert!(!text.contains("Sections:"));
-    assert!(!text.contains("Sign out"));
 }
 
 #[test]
