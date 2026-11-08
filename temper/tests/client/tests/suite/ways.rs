@@ -189,8 +189,19 @@ fn keep_the_current_way_completes_to_begin_and_is_not_offered_again() {
     for label in [b"Model".as_slice(), b"Can", b"Asked to"] {
         assert!(named(review, Role::Term, label));
     }
-    assert!(named(review, Role::Link, "Open the reviewer ›".as_bytes()));
-    act(&mut world, person, Act::WayStop { project: PROJECT, stop: 2 });
+    let open = review
+        .iter()
+        .find(|node| node.role == Role::Link && node.name.as_deref() == Some("Open the reviewer ›".as_bytes()))
+        .expect("reviewer's role link")
+        .id;
+    world.act(person, open, skein_ui::Act::Press);
+    settle(&mut world);
+    let nodes = world.tree(person).nodes();
+    let at = nodes.iter().position(|node| node.role == Role::Main).expect("role page's main");
+    let main = subtree(nodes, at);
+    assert!(named(main, Role::Heading { level: 1 }, b"The reviewer"));
+    assert!(named(main, Role::Term, b"Asked to"));
+    act(&mut world, person, Act::Go { address: Address::Ask { project: PROJECT } });
     assert!(!named(world.tree(person).nodes(), Role::Region, b"Review"));
     assert!(named(under(world.tree(person).nodes(), Role::Group, b"Agents review"), Role::Button, b"Keep it"));
     let before = kinds::revision(&world.front().engine.store.rows);

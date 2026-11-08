@@ -122,6 +122,15 @@ fn repeated(count: u32, suffix: &[u8]) -> Box<[u8]> {
 fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
     reply_to(pages, FIRST, words)
 }
+fn frame(pages: &mut Pages, env: &skein_lib::Env<crate::Limits>, client: &jig_client::Client) {
+    pages::step(
+        pages,
+        env,
+        client,
+        pages::Event::Told { told: Told::Changed { handle: pages::me_handle() } },
+        &mut Queue::uncapped(),
+    );
+}
 fn reply_to(pages: &mut Pages, object: ObjectKey, words: &[u8]) -> Queue<Request> {
     let mut limits = fixtures::limits();
     limits.client.domain.text = temper_client_protocol_wire::CUE_BYTES;
@@ -129,6 +138,7 @@ fn reply_to(pages: &mut Pages, object: ObjectKey, words: &[u8]) -> Queue<Request
     limits.client.domain.turn_text = temper_client_protocol_wire::CUE_BYTES;
     let env = fixtures::env(&limits);
     let client = super::composer::root(&limits);
+    frame(pages, &env, client.client());
     let mut out = Queue::uncapped();
     for act in [
         pages::Act::Needs(Act::OpenReply { object }),
@@ -973,6 +983,7 @@ fn reply_past_choice_bound_is_held_whole_for_the_engine() {
             if explicitly_open {
                 act(&mut pages, 0, Act::OpenReply { object });
             }
+            frame(&mut pages, &env, client.client());
             let mut out = Queue::uncapped();
             for act in
                 [pages::Act::CardWords { object, words: words.clone() }, pages::Act::Needs(Act::SendReply { object })]
@@ -993,6 +1004,7 @@ fn reply_past_choice_bound_is_held_whole_for_the_engine() {
     }
     let object = ObjectKey::Proposal(f::PROPOSAL);
     let mut pages = f::pages(object, f::proposal(c::ActKind::Reject, c::Admission::Allowed));
+    frame(&mut pages, &env, client.client());
     for (words, kept) in [
         (repeated(limits.client.domain.text, b""), true),
         (repeated(limits.client.domain.text.checked_add(1).unwrap(), b""), false),

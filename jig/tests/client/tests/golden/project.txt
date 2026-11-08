@@ -61,7 +61,20 @@ Settings:
           * Cannot show this part
     Policy:
       ## Policy
-      Policy:
+        Tool bits: 0
+        Delegate tasks: 1
+        Delegate depth: 1
+        Spend ceiling: 1
+        Note scope bits: 0
+        Keep default models
+        Grants
+        Allowed delegation executors
+        Note resources
+      Period spend: 20
+      Escalation role: 1
+      Replace goal projection grants
+      Replace role 1:
+        Replace role 1
           Tool bits: 0
           Delegate tasks: 1
           Delegate depth: 1
@@ -71,39 +84,25 @@ Settings:
           Grants
           Allowed delegation executors
           Note resources
-        Period spend: 20
-        Escalation role: 1
-        Replace goal projection grants
-        Replace role 1:
-          Replace role 1
-            Tool bits: 0
-            Delegate tasks: 1
-            Delegate depth: 1
-            Spend ceiling: 1
-            Note scope bits: 0
-            Keep default models
-            Grants
-            Allowed delegation executors
-            Note resources
-          Period spend: 10
-          Request flags: 0
-          Proposal decision flags: 3
-        Replace role 2:
-          Replace role 2
-            Tool bits: 0
-            Delegate tasks: 1
-            Delegate depth: 1
-            Spend ceiling: 1
-            Note scope bits: 0
-            Keep default models
-            Grants
-            Allowed delegation executors
-            Note resources
-          Period spend: 10
-          Request flags: 0
-          Proposal decision flags: 3
-        Replace effect requirements
-        Permission mappings not supplied
+        Period spend: 10
+        Request flags: 0
+        Proposal decision flags: 3
+      Replace role 2:
+        Replace role 2
+          Tool bits: 0
+          Delegate tasks: 1
+          Delegate depth: 1
+          Spend ceiling: 1
+          Note scope bits: 0
+          Keep default models
+          Grants
+          Allowed delegation executors
+          Note resources
+        Period spend: 10
+        Request flags: 0
+        Proposal decision flags: 3
+      Replace effect requirements
+      Permission mappings not supplied
     Roles and services:
       ## Roles and services
       - Member: 7:

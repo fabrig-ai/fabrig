@@ -82,3 +82,18 @@ table where the behaviour is one already told:
 The stories, where each went and why, what each failed with when its rule
 was broken, the CPU seconds they add, and your implementation and check
 minutes apart.
+
+## Answers
+
+- 2026-11-08. *Does `AllHome` send each project's `Looked` once per
+  sitting or once per entry?* Once per entry, as
+  `temper/docs/design/client/README.md`, 3.5, *Home on All projects*
+  (*Its reads*) has it and `status.rs`'s
+  `a_second_entry_within_the_sitting_keeps_its_last_looked` tells for a
+  project's Home. The acceptance's "a second entry within the sitting
+  sends none" was a misreading: read it as "the settled page sends no
+  second look while that entry stays open". The story then leaves
+  `AllHome`, comes back within the sitting (under 30 minutes), and checks
+  that each project's `Looked` reaches the engine once more, its `latest`
+  advances, and its `previous` and `seen` stay as the first entry left
+  them. Change no production code for this. The skeleton is unchanged.

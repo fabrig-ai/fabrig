@@ -104,12 +104,11 @@
         Funded by
         Funded by pool in project 4, person 1, period 3
       Task 8: Review:
-        Task 8: Review:
-          [5] Task 8: Review
-          Person 1
-          Held
-          Held budget
-          Current revision 4
+        [5] Task 8: Review
+        Person 1
+        Held
+        Held budget
+        Current revision 4
         Completed
         Completion time not supplied
         independent result

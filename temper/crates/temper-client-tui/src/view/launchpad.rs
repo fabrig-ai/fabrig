@@ -66,6 +66,8 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => {
             let first = me.projects.get(0)?;
