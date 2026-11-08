@@ -141,7 +141,7 @@ page in Settings, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
+`domain/forge.status.md`, 4.7 and 8.13). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`

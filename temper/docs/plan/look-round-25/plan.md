@@ -13,12 +13,14 @@ The request: `inputs/request.md`, following P3a (`ui-p3a-how`), which drew an ea
 | `marks` | `tasks/path-marks.md` | 1, 3 | `ways-misses`, `fade` | the drawing's stops outlined when needed and their words over, the agent's star in ink, code grey, each rise a fade, the legend's agent when needed | 170 |
 | `how` | `tasks/how-drawing.md` | 1 | `path-stops`, `path-marks` | How work runs draws its path as Ask temper's ways do; the lanes and their blue go; both pages and a reply draw the wire's `needed` and `over` | 150 |
 | `roles` | `tasks/roles-page.md` | 2 | `how-drawing`, `roles-view` | Roles on How work runs, from the view `roles` | 150 |
+| `workflows` | `tasks/workflows-read.md` | 3 | | the forge reads the repository's CI workflows' directory at adoption, at a refresh, at the landing branch's first observed tip and at a landing that touches it, and keeps their names on the record | 150 |
+| `workflows` | `tasks/ci-card.md` | 3 | `path-stops`, `roles-view`, `workflows-read` | CI's card names the workflows, less those a test gate or a tier dispatches | 60 |
 
-Still being written: the forge reading a repository's CI workflows (`workflows-read`) and CI's card naming them (`ci-card`).
+About 1,190 implementer-minutes in all.
 
 **Critical path, as it stands:** `path-stops` (220) → `how-drawing` (150) → `roles-page` (150), about nine and a half hours with `path-marks` (after `ways-misses` and `fade`, about 250 minutes from the start) ending before `path-stops` is far past; `roles-view` (130) runs beside `how-drawing`.
 
-**Who waits on whom, and why:** the tasks that change How work runs' page (`path-stops`, by the stops its table shows; `how-drawing`; `roles-page`) each reprint the journey `chat-draft`, so they run one after another, never side by side. `path-marks` changes the drawing while How work runs still draws its table, so it reprints nothing and runs beside `path-stops`, its callers passing no marks until `how-drawing` passes the wire's. `roles-view` crosses the wire after `path-stops` does, on the same schema.
+**Who waits on whom, and why:** the tasks that change How work runs' page (`path-stops`, by the stops its table shows; `how-drawing`; `roles-page`) each reprint the journey `chat-draft`, so they run one after another, never side by side. `path-marks` changes the drawing while How work runs still draws its table, so it reprints nothing and runs beside `path-stops`, its callers passing no marks until `how-drawing` passes the wire's. `roles-view` crosses the wire after `path-stops` does, on the same schema. `ci-card` follows `roles-view`, both writing `temper-engine-domain-ways` and the root's `route/ways/tests.rs`. `workflows-read` runs from the start, in `temper-engine-domain-forge` and the store, which no other task of this plan writes.
 
 ## What was decided
 
@@ -29,7 +31,8 @@ Still being written: the forge reading a repository's CI workflows (`workflows-r
 - **Who acts by mark** (`surfaces.md`, 13): an agent's star and the rise to it in ink, a person's ring and its rise the signal's, code's square grey, on Ask temper's ways and replies too. A stop made only when needed is outlined; its small words stand over its own.
 - **The line's gradient is skein's fade,** a generic mechanism before its consumer (`AGENTS.md`, 1): a scene's mark may have its stroke painted by a linear fade, its stops coloured by tokens, so that a scene still names no colour (skein's `ui.md`, 11.2). Each rise fades as the look request's line does, from its mark's colour at the marks' row through a fainter tone at the dotted line to the line's colour: a person's from the signal at .8 and .28, an agent's from ink at .3 and .1, the whole story's lighter tone for an agent.
 - **The card positions:** on a phone the narrow path is drawn 360 wide and scaled under 360, as the request's picture is; at 1000, `ways-misses` works out both positions by arithmetic from the request's page and repairs what is past half a pixel. The render check's own findings were not in the request's words, so the task measures them from the pages, not a browser.
-- **Trailers:** `fade` and `path-marks`, which repair the look request `ask-temper-ways`' line, carry its trailer (`look-requests.md`, 3); `ways-misses`, released first, does not.
+- **CI's workflows by name** (`forge.md`, 4.7): neither forge lists a repository's workflows, so the forge reads the workflows' directory (`.github/workflows`, on Forgejo `.forgejo/workflows` first) at the landing branch's tip, at adoption, at a refresh, at the branch's first observed tip and at a landing whose files touch it, and keeps the files' names on the repository's record, a stored format changed with no compatibility. CI's card names them, less those a test gate or a tier dispatches, which report no check at a change's head. `forge.md`, 20's question is closed.
+- **Trailers:** `fade`, `path-marks`, `workflows-read` and `ci-card`, which repair misses of the look request `ask-temper-ways`, carry its trailer (`look-requests.md`, 3); `ways-misses`, released first, does not.
 - **A stored format, a protocol or a public interface:** the client wire's `PathStep`, `Stop` and `View` change, with no family version and no compatibility, as the request allows.
 
 ## Overlaps with drafts beside this one
@@ -37,4 +40,5 @@ Still being written: the forge reading a repository's CI workflows (`workflows-r
 - **The client wire's schema, generated code and goldens** are also `ui-reaches`' (`ways-away`, `decide-forge`, `keep-asking`): `path-stops` changes `PathStep` and `Stop` alone. Unavoidable: the path crosses the wire.
 - **`temper-client-view`'s `words.rs`, `look.rs` and `temper.css`** are every UI plan's registries: this plan keeps its words' keys (4930, 4931, then 5100 to 5149), its look's slots and its rules' places as `notes/common.md` says.
 - **`temper/docs/design/client/README.status.md` and `browser.status.md`:** this plan's entries stand after the ways' paragraphs, not at the files' ends, where `ui-p1-rail`, `ui-p2-home` and `ui-p4a-team` add theirs.
+- **The store's schema `store-v11.schema`, its generated code and goldens** are also `ui-reaches`' (`decide-forge`, `keep-asking`, `ways-away`): `workflows-read` changes the repository record's line alone, and regenerates on a conflict.
 - **The journey `chat-draft`** (How work runs in its `01.html` and `02.html`) is P1's `regenerate`'s too: regenerated on a catch-up, never hand-merged.
