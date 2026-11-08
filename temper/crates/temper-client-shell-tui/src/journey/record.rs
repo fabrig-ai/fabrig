@@ -38,6 +38,7 @@ impl Facts {
             address: self.address.clone(),
             local: self.local,
             note: self.note,
+            front: false,
             kept: self.kept.clone(),
             credential: self.credential.clone(),
         });
@@ -97,6 +98,7 @@ impl Recorder {
 
     pub fn report(&mut self, host: &mut Host, report: Report) -> Duties {
         let line = match &report {
+            Report::Front(_) => return host.report(report),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,

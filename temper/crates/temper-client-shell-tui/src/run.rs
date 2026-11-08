@@ -35,6 +35,16 @@ pub struct Settings {
     pub limits: limits::Limits,
     pub opener: Option<Opener>,
     pub record: Option<Fd>,
+    /// The box's handed link and lines. The run reads this from `tui-seam` on.
+    pub front: Option<Front>,
+}
+
+/// The box's inputs (temper/docs/design/client/README.md, 6.17).
+pub struct Front {
+    /// The local link's URL the box handed on fd 3.
+    pub link: skein_lib::Secret,
+    /// The box's lines, fd 4.
+    pub lines: skein_io::kernel::Fd,
 }
 
 #[expect(
@@ -377,6 +387,7 @@ impl Run {
             kept,
             credential,
             note: self.note,
+            front: false,
         };
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
@@ -1032,6 +1043,7 @@ mod tests {
             limits: limits::tui(),
             opener: None,
             record: None,
+            front: None,
         };
         let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");

@@ -27,6 +27,7 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
     host.report(Report::Start(Start {
+        front: false,
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
         background,
@@ -58,6 +59,22 @@ fn empty(duties: &Duties) {
     assert!(duties.address.is_none());
     assert!(duties.open.is_none());
     assert!(!duties.close);
+}
+
+#[test]
+fn a_box_line_report_is_told_to_the_tui() {
+    use temper_client_tui::{BoxLine, BoxState};
+
+    let mut host = host();
+    start(&mut host, None);
+    let step = b"forgejo-3".as_slice();
+    let line = b"forge is restarting".as_slice();
+    empty(&host.report(Report::Front(BoxLine::Restarting { step: step.into() })));
+    empty(&host.report(Report::Front(BoxLine::Log { line: line.into() })));
+
+    let state = host.state.as_ref().expect("started TUI");
+    assert_eq!(state.box_state(), BoxState::Restarting { step });
+    assert_eq!(state.box_log().collect::<Vec<_>>(), vec![line]);
 }
 
 #[test]
@@ -267,6 +284,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
     ] {
         let mut host = host();
         let duties = host.report(Report::Start(Start {
+            front: false,
             size: Size { columns: 80, rows: 24 },
             scheme: Scheme::Dark,
             background: None,
@@ -667,6 +685,7 @@ fn the_engines_link_signs_in_and_falls_back() {
 fn local_row(row: LocalRow, failures: &mut Vec<String>) {
     let mut host = host();
     let duties = host.report(Report::Start(Start {
+        front: false,
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
         background: None,
@@ -1344,6 +1363,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 let mut host = self::host();
                 let light = row == "light look";
                 host.report(Report::Start(Start {
+                    front: false,
                     size: Size { columns: 80, rows: 24 },
                     scheme: if light { Scheme::Light } else { Scheme::Dark },
                     background: None,

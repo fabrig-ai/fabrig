@@ -43,6 +43,8 @@ pub struct Start {
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
     pub note: Option<tui::Note>,
+    /// Whether the TUI is in front of a box.
+    pub front: bool,
 }
 
 pub enum Report {
@@ -51,9 +53,17 @@ pub enum Report {
     Key(Key),
     Resize(Size),
     Heard(jig_client::Event),
-    Kept { written: bool },
-    Opened { opened: bool },
-    Local { link: Option<Secret> },
+    Kept {
+        written: bool,
+    },
+    Opened {
+        opened: bool,
+    },
+    Local {
+        link: Option<Secret>,
+    },
+    /// A line of the box's, read.
+    Front(temper_client_tui::BoxLine),
 }
 
 #[derive(Default)]
@@ -154,6 +164,7 @@ impl Host {
         let mut duties = Duties::default();
         match report {
             Report::Local { link } => self.found(link),
+            Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
                 root::fire(&mut self.root, &self.env, &mut self.out);
