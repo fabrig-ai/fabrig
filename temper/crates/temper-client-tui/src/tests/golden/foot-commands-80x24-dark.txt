@@ -12,16 +12,16 @@
 
 
 
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
 ────────────────────────────────────────────────────────────────────────────────
-❯ /model   Change the model, from the next turn
-  /new     Start a new chat
-  /chats   Open another chat
-  /theme   Dark or light
-  /help    Commands and keys
-  /exit    Close temper
+❯ /model    Change the model, from the next turn
+  /effort   Change the effort
+  /new      Start a new chat
+  /chats    Open another chat
+  /theme    Dark or light
+  /help     Commands and keys
+  /exit     Close temper
 --
 aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
@@ -37,23 +37,23 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
-................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eeee............................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-ffggggggfffgggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-cccccccccccdddddddddddddddd.....................................................
-cccccccccccddddddddddddddddd....................................................
-cccccccccccddddddddddddd........................................................
-cccccccccccddddddddddddddddd....................................................
-cccccccccccdddddddddddd.........................................................
+ffggggggffffgggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+ccccccccccccddddddddddddddddd...................................................
+ccccccccccccdddddddddddddddd....................................................
+ccccccccccccddddddddddddddddd...................................................
+ccccccccccccddddddddddddd.......................................................
+ccccccccccccddddddddddddddddd...................................................
+ccccccccccccdddddddddddd........................................................
 --
 a: fore #6A655C
 b: fore #E08A68 bold
 c: bold
 d: fore #9A9388
 e: fore #E08A68
-f: fore #E08A68 back #2A2825 bold
-g: fore #E08A68 back #2A2825
-h: back #2A2825 bold
-cursor 16 3
+f: fore #E08A68 back #2D2C2A bold
+g: fore #E08A68 back #2D2C2A
+h: back #2D2C2A bold
+cursor 15 3

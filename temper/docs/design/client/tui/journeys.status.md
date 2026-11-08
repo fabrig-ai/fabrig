@@ -2,6 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 9: `launchpad-chat/04` lacks the person's opening question,
+  a fast chat's fault (finding-465, `post-landing-probes`), so its frame
+  doesn't show the dim person's words of `../README.md`, 6.15; it is
+  recorded again with that repair.
+
 No known implementation gap. Sections 2 to 8 have recording, shipped-host
 replay, proof, shared redaction and scan, themed prints and generation.
 Section 8.2's browser-format setup follows its browser journey before the
