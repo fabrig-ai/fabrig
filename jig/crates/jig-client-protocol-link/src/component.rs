@@ -1,5 +1,6 @@
 //! One bounded exchange per request-table attempt (protocol/client.md, 5).
 //! A family's admission refusal uses jig's wire (contract.md, 3.3).
+//! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client.md, 13).
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
@@ -46,6 +47,8 @@ pub(super) enum ExchangeKind {
 pub struct Link {
     pub(super) limits: Limits,
     pub(super) attempts: Map<Token, Attempt>,
+    // Cancellation ends the logical attempt; transport credit ends with its HTTP terminal.
+    pub(super) transport: Map<Token, ()>,
     pub(super) next: u64,
     pub(super) credential: Option<Secret>,
     pub(super) generation: u64,
@@ -61,6 +64,7 @@ impl Link {
             limits: *limits,
             store: crate::store::Store::new(),
             attempts: Map::with_capacity(limits.exchanges()),
+            transport: Map::uncapped(),
             next: 1,
             credential: None,
             generation: 0,
@@ -75,20 +79,31 @@ impl Link {
         let Some(stream) = &self.stream else { return None };
         Some(stream.silence())
     }
-    /// Whether a read can own an exchange now; a completion or cancellation releases room.
+    /// Whether a read can own a logical attempt now; a completion or cancellation releases room.
     #[must_use]
     pub fn has_exchange_room(&self) -> bool {
         self.attempts.len() < self.attempts.capacity()
     }
-    /// Number of logical exchanges, without their tokens or payloads.
+    /// Admission usage across logical reservations and unfinished transport exchanges.
     #[must_use]
     pub fn in_flight(&self) -> u32 {
-        self.attempts.len()
+        self.attempts.len().max(self.transport.len())
+    }
+    pub(super) fn emit_exchange(
+        &mut self,
+        exchange: Token,
+        credential: Option<Secret>,
+        message: Message,
+        out: &mut Queue<Request>,
+    ) {
+        self.transport.insert(exchange, ()).expect("internal exchange accounting is uncapped");
+        out.push(Request::Exchange { exchange, credential, message });
     }
     pub fn step(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Reply { exchange, .. } | Event::Lost { exchange } = &event
             && self.retiring == Some(*exchange)
         {
+            self.transport.remove(exchange);
             self.retiring = None;
             if !self.watches.0.is_empty() {
                 self.begin_stream(now, out);
@@ -117,8 +132,12 @@ impl Link {
             Event::StreamGone => self.drop_stream(out),
             Event::Send { attempt, key, ask, value } => self.send(attempt, key, ask, value, out),
             Event::Read { read, what } => self.read(read, what, out),
-            Event::Reply { exchange, message } => self.answered(exchange, &message, out),
+            Event::Reply { exchange, message } => {
+                self.transport.remove(&exchange);
+                self.answered(exchange, &message, out);
+            }
             Event::Lost { exchange } => {
+                self.transport.remove(&exchange);
                 if let Some(attempt) = self.attempts.remove(&exchange) {
                     self.failure(attempt, out);
                 }

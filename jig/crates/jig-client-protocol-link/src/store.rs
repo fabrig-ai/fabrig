@@ -92,7 +92,7 @@ impl Link {
             | Message::SignInApproval(_) => false,
         };
         if !keyed {
-            out.push(Request::Exchange { exchange, message, credential: self.credential.clone() });
+            self.emit_exchange(exchange, self.credential.clone(), message, out);
             return;
         }
         if self.store.failed {
@@ -102,7 +102,7 @@ impl Link {
         } else if self.store.waiting {
             self.store.held.push(Held { exchange, message, credential: self.credential.clone() });
         } else {
-            out.push(Request::Exchange { exchange, message, credential: self.credential.clone() });
+            self.emit_exchange(exchange, self.credential.clone(), message, out);
         }
     }
     fn gather(&mut self, out: &mut Queue<Request>) {
@@ -123,7 +123,10 @@ impl Link {
                     | Message::StreamGone(_)
                     | Message::SignInLink(_)
                     | Message::SignInService
-                    | Message::SignOut) => self.exchange(exchange, message, out),
+                    | Message::SignOut) => {
+                        self.transport.remove(&exchange);
+                        self.exchange(exchange, message, out);
+                    }
                 },
                 value @ (Request::Save { .. }
                 | Request::Erase { .. }
@@ -169,11 +172,7 @@ impl Link {
         // Durability releases held exchanges in FIFO order, skipping stale attempts.
         while let Some(value) = self.store.held.pop() {
             if self.attempts.contains_key(&value.exchange) {
-                out.push(Request::Exchange {
-                    exchange: value.exchange,
-                    message: value.message,
-                    credential: value.credential,
-                });
+                self.emit_exchange(value.exchange, value.credential, value.message, out);
             }
         }
     }
