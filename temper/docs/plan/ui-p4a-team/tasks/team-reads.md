@@ -146,3 +146,13 @@ The implementer's report: the state and its lifecycle's sites in
 `pages.rs`, each read and watch as written, the counting rules, the rows
 and the bites with their failures, the runs' counts, the new test's CPU
 time, and what is left.
+
+## Rebase (2026-11-08, step merge, foreman ui-p4a-team/team-reads/foreman-1)
+
+resolve the status-file conflict by preserving both adjacent entry deletions
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Integration commit `808d70ef78` (“Draw Team's people and what waits on each”), merged by `53905ace8e`, removes the two-line “Team: the view draws no Team page” entry.
+Task commit `8a173e0d3c` removes the adjacent three-line “Team, Its reads: Team reads nothing” entry.
+Rebase onto the landing's current integration tip and resolve this hunk with both entries absent.
+Preserve the following “In the rail” and “The project's triager” entries and all other status content.
+Keep the task's Rust changes intact; this refusal requires only the status-file conflict resolution.
