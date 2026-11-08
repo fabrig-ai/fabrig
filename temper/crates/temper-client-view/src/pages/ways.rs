@@ -63,7 +63,7 @@ pub(crate) fn drawing(
             wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Bar => (paths::Mark::Bar, None),
         };
-        stops.push(paths::Stop { mark, words: stop.words() }).expect("wire bounds stops");
+        stops.push(paths::Stop { mark, words: stop.words(), needed: false, over: b"" }).expect("wire bounds stops");
         acts.push(act).expect("one act per stop");
     }
     let pressed =
@@ -78,6 +78,7 @@ pub(crate) fn legend(b: &mut Builder, w: &Words) {
     b.style(look::WAYS_LEGEND);
     for (word, style) in [
         (Word::WaysAgent, look::WAYS_KIND_AGENT),
+        (Word::WaysMaybe, look::WAYS_KIND_MAYBE),
         (Word::WaysPerson, look::WAYS_KIND_PERSON),
         (Word::WaysCode, look::WAYS_KIND_CODE),
         (Word::WaysLine, look::WAYS_KIND_LINE),

@@ -13,44 +13,44 @@ use skein_ui::{
     scene::{Anchor, Mark as SceneMark, Point, Scene},
 };
 
-const APPROVE: &[(Mark, &[u8])] = &[
-    (Mark::Person, b"you ask"),
-    (Mark::Agent, b"produce"),
-    (Mark::Code, b"check"),
-    (Mark::Agent, b"repair"),
-    (Mark::Code, b"check"),
-    (Mark::Person, b"you approve"),
-    (Mark::Code, b"update"),
-    (Mark::Agent, b"resolve"),
-    (Mark::Code, b"merge"),
-    (Mark::Bar, b"main"),
+const APPROVE: &[(Mark, &[u8], bool, &[u8])] = &[
+    (Mark::Person, b"you ask", false, b""),
+    (Mark::Agent, b"produce", false, b""),
+    (Mark::Code, b"check", false, b""),
+    (Mark::Agent, b"repair", true, b"tests, review"),
+    (Mark::Code, b"check", false, b""),
+    (Mark::Person, b"you approve", false, b""),
+    (Mark::Code, b"conflict", true, b""),
+    (Mark::Agent, b"resolve", true, b""),
+    (Mark::Code, b"merge", false, b""),
+    (Mark::Bar, b"main", false, b""),
 ];
-const REVIEW: &[(Mark, &[u8])] = &[
-    (Mark::Person, b"you ask"),
-    (Mark::Agent, b"produce"),
-    (Mark::Code, b"check"),
-    (Mark::Agent, b"review"),
-    (Mark::Agent, b"repair"),
-    (Mark::Code, b"check"),
-    (Mark::Code, b"update"),
-    (Mark::Agent, b"resolve"),
-    (Mark::Code, b"merge"),
-    (Mark::Bar, b"main"),
+const REVIEW: &[(Mark, &[u8], bool, &[u8])] = &[
+    (Mark::Person, b"you ask", false, b""),
+    (Mark::Agent, b"produce", false, b""),
+    (Mark::Code, b"check", false, b""),
+    (Mark::Agent, b"review", false, b""),
+    (Mark::Agent, b"repair", true, b"tests, review"),
+    (Mark::Code, b"check", false, b""),
+    (Mark::Code, b"conflict", true, b""),
+    (Mark::Agent, b"resolve", true, b""),
+    (Mark::Code, b"merge", false, b""),
+    (Mark::Bar, b"main", false, b""),
 ];
-const DRAFT: &[(Mark, &[u8])] = &[
-    (Mark::Person, b"draft"),
-    (Mark::Agent, b"plan"),
-    (Mark::Agent, "produce ×n".as_bytes()),
-    (Mark::Code, b"merge"),
-    (Mark::Code, b"check"),
-    (Mark::Agent, b"repair"),
-    (Mark::Bar, b"goal branch"),
-    (Mark::Code, b"check"),
-    (Mark::Code, b"update"),
-    (Mark::Agent, b"resolve"),
-    (Mark::Code, b"merge"),
-    (Mark::Code, b"verify"),
-    (Mark::Bar, b"main"),
+const DRAFT: &[(Mark, &[u8], bool, &[u8])] = &[
+    (Mark::Person, b"draft", false, b""),
+    (Mark::Agent, b"plan", false, b""),
+    (Mark::Agent, "produce ×n".as_bytes(), false, b""),
+    (Mark::Code, b"merge", false, b"into goal"),
+    (Mark::Code, b"check", false, b""),
+    (Mark::Agent, b"repair", true, b"tests, review"),
+    (Mark::Bar, b"goal branch", false, b""),
+    (Mark::Code, b"catch up", true, b""),
+    (Mark::Code, b"conflict", true, b""),
+    (Mark::Agent, b"resolve", true, b""),
+    (Mark::Code, b"merge", false, b""),
+    (Mark::Code, b"verify", false, b""),
+    (Mark::Bar, b"main", false, b""),
 ];
 
 fn bounds() -> skein_ui::Limits {
@@ -75,11 +75,12 @@ fn styled(scene: &Scene, style: skein_ui::Style) -> Vec<u32> {
 #[expect(clippy::too_many_lines, reason = "the request's three paths share geometry, acts and fallback assertions")]
 fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
     for rows in [APPROVE, REVIEW, DRAFT] {
-        let stops: Vec<_> = rows.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
+        let stops: Vec<_> =
+            rows.iter().map(|(mark, words, needed, over)| Stop { mark: *mark, words, needed: *needed, over }).collect();
         let bindings: Vec<_> = rows
             .iter()
             .enumerate()
-            .map(|(i, (mark, _))| (*mark != Mark::Bar).then_some(binding(u64::try_from(i).unwrap())))
+            .map(|(i, (mark, _, _, _))| (*mark != Mark::Bar).then_some(binding(u64::try_from(i).unwrap())))
             .collect();
         for pressed in [None, Some(paths::Pressed { drawing: binding(99), stops: &bindings, open: Some(3) })] {
             let tree = tree(&stops, pressed.as_ref());
@@ -147,47 +148,97 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     }
                 );
                 assert_eq!(scene.styles(0), &[look::WAYS_AUTH]);
-                for (style, above) in [(look::WAYS_BASE, false), (look::WAYS_RISE, true)] {
+                for (style, actor, tones) in [
+                    (look::WAYS_BASE, None, None),
+                    (
+                        look::WAYS_RISE_PERSON,
+                        Some(Mark::Person),
+                        Some([look::WAYS_FADE_PERSON, look::WAYS_FADE_PERSON_FAINT, look::WAYS_FADE_BASE]),
+                    ),
+                    (
+                        look::WAYS_RISE_AGENT,
+                        Some(Mark::Agent),
+                        Some([look::WAYS_FADE_AGENT, look::WAYS_FADE_AGENT_FAINT, look::WAYS_FADE_BASE]),
+                    ),
+                ] {
                     let indices = styled(&scene, style);
                     assert_eq!(indices.len(), 1);
-                    let commands = commands(scene.data(indices[0]));
+                    let index = indices[0];
+                    let commands = commands(scene.data(index));
                     assert!(!commands.is_empty());
-                    for command in &commands {
-                        let points = match command {
-                            skein_ui::scene::Command::Move(p) | skein_ui::scene::Command::Line(p) => vec![*p],
-                            skein_ui::scene::Command::Cubic(a, b, c) => vec![*a, *b, *c],
-                            skein_ui::scene::Command::Quadratic(..) | skein_ui::scene::Command::Close => {
-                                panic!("line contains moves, lines and cubics")
-                            }
-                        };
-                        for p in points {
+                    if let Some(tones) = tones {
+                        let fade = scene.mark_fade(index).expect("each actor's rise has its own fade");
+                        assert_eq!(
+                            (fade.from, fade.to),
                             if across {
-                                assert!(if above { p.y <= 72 } else { p.y >= 72 });
+                                (Point { x: 0, y: 40 }, Point { x: 0, y: 106 })
                             } else {
-                                assert!(if above { p.x >= boundary } else { p.x <= boundary });
+                                (
+                                    Point { x: u16::try_from(offset + 206).unwrap(), y: 0 },
+                                    Point { x: u16::try_from(offset + 150).unwrap(), y: 0 },
+                                )
+                            }
+                        );
+                        let stops: Vec<_> = fade.stops().map(|s| (s.offset, s.styles.to_vec())).collect();
+                        assert_eq!(stops, [0, 500, 1000].into_iter().zip(tones.map(|t| vec![t])).collect::<Vec<_>>());
+                        assert_eq!(scene.styles(index), &[style]);
+                        // Every rise is a whole cubic, from a judgement to the base or back.
+                        let mut expected = Vec::new();
+                        let step = if across { 64000 / (rows.len() - 2) } else { 4000 };
+                        let reach = step * 42 / 100;
+                        for (i, _) in rows.iter().enumerate().filter(|(_, row)| Some(row.0) == actor) {
+                            let along = if across { 1200 + 64000 * i / (rows.len() - 2) } else { 1600 + i * 4000 };
+                            let upper = if across {
+                                Point { x: u16::try_from(along / 100).unwrap(), y: 40 }
+                            } else {
+                                Point {
+                                    x: u16::try_from(offset + 206).unwrap(),
+                                    y: u16::try_from(along / 100).unwrap(),
+                                }
+                            };
+                            for (a, b) in [(along.saturating_sub(reach), along), (along, along + reach)] {
+                                if (a == along && i + 1 == rows.len()) || (b == along && i == 0) {
+                                    continue;
+                                }
+                                let foot_along = if a == along { b } else { a };
+                                let foot = if across {
+                                    Point { x: u16::try_from(foot_along / 100).unwrap(), y: 106 }
+                                } else {
+                                    Point {
+                                        x: u16::try_from(offset + 150).unwrap(),
+                                        y: u16::try_from(foot_along / 100).unwrap(),
+                                    }
+                                };
+                                let (start, end) = if a == along { (upper, foot) } else { (foot, upper) };
+                                let middle = u16::try_from((a + b) / 200).unwrap();
+                                let (c1, c2) = if across {
+                                    (Point { x: middle, y: start.y }, Point { x: middle, y: end.y })
+                                } else {
+                                    (Point { x: start.x, y: middle }, Point { x: end.x, y: middle })
+                                };
+                                expected.push(skein_ui::scene::Command::Move(start));
+                                expected.push(skein_ui::scene::Command::Cubic(c1, c2, end));
                             }
                         }
-                    }
-                    if !above {
-                        // The first judgement falls over 0.42 of one step.
-                        let step = 64000 / (rows.len() - 2);
-                        let foot = if across {
-                            Point { x: u16::try_from((1200 + step * 42 / 100) / 100).unwrap(), y: 106 }
-                        } else {
-                            Point { x: u16::try_from(150 + offset).unwrap(), y: 32 }
-                        };
-                        assert!(commands.iter().any(|command| match command {
-                            skein_ui::scene::Command::Cubic(_, _, end) => *end == foot,
-                            skein_ui::scene::Command::Move(_)
-                            | skein_ui::scene::Command::Line(_)
-                            | skein_ui::scene::Command::Quadratic(..)
-                            | skein_ui::scene::Command::Close => false,
-                        }));
+                        assert_eq!(commands, expected, "whole curves for {actor:?}");
+                    } else {
+                        assert!(scene.mark_fade(index).is_none());
+                        for c in commands {
+                            match c {
+                                skein_ui::scene::Command::Move(p) | skein_ui::scene::Command::Line(p) => assert_eq!(
+                                    if across { p.y } else { p.x },
+                                    if across { 106 } else { u16::try_from(offset + 150).unwrap() }
+                                ),
+                                skein_ui::scene::Command::Cubic(..)
+                                | skein_ui::scene::Command::Quadratic(..)
+                                | skein_ui::scene::Command::Close => panic!("base is straight"),
+                            }
+                        }
                     }
                 }
                 let texts = styled(&scene, look::WAYS_WORDS);
                 assert_eq!(texts.len(), rows.len());
-                for (i, (mark, words)) in rows.iter().enumerate() {
+                for (i, (mark, words, needed, over)) in rows.iter().enumerate() {
                     let upper = *mark == Mark::Person || *mark == Mark::Agent;
                     let bar = *mark == Mark::Bar;
                     let end = i + 1 == rows.len();
@@ -209,7 +260,10 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     };
                     let text_index = texts[i];
                     let mark_index = text_index - 1;
-                    assert_eq!(scene.styles(mark_index), &[style]);
+                    assert_eq!(
+                        scene.styles(mark_index),
+                        if *needed { vec![style, look::WAYS_MAYBE] } else { vec![style] }
+                    );
                     let expected = match mark {
                         Mark::Person => SceneMark::Circle {
                             centre: Point { x: u16::try_from(x / 100).unwrap(), y: u16::try_from(y / 100).unwrap() },
@@ -314,6 +368,22 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     assert_eq!(scene.data(text_index), *words);
                     assert_eq!(scene.styles(text_index).contains(&look::WAYS_OPEN), pressed.is_some() && i == 3);
                     assert_eq!(scene.styles(text_index).contains(&look::WAYS_END), bar);
+                    if !over.is_empty() {
+                        let why = text_index + 1;
+                        assert_eq!(scene.styles(why), &[look::WAYS_WHY]);
+                        assert_eq!(scene.data(why), *over);
+                        assert_eq!(
+                            scene.marks()[usize::try_from(why).unwrap()],
+                            SceneMark::Text {
+                                at: if across {
+                                    Point { x: u16::try_from(x / 100).unwrap(), y: 9 }
+                                } else {
+                                    Point { x: at.x, y: at.y + 12 }
+                                },
+                                anchor: if across { Anchor::Middle } else { anchor },
+                            }
+                        );
+                    }
                     let actor = match mark {
                         Mark::Person => "a person",
                         Mark::Agent => "an agent",
@@ -321,7 +391,20 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                         Mark::Bar => "a branch",
                     };
                     assert!(
-                        printed.lines().any(|l| l.contains(&format!("{}, {actor}", String::from_utf8_lossy(words)))),
+                        printed.lines().any(|l| l
+                            .trim_end()
+                            .strip_suffix(" (expanded)")
+                            .unwrap_or(l.trim_end())
+                            .ends_with(&format!(
+                                "{}, {actor}{}{}",
+                                String::from_utf8_lossy(words),
+                                if *needed { ", when needed" } else { "" },
+                                if over.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!(" ({})", String::from_utf8_lossy(over))
+                                }
+                            ))),
                         "{printed}"
                     );
                 }
@@ -339,7 +422,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                 let hits = styled(&scene, look::WAYS_HIT);
                 assert_eq!(groups.len(), buttons.len());
                 assert_eq!(hits.len(), buttons.len());
-                for ((group, hit), (i, (mark, _))) in
+                for ((group, hit), (i, (mark, _, _, _))) in
                     groups.iter().zip(&hits).zip(rows.iter().enumerate().filter(|(_, r)| r.0 != Mark::Bar))
                 {
                     let act = [u8::try_from(i).unwrap()];
@@ -347,7 +430,10 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     assert_eq!(scene.mark_act(*hit), Some(act.as_slice()));
                     assert_eq!(
                         scene.marks()[usize::try_from(*group).unwrap()],
-                        SceneMark::Group { offset: Point { x: 0, y: 0 }, marks: if i == 3 { 4 } else { 3 } }
+                        SceneMark::Group {
+                            offset: Point { x: 0, y: 0 },
+                            marks: (if i == 3 { 4 } else { 3 }) + u32::from(!rows[i].3.is_empty())
+                        }
                     );
                     let mut resolved = skein_lib::List::with_capacity(1);
                     assert!(scene.act_at(&[texts[i]], Point { x: 0, y: 0 }, &mut resolved));
@@ -444,7 +530,10 @@ fn read_point(reader: &mut skein_lib::Reader<'_>) -> Point {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks path data, layout thresholds and exact scene bounds")]
 fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
-    let maximum = vec![Stop { mark: Mark::Agent, words: &[b'x'; 64] }; 32];
+    // 31 joins × 46 + 31 stars × 42 + 32 × (64 + 16 + 2) + caret 12 + two fades × 20.
+    const MIXED_SCENE_BYTES: u32 = 5404;
+    let mut maximum = vec![Stop { mark: Mark::Agent, words: &[b'x'; 64], needed: true, over: &[b'y'; 16] }; 32];
+    maximum[0].mark = Mark::Person;
     let bindings = vec![Some(binding(1)); 32];
     let pressed = paths::Pressed { drawing: binding(99), stops: &bindings, open: Some(3) };
     let maximum_tree = tree(&maximum, Some(&pressed));
@@ -474,7 +563,8 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         (607, DRAFT, 508, None),
         (608, DRAFT, 140, Some(720)),
     ] {
-        let stops: Vec<_> = rows.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
+        let stops: Vec<_> =
+            rows.iter().map(|(mark, words, needed, over)| Stop { mark: *mark, words, needed: *needed, over }).collect();
         let t = tree(&stops, None);
         assert!(paths::draw(paths::KIND, &t.nodes()[0].drawing.as_ref().unwrap().data, width, 0, &mut scene));
         assert_eq!(scene.height(), Some(height));
@@ -483,9 +573,12 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
     }
     for (stops, expected) in [
         (vec![], paths::Problem::Stops),
-        (vec![Stop { mark: Mark::Code, words: b"x" }; 33], paths::Problem::Stops),
-        (vec![Stop { mark: Mark::Code, words: b"" }], paths::Problem::Words),
-        (vec![Stop { mark: Mark::Code, words: &[b'x'; 65] }], paths::Problem::Words),
+        (vec![Stop { mark: Mark::Agent, words: b"x", needed: false, over: &[b'x'; 17] }], paths::Problem::Over),
+        (vec![Stop { mark: Mark::Bar, words: b"x", needed: false, over: b"x" }], paths::Problem::Over),
+        (vec![Stop { mark: Mark::Bar, words: b"x", needed: true, over: b"" }], paths::Problem::Stops),
+        (vec![Stop { mark: Mark::Code, words: b"x", needed: false, over: b"" }; 33], paths::Problem::Stops),
+        (vec![Stop { mark: Mark::Code, words: b"", needed: false, over: b"" }], paths::Problem::Words),
+        (vec![Stop { mark: Mark::Code, words: &[b'x'; 65], needed: false, over: b"" }], paths::Problem::Words),
     ] {
         let mut builder = Builder::new(&bounds());
         assert_eq!(paths::path(&mut builder, b"Path", &stops, None), Err(expected));
@@ -495,22 +588,38 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         b"".as_slice(),
         &[0],
         &[33],
-        &[1, 0, 255, 4, 1, b'x'],
-        &[1, 0, 255, 0, 0],
-        &[1, 0, 255, 0, 65],
-        &[1, 0, 255, 0, 2, b'x'],
-        &[1, 0, 255, 0, 1, b'x', 0],
-        &[1, 2, 255, 0, 1, b'x'],
-        &[1, 0, 0, 0, 1, b'x'],
-        &[1, 1, 1, 0, 1, b'x'],
-        &[1, 1, 0, 3, 1, b'x'],
+        &[1, 0, 255, 4, 0, 1, b'x', 0],
+        &[1, 0, 255, 0, 2, 1, b'x', 0],
+        &[1, 0, 255, 0, 0, 0],
+        &[1, 0, 255, 0, 0, 65],
+        &[1, 0, 255, 0, 0, 2, b'x'],
+        &[1, 0, 255, 0, 0, 1, b'x', 0, 0],
+        &[1, 0, 255, 0, 0, 1, b'x', 17],
+        &[1, 0, 255, 3, 0, 1, b'x', 1, b'x'],
+        &[1, 0, 255, 3, 1, 1, b'x', 0],
+        &[1, 2, 255, 0, 0, 1, b'x', 0],
+        &[1, 0, 0, 0, 0, 1, b'x', 0],
+        &[1, 1, 1, 0, 0, 1, b'x', 0],
+        &[1, 1, 0, 3, 0, 1, b'x', 0],
     ] {
         assert!(!paths::draw(paths::KIND, data, 640, 0, &mut scene));
         assert!(scene.marks().is_empty());
     }
+    for mark in [Mark::Person, Mark::Agent, Mark::Code] {
+        let stops = [Stop { mark, words: b"x", needed: false, over: b"" }; 2];
+        let t = tree(&stops, None);
+        assert!(paths::draw(paths::KIND, &t.nodes()[0].drawing.as_ref().unwrap().data, 720, 0, &mut scene));
+        assert_eq!(styled(&scene, look::WAYS_RISE_PERSON).len(), usize::from(mark == Mark::Person));
+        assert_eq!(styled(&scene, look::WAYS_RISE_AGENT).len(), usize::from(mark == Mark::Agent));
+        scene.clear();
+    }
     for open in [None, Some(0), Some(9), Some(32)] {
-        let stops: Vec<_> = APPROVE.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
-        let bindings: Vec<_> = APPROVE.iter().map(|(mark, _)| (*mark != Mark::Bar).then_some(binding(1))).collect();
+        let stops: Vec<_> = APPROVE
+            .iter()
+            .map(|(mark, words, needed, over)| Stop { mark: *mark, words, needed: *needed, over })
+            .collect();
+        let bindings: Vec<_> =
+            APPROVE.iter().map(|(mark, _, _, _)| (*mark != Mark::Bar).then_some(binding(1))).collect();
         let pressed = paths::Pressed { drawing: binding(99), stops: &bindings, open };
         let tree = tree(&stops, Some(&pressed));
         let bytes = &tree.nodes()[0].drawing.as_ref().unwrap().data;
@@ -520,12 +629,16 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         assert_eq!(styled(&state, look::WAYS_HALO).len(), usize::from(open == Some(0)));
         assert_eq!(state.height(), Some(if open == Some(0) { 154 } else { 140 }));
     }
+    let mut exact = maximum_bounds;
+    exact.scene_bytes = MIXED_SCENE_BYTES;
+    let mut fits = Scene::new(&exact);
+    assert!(paths::draw(paths::KIND, data, 1568, 0, &mut fits));
     for field in ["scene_marks", "scene_bytes"] {
         let mut tight = maximum_bounds;
         if field == "scene_marks" {
             tight.scene_marks -= 1;
         } else {
-            tight.scene_bytes -= 1;
+            tight.scene_bytes = MIXED_SCENE_BYTES - 1;
         }
         let mut short = Scene::new(&tight);
         assert!(!paths::draw(paths::KIND, data, 1568, 0, &mut short), "{field} is tight");

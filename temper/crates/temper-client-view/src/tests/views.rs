@@ -437,8 +437,10 @@ fn assert_view(tree: &Tree, row: &Row, limits: &skein_ui::Limits) {
         assert_eq!(encoded.u8(), Some(255));
         for (mark, words) in [(0, b"you ask".as_slice()), (1, b"produce"), (2, b"merge"), (3, b"main")] {
             assert_eq!(encoded.u8(), Some(mark));
+            assert_eq!(encoded.u8(), Some(0), "not needed");
             let len = u32::from(encoded.u8().unwrap());
             assert_eq!(encoded.bytes(len), Some(words));
+            assert_eq!(encoded.u8(), Some(0), "no over words");
         }
         assert!(encoded.is_empty());
     }

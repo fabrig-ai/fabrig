@@ -1290,7 +1290,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-view-muted",
         b"temper-view-card",
         b"temper-ways-path",
-        b"temper-ways-rise",
+        b"temper-reserved-620",
         b"temper-ways-stop",
         b"temper-ways-hit",
         b"temper-ways-halo",
@@ -1328,6 +1328,16 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-bar",
         b"temper-how-line",
         b"temper-how-row",
+        b"temper-ways-maybe",
+        b"temper-ways-why",
+        b"temper-ways-rise-person",
+        b"temper-ways-rise-agent",
+        b"temper-ways-fade-person",
+        b"temper-ways-fade-person-faint",
+        b"temper-ways-fade-agent",
+        b"temper-ways-fade-agent-faint",
+        b"temper-ways-fade-base",
+        b"temper-ways-kind-maybe",
     ],
     regions: &[b"temper-link"],
 };
@@ -1713,7 +1723,6 @@ pub const VIEW_CARD: Style = Style { owner: owner(), token: 618 };
 
 /// Path layout and presses (temper/docs/design/client/README.md, 5.16).
 pub const WAYS_PATH: Style = Style { owner: owner(), token: 619 };
-pub const WAYS_RISE: Style = Style { owner: owner(), token: 620 };
 pub const WAYS_STOP: Style = Style { owner: owner(), token: 621 };
 pub const WAYS_HIT: Style = Style { owner: owner(), token: 622 };
 pub const WAYS_HALO: Style = Style { owner: owner(), token: 623 };
@@ -1755,6 +1764,18 @@ pub const HOW_CODE: Style = Style { owner: owner(), token: 654 };
 pub const HOW_BAR: Style = Style { owner: owner(), token: 655 };
 pub const HOW_LINE: Style = Style { owner: owner(), token: 656 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 657 };
+
+/// Path marks and fades (temper/docs/design/client/README.md, 5.16).
+pub const WAYS_MAYBE: Style = Style { owner: owner(), token: 658 };
+pub const WAYS_WHY: Style = Style { owner: owner(), token: 659 };
+pub const WAYS_RISE_PERSON: Style = Style { owner: owner(), token: 660 };
+pub const WAYS_RISE_AGENT: Style = Style { owner: owner(), token: 661 };
+pub const WAYS_FADE_PERSON: Style = Style { owner: owner(), token: 662 };
+pub const WAYS_FADE_PERSON_FAINT: Style = Style { owner: owner(), token: 663 };
+pub const WAYS_FADE_AGENT: Style = Style { owner: owner(), token: 664 };
+pub const WAYS_FADE_AGENT_FAINT: Style = Style { owner: owner(), token: 665 };
+pub const WAYS_FADE_BASE: Style = Style { owner: owner(), token: 666 };
+pub const WAYS_KIND_MAYBE: Style = Style { owner: owner(), token: 667 };
 
 #[cfg(test)]
 mod tests {

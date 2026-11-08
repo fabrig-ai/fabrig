@@ -16,10 +16,6 @@
 - **Not yet:** 2.5, *How work runs' look*, and 7.2's `how` states
   (`how-drawing`, `look-round-25`): the path is the lanes' table, its
   pills blue and slate on `--gf-agent` and `--gf-code`.
-- **Not yet:** 2.5, *Ask temper's ways*, who acts' marks and the line
-  (`path-marks`, `look-round-25`): an agent's star, the legend's and the
-  rises are `--gf-signal`, code's square `--gf-ink-2`; no mark is
-  outlined, no small words over a stop; the line is two flat tones.
 - **Not yet:** 2.5, *How work runs' look*, *Roles*, and 7.2's
   `how-draft` (`roles-page`, `look-round-25`): no Roles' rules, tokens or
   rows.

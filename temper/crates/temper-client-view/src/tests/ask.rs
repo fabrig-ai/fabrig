@@ -444,6 +444,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
                 look::WAYS_LEGEND,
                 vec![
                     (Role::Text, vec![look::WAYS_KIND_AGENT]),
+                    (Role::Text, vec![look::WAYS_KIND_MAYBE]),
                     (Role::Text, vec![look::WAYS_KIND_PERSON]),
                     (Role::Text, vec![look::WAYS_KIND_CODE]),
                     (Role::Text, vec![look::WAYS_KIND_LINE]),
@@ -460,7 +461,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
             (look::WAYS_AXIS, b"From more of you to more of your agents"),
             (look::WAYS_PANEL, b"Agents review"),
             (look::WAYS_PATH, b"The way a change goes"),
-            (look::WAYS_LEGEND, b"An agent, a person, code; no merge tool above the dotted line"),
+            (look::WAYS_LEGEND, b"An agent, an agent when needed, a person, code; no merge tool above the dotted line"),
         ] {
             assert_eq!(styled(tree, style)[0].name.as_deref(), Some(name));
         }
@@ -809,6 +810,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
     let text = String::from_utf8_lossy(out.text.as_slice());
     assert_eq!(text.matches("Ways of working:").count(), 1, "{text}");
     assert_eq!(text.matches("The way a change goes:").count(), 1, "{text}");
+    assert!(text.contains("agent, when needed, person, code; no merge tool above"), "{text}");
     let mut rest = text.as_ref();
     for word in [
         "== Ask temper ==",
@@ -838,6 +840,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "Can",
         "Asked to",
         "agent",
+        "when needed",
         "person",
         "code",
         "no merge tool above",

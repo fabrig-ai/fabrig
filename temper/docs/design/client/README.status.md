@@ -113,12 +113,6 @@ work.
   - 5.13, *The page* and *Its parts*, and 5.16, *Pressed* (`how-drawing`,
     `look-round-25`): How work runs draws its path as a table in lanes,
     `pages::how::lanes`, with no legend, not as Ask temper's drawing.
-  - 5.16, *Drawn* and *Its layout* (`path-marks`, `look-round-25`): no
-    stop is drawn outlined or with small words over its own, and the
-    fallback says neither; an agent's star and the rises to it are the
-    signal's; the line is two tones, the signal's faint one above the
-    dotted line and the line's below, not a fade a rise; the legend has
-    no agent when needed.
   - 5.13, *The page* (*Roles*) and *Its parts* (`roles-page`,
     `look-round-25`): How work runs draws no Roles and reads no `roles`
     view.
