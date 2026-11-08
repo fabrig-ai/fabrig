@@ -12,9 +12,6 @@ user's frame refinement, real-box journeys and other deferred choices.
 The committed frames establish no real-terminal look or macOS runtime
 result.
 
-- **Not yet:** 3.2, 4.1 and 5: the records `local`, `noted`, `found`,
-  `note` and `read`, their replay, and the *link* original read from a
-  `found`, are not built.
 - **Not yet:** 6.4: the committed pages are not reprinted in the
   terminal's defaults, with no `sel` in `theme.css`.
 - **Not yet:** 8.2 and 9: `again`'s TUI has no runtime directory of its

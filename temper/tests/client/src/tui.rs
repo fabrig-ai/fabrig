@@ -37,6 +37,8 @@ impl Tui {
         tui.report(
             world,
             Report::Start(Start {
+                local: false,
+                note: None,
                 size: Size { columns: 80, rows: 24 },
                 scheme: Scheme::Dark,
                 address: ADDRESS.into(),
