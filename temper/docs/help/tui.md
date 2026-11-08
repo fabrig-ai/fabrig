@@ -20,6 +20,10 @@ and engine.
 `q` closes the signed-in screen and keeps the sign-in. Ctrl+C also closes
 on either screen; on the sign-in screen, `q` types a character.
 
+A short chat reads back to its opening automatically. Your opening question
+stays above the answer after the agent finishes. PgUp and PgDn read back
+through the conversation's visible rows.
+
 ## Acting on it
 
 Close the TUI, then run `temper open DIR http://HOST:PORT` with the
