@@ -1341,6 +1341,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decided-head",
         b"temper-home-phone",
         b"temper-home-wide",
+        b"temper-ask-line",
     ],
     regions: &[b"temper-link"],
 };
@@ -1784,6 +1785,9 @@ pub const CHIP_SIGNAL: Style = Style { owner: owner(), token: 667 };
 pub const DECIDED_HEAD: Style = Style { owner: owner(), token: 668 };
 pub const HOME_PHONE: Style = Style { owner: owner(), token: 669 };
 pub const HOME_WIDE: Style = Style { owner: owner(), token: 670 };
+
+/// The wide Homes' question field (client/README.md, 3.5).
+pub const ASK_LINE: Style = Style { owner: owner(), token: 671 };
 
 #[cfg(test)]
 mod tests {

@@ -186,16 +186,23 @@ fn home_parts(root: &d::Domain, object: c::ObjectKey) {
     };
     assert_eq!(crate::pages::ask::card_kind(card), crate::words::Word::HomeQuestion);
     let words = f::browser_words();
-    let asked = crate::pages::ask::read(card, &words);
     let mut builder = skein_ui::Builder::new(&f::tree_limits());
     let mut bindings = crate::frame::Bindings::new(128);
-    crate::pages::ask::home_body(&mut builder, root, &asked, &words, &mut bindings, 4);
+    crate::pages::home_cards::cards(
+        &mut builder,
+        root,
+        &[needs::Need::Card(card)],
+        false,
+        &words,
+        &mut bindings,
+        &mut crate::words::Times::new(f::NOW),
+    );
     let home = builder.finish();
     let text = f::text(&home);
     for words in [b"MakeProject answers".as_slice(), b"The box test reproduces"] {
-        assert!(skein_lib::bytes::find(&text, words).is_some());
+        assert!(skein_lib::bytes::find(&text, words).is_none());
     }
-    for name in ["In jig’s store".as_bytes(), b"In temper serve", b"Reply", b"Later"] {
+    for name in ["In jig’s store".as_bytes(), b"In temper serve", b"Tell it something else"] {
         assert!(f::find(&home, Role::Button, name).is_some());
     }
     let choice = home
@@ -476,7 +483,149 @@ fn answered_lines_have_links_labels_and_undo_only_during_hold() {
     }
 }
 
+fn decisions_delivered(
+    root: &mut d::Domain,
+    project: u32,
+    watch: skein_lib::Token,
+    count: u32,
+    out: &mut Queue<d::Request>,
+) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows = List::with_capacity(count);
+    for number in 1..=count {
+        if (number % 2 == 1) != (project == f::PROJECT) {
+            continue;
+        }
+        rows.push(
+            w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number,
+                    task: 90 + u64::from(number),
+                    at: 3_900_000_000_000,
+                    question: b"Which approach?".as_slice().into(),
+                    took: b"Fixed the harness.".as_slice().into(),
+                    why: b"Tests are its area.".as_slice().into(),
+                    overturned: false,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    let bytes = wire::decisions(&w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).unwrap());
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                },
+            },
+        },
+        out,
+    );
+}
+fn empty_decided_inbox(root: &mut d::Domain, watch: skein_lib::Token, out: &mut Queue<d::Request>) {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    )))),
+                },
+            },
+        },
+        out,
+    );
+}
+fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d::Domain {
+    let (mut root, _, initial) = f::root_at(Address::Inbox { filter }, &limits());
+    let mut out = Queue::uncapped();
+    event(&mut root, Event::Went { place: d::Place::Address(Address::Accounts) }, &mut out);
+    event(&mut root, Event::Went { place: d::Place::Address(Address::Inbox { filter }) }, &mut out);
+    if let Some(watch) = initial {
+        empty_decided_inbox(&mut root, watch, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+        match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                empty_decided_inbox(&mut root, watch, &mut out);
+            }
+            jig_client::Down::Open { watch, subject } => {
+                for project in [f::PROJECT, f::SECOND_PROJECT] {
+                    if Some(subject.clone()) != d::forge::decided::watch(project, &limits().forge) {
+                        continue;
+                    }
+                    decisions_delivered(&mut root, project, watch, count, &mut out);
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) } => {
+                event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                    c::InboxPage {
+                                        selection: None,
+                                        before: None,
+                                        rows: List::with_capacity(0),
+                                        after: None,
+                                        cut: false,
+                                    },
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) } => {
+                let mut document = f::task::document();
+                document.chip.task = task;
+                document.chip.title = f::task::document_words(b"Decided task");
+                event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(
+                                    document,
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            jig_client::Down::Save { .. }
+            | jig_client::Down::Erase { .. }
+            | jig_client::Down::Send { .. }
+            | jig_client::Down::Continue { .. }
+            | jig_client::Down::Close { .. }
+            | jig_client::Down::Read { .. } => {}
+        }
+    }
+    assert!(root.pages().inbox().unwrap().known(), "decided fixture has an answered inbox");
+    if open {
+        approvals(&mut root, &[approval_row()], 0);
+    }
+    root
+}
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
 fn done_with_and_without_lines_and_home_project() {
     for answered in [false, true] {
         let mut root = fixture(QUESTION, false, u32::from(answered), false, d::address::Filter::ALL);
@@ -493,6 +642,65 @@ fn done_with_and_without_lines_and_home_project() {
             crate::act(&mut view, home, Act::Press),
             Some(d::Action::Pages(pages::Act::Go { address: Address::AllHome }))
         );
+    }
+    for (open, count, project, showing) in [
+        (false, 0, None, 0),
+        (true, 0, None, 0),
+        (false, 4, None, 4),
+        (true, 4, None, 4),
+        (true, 1, None, 1),
+        (true, 4, Some(f::PROJECT), 2),
+        (false, 4, Some(f::SECOND_PROJECT), 2),
+    ] {
+        let root = decided_fixture(d::address::Filter { project, ..d::address::Filter::ALL }, count, open);
+        for (mut view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
+            let nodes = main(&view);
+            assert_eq!(nodes.iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), showing);
+            assert_eq!(f::find(view.tree(), Role::Region, b"Decided for you").is_some(), showing > 0);
+            if showing == 0 {
+                assert!(!has(&view, b"were decided for you"));
+                continue;
+            }
+            assert!(
+                f::find(view.tree(), Role::Heading { level: 2 }, format!("Decided for you · {showing}").as_bytes())
+                    .is_some()
+            );
+            assert!(has(&view, b"for 24 hours, then in each task's history"));
+            assert!(has(&view, b"Which approach?"));
+            assert!(has(&view, b"Fixed the harness."));
+            assert!(has(&view, b"Allowed: Tests are its area."));
+            let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
+            assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
+            if project.is_some() {
+                let other = if project == Some(f::PROJECT) { "Second ·".as_bytes() } else { "Shop ·".as_bytes() };
+                assert!(!has(&view, other));
+            }
+            if open && browser {
+                let sentence = match showing {
+                    1 => "One",
+                    2 => "Two",
+                    4 => "Four",
+                    _ => unreachable!(),
+                };
+                let suffix = if showing == 1 { "was" } else { "were" };
+                let heading = format!("One thing needs you. {sentence} {suffix} decided for you.");
+                assert!(f::find(view.tree(), Role::Heading { level: 1 }, heading.as_bytes()).is_some());
+            }
+            let region = nodes
+                .iter()
+                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Decided for you"))
+                .unwrap();
+            let done_or_list = nodes.iter().position(|n| n.role == Role::Heading { level: 1 }).unwrap();
+            assert!(region > done_or_list);
+            let over = f::find(view.tree(), Role::Button, b"Overturn").unwrap();
+            assert_eq!(
+                crate::act(&mut view, over, Act::Press),
+                Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Overturn {
+                    project: project.unwrap_or(f::PROJECT),
+                    number: if project == Some(f::SECOND_PROJECT) { 2 } else { 1 }
+                })))
+            );
+        }
     }
 }
 #[test]
