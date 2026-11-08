@@ -16,7 +16,8 @@
     (`temper/crates/temper-playground/stories/a/deployment.json`).
     `temper/docs/development/playground-memory.md` measures the world's
     native heap, by process, at its first step and its start alone, and
-    sets no bound; through the story there is only the browser tier's
+    the playground world's test holds them within a quarter (9);
+    through the story there is only the browser tier's
     high water, which does not say what reserves it. The download:
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
@@ -25,10 +26,9 @@
     5 s, forge 1 Kept, the account and the project absent
     (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
     lets the web client's walk pass lifts that is unknown.
-  - 9: the native heap at start: `temper/tests/playground/tests/memory.rs`
-    prints its figures, holds no bound and is ignored, run by hand;
-    `temper/tests/one-process/tests/memory.rs` likewise prints story A's
-    high water, which it cannot reach while the story stalls there.
+  - 9: story A's high water in the one-process world:
+    `temper/tests/one-process/tests/memory.rs` is ignored and prints
+    it by hand, the story stalling there (above).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.
