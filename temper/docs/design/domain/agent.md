@@ -410,21 +410,33 @@ Code, smith's `protocol/programs.md`, 5.1).
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
-- **`decided`,** of the control family, offered as every host tool is, a
-  goal's alone by what it answers: `{ question, options, took, why, kind
-  }`, `options` 2 to 6 words of the agent's, `took` an index into them,
-  `kind` one of `implementation`, `retry`, `wording`, `dependency` and
-  `other`; `question` at most 400 bytes, each option 120, `why` 400, a
-  call past those refused at decoding, saying so. The forge judges it
-  (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
-  saved, or "Ask: your person is here or this kind waits for them. Ask
-  with message, as a question; if your brief says [Requested by person N],
-  with delegate, a person task addressed to person N." Named and decided
+- **`decided`,** of the control family, offered as every host tool is, to
+  every task whose question would reach a person (`forge.md`, 5.9): `{
+  question, options, took, why, kind, paths, under }`, `options` 2 to 6
+  words of the agent's, `took` an index into them, `kind` one of the ten
+  of `forge.md`, 5.10, `wording`, `retry`, `implementation`, `tests`,
+  `dependency`, `departure`, `money`, `irreversible`, `rules` and `other`;
+  `paths`, optional, at most 16 repository-relative paths of at most 256
+  bytes that the choice would change; `under`, optional, the number of an
+  item with words of the project's classes the choice falls under;
+  `question` at most 400 bytes, each option 120, `why` 400, a call past
+  those refused at decoding, saying so. The forge judges it (`forge.md`,
+  5.9 and 5.10): "Decided: carry on with TOOK." with a `Decided` row
+  saved, or "Ask: REASON. Ask with message, as a question; if your brief
+  says [Requested by person N], with delegate, a person task addressed to
+  person N.", REASON from its reach: "money always waits for your
+  person", "implementation asks your person, even when away",
+  "implementation asks your person while they are here", "changes to
+  path set N ask your person, even when away", whose name `settings
+  project-classes` reads (8.4.1), "your words say Asks: always", "your person's decided list is full for today" where the
+  class decided and no row had room, and, for a caller with no person,
+  "no person is asked through you: ask your requester". Named and decided
   once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
-  anything hard to reverse are
-  kind `other`, by the charter's words (`../protocol/configuration.md`,
-  13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
-  asks it by its requester's route (8.2), and waits. Nothing in the engine
+  anything hard to reverse are `money` or `irreversible` and always wait,
+  by the charter's words (`../protocol/configuration.md`, 13.4); a change
+  to the classes, a landing rule or a standing role's rules is `rules`.
+  A task that overturned words reach (`../client/README.md`, 3.5) asks it
+  by its requester's route (8.2), and waits. Nothing in the engine
   answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
@@ -1083,8 +1095,8 @@ otherwise teach.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
-  out), `forge-charter`, `project-policy`, `project-ways` and
-  `project-questions` (each with its `project`), each named and valued as
+  out), `forge-charter`, `project-policy`, `project-ways`,
+  `project-questions` and `project-classes` (each with its `project`), each named and valued as
   the file names and values it, so that a description's landing rules,
   the forge's charters and a project's own policy are proposed as its
   charters are. `see` reads them at the chat's own project (8.4.1); a
@@ -1472,10 +1484,10 @@ are its second milestone's (section 10).
 
 | Address | Answers | Over | `see:` |
 |---|---|---|---|
-| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings` |
+| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
 | `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
-| `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
+| `settings project-ways`, `settings project-questions`, `settings project-classes` | the chat's project's ways, questions or classes, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7, 6 and 8 | `settings · revisions · help settings-fields` |
 | `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../protocol/configuration.md`, section 3), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
 | `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows; then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
 | `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its line, and its path as one line of stops, each its words and its actor in brackets, joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · help settings` |

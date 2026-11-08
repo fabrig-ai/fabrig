@@ -5,12 +5,19 @@
 - **Not yet:** 13.2: the client wire and the store hold no
   `ProjectClasses` and the wire no `Reach` (`ui-reaches/reach-wire`).
 
-- **Not yet:** 13.2: kind 8 has no value of the forge's, no stock and no
-  reader of its record (`ui-reaches/classes-value`).
+- **Not yet:** 13.2, 13.4: the forge holds no kind 8: no value, no stock,
+  no judgement and no erasure with its project, and the store no codec for
+  it (`ui-reaches/classes-value`).
 
-- **Not yet:** 13.2: the forge declares no kind 8, so no project's
-  classes are judged, kept, read or erased, and no agent's `settings` or
+- **Not yet:** 13.2: the stock declares no kind 8 to jig, so no project
+  sets one; the client wire's `settings_kind` refuses 8, no read in a
+  project's scope takes it, and no agent's `settings` or
   `propose_settings` names `project-classes` (`ui-reaches/classes-kind`).
+
+- **Not yet:** 7: no limit `forge.decided_per_project`
+  (`ui-reaches/decide-forge`).
+
+- **Not yet:** 13.10: no stock way lays kind 8 (`ui-reaches/classes-ways`).
 
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held

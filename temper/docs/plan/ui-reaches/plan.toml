@@ -36,3 +36,42 @@ id = 2
 story = "A project's classes and a reach encode and decode at every bound, on the wire and in the store"
 parts = ["wire"]
 walk = false
+
+[[part]]
+id = "classes"
+title = "Kind 8, a project's classes: its value and stock, declared, read and proposed, in ctl and settings files, laid by the stock ways"
+mode = "direct"
+needs = ["kit", "wire"]
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[part]]
+id = "decide"
+title = "Away without kinds; decided judged by the classes for any task's person, asked rows, kept 7 days under a limit; the tool's kinds, paths, under and words"
+mode = "direct"
+needs = ["classes"]
+design = "temper/docs/design/domain/forge.md, 5.9"
+
+[[part]]
+id = "keep"
+title = "Keep asking, a person's fact that stops Stop asking for a week"
+mode = "direct"
+needs = ["decide"]
+design = "temper/docs/design/domain/forge.md, 5.5"
+
+[[slice]]
+id = 3
+story = "An owner sets a project's classes by ChangeSettings, a proposal or a settings file, a member reads them back, and each stock way sets its own"
+parts = ["classes"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A goal, a chat and a person's task each ask or decide as the project's classes and the person's Away say, every call listed as decided or asked for the right person, an always-waits kind never decided, and an owner's change of the classes deciding the next question"
+parts = ["decide"]
+walk = false
+
+[[slice]]
+id = 5
+story = "Keep asking pressed twice on one item keeps one fact, read back on every device"
+parts = ["keep"]
+walk = false

@@ -3720,8 +3720,8 @@ the person to check existence and grant the repository to the App.
 - **`SetAway`:** of the project it names, from any party with a role
   there, as `Dismiss` (`../domain/forge.md`, 5.8): `project`, u32; `on`,
   bool; `until`, an optional u64, nanoseconds since the epoch as
-  `ChangesLanded.at`; `kinds`, u8, its bits past 15 refused by validation.
-  Its outcome: *away*, `away`, no fields, once the row has committed;
+  `ChangesLanded.at`. What Away may decide is the project's classes', not
+  the switch's (`../domain/forge.md`, 5.10). Its outcome: *away*, `away`, no fields, once the row has committed;
   *forge refused*, `too large`, the family's bound reached; or *unknown*,
   no longer held, which the subject `away` answers.
 - **`Overturn`:** of the project it names, from any party with a role
@@ -4019,16 +4019,20 @@ the person to check existence and grant the repository to the App.
   with no fields, its window unused; on the wire `Watching`'s `away`, one
   subject for the deployment and each watcher's own rows, as `dismissed`
   (below). Its document, `Aways`: `rows`, at most 1,024, each
-  `AwayRow { project, since, until, kinds, landed, off }`. *The client's forge
+  `AwayRow { project, since, until, landed, off }`. *The client's forge
   side watches it once,* for the session, as it does `dismissed`, a watch
   refused or ended kept as such, with no rows: then the switch draws off and
   its act is not offered.
 - **What was decided for a person, the subject `decided`:** of the project's
   scope, on the wire `Watching`'s `decided`, `DecidedSubject { project }`, its
-  window unused. Its document, `Decisions`: `project`; `rows`, at most 64, each
-  `Decision { number, task, at, question, took, why, overturned }`, the asking
-  party's alone, `took` the option's words (`../domain/forge.md`, 5.9). Home
-  watches it while open, as it does `status`.
+  window unused. Its document, `Decisions` (`../domain/forge.md`, 5.9):
+  `project`; `rows`, at most 128, each `Decision { number, task, at, question,
+  took, why, overturned, reach }`, `took` the option's words; `asked`, at most
+  128, each `Asked { number, task, at, reach }`, a call that was answered ask;
+  each list the asking party's alone, newest last; and `cut`, whether either
+  left older rows out. `reach` is a `Reach` (`../protocol/configuration.md`,
+  13.2): the kind, the class, the reason, the item used, the sets touched, the
+  patterns matched and whether Away was on.
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract.md`, 7.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
@@ -4036,8 +4040,11 @@ the person to check existence and grant the repository to the App.
   watcher gets its own party's document (`../domain/forge.md`, 5.5). Its
   document, `Dismissals`: `dismissed`, the party's rows in their key's
   order, at most `DISMISSED` (8,192), each a `PersonFact`: `ToBegin {
-  project }`, or `GoalFrom { project, chat, goal, at }`, that the person started
-  goal `goal` from chat `chat`'s document at the client's clock's `at`. A start whose
+  project }`; `GoalFrom { project, chat, goal, at }`, that the person started
+  goal `goal` from chat `chat`'s document at the client's clock's `at`; or
+  `KeepAsking { project, subject, at }`, Keep asking pressed on a need of
+  that project for the item of `subject`, a `ClassSubject`, at the client's
+  clock's `at` (`../domain/forge.md`, 5.5). A start whose
   `forge.judge_projects` is past an eighth of that bound is refused, a party
   holding at most one `ToBegin` a project (`../protocol/configuration.md`,
   section 7). A party's rows are bounded by `DISMISSED` too, and all rows by
@@ -8186,7 +8193,7 @@ does for the client:
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
   | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge.md`, 4.5; `../protocol/setup.md`, 6.9) | kept; make refused, `MakeRefusal`; then the watched row |
-  | `SetAway { project, on, until, kinds }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge.md`, 5.8) | away; forge refused, too large |
+  | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge.md`, 5.8) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge.md`, 5.9) | overturned; overturn refused, already or unknown |
   | `Dismiss { what }` | none | the party's `Dismissed` row saved in the request's decision, and the subject `dismissed` marked, a row held already writing nothing (`../domain/forge.md`, 5.5) | dismissed; forge refused, too large |
   | `Looked { project }` | none; its scope the project | the party's `Looked` row moved in the request's decision, the subject `status` marked, and, at a new sitting, the status agent's run asked (`../domain/forge.md`, 5.6 and 5.7) | looked; forge refused, too large |

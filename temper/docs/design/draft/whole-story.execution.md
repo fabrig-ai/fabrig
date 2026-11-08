@@ -52,8 +52,8 @@ or the nearest thing, and says so in that draft's status.
 | P4 | Team | `surfaces.md`, 6 | R2; R3 for "Talk to it" | temper/ui | not started |
 | P5 | The phone, Ask and Tell temper | `surfaces.md`, 9, 10 | P2; R2 for Tell's routing | temper/ui | not started |
 | P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | not started |
-| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | not started |
-| N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | not started |
+| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | planned: `ui-reaches` (`../../plan/ui-reaches/plan.md`) |
+| N2 | Rules by path, and the paths an asker's change touches | `what-reaches-you.md`, 7; 4's "the asker's change at its head" | N1 | temper/migration | not started |
 | N3 | Only you, and being told | `what-reaches-you.md`, 8, 9 | N1 | temper/ui | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | not started |
 | R2 | Areas, routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | not started |

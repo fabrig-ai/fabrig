@@ -2,6 +2,10 @@
 
 2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
+- **Not yet:** 5.2, 5.3: `temper ctl settings show` and a settings file know
+  no `project-classes`, and the help pages name none
+  (`ui-reaches/classes-tools`).
+
 Section 5.3's Ask temper start uses `chat start --template 5`, under
 charter 11, in the help and chat-template fixtures. The joined world
 starts it through ctl, reads with `see` and accepts its settings
