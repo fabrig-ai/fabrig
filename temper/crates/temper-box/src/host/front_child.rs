@@ -23,10 +23,12 @@ pub(super) struct Child {
     pub process: Option<Token>,
     pub pipes: [Pipe; 2],
     link: Option<Sink>,
-    lines: Option<Sink>,
+    pub(super) lines: Option<Sink>,
+    lines_closing: bool,
     url: Option<Secret>,
     pub tail: Tail,
     pub ended: bool,
+    failure: Option<(super::SourceEnd, skein_lib::Wall)>,
     stop: Stop,
     grace: Duration,
 }
@@ -38,9 +40,11 @@ impl Child {
             pipes: [Pipe::new(false), Pipe::new(false)],
             link: None,
             lines: None,
+            lines_closing: false,
             url: None,
             tail: Tail::new(tail_lines),
             ended: false,
+            failure: None,
             stop: Stop::Running,
             grace,
         }
@@ -53,7 +57,7 @@ impl Child {
         let mut link = Sink::new(*pipes.get(2).expect("front fd 3"), 1);
         link.push(self.url.take().expect("front URL").into_exposed()).expect("one local link");
         self.link = Some(link);
-        self.lines = Some(Sink::new(*pipes.get(3).expect("front fd 4"), 1));
+        self.lines = Some(Sink::new(*pipes.get(3).expect("front fd 4"), crate::front::HELD));
         match self.stop {
             Stop::Running => {}
             Stop::First(_) => self.signal(now, false, requests),
@@ -73,6 +77,7 @@ impl Child {
             if let Some(state) = sink
                 && state.token == owner
             {
+                state.closed();
                 *sink = None;
             }
         }
@@ -170,7 +175,12 @@ impl Child {
         }
     }
     pub fn settled(&self) -> bool {
-        if !self.ended || self.owner.is_some() || self.process.is_some() || self.link.is_some() || self.lines.is_some()
+        if !self.ended
+            || self.failure.is_some()
+            || self.owner.is_some()
+            || self.process.is_some()
+            || self.link.is_some()
+            || self.lines.is_some()
         {
             return false;
         }
@@ -188,7 +198,8 @@ impl Child {
             return true;
         }
         if let Some(sink) = &self.lines
-            && (sink.pending() || self.ended && sink.drained())
+            && !self.lines_closing
+            && (sink.pending() || self.ended)
         {
             return true;
         }
@@ -208,6 +219,75 @@ impl Service {
             Some(front) => front.ended,
             None => false,
         }
+    }
+    pub(super) fn front_reporting(&self) -> bool {
+        match &self.front {
+            Some(front) => front.failure.is_some(),
+            None => false,
+        }
+    }
+    pub(super) fn front_failure_ready(&self) -> bool {
+        let Some(front) = &self.front else {
+            return false;
+        };
+        if front.failure.is_none()
+            || !self.terminal.takes(1) && !self.terminal.failed()
+            || self.logs.step() == self.logs.front_step()
+        {
+            return false;
+        }
+        for pipe in &front.pipes {
+            if !pipe.settled() {
+                return false;
+            }
+        }
+        true
+    }
+    pub(super) fn front_failure_work(&mut self) {
+        if !self.front_failure_ready() {
+            return;
+        }
+        let front = self.front.as_mut().expect("front failure");
+        let (end, wall) = front.failure.take().expect("ready front failure");
+        let words = match end {
+            super::SourceEnd::Exited(exit) => pipe::exited(b"tui", exit),
+            super::SourceEnd::NotStarted => pipe::not_started(b"tui"),
+        };
+        let mut item = self.formatter.notice(&lines::joined(&[&words, b"\n"]), wall);
+        if let super::SourceEnd::Exited(_) = end {
+            let step = self.logs.front_step().expect("front log");
+            let length = item.bytes.len();
+            front.tail.append(&mut item, &self.logs.path(step));
+            let path = b"    Log: ";
+            // A started front names its log even when it wrote no tail.
+            if item.bytes.len() == length {
+                item.bytes = lines::joined(&[&item.bytes, path, &self.logs.path(step), b"\n"]);
+            }
+        }
+        let words = item.bytes.get(10..).expect("failure time prefix");
+        self.say(self.formatter.notice(words, wall));
+    }
+    pub(super) fn front_running(&self) -> bool {
+        match &self.front {
+            Some(front) => !front.ended,
+            None => false,
+        }
+    }
+    pub(super) fn front_line(&mut self, line: crate::front::Line) {
+        if self.front_running()
+            && let Some(front) = &mut self.front
+            && let Some(sink) = &mut front.lines
+        {
+            // This sink drops at its entrance; it never holds the box's work.
+            drop(sink.push(line.bytes()));
+        }
+    }
+    pub(super) fn box_log_ready(&self) -> bool {
+        self.logs.takes()
+            && match &self.front {
+                Some(front) => front.process.is_some() || front.ended,
+                None => true,
+            }
     }
     pub(super) fn spawn_front(&mut self, front: Front) {
         self.serial = self.serial.checked_add(1).expect("spawn serial");
@@ -237,6 +317,15 @@ impl Service {
             return;
         }
         front.ended = true;
+        if exit != Some(Exit::Code(0)) {
+            front.failure = Some((
+                match exit {
+                    Some(exit) => super::SourceEnd::Exited(exit),
+                    None => super::SourceEnd::NotStarted,
+                },
+                self.env.wall,
+            ));
+        }
         front.close(&mut self.requests);
         self.failed |= exit != Some(Exit::Code(0));
         let words = match exit {
@@ -270,8 +359,15 @@ impl Service {
         if let Some(sink) = &mut front.link {
             sink.tick(true, &mut self.requests);
         }
-        if let Some(sink) = &mut front.lines {
-            sink.tick(front.ended, &mut self.requests);
+        if let Some(sink) = &mut front.lines
+            && !front.lines_closing
+        {
+            if front.ended {
+                self.requests.push(Request::Close { entity: sink.token });
+                front.lines_closing = true;
+            } else {
+                sink.tick(false, &mut self.requests);
+            }
         }
         let step = self.logs.front_step().expect("front's log");
         for pipe in &mut front.pipes {

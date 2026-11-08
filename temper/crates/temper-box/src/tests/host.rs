@@ -41,11 +41,14 @@ fn front_settings() -> crate::host::Front {
     }
 }
 fn front_harness(steps: &[Step], parent: Option<u32>) -> Harness {
+    front_harness_buffer(steps, parent, 16_384)
+}
+fn front_harness_buffer(steps: &[Step], parent: Option<u32>, buffer: u32) -> Harness {
     Harness::with_terminal(
         temper_forge_setup::Steps { always: Box::from(steps), asked: Box::new([]) },
         &[],
         true,
-        16_384,
+        buffer,
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
@@ -113,8 +116,14 @@ fn assert_front_settled(h: &Harness) {
     assert_eq!(h.machine.open_handles(), 0);
 }
 fn front_log(h: &mut Harness) -> Box<[u8]> {
+    named_log(h, b"tui.log")
+}
+fn named_log(h: &mut Harness, name: &[u8]) -> Box<[u8]> {
     let root = h.machine.reopen_root(0);
-    let fd = h.machine.open(root, b"box/logs/tui.log", skein_fake_machine::How::ReadNoFollow).unwrap();
+    let fd = h
+        .machine
+        .open(root, &crate::lines::joined(&[b"box/logs/", name]), skein_fake_machine::How::ReadNoFollow)
+        .unwrap();
     assert_eq!(h.machine.stat(fd).mode, 0o600);
     let words = h.machine.read(fd, 0, 65_536).unwrap().into_boxed_slice();
     h.machine.close(fd);
@@ -196,19 +205,262 @@ fn the_front_starts_in_the_blocks_place_with_its_descriptors() {
         assert_front_settled(&h);
     }
 }
+fn front_bytes(h: &mut Harness, length: usize) -> Box<[u8]> {
+    let tui = h.child_index(b"tui");
+    let mut got = List::uncapped();
+    for _ in 0..length {
+        if usize::try_from(got.len()).unwrap() >= length {
+            break;
+        }
+        let left = length.checked_sub(usize::try_from(got.len()).unwrap()).unwrap();
+        let chunk = h.read_fd(tui, 4, u32::try_from(left).unwrap());
+        for byte in &chunk {
+            got.push(*byte).unwrap();
+        }
+        h.run_until_idle();
+    }
+    got.into_boxed()
+}
+fn front_log_lines(log: &[u8]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    for line in log.split_inclusive(|byte| *byte == b'\n') {
+        parts.push(b"log ".as_slice()).unwrap();
+        parts.push(line).unwrap();
+    }
+    crate::lines::joined(parts.as_slice())
+}
+fn read_front_start(h: &mut Harness) {
+    let first = crate::lines::joined(&[b"link ", FIRST_URL, b"\n"]);
+    assert!(front_bytes(h, first.len()) == first, "the printed link is first");
+    let expected = front_log_lines(&h.log());
+    assert_eq!(front_bytes(h, expected.len()), expected);
+}
+#[test]
+fn the_front_is_told_the_link_first_then_each_box_log_line() {
+    let mut h = front_harness(&[long(b"serve", &[b"never"])], None);
+    h.run_until_idle();
+    read_front_start(&mut h);
+    let serve = h.child_index(b"serve");
+    h.write_stdout(serve, b"http://next\n");
+    let expected = b"link http://next\n";
+    assert!(front_bytes(&mut h, expected.len()).as_ref() == expected, "the fresh link goes to the front");
+    assert!(h.stdout().is_empty());
+    assert!(h.stderr().is_empty());
+    for log in [h.log(), front_log(&mut h), named_log(&mut h, b"serve.log")] {
+        for url in [FIRST_URL, b"http://next".as_slice()] {
+            assert!(!Harness::contains(&log, url), "logs hold no printed link");
+        }
+    }
+    finish_child(&mut h, b"tui", 0);
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_front_settled(&h);
+}
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Each row exercises a terminal route while the front runs and after its end."
+)]
+fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
+    for row in [
+        "restart",
+        "unknown",
+        "pipe too long",
+        "link too long",
+        "step log",
+        "box log",
+        "give up",
+        "after front",
+        "after front echo",
+    ] {
+        let mut h = front_harness(&[long(b"forgejo", &[b"never"]), long(b"serve", &[b"never"])], None);
+        if row == "step log" || row == "after front echo" {
+            h.refuse_log = Some(bytes::copy_of(b"forgejo.log"));
+        }
+        if row == "box log" {
+            h.refuse_log = Some(bytes::copy_of(b"box.log"));
+        }
+        h.run_until_idle();
+        if row == "box log" {
+            // No file holds these lines; the front is still their sink.
+            let expected = b"log 00:00:00Z box: cannot write /data/box/logs/box.log";
+            let first = crate::lines::joined(&[b"link ", FIRST_URL, b"\n"]);
+            assert!(front_bytes(&mut h, first.len()) == first, "the printed link is first");
+            let mut got = List::uncapped();
+            for _ in 0_u32..10 {
+                for _ in 0_u32..1024 {
+                    let byte = front_bytes(&mut h, 1);
+                    got.push(*byte.first().unwrap()).unwrap();
+                    if byte.as_ref() == b"\n" {
+                        break;
+                    }
+                }
+            }
+            assert!(Harness::contains(got.as_slice(), expected), "failed box log notice reaches the front");
+        } else {
+            read_front_start(&mut h);
+        }
+        match row {
+            "restart" | "give up" => {
+                let delays = if row == "restart" { &[500][..] } else { &[500, 1_000, 2_000, 4_000, 8_000][..] };
+                for delay in delays {
+                    let before = h.log().len();
+                    let forge = h.child_index(b"forgejo");
+                    h.write_child(forge, 2, b"boom\n");
+                    finish_child(&mut h, b"forgejo", 1);
+                    h.run_until_idle();
+                    let block = b"00:00:00Z forgejo exited 1; restarting in ";
+                    assert!(Harness::contains(&h.log(), block));
+                    assert!(Harness::contains(
+                        &h.log(),
+                        b"00:00:00Z     forgejo: boom\n00:00:00Z     Log: /data/box/logs/forgejo.log\n"
+                    ));
+                    let logged = h.log();
+                    let lines = front_log_lines(logged.get(before..).unwrap());
+                    let want = crate::lines::joined(&[b"restarting forgejo\n", &lines]);
+                    assert_eq!(front_bytes(&mut h, want.len()), want);
+                    h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(*delay)));
+                    h.run_until_idle();
+                    let expected = b"log 00:00:00Z Starting forgejo\nrunning forgejo\n";
+                    assert_eq!(front_bytes(&mut h, expected.len()).as_ref(), expected);
+                }
+                if row == "give up" {
+                    finish_child(&mut h, b"forgejo", 1);
+                    h.run_until_idle();
+                    let expected = b"gave-up forgejo\nlog 00:00:00Z forgejo exited 1; giving up\n";
+                    assert_eq!(front_bytes(&mut h, expected.len()).as_ref(), expected);
+                }
+            }
+            "after front" => {
+                h.hold_log_write = true;
+                let forge = h.child_index(b"forgejo");
+                h.write_child(forge, 2, b"boom\n");
+                h.run_until_idle();
+                assert!(h.held_log_write.is_some());
+                finish_child(&mut h, b"forgejo", 1);
+                h.run_until_idle();
+            }
+            "pipe too long" | "link too long" => {
+                let message = if row == "pipe too long" {
+                    h.ask(&[b'x'; 300]);
+                    h.run_until_idle();
+                    h.ask(b"\n");
+                    b"box: serve: pipe line too long\n".as_slice()
+                } else {
+                    let serve = h.child_index(b"serve");
+                    let line = crate::lines::joined(&[&[b'x'; 4097], b"\n"]);
+                    h.write_stdout(serve, &line);
+                    b"box: serve: sign-in link too long\n".as_slice()
+                };
+                h.run_until_idle();
+                let expected = crate::lines::joined(&[b"log 00:00:00Z ", message]);
+                assert_eq!(front_bytes(&mut h, expected.len()), expected);
+                assert!(Harness::contains(&h.log(), &crate::lines::joined(&[b"00:00:00Z ", message])));
+            }
+            "unknown" | "box log" => {
+                h.ask(b"bogus\n");
+                h.run_until_idle();
+                let expected = b"log 00:00:00Z box: serve: unknown pipe line\n";
+                assert_eq!(front_bytes(&mut h, expected.len()).as_ref(), expected);
+                if row == "unknown" {
+                    assert!(Harness::contains(&h.log(), b"00:00:00Z box: serve: unknown pipe line\n"));
+                }
+            }
+            "step log" | "after front echo" => {
+                assert!(Harness::contains(&h.log(), b"00:00:00Z box: cannot write /data/box/logs/forgejo.log"));
+                let forge = h.child_index(b"forgejo");
+                h.write_child(forge, 2, b"boom\n");
+                h.run_until_idle();
+                let expected = b"log 00:00:00Z forgejo: boom\n";
+                assert_eq!(front_bytes(&mut h, expected.len()).as_ref(), expected);
+                assert!(Harness::contains(&h.log(), b"00:00:00Z forgejo: boom\n"));
+            }
+            _ => unreachable!(),
+        }
+        assert!(h.stdout().is_empty(), "{row}");
+        assert!(h.stderr().is_empty(), "{row}");
+        finish_child(&mut h, b"tui", 0);
+        h.run_until_idle();
+        if row == "after front" {
+            h.release_log_write();
+            h.run_until_idle();
+            let expected = b"00:00:00Z forgejo exited 1; restarting in 0.5 s\n00:00:00Z     forgejo: boom\n00:00:00Z     Log: /data/box/logs/forgejo.log\n";
+            assert_eq!(h.stderr().as_ref(), expected);
+            assert!(!Harness::contains(&h.log(), b"forgejo exited 1; restarting"));
+        }
+        if row == "after front echo" {
+            let forge = h.child_index(b"forgejo");
+            h.write_child(forge, 2, b"after\n");
+            h.run_until_idle();
+            assert_eq!(h.stderr().as_ref(), b"forgejo: after\n");
+            let serve = h.child_index(b"serve");
+            h.write_stdout(serve, b"http://after\n");
+            assert!(h.stdout().as_ref() == b"http://after\n", "fresh link returns to stdout");
+            assert_eq!(h.stderr().as_ref(), b"\n");
+        }
+        assert_eq!(h.run_to_end(), Exit::Code(u8::from(row == "give up")), "{row}");
+        if row == "box log" {
+            assert_eq!(h.stderr().as_ref(), b"00:00:00Z tui exited 0\n00:00:00Z Stopping\n00:00:00Z Stopped\n");
+        }
+        assert_front_settled(&h);
+    }
+}
+#[test]
+fn a_front_that_reads_nothing_holds_256_lines() {
+    let mut h = front_harness_buffer(&[long(b"serve", &[b"never"])], None, 8);
+    h.run_until_idle();
+    for _ in 0_u32..300 {
+        h.ask(b"bogus\n");
+        h.run_until_idle();
+        assert!(crate::host::pressure::front_held(&h.service) <= crate::front::HELD);
+        assert!(crate::host::pressure::bounded(&h.service));
+    }
+    assert_eq!(crate::host::pressure::front_held(&h.service), crate::front::HELD);
+    assert_eq!(bytes::count(&h.log(), b"box: serve: unknown pipe line\n", u32::MAX), 300);
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(Harness::contains(&h.reply_bytes(), b"failed 3 not asked\n"));
+    finish_child(&mut h, b"serve", 1);
+    h.run_until_idle();
+    h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"serve").len(), 2);
+    assert!(h.stdout().is_empty());
+    assert!(h.stderr().is_empty());
+    finish_child(&mut h, b"tui", 0);
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_front_settled(&h);
+}
 #[test]
 fn the_fronts_end_stops_the_box() {
     use skein_shell::Host;
-    for (row, end, diagnostic, message, expected) in [
-        ("success", Some(Exit::Code(0)), b"".as_slice(), b"tui exited 0\n".as_slice(), 0),
-        ("failure", Some(Exit::Code(3)), b"boom\n", b"tui exited 3\n", 1),
-        ("signal", Some(Exit::Signal(9)), b"", b"tui killed by signal 9\n", 1),
-        ("refused", None, b"", b"tui did not start\n", 1),
+    for (row, end, diagnostic, message, expected, terminal) in [
+        ("success", Some(Exit::Code(0)), b"".as_slice(), b"tui exited 0\n".as_slice(), 0, b"".as_slice()),
+        (
+            "failure",
+            Some(Exit::Code(3)),
+            b"boom\n",
+            b"tui exited 3\n",
+            1,
+            b"00:00:00Z tui exited 3\n00:00:00Z     tui: boom\n00:00:00Z     Log: /data/box/logs/tui.log\n",
+        ),
+        (
+            "signal",
+            Some(Exit::Signal(9)),
+            b"",
+            b"tui killed by signal 9\n",
+            1,
+            b"00:00:00Z tui killed by signal 9\n00:00:00Z     Log: /data/box/logs/tui.log\n",
+        ),
+        ("refused", None, b"", b"tui did not start\n", 1, b"00:00:00Z tui did not start\n"),
+        ("unwritable", Some(Exit::Code(3)), b"boom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\n", b"tui exited 3\n", 1, b"00:00:00Z tui exited 3\n00:00:00Z     Log: /data/box/logs/tui.log\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\n"),
     ] {
         let mut h = front_harness(
             &[long(b"forgejo", &[b"never"]), long(b"runner", &[b"never"]), long(b"serve", &[b"never"])],
             None,
         );
+        if row == "unwritable" {
+            h.refuse_log = Some(bytes::copy_of(b"tui.log"));
+        }
         h.hold_spawn = Some(bytes::copy_of(b"tui"));
         h.run_until_idle();
         assert!(!h.service.front_ended(), "{row}");
@@ -245,11 +497,13 @@ fn the_fronts_end_stops_the_box() {
                 assert_eq!((pair[0].0, pair[1].0), (*child, *child));
                 assert!(pair[1].1.saturating_since(pair[0].1) >= Duration::from_secs(10));
             }
-            let logged = front_log(&mut h);
-            if !diagnostic.is_empty() {
+            let logged = if row == "unwritable" { Box::new([]) } else { front_log(&mut h) };
+            if !diagnostic.is_empty() && row != "unwritable" {
                 assert_eq!(logged.as_ref(), b"1970-01-01T00:00:00Z boom\n");
             }
         }
+        assert!(h.stdout().is_empty(), "{row}");
+        assert_eq!(h.stderr().as_ref(), terminal, "{row}");
         assert_front_settled(&h);
     }
 }
@@ -303,7 +557,8 @@ fn a_give_up_leaves_the_front_running_until_it_ends() {
             h.run_until_idle();
         }
         assert_eq!(h.spawn_times(b"forgejo").len(), 6);
-        assert!(Harness::contains(&h.stderr(), b"forgejo exited 1; giving up\n"));
+        assert!(Harness::contains(&h.log(), b"forgejo exited 1; giving up\n"));
+        assert!(h.stderr().is_empty());
         for _ in 0_u32..2 {
             h.sim.advance_to(h.sim.now().saturating_add(Duration::from_secs(10)));
             h.run_until_idle();

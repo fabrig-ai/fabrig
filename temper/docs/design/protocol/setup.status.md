@@ -74,11 +74,6 @@ its end and serve's drained end. No known implementation gap remains in
 that ordering. Programs surviving a forced agent-group kill remain
 section 15's contained-tree work.
 
-- **Not yet:** 7.6, *The box's lines*, *The terminal is the front's* and
-  *The terminal after the front*: the host sending `link`, `log`,
-  `restarting`, `running` and `gave-up` lines, the terminal's lines in
-  `box.log` in its stead, the 256 lines held, and a failed front named on
-  the terminal after it (`front-lines`, `tui-box-front`).
 - **Not yet:** 7.2, *Its children*: the owned-forge Claude Code landing
   story (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) has no
