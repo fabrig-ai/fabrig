@@ -176,6 +176,11 @@ impl Harness {
 
     /// The agent's process exits, its channel ends and its tree empties.
     pub fn gone(&mut self) -> Box<[Request]> {
+        self.gone_with_detail(b"")
+    }
+
+    /// The process drains with operator evidence from its cleanup.
+    pub fn gone_with_detail(&mut self, detail: &[u8]) -> Box<[Request]> {
         let owner = self.agent.expect("a spawned agent");
         let mut rows = List::with_capacity(1_024);
         let mut events = List::with_capacity(3);
@@ -184,7 +189,7 @@ impl Harness {
             events.push(agent::process::Event::Hangup { owner }).expect("room");
         }
         events.push(agent::process::Event::Exited { owner, exit: Some(agent::Exit::Code(0)) }).expect("room");
-        events.push(agent::process::Event::Reaped { owner, detail: Box::new([]) }).expect("room");
+        events.push(agent::process::Event::Reaped { owner, detail: Box::from(detail) }).expect("room");
         for event in events.into_boxed() {
             for row in self.run(Event::Process(Box::new(event))) {
                 rows.push(row).expect("a bounded story");
@@ -221,7 +226,13 @@ fn encode(value: &Encodable) -> Encoded {
             body: Box::new(turn.number.to_be_bytes()),
         }),
         Encodable::CallName(name) => Encoded::CallName(Box::new(name.completion.to_be_bytes())),
-        Encodable::Result(_) => Encoded::Result(Box::from(&b"result"[..])),
+        Encodable::Result(result) => Encoded::Result(Box::from(match result {
+            agent::RunResult::Refused { refusal: agent::Refusal::Invalid(_) } => &b"invalid start"[..],
+            agent::RunResult::Refused { refusal: agent::Refusal::Busy } => &b"busy"[..],
+            agent::RunResult::Accepted { .. } | agent::RunResult::Parked | agent::RunResult::Failed { .. } => {
+                &b"result"[..]
+            }
+        })),
     }
 }
 
