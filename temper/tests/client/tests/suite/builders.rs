@@ -32,7 +32,7 @@ fn an_owner_reads_the_engines_worker_on_builders() {
 #[test]
 fn a_person_with_no_role_is_told_who_sees_them() {
     // This fixture gives its second person a project membership and no deployment role.
-    let mut world = f::configuring_world(f::SEED, true);
+    let mut world = f::asking_world(f::SEED, true);
     let caller = world.front().caller;
     let client = world.client(caller, temper_client_domain::Address::Builders { project: 1 });
     follow(
