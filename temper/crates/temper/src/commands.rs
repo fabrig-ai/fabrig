@@ -193,7 +193,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         words: &[],
         who: Who::Clients,
         forms: &["[ADDRESS]"],
-        line: "Run temper's full-screen terminal client, the TUI, on an engine.",
+        line: "Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.",
         arguments: &[Argument {
             shown: "ADDRESS",
             line: "Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.",
