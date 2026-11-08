@@ -237,9 +237,6 @@ read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
-- **Not yet:** 6.14, *Walking what needs you*'s prompt, *The TUI's own
-  commands* in the commands' list and `/help`'s note, and the opener's
-  note: `tui-walk` of the plan `tui-whole-t1` builds them.
 - **Not yet:** 10, the joined story of the launchpad as drawn: a need the
   engine asks walked and answered, and `/change` starting a chat:
   `world-launchpad` of the plan `tui-whole-t1` writes it.
