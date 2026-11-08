@@ -550,7 +550,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     agent.effort = None;
     let path = derive(&long_model);
     let model = find(&path, Step::Produce).card.facts.first().unwrap();
-    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(127)).as_bytes());
+    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(42)).as_bytes());
     let mut invalid = inputs(1, true, true, Way::Queue, false);
     invalid.branch = [0x80; 400].into();
     invalid.agents.get_mut(1).unwrap().asked = [0x80; 400].into();

@@ -940,6 +940,3 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
-
-- **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
-  subject `ways` and the read `View`.
