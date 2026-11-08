@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
+Sections 2.5 and 7.2 have no known implementation gap in the
+`ask-temper-place` repairs: the bar's tag is visible, its separator is
+hidden on a phone, and the spend paragraph stays hidden. First-run
+gallery worlds offer templates 1, 2 and 5; the reference world's other
+ways use 2, 4, 6 and 7, leaving 5 to Ask temper. The rendered comparison and
+the Ask page's later look round remain section 5's work.
+
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation
