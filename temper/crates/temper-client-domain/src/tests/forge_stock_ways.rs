@@ -185,14 +185,24 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
         ways.push(
             w::StockWay::new(
                 &w::CEILINGS,
-                w::StockWayParts { name: (*name).into(), line: (*line).into(), path: path(branch), items, delegation },
+                w::StockWayParts {
+                    headline: b"".as_slice().into(),
+                    name: (*name).into(),
+                    line: (*line).into(),
+                    path: path(branch),
+                    items,
+                    delegation,
+                },
             )
             .unwrap(),
         )
         .unwrap();
     }
-    w::WaysPanel::new(&w::CEILINGS, w::WaysPanelParts { project, ways, current, own: path(b"own"), may_change })
-        .unwrap()
+    w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts { words: None, project, ways, current, own: path(b"own"), may_change },
+    )
+    .unwrap()
 }
 fn show(f: &mut Fixture, panel: &w::WaysPanel) -> Queue<Request> {
     family(f, wire::FORGE, wire::CLIENT_VERSION, wire::ways_panel(panel))

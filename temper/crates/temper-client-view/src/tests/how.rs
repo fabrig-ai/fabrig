@@ -109,6 +109,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
                 w::StockWay::new(
                     &w::CEILINGS,
                     w::StockWayParts {
+                        headline: b"".as_slice().into(),
                         name: name.into(),
                         line: line.into(),
                         path: path(index == 2),
@@ -131,6 +132,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         let panel = w::WaysPanel::new(
             &w::CEILINGS,
             w::WaysPanelParts {
+                words: None,
                 project: f::PROJECT,
                 ways: List::from_boxed(ways),
                 current: case.current,
