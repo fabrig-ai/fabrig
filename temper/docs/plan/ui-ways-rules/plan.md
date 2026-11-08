@@ -101,10 +101,13 @@ same owner:
   reader of held rules. A `branch` pattern is matched past the
   repository's four segments, so a project's rule covers repositories
   adopted later with no change.
-- **Charter 5 runs fresh, waiting 10 s.** 13.9's reference waits 0, but
-  the root refuses a run policy that waits 0
-  (`temper-engine-domain/src/limits.rs`, `run_policy_bytes`), and a
-  charter in parts must not resume.
+- **Charter 5 runs fresh, waiting 0.** A charter in parts must not resume.
+  Zero waiting parks the goal without holding a worker slot or program
+  session. The owner's answer of 2026-11-08 authorizes the narrow fix in
+  `temper-engine-domain/src/limits.rs`: `run_policy_bytes` measures a
+  policy with zero waiting, as the reference and generated charter 5
+  already require. Its held-assignment regression covers zero beside
+  positive waiting, for the owner of coding runs to review before landing.
 - **Template 4's report is the deployment's result bound,** as every stock
   template's is. The reference's 63,738 bytes stays the reference's.
 - **The reference keeps its two deployment rules.** Its project sets its
@@ -135,3 +138,18 @@ in jig's engine clients. One overlap could not be avoided: if
 on a catch-up, never hand-merged. `stock-roles` and `project-stock` may
 each regenerate the recordings. `project-stock` runs after `stock-roles`,
 so the second regeneration starts from the first.
+
+## Stock brief allowance
+
+The owner's answer of 2026-11-08 lowers the standard brief allowance from
+354,988 to 353,072 bytes, so charter 5 and the framed brief fit the
+400,135-byte host-part bound with the existing 498-byte margin. This is
+the exception to keeping shipped default limits from falling, for the
+owner of coding runs' limits to review before landing. Host sizing stays
+as it is.
+
+The stock floor measures the resolved charter, including its parts and
+all catalogue models. On the combined tree charter 5 needs 13,123 bytes
+of `core.run_bytes` (the earlier answer measured 11,945); the floor test
+admits that value and refuses 13,122. The shipped core limit stays above
+it. Charter 5 waits 0; the other stock charters keep 10 s.

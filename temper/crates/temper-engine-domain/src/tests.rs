@@ -603,11 +603,14 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
     assignment.sections = Box::new([]);
     let bytes = crate::limits::run_charter_bytes(&assignment.run).expect("fixture charter bytes");
     let exact = crate::JournalLimits { run_bytes: u32::try_from(bytes).expect("tiny charter"), ..limits };
-    let mut journal = SkeinJournal::uncapped(1, 0);
-    let mut decision = Decision::decide(&mut journal, &exact);
-    decision
-        .deliver(&exact, Delivery::Assigned { channel: Token::new(1), assignment: assignment.clone() })
-        .expect("the exact run byte envelope accepts its binding arrays");
+    for waiting in [skein_lib::Duration::from_secs(1), skein_lib::Duration::ZERO] {
+        assignment.run.policy.waiting = waiting;
+        let mut journal = SkeinJournal::uncapped(1, 0);
+        let mut decision = Decision::decide(&mut journal, &exact);
+        decision
+            .deliver(&exact, Delivery::Assigned { channel: Token::new(1), assignment: assignment.clone() })
+            .expect("the exact run byte envelope accepts its binding arrays, including zero waiting");
+    }
     assignment.run.sources = Box::new([Some(1), Some(2)]);
     assignment.run.accounts = Box::new([
         jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 },

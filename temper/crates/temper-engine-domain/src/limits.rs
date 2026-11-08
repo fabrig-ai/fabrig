@@ -246,7 +246,6 @@ pub(crate) fn backlog(domain: &Domain) -> u64 {
 
 pub(crate) fn run_policy_bytes(policy: &RunPolicy) -> Option<u64> {
     if policy.turns == 0
-        || policy.waiting == skein_lib::Duration::ZERO
         || policy.time == skein_lib::Duration::ZERO
         || policy.call_timeout == skein_lib::Duration::ZERO
         || policy.model.name.is_empty()
