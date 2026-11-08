@@ -9,11 +9,6 @@
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
 
-- **Not yet:** 2.5, *The welcome's look*: the welcome's top bar spreads
-  its row (`justify-content: space-between`, temper box's line taking
-  the free space) and draws no end; `look-round-22`'s `welcome-end`
-  closes it.
-
 - **Not yet:** 2.3, *A heading drawn after its page*: a new entry with
   no main yet gets no focus, and its heading none when the main comes;
   `look-round-22`'s `me-first` closes it.
