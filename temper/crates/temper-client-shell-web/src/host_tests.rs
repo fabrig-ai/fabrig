@@ -246,17 +246,17 @@ fn the_external_href_is_the_supplied_sign_in_address() {
     assert_eq!(host.href(link).as_deref(), Some(ADDRESS));
 }
 #[test]
-fn the_accounts_href_navigates_inside_the_app() {
-    let mut host = fixture();
+fn the_brand_href_navigates_inside_the_app() {
+    let mut host = fixture_at(b"/welcome");
     build(&mut host);
-    let link = node(&host, Role::Link, b"Accounts");
-    assert_eq!(host.href(link).as_deref(), Some(b"/accounts".as_slice()));
-    host.went(b"/chats");
+    let link = node(&host, Role::Link, b"temper");
+    assert_eq!(host.href(link).as_deref(), Some(b"/".as_slice()));
+    host.went(b"/welcome?at=forge");
     build(&mut host);
-    let link = node(&host, Role::Link, b"Accounts");
+    let link = node(&host, Role::Link, b"temper");
     host.act(link, Act::Press);
     host.requests();
-    assert_eq!(host.show, Some((Box::from(b"/accounts".as_slice()), false)));
+    assert_eq!(host.show, Some((Box::from(b"/".as_slice()), false)));
 }
 
 #[test]

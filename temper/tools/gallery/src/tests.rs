@@ -280,6 +280,16 @@ const HOLDS: [Holds; samples::N] = [
         }],
     },
     Holds {
+        name: "approve-signed-out-google",
+        heading: "Sign in first",
+        parts: &[
+            Part::Text {
+                text: "This browser isn’t signed in to temper. Sign in, and this page comes back with your terminal’s code.",
+            },
+            Part::Links { style: temper_client_view::look::OUTSIDE_PRIMARY, names: &["Continue with Google"] },
+        ],
+    },
+    Holds {
         name: "approve-busy",
         heading: "temper couldn’t answer just now",
         parts: &[Part::Named { role: Role::Button, name: "Try again" }],
@@ -2961,23 +2971,39 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "google-sign-in",
         heading: "Sign in",
-        parts: &[Part::Named { role: Role::Link, name: "Continue with Google" }],
+        parts: &[
+            Part::Named { role: Role::Link, name: "Continue with Google" },
+            Part::Links {
+                style: temper_client_view::look::OUTSIDE,
+                names: &["Continue with Google", "Read public projects"],
+            },
+            Part::Links { style: temper_client_view::look::OUTSIDE_PRIMARY, names: &["Continue with Google"] },
+            Part::Links { style: temper_client_view::look::OUTSIDE_QUIET, names: &["Read public projects"] },
+            Part::NoStyle { style: temper_client_view::look::CARD },
+        ],
+    },
+    Holds {
+        name: "no-project",
+        heading: "No project yet",
+        parts: &[
+            Part::Named { role: Role::Form, name: "New project" },
+            Part::Named { role: Role::TextField, name: "Project name" },
+            Part::Named { role: Role::Button, name: "Create" },
+            Part::Named { role: Role::Button, name: "Sign out" },
+            Part::Named { role: Role::Status, name: "Pat" },
+            Part::NoStyle { style: temper_client_view::look::RAIL },
+            Part::NoStyle { style: temper_client_view::look::PROJECTS },
+        ],
     },
     Holds {
         name: "signed-out",
-        heading: "",
-        parts: &[Part::Named {
-            role: Role::Paragraph,
-            name: "Signed out. To sign in, open a sign-in link temper printed.",
-        }],
+        heading: "Signed out",
+        parts: &[Part::Named { role: Role::Paragraph, name: "To sign in, open a sign-in link temper printed." }],
     },
     Holds {
         name: "out-of-date",
-        heading: "",
-        parts: &[Part::Named {
-            role: Role::Paragraph,
-            name: "This temper is out of date: run the temper the engine runs.",
-        }],
+        heading: "Out of date",
+        parts: &[Part::Named { role: Role::Paragraph, name: "Run the temper the engine runs." }],
     },
     Holds {
         name: "chats-empty",
@@ -3491,7 +3517,7 @@ fn print_writes_every_page_and_the_bundle() {
         }
     }
     let digest = digest.expect("digest directory");
-    for file in ["brand.svg", "menu.svg", "send.svg"] {
+    for file in ["menu.svg", "send.svg"] {
         assert!(bundle.join(&digest).join("files").join(file).is_file(), "bundled decorative image {file}");
     }
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
@@ -3509,7 +3535,8 @@ fn print_writes_every_page_and_the_bundle() {
         assert_eq!(page.contains("<html lang=\"en\" data-night>"), night, "{}: night attribute", sample.name);
         assert_eq!(page.contains("<html lang=\"en\">"), !night, "{}: day root", sample.name);
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
-            assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+            assert!(page.contains("class=\"temper-top\""), "welcome has a top bar");
+            assert!(!page.contains("temper-menu"), "welcome has no menu");
             assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
         } else if sample.name.starts_with("chat-terminal") {
             let (_, main) = page.split_once("<main ").expect("terminal main element");
@@ -3521,8 +3548,8 @@ fn print_writes_every_page_and_the_bundle() {
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
-            assert!(page.contains("class=\"temper-menu\""), "{}: menu disclosure", sample.name);
-            assert!(page.contains("<summary>Menu</summary>"), "{}: menu name", sample.name);
+            assert!(page.contains("class=\"temper-top\""), "{}: top bar", sample.name);
+            assert!(!page.contains("temper-menu"), "{}: no menu", sample.name);
         }
         let mut position = 0;
         for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
@@ -3543,7 +3570,7 @@ fn print_writes_every_page_and_the_bundle() {
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
     assert!(chats.contains("<title>Talk to an agent about robin/tally. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
-    assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
+    assert!(signed_out.contains("<title>Signed out · temper</title>"), "shell heading title");
     let mut expected = Vec::new();
     for path in STYLESHEETS {
         expected.push(Path::new(path).file_name().expect("stylesheet basename").to_str().expect("ASCII"));

@@ -13,7 +13,8 @@ use temper_client_tui::{Note, Scheme};
 
 pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
 
-/// The world's stand-in for the engine's link file (temper/docs/design/client/README.md, 6.14).
+/// The engine's link file holds the engine's local link
+/// (temper/docs/design/client/README.md, 6.12 and 6.14).
 pub enum File {
     Absent,
     Bytes(Secret),
@@ -165,7 +166,7 @@ impl Tui {
             let link = match &self.file {
                 File::Absent => None,
                 File::Bytes(link) => Some(link.clone()),
-                File::Engine => world.front().latest_link().map(Secret::new),
+                File::Engine => world.front().local_link().map(Secret::new),
             };
             self.report(world, Report::Local { link });
         }

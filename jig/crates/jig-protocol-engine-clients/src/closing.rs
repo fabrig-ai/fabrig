@@ -121,8 +121,8 @@ impl Component {
         }
         self.phase = Phase::Aborting;
         self.end_streams(None);
-        self.link = None;
-        self.spending = None;
+        self.printed = super::Slot::new();
+        self.local = super::Slot::new();
         self.approval = super::approval::State::new();
         self.pending.exchanges = Map::with_capacity(self.pending.exchanges.capacity());
         self.pending.carried = Map::with_capacity(self.pending.carried.capacity());
@@ -196,8 +196,8 @@ impl Component {
     pub(super) fn close(&mut self) {
         if !self.aborting() {
             self.phase = Phase::Closing;
-            self.link = None;
-            self.spending = None;
+            self.printed = super::Slot::new();
+            self.local = super::Slot::new();
             self.approval = super::approval::State::new();
             self.stop();
         }

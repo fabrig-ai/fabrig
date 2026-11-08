@@ -84,12 +84,35 @@ pub enum Request {
     Core(Box<core::Event>),
     Application(ToApplication),
     Secrets(SecretsRequest),
-    Minted { exchange: Token, credential: Secret, expires: Wall },
-    MintRefused { exchange: Token, why: MintRefusal },
-    Link { secret: Secret },
-    TakeMoved { exchange: Token, source: u32 },
-    Redeemed { exchange: Token, answer: ProviderAnswer },
-    Claimed { exchange: Token, answer: ProviderAnswer },
+    Minted {
+        exchange: Token,
+        credential: Secret,
+        expires: Wall,
+    },
+    MintRefused {
+        exchange: Token,
+        why: MintRefusal,
+    },
+    Link {
+        secret: Secret,
+    },
+    /// The local link's one-time secret, each time one is drawn: kept for the
+    /// person's own clients on the machine, never printed (protocol/client.md, 8).
+    LocalLink {
+        secret: Secret,
+    },
+    TakeMoved {
+        exchange: Token,
+        source: u32,
+    },
+    Redeemed {
+        exchange: Token,
+        answer: ProviderAnswer,
+    },
+    Claimed {
+        exchange: Token,
+        answer: ProviderAnswer,
+    },
     Closed,
 }
 #[derive(Debug)]

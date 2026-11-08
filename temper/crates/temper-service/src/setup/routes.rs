@@ -144,14 +144,31 @@ fn escaped(byte: &u8) -> &[u8] {
     }
 }
 const HEAD: &[u8] = b"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper</title><style>";
-const STYLE: &[u8] = b":root{color-scheme:light dark;font-family:system-ui,sans-serif}body{max-width:42rem;margin:3rem auto;padding:0 1rem;line-height:1.5}main{padding:1.5rem;border:1px solid;border-radius:.5rem}a,button{display:inline-block;padding:.6rem 1rem;border:1px solid;border-radius:.3rem;font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}";
+const STYLE: &[u8] = r"*, ::before, ::after { box-sizing: border-box; }
+:root { color-scheme: light; --paper: #f7f7f5; --surface: #ffffff; --ink: #18181b; --muted: #5b5b63; --line-2: #d4d4cf; --hover: #ececea; --signal: #c2410c; --sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+header { display: flex; align-items: center; padding: 22px 32px; }
+header > a { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; color: var(--ink); font-weight: 600; text-decoration: none; }
+header > a::before { content: '✦'; color: var(--signal); font-weight: 400; }
+main { width: min(400px, calc(100% - 32px)); margin: 0 auto; padding: max(40px, 12vh) 0 80px; }
+h1 { margin: 0 0 8px; font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; overflow-wrap: anywhere; }
+p { margin: 0 0 6px; color: var(--muted); }
+.primary { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 28px; padding: 8px 18px; border: 1px solid var(--ink); border-radius: 9px; background: var(--ink); color: #fff; font-weight: 500; text-decoration: none; }
+.primary:hover { filter: brightness(1.18); }
+.quiet { margin-top: 20px; text-align: center; font-size: 14px; }
+.quiet > a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.quiet > a:hover { color: var(--ink); }
+a:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+@media (max-width: 760px) { header { padding: 14px 16px; } main { padding-top: 32px; } }
+button.primary { font-family: inherit; font-size: inherit; line-height: inherit; width: 100%; cursor: pointer; }
+".as_bytes();
 const MANIFEST_HIDDEN: &[u8] = b".js body{display:none}";
 // Submit in a task after load: an earlier submit can replace this history entry in Chromium.
 const MANIFEST_SCRIPT: &[u8] = b"document.documentElement.className='js';addEventListener('pageshow',event=>{if(event.persisted)document.documentElement.classList.remove('js')});if(performance.getEntriesByType('navigation')[0]?.type==='back_forward')document.documentElement.classList.remove('js');else addEventListener('load',()=>setTimeout(()=>document.forms[0].submit(),0))";
 /// SHA-256 of the shell's sole style, pinned against the rendered page by a unit test.
-pub(crate) const PAGE_STYLE_HASH: &[u8] = b"Ya3+uu96WxkZ2SGOjLBRaen9XHM8Pr9IIXNSrVIdNv0=";
+pub(crate) const PAGE_STYLE_HASH: &[u8] = b"ssKHh9X9uXhkqGNiJe2lBtdw/zOS+YAM3HbauZj4838=";
 /// SHA-256 of the form page's sole style, pinned against the rendered page by a unit test.
-pub(crate) const MANIFEST_STYLE_HASH: &[u8] = b"M+/mGdSBiyK4G1SjsI0ULT8eCqVWM1EruKC3biZrspQ=";
+pub(crate) const MANIFEST_STYLE_HASH: &[u8] = b"TQZJOm41BLEytzyheObcS0v2KWTO9WQpKhnozAH1XVU=";
 /// SHA-256 of the form page's sole script, pinned against the rendered page by a unit test.
 pub(crate) const MANIFEST_SCRIPT_HASH: &[u8] = b"JrFcwlKHdmmuH1N1ZfBSAzAIt5hrhzBSBaqsKQjvCmQ=";
 /// The form posting GitHub's manifest to `target`, submitted by its one script and
@@ -168,10 +185,10 @@ pub(super) fn form(target: &[u8], manifest: &[u8], back: Option<&[u8]>, forge: u
         MANIFEST_HIDDEN,
         b"</style><script>",
         MANIFEST_SCRIPT,
-        "</script></head><body><h1>temper</h1><main><h2>temper’s App, on GitHub</h2><form method=\"post\" action=\""
+        "</script></head><body><header><a href=\"/\">temper</a></header><main><h1>temper’s App, on GitHub</h1><form method=\"post\" action=\""
             .as_bytes(),
         b"\"><input type=\"hidden\" name=\"manifest\" value=\"",
-        b"\"><button type=\"submit\">Continue to GitHub</button></form><p><a href=\"",
+        b"\"><button type=\"submit\" class=\"primary\">Continue to GitHub</button></form><p class=\"quiet\"><a href=\"",
         back_prefix,
         b"\">Back to temper</a></p></main></body></html>",
     ];
@@ -203,8 +220,15 @@ pub(super) fn page(
     why: &[u8],
     back: &[u8],
 ) {
-    let parts =
-        [HEAD, STYLE, b"</style></head><body><h1>temper</h1><main><h2>", heading, b"</h2><p>", why, b"</p><a href=\""];
+    let parts = [
+        HEAD,
+        STYLE,
+        b"</style></head><body><header><a href=\"/\">temper</a></header><main><h1>",
+        heading,
+        b"</h1><p>",
+        why,
+        b"</p><a class=\"primary\" href=\"",
+    ];
     let suffix = b"\">Back to temper</a></main></body></html>";
     let mut length = suffix.len();
     for part in parts {
@@ -504,8 +528,8 @@ mod tests {
         assert!(response.starts_with(status), "{}", core::str::from_utf8(response).unwrap());
         for part in [
             HEAD,
-            b"<h2>",
-            heading,
+            b"<header><a href=\"/\">temper</a></header>",
+            b"class=\"primary\"",
             b"Back to temper</a>",
             back,
             b"Cache-Control: no-store",
@@ -514,6 +538,7 @@ mod tests {
         ] {
             assert!(contains(response, part), "missing {}", core::str::from_utf8(part).unwrap());
         }
+        assert!(contains(response, &[b"<h1>".as_slice(), heading, b"</h1>"].concat()));
         let policy =
             [b"Content-Security-Policy: default-src 'none'; style-src 'sha256-".as_slice(), PAGE_STYLE_HASH, b"'\r\n"]
                 .concat();
@@ -627,8 +652,10 @@ mod tests {
         assert!(contains(&page, b"action=\"http://forge.test/settings/apps/new?state=s&amp;x=&quot;&lt;&gt;\""));
         assert!(contains(&page, b"value=\"{&quot;name&quot;:&quot;temper-abc&quot;}\""));
         assert!(contains(&page, b"href=\"/forges?first=&quot;&lt;&gt;&amp;next=2\""));
-        assert!(contains(&page, b"<button type=\"submit\">Continue to GitHub</button>"));
-        assert!(contains(&page, "<h2>temper’s App, on GitHub</h2>".as_bytes()));
+        assert!(contains(&page, b"<button type=\"submit\" class=\"primary\">Continue to GitHub</button>"));
+        assert!(contains(&page, "<h1>temper’s App, on GitHub</h1>".as_bytes()));
+        assert!(contains(&page, b"<header><a href=\"/\">temper</a></header><main>"));
+        assert!(contains(&page, b"<p class=\"quiet\"><a href=\""));
         assert!(page.starts_with(b"<!doctype html><html lang=\"en\">"));
         assert!(
             skein_lib::bytes::find(&page, b"<script>").unwrap() < skein_lib::bytes::find(&page, b"<body>").unwrap(),
@@ -637,6 +664,27 @@ mod tests {
         let fits = u32::try_from(page.len()).unwrap();
         assert!(form(target, manifest, Some(back), 1, fits).is_some());
         assert!(form(target, manifest, Some(back), 1, fits - 1).is_none());
+    }
+    #[test]
+    #[expect(
+        clippy::disallowed_macros,
+        clippy::disallowed_types,
+        reason = "the test includes and normalizes stylesheet text to compare the inline rules"
+    )]
+    fn the_setup_style_holds_the_pages_sheets_rules() {
+        let sheet = include_str!("../../../temper-client-shell-web/files/pages.css");
+        let sheet = sheet.split_once("*/").unwrap().1;
+        let style: String = core::str::from_utf8(STYLE).unwrap().split_whitespace().collect();
+        assert!(!style.contains("@font-face"));
+        assert!(!style.contains("url("));
+        for rule in sheet.split_inclusive('}') {
+            let rule = rule.trim();
+            if rule.is_empty() || rule.starts_with("@font-face") {
+                continue;
+            }
+            let normalized: String = rule.split_whitespace().collect();
+            assert!(style.contains(&normalized), "missing stylesheet rule: {rule}");
+        }
     }
     #[test]
     fn the_manifest_script_hash_matches_the_form_page() {
@@ -660,7 +708,7 @@ mod tests {
         ]
         .concat();
         assert!(contains(peer.received(), &policy));
-        assert!(contains(peer.received(), "<h2>temper’s App, on GitHub</h2>".as_bytes()));
+        assert!(contains(peer.received(), "<h1>temper’s App, on GitHub</h1>".as_bytes()));
         assert!(contains(peer.received(), b"href=\"/forges/connect?forge=1\""));
     }
 }

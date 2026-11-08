@@ -173,6 +173,7 @@ pub struct Peer {
     sockets: BTreeMap<Token, Exchange>,
     next_socket: u64,
     links: Vec<Box<[u8]>>,
+    local_links: Vec<Box<[u8]>>,
     core: VecDeque<core::Event>,
     application: VecDeque<jig_protocol_engine_clients::ToApplication>,
     keep: Option<(SecretOwner, Kept)>,
@@ -240,6 +241,7 @@ impl Peer {
             sockets: BTreeMap::new(),
             next_socket: 100,
             links: Vec::new(),
+            local_links: Vec::new(),
             core: VecDeque::new(),
             application: VecDeque::new(),
             keep: None,
@@ -447,6 +449,7 @@ impl Peer {
                         }
                     }
                     Request::Link { secret } => self.links.push(fixtures::printed(&secret)),
+                    Request::LocalLink { secret } => self.local_links.push(fixtures::printed(&secret)),
                     Request::Minted { exchange, credential, expires } => {
                         self.mints.insert(exchange, Ok((credential, expires)));
                     }
@@ -738,6 +741,14 @@ impl Peer {
     #[must_use]
     pub fn printed_link(&self) -> Box<[u8]> {
         self.links.last().expect("printed link").clone()
+    }
+    #[must_use]
+    pub fn local_link_count(&self) -> usize {
+        self.local_links.len()
+    }
+    #[must_use]
+    pub fn local_link(&self) -> Box<[u8]> {
+        self.local_links.last().expect("local link").clone()
     }
     pub fn post_link(&mut self, link: &[u8]) -> Token {
         self.post(b"/jig/v1/sign-in/link", self.link_body(link), None)

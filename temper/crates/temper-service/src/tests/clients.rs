@@ -47,9 +47,22 @@ fn given_link() -> Box<[u8]> {
     crate::clients::first_link_url(([127, 0, 0, 1], 7100).into(), None, &given_secret())
 }
 
+fn local_link(service: &mut crate::Service) -> Box<[u8]> {
+    super::fixtures::turn(service);
+    service.local_links().pop().expect("the file's link")
+}
+
+fn link_route(link: &[u8]) -> &[u8] {
+    let query = skein_lib::bytes::find(link, b"?").expect("link query");
+    link.get(..query).expect("link route")
+}
+
 #[test]
 fn a_given_secret_prints_no_first_link_and_signs_in() {
     let mut service = with_given_secret();
+    let local = local_link(&mut service);
+    assert!(local != given_link(), "the file never holds the given link");
+    assert!(service.local_links().is_empty(), "one local link");
     assert!(service.links().is_empty(), "the box already holds the first link");
     let engine = service.engine.as_mut().expect("engine");
     let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
@@ -59,11 +72,13 @@ fn a_given_secret_prints_no_first_link_and_signs_in() {
     assert!(answer.token().is_some(), "the sign-in returns a credential");
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty(), "spending the first link prints nothing");
+    assert!(service.local_links().is_empty(), "spending the given link draws no local link");
 }
 
 #[test]
 fn a_spent_given_secret_prints_a_fresh_link() {
     let mut service = with_given_secret();
+    let local = local_link(&mut service);
     let engine = service.engine.as_mut().expect("engine");
     let link = given_link();
     let _signed_in = sign_in_with_link(engine, &link);
@@ -71,6 +86,8 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     assert!(answer == jig_client_protocol_wire::v19::SignInAnswer::LinkUsed, "a spent secret is used");
     super::fixtures::turn(&mut service);
     let fresh = service.links().pop().expect("a fresh link is printed");
+    assert!(local != link && local != fresh, "the file never holds a printed link");
+    assert!(service.local_links().is_empty(), "a fresh printed link draws no local link");
     assert!(fresh != link, "a later link has a fresh secret");
     assert!(service.links().is_empty(), "one fresh link is printed");
     let engine = service.engine.as_mut().expect("engine");
@@ -78,6 +95,35 @@ fn a_spent_given_secret_prints_a_fresh_link() {
         panic!("the fresh printed link signs in")
     };
     assert_eq!(answer.party(), OWNER_PARTY);
+}
+
+#[test]
+fn the_local_link_is_kept_apart_and_signs_in_in_either_order() {
+    for (row, local_first) in [("local first", true), ("given first", false)] {
+        let mut service = with_given_secret();
+        let local = local_link(&mut service);
+        let given = given_link();
+        assert!(local != given, "{row}: the file's link has its own secret");
+        assert!(link_route(&local) == link_route(&given), "{row}: the address and route agree");
+        assert!(service.local_links().is_empty(), "{row}: exactly one local link");
+        assert!(service.links().is_empty(), "{row}: the given link is never printed again");
+        let order = if local_first { [(&local, true), (&given, false)] } else { [(&given, false), (&local, true)] };
+        for (link, is_local) in order {
+            let engine = service.engine.as_mut().expect("engine");
+            let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, link) else {
+                panic!("{row}: either link signs in after the other")
+            };
+            assert_eq!(answer.party(), OWNER_PARTY, "{row}: the link signs in the owner");
+            assert!(answer.token().is_some(), "{row}: the sign-in returns a credential");
+            super::fixtures::turn(&mut service);
+            if is_local {
+                let next = service.local_links().pop().expect("the next local link");
+                assert!(next != local && next != given, "{row}: spending the local link replaces only itself");
+            }
+            assert!(service.local_links().is_empty(), "{row}: only spending the local link draws its successor");
+            assert!(service.links().is_empty(), "{row}: neither sign-in prints a link");
+        }
+    }
 }
 
 #[test]
