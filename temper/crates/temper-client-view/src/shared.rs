@@ -1,6 +1,7 @@
 //! Words and data shared by the browser and TUI (temper/docs/design/client/README.md, 6.14, Its words).
 mod cards;
 mod lists;
+mod needs;
 mod question;
 mod reach;
 mod refusal;
@@ -8,6 +9,7 @@ pub use reach::{allowed, object, why};
 mod words;
 pub use cards::{DelegationLine, delegation_line, proposal_line};
 pub use lists::{Choice, Confirmation, chats, confirmation, efforts, list_head, models};
+pub use needs::{NeedAct, NeedMark, NeedPrompt, need_prompts};
 pub use question::{Question, QuestionChoice, question};
 pub use refusal::refusal;
 pub(crate) use refusal::{Feedback, composer_refusals, outcome_feedback};

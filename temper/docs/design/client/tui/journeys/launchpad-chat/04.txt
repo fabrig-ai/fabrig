@@ -18,7 +18,7 @@
 
 
 
-──────────────────────────── Hello / What can you tell… T2 on 127.0.0.1:38801 ──
+──────────────────────────── Hello / What can you tell… T2 on 127.0.0.1:36211 ──
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
- / for commands                                     GPT-6 Astra · high · ● Live
+ Hello · GPT-6 Astra · high · ● Live

@@ -112,19 +112,20 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     for (number, open, non_brief, remaining) in [
         (1, false, 44_333, 355_802),
         (1, true, 42_243, 357_892),
-        (2, false, 36_473, 363_662),
-        (4, false, 33_039, 367_096),
+        (2, false, 29_353, 370_782),
+        (4, false, 25_919, 374_216),
         (5, false, 45_222, 354_913),
-        (6, false, 34_263, 365_872),
-        (9, false, 31_706, 368_429),
-        (10, false, 31_421, 368_714),
+        (6, false, 27_143, 372_992),
+        (9, false, 24_586, 375_549),
+        (10, false, 24_301, 375_834),
         (11, true, 10_640, 389_495),
+        (12, true, 27_691, 372_444),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = if number == 9 || number == 10 || number == 11 {
+        let workspace = if number == 9 || number == 10 || number == 11 || number == 12 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))
@@ -191,9 +192,18 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
-    for (number, open) in
-        [(1, false), (1, true), (2, false), (4, false), (5, false), (6, false), (9, false), (10, false), (11, true)]
-    {
+    for (number, open) in [
+        (1, false),
+        (1, true),
+        (2, false),
+        (4, false),
+        (5, false),
+        (6, false),
+        (9, false),
+        (10, false),
+        (11, true),
+        (12, true),
+    ] {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
         let mut charter = temper_engine_smith::charter(&assignment);
@@ -202,7 +212,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted = if number == 9 || number == 10 || number == 11 {
+        let mounted = if number == 9 || number == 10 || number == 11 || number == 12 {
             None
         } else {
             Some(workspace(number != 4 && number != 6 && !open))

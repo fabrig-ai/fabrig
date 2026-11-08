@@ -145,9 +145,9 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    // The registry offers 38 declarations with message and without settings; settings adds two.
-    const WITHOUT_SETTINGS: usize = 38;
-    const WITH_SETTINGS: usize = 40;
+    // Without the charter's delegate family, message and settings add one and two declarations.
+    const WITHOUT_SETTINGS: usize = 35;
+    const WITH_SETTINGS: usize = 37;
     let settings = jig_domain_core::ToolFamilies::JIG.settings;
     let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
     for (charter, authority, allowed, count) in [
@@ -174,6 +174,9 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             if tool.name.as_ref() != b"settings"
                 && tool.name.as_ref() != b"propose_settings"
                 && tool.name.as_ref() != b"read_task"
+                && tool.name.as_ref() != b"goal"
+                && tool.name.as_ref() != b"change"
+                && tool.name.as_ref() != b"delegate"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -182,7 +185,8 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
 }
 
 #[test]
-fn settings_tools_need_the_charters_family_too() {
+#[expect(clippy::too_many_lines, reason = "one table checks asking schemas and both charter-family gates")]
+fn settings_and_delegate_tools_need_the_charters_family() {
     type AskingNames = Option<&'static [&'static [u8]]>;
     let stock = 1_539;
     let mut assignment = assignment();
@@ -191,13 +195,18 @@ fn settings_tools_need_the_charters_family_too() {
     let charter = crate::charter(&assignment);
     let mut offered = charter.grants.host_tools.iter();
     for tool in goal_tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+        if tool.name.as_ref() != b"settings"
+            && tool.name.as_ref() != b"propose_settings"
+            && tool.name.as_ref() != b"goal"
+            && tool.name.as_ref() != b"change"
+            && tool.name.as_ref() != b"delegate"
+        {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
         }
     }
-    assert_eq!(offered.next(), None, "no settings or additional tools");
+    assert_eq!(offered.next(), None, "no settings, delegate or additional tools");
     let timeout = Duration::from_secs(13);
-    let rows: [(u64, u64, AskingNames); 7] = [
+    let rows: [(u64, u64, AskingNames); 8] = [
         (u64::MAX, u64::MAX, None),
         (3_584, 3_584, None),
         (3_072, 3_072, Some(&[b"see", b"document", b"propose_settings"])),
@@ -205,9 +214,29 @@ fn settings_tools_need_the_charters_family_too() {
         (3_072, 1_024, Some(&[b"propose_settings"])),
         (1_023, u64::MAX, None),
         (1_920, u64::MAX, None),
+        (1_022, u64::MAX, None),
     ];
     for (charter, authority, asking_names) in rows {
         let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
+        if charter == 1_022 {
+            for (name, declared) in [
+                (b"goal".as_slice(), false),
+                (b"change", false),
+                (b"delegate", false),
+                (b"note", true),
+                (b"recall", true),
+                (b"read_branch", true),
+                (b"read_file", true),
+            ] {
+                let mut found = false;
+                for tool in &offered {
+                    if tool.name.as_ref() == name {
+                        found = true;
+                    }
+                }
+                assert_eq!(found, declared, "drafter: {name:?}");
+            }
+        }
         for tool in &offered {
             assert_eq!(tool.timeout, timeout);
         }
@@ -238,7 +267,18 @@ fn settings_tools_need_the_charters_family_too() {
                 engine::RunPolicy::EVERY_FAMILY,
                 tasks::Tools(authority & if charter & 1_024 == 0 { !1_024 } else { u64::MAX }),
             );
-            assert_eq!(offered, expected, "unchanged declarations for charter {charter}");
+            let mut declarations = offered.iter();
+            for tool in &expected {
+                if charter & 1 == 0
+                    && (tool.name.as_ref() == b"goal"
+                        || tool.name.as_ref() == b"change"
+                        || tool.name.as_ref() == b"delegate")
+                {
+                    continue;
+                }
+                assert_eq!(declarations.next(), Some(tool), "unchanged declarations for charter {charter}");
+            }
+            assert_eq!(declarations.next(), None, "no additional tools for charter {charter}");
             let mut proposal = false;
             for tool in &offered {
                 assert!(tool.name.as_ref() != b"see" && tool.name.as_ref() != b"document");

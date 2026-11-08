@@ -47,7 +47,7 @@ const STOCK_RUN_BYTES: u32 = 11_000;
 
 /// The settings family's tools run on a world's charter (temper/docs/design/domain/testing.md, 6.4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
-    const SETTINGS_CHARTER: u32 = 12;
+    const SETTINGS_CHARTER: u32 = 13;
     const SETTINGS_TEMPLATE: u32 = 12;
     let mut charter = defaults.charters[0].clone();
     charter.number = SETTINGS_CHARTER;

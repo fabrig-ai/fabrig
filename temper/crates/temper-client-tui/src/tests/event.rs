@@ -51,3 +51,16 @@ fn arrows_leave_every_screen_to_the_key_reader() {
         }
     }
 }
+
+#[test]
+fn the_own_commands_have_their_names() {
+    let mut failures = skein_lib::List::with_capacity(u32::try_from(crate::Own::ALL.len()).unwrap());
+    for (command, name) in
+        crate::Own::ALL.into_iter().zip([b"/change".as_slice(), b"/ask", b"/brief", b"/needs", b"/open"])
+    {
+        if command.name() != name {
+            failures.push(command).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "own command names: {failures:?}");
+}

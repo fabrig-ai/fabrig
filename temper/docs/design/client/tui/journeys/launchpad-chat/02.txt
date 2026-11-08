@@ -1,11 +1,8 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:38801 ─╮
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:36211 ─╮
 ╰──────────────────────────────────────────────────────────────────────────────╯
-
-
-
-
-
-
+ Start
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
 
 
 
@@ -15,10 +12,13 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
 ────────────────────────────────────────────────────────────────────────────────
-❯ /model    Change the model, from the next turn
+❯ /change   One change, run as the project's way says
+  /ask      Ask temper
+  /model    Change the model, from the next turn
   /effort   Change the effort
   /new      Start a new chat
   /chats    Open another chat
+  /open     Open this on the web
   /theme    Dark or light
   /help     Commands and keys
   /exit     Close temper

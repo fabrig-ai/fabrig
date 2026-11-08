@@ -68,7 +68,7 @@ def grant($bits):
 def widen:
   .tools |= grant($required[0].tools)
   | .notes |= grant($required[0].notes)
-  | .delegation.kinds |= (. + $required[0].kinds | unique);
+  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12})));
 .items |= map(
   .set.ceiling |= widen
   | if .setting.kind == "rules" then .
@@ -79,9 +79,10 @@ jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-poli
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
 ```
 
-Expect: widened rules and policy 1 in `FILE`, retaining executors. The stock's
+Expect: widened rules and policy 1 in `FILE`. The stock's
 delegation already holds coordinator charter 5, foreman charter 6, change procedure 2,
-merge job 3 and person role 0; the widening adds designer charter 7, keeping each
+merge job 3 and person role 0; the widening adds designer charter 7 and takes out
+the drafter's charter 12, which the reference's work never starts, keeping each
 kind once. Install charters first, offering these families.
 Size tasks, depth and spend (temper help budget).
 
