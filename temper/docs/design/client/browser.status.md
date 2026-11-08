@@ -294,13 +294,14 @@ establish no rendered equality.
   leave room for the position story's in the fake's joint allowance, with no line
   fewer; its bytes alone changed.
 - **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
-  tier fits its unchanged 85 CPU-second budget. The flagged run, of 17 tests, was
+  tier fits its 127.5 CPU-second budget, 85 raised by half by the user's word
+  of 11-08, for now, to be revisited. The flagged run, of 17 tests, was
   129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
   all twelve final comparison runs passed, but the CPU medians remain
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
   above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
   from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
-  40.150100 s for the rest of the tier; the final cost awaits after-landing.
+  82.650100 s for the rest of the tier; the final cost awaits after-landing.
   Loads, all samples and the limits of the comparison are in
   `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
   criteria and is absent; the smaller window alone establishes no CPU saving.
