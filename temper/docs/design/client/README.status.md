@@ -89,9 +89,6 @@ its 320 px, as the user accepted in `look-round-17`.
   address from the engine's link file, the note read at start, and the
   scheme left to the terminal where `COLORFGBG` declares none, are not
   built.
-- **Not yet:** 10, *The TUI in the joint world*: the stories of the sign-in
-  from the engine's link, its fallback, its renewal and its refusal
-  after a sign-out are not written.
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
   `Word::ChatbarSpend`, including the budget, rather than own spend alone.
