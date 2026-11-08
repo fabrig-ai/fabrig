@@ -372,6 +372,8 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     use jig_domain_accounts as accounts;
     use temper_engine_domain_world::walking;
     let (mut config, mut bounds) = project_people_setup(temper_engine_domain_forge::Mode::Owned, b"ada");
+    // Four model alternatives and Ask temper's instructions share each saved assignment.
+    bounds.journal.run_bytes = 32_768;
     bounds.accounts.accounts = 2; // Scripted key and the payer's Claude login.
     bounds.accounts.holder_accounts = 2;
     bounds.fleet.grants = bounds.accounts.credentials + bounds.accounts.accounts;
@@ -628,6 +630,7 @@ fn an_asking_chat_discovers_the_forge_host_for_charter_documents() {
 
 #[test]
 fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
+    use serde_json::json;
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     assert_eq!(run.charter, ASK_CHARTER);
@@ -643,10 +646,19 @@ fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
     assert!(!error);
     assert!(inventory.starts_with(b"newest revision 1\n"));
     let value = see_charter(&mut world.driver, &run, 2, CHAT);
-    let items = charter_item(value, b"Push early and report the result.");
+    let mut items = charter_item(value, b"Push early and report the result.");
+    let line = "Pushes early and reports the result";
+    let words = json!({"headline":"Push early", "lede":"Agents push each change early and report its result."});
+    items.as_array_mut().expect("proposal items").extend([
+        json!({"setting":{"kind":"charter-words","number":CHAT},"set":line}),
+        json!({"setting":{"kind":"project-words","project":PROJECT},"set":words}),
+    ]);
     let proposal = propose(&mut world.driver, &run, 3, 1, &items);
     let review = world.review(&run, proposal);
     assert_eq!(review.reason.bytes.as_ref(), REASON.as_bytes());
+    let core::documents::ProposalAction::Settings { review: Some(settings), .. } = review.action else {
+        panic!("settings review")
+    };
     assert_eq!(world.head().number, 1, "a proposal alone changes no settings");
     world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
     assert_eq!(world.head().number, 2);
@@ -659,6 +671,22 @@ fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
     assert_eq!(
         world.head().proposal,
         Some((people::Proposer::Task(run.task), u32::try_from(proposal).expect("proposal number")))
+    );
+    for (completion, address, expected) in
+        [(10, format!("settings charter-words {CHAT}"), json!(line)), (11, "settings project-words".into(), words)]
+    {
+        let (text, _) = see_whole(&mut world.driver, &run, completion, &address);
+        let value = text.lines().nth(1).expect("words read back after acceptance");
+        assert_eq!(value, expected.to_string(), "{address}: {text}");
+    }
+    assert_eq!(
+        settings.items.iter().map(|item| item.setting).collect::<Vec<_>>(),
+        [
+            s::Setting::Charter(CHAT),
+            s::Setting::Application { kind: 9, scope: 0, number: CHAT },
+            s::Setting::Application { kind: 10, scope: PROJECT, number: 1 },
+        ],
+        "one proposal holds the charter, its words and the project's words"
     );
     let next = world.next(&run);
     assert_heard(&next, b"accepted: revision 2 made");
@@ -1323,6 +1351,8 @@ fn an_asking_chat_reads_each_address() {
 #[test]
 fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     use serde_json::json;
+    // A charter's line holds at most 120 bytes (protocol/configuration.md, 13.2).
+    const PAST_LINE_BYTES: usize = 121;
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     let charter = see_charter(&mut world.driver, &run, 1, CHAT);
@@ -1338,11 +1368,16 @@ fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     unknown["unknown"] = json!(true);
     let mut missing = charter;
     missing.as_object_mut().expect("charter object").remove("instructions");
-    for (completion, value, member) in [(11, unknown, "unknown"), (12, missing, "instructions")] {
-        let input = json!({
-            "against":2,"reason":REASON,
-            "items":[{"setting":{"kind":"charter","number":CHAT},"set":value}]
-        });
+    for (completion, items, member) in [
+        (11, json!([{"setting":{"kind":"charter","number":CHAT},"set":unknown}]), "unknown"),
+        (12, json!([{"setting":{"kind":"charter","number":CHAT},"set":missing}]), "instructions"),
+        (
+            13,
+            json!([{"setting":{"kind":"charter-words","number":CHAT},"set":"x".repeat(PAST_LINE_BYTES)}]),
+            "charter-words: wire value bound",
+        ),
+    ] {
+        let input = json!({"against":2,"reason":REASON,"items":items});
         let (body, error) =
             host_tool(&mut world.driver, &run, completion, b"propose_settings", input.to_string().as_bytes());
         assert!(error);
