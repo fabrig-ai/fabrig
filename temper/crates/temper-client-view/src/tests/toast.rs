@@ -79,6 +79,7 @@ fn way_answer(kept: bool) -> d::Domain {
     let way = w::StockWay::new(
         &w::CEILINGS,
         w::StockWayParts {
+            headline: b"".as_slice().into(),
             name: b"A way".as_slice().into(),
             line: b"A line".as_slice().into(),
             path: path.clone(),
@@ -94,6 +95,7 @@ fn way_answer(kept: bool) -> d::Domain {
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            words: None,
             project: f::PROJECT,
             ways: List::from_boxed(Box::new([way])),
             current: if kept { Some(0) } else { None },
