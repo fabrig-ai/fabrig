@@ -14,97 +14,28 @@ const FIRST_RUN: usize = 0;
 const PRODUCER_RUN: usize = 1;
 const ONE_MERGE: u32 = 1;
 const GOAL_BUDGET: u64 = 300; // Leaves 200 of the owner's 500 units for an outside chat.
-const REFERENCE_BUDGET: u64 = 2_500_000;
+// The stock coordinator's 11K allowance at the fixture's Sol prices (K = 8,720).
+const STOCK_GOAL_BUDGET: u64 = 95_920;
 
-fn reference_template() -> jig_domain_core::Template {
-    use jig_client::contract as c;
-    let limits = temper_client_tools::limits::tools();
-    let decoded = temper_client_tools::jig::settings_file::decode(
-        include_bytes!("../../../../../../docs/examples/reference/settings.json"),
-        &limits,
-    )
-    .expect("shipped reference settings");
-    let mut item = decoded
-        .into_boxed()
-        .into_vec()
-        .into_iter()
-        .find(|item| item.setting == c::Setting::Template(c::SettingNumber { number: 4 }))
-        .expect("reference template 4");
-    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &mut item.edit else {
-        panic!("reference template value")
+fn stock_defaults() -> jig_domain_core::settings::Defaults {
+    let catalogue = jig_domain_core::settings::CatalogueModel {
+        first_read: None,
+        number: 1,
+        model: stock::box_model(),
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: jig_domain_core::settings::ModelSource::Stock,
+        estimated: false,
     };
-    template.llm = None; // The scripted worker uses the fixture's model.
-    template.contract = c::TaskContractDocument::Report {
-        words: temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
-    };
-    let mut items = skein_lib::List::with_capacity(1);
-    items.push(item).expect("one template");
-    let ask = c::Ask::ChangeSettings(c::ChangeSettings { against: 1, items, running: c::Running::Stays });
-    let jig_client_protocol_wire::Ask::ChangeSettings(change) =
-        jig_client_protocol_link::translate::asks::ask(&ask, &limits.settings).expect("settings wire")
-    else {
-        panic!("settings change")
-    };
-    let items = jig_protocol_engine_clients::translate::settings::items(change.items().into(), &[], &limits.settings)
-        .expect("reference template reaches the core");
-    let jig_domain_core::settings::Edit::Set(jig_domain_core::settings::Value::Template(template)) =
-        items.into_vec().pop().expect("one template").edit
-    else {
-        panic!("core template value")
-    };
-    *template
-}
-
-fn reference_defaults() -> jig_domain_core::settings::Defaults {
-    let llm = jig_protocol_config::Llm {
-        endpoints: Box::new([]),
-        providers: Box::new([]),
-        models: (Box::new([stock::box_model()]))
-            .into_iter()
-            .enumerate()
-            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
-                first_read: None,
-                number: u32::try_from(at).expect("bounded fixture models") + 1,
-                model,
-                shown: None,
-                description: None,
-                picker: true,
-                withdrawn: false,
-                source: jig_domain_core::settings::ModelSource::Stock,
-                estimated: false,
-            })
-            .collect(),
-    };
-    let mut defaults = temper_service::stock::with_models(
-        llm.models.clone(),
+    temper_service::stock::with_models(
+        Box::new([catalogue]),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
-    );
-    // Admission needs charter 5; the scripted world takes the stock run policy,
-    // whose model and document requirements fit its fake worker and repository.
-    let mut coordinator = defaults.charters[0].clone();
-    coordinator.number = 5;
-    coordinator.documents = Box::new([]);
-    defaults.charters = [defaults.charters.as_ref(), &[coordinator]].concat().into();
-    defaults.templates = [defaults.templates.as_ref(), &[reference_template()]].concat().into();
-    defaults.rules.period_spend = REFERENCE_BUDGET;
-    reference_authority(&mut defaults.rules.ceiling);
-    let policy = defaults.policies.get_mut(&1).expect("stock project policy");
-    policy.policy.period_spend = REFERENCE_BUDGET;
-    reference_authority(&mut policy.policy.ceiling);
-    for role in &mut policy.policy.roles {
-        reference_authority(&mut role.authority);
-        role.period_spend = REFERENCE_BUDGET;
-    }
-    defaults
+    )
 }
 
-fn reference_authority(authority: &mut authority::Authority) {
-    authority.budget.spend = REFERENCE_BUDGET;
-    authority.delegation.kinds =
-        [authority.delegation.kinds.as_ref(), &[authority::Executor::Charter(5)]].concat().into();
-}
-
-fn reference_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
+fn stock_request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
     let people::Ask::Create { project, mut batch } = world.chat(1, b"TEXT") else { panic!("goal batch") };
     let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("coordinator charter") };
     let tasks::Contract::Report { words } = template.contract else { panic!("goal report") };
@@ -114,7 +45,7 @@ fn reference_request(world: &World, template: &jig_domain_core::Template) -> peo
     member.executor = people::TaskExecutor::Agent { charter };
     member.contract = people::Contract::Report { words };
     member.budget = people::Budget::Named;
-    member.authority.spend = REFERENCE_BUDGET;
+    member.authority.spend = STOCK_GOAL_BUDGET;
     // 2026-11-04T13:00Z, the reference walk's deadline.
     member.authority.deadline = Some(skein_lib::Wall::from_nanos(1_793_797_200_000_000_000));
     member.deadline = people::Deadline::Named;
@@ -137,8 +68,8 @@ fn reference_request(world: &World, template: &jig_domain_core::Template) -> peo
 }
 
 #[test]
-fn reference_template_four_starts_on_the_configured_forge() {
-    let defaults = reference_defaults();
+fn the_stock_template_four_starts_on_the_configured_forge() {
+    let defaults = stock_defaults();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
     let mut world = World::configured_stock_limits(&defaults, &stock::box_model(), &limits);
@@ -149,19 +80,22 @@ fn reference_template_four_starts_on_the_configured_forge() {
         panic!("worker hello")
     };
     hello.bounds = jig_test_profile::fixtures::bounds();
+    hello.bounds.turns = 800;
     hello.bounds.time = Duration::from_secs(28_800);
     let model = stock::box_model();
     hello.bounds.endpoints =
         Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     world.send(event);
     let template = defaults.templates.iter().find(|template| template.number == 4).expect("template 4");
-    let request = reference_request(&world, template);
+    let request = stock_request(&world, template);
     let outcome = ask(&mut world, GOAL_REQUEST, request);
     let people::Outcome::Created { first: goal, last, .. } = outcome else {
-        panic!("reference goal must be admitted: {outcome:?}")
+        panic!("stock goal must be admitted: {outcome:?}")
     };
     assert_eq!(goal, last);
     world.until(Until::Ready);
+    let assigned = world.assigned.iter().find(|run| run.task == goal).expect("stock coordinator starts");
+    assert_eq!(assigned.charter, 5);
     let branch = format!("temper/{goal}/g{goal}");
     let mut held = resource(branch.as_bytes());
     held.connector = 1;
