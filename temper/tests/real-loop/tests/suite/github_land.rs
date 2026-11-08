@@ -29,8 +29,10 @@ fn a_chats_change_lands_on_connected_github() {
             steps.extend([
                 call(D1, argv!["task", "show", number(CHANGE_TASK), "--json"]),
                 terminal::open(),
-                terminal::see(b"Project 1 (pressed)"),
-                terminal::type_on(b"Chats", b""),
+                terminal::see(b"Work"),
+                terminal::type_on(b"Work", b""),
+                terminal::see("Chats · 1".as_bytes()),
+                terminal::type_on("Chats · 1".as_bytes(), b""),
                 terminal::see(b"T1"),
                 terminal::type_on(b"T1", b""),
                 terminal::see(b"The change landed."),

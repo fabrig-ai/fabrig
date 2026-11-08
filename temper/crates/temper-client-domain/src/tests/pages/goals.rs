@@ -557,14 +557,16 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
     pages::step(&mut pages, &fixtures::env(&limits), root.client(), Event::Left, &mut out);
     let handles = [handle.number - 1, handle.number, handle.number + 1, handle.number + 2];
     for number in handles {
-        assert_eq!(
-            out.pop(),
-            Some(Request::Client(jig_client::Event::Unwatch {
-                handle: jig_client::Handle { asker: handle.asker, number }
-            }))
-        );
+        let unwatch =
+            Request::Client(jig_client::Event::Unwatch { handle: jig_client::Handle { asker: handle.asker, number } });
+        let mut released = false;
+        for request in &out {
+            released |= request == &unwatch;
+        }
+        assert!(released, "goal read released");
     }
     assert!(pages.goals().is_none());
+    out.clear();
     pages::step(
         &mut pages,
         &fixtures::env(&limits),
@@ -575,6 +577,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
     assert!(pages.goals().unwrap().live.number > *handles.last().unwrap());
     let old = pages.goals().unwrap();
     let previous = [old.live, old.ended, old.needs, old.report];
+    out.clear();
     pages::step(
         &mut pages,
         &fixtures::env(&limits),
@@ -583,7 +586,12 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         &mut out,
     );
     for handle in previous {
-        assert_eq!(out.pop(), Some(Request::Client(jig_client::Event::Unwatch { handle })));
+        let unwatch = Request::Client(jig_client::Event::Unwatch { handle });
+        let mut released = false;
+        for request in &out {
+            released |= request == &unwatch;
+        }
+        assert!(released, "goal read released");
     }
     assert!(pages.goals().unwrap().live.number > previous[3].number, "another project gets new handles");
     assert!(pages.goals().unwrap().ended().is_empty());

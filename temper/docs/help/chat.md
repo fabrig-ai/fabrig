@@ -112,6 +112,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Acting on it
 
+- **In the client:** Work in the project's rail holds its Goals and Changes
+  filters and the way to Chats. To start one, use **+ New draft or change**
+  on the rail and choose Draft or Change; with no drafts offered, use
+  **+ New change**.
 - **Read a run's brief:** `temper ctl DIR chat show TASK` prints the
   gathered brief, including charter document sections and their recorded
   commits. Follow `chat show TASK --before CURSOR` as printed to reach

@@ -6,7 +6,7 @@ machine with the offered empty `work/hello`, sign in to the fake ChatGPT
 plan, and create Hello. Wait for Home's status before starting the
 first chat. Home writes note 1; the chat's document is note 3.
 
-Reload `/projects/1/settings` to start the recording at How work runs.
+Reload `/chats` to start the recording at Chats.
 Mark the page with Alt+Shift+M. Open "+ New chat", send "Let us design
 Away mode." to start the first chat, T2, and mark its settled reply. Press "+ Draft";
 the fake model writes the 29-line Away mode document and Split opens.
@@ -24,7 +24,7 @@ section, and the goal-create request carries that revision, followed
 by its draft and chat provenance. The goal's Draft link is read from
 those provenance lines, beyond its shortened specification preview.
 
-- `01.html`: How work runs with drafts On, marked.
+- `01.html`: Chats with drafts On, marked.
 - `02.html`: the same page before opening "+ New chat".
 - `03.html`: the new chat with its opening words entered, before Send.
 - `04.html`: T2 after its opening fake reply, marked.
@@ -47,6 +47,11 @@ those provenance lines, beyond its shortened specification preview.
 
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
+
+The rail lists Home, Needs you, Work, Ask temper and How work runs,
+with the New draft or change menu below and Deployment at its foot.
+On a phone, Chats and the goal page have Home, Needs you, Work and Ask
+in the tab bar; the chat layout hides the rail and tab bar.
 
 The chat's bar offers Chat, Split, Draft and ">_" ("Terminal, full screen"),
 with "Start goal…" once the draft has a section (`../../README.md`, 3.5,

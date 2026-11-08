@@ -21,24 +21,25 @@ fn see(find: Find) -> Step<Address> {
     Step::See { find, within: fixtures::WITHIN }
 }
 
-fn start_chat(world: &mut Pages) -> (ClientId, Vec<Step<Address>>) {
+fn open_change(world: &mut Pages) -> (ClientId, Vec<Step<Address>>) {
     world.front().answer_runs = true;
     world.front().reply_runs = true;
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
-    let steps = vec![
-        Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-        Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-        see(Find::named(Role::TextArea, b"What do you want done?")),
-        Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: QUESTION.into() },
-        Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
-    ];
+    let steps = fixtures::start_change(false)
+        .into_iter()
+        .chain([
+            see(Find::named(Role::TextArea, b"What do you want done?")),
+            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: QUESTION.into() },
+            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+        ])
+        .collect();
     (person, steps)
 }
 
 #[test]
 fn an_open_chat_stays_live_takes_a_second_message_and_is_closed() {
     let mut world = fixtures::open_world(fixtures::SEED);
-    let (person, mut steps) = start_chat(&mut world);
+    let (person, mut steps) = open_change(&mut world);
     steps.extend([
         see(Find::text(b"Answered, run 1")),
         see(Find::text(b"waiting on your words")),
@@ -54,7 +55,7 @@ fn an_open_chat_stays_live_takes_a_second_message_and_is_closed() {
         // The world's epoch clock stays within its first minute throughout this story.
         see(Find::text(b"Closed at 00:00")),
         Step::Gone { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
-        Step::Press { find: Find::exactly_named(Role::Link, b"Chats") },
+        Step::Go { address: fixtures::chats_page() },
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         see(Find::text(QUESTION)),
         see(Find::text(b"Closed").within(Box::new([skein_fake_person::Target::ExactRole {
@@ -94,7 +95,7 @@ fn an_open_chat_stays_live_takes_a_second_message_and_is_closed() {
 #[test]
 fn a_chat_with_a_refused_hello_says_why_and_starts_nothing() {
     let mut world = fixtures::refused_hello_world(fixtures::SEED);
-    let (person, mut steps) = start_chat(&mut world);
+    let (person, mut steps) = open_change(&mut world);
     steps.extend([
         see(Find::text(b"Cannot start yet")),
         see(Find::text(REFUSAL)),
