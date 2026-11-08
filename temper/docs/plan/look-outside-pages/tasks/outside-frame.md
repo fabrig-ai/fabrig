@@ -178,3 +178,17 @@ Preserve this task’s `ProjectName` (2198), `NoProjectSetUp` (2199), and revise
 Resolve the shared count hunks by combining both deltas: `PHRASES = 2103`, `SEGMENTS = 3688`, `ENGLISH_BYTES = 52052`, and `ALL: [Word; 1421]` for the inspected integration tip.
 Do not select either side’s counts wholesale; each omits the other task’s additions.
 Keep the automatically merged changes, then run the task’s required focused checks through heavy.
+
+## Rebase (2026-11-08, step merge, foreman look-outside-pages/outside-frame/foreman-2)
+
+combine RunningWork with the outside-frame vocabulary and recalculate words.rs counts
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+Rebase onto the landing’s integration tip, inspected at `5476932f7d`.
+Main’s `7771bb70828d249b282986693cb763915dc6bdfc`, brought into integration by `504334a24e`, adds `RunningWork`.
+Preserve its enum variant, `ALL` entry, ID 3885 and English phrase `"Working"`.
+Preserve this task’s `ProjectName` (2198), `NoProjectSetUp` (2199) and revised `NoProjectLine`, per `temper/docs/plan/look-outside-pages/notes/contracts.md`, section 5.
+Keep the already incorporated `ApproveSignedOutGoogle` (4185) and its phrase.
+Combine both count deltas: `PHRASES = 2104`, `SEGMENTS = 3689`, `ENGLISH_BYTES = 52059`, and `ALL: [Word; 1422]` for the inspected integration tip.
+These supersede the previous Rebase section’s counts; neither side’s counts alone include both additions.
+Keep automatically merged changes and the gallery-count correction from `1b982824b1`.
+Verify the combined phrasebook counts and run the task’s required focused checks through heavy.
