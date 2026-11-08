@@ -931,7 +931,7 @@ pub(super) fn proposal(proposer: c::Proposer) -> c::Proposal {
         .unwrap();
     proposal
 }
-fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
+pub(super) fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
     let source = f::task::held_root();
     let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
     task.chip.title = words("first-run-projects");

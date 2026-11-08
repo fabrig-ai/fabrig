@@ -107,12 +107,15 @@ pub(crate) fn when(row: &Row, w: &Words, times: &mut Times) -> Box<[u8]> {
         &times.say(w, TimeForm::Span, row.since),
     ])
 }
+pub(crate) fn review_words(row: &Row, w: &Words) -> Box<[u8]> {
+    w.say(Word::ApprovalReview, &[Hole::Name(forge(row, w))])
+}
 fn review(b: &mut Builder, row: &Row, w: &Words, sign_in: &Forges, style: skein_ui::Style) -> bool {
     if row.yours != Yours::Counts {
         return false;
     }
     let Some(address) = address(row, sign_in) else { return false };
-    let label = w.say(Word::ApprovalReview, &[Hole::Name(forge(row, w))]);
+    let label = review_words(row, w);
     b.open(Role::Link);
     if style == look::GOAL_PRIMARY {
         b.style(look::GOAL_BTN);

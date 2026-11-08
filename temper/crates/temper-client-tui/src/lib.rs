@@ -16,13 +16,15 @@ mod view;
 pub mod words;
 pub use approval::{approval_address, may_ask_again};
 pub use box_line::BoxLine;
-pub use event::{Event, LOG_COMMAND};
+pub use event::{Event, LOG_COMMAND, Own, WalkStep};
 pub use limits::limits;
 pub use note::Note;
 pub use place::place;
-pub use state::{BoxState, Browser, Local, Refusal, Signing, Told, Tui};
+pub use state::{BoxState, Browser, Local, Refusal, Signing, Told, Tui, Walk};
 pub use theme::{Scheme, theme};
-pub use view::{Arrow, View, arrow, build, escape, event, offered, work_runs};
+pub use view::{
+    Arrow, View, arrow, build, chat_number, escape, event, focus, offered, offered_own, walk_key, work_runs,
+};
 
 #[cfg(test)]
 mod tests;

@@ -5,6 +5,7 @@ use temper_client_domain::Limits as Domain;
 pub const BOX_LOG: u32 = 50;
 pub const LOG_LINE: u32 = 512;
 pub const STEP: u32 = 64;
+pub const WALK: u32 = 64;
 
 #[must_use]
 pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<skein_ui::Limits> {
