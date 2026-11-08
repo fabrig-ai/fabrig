@@ -49,7 +49,7 @@ Refused, changing nothing, when the configuration directory already holds temper
     Row {
         words: &["box"],
         who: Who::Deployment,
-        forms: &["[DIRECTORIES] [--echo none|steps]", "[DIRECTORIES] --fake-backends [--bundle BUNDLE]"],
+        forms: &["[DIRECTORIES] [--echo none|steps] [--no-tui]", "[DIRECTORIES] --fake-backends [--bundle BUNDLE] [--no-tui]"],
         line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.",
         arguments: &[
             DIRECTORIES,
@@ -65,9 +65,10 @@ Refused, changing nothing, when the configuration directory already holds temper
                 shown: "BUNDLE",
                 line: "The web client's bundle directory, in place of the configured one; a relative path is taken from the working directory.",
             },
+            Argument { shown: "--no-tui", line: "Run the box with no TUI in front, as on a pipe." },
         ],
         settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS],
-        notes: "Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
+        notes: "In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
     },
     Row {
         words: &["program-login"],

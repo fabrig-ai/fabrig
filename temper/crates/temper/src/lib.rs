@@ -77,8 +77,8 @@ pub enum Command {
     Usage(&'static commands::Row),
     Init { directories: Directories, boxed: bool },
     Serve { directories: Directories, boxed: bool },
-    Box { directories: Directories, echo: temper_box::host::Echo },
-    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
+    Box { directories: Directories, echo: temper_box::host::Echo, no_tui: bool },
+    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo, no_tui: bool },
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
     AgentList { configuration: PathBuf },
@@ -198,6 +198,15 @@ fn configure_row(
         _ => {}
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
+    let no_tui = row.words == ["box"] && rest.iter().any(|word| word.as_ref() == b"--no-tui");
+    let rest = if no_tui {
+        if rest.iter().filter(|word| word.as_ref() == b"--no-tui").count() != 1 {
+            return Err(invalid());
+        }
+        rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect()
+    } else {
+        rest
+    };
     let (echo, rest) = if row.words == ["box"] {
         if rest.iter().any(|word| word.as_ref() == b"--fake-backends") {
             let (echo, _) = box_command::echo(&[], environment)?;
@@ -214,10 +223,10 @@ fn configure_row(
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
-        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
+        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo, no_tui }),
         ["box"] => {
             let bundle = fake_backends::configure(&rest, working)?;
-            Ok(Command::BoxFakeBackends { directories, bundle, echo })
+            Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         ["forge", verb] => {
@@ -254,11 +263,12 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
         }
-        Command::BoxFakeBackends { directories, bundle, echo } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo).map_err(|why| prefixed("temper box", &why))?
+        Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
+            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
+                .map_err(|why| prefixed("temper box", &why))?
         }
-        Command::Box { directories, echo } => {
-            box_command::run(&directories, echo).map_err(|why| prefixed("temper box", &why))?
+        Command::Box { directories, echo, no_tui } => {
+            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper box", &why))?
         }
         Command::Agent { configuration } => agent::decoded(&configuration)
             .inspect_err(|why| {

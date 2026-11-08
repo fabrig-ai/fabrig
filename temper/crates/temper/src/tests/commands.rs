@@ -46,8 +46,8 @@ fn every_row_parses_from_an_example() {
         (&["help"], &["help"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
-        (&["box"], &["box", "--echo", "steps"]),
-        (&["box"], &["box", "--fake-backends", "--bundle", "/bundle"]),
+        (&["box"], &["box", "--echo", "steps", "--no-tui"]),
+        (&["box"], &["box", "--fake-backends", "--bundle", "/bundle", "--no-tui"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -94,7 +94,16 @@ fn every_row_parses_from_an_example() {
     }
     assert!(matches!(configured(&["init"]).expect("bare init"), Command::Init { boxed: false, .. }));
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["box", "--fake-backends"]).expect("fake box"), Command::BoxFakeBackends { .. }));
+    assert!(matches!(configured(&["box", "--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
+    assert!(matches!(
+        configured(&["box", "--fake-backends", "--no-tui"]).expect("fake no TUI"),
+        Command::BoxFakeBackends { no_tui: true, .. }
+    ));
+    assert!(matches!(configured(&["box"]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    assert!(matches!(
+        configured(&["box", "--fake-backends"]).expect("fake box"),
+        Command::BoxFakeBackends { no_tui: false, .. }
+    ));
 }
 
 #[test]

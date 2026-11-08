@@ -79,10 +79,6 @@ section 15's contained-tree work.
   `restarting`, `running` and `gave-up` lines, the terminal's lines in
   `box.log` in its stead, the 256 lines held, and a failed front named on
   the terminal after it (`front-lines`, `tui-box-front`).
-- **Not yet:** 7.6, *When*, *The sign-in it hands* and *The terminal after
-  the front*: the binary's `--no-tui`, the front's condition, the local
-  link drawn, the foreground taken back; 13.1's focused story
-  (`binary-front`, `tui-box-front`).
 - **Not yet:** 7.6: `temper help box` and `temper help tui` say nothing of
   the TUI in front or `--no-tui` (`box-help`, `tui-box-front`).
 - **Not yet:** 7.2, *Its children*: the owned-forge Claude Code landing
