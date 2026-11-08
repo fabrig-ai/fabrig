@@ -156,6 +156,18 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         None => Some(jig_protocol_engine_clients::Event::Abort),
                     }
                 }
+                root::PartyRequest::Deliver(root::Delivery::Ways { watcher, document }) => {
+                    match crate::family::ways_panel(*document, &temper_client_protocol_wire::v1::CEILINGS) {
+                        Some(record) => Some(jig_protocol_engine_clients::Event::Application(
+                            jig_protocol_engine_clients::FromApplication::Delivery {
+                                watcher,
+                                family: temper_client_protocol_wire::FORGE,
+                                record,
+                            },
+                        )),
+                        None => Some(jig_protocol_engine_clients::Event::Abort),
+                    }
+                }
                 root::PartyRequest::Deliver(root::Delivery::Approvals { watcher, document }) => {
                     match crate::family::approvals(
                         *document,
@@ -336,6 +348,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Forges { .. }
             | root::Delivery::ForgeDocument { .. }
             | root::Delivery::Trials { .. }
+            | root::Delivery::Ways { .. }
             | root::Delivery::Approvals { .. }
             | root::Delivery::Panel { .. }
             | root::Delivery::Public { .. }

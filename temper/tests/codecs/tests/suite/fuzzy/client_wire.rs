@@ -33,7 +33,7 @@ fn playground_answer(bytes: &[u8]) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one mutation sweep checks the forge-family decoders and request outcomes")]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 11] = [
+    let decoders: [fn(&[u8]); 13] = [
         requesting,
         answer,
         reading,
@@ -45,6 +45,8 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         forge_charter,
         setting_answer,
         proposal_items_answer,
+        ways_panel,
+        view_answer,
     ];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
@@ -390,5 +392,17 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
             )
             .expect("bounded make request"),
         ),
+    }
+}
+
+fn ways_panel(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_ways_panel(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::ways_panel(&record).as_ref(), bytes, "WaysPanel");
+    }
+}
+
+fn view_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_view_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::view_answer(&record).as_ref(), bytes, "ViewAnswer");
     }
 }

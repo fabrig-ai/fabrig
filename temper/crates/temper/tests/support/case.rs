@@ -153,7 +153,7 @@ fn base(value: &mut Value) {
 }
 fn process_settings(value: &mut Value) -> Value {
     let given = temper_real_loop_world::fixtures::own_defaults(value, &value["world_settings"]);
-    let temper_service::stock::Given::Own { jig: defaults, forge } = given else { panic!("case defaults") };
+    let temper_service::stock::Given::Own { jig: defaults, forge, .. } = given else { panic!("case defaults") };
     let mut items = temper_real_loop_world::case::defaults::items(&defaults);
     // Project 1 is made after sign-in; give its rules deployment scope for this story.
     let mut forge = forge;

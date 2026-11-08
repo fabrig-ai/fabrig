@@ -18,6 +18,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
     engine::Config {
         host_part: config.host_part,
         kinds_stock: config.kinds_stock.clone(),
+        ways_stock: config.ways_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
             jobs: c.jobs.clone(),

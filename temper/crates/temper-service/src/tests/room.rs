@@ -62,7 +62,7 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
-        &stock::Given::Own { jig: defaults, forge: Box::default() },
+        &stock::Given::Own { jig: defaults, forge: Box::default(), ways: stock::ways() },
     )
 }
 

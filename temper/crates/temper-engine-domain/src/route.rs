@@ -24,6 +24,7 @@ pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
 pub(crate) mod see;
+pub(crate) mod ways;
 pub use see::{SeeAnswer, SeeLanding, SeeProposal, SeeRepository, SeeSettings};
 pub(crate) mod settings_parts;
 mod tools;
@@ -354,6 +355,7 @@ pub(crate) fn route_core_requests(
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
                 trials::saved(domain, env, &record);
+                ways::saved(domain, &record);
                 keep_produced_title(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
