@@ -169,12 +169,6 @@ The asking tool family and a run's settings-proposal read are implemented
 (`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
 person remains later work in `domain/engine.md`, section 16.
 
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
-
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)

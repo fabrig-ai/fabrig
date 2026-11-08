@@ -1,7 +1,12 @@
 # client: status
 
-2026-11-07. Where jig's code lags or departs from [client.md](client.md).
+2026-11-08. Where jig's code lags or departs from [client.md](client.md).
 Unlisted sections have no known gap.
+
+Section 3's invalid run ends carry their immutable contract kind or
+unreadable-result cause through wire 19 and the client link. The protocol
+world drives contract-invalid and adapter-invalid endings; no gap is known
+in this diagnostic.
 
 Section 3's v19 run-wait records carry hello figures, bounds refusals
 and the turns, time and waiting shortfalls' charters in both directions.

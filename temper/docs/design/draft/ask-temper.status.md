@@ -7,13 +7,14 @@ no workspace, its own tools, the configuring reads through `see`, proposals
 and section-based documents. The client offers Ask temper in the rail and
 phone tab bar and opens its project page without Settings. Its walk and
 the user's judgement of the instructions follow landing.
+Section 9's replacement is complete: charter 3, template 3 and the
+configuring chat's client entry points are absent. The acceptance's
+scripted stories and stage 1's assets ask Ask temper, retaining the
+settings family's own checks on a test charter. The later milestones
+below remain outside that replacement.
 
 ## Gaps and departures
 
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. The run read is implemented and
-  `jig/docs/design/domain/engine.md`, 7.3 contains its contract, but that
-  part's design coverage remains to be reconciled; it is not missing code.
 - **Design lags:**
   - 4.1: `smith/docs/design/protocol/programs.md`, section 9 defers recording Claude Code's own overhead with smith's MCP server attached; the approximately 1.1 KB figure is without MCP and is outside temper's 16,384-byte bound.
   - 5.1: `../domain/agent.md`, 8.4.1: `see` reads the settings addresses alone, through the run's own reads, and answers `me`, `project`, `goals`, `tasks`, `task N` with its tree, activity and turns, `change N`, `changes` and `inbox` not yet; its answers are today's renderers' text, not 5.1's for an agent that explains (names beside numbers, no keys or digests, money in one unit), and it has no reference page; jig's `domain/engine.md`, 7.3 and section 11: a run reads related tasks, and a party's views are a client's, so no run reads as its person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration.md`, 13.2). These remain M2's work; `../domain/agent.md`, section 10 also defers revision values of temper's kinds, the project-policy address and address fuzzing.

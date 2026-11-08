@@ -852,6 +852,15 @@ temper/ui compares the three requests with main after landing
 
 ## 10. Open questions
 
+- **Renewing `chat-draft` after stock removal** (8, 9): temper/ui walks
+  it anew after landing, following the Draft link to the chat the goal
+  names, then adds the whole recording and its prints. Removing the
+  configuring chat changes task numbers, so the old walk's task 2 is
+  no longer the return target. Default: retain the replayable recording
+  until that renewal, including its old stock inventory; offering Ask
+  temper in its prints does not establish removal of template 3 and
+  charter 3 from its recorded answers.
+
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the
   `ask-temper-place` request after landing, at 1440, 1000 and 420 px

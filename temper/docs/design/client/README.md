@@ -5493,7 +5493,11 @@ acts on it as its document offers (5.11).
   its chip supplies `run_since`, when the run was placed, in universal
   time. A run's earlier runs are the
   conversation's "Run N began" and "Run N ended": the page has no run
-  groups.
+  groups. An invalid run's end adds ": its result broke its contract
+  (KIND)", naming form, verdict, words, change or followups from its
+  recorded cause. An invalid end without a contract kind adds ": its
+  result couldn't be read" (jig's `protocol/client.md`, section 3).
+  Other failure classes add no invalid-result cause.
 - **The conversation,** from the task's bounded thread (jig-client's
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
