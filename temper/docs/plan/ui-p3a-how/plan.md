@@ -31,18 +31,25 @@ The design this cut wrote, on the trunk with the first push:
 | `parts` | `tasks/how-parts.md` | | `pages::how::{parts, facts, lanes}`; the `ways` watch on `Settings { project }`, its tab and stop acts heard there | 80 |
 | `look` | `tasks/how-look.md` | | `look.rs`'s `temper-how-*` names; `temper.css`'s `ui: how`: the lanes, who acts' colours day and night, the ways on Settings | 60 |
 | `page` | `tasks/ways-shared.md` | | the ways' tabs, card, act and refusal moved to `pages/ways.rs`, Ask temper's page unchanged | 40 |
+| `page` | `tasks/how-page.md` | how-parts, how-look, ways-shared | How work runs drawn: heading and lede, Ask temper's offer, the path section with tabs, lanes, card and act, Budgets; the disabled rows gone, the switches at its foot; the terminal's golden and the stale journeys regenerated | 200 |
+| `checks` | `tasks/how-fuzz.md` | how-parts | section 12's rules over `how::parts` and `how::lanes`, random settings and their moves | 75 |
+| `checks` | `tasks/how-world.md` | how-page | the joint world: How work runs' lanes over a project with CI and tiers and with neither, each stock way, as rows of the ways story | 60 |
+| `checks` | `tasks/how-gallery.md` | how-page | the gallery's six states, `how` to `night-how` | 100 |
 
-Released in the first batch. Planned next (names may still move until released):
+About 615 implementer-minutes in all. The first three were released with the
+first push and run together; the rest with the second.
 
-| Part | Task | Needs | What it makes run |
-|---|---|---|---|
-| `page` | `how-page` | how-parts, how-look, ways-shared | How work runs drawn: heading and lede, Ask temper's offer, the path section with tabs, lanes, card and act, Budgets; the disabled rows gone, the switches at its foot; the terminal's golden and stale journeys regenerated |
-| `checks` | `how-fuzz` | how-parts | section 12's rules over `how::parts` and `how::lanes`, random settings and their moves |
-| `checks` | `how-world` | how-page | the client world: How work runs' lanes over a project with CI and tiers and with neither, each stock way |
-| `checks` | `how-gallery` | how-page | the gallery's six states, `how` to `night-how` |
+**Critical path:** `how-parts` (80) → `how-page` (200) → `how-gallery` (100):
+about six and a half hours. `how-look` and `ways-shared` end before `how-parts`
+does; `how-fuzz` runs beside `how-page`, `how-world` beside `how-gallery`.
 
-**Critical path as it stands:** `how-parts` (80) → `how-page` → `how-gallery`;
-`how-look` and `ways-shared` end before `how-parts` does.
+**Who waits on whom, and why:** the page waits for its three inputs, each its own
+files: the domain's parts (`temper-client-domain`), the look's names and rules
+(`look.rs` must name every class `temper.css` selects, so names and rules land
+together), and the ways' shared drawing. `how-look` and `ways-shared` are both in
+`temper-client-view`, on files neither shares, which departs from one writer per
+crate so that the page's inputs are ready at once. The checks wait for what they
+check.
 
 ## What was decided
 
@@ -102,6 +109,10 @@ Released in the first batch. Planned next (names may still move until released):
   to land renumbers its own), `words.rs` (this plan's keys 4900 to 4949, P1's 4600
   to 4799), `temper.css` (this plan's `ui: how` after the ways' rules; P1 writes
   under `ui: settings` and adds `ui: rail` and `ui: work`).
+- **`ui-p1-rail`'s `readers`** owns the client world's stories
+  (`temper/tests/client/tests/suite/*.rs`): `how-world` adds rows to
+  `ways.rs`'s path story alone, and `how-fuzz` a new file and its `mod` line in
+  `main.rs`'s `fuzzy` module, beside P1's and P2's.
 - **Generated and gallery files:** the gallery's `samples.rs`, `tests.rs`,
   `worlds/*.rs` and `names.txt` (P1's and P2's gallery tasks), the text shell's
   golden `settings.txt` (P1's `regenerate`) and the `chat-draft` journey's prints:
