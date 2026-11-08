@@ -848,6 +848,10 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   heard and the decisions made about it, kept in the order they
   committed, so a client reads a conversation whole after its words have
   been taken from the inbox (`../client/domain/contract.md`, section 6).
+  A failed run's end retains its class and the optional invalid-result
+  kind computed for that attempt (tasks.md, 5.6), beside the task record's
+  current reason. Starting another attempt clears the current reason,
+  never the ended run's activity.
   A message is a line in the activity of the task that hears it
   (tasks.md, 8.1): a party's answer to a question a task heard is that
   task's own line; a task's answer to the delegate that asked is the

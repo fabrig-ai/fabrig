@@ -1366,7 +1366,8 @@ circle, each for another of the set, so that none of them could end.
 | a timer | itself | yes |
 
 Proposals and escalations waiting for its decision are not messages: they
-are entries of its own (section 9), which always wake it.
+are entries of its own (section 9), which wake it subject to the
+person-answer wait in 8.6.
 
 ### 8.2 The inbox
 
@@ -1417,6 +1418,9 @@ are entries of its own (section 9), which always wake it.
 - **Entries are read as messages are.** A proposal or an escalation
   waiting for a task shows in its inbox as an entry (section 9), relayed
   and read in order with its messages, and taking none of their room.
+  An escalation's exact offered number is recorded as read only with the
+  turn that reaches it, excluding refusals. The bounded set lasts for that
+  attempt; a claim or restart offers unresolved entries afresh.
   One decided while offered to a live run keeps its place in that run's
   inbox until a turn's fence reaches it, so the core never relays more
   unread than the run's inbox takes (engine.md, 7.4).
@@ -1467,8 +1471,9 @@ A wake policy is data, from a closed vocabulary:
 - **timers:** wake at a time, or every period.
 
 A proposal or an escalation waiting for its decision always wakes a
-task, as a cancel does: no policy may keep a decision from whoever must
-make it.
+task: no policy may keep a decision from whoever must make it. After
+reading an escalation, a holder may park awaiting its person delegate
+without that same entry waking it again (8.6).
 
 A message a run refused, left unread or wasn't offered (8.2 and 8.6) is
 judged again when the run ends, as if it arrived then: it wakes the task
@@ -1582,11 +1587,18 @@ those parts are for.
   run's start nor relayed to it, no fence takes it, and when the run ends it
   is judged again as if it arrived then (8.3), when it may wake the next run,
   which then runs for its kind.
-- **An entry left undecided wakes the next run.** Entries are not inbox
-  messages, so nothing judges one again when a run ends: when a run ends
-  with a proposal or an escalation still waiting for its task's decision,
-  the task is woken again for it, its reasons that entry's kind, as an
-  unread message would wake it.
+- **An entry left undecided is judged again.** When a run ends with a
+  proposal or an escalation still waiting for its task's decision, the
+  task is woken again for its kind, as an unread message would wake it,
+  except for this bounded person-answer wait: a holder that committed
+  reading an escalation and parks with a direct person delegate still
+  unanswered stays idle for that entry. The held task and its decision
+  entry remain unchanged. Unread or refused entries still wake it;
+  proposals keep their wake. Another actionable message or a new escalation
+  wakes it normally, and the person's result follows the holder's result
+  wake policy. Each new attempt must read the entry itself. Restart
+  reoffers unresolved entries, and the escalation's stall and routing
+  remain in force (section 9).
 - **The set,** as the store keeps it, is bits: bit 0 for `first`, then
   bits 1 to 13 for the kinds that choose parts, in the order above; no
   other bit is set (`../protocol/store.md`, section 5).
@@ -1677,11 +1689,13 @@ proposed, what an action needs, and what an acceptance funds.
   `propose` call is answered so; a procedure's step's proposal is
   refused in its decision. A proposal already pending waits as this
   section says.
-- **Waking.** It always wakes the task it waits for (8.3), is relayed to
-  that task's live run as messages are, whatever the run's parts (8.6), and
-  is in the brief of its next run (engine.md, section 9); left undecided
-  when that run ends, it wakes the task again, for its kind (8.6); for a
-  party, it appears in their inbox at once.
+- **Waking.** Its arrival wakes the task it waits for (8.3), is relayed
+  to that task's live run as messages are, whatever the run's parts (8.6),
+  and is in the brief of its next run (engine.md, section 9). Left
+  undecided when that run ends, it wakes the task again for its kind,
+  subject to the read escalation's person-answer wait (8.6). For a party,
+  it appears in their inbox at once. Waiting for a person neither decides
+  the escalation nor resets its stall time.
 - **Deciding.** A holder accepts, rejects with a reason, or passes it up
   to the next holder that covers it. An accepted proposal is made as the
   proposer's action, with the accepter's authority funding what it
@@ -1923,11 +1937,9 @@ the newest when it moved.
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
   coordinator wakes. Tuned from use.
-- **An entry its part's run leaves undecided** (8.6): it wakes the next run
-  again, as an unread message would, so a holder whose run reads the part
-  for it and still leaves it waiting spends a run at each wake until the
-  entry stalls (section 11). Whether such an entry should wait for something
-  else to wake the task is left to use.
+- **Other waits for an undecided entry** (8.6): beyond the read
+  escalation's wait for a person delegate, whether an entry should await
+  another actionable change is left to use.
 - **Later, for parts:** a part given as a message when a resumed run first
   meets its kind, so that a charter whose runs resume may have parts;
   documents chosen per part (engine.md, 17.9); an LLM choice per kind of

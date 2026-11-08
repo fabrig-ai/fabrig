@@ -2,6 +2,24 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Section 5.9's run-ended activity line names the invalid contract kind or
+says its result could not be read. The view's renderer table distinguishes
+these endings. No known gap remains in this line.
+
+Section 5.5's declaration refusals for name taken and not offered, and
+resume's not offered, have their reason and next step in the account
+outcome line. ConnectModel checks the person's own same-provider source
+on name taken and leaves not offered visible. View-table rows cover
+the words; the domain table covers that recovery distinction. The
+joined ctl story covers a forgotten name's revival and host-check
+dispatch, without establishing a real provider's login or rendered look.
+
+- **Departs:** 5.5, from `ui-account-again`'s request for each fixable
+  account-act refusal to say why and what next: the plan limits the new
+  words to those three cases. Key and sign-in acts retain generic
+  not-offered words because that refusal combines several core causes.
+  Distinguishing them remains section 11's work.
+
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
@@ -16,12 +34,17 @@ created proposals, including mixed outcomes. The view's
 and mixed calls and failures after two or eight reads, with failure
 descriptions and rows retained. No known gap remains in that wording.
 
-Sections 2 and 6.11 to 6.16 have no known implementation gap in the
-TUI's crates, command, private directory, host seam, pasted-link sign-in,
-live first screen, themes and closing. Section 10's frame goldens,
-host rows, simulated loop and joined-client stories are present. The
-post-landing walk and later passes remain section 11's work; no real
-terminal or macOS runtime result is supplied here.
+Sections 2, 6.11 to 6.16 and 7.1 have no known implementation gap in the
+TUI's command, private link file and sign-in note, host seam, automatic
+local sign-in, quiet fallback, bounded rereads, expiry renewal and
+suppression after a noted sign-out. The expiry is noted once the link
+is live with a party. The base uses the terminal's default colours,
+focus uses the accent, and the run chooses its scheme from COLORFGBG,
+else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
+frame goldens, host rows, simulated loop and joined-client stories are
+present. Section 11 keeps the flags, design-location cleanup, terminal
+and macOS checks, later surfaces and the expiry/revocation ambiguity;
+no real-terminal or macOS runtime result is supplied here.
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
@@ -164,7 +187,7 @@ Ask temper chat's draft offer regardless of kind 7, drafts on for a
 fresh project, or Goals in the bar while `Domain::has_goals` holds. The
 draft offer follows the first message and retains its document and end
 conditions. The view tables cover the draft offer and its act in both shells, and Goals in
-the rail and phone tab bar while To begin keeps Home's Chats section.
+the rail and phone tab bar once To begin is gone.
 Stored drafts-off values still govern other chats. The fake-model journey
 is `chat-draft`; the after-landing check is section 11's later work.
 

@@ -13,7 +13,8 @@ fn the_look_moves_by_its_acts() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     let dark = Look::default();
-    let light = Look { terminal: true, theme: Theme::Light, font: Font::Plex };
+    let light = Look { terminal: true, theme: Theme::Light, font: Font::Plex, night: true };
+    assert!(!dark.night, "a first visit is day");
     let mut stale_acts = Queue::uncapped();
     let mut stale_restores = Queue::uncapped();
     let mut stale_departures = Queue::uncapped();
@@ -71,6 +72,26 @@ fn the_look_moves_by_its_acts() {
         let chat = pages.chat().unwrap();
         assert_eq!(chat.mode, Mode::Split);
         assert_eq!(chat.words.as_ref(), b"Keep these words");
+    }
+    let mut domain = crate::unlinked(&limits, fixtures::SEED);
+    let env = fixtures::env(&limits);
+    let home = Address::Home { project: 1 };
+    let mut out = Queue::uncapped();
+    crate::step(&mut domain, &env, crate::Event::Went { place: crate::Place::Address(home.clone()) }, &mut out);
+    out.clear();
+    for night in [true, false] {
+        let shown = crate::shown(&domain);
+        crate::step(
+            &mut domain,
+            &env,
+            crate::Event::Act { action: Action::Pages(Act::Terminal(terminal::Act::Night)) },
+            &mut out,
+        );
+        assert_eq!(domain.pages().address(), &home);
+        assert_eq!(domain.pages().look(), Look { night, ..dark });
+        assert_eq!(out.pop(), Some(crate::Request::KeepLook { look: Look { night, ..dark } }));
+        assert!(out.is_empty(), "night asks no full screen");
+        assert!(crate::shown(&domain) > shown, "night redraws Home");
     }
     for look in [dark, light] {
         let mut root = crate::unlinked(&limits, fixtures::SEED);

@@ -364,7 +364,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         && !terminal
         && view.forge_words.shell == crate::words::Shell::Browser
     {
-        crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project);
+        crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project, times.now);
     }
     crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     if let Some(start) = root.pages().start() {

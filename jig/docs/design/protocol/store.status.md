@@ -1,6 +1,10 @@
 # store: status
 
-2026-11-07. Where jig's code lags or departs from [store.md](store.md).
+2026-11-08. Where jig's code lags or departs from [store.md](store.md).
+
+Section 5.1's tasks-v9 failed ends retain every optional invalid-result
+kind through the store codec. The generated layout fingerprint and golden
+bytes agree with the schema; no gap is known in this field.
 
 Section 5 has no known gap in stored charter parts, task reasons and
 claimed offered kinds, or `later` in task, people and template choices.

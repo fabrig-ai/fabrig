@@ -517,7 +517,8 @@ record Word { number: u64 from: Requester kind: MessageKind words: text 262144 a
 record RunWhyMessage { message: u64 }
 record RunWhyRetry { tries: FailureTries }
 enum RunWhy { made, ready, message: RunWhyMessage, released, retry: RunWhyRetry, narrowed, changed }
-record RunEndFailed { class: HoldFailure }
+enum InvalidReason { form, verdict, words, change, followups, unreadable_result }
+record RunEndFailed { class: HoldFailure invalid_reason: option InvalidReason }
 enum RunEnd { parked, finished, cancelled, failed: RunEndFailed, refused }
 record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 262144 }
 record ActivityHeard { value: Word }

@@ -1,0 +1,38 @@
+# look-round-19: Start's page, To begin in two steps, and a night mode
+
+The request: `inputs/request.md`. Step 1 of `temper/docs/design/draft/stock-ways.md`, 7: three look requests on `origin/look-requests`, landed by `temper/docs/design/draft/look-requests.md`, 3 and 5, oldest first: `ask-temper-start` (`e9da9f87a8`), `night-mode` (`3c5333485a`), `to-begin-two-steps` (`4332a26265`). `notes/common.md` holds the rules every task follows.
+
+## Parts and tasks
+
+| Part | Task | Needs | What it makes run | Minutes |
+|---|---|---|---|---|
+| `start` | `tasks/start-account.md` | | `ask-temper-start`'s account: each state of its two pages matched against main, committed | 45 |
+| `to-begin` | `tasks/two-steps.md` | | To begin in two steps, the repository first; `Facts::left()` two; the notes and repository lines by the new rule; the rail and tab bar cut to Home, Ask temper and Settings on Home and Ask while it shows (`home::beginning`); the gallery's `home-begin-*` states; `project-landing` reprinted | 200 |
+| `night` | `tasks/night-keep.md` | | the kept look's `night`, `terminal::Act::Night`, its four-byte record, `html[data-night]` set by the web shell | 90 |
+| `night` | `tasks/night-tokens.md` | | every colour of `temper.css` and `task-pages.css` from a token, the day unchanged; the night set, the glow, the night's rules and the switch's rules | 240 |
+| `night` | `tasks/night-switch.md` | `two-steps`, `night-keep` | the switch, the rail's last child in a browser; the gallery's `night-*` states printed with `data-night`; every journey reprinted; the history story's night row, compiled | 130 |
+
+**Critical path:** `two-steps` then `night-switch`, about 330 implementer-minutes. `start-account`, `two-steps`, `night-keep` and `night-tokens` start at once; `night-switch` waits for `two-steps` (both change `frame.rs`, `words.rs` and the gallery) and `night-keep` (its act). `night-tokens` (240) runs beside them all, on the stylesheets alone.
+
+## What was decided
+
+- **`ask-temper-start` is an account alone:** its message says it adds nothing beyond `ui-ask-m1`'s move of Configure into Ask temper, so its task matches each state against main's gallery and prints and commits the account; a difference in To begin or the rail is superseded by `to-begin-two-steps`, and one on Ask temper's page is fixed in that page's view file alone.
+- **Where the night is kept, and a first visit (the request leaves both to this plan):** in the kept store's `look` record, the browser's local storage, which already holds the chat terminal's look across reloads and tabs: a fourth byte, `night`, the three-byte form reading as day. A first visit is day, whatever the system's scheme: the smallest thing that holds across reloads, and the request's own `night.js` starts day. Following the system's scheme and a night placeholder before the shell starts are `browser.md`, 5's Later. The web shell sets `data-night` on `html` from the look, before the first page is drawn and in the step a press turns it; the switch's press is `terminal::Act::Night`, beside `Theme` and `Font`, since `Look::act` already keeps the record. A stored format changes (the record's fourth byte); nothing else crosses to the engine.
+- **The switch is a browser's alone,** the rail's last child after its foot, as the request's page draws it: on a phone the rail is the top bar and its foot is hidden, so a child of the foot couldn't stand at the top bar's right. The terminal draws no switch and no night.
+- **Tokens first:** the five scoped copies of the `--gf-*` set hold the same values (checked), so they merge into one day set on `:root`, and the night set is one block on `:root[data-night]`; every literal colour becomes a token, the day's value unchanged, and a primary's ground and words become `--gf-primary` and `--gf-primary-ink`, so that the overlay's twenty per-selector primary rules are one token's night value. What tokens can't carry (the glow, the send arrows, inverted icons) sits under a new `ui: night` marker after the night set. The chat terminal keeps its own dark and light at night.
+- **The rail while To begin shows is the domain's answer,** `home::beginning(root, project, wall)`: To begin's facts read nothing of Home's page but its skip, since the settings document, the dismissals and the forges rows are the forge side's watches and Ask temper's page already holds the project's chats; so Ask temper's page reads them as Home does. Both shells draw the cut rail, since the rail is one view; the tab bar is the browser's.
+- **The notes:** `HomeNoteTwo` (both left: "they stay in Settings and Ask temper"), `HomeNoteSettings` (the repository left), `HomeNoteAsk` ("Tell temper how you work" left); `HomeNoteThree`, `HomeNoteChats`, `HomeNoteTwoSettings`, `HomeNoteAskChats` and the third step's three words go.
+- **The gallery's To begin states take new names** (`home-begin-both-left`, `home-begin-ask-left`), since `home-three-left` and `home-two-left` no longer say what they hold, and new names keep a catch-up with `ui-ask-drop`'s gallery from merging a changed meaning silently; the night states are `night-*`, apart from the `configure*` names `ui-ask-drop` renames.
+- **The draft `to-begin.md`'s third step** is not edited (a draft's text is the user's): this cut recorded the request as a **Design departs** entry in `to-begin.status.md`, beside the client README's two steps.
+- **Tests stay cheap:** no new test function. Each case is a row of an existing table (the domain's `home.rs` and `terminal.rs`, the view's `home.rs` and `rail.rs`, the shell's host tests, the gallery's state table); the browser tier keeps its twelve functions, the night row joining the history story, compiled, not run.
+- **Design written here:** the client `README.md`, 3.5 (*To begin*, *Its look, kept per browser*, the `Ask` row) and 5.3 (*While To begin shows*, the night switch); `browser.md`, 2.5 (*Day and night*, replacing *Light only*), 5 (two Later entries replacing *A dark palette*), 7.1 and 7.2's rows; `journeys.md`, 9; `journeys/project-landing/README.md`; `mockups/STATUS.md`'s Home lines; and a **Not yet** entry per task in `README.status.md`, `browser.status.md` and `journeys.status.md`, each deleted by its task.
+
+A stored format changes (the kept look's record gains a byte); no protocol or public interface changes.
+
+## Overlaps with drafts beside this one
+
+- **`ui-ask-drop`'s `client-names`** (merged on its trunk) renames names in `temper-client-view`, `temper-client-domain` and the gallery (`configure` → `ask_page`, `configuring` → `asking`, `configure*` states → `ask-*`). `two-steps`, `night-keep` and `night-switch` change those crates: unavoidable, since the requests change the same view. The tasks keep the names they find and rename nothing of theirs; fab's catch-up merges, and the gallery's tables and `names.txt` are regenerated, never hand-merged.
+- **`ui-ask-drop`'s `journeys`** owns `temper/docs/design/client/journeys/**`: `two-steps` and `night-switch` reprint the prints there, and this cut edited `project-landing/README.md`. Whichever merges second reprints from its trunk's tip.
+- **`ui-ask-drop`'s `close`** owns `temper/docs/design/**/*.status.md` and **`tui-link-colours`** (`again`, `joint`, `run`) edits `README.status.md`: this cut's entries sit first under *Gaps and departures* (`README.status.md`), before *accounts-try-stopped* (`browser.status.md`) and first in `journeys.status.md`'s **Not yet** list, away from theirs; the dates are 2026-11-08 on both sides.
+- **`ui-authorize-busy`'s `repair`** owns `temper/tests/client-browser/src/**`: `night-switch` changes `tests/browser_all/browser_pages.rs` alone.
+- No other draft beside this one writes these files.

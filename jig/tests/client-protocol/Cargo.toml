@@ -55,3 +55,4 @@ jig-test-domain.workspace = true
 jig-client-test-domain.workspace = true
 skein-fake-person.workspace = true
 jig-engine-clients-kit.workspace = true
+jig-tasks-kit.workspace = true

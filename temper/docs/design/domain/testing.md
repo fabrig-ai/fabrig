@@ -2329,12 +2329,15 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   stories would push the real loop's sum past 15 s, the ceiling goes to
   the user, as below, and no real-loop story moves to the fuzzy suite to
   make room for them: cost never decides a test's tier.
-- **The worlds' sums are measured as the suites' rules are:** each
-  test's user plus system CPU time, descendants included
-  (testing-strategy.md, 8.1). For comparing these guides, run alone on
-  the idle development machine with the tier's profile and `-j 1`,
-  taking the median of three runs; these measurements keep the same
-  budget rule. So no test asserts its own wall time, and no story's
+- **The worlds' sums are measured as the suites' rules are:** user plus
+  system CPU time per process, waited descendants included, summed
+  across the world's selected processes (testing-strategy.md, 8.1).
+  No test's CPU is measured within a shared process. For comparing an
+  individual test's guide, run it alone through nextest on the idle
+  development machine with the tier's profile and `-j 1`, taking the
+  median of three runs; these diagnostic measurements keep the same
+  budget rule and do not replace a shared-process suite total. So no
+  test asserts its own wall time, and no story's
   deadline is its guide: a deadline is the world's patience, there to
   end a hung run. A story that shows a landing needs no slow poll sets
   the polls beyond that patience, so that one needing a poll fails
@@ -2358,8 +2361,10 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
 world's, not either suite's. The nextest filters select `fuzzy::` modules
-in the `suite` binary. Each test runs in its own process, so a memory
-scenario and a sweep never share an allocator's counters.
+in the `suite` binary. A binary's tests share its process, one at a time
+(testing-strategy.md, 8, *A binary is a process*), so a memory scenario
+meters only what grows within its own spans (skein's `heap`), and reads no
+counter a sweep before it moved.
 
 ### 6.2 The worker's runtime world
 
@@ -2835,6 +2840,13 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **One-process adoption and suite costs** (6.1): switching the caller's
+  focused and fuzzy steps is a separate change, tree by tree
+  (`tools/tiers/design.md`, 8). The gate and after-landing runs then
+  measure process CPU against the standing budgets. Passing the suites'
+  outcome checks establishes no CPU saving or headroom, and historical
+  per-test samples do not establish a shared-process suite total.
+
 - **Haiku's live landing proof** (2.7): use the after-landing Claude Code
   owned-forge story on a fresh store to verify the catalogue apply
   (`live-model`), then charters 1 and 2 selecting that model in a second
@@ -2919,7 +2931,7 @@ scripts/proof-live.sh               the live tier
     changed runs passed. Preserve the cap and ordinary patience.
   Default: fix a profiled cause with the same checks, or take the
   measurements to the user under testing-strategy.md, 8.1. Serial runs
-  including the driver do not replace the gate's per-test accounting;
+  including the driver do not replace the gate's suite accounting;
   the request's roughly 15 CPU s saving and reliable headroom require
   further evidence. Budgets and enforcement settings remain separate
   user decisions.
@@ -2978,8 +2990,9 @@ scripts/proof-live.sh               the live tier
 - **Further fixture and startup cost reductions** (2.1, 2.3, 6.1):
   follow testing-strategy.md, 8 and 8.1, with unchanged behaviour,
   assertions, suites, build settings and budgets. A process-wide cache
-  cannot remove the first construction in each test process. Work beyond
-  the small fixture repairs needs these mechanisms:
+  cannot remove the first construction in each binary's process, or in
+  each test process of a slow tier. Work beyond the small fixture repairs
+  needs these mechanisms:
   - Configuration: a checked generated stock representation or cheaper
     parsing and validation; sharing a bounded parsed startup document
     between its consumers while preserving diagnostic order; cheaper

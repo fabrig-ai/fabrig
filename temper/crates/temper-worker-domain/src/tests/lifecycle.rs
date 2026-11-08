@@ -300,7 +300,7 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
 
 #[test]
 fn model_failure_detail_survives_answer_and_empty_reap() {
-    for delayed in [false, true] {
+    for (delayed, cleanup) in [(false, &b""[..]), (true, &b""[..]), (false, &b"cleanup"[..]), (true, &b"cleanup"[..])] {
         let mut h = Harness::new();
         h.env.limits.host.detail_bytes = 128;
         h.started();
@@ -319,19 +319,136 @@ fn model_failure_detail_survives_answer_and_empty_reap() {
                 },
             },
         });
-        let reaped = h.gone();
+        let reaped = h.gone_with_detail(cleanup);
         let released = h.release();
         let rows = if delayed { &released } else { &reaped };
+        let expected = if cleanup.is_empty() {
+            &b"program claude exit 23: bad stream"[..]
+        } else {
+            &b"program claude exit 23: bad stream\ncleanup"[..]
+        };
         assert!(
             answered(
                 rows,
                 &host::Ending::Failed {
                     failure: host::Failure::Run(host::RunFailure::Model),
-                    detail: b"program claude exit 23: bad stream".as_slice().into(),
+                    detail: expected.into(),
                     work: host::Work { left: None, saved: None },
                 }
             ),
             "delayed={delayed}: {rows:?}"
         );
+    }
+}
+
+#[test]
+fn refused_start_retains_cleanup_diagnostic() {
+    for delayed in [false, true] {
+        for (bound, expected) in
+            [(64, &b"invalid start\nsetup diagnostic tail"[..]), (32, &b"invalid start\nup diagnostic tail"[..])]
+        {
+            let mut h = Harness::new();
+            h.env.limits.host.detail_bytes = bound;
+            h.run(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([])) }));
+            h.hold = delayed;
+            let before = h.say(refused_answer());
+            let reaped = h.gone_with_detail(b"setup diagnostic tail");
+            let released = h.release();
+            let mut answers = 0_u32;
+            for row in before.iter().chain(reaped.iter()).chain(released.iter()) {
+                if let Request::Answer { answer, .. } = row {
+                    answers = answers.checked_add(1).expect("bounded story answers");
+                    assert_eq!((answer.turns, answer.spent, answer.read), (0, 0, None));
+                    assert_eq!(
+                        answer.ending,
+                        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                            cause: host::StartCause::Other,
+                            why: expected.into(),
+                        })),
+                        "delayed={delayed}, bound={bound}"
+                    );
+                }
+            }
+            assert_eq!(answers, 1, "one terminal answer");
+            assert_eq!(terminal_answers(&before), 0, "cleanup must finish first");
+            assert!(h.domain.agents.is_empty());
+            assert!(h.domain.gone.is_empty());
+        }
+    }
+}
+
+/// A setup refusal before admission, with no model use.
+fn refused_answer() -> agent::Up {
+    agent::Up::Answer {
+        answer: agent::Answer {
+            read: None,
+            turns: 0,
+            spent: 0,
+            result: agent::RunResult::Refused { refusal: agent::Refusal::Invalid(agent::RunInvalid::Llm) },
+        },
+    }
+}
+
+/// Count terminal answers without treating progress as an answer.
+fn terminal_answers(rows: &[Request]) -> u32 {
+    let mut count = 0_u32;
+    for row in rows {
+        if let Request::Answer { .. } = row {
+            count = count.checked_add(1).expect("bounded story answers");
+        }
+    }
+    count
+}
+
+#[test]
+fn cancellation_during_refused_start_cleanup_keeps_its_outcome() {
+    for delayed in [false, true] {
+        let mut h = Harness::new();
+        h.run(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([])) }));
+        h.hold = delayed;
+        let before = h.say(refused_answer());
+        h.run(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }));
+        let reaped = h.gone_with_detail(b"setup diagnostic tail");
+        let released = h.release();
+        let expected = host::Ending::Failed {
+            failure: host::Failure::Cancelled(host::Reason::Engine),
+            detail: b"invalid start\nup diagnostic tail".as_slice().into(),
+            work: host::Work { left: None, saved: None },
+        };
+        let rows = if delayed { &released } else { &reaped };
+        assert!(answered(rows, &expected), "delayed={delayed}: {before:?} {rows:?}");
+        assert_eq!(terminal_answers(&before), 0);
+    }
+}
+
+#[test]
+fn refusal_encoding_failure_keeps_cleanup_diagnostic() {
+    for cleanup_first in [false, true] {
+        let mut h = Harness::new();
+        h.run(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([])) }));
+        h.hold = true;
+        h.say(refused_answer());
+        let Event::Encoded { owner, .. } = h.held.pop().expect("one result hand-out") else {
+            panic!("the result went out for encoding");
+        };
+        if cleanup_first {
+            let before = h.gone_with_detail(b"setup diagnostic tail");
+            assert_eq!(terminal_answers(&before), 0);
+        }
+        let rows = h.run(Event::Encoded { owner, encoded: crate::Encoded::Undecodable });
+        let rows = if cleanup_first {
+            rows
+        } else {
+            assert_eq!(terminal_answers(&rows), 0);
+            h.gone_with_detail(b"setup diagnostic tail")
+        };
+        assert_eq!(terminal_answers(&rows), 1);
+        assert!(answered(
+            &rows,
+            &host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Other,
+                why: b"refusal\nsetup diagnostic tail".as_slice().into(),
+            }))
+        ));
     }
 }

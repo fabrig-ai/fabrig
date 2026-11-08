@@ -803,26 +803,12 @@ fn to_begin(
     b.style(look::HOME_BEGIN);
     b.name(&heading);
     begin_head(b, w, bindings);
-    let note = match facts.left() {
-        0 | 1 => {
-            if !facts.configured {
-                Word::HomeNoteAsk
-            } else if facts.chat_asked {
-                Word::HomeNoteSettings
-            } else {
-                Word::HomeNoteChats
-            }
-        }
-        2 => {
-            if facts.chat_asked {
-                Word::HomeNoteTwoSettings
-            } else if !facts.configured {
-                Word::HomeNoteAskChats
-            } else {
-                Word::HomeNoteTwo
-            }
-        }
-        3..=u8::MAX => Word::HomeNoteThree,
+    let note = if facts.left() == 2 {
+        Word::HomeNoteTwo
+    } else if facts.configured {
+        Word::HomeNoteSettings
+    } else {
+        Word::HomeNoteAsk
     };
     text(b, Role::Paragraph, &w.say(note, &[]), Some(look::HOME_NOTE));
     if facts.skip_refused {
@@ -830,10 +816,11 @@ fn to_begin(
     }
     b.open(Role::List);
     b.style(look::HOME_STEPS);
+    repository_step(b, w, bindings, project, name, &facts.repository);
     step(
         b,
         w,
-        1,
+        2,
         facts.configured,
         &w.say(Word::HomeHow, &[]),
         &if facts.configured { Box::default() } else { w.say(Word::HomeHowDetail, &[]) },
@@ -848,21 +835,6 @@ fn to_begin(
             look::HOME_PRIMARY,
             false,
         );
-        b.close();
-    }
-    b.close();
-    repository_step(b, w, bindings, project, name, &facts.repository);
-    step(
-        b,
-        w,
-        3,
-        facts.chat_asked,
-        &w.say(Word::HomeChat, &[]),
-        &if facts.chat_asked { Box::default() } else { w.say(Word::HomeChatDetail, &[]) },
-    );
-    if !facts.chat_asked {
-        acts(b);
-        go(b, bindings, &w.say(Word::HomeNewChat, &[]), Address::NewChat { draft: false }, None);
         b.close();
     }
     b.close();
@@ -888,7 +860,7 @@ fn repository_step(
                     title = Word::HomeAddTitle;
                 }
             }
-            step(b, w, 2, false, &w.say(title, &[]), &[]);
+            step(b, w, 1, false, &w.say(title, &[]), &[]);
             for line in lines {
                 copy_line(b, w, bindings, name, line);
             }
@@ -902,7 +874,7 @@ fn repository_step(
             step(
                 b,
                 w,
-                2,
+                1,
                 true,
                 &w.say(title, &[Hole::Name(join_copies(names)), Hole::Name(name.into())]),
                 &w.say(detail, &[]),
@@ -910,7 +882,7 @@ fn repository_step(
         }
         Repository::CopyOffer { addresses, .. } => {
             let Some(first) = addresses.first() else { return };
-            step(b, w, 2, false, &w.say(Word::HomeCopyOffer, &[Hole::Name(first.clone())]), &[]);
+            step(b, w, 1, false, &w.say(Word::HomeCopyOffer, &[Hole::Name(first.clone())]), &[]);
             for address in addresses.iter().skip(1) {
                 text(b, Role::Paragraph, address, None);
             }
@@ -922,7 +894,7 @@ fn repository_step(
             step(
                 b,
                 w,
-                2,
+                1,
                 true,
                 &w.say(Word::HomeIn, &[Hole::Name(owner.clone()), Hole::Name(repo.clone()), Hole::Name(name.into())]),
                 &w.say(Word::HomeInDetail, &[]),
@@ -932,7 +904,7 @@ fn repository_step(
             step(
                 b,
                 w,
-                2,
+                1,
                 false,
                 &w.say(
                     Word::HomeAdopting,
@@ -945,7 +917,7 @@ fn repository_step(
             step(
                 b,
                 w,
-                2,
+                1,
                 false,
                 &adoption,
                 &w.say(Word::HomeOffer, &[Hole::Name(first.org.clone()), Hole::Name(first.name.clone())]),
@@ -969,14 +941,14 @@ fn repository_step(
                 Some(account) => w.say(Word::HomeGitHub, &[Hole::Name(account.clone())]),
                 None => w.say(Word::HomeNone, &[]),
             };
-            step(b, w, 2, false, &adoption, &detail);
+            step(b, w, 1, false, &adoption, &detail);
             acts(b);
             go(b, bindings, &w.say(Word::HomeAdoptLink, &[]), Address::Adopt { project }, Some(look::HOME_PRIMARY));
             b.close();
         }
         Repository::Add { .. } => add_step(b, w, bindings, project),
         Repository::None => {
-            step(b, w, 2, false, &adoption, &w.say(Word::HomeNone, &[]));
+            step(b, w, 1, false, &adoption, &w.say(Word::HomeNone, &[]));
             acts(b);
             go(b, bindings, &w.say(Word::HomeAdoptLink, &[]), Address::Adopt { project }, Some(look::HOME_PRIMARY));
             b.close();
@@ -985,7 +957,7 @@ fn repository_step(
     b.close();
 }
 fn add_step(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32) {
-    step(b, w, 2, false, &w.say(Word::HomeAddTitle, &[]), &w.say(Word::HomeAddDetail, &[]));
+    step(b, w, 1, false, &w.say(Word::HomeAddTitle, &[]), &w.say(Word::HomeAddDetail, &[]));
     acts(b);
     for (start, word) in [(Start::Empty, Word::HomeAddEmpty), (Start::Copies, Word::HomeAddCopy)] {
         button(b, bindings, &w.say(word, &[]), Act::AddOpen { start }, look::HOME_SMALL, false);
