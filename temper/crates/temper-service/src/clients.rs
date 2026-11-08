@@ -521,6 +521,7 @@ impl Clients {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
+                kit::Request::LocalLink { .. } => {}
                 kit::Request::Link { secret } => {
                     self.secret = Some(secret);
                     self.print_link();

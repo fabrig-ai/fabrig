@@ -3,14 +3,6 @@
 2026-11-08. Where jig's code lags or departs from [client.md](client.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 4.2 and 8, *The printed link* and *The local link*: the
-  component draws the printed link alone, one link live at a time;
-  `LocalLink`, the second live link beside it, drawn again at once when
-  spent and by any sign-in that finds it expired, the past links'
-  memory of which link each was, and the printed link never drawn again
-  by a local link's secret, are `tui-native-secret`'s task `local-link`,
-  with `jig-test` dropping the secret (`service.md`, section 7).
-
 Sections 13 and 14's transport accounting is present: emitted exchanges
 keep credit through `Reply` or `Lost`, including cancelled watch calls.
 The stream table holds authorization behind a full fetch table, then

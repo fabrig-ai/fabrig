@@ -774,6 +774,8 @@ impl Composition {
                 self.event(Event::MovedTaken { exchange, record });
             }
             Request::Link { secret } => self.latest_link = Some(secret),
+            #[expect(clippy::match_same_arms, reason = "the local link consumer belongs to the client world task")]
+            Request::LocalLink { .. } => {}
             Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }

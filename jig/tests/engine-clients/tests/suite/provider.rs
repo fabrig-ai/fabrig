@@ -206,6 +206,7 @@ impl World {
                 Request::Minted { credential, .. } => self.credential = Some(credential),
                 Request::Application(_)
                 | Request::Link { .. }
+                | Request::LocalLink { .. }
                 | Request::TakeMoved { .. }
                 | Request::MintRefused { .. }
                 | Request::Closed
