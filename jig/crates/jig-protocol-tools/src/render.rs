@@ -365,18 +365,8 @@ fn task_busy(problem: &jig_domain_tasks::Problem) -> Rendered {
         return text(&[b"Refused: busy"], true);
     };
     match capacity.cause {
-        CapacityCause::Inbox { task, messages, bytes } => text(
-            &[
-                b"Refused: busy: task ",
-                Decimal::of(task).as_bytes(),
-                b"'s inbox is full (at most ",
-                Decimal::of(u64::from(messages)).as_bytes(),
-                b" messages and ",
-                Decimal::of(u64::from(bytes)).as_bytes(),
-                b" bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once",
-            ],
-            true,
-        ),
+        CapacityCause::Inbox { task, messages, bytes } => inbox_busy(capacity.action, task, messages, bytes),
+        CapacityCause::Subscriptions { limit } => subscriptions_busy(capacity.by, limit),
         CapacityCause::Proposals { limit } => text(
             &[
                 b"Refused: busy: a proposal is pending (at most ",
@@ -398,10 +388,64 @@ fn task_busy(problem: &jig_domain_tasks::Problem) -> Rendered {
         | CapacityCause::Holdings { .. }
         | CapacityCause::HoldWaiters { .. }
         | CapacityCause::References { .. }
-        | CapacityCause::Subscriptions { .. }
         | CapacityCause::Funders { .. }
         | CapacityCause::Writers { .. } => text(&[b"Refused: busy"], true),
     }
+}
+
+fn subscriptions_busy(by: jig_domain_tasks::Party, limit: u32) -> Rendered {
+    let task = match by {
+        jig_domain_tasks::Party::Task(task) => task,
+        jig_domain_tasks::Party::Person(_) | jig_domain_tasks::Party::Deployment { .. } => {
+            return text(&[b"Refused: busy"], true);
+        }
+    };
+    text(
+        &[
+            b"Refused: busy: task ",
+            Decimal::of(task).as_bytes(),
+            b" has reached its per-task limit of ",
+            Decimal::of(u64::from(limit)).as_bytes(),
+            b" standing subscriptions; unsubscribe an obsolete standing interest before adding another",
+        ],
+        true,
+    )
+}
+
+fn inbox_busy(action: jig_domain_tasks::CapacityAction, task: u64, messages: u32, bytes: u32) -> Rendered {
+    use jig_domain_tasks::CapacityAction;
+    let (bound, recovery): (&[u8], &[u8]) = match action {
+        CapacityAction::Subscription { .. } => (
+            b"'s inbox cannot reserve another subscription (at most ",
+            b" bytes, including reserved room); each standing subscription reserves one merged hint slot and max(result_bytes, message_bytes) bytes. Reading its hint alone does not release that reservation; unsubscribe an obsolete standing interest before adding another, or wait for other reserved answers, results and proposal decisions to arrive and be read",
+        ),
+        CapacityAction::Batch { .. }
+        | CapacityAction::Proposal { .. }
+        | CapacityAction::PersonProposal { .. }
+        | CapacityAction::Message { .. }
+        | CapacityAction::Source { .. }
+        | CapacityAction::Introduce { .. }
+        | CapacityAction::Effect { .. }
+        | CapacityAction::Claim { .. }
+        | CapacityAction::Release
+        | CapacityAction::Place { .. }
+        | CapacityAction::Move => (
+            b"'s inbox is full (at most ",
+            b" bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once",
+        ),
+    };
+    text(
+        &[
+            b"Refused: busy: task ",
+            Decimal::of(task).as_bytes(),
+            bound,
+            Decimal::of(u64::from(messages)).as_bytes(),
+            b" messages and ",
+            Decimal::of(u64::from(bytes)).as_bytes(),
+            recovery,
+        ],
+        true,
+    )
 }
 
 // The client's dependency phrases in one line (domain/tasks.md, sections 5.7 and 6.7).
@@ -748,6 +792,35 @@ mod tests {
     }
 
     #[test]
+    fn subscription_refusals_name_the_limit_and_recovery() {
+        for (task, cause, expected) in [
+            (4, CapacityCause::Subscriptions { limit: 4 }, b"Refused: busy: task 4 has reached its per-task limit of 4 standing subscriptions; unsubscribe an obsolete standing interest before adding another".as_slice()),
+            (6, CapacityCause::Subscriptions { limit: 7 }, b"Refused: busy: task 6 has reached its per-task limit of 7 standing subscriptions; unsubscribe an obsolete standing interest before adding another".as_slice()),
+            (4, CapacityCause::Inbox { task: 4, messages: 8, bytes: 12288 }, b"Refused: busy: task 4's inbox cannot reserve another subscription (at most 8 messages and 12288 bytes, including reserved room); each standing subscription reserves one merged hint slot and max(result_bytes, message_bytes) bytes. Reading its hint alone does not release that reservation; unsubscribe an obsolete standing interest before adding another, or wait for other reserved answers, results and proposal decisions to arrive and be read".as_slice()),
+            (6, CapacityCause::Inbox { task: 6, messages: 9, bytes: 16384 }, b"Refused: busy: task 6's inbox cannot reserve another subscription (at most 9 messages and 16384 bytes, including reserved room); each standing subscription reserves one merged hint slot and max(result_bytes, message_bytes) bytes. Reading its hint alone does not release that reservation; unsubscribe an obsolete standing interest before adding another, or wait for other reserved answers, results and proposal decisions to arrive and be read".as_slice()),
+        ] {
+            let problem = Problem::capacity(
+                Some(task),
+                Refusal::Busy,
+                Capacity { project: Some(1), by: Party::Task(task), action: CapacityAction::Subscription { number: 35 }, cause },
+            );
+            assert_eq!(render(&CallPart::SubscriptionRefused(problem)), Rendered { error: true, text: expected.into() });
+        }
+        for (why, expected) in [
+            (Refusal::Subscription, b"Refused: subscription".as_slice()),
+            (Refusal::Reference, b"Refused: reference".as_slice()),
+            (Refusal::State, b"Refused: state".as_slice()),
+            (Refusal::Busy, b"Refused: busy".as_slice()),
+        ] {
+            let problem = Problem::new(Some(4), why);
+            assert_eq!(
+                render(&CallPart::SubscriptionRefused(problem)),
+                Rendered { error: true, text: expected.into() }
+            );
+        }
+    }
+
+    #[test]
     fn a_pending_proposal_is_named_with_its_limit() {
         let problem = busy_problem(CapacityCause::Proposals { limit: 1 });
         assert_eq!(
@@ -782,7 +855,6 @@ mod tests {
             CapacityCause::Holdings { limit: 1 },
             CapacityCause::HoldWaiters { limit: 1 },
             CapacityCause::References { limit: 1 },
-            CapacityCause::Subscriptions { limit: 1 },
             CapacityCause::Funders { limit: 1 },
             CapacityCause::Writers { limit: 1 },
         ] {

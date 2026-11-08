@@ -122,6 +122,13 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Tabs { names: &'static [&'static str], selected: usize },
+    Path { stops: &'static [&'static str] },
+    Drawing { style: skein_ui::Style, count: usize },
+    Expanded { name: &'static str },
+    Configured { value: bool },
+    Reader { role: jig_client::contract::HeldRole },
+    After { first: skein_ui::Style, then: skein_ui::Style },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
     Pressed { name: &'static str },
@@ -135,7 +142,7 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
-const HOLDS: [Holds; samples::N] = [
+static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chat-view-way",
         heading: "T10 · How changes land",
@@ -195,7 +202,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Pressed { name: "Night mode" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
@@ -2188,32 +2195,169 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
+            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Configured { value: false },
+            Part::Reader { role: jig_client::contract::HeldRole::Owner },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Ways to begin" },
+            Part::Path {
+                stops: &[
+                    "you ask, a person",
+                    "produce, an agent",
+                    "check, code",
+                    "review, an agent",
+                    "repair, an agent",
+                    "check, code",
+                    "update, code",
+                    "resolve, an agent",
+                    "merge, code",
+                    "main, a branch",
+                ],
+            },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
     Holds {
-        name: "ask-reference",
+        name: "ask-ways-approve",
         heading: "Ask temper",
         parts: &[
-            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
-            Part::Pressed { name: "Split" },
-            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 0 },
+            Part::Named { role: Role::Group, name: "You approve" },
+            Part::Text { text: "An agent makes each change; nothing reaches main until you approve it." },
+            Part::Path {
+                stops: &[
+                    "you ask, a person",
+                    "produce, an agent",
+                    "check, code",
+                    "repair, an agent",
+                    "check, code",
+                    "you approve, a person",
+                    "update, code",
+                    "resolve, an agent",
+                    "merge, code",
+                    "main, a branch",
+                ],
+            },
+            Part::Named { role: Role::Button, name: "Use this" },
+            Part::Absent { role: Role::Button, name: "Keep it" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-draft",
+        heading: "Ask temper",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 2 },
+            Part::Named { role: Role::Group, name: "Draft first" },
             Part::Text {
-                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
+                text: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.",
+            },
+            Part::Path {
+                stops: &[
+                    "draft, a person",
+                    "plan, an agent",
+                    "produce ×n, an agent",
+                    "merge, code",
+                    "check, code",
+                    "repair, an agent",
+                    "goal branch, a branch",
+                    "check, code",
+                    "update, code",
+                    "resolve, an agent",
+                    "merge, code",
+                    "verify, code",
+                    "main, a branch",
+                ],
+            },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 2 },
+            Part::Drawing { style: temper_client_view::look::WAYS_LANDING, count: 1 },
+            Part::Named { role: Role::Button, name: "Use this" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-card",
+        heading: "Ask temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Named { role: Role::Region, name: "Review" },
+            Part::Expanded { name: "review, an agent" },
+            Part::Drawing { style: temper_client_view::look::WAYS_CARET, count: 1 },
+            Part::Drawing { style: temper_client_view::look::WAYS_HALO, count: 1 },
+            Part::Text { text: "an agent · holds a change until it approves" },
+            Part::Named { role: Role::Link, name: "Open the reviewer ›" },
+            Part::Named { role: Role::Term, name: "Model" },
+            Part::Named { role: Role::Description, name: "Claude Opus 5.5 · high" },
+            Part::Named { role: Role::Term, name: "Can" },
+            Part::Named { role: Role::Description, name: "read the change and its checks; never edit, push or merge" },
+            Part::Named { role: Role::Term, name: "Asked to" },
+            Part::Named {
+                role: Role::Description,
+                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against wh”",
             },
         ],
     },
     Holds {
-        name: "ask-reference-draft",
+        name: "ask-ways-card-person",
         heading: "Ask temper",
         parts: &[
-            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
-            Part::Pressed { name: "Draft" },
-            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Named { role: Role::Group, name: "You approve" },
+            Part::Named { role: Role::Region, name: "You approve" },
+            Part::Expanded { name: "you approve, a person" },
+            Part::Text { text: "a person · decides whether it lands" },
+            Part::Named { role: Role::Term, name: "Role" },
+            Part::Named { role: Role::Description, name: "owner" },
+            Part::Named { role: Role::Term, name: "Asks" },
+            Part::Named { role: Role::Description, name: "1 of them" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-yours",
+        heading: "Ask temper",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::Named { role: Role::Group, name: "Yours" },
+            Part::Path { stops: &["you ask, a person", "produce, an agent", "merge, code", "main, a branch"] },
+            Part::Absent { role: Role::Button, name: "Use this" },
+            Part::Absent { role: Role::Button, name: "Keep it" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-refused",
+        heading: "Ask temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "You approve" },
+            Part::Named { role: Role::Button, name: "Use this" },
+            Part::Named { role: Role::Alert, name: "" },
             Part::Text {
-                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
+                text: "refused by its owner: project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible",
             },
+            Part::After { first: temper_client_view::look::WAYS_FOOT, then: temper_client_view::look::WAYS_REFUSED },
+            Part::Configured { value: false },
+        ],
+    },
+    Holds {
+        name: "ask-ways-member",
+        heading: "Ask temper",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
+            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Named { role: Role::List, name: "The way a change goes" },
+            Part::Reader { role: jig_client::contract::HeldRole::Member },
+            Part::Absent { role: Role::Button, name: "Use this" },
+            Part::Absent { role: Role::Button, name: "Keep it" },
+        ],
+    },
+    Holds {
+        name: "ask-ways-kept",
+        heading: "Ask temper",
+        parts: &[
+            Part::Text { text: "Agents review is now this project's own, as revision 1." },
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
+            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Absent { role: Role::Button, name: "Use this" },
+            Part::Absent { role: Role::Button, name: "Keep it" },
+            Part::Configured { value: true },
         ],
     },
     Holds {
@@ -2224,7 +2368,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -2240,7 +2384,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -2256,7 +2400,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -3270,8 +3414,14 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
                 || tagged == b"defaultnew"
                 || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
                     && tagged.iter().all(u8::is_ascii_digit)));
+        let path_stop = node.role == Role::Button
+            && node.name.as_deref() == Some(text.as_slice())
+            && nodes[..index].iter().enumerate().any(|(start, ancestor)| {
+                ancestor.drawing.as_ref().is_some_and(|drawing| drawing.kind == temper_client_view::paths::KIND)
+                    && index < start + usize::try_from(ancestor.size).expect("drawing span")
+            });
         assert!(
-            text.is_empty() || text == b"recommended" || model_tag,
+            text.is_empty() || text == b"recommended" || model_tag || path_stop,
             "{}: {:?} {:?} also draws the text {:?}",
             sample.name,
             node.role,
@@ -3294,6 +3444,13 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
         Found::Absent | Found::Pending => panic!("{sample}: missing {role:?} {name:?}"),
     }
 }
+fn descendants<'a>(tree: &'a skein_ui::Tree, role: Role, name: &str, sample: &str) -> &'a [skein_ui::Node] {
+    let id = find(tree, role, name, sample);
+    let nodes = tree.nodes();
+    let start = nodes.iter().position(|node| node.id == id).expect("subtree root");
+    let end = start + usize::try_from(nodes[start].size).expect("subtree span");
+    &nodes[start..end]
+}
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
@@ -3308,7 +3465,8 @@ fn each_state_holds_what_its_name_says() {
             }
         }
         let row = row.unwrap_or_else(|| panic!("{}: every sample has a HOLDS row", sample.name));
-        let mut view = built_with(&sample, inputs.clone()).0;
+        let root = samples::domain(&sample);
+        let (mut view, bounds, _) = built_root(&sample, inputs.clone(), &root);
         let tree = view.tree();
         let mut main = TreeFace::new(tree);
         let h1 = in_main(Role::Heading { level: 1 }, row.heading);
@@ -3321,6 +3479,86 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Tabs { names, selected } => {
+                    let tabs = descendants(tree, Role::Tabs, "Ways of working", sample.name);
+                    let actual: Vec<_> = tabs.iter().filter(|node| node.role == Role::Tab).collect();
+                    assert_eq!(actual.len(), names.len(), "{}: tabs", sample.name);
+                    for (index, (tab, expected)) in actual.iter().zip(*names).enumerate() {
+                        let start = tabs.iter().position(|node| node.id == tab.id).expect("tab position");
+                        let end = start + usize::try_from(tab.size).expect("tab span");
+                        let text: Vec<_> = tabs[start..end]
+                            .iter()
+                            .flat_map(|node| node.text.iter())
+                            .flat_map(|run| run.text.iter().copied())
+                            .collect();
+                        assert_eq!(text, expected.as_bytes(), "{}: tab {index}", sample.name);
+                        assert_eq!(
+                            tab.states.as_slice().contains(&skein_ui::State::Selected),
+                            index == *selected,
+                            "{}: selected tab",
+                            sample.name
+                        );
+                        let now = tabs[start..end]
+                            .iter()
+                            .any(|node| node.styles.as_slice().contains(&temper_client_view::look::WAYS_NOW));
+                        assert_eq!(now, expected.ends_with("now"), "{}: current tab marker", sample.name);
+                    }
+                }
+                Part::Path { stops } => {
+                    let path = descendants(tree, Role::List, "The way a change goes", sample.name);
+                    let actual: Vec<_> = path
+                        .iter()
+                        .filter(|node| node.role == Role::Item)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("stop words")).expect("UTF-8 stop"))
+                        .collect();
+                    assert_eq!(actual, *stops, "{}: path stops and actors", sample.name);
+                }
+                Part::Drawing { style, count } => {
+                    let drawing = tree
+                        .nodes()
+                        .iter()
+                        .find_map(|node| {
+                            node.drawing.as_ref().filter(|drawing| drawing.kind == temper_client_view::paths::KIND)
+                        })
+                        .expect("way drawing");
+                    let mut scene = Scene::new(&bounds.tree);
+                    assert!(draw(drawing.kind, &drawing.data, 1000, 0, &mut scene), "{}: way scene", sample.name);
+                    assert!(!scene.refused(), "{}: scene fits", sample.name);
+                    let actual = (0..u32::try_from(scene.marks().len()).expect("scene marks"))
+                        .filter(|index| scene.styles(*index).contains(style))
+                        .count();
+                    assert_eq!(actual, *count, "{}: drawing {style:?}", sample.name);
+                }
+                Part::Expanded { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("stop").states.as_slice().contains(&skein_ui::State::Expanded),
+                        "{}: open stop",
+                        sample.name
+                    );
+                }
+                Part::Configured { value } => {
+                    let facts = temper_client_domain::pages::home::facts(
+                        &root,
+                        1,
+                        worlds::sample_now(sample.world, sample.name),
+                    );
+                    assert_eq!(facts.configured, *value, "{}: To begin's first step", sample.name);
+                }
+                Part::Reader { role } => {
+                    let me = root.pages().me(root.client()).expect("signed-in reader");
+                    let member = me.projects.iter().find(|member| member.project == 1).expect("ways project");
+                    assert_eq!(&member.role, role, "{}: reader's role", sample.name);
+                }
+                Part::After { first, then } => {
+                    let at = |style| {
+                        tree.nodes()
+                            .iter()
+                            .position(|node| node.styles.as_slice().contains(style))
+                            .expect("ordered part")
+                    };
+                    assert!(at(first) < at(then), "{}: part order", sample.name);
+                }
                 Part::Links { style, names } => {
                     let nodes = tree.nodes();
                     let start =

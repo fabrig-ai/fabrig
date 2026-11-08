@@ -469,10 +469,10 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::WayTab { .. }
+            | Act::WayStop { .. }
             | Act::UseWay { .. }
             | Act::KeepWay { .. }
-            | Act::ShowReference
-            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground
@@ -605,10 +605,10 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::WayTab { .. }
+            | Act::WayStop { .. }
             | Act::UseWay { .. }
             | Act::KeepWay { .. }
-            | Act::ShowReference
-            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground
