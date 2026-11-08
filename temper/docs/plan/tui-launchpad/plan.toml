@@ -98,3 +98,29 @@ id = 7
 story = "On Home with the terminal look, ChatWords then StartChat creates a chat of template 5 and shows it; /help sent whole notes Help and sends nothing; the choice is template 5's"
 parts = ["domain-home"]
 walk = false
+
+[[part]]
+id = "view-lists"
+title = "temper-client-view's shared lists: the commands' lists, a confirmation, the chat's question and a card's line, as data the browser builds from"
+mode = "direct"
+needs = ["view-shared"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 8
+story = "temper_client_view::shared gives /model's models, /effort's efforts, /chats' chats, /close's confirmation and a waiting chat's question as the browser's terminal draws them, its trees unchanged"
+parts = ["view-lists"]
+walk = false
+
+[[part]]
+id = "tui-surface"
+title = "temper-client-tui's events, state, names, themes with sel, words, offered commands, and its view split into parts that still draw today's screens"
+mode = "direct"
+needs = ["screen-entries", "view-shared"]
+design = "temper/docs/design/client/README.md, 6.15"
+
+[[slice]]
+id = 9
+story = "The TUI's themes hold sel, the box framed by rules with no label, marks and spaced entries, valid in both schemes; offered gives the launchpad's and a chat's commands; every golden still draws today's screens"
+parts = ["tui-surface"]
+walk = false
