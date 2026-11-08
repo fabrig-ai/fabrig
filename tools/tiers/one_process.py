@@ -15,6 +15,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 import xml.etree.ElementTree as ET
@@ -301,7 +302,7 @@ def binary_environment(env, cargo, suite, package, build, profile, host_libdir):
     package_id = suite['package-id']
     target = Path(build['target-directory'])
     for binary in build.get('non-test-binaries', {}).get(package_id, []):
-        if binary.get('kind') == 'bin':
+        if binary.get('kind') == 'bin-exe':
             path = str(target / binary['path'])
             result['CARGO_BIN_EXE_' + binary['name']] = path
             result['NEXTEST_BIN_EXE_' + binary['name']] = path
@@ -433,22 +434,29 @@ class BinaryProcess:
         self.cancelled = False
         names = b'|'.join(re.escape(test['name'].encode()) for test in job['tests'])
         self.announcement = re.compile(rb'(?m)^test (' + names + rb')(?: - should panic)? \.\.\. ')
-        read, write = os.pipe()
+        # Libtest opens its logfile close-on-exec. A named pipe lets it do so
+        # without inheriting a writer that its spawned fixtures would also keep.
+        self.log_directory = tempfile.TemporaryDirectory(prefix='tiers-one-log-')
+        logfile = Path(self.log_directory.name) / 'log'
+        os.mkfifo(logfile, 0o600)
+        read = os.open(logfile, os.O_RDONLY | os.O_NONBLOCK)
+        self.log_writer = os.open(logfile, os.O_WRONLY | os.O_NONBLOCK)
         output_read, output_write = os.pipe()
         binary = job['binary']
         self.start = time.monotonic()
         try:
             self.child = subprocess.Popen(
                 [binary['path'], '--exact', '--nocapture', '--test-threads=1', '--include-ignored',
-                 '--color', 'never', '--logfile', f'/dev/fd/{write}', *[t['name'] for t in job['tests']]],
+                 '--color', 'never', '--logfile', str(logfile), *[t['name'] for t in job['tests']]],
                 cwd=binary['cwd'], env=binary['env'], stdin=subprocess.DEVNULL,
-                stdout=output_write, stderr=subprocess.STDOUT, pass_fds=(write,), process_group=0)
+                stdout=output_write, stderr=subprocess.STDOUT, process_group=0)
         except BaseException:
             os.close(read)
+            os.close(self.log_writer)
             os.close(output_read)
+            self.log_directory.cleanup()
             raise
         finally:
-            os.close(write)
             os.close(output_write)
         self.pid = self.child.pid
         for fd, kind in ((output_read, 'output'), (read, 'log')):
@@ -471,6 +479,10 @@ class BinaryProcess:
         if kind == 'output':
             self.output.extend(data)
             found = list(self.announcement.finditer(self.output))
+            # An announcement follows libtest opening its logfile. Keep a writer
+            # until then so the reader cannot see an early end of file.
+            if found:
+                self.close_log_writer()
             for match in found[len(self.announcements):]:
                 self.announcements.append((match[1].decode('utf-8', 'backslashreplace'), match.start(), match.end(), now))
         else:
@@ -482,6 +494,11 @@ class BinaryProcess:
                 if result in (b'ok', b'failed', b'ignored'):
                     self.logs[name.decode('utf-8', 'backslashreplace')] = (result, now)
         self.completed()
+
+    def close_log_writer(self):
+        if self.log_writer is not None:
+            os.close(self.log_writer)
+            self.log_writer = None
 
     def completed(self):
         for offset, (name, _, start, announced_at) in enumerate(self.announcements):
@@ -516,6 +533,7 @@ class BinaryProcess:
             return
         pid, status, usage = os.wait4(self.pid, os.WNOHANG)
         if pid:
+            self.close_log_writer()
             # Popen must never poll or wait before this assignment: wait4 owns rusage.
             self.child.returncode = os.waitstatus_to_exitcode(status)
             self.status = status
@@ -552,6 +570,7 @@ class BinaryProcess:
         signal_group(self.child, signal.SIGKILL)
         for fd in list(self.open_fds):
             self.close(fd, selector)
+        self.log_directory.cleanup()
         record = dict(binary_id=self.job['binary']['binary_id'], kind=self.job['kind'], tests=announced,
                       user_s=self.usage.ru_utime, system_s=self.usage.ru_stime,
                       wall_s=self.reaped_at - self.start, start_s=self.start,
