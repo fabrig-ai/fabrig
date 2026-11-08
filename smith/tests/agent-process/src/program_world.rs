@@ -11,7 +11,9 @@ use smith_fake_claude::{Fake, Story};
 
 use crate::world::{Parent, ParentOptions, Setup};
 
+mod room;
 mod waiting;
+pub use room::child_charter as room_child_charter;
 
 mod carry;
 pub use carry::{children_chat, from_frames, resume_children, start_with_window};
@@ -38,6 +40,8 @@ pub enum Case {
     Payload { tool_payload: u32 },
     /// Record a program conversation with full content capture.
     Events,
+    /// Full-content child bursts at this run's declared conversation room.
+    Burst { conversations: u32 },
     /// Keep an Open conversation across replies and scripted host messages.
     Open,
     /// The main endpoint does not select the configured program.
@@ -63,6 +67,7 @@ impl Case {
                 | Self::Waiting
                 | Self::ParkWaiting
                 | Self::Events
+                | Self::Burst { .. }
                 | Self::Transcript
                 | Self::Open
         )
@@ -86,6 +91,7 @@ enum Proc {
     Parent(Box<Parent>),
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
     Fake(Box<Fake>),
+    Peer(Box<skein_fake_peers::llm::Peer>),
     Relay { process: Box<smith_agent_shell::relay::Process>, environment: Vec<String> },
 }
 
@@ -95,6 +101,7 @@ impl Delegate for Proc {
             Self::Parent(host) => host.as_ref(),
             Self::Agent(host) => host.as_ref(),
             Self::Fake(host) => host.as_ref(),
+            Self::Peer(host) => host.as_ref(),
             Self::Relay { process, .. } => process.as_ref(),
         }
     }
@@ -104,6 +111,7 @@ impl Delegate for Proc {
             Self::Parent(host) => host.as_mut(),
             Self::Agent(host) => host.as_mut(),
             Self::Fake(host) => host.as_mut(),
+            Self::Peer(host) => host.as_mut(),
             Self::Relay { process, .. } => process.as_mut(),
         }
     }
@@ -137,6 +145,8 @@ fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
 fn configuration(case: Case) -> smith_agent_service::Config {
     let mut config = if let Case::Payload { tool_payload } = case {
         payload_configuration(tool_payload)
+    } else if let Case::Burst { conversations } = case {
+        room::configuration(conversations)
     } else if matches!(case, Case::Events | Case::Transcript) {
         let mut limits = crate::limits();
         limits.llm.translation.client.request = 1_048_576;
@@ -210,7 +220,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     config.limits.domain.run.check_tail = config.limits.domain.run.check_tail.min(256);
     config.limits.domain.run.host_reply_bytes = config.limits.domain.run.host_reply_bytes.min(4096);
     config.limits.domain.run.message_bytes = config.limits.domain.run.message_bytes.min(4096);
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
         config.limits.domain.run.outcome_bytes = 512;
         config.limits.domain.run.answer_bytes = 512;
         config.limits.domain.run.host_reply_bytes = 512;
@@ -219,11 +229,11 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     }
     config.limits.domain.session.delegated_result_bytes =
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
         config.limits.events = Some(
             smith_agent_service::event_limits(
                 &config.limits,
-                if matches!(case, Case::Events | Case::Transcript) {
+                if matches!(case, Case::Burst { .. } | Case::Events | Case::Transcript) {
                     smith_protocol_events::sinks::Capture::Everything
                 } else {
                     smith_protocol_events::sinks::Capture::None
@@ -252,10 +262,13 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
         smith_agent_shell::config::Configuration {
             memory: configuration.limits.memory,
             service: configuration,
-            trace: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            trace: if matches!(
+                case,
+                Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }
+            ) {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
-                    capture: if matches!(case, Case::Events | Case::Transcript) {
+                    capture: if matches!(case, Case::Burst { .. } | Case::Events | Case::Transcript) {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -265,8 +278,8 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             } else {
                 None
             },
-            profile: crate::profile(),
-            declarations: crate::declarations(4096),
+            profile: room::profile(case),
+            declarations: room::declarations(case),
             program: None,
             program_endpoints: std::collections::BTreeSet::new(),
         },
@@ -278,7 +291,10 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             seed: 7,
             pid: 101,
             trace: inherited.appends.first().map(|(_, fd)| *fd),
-            roots: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            roots: if matches!(
+                case,
+                Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }
+            ) {
                 Some(
                     inherited
                         .roots
@@ -444,6 +460,13 @@ struct Judge {
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.waiting.act(now, procs);
+        if procs.iter().any(|process| matches!(process, Proc::Parent(parent) if parent.status.is_some())) {
+            for process in procs.iter_mut() {
+                if let Proc::Peer(peer) = process {
+                    peer.shutdown();
+                }
+            }
+        }
         if self.cancel_with_child
             && procs
                 .iter()
@@ -558,7 +581,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if let Some(login) = login {
         items.push(Item::file(b"programs/source/fake-claude.login", login).mode(0o600));
     }
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
             Item::directory(b"work/repo/src"),
@@ -678,6 +701,9 @@ fn run_scenario(
     host_agent(&mut world, case);
     host_programs(&mut world, case);
     spawn_parent(&mut world, root, case, charter, value, &options);
+    if matches!(case, Case::Burst { .. }) {
+        world.spawn(|| Proc::Peer(Box::new(room::peer(&story))));
+    }
     let mut outcome = world.run();
     let mut run = observe_run(&mut outcome, base, case, options.dumps.is_some());
     outcome.machine.files.close(base);
@@ -709,7 +735,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
             name: b"programs".as_slice().into(),
             path: b"/programs".as_slice().into(),
         }];
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+        if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
             roots.extend([
                 skein_world::StartupRoot { name: b"cwd".as_slice().into(), path: b"/work/repo".as_slice().into() },
                 skein_world::StartupRoot { name: b"library".as_slice().into(), path: b"/library".as_slice().into() },
@@ -721,7 +747,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
 
 fn startup_appends(spawn: &Spawn) -> Vec<skein_world::StartupAppend> {
     let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
         vec![skein_world::StartupAppend {
             name: b"trace".as_slice().into(),
             root: b"/home".as_slice().into(),
@@ -737,7 +763,12 @@ fn host_programs(world: &mut ProgramWorld, case: Case) {
     // Main and each child check their login before printing.
     let factory = smith_fake_claude::hosted(b"/programs/claude");
     world.host_startup(
-        HostedProgram { program: factory.program, make: make_fake, instances: 8, operations: factory.operations },
+        HostedProgram {
+            program: factory.program,
+            make: make_fake,
+            instances: configuration(case).limits.domain.run.run_conversations * 2,
+            operations: factory.operations,
+        },
         |spawn| {
             let launch = fake_launch(spawn);
             smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
@@ -748,7 +779,7 @@ fn host_programs(world: &mut ProgramWorld, case: Case) {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
         // Main and its inspect-only children each keep a relay.
-        instances: 4,
+        instances: configuration(case).limits.domain.run.run_conversations,
         operations: smith_agent_shell::relay::operations(),
     });
 }
@@ -770,7 +801,7 @@ fn spawn_parent(
             ParentOptions {
                 message: initial.as_ref(),
                 setup: Setup {
-                    capture: if matches!(case, Case::Events | Case::Transcript) {
+                    capture: if matches!(case, Case::Burst { .. } | Case::Events | Case::Transcript) {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -788,13 +819,13 @@ fn spawn_parent(
         if let Some(dumps) = options.dumps {
             parent.dump_to(dumps);
         }
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
-            parent.peer = if matches!(case, Case::Payload { .. }) {
+        if matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            parent.peer = if matches!(case, Case::Payload { .. } | Case::Burst { .. }) {
                 crate::host_with_limits(configuration(case).limits.channel)
             } else {
                 crate::host()
             };
-            parent.peer.play(tools_start(charter, value));
+            parent.peer.play(room::grant(tools_start(charter, value), case));
             parent.program_host_answers = Some(0);
         }
         if case == Case::Open {
@@ -843,7 +874,7 @@ fn observe_run(
             .iter()
             .filter_map(|process| match process {
                 Proc::Relay { environment, .. } => Some(environment.clone()),
-                Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) => None,
+                Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) | Proc::Peer(_) => None,
             })
             .collect(),
         events: read_events(&mut outcome.machine.files, base, case),
@@ -866,7 +897,7 @@ fn run_directories(files: &mut Files, base: Opened) -> Vec<Vec<u8>> {
 }
 
 fn read_events(files: &mut Files, base: Opened, case: Case) -> Vec<smith_events::Record> {
-    if !matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if !matches!(case, Case::Tools | Case::Burst { .. } | Case::Events | Case::Transcript | Case::Payload { .. }) {
         return Vec::new();
     }
     let file = files.open(base, b"home/events.jsonl", How::Read).expect("trace file");

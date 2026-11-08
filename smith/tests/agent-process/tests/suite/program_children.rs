@@ -133,63 +133,81 @@ fn a_program_child_asking_to_write_is_refused() {
     assert!(matches!(invalid.problem(), smith_transcript::CallProblem::BadValue(field) if field.field() == b"tools"));
 }
 
+// The declared room includes main, leaving four child conversations (domain/run.md, 5.3).
+const BURST_ROOM: u32 = 5;
+const CHILD_ANSWERS: [&str; 6] =
+    ["exports run", "tests run", "third answer", "fourth answer", "fifth answer", "sixth answer"];
+
 #[test]
-fn a_program_main_reads_two_children_from_one_message() {
-    let story = Story {
-        turns: vec![
-            Turn::new(vec![Step::Together(vec![
-                Step::Call {
+fn a_program_main_reads_a_burst_past_its_room() {
+    for (count, direct, opened, refused, programs) in [
+        (2, false, 2, 0, 2),
+        (2, true, 2, 0, 0),
+        (4, false, 4, 0, 4),
+        (4, true, 4, 0, 0),
+        (5, false, 4, 1, 4),
+        (5, true, 4, 1, 0),
+        (6, false, 4, 2, 4),
+        (6, true, 4, 2, 0),
+    ] {
+        eprintln!("burst count={count} direct={direct}");
+        let story = Story {
+            turns: vec![
+                Turn::new(vec![Step::Together((0..count).map(|index| Step::Call {
                     tool: "sub_agent".into(),
-                    input: json!({"brief":"CUE-ALPHA List exports.","tools":["inspect"],"llm":"fake"}),
-                },
-                Step::Call {
-                    tool: "sub_agent".into(),
-                    input: json!({"brief":"CUE-BETA List tests.","tools":["inspect"],"llm":"fake"}),
-                },
-            ])]),
-            Turn::new(vec![Step::Call {
-                tool: "finish".into(),
-                input: json!({"outcome":{"form":"report","text":"exports run; tests run","fields":{}}}),
-            }]),
-        ],
-        cued: vec![
-            Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![Step::Text("exports run".into())])] },
-            Script { cue: "CUE-BETA".into(), turns: vec![Turn::new(vec![Step::Text("tests run".into())])] },
-        ],
-        ..Default::default()
-    };
-    let run = program_world::run(
-        Case::Events,
-        &story,
-        Some(b"claude.ai"),
-        &program_world::child_charter(),
-        &program(b"source"),
-        None,
-    );
-    accepted(&run);
-    assert_eq!(
-        run.invocations.iter().filter(|invocation| argument(&invocation.arguments, "--effort") == Some("high")).count(),
-        2
-    );
-    let children: Vec<_> = run
-        .events
-        .iter()
-        .filter_map(|record| match &record.event {
-            Event::ConversationOpened(opening) if opening.kind == ConversationKind::Child => Some(opening),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(children.len(), 2);
-    assert_ne!(children[0].call, children[1].call);
-    assert_ne!(children[0].thread, children[1].thread);
-    let results = results(&run);
-    for answer in [b"exports run".as_slice(), b"tests run".as_slice()] {
-        assert!(results.iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if !said.error() && skein_lib::bytes::find(said.text(), answer).is_some())));
+                    input: json!({"brief":format!("CUE-{index} Survey the workspace."),"tools":["inspect"],"llm":"fake"}),
+                }).collect())]),
+                Turn::new(vec![Step::Call {
+                    tool: "finish".into(),
+                    input: json!({"outcome":{"form":"report","text":"exports run; tests run","fields":{}}}),
+                }]),
+            ],
+            cued: CHILD_ANSWERS.iter().enumerate().take(count).map(|(index, answer)| Script {
+                cue: format!("CUE-{index}"), turns: vec![Turn::new(vec![Step::Text((*answer).into())])],
+            }).collect(),
+            ..Default::default()
+        };
+        let run = program_world::run(
+            Case::Burst { conversations: BURST_ROOM },
+            &story,
+            Some(b"claude.ai"),
+            &program_world::room_child_charter(direct),
+            &program(b"source"),
+            None,
+        );
+        accepted(&run);
+        assert_eq!(
+            run.invocations
+                .iter()
+                .filter(|invocation| argument(&invocation.arguments, "--effort") == Some("high"))
+                .count(),
+            programs
+        );
+        let children: Vec<_> = run
+            .events
+            .iter()
+            .filter_map(|record| match &record.event {
+                Event::ConversationOpened(opening) if opening.kind == ConversationKind::Child => Some(opening),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(children.len(), opened);
+        for (index, child) in children.iter().enumerate() {
+            assert!(child.call.is_some());
+            for other in children.iter().skip(index + 1) {
+                assert_ne!(child.call, other.call);
+                assert_ne!(child.thread, other.thread);
+            }
+            assert!(run.events.iter().any(|record| matches!(&record.event, Event::ConversationClosed(close) if close.conversation == child.conversation && close.end == ConversationEnd::Closed)));
+        }
+        let results = results(&run);
+        assert_eq!(results.len(), count + 1, "each child call and finish are answered");
+        for answer in CHILD_ANSWERS.iter().take(opened) {
+            assert!(results.iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if !said.error() && skein_lib::bytes::find(said.text(), answer.as_bytes()).is_some())), "missing {answer}: {results:?}");
+        }
+        assert_eq!(results.iter().filter(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if said.error() && skein_lib::bytes::find(said.text(), b"refused reason=too-many").is_some())).count(), refused);
+        assert!(run.run_directories.is_empty());
     }
-    for child in children {
-        assert!(run.events.iter().any(|record| matches!(&record.event, Event::ConversationClosed(close) if close.conversation == child.conversation)));
-    }
-    assert!(run.run_directories.is_empty());
 }
 
 fn finish() -> Turn {
