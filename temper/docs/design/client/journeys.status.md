@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 Section 3.6 has no known gap in the TUI's three kinds of original,
 `Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, or the shared
@@ -47,6 +47,7 @@ a real-box recording remains the person's later work (section 10).
   - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
+  - 9: `project-landing`, `chat-draft` and `welcome-playground` were recorded before the stock offered template 5, so their prints' rails and tab bars have no Ask temper, where a fresh box's have it (look-round-18).
 - **Departs:**
   - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is the usage line, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
