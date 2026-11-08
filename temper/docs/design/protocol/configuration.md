@@ -1314,6 +1314,10 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A cut sub-agent answer's rest** (13.8): smith's `domain/run.md`,
+  section 15 leaves retention for a continuation undecided. Default:
+  derive the answer room from the payload and ask a new child, narrower,
+  for omitted material; temper declares no continuation setting.
 - **A terminal approved at a public name** (3, clients): Google on the
   web and the between-hosts approval wait for `../draft/tui.md`, section
   7's flow. Init's `approval` enables the loopback flow beside the

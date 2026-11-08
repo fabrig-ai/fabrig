@@ -1,6 +1,15 @@
 # configuration: status
 
-2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
+
+Section 13.8 has no known gap in the sub-agent answer's payload-derived
+room: smith derives 10,662 bytes for the stock and 63,740 for the
+reference, with a floor of 4,096. Its profile table holds the answer
+equal to the outcome without changing the pinned T figures. A longer
+answer carries the omitted-byte count and asks for a new child with a
+narrower brief; temper adds no setting. The 3,000-byte delegated-answer
+story uses the simulated process world, with no real-provider result
+established here. Continuation remains deferred in section 11.
 
 Section 13.9 has the reference's charter 5 as shared instructions and
 four ordered parts, including the cut's no-design rule, and template 4
