@@ -672,6 +672,28 @@ holds, and neither of its components reads them.
 - **Pings.** A side that has sent nothing for the ping interval sends
   skein's `Ping`. A link that has received nothing for the silence
   deadline, at least three intervals, is lost. Pings never reach a domain.
+- **Silence counts bytes.** Each read from the stream in the open phase
+  restarts the silence deadline, a piece of a frame included, on both
+  sides: a large frame arriving slowly over a busy link keeps it.
+- **Reading never waits for the root.** Each side's protocol layer
+  reads its link and fires its component's deadlines on every pass,
+  whatever its root has yet to take, so pings go out and come in under
+  any load. Records its root is not ready for wait above the component,
+  in the protocol layer's own entrance, never unread in the socket: that
+  entrance holds what the peer's output cap lets it send (`sizes`'
+  engine cap on a worker), so it never fills while the peer keeps its
+  cap, and a record past it breaks the peer's contract and loses the
+  link. A socket left unread starves both sides' pings, and the peer
+  loses a healthy link at its silence deadline.
+- **A lost link says why.** Each side's component tells its protocol
+  layer, once per connection, why it ended, from a closed set: silence,
+  stall, the output cap filled, a deadline of the opening, the stream
+  ending or failing, a framing error, a refusal sent or received with its
+  reason; on the engine's side also no room for the connection and
+  stopping, on the worker's a dial that failed and a fault its root
+  raised (10.1, 10.2). The application's protocol layer writes it as a
+  line of its log naming the worker and the reason, so a link that drops
+  is never silent on either side.
 - **A stall deadline.** A link whose output has stayed queued, with no
   frame drained below, for the stall deadline is lost: its peer stopped
   reading (skein's `channel.md`, section 7).
@@ -727,6 +749,12 @@ holds, and neither of its components reads them.
 - **The hub hears the link,** through the worker's root: up, once ready,
   when it asks the hub to report what it hosts and sends the hello first;
   lost, when it starts the grace's clock.
+- **A loss says why** (section 9): every channel or dial that ends goes
+  up once as the component's `Fact`, with its `Loss`: as skein's channel
+  ended it (`Closed`: the stream, a framing error, a refusal sent or
+  received), silence, stall, the handshake's deadline, the output cap
+  filled, a fault its root raised, or a dial that failed. The owner logs
+  the loss of a link that said hello, beside its line for the link.
 - **The grace's clock is the component's.** The hub arms no timers
   (`../domain/hosts.md`, 6.2). It runs from when the component notices
   the link lost. Past the grace with no channel back, the
@@ -769,11 +797,26 @@ holds, and neither of its components reads them.
   refusal, goes up as the fleet's lost channel, once, if its hello was
   heard; the fleet keeps the worker's runs for its grace
   (`../domain/engine.md`, section 8).
+- **Every connection's end says why** (section 9): each accepted
+  connection goes up once as the component's `Ended` when it ends, with
+  the worker it authenticated as, the channel its hello opened, if any,
+  and its `Loss`, whether or not its hello was heard: a lost channel, a
+  refused opening and a connection turned away for room each say why,
+  and the owner logs each.
+- **Closing is bounded.** A connection that leaves its open phase, lost,
+  refused or closed, holds the stall deadline from then; past it the
+  component aborts the socket below, whether or not its channel has
+  ended. So a worker that stopped reading never keeps a connection, its
+  room or the engine's stop, and a worker lost any number of times is
+  taken back each time (4.2; `../domain/hosts.md`, 6.6).
 - **During a restart,** the listener is open before decisions are: the
   core's restart adopts runs as workers say hello (`../domain/engine.md`,
   section 6; `service.md`, section 3).
 - **Shutting down,** new openings are refused with *stopping*, and open
-  channels close once the engine's last outputs to them have drained.
+  channels close once the engine's last outputs to them have drained, or
+  at the stall deadline from the close, past which each is aborted: the
+  workers' part closes within the stall deadline of the close, whatever
+  its workers do.
 
 ### 10.3 Connections' states
 
@@ -840,7 +883,14 @@ ones in the fuzzy suite.
   dropped for room counted with the facts, and the grace passing and
   not. smith's
   payloads are opaque bytes there, as they are to the components.
-  The worker link's incompatible-terms and malformed-body fixtures
+  The engine's world also loses one worker fifty times, each way a link
+  is lost, and takes it back each time, with its connections never past
+  their room; aborts a closing connection whose channel never ends at
+  its deadline; and names each loss's `Loss`. The worker's world keeps a
+  link whose frame arrives in pieces past the silence deadline, and
+  names each loss's `Loss`; joined to the real engine's component, a
+  link busy both ways for minutes, its queue never empty, is never
+  lost. The worker link's incompatible-terms and malformed-body fixtures
   assert the literal wire reasons 2 and 3, exactly one loss, and no
   forwarded body. Its trace fixture admits a malformed `TurnBusy` to
   the real decoder, which never decodes it as a valid busy before the
@@ -856,6 +906,7 @@ ones in the fuzzy suite.
   `jig-protocol-charter`. It runs the hub's world's stories
   (`../domain/hosts.md`, section 11) through bytes, and adds:
   - connections cut mid-frame, and the worker redialling;
+  - a worker cut fifty times, each redial taken back, no run hosted;
   - a peer that stops reading, and one that goes quiet;
   - a partition each side notices at a different time;
   - garbage frames, a wrong secret, another version, another application
