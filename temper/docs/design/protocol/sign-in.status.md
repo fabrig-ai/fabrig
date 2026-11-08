@@ -41,9 +41,9 @@ combined default-box proof remain unverified as recorded in
   (`temper/docs/development/ui-repo-link-review.md`).
   The cross-site restart story's red-71 is also unresolved: it passes
   alone but fails after earlier stories in the same browser binary,
-  as the answer in `temper/docs/plan/ui-authorize-red/tasks/repair.md`
-  records. The landed `ui-authorize-red` result is not reproduced,
-  with no product, fixture or story change. Its two isolated passes
+  as the browser tier's logs at `0c00e03c9d` and `bf198e50bb` show
+  (11.9 s into the suite; 2.2 s alone). The landed `ui-authorize-red`
+  result is not reproduced, with no product, fixture or story change. Its two isolated passes
   establish neither the suite-order cause nor a repair. The request's
   cause and fix remain outstanding; whether this is the same path as
   the exploratory failure is unknown.
