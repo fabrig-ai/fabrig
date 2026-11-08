@@ -2,14 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5, *Outside a project*: a form's field name, "Code"
-  on the approval page and "Project name" with no project yet, is 13 px
-  on a 20.8 px line, skein's small label outweighing the column's rule;
-  `look-round-22`'s `outside-ground` closes it.
-- **Not yet:** 2.5, *Day and night*: at night a page shorter than the
-  window shows the placeholder's day paper under the body's ground (the
-  welcome at 420 by 900, a 53 px strip); `look-round-22`'s
-  `outside-ground` closes it.
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
