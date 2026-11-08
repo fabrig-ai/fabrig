@@ -33,7 +33,18 @@ fn escape(value: &[u8]) -> Box<[u8]> {
     }
     out.finish()
 }
-pub(super) fn page(heading: &[u8], paragraph: &[u8], then: &[u8], choose: bool, back: bool) -> Box<[u8]> {
+pub(super) fn page(
+    sheet: Option<&[u8]>,
+    heading: &[u8],
+    paragraph: &[u8],
+    then: &[u8],
+    choose: bool,
+    back: bool,
+) -> Box<[u8]> {
+    let sheet = match sheet {
+        Some(sheet) => join(&[b"<link rel=\"stylesheet\" href=\"", &escape(sheet), b"\">"]),
+        None => Box::new([]),
+    };
     let target = super::encode(then);
     let start = join(&[b"/sign-in/google?then=", &target, if choose { b"&account=choose" } else { b"" }]);
     let link = escape(&start);
@@ -41,26 +52,29 @@ pub(super) fn page(heading: &[u8], paragraph: &[u8], then: &[u8], choose: bool, 
     let heading = escape(heading);
     let paragraph = escape(paragraph);
     join(&[
-        b"<!doctype html><html><head><meta charset=\"utf-8\"><title>temper</title></head><body><main><h1>",
+        b"<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper</title>",
+        &sheet,
+        b"</head><body><header><a href=\"/\">temper</a></header><main><h1>",
         &heading,
         b"</h1><p>",
         &paragraph,
-        b"</p><a href=\"",
+        b"</p><a class=\"primary\" href=\"",
         &link,
         b"\">",
         if choose { b"Use another Google account" } else { b"Continue with Google" },
         b"</a>",
-        if back { b" <a href=\"" } else { b"" },
+        if back { b"<p class=\"quiet\"><a href=\"" } else { b"" },
         if back { &then } else { b"" },
-        if back { b"\">Back to sign in</a>" } else { b"" },
+        if back { b"\">Back to sign in</a></p>" } else { b"" },
         b"</main></body></html>",
     ])
 }
-pub(super) fn not_member(address: &[u8], then: &[u8]) -> Box<[u8]> {
-    page(&join(&[address, b" can't sign in here"]), b"Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.", then, true, true)
+pub(super) fn not_member(sheet: Option<&[u8]>, address: &[u8], then: &[u8]) -> Box<[u8]> {
+    page(sheet, &join(&[address, b" can't sign in here"]), b"Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.", then, true, true)
 }
-pub(super) fn another(address: &[u8], then: &[u8]) -> Box<[u8]> {
+pub(super) fn another(sheet: Option<&[u8]>, address: &[u8], then: &[u8]) -> Box<[u8]> {
     page(
+        sheet,
         &join(&[address, b" signs in here with another Google account"]),
         b"This isn't the Google account that first signed in with this address. Use that one, or ask an owner.",
         then,
@@ -68,8 +82,9 @@ pub(super) fn another(address: &[u8], then: &[u8]) -> Box<[u8]> {
         true,
     )
 }
-pub(super) fn unverified(address: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
+pub(super) fn unverified(sheet: Option<&[u8]>, address: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
+        sheet,
         &join(&[b"Google hasn't verified ", address.unwrap_or(b"this account's address")]),
         b"temper signs in only an address Google has verified. Verify it with Google, or use another account.",
         then,
@@ -77,16 +92,17 @@ pub(super) fn unverified(address: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
         true,
     )
 }
-pub(super) fn cancelled(error: &[u8], then: &[u8]) -> Box<[u8]> {
+pub(super) fn cancelled(sheet: Option<&[u8]>, error: &[u8], then: &[u8]) -> Box<[u8]> {
     let paragraph = if error == b"access_denied" {
         join(&[b"You cancelled at Google. Nothing was kept."])
     } else {
         join(&[b"Google answered ", error.get(..error.len().min(64)).expect("bounded error"), b". Nothing was kept."])
     };
-    page(b"The sign-in didn't finish", &paragraph, then, false, true)
+    page(sheet, b"The sign-in didn't finish", &paragraph, then, false, true)
 }
-pub(super) fn expired(then: &[u8]) -> Box<[u8]> {
+pub(super) fn expired(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
+        sheet,
         b"The sign-in didn't finish",
         b"It took too long, or temper restarted while you were at Google. Nothing was kept.",
         then,
@@ -94,8 +110,9 @@ pub(super) fn expired(then: &[u8]) -> Box<[u8]> {
         true,
     )
 }
-pub(super) fn unreachable(then: &[u8]) -> Box<[u8]> {
+pub(super) fn unreachable(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
+        sheet,
         b"The sign-in didn't finish",
         b"temper couldn't reach Google. Nothing was kept: try again in a moment.",
         then,
@@ -103,8 +120,9 @@ pub(super) fn unreachable(then: &[u8]) -> Box<[u8]> {
         true,
     )
 }
-pub(super) fn busy(then: &[u8]) -> Box<[u8]> {
+pub(super) fn busy(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
+        sheet,
         b"temper couldn't sign you in just now",
         b"It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment.",
         then,

@@ -1235,7 +1235,7 @@ fn setup_accept_without_back_answers_its_close_tab_page() {
     let mut peer = visit(&mut service, b"GET", &setup_target(&state));
     complete_accept(&mut service, &mut peer);
     status(&peer, b"200");
-    assert!(contains(peer.received(), b"<h2>GitHub is connected</h2>"));
+    assert!(contains(peer.received(), b"<h1>GitHub is connected</h1>"));
     assert!(contains(peer.received(), b"temper has the installation; you may close this tab."));
     assert!(contains(peer.received(), b"href=\"/forges\""));
 }
@@ -1491,7 +1491,7 @@ fn manifest_connect_answers_its_listener_page_with_policy_and_personal_form() {
             b"'\r\n",
         ]);
         assert!(contains(peer.received(), &policy));
-        assert!(contains(peer.received(), b"<button type=\"submit\">Continue to GitHub</button>"));
+        assert!(contains(peer.received(), b"<button type=\"submit\" class=\"primary\">Continue to GitHub</button>"));
         assert!(contains(peer.received(), escaped));
         let target = joined(&[b"action=\"http://127.0.0.1:3000/settings/apps/new?state=", state, b"\""]);
         assert!(contains(peer.received(), &target));
@@ -1740,7 +1740,7 @@ fn pasted_app_key_form_and_401_failures_use_the_persons_words() {
 // client/forge.md 9.1: QA observes the browser's status, shell and destination.
 fn ended(peer: &fixtures::http::Peer) {
     status(peer, b"410");
-    assert!(contains(peer.received(), b"<h2>This link has ended</h2>"));
+    assert!(contains(peer.received(), b"<h1>This link has ended</h1>"));
     assert!(contains(peer.received(), b"href=\"/forges/connect?forge=1\""));
     assert!(contains(peer.received(), b"style-src 'sha256-"));
     assert!(!contains(peer.received(), b"/welcome?"));
@@ -1756,7 +1756,7 @@ fn a_members_request_explains_ownership_and_consumes_its_back() {
     let peer = visit(&mut service, b"GET", &target);
     status(&peer, b"200");
     for words in [
-        b"<h2>GitHub sent a request, not an installation</h2>".as_slice(),
+        b"<h1>GitHub sent a request, not an installation</h1>".as_slice(),
         b"Only an owner of an organization can install",
         b"Install it on your own account, or on an organization you own.",
         b"href=\"/welcome?at=forge&amp;forge=1\"",
@@ -1771,7 +1771,7 @@ fn a_members_request_explains_ownership_and_consumes_its_back() {
     let mut accepted = visit(&mut service, b"GET", &setup_target(&state));
     complete_accept(&mut service, &mut accepted);
     status(&accepted, b"200");
-    assert!(contains(accepted.received(), b"<h2>GitHub is connected</h2>"));
+    assert!(contains(accepted.received(), b"<h1>GitHub is connected</h1>"));
     assert!(contains(accepted.received(), b"href=\"/forges\""));
 }
 
