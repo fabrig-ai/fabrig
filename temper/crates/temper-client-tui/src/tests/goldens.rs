@@ -5,6 +5,7 @@
 
 use super::fixtures as f;
 use crate::{Refusal, Scheme, Told, Tui, theme};
+use skein_lib::Wall;
 use skein_ui_screen::{Focus, Frame, Size, render};
 
 // The two review sizes of the TUI's first screen.
@@ -25,7 +26,42 @@ fn the_tuis_screens_are_their_goldens() {
     signing_in.step(Told::Typed { value: Box::from(*b"http://127.0.0.1:9000/ji") });
     signing_in.step(Told::Refused { refusal: Refusal::OtherAddress { address: Box::from(*b"127.0.0.1:9000") } });
 
+    let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        code: super::approval::code(),
+        expires: Wall::from_nanos(600_000_000_000),
+    }));
+    let mut opened = Tui::new(f::ADDRESS);
+    opened.step(Told::Browse);
+    opened.step(Told::Opened { opened: true });
+    let mut no_browser = Tui::new(f::ADDRESS);
+    no_browser.step(Told::Browse);
+    no_browser.step(Told::Opened { opened: false });
+
     let rows = [
+        (
+            "approval-80x24-dark",
+            &approval,
+            &opened,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/approval-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "approval-80x24-light",
+            &approval,
+            &opened,
+            Scheme::Light,
+            FULL,
+            include_bytes!("golden/approval-80x24-light.txt").as_slice(),
+        ),
+        (
+            "approval-no-browser-80x24-dark",
+            &approval,
+            &no_browser,
+            Scheme::Dark,
+            FULL,
+            include_bytes!("golden/approval-no-browser-80x24-dark.txt").as_slice(),
+        ),
         (
             "first-80x24-dark",
             &first,

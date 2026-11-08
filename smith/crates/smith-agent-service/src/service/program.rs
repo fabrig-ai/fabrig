@@ -900,6 +900,10 @@ pub(super) fn down(service: &mut Stages) {
                         let route = service.owners.insert(Owner::Program(owner)).expect("program process route");
                         io::Request::Spawn { owner: component_owner(route.token()), spawn }
                     }
+                    io::Request::SpawnAlone { owner, spawn } => {
+                        let route = service.owners.insert(Owner::Program(owner)).expect("program process route");
+                        io::Request::SpawnAlone { owner: component_owner(route.token()), spawn }
+                    }
                     other @ (io::Request::Connect { .. }
                     | io::Request::Reject { .. }
                     | io::Request::Stream { .. }

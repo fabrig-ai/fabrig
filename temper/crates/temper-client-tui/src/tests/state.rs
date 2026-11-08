@@ -1,10 +1,12 @@
 use super::fixtures as f;
-use crate::{Refusal, Signing, Told, Tui};
+use crate::{Browser, Refusal, Signing, Told, Tui};
 use jig_client::Link;
 
 type Row<'a> = (&'a [Told], Told, Signing, &'a [u8], bool, bool, u64, u64, u64);
+type ApprovalRow<'a> = (&'a [Told], Told, Option<Browser>, bool, u64);
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks the TUI state and its revision changes")]
 fn the_states_steps_are_its_table() {
     use Signing::{Answered, Asked, Idle, Refused};
     let typed = Told::Typed { value: Box::from(*b"link") };
@@ -89,6 +91,41 @@ fn the_states_steps_are_its_table() {
             "row {index}: {told:?}"
         );
         assert_eq!(tui.address(), f::ADDRESS);
+    }
+    let rows: &[ApprovalRow<'_>] = &[
+        (&[], Told::Browse, Some(Browser::Opening), false, 1),
+        (&[Told::Browse], Told::Browse, Some(Browser::Opening), false, 1),
+        (&[Told::Asked], Told::Browse, Some(Browser::Opening), false, 2),
+        (&[Told::Browse, Told::Asked], Told::Browse, Some(Browser::Opening), false, 3),
+        (&[Told::Browse], Told::Opened { opened: true }, Some(Browser::Opened), false, 2),
+        (&[Told::Browse], Told::Opened { opened: false }, Some(Browser::None), false, 2),
+        (&[Told::Opened { opened: true }], Told::Opened { opened: true }, Some(Browser::Opened), false, 1),
+        (&[Told::Opened { opened: false }], Told::Opened { opened: false }, Some(Browser::None), false, 1),
+        (&[Told::Opened { opened: true }], Told::Browse, Some(Browser::Opening), false, 2),
+        (&[Told::Opened { opened: false }], Told::Browse, Some(Browser::Opening), false, 2),
+        (&[], Told::Asked, None, true, 1),
+        (&[Told::Asked], Told::Asked, None, true, 1),
+        (&[Told::Asked, Told::Browse], Told::Asked, Some(Browser::Opening), true, 3),
+        (&[Told::Asked, Told::Browse, Told::Asked], Told::Asked, Some(Browser::Opening), true, 3),
+        (&[Told::Asked], Told::Opened { opened: true }, Some(Browser::Opened), true, 2),
+        (&[Told::Asked], Told::Opened { opened: false }, Some(Browser::None), true, 2),
+        (&[Told::Browse, Told::Asked, linked.clone()], out.clone(), None, false, 4),
+        (&[Told::Opened { opened: false }, Told::Asked, linked.clone()], out.clone(), None, false, 4),
+        (&[Told::Browse, Told::Asked, linked.clone(), out.clone()], out.clone(), None, false, 4),
+        (&[Told::Browse, Told::Asked], out.clone(), Some(Browser::Opening), true, 2),
+    ];
+    assert_eq!((tui.browser(), tui.pasted()), (None, false));
+    for (index, (start, told, browser, pasted, revision)) in rows.iter().enumerate() {
+        let mut tui = Tui::new(f::ADDRESS);
+        for step in *start {
+            tui.step(step.clone());
+        }
+        tui.step(told.clone());
+        assert_eq!(
+            (tui.browser(), tui.pasted(), tui.revision()),
+            (*browser, *pasted, *revision),
+            "approval row {index}: {told:?}"
+        );
     }
     for link in [Link::Starting, Link::Live, Link::Offline, Link::OutOfDate] {
         let mut tui = Tui::new(f::ADDRESS);

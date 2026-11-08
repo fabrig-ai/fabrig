@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 3.6 has no known gap in the TUI's three kinds of original,
+`Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, or the shared
+`Originals::new`, `redact_field` and separate original and shape scans.
+The TUI uses these with its own records; the browser's redaction and
+scan retain their originals and refusals.
+
 Section 9 has no known implementation gap in the terminal's drawing
 route: the request pages remain hand-made references, nine gallery
 states draw the shared view, and `chat-draft` and `welcome-playground`

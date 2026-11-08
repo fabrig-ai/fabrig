@@ -199,6 +199,7 @@
 //!   with a pidfd and the parent ends in request order. `Way::In` means the
 //!   child reads; `Way::Out` means it writes. `Way::Given` duplicates its
 //!   resolved parent descriptor without making a pipe or taking ownership.
+//!   `Way::Null` opens `/dev/null` read and write in the child, with no parent end.
 //! - `PipeRead` and `PipeWrite` have the same count rules as `Recv` and
 //!   `Send`, with EOF at a zero read count. A pipe is closed by `Close`.
 //! - `Wait` observes an exit without reaping, or reaps after that observation;
@@ -577,7 +578,7 @@ impl core::fmt::Debug for EnvNames<'_> {
     }
 }
 
-/// A child descriptor: a pipe or a held listener (io.md, sections 6 and 6.3).
+/// A child descriptor: a pipe, a held listener or null (io.md, sections 6 and 6.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Pipe {
     pub child: u32,
@@ -594,6 +595,8 @@ pub enum Way {
     Out,
     /// A held listener retained by io and duplicated to the child.
     Given(Token),
+    /// Open /dev/null for reading and writing in the child, without a parent end.
+    Null,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1201,7 +1204,7 @@ fn valid_spawn(spawn: &Spawn) -> bool {
     }
     for (at, pipe) in spawn.pipes.iter().enumerate() {
         let parent_valid = match pipe.way {
-            Way::In | Way::Out => pipe.parent.is_none(),
+            Way::In | Way::Out | Way::Null => pipe.parent.is_none(),
             Way::Given(_) => pipe.parent.is_some(),
         };
         if i32::try_from(pipe.child).is_err() || !parent_valid {
@@ -1265,9 +1268,9 @@ fn may_fail(op: &Op, error: Error) -> bool {
     if let Op::Spawn { spawn } = op {
         for pipe in &spawn.pipes {
             match pipe.way {
-                Way::In | Way::Out if pipe.parent.is_some() => return false,
+                Way::In | Way::Out | Way::Null if pipe.parent.is_some() => return false,
                 Way::Given(_) if pipe.parent.is_none() => return false,
-                Way::In | Way::Out | Way::Given(_) => {}
+                Way::In | Way::Out | Way::Given(_) | Way::Null => {}
             }
         }
         return error != Error::TooLate && error != Error::Cancelled;
@@ -1473,7 +1476,10 @@ fn fits(op: &Op, done: &Done) -> bool {
         Done::Spawned { .. } => match op {
             Op::Spawn { spawn } => {
                 for pipe in &spawn.pipes {
-                    if pipe.parent.is_none() {
+                    if match pipe.way {
+                        Way::In | Way::Out | Way::Given(_) => pipe.parent.is_none(),
+                        Way::Null => pipe.parent.is_some(),
+                    } {
                         return false;
                     }
                 }

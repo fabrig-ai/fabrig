@@ -1066,6 +1066,11 @@ private root or file owned by anyone else is refused, saying so.
     `Given(token)` (6.3): one io holds, a held listener (3.2) so far,
     which the child inherits at the entry's descriptor; io keeps its own,
     and `Spawned` names no token for it.
+  - A null descriptor is an entry whose way is `Null`: the child's
+    descriptor opened on `/dev/null`, for reading and writing, by the
+    spawn's file actions. io holds nothing for it and `Spawned` names no
+    token for it; a child given null descriptors for 0, 1 and 2 reads
+    nothing and says nothing to anyone, and writes to them never fail.
   - A requested pipe has a chosen child descriptor and direction. Its
     parent end is a one-way stream token in the `Spawned` event, in request
     order. Each pipe consumes one entity slot alongside the child.
@@ -1093,6 +1098,13 @@ private root or file owned by anyone else is refused, saying so.
   itself has exited, then reaps it: what it started in its group ends
   with it. The exit and pipe closures still settle before its `Closed`
   event.
+- **A child spawned alone** (`SpawnAlone`, the same fields and events as
+  `Spawn`) is one whose group io never signals: closing it sends `Kill`
+  to the child alone while it runs, and none once it has exited, then
+  reaps it as any child. What it started stays, in its group, and
+  outlives it, as a descendant that left the group does. It is for a
+  child that hands work to a program meant to outlive it, as an opener
+  starts a browser; its owner can still signal its group by `Signal`.
 - **A timeout is the owner's** (programming-model.md, 4). An owner that
   gives a child a deadline signals its group when it passes, then closes
   it. Whatever the child started that holds its pipes then ends too, and
@@ -1222,7 +1234,7 @@ pub struct Spawn {
 }
 pub enum Dir    { Beneath { root: Token, path: Box<[u8]> }, InView(Box<[u8]>) }
 pub struct Ids  { pub user: u32, pub group: u32, pub groups: Box<[u32]> }
-pub enum Way   { In, Out, Given(Token) }  // Given: a held listener (3.2) or an io root
+pub enum Way   { In, Out, Given(Token), Null }  // Given: a held listener (3.2) or an io root; Null: /dev/null
 pub struct Contain {
     pub users: Box<[Map]>, pub groups: Box<[Map]>,  // the user namespace's maps
     pub pid: bool,                                  // a pid namespace of its own
