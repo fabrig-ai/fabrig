@@ -1,4 +1,7 @@
 //! Table tests of path comparisons and settings overlays.
+mod derivation;
+#[path = "tests/invariants.rs"]
+mod invariants;
 use super::*;
 use alloc::boxed::Box;
 use temper_engine_domain_forge::settings::{Held, LandingRule, ProjectWays, RuleApproval, RuleGate, Value};
@@ -344,7 +347,7 @@ fn subjects_keep_project_bits_apart_from_other_subjects() {
 }
 
 #[test]
-fn derive_stub_keeps_the_branch_and_repository() {
+fn derive_keeps_the_branch_and_repository() {
     for (repository, expected) in [
         (None, None),
         (
@@ -371,9 +374,9 @@ fn derive_stub_keeps_the_branch_and_repository() {
             roles: Box::default(),
             agents: Box::default(),
         };
-        assert_eq!(
-            derive(&inputs),
-            Path { branch: b"topic".as_slice().into(), repository: expected, stops: Box::default() }
-        );
+        let path = derive(&inputs);
+        assert_eq!(path.branch.as_ref(), b"topic");
+        assert_eq!(path.repository, expected);
+        assert_eq!(path.stops.last().expect("landing bar").actor, Actor::Bar);
     }
 }

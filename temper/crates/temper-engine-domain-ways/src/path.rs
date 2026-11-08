@@ -1,5 +1,8 @@
 //! A branch's path (temper/docs/design/domain/forge.md, 8.13).
 use alloc::boxed::Box;
+mod cards;
+mod derive;
+mod rules;
 /// Who acts at a stop (domain/forge.md, 8.13).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Actor {
@@ -167,7 +170,7 @@ pub struct Inputs {
     pub agents: Box<[Agent]>, // one per charter the path names
 }
 
-/// The inputs' branch and repository, with no stops; task `ways-derive` writes the derivation.
+/// Derive the branch's path (temper/docs/design/domain/forge.md, 8.13).
 #[must_use]
 pub fn derive(inputs: &Inputs) -> Path {
     let repository = match &inputs.repository {
@@ -182,5 +185,5 @@ pub fn derive(inputs: &Inputs) -> Path {
         }
         None => None,
     };
-    Path { repository, branch: inputs.branch.clone(), stops: Box::default() }
+    Path { repository, branch: inputs.branch.clone(), stops: derive::stops(inputs) }
 }
