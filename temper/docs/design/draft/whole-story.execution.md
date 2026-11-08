@@ -77,11 +77,11 @@ or the nearest thing, and says so in that draft's status.
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | not started |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | in flight |
-| R2 | Areas, routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | not started |
+| R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | not started |
 | R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | not started |
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | in flight |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | not started |
-| G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | not started |
+| G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | low priority, not for v0.1.0 |
 | T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | not started |
 | T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | not started |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | not started |
@@ -90,7 +90,7 @@ or the nearest thing, and says so in that draft's status.
 | V2 | The pilot: vsr's protocol core waiting for the person's sign-off | `whole-story.md`, 5.2 | V1, N2 | temper/migration, with the user | not started |
 | V3 | The pilot: Prover owns vsr's tests and triage | `whole-story.md`, 5.2 | V1, R2 | temper/migration, with the user | not started |
 | V4 | The pilot: vsr-rs follows vsr, Porter owning it | `whole-story.md`, 5.2 | V1, F1, R2 | temper/migration, with the user | not started |
-| V5 | The pilot: cowsql, and a week of the person's use | `whole-story.md`, 5.2 and 11 | V1 to V4, F2, G1 | temper/migration, with the user | not started |
+| V5 | The pilot: cowsql, and a week of the person's use | `whole-story.md`, 5.2 and 11 | V1 to V4, F2 | temper/migration, with the user | not started |
 
 ### M0. The mockups join the design
 
@@ -198,11 +198,18 @@ lands when it's ready.
 | 2. What reaches you | N1, N3a, P3b, N3b | See why a need reached them, and stop asking; go Away; read what was decided for them, on any task; see what only they can do; read What reaches you on How work runs; then get a push for a blocking need | E: what reaches a person |
 | 3. Sign-offs by path | N2, P3c | Say that some paths need their sign-off, see that stop on the path, and watch a change wait for it while others land | E: Team. V2 |
 | 4. Standing roles | R1, P4b, R2, P4c, P5b, R3, T3 | Start a role and read its Now on Team; hand it an area, and see a red reach it and get repaired; have Tell temper file with an area's owner; talk with a role | E: standing roles. V3 |
-| 5. Follows | F1, P3d, F2, G1 | Have one project follow another, and see a landing become a change there, its lag back at zero; start one goal whose changes land in two projects' repositories | E: follows. V4, then V5 |
+| 5. Follows | F1, P3d, F2 | Have one project follow another, and see a landing become a change there, its lag back at zero | E: follows. V4, then V5 |
 
 - **Each milestone is usable alone:** one that finishes early shows
   through today's pages, as N1's why and Stop asking do before P3b draws
   its columns.
+- **G1 is low priority** (the user, 2026-11-08): it doesn't block
+  v0.1.0, and runs if there's room. Until it has, work on vsr and on
+  cowsql runs as a goal per repository.
+- **Routing by path is Later** (the user, 2026-11-08; `standing-roles.md`,
+  section 13): in R2 the project's triager routes by judgement, from the
+  areas' words. Sign-offs by path stay, in step 3: a landing's rule can't
+  be left to judgement.
 - **Then:** E whole, once its five parts have been walked; V, part by
   part, as its needs land.
 - **Seams told before they change:** temper-engine-domain and
@@ -254,7 +261,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | R2, R3 | wait | R1, by their needs |
 | F1 | in flight | goal 102 |
 | F2 | waits | F1, by its needs |
-| G1 | waits | its draft, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; F1 |
+| G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
 | T2 | waits | T1 and P6, by its needs; finding-465's repair, a chat losing its opening question |
 | T3 | waits | T1, R2 and R3, by its needs |

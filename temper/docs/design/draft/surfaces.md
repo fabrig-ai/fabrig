@@ -196,15 +196,17 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 6. Team
 
 - **A project's areas and their owners.** The intro: "Who owns what on
-  PROJECT", and a lede saying that a finding, a red or a question goes to
-  its area's owner, who asks the person as How work runs says.
-- **The areas,** a table: the area's name; its paths, repositories and
-  paths in them, and finding labels; its owner, the person, a member or a
-  standing role, as a chip in who-acts colours; the owner's Now in a
-  line; this week's spend of the owner's budget. Findings with no area
-  have an owner too, the project's triager (`../domain/findings.md`,
-  section 6). "+ Hand an area to a role" at the head's right proposes a
-  role, from the stock or written with Ask temper.
+  PROJECT", and a lede saying that the project's triager hands a finding or
+  a red to its area's owner, who asks the person as How work runs says.
+- **The areas,** a table: the area's name; what it covers, in words; its
+  owner, the person, a member or a standing role, as a chip in who-acts
+  colours; the owner's Now in a line; this week's spend of the owner's
+  budget. What fits no area has an owner too, the project's triager
+  (`../domain/findings.md`, section 6). "+ Hand an area to a role" at the
+  head's right proposes a role, from the stock or written with Ask temper.
+- **Who routes,** under the table: the project's triager, as a chip, which
+  reads what comes in against the areas' words (`standing-roles.md`,
+  section 4), changed by proposal.
 - **A person's line** is what waits on them: "Two questions wait on
   you." A person writes no Now.
 - **A role's card,** opened from its row (`standing-roles.md`, section 2):

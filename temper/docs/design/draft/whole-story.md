@@ -166,10 +166,11 @@ Team, for Prover's and Porter's Nows; How work runs, to tune what
 reaches them. Drawn as the at-scale set (section 9).
 
 What it needs beyond today: rules by path, standing roles, follows,
-goals whose changes span two projects' repositories, and workers whose
-machine builds the project: vsr needs a C toolchain, and Linux 6.18 or
-newer for its io_uring tests (`../domain/worker.md`, 4.4, for what a
-job runs).
+and workers whose machine builds the project: vsr needs a C toolchain,
+and Linux 6.18 or newer for its io_uring tests (`../domain/worker.md`,
+4.4, for what a job runs). Goals whose changes span two projects'
+repositories are later (the user, 2026-11-08): until then, work on vsr
+and on cowsql runs as a goal per repository.
 
 ### 5.3 A project's own development moving in
 
