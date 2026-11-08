@@ -6,16 +6,17 @@
 //! to be encoded, and what they are for waits in order; smith's facts go out
 //! to be decoded as jig's activity. An agent that has gone waits behind its
 //! hand-outs. The hub hears an agent has started only once smith admits its
-//! run.
+//! run. A refused start waits for cleanup's bounded operator evidence
+//! (`temper/docs/design/domain/worker.md`, 4.3).
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::Phase;
-use skein_lib::{Env, Queue, Time, Token};
+use skein_lib::{Env, List, Queue, Time, Token};
 use smith_host_domain as smith;
 
 use crate::boundary::{Encodable, Encoded, Request};
-use crate::hand_out::{Finish, Pending};
+use crate::hand_out::{Finish, Pending, StartRefusal};
 use crate::{Domain, Limits, route, smith_delivery, translate, workspace};
 
 /// An agent smith started for a hosted run, by the run's token.
@@ -26,6 +27,8 @@ pub(crate) struct Bound {
     pub(crate) admitted: bool,
     /// Bounded operator evidence retained until process cleanup.
     detail: Box<[u8]>,
+    /// A refused start waits for its process to drain before answering.
+    refused: Option<StartRefusal>,
 }
 
 /// A call of a run, from smith's `Called` until the hub's reply.
@@ -90,7 +93,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Started { client, agent } => {
             let old = domain
                 .agents
-                .insert(client, Bound { agent, admitted: false, detail: Box::new([]) })
+                .insert(client, Bound { agent, admitted: false, detail: Box::new([]), refused: None })
                 .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
             return;
@@ -304,47 +307,50 @@ pub(crate) fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, enco
             route::host_step(domain, env, event);
         }
         Pending::Call { call, .. } => named(domain, env, owner, call, encoded),
-        Pending::Result { turns, spent, read, finish, .. } => {
-            let event = match encoded {
-                Encoded::Result(body) => match finish {
-                    Finish::Ended => host::FromAgent::Finished {
-                        owner,
-                        turns,
-                        spent,
-                        read,
-                        finish: host::Finish::Ended { outcome: body },
-                    },
-                    Finish::Parked => {
-                        host::FromAgent::Finished { owner, turns, spent, read, finish: host::Finish::Parked }
-                    }
-                    Finish::Failed(failure) => host::FromAgent::Finished {
-                        owner,
-                        turns,
-                        spent,
-                        read,
-                        finish: host::Finish::Failed { failure },
-                    },
-                    Finish::Refused(cause) => host::FromAgent::StartRefused { owner, cause, why: body },
-                },
-                // A refusal comes before smith admits the run, a failure after.
-                Encoded::Undecodable => match finish {
-                    Finish::Refused(cause) => {
-                        host::FromAgent::StartRefused { owner, cause, why: Box::from(&b"refusal"[..]) }
-                    }
-                    Finish::Ended | Finish::Parked | Finish::Failed(_) => {
-                        host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules }
-                    }
-                },
-                Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
-            };
-            route::host_step(domain, env, host::Event::Agent(event));
-        }
+        Pending::Result { .. } => result_encoded(domain, env, pending, encoded),
     }
     if !hand_out_pending(domain, owner)
         && let Some(detail) = domain.gone.remove(&owner)
     {
         gone(domain, env, owner, detail);
     }
+}
+
+/// A result finishes an admitted run; a refusal waits for cleanup evidence.
+fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, encoded: Encoded) {
+    let (owner, turns, spent, read, finish) = match pending {
+        Pending::Result { owner, turns, spent, read, finish } => (owner, turns, spent, read, finish),
+        Pending::Turn { .. } | Pending::Call { .. } => unreachable!("a result hand-out"),
+    };
+    let body = match encoded {
+        Encoded::Result(body) => Some(body),
+        Encoded::Undecodable => None,
+        Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
+    };
+    let event = match finish {
+        Finish::Refused(cause) => {
+            let why = match body {
+                Some(body) => body,
+                None => Box::from(&b"refusal"[..]),
+            };
+            let bound = domain.agents.get_mut(&owner).expect("a refused agent waits for its hand-outs");
+            bound.refused = Some(StartRefusal { cause, why });
+            return;
+        }
+        Finish::Ended | Finish::Parked | Finish::Failed(_) => match body {
+            Some(body) => {
+                let finish = match finish {
+                    Finish::Ended => host::Finish::Ended { outcome: body },
+                    Finish::Parked => host::Finish::Parked,
+                    Finish::Failed(failure) => host::Finish::Failed { failure },
+                    Finish::Refused(_) => unreachable!("a refusal waits for cleanup"),
+                };
+                host::FromAgent::Finished { owner, turns, spent, read, finish }
+            }
+            None => host::FromAgent::Faulted { owner, fault: host::AgentFailure::Rules },
+        },
+    };
+    route::host_step(domain, env, host::Event::Agent(event));
 }
 
 /// A call's name came back: the call goes to the hub, and its withdrawal
@@ -396,18 +402,14 @@ fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
 /// refused before any process ran is refused as invalid; any other end waits
 /// behind the run's hand-outs.
 fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, detail: Box<[u8]>) {
-    let bound = domain.agents.remove(&owner);
-    let started = bound.is_some();
-    let detail = match bound {
-        Some(bound) if !bound.detail.is_empty() => bound.detail,
-        Some(_) | None => detail,
-    };
+    let started = domain.agents.contains_key(&owner);
     let unstarted = match end {
         smith::End::Busy | smith::End::Invalid(_) | smith::End::Unspawned => true,
         smith::End::Exited { .. } | smith::End::Settled => false,
     };
     assert!(started || unstarted, "an agent that ran started first");
     if let Some(why) = translate::unstarted(end) {
+        domain.agents.remove(&owner);
         let cause = match end {
             smith::End::Invalid(smith::Invalid::Transcript) => host::StartCause::Transcript,
             smith::End::Busy
@@ -428,9 +430,45 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
 
 /// The hub hears the agent has gone, unless its run has answered already.
 fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
+    let bound = domain.agents.remove(&owner);
+    let (detail, refused) = match bound {
+        Some(bound) => (diagnostic(&bound.detail, &detail, env.limits.host.detail_bytes), bound.refused),
+        None => (detail, None),
+    };
     if let Some(hosting) = domain.host.hosting(owner)
         && hosting.phase != Phase::Answered
     {
-        route::host_step(domain, env, host::Event::Agent(host::FromAgent::Gone { owner, detail }));
+        let event = match refused {
+            Some(StartRefusal { cause, why }) => host::FromAgent::StartRefused {
+                owner,
+                cause,
+                why: diagnostic(&why, &detail, env.limits.host.detail_bytes),
+            },
+            None => host::FromAgent::Gone { owner, detail },
+        };
+        route::host_step(domain, env, host::Event::Agent(event));
     }
+}
+
+/// Keep the reason's prefix and the cleanup's tail, reserving room for both.
+fn diagnostic(reason: &[u8], cleanup: &[u8], bound: u32) -> Box<[u8]> {
+    let mut text = List::with_capacity(bound);
+    let room = skein_lib::usize_of(bound);
+    let keep = if cleanup.is_empty() {
+        room
+    } else {
+        let reserved = cleanup.len().min(room.saturating_sub(1).checked_div(2).expect("nonzero divisor"));
+        room.saturating_sub(reserved).saturating_sub(1)
+    };
+    for byte in reason.get(..reason.len().min(keep)).expect("bounded prefix") {
+        text.push(*byte).expect("reason room");
+    }
+    if !text.is_empty() && !cleanup.is_empty() && text.room() > 0 {
+        text.push(b'\n').expect("separator room");
+    }
+    let from = cleanup.len().saturating_sub(skein_lib::usize_of(text.room()));
+    for byte in cleanup.get(from..).expect("bounded cleanup tail") {
+        text.push(*byte).expect("cleanup room");
+    }
+    text.into_boxed()
 }
