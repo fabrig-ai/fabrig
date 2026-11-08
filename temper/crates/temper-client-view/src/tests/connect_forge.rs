@@ -697,7 +697,7 @@ pub(super) fn deliver(
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: temper_client_protocol_wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                         ),
                     },
                 },

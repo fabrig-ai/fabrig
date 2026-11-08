@@ -17,6 +17,7 @@ fn facts() -> Facts {
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
+        front: false,
         local: false,
         note: None,
         kept: Vec::new(),
@@ -554,8 +555,17 @@ fn duties_keep_the_seams_order_and_fields() {
 }
 
 fn local_walk() -> Walk {
+    linked_walk(false)
+}
+
+fn linked_walk(front: bool) -> Walk {
+    linked_walk_duties(front).0
+}
+
+fn linked_walk_duties(front: bool) -> (Walk, Duties) {
     let mut facts = facts();
     facts.local = true;
+    facts.front = front;
     facts.note = Some(temper_client_tui::Note::Until(Wall::from_nanos(1)));
     let mut walk = Walk::with(&facts);
     let link = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43));
@@ -575,12 +585,13 @@ fn local_walk() -> Walk {
     let duties = walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
     })]);
-    let duties = duties.into_iter().next().expect("hello's duties");
-    walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
+    let mut duties = duties.into_iter().next().expect("hello's duties");
+    let next = walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(crate::host::tests::me_bytes(&duties)),
     })]);
+    duties.asked.extend(next.into_iter().flat_map(|duties| duties.asked));
     walk.mark();
-    walk
+    (walk, duties)
 }
 
 #[test]
@@ -641,6 +652,8 @@ fn local_records_are_refused_outside_their_places() {
         ("noted before credential", 6, Line::Noted(Note::SignedOut)),
         ("local among reports", 10, Line::Local),
         ("noted among duties", 12, Line::Noted(Note::SignedOut)),
+        ("front among reports", 10, Line::Front),
+        ("box-line among facts", 5, Line::BoxLine(b"log recent".as_slice().into())),
         ("found among facts", 5, Line::Found(None)),
         ("found outside turn", canonical.len() - 1, Line::Found(None)),
         ("note before keep", 10, Line::Note(Note::SignedOut)),
@@ -663,4 +676,53 @@ fn local_records_are_refused_outside_their_places() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+    for bytes in [b"unknown field".as_slice(), b"log ", b""] {
+        let mut records = canonical.clone();
+        records.insert(10, Line::BoxLine(bytes.into()));
+        let Err(error) = Replay::new(&written(&records)) else { panic!("unreadable box line accepted") };
+        assert_eq!(error, Unreadable { line: 11, why: "unreadable box line" });
+    }
+}
+
+#[test]
+fn front_reports_replay_through_box_line_read() {
+    use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
+    use jig_client_protocol_wire::v19 as w;
+    use temper_client_tui::BoxLine;
+    let (mut walk, duties) = linked_walk_duties(true);
+    let duties = walk.admit(duties);
+    let me = watch(&duties, &w::Subject::Me);
+    let next = walk.reports(vec![delivery_report(me, &w::DeliveryValue::Me(launchpad_me(true)))]);
+    let duties = walk.admit(next.into_iter().next().expect("me duties"));
+    let tasks = watch(&duties, &home_subject(&duties));
+    walk.reports(vec![delivery_report(tasks, &w::DeliveryValue::Tasks(home_tasks(true)))]);
+    for bytes in [b"restarting forge".as_slice(), b"log recent line"] {
+        walk.reports(vec![Report::Front(BoxLine::read(bytes).expect("box line"))]);
+    }
+    walk.mark();
+    let duties = walk.key(Key::Control(b'c'));
+    assert!(!duties.iter().any(|duties| duties.close), "work running asks before quitting");
+    assert!(
+        walk.host.frame().text().windows(b"Stop the box?".len()).any(|bytes| bytes == b"Stop the box?"),
+        "the quit question stands"
+    );
+    let records = lines(&walk.save()).expect("front records");
+    assert!(records.contains(&Line::Front), "front start fact");
+    assert_eq!(records.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 2);
+    same_frames(walk);
+}
+
+impl Walk {
+    fn admit(&mut self, mut duties: Duties) -> Duties {
+        let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
+        while let Some(request) = pending.pop_front() {
+            if let Some(report) = crate::host::tests::background_reply(&request) {
+                for next in self.reports(vec![report]) {
+                    pending.extend(next.asked);
+                }
+            }
+            duties.asked.push(request);
+        }
+        duties
+    }
 }

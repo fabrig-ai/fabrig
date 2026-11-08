@@ -2474,7 +2474,8 @@ fn home_domain(name: &str) -> Domain {
                         )
                     }
                     w::Watch::Forges => wire::forges(
-                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
+                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false })
+                            .expect("Home forges"),
                     ),
                     w::Watch::Status(_) => match if home_away {
                         Some(crate::worlds::home_away_status())

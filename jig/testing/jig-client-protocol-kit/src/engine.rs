@@ -202,7 +202,7 @@ impl Engine {
             Request::Redeemed { .. } | Request::Claimed { .. } => {
                 panic!("the world asks for no application sign-ins")
             }
-            Request::LocalLink { .. } | Request::Closed => {}
+            Request::LocalLink { .. } | Request::LinkSignedIn | Request::Closed => {}
         }
         None
     }

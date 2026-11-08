@@ -78,6 +78,25 @@
     header has no blank row before the body. These are the landing account's
     explained differences; real-terminal refinement remains
     `../client/README.md`, section 11's after-landing check.
+  - 1, 4.1 and 4.3, the user's decision of 2026-11-08, the look request
+    `tui-box-front`: `temper box` run in a terminal starts the TUI in
+    front of its services, where 4.1 has only `temper` start it; there
+    the welcome, following the browser's steps read-only, is its first
+    screen, where 4.3 has the launchpad's; it signs in by a link the box
+    hands it on a descriptor with nothing to read, paste or approve,
+    where 1 and 4.2 have it signed in from the browser or by a paste; and
+    Ctrl+C or `/exit` there stops the box with it, asking first while
+    work runs, where 4.1's closing is the TUI's alone. `temper box
+    --no-tui`, or a box with no terminal, runs as before
+    (`../client/README.md`, 6.17; `../protocol/setup.md`, 7.6). The
+    landing account's explained differences: the quiet line names a
+    failing step as the box names it ("forgejo-3 restarting"), where the
+    request's frame 05 has "forge restarting", and `/log` shows the box's
+    own lines as it wrote them, where the frame's are hand-made; its
+    journey is not recorded, since `again` cannot yet start the box in
+    its pseudo-terminal (`../client/tui/journeys.status.md`, 8.3); and
+    the render check and a real terminal's walk, Linux and macOS, follow
+    landing (`../client/README.md`, section 11).
   - 3, 4.4 and 5: the user's requests of 2026-11-08, from a walk on
     their own box (emacs vterm, 150 by 39, a solarized-dark ground), and
     the look request `tui-chat-title-below` (plan `tui-launchpad-2`):
@@ -94,9 +113,10 @@
     rather than a top line (`../client/README.md`, 6.12 to 6.15). The
     landing account's explained differences: the file does not tell a box
     from `temper serve` run alone, which reads as a box too, where the
-    request names "box" for a temper box, and telling it from the box
-    starting the TUI is later (`../client/README.md`, section 11, *On a
-    box, told by the box*); `launchpad-chat/04` names the place
+    request names "box" for a temper box; the box starting the TUI in
+    front tells it (`../client/README.md`, 6.17), and bare `temper`
+    keeps the file (`../client/README.md`, section 11, *On a box, told
+    by the box*); `launchpad-chat/04` names the place
     `127.0.0.1:PORT`, not the request's "box:40691", because its walk
     keeps the TUI apart from the box's link file to walk the approval
     (`../client/tui/journeys.md`, 8.2 and 11), and lacks the person's

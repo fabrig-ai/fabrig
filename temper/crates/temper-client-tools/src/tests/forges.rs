@@ -70,7 +70,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
     client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
     }
 }
 fn deliver(root: &mut f::Harness, record: client::Family) {
@@ -871,7 +871,7 @@ fn settled_wait_with_installations(count: u32) {
         client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+            bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
         },
     );
     let printed = root.answer(call).expect("settled wait completes");
@@ -1027,7 +1027,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         let record = client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&bounds, w::ForgesParts { forges: rows }).unwrap()),
+            bytes: wire::forges(&w::Forges::new(&bounds, w::ForgesParts { forges: rows, linked: false }).unwrap()),
         };
         let mut domain_limits = limits.domain.forge;
         domain_limits.field_bytes = bounds.account_login;
@@ -1489,7 +1489,7 @@ fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
         row.starts_with = w::StartsWith::Copies(copies.clone());
         rows.push(w::ForgeRow::new(&bounds, row).unwrap()).unwrap();
     }
-    let forges = w::Forges::new(&bounds, w::ForgesParts { forges: rows }).unwrap();
+    let forges = w::Forges::new(&bounds, w::ForgesParts { forges: rows, linked: false }).unwrap();
     let encoded = wire::forges(&forges);
     assert!(w::Forges::decoded_bound(&bounds).is_some());
     let request = w::Requesting::encoded_bound(&bounds).unwrap();

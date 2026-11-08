@@ -398,8 +398,12 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
     }
 }
 
-fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Option<Box<[u8]>> {
-    crate::family::forges(engine.forge.origins.rows(forges), &temper_client_protocol_wire::v1::CEILINGS)
+pub(crate) fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Option<Box<[u8]>> {
+    crate::family::forges(
+        engine.forge.origins.rows(forges),
+        engine.clients.linked(),
+        &temper_client_protocol_wire::v1::CEILINGS,
+    )
 }
 
 fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {

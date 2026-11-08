@@ -1,6 +1,6 @@
-//! The first standing list (client/README.md, 6.14, The commands and The chat's question).
+//! The first standing list (temper/docs/design/client/README.md, 6.14 and 6.17).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
-use crate::{Tui, words::Word};
+use crate::{Tui, view::front, words::Word};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, State, phrases::Hole};
@@ -14,6 +14,9 @@ use temper_client_domain::{
 use temper_client_view::shared;
 
 pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
+    if let Some(quit) = front::quit(root, tui, words) {
+        return Some(quit);
+    }
     if let Some(confirmation) = shared::confirmation(root) {
         return Some(Options {
             head: Some(copy_of(confirmation.head)),
@@ -63,7 +66,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
             escape: Event::Dismiss,
         });
     }
-    if let Some(commands) = commands(root, words, value) {
+    if let Some(commands) = commands(root, words, value, tui.front()) {
         return Some(commands);
     }
     if root.pages().chat().is_none() || !value.is_empty() {
@@ -74,7 +77,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
 }
 
 #[expect(clippy::disallowed_methods, reason = "commands reject Unicode whitespace in validated UTF-8 composer words")]
-fn commands(root: &Domain, words: &Words, value: &[u8]) -> Option<Options> {
+fn commands(root: &Domain, words: &Words, value: &[u8], front: bool) -> Option<Options> {
     if !value.starts_with(b"/") {
         return None;
     }
@@ -83,13 +86,23 @@ fn commands(root: &Domain, words: &Words, value: &[u8]) -> Option<Options> {
             return None;
         }
     }
-    let mut items = List::with_capacity(13);
+    let mut items = List::with_capacity(14);
     for command in crate::offered(root, words) {
+        if front && command == Command::Exit && crate::LOG_COMMAND.starts_with(value) {
+            items
+                .push(OptionItem {
+                    name: copy_of(crate::LOG_COMMAND),
+                    words: words.say(Word::LogCommand, &[]),
+                    selected: false,
+                    event: Event::Log,
+                })
+                .expect("commands and /log counted");
+        }
         if command.name().starts_with(value) {
             items
                 .push(OptionItem {
                     name: copy_of(command.name()),
-                    words: description(command, words),
+                    words: description(command, words, front),
                     selected: false,
                     event: Event::Command { command },
                 })
@@ -107,8 +120,12 @@ fn commands(root: &Domain, words: &Words, value: &[u8]) -> Option<Options> {
         })
     }
 }
-pub(super) fn description(command: Command, words: &Words) -> Box<[u8]> {
-    if command == Command::Exit { words.say(Word::Exit, &[]) } else { copy_of(shared::description(command)) }
+pub(super) fn description(command: Command, words: &Words, front: bool) -> Box<[u8]> {
+    if command == Command::Exit {
+        words.say(if front { Word::ExitFront } else { Word::Exit }, &[])
+    } else {
+        copy_of(shared::description(command))
+    }
 }
 pub(crate) fn question_list(
     question: shared::Question,

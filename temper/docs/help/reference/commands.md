@@ -50,9 +50,9 @@ Its stdout carries only sign-in links, one a line; its stderr, its startup notes
 
 ## temper box
 
-`temper box [DIRECTORIES] [--echo none|steps]`
+`temper box [DIRECTORIES] [--echo none|steps] [--no-tui]`
 
-`temper box [DIRECTORIES] --fake-backends [--bundle BUNDLE]`
+`temper box [DIRECTORIES] --fake-backends [--bundle BUNDLE] [--no-tui]`
 
 Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.
 
@@ -60,8 +60,9 @@ Run a deployment as one box: the setup steps of each forge it sets up, then temp
 - `--echo`: none prints errors and a failed step's log; steps prints every step's lines too, prefixed by its name.
 - `--fake-backends`: Run against temper's fake LLM provider, forge and OAuth issuer, as a deployment of its own under DATA/box/fake-backends that shares the cache.
 - `BUNDLE`: The web client's bundle directory, in place of the configured one; a relative path is taken from the working directory.
+- `--no-tui`: Run the box with no TUI in front, as on a pipe.
 
-Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
+In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ## temper program-login
 
@@ -212,6 +213,14 @@ Run an owned forge's program, sent SIGNAL when its parent PID ends. Spawned by t
 
 - `PID`: The process whose end ends the program.
 - `PROGRAM`: The program to run, with its ARGS.
+
+## temper internal tui
+
+`temper internal tui --box ADDRESS`
+
+Run the TUI in front of the box that started it, signed in by the link the box hands it. Spawned by temper; never run by hand.
+
+- `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
 
 ## temper fake llm
 
