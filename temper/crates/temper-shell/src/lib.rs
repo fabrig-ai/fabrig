@@ -3,8 +3,11 @@
 
 use std::{os::unix::ffi::OsStrExt, path::Path};
 
+pub mod commands;
 pub mod directories;
+pub mod help;
 pub mod link_file;
+pub mod rows;
 
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
