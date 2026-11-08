@@ -98,3 +98,17 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the derivation's changes as written, each row and the bites with their failures, the readers changed and why each, the regenerated goldens and prints, the worst ways document's figure, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-25/path-stops/foreman-1)
+
+resolve both status-file conflicts while preserving main’s updates and path-stops’ status changes
+Rebase onto current main (`4bc9d78acea630a5fb7f219f52e0d102ace484a6`).
+The merge log reports content conflicts in:
+- `temper/docs/design/client/README.status.md`
+- `temper/docs/design/domain/forge.status.md`
+
+In `client/README.status.md`, retain main’s updated How work runs and other status paragraphs, including `a0422f576d`’s changes. Remove the 4.6 `path-stops` Not yet entry; retain the branch’s 5.16 `ways-misses` Not yet entry and its enclosing label.
+
+In `domain/forge.status.md`, retain main’s other status updates, including `228e4d7b0a`’s removal of the ignored goal-landing story gap. Remove the 8.13 `path-stops` Not yet entry. Keep the branch’s invariant wording: “no agent's stop for a conflict, a merge, a catch-up, a prepare, a proof or a turn”.
+
+Resolve individual hunks; taking either whole file would discard required changes. No implementation change is indicated by this refusal.
