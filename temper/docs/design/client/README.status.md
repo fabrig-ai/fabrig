@@ -555,7 +555,7 @@ read's head explicit.
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
-  `configure.rs` ask only while no rename is open. So an owner who presses "Rename
+  `ask_page.rs` ask only while no rename is open. So an owner who presses "Rename
   PROJECT" with a reply open on Home or Needs you meets skein-ui's
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded

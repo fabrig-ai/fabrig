@@ -43,7 +43,7 @@ That fake-model walk reaches the goal and its Draft link back to the chat;
 a real-box recording remains the person's later work (section 10).
 
 - **Not yet:**
-  - 9: the recordings of `welcome-set-up`, `welcome-playground`, `project-landing` and `chat-draft` were made on fake boxes whose stock held template 3 and charter 3, the configuring chat's, and their `me` and settings records still list them; each is recorded again (8.1) on a box whose stock no longer does.
+  - 9: `chat-draft`'s recording still lists template 3 and charter 3, the configuring chat's. Its task numbers moved with the configuring chat's removal, so its walk needs renewal after landing before it is recorded again (8.1), per temper/ui's answer to `ui-ask-drop/journeys` of 2026-11-08.
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
