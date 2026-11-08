@@ -91,10 +91,11 @@ fn temper_open_adopts_a_repository_by_commands() {
     let mut typist = support::terminal::Typist::new(open, serve, link);
     typist.wait_for(b"== Inbox == Live", support::WITHIN);
     typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
-    typist.type_on(b"Settings", b"");
-    typist.wait_for(b"== How work runs in ", support::WITHIN);
+    typist.type_on(b"Deployment", b"");
     typist.type_on(b"Forges", b"");
     typist.wait_for(b"Forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
+    typist.type_on(b"How work runs", b"");
+    typist.wait_for(b"== How work runs in ", support::WITHIN);
     typist.type_on(b"Repositories", b"");
     typist.type_on(b"Add repositories", b"");
     for (control, words, printed) in [

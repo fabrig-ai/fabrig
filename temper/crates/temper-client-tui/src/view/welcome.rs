@@ -43,12 +43,15 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Task { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }

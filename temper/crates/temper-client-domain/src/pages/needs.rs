@@ -304,9 +304,12 @@ impl Session {
         match after {
             Address::Inbox { .. } => {}
             Address::NewChat { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Chats { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -706,9 +709,12 @@ pub(crate) fn act(
                 Address::Home { project } => Some(project),
                 Address::Inbox { .. }
                 | Address::NewChat { .. }
+                | Address::Work { .. }
                 | Address::Goals { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
+                | Address::Members
+                | Address::Limits
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }

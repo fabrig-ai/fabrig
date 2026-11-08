@@ -58,27 +58,27 @@ impl Play for Walk {
     }
 }
 
-/// Choosing the playground opens `NewChat`. Later native moves press the rail's New chat:
+/// Choosing the playground opens `NewChat`. Later native moves use the rail's Change menu:
 /// a document navigation would start a fresh worker.
 fn story_steps() -> Vec<Step> {
     let mut first_new_chat = true;
     temper_playground_world::stories::a()
         .into_iter()
         .enumerate()
-        .filter_map(|(index, step)| {
-            Some(Step::Person(match step {
+        .flat_map(|(index, step)| {
+            vec![Step::Person(match step {
                 PersonStep::Go { address } => {
                     let path = temper_client_domain::address::print(&address);
                     if index == 0 {
                         assert_eq!(path.as_ref(), b"/welcome");
-                        return None;
+                        return Vec::new();
                     }
                     assert_eq!(path.as_ref(), b"/chats/new");
                     if first_new_chat {
                         first_new_chat = false;
-                        return None;
+                        return Vec::new();
                     }
-                    PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }
+                    return temper_client_browser_world::start_change(true);
                 }
                 PersonStep::Press { find } => PersonStep::Press { find },
                 PersonStep::Near { find, edge } => PersonStep::Near { find, edge },
@@ -88,7 +88,7 @@ fn story_steps() -> Vec<Step> {
                 PersonStep::Gone { find, within } => PersonStep::Gone { find, within },
                 PersonStep::Reload => PersonStep::Reload,
                 PersonStep::Pause { span } => PersonStep::Pause { span },
-            }))
+            })]
         })
         .collect()
 }
