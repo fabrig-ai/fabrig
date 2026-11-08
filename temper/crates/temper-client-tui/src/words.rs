@@ -24,9 +24,7 @@ pub enum Word {
     NotReady,
     NoAnswer,
     Refused,
-    Connected,
     Connecting,
-    Projects,
     NotKept,
     ApprovalAsking,
     ApprovalTab,
@@ -70,7 +68,7 @@ pub enum Word {
     Dots,
     Numbered,
 }
-pub(crate) const ALL: [Word; 59] = [
+pub(crate) const ALL: [Word; 57] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -85,9 +83,7 @@ pub(crate) const ALL: [Word; 59] = [
     Word::NotReady,
     Word::NoAnswer,
     Word::Refused,
-    Word::Connected,
     Word::Connecting,
-    Word::Projects,
     Word::NotKept,
     Word::ApprovalAsking,
     Word::ApprovalTab,
@@ -135,8 +131,6 @@ pub(crate) const ALL: [Word; 59] = [
 #[derive(Clone, Copy)]
 enum Slot {
     Address,
-    Party,
-    Projects,
     State,
     Code,
     ApprovalAddress,
@@ -152,8 +146,6 @@ impl Slot {
             Self::Number => HoleKind::Number,
             Self::Moment => HoleKind::Moment,
             Self::Address
-            | Self::Party
-            | Self::Projects
             | Self::State
             | Self::Code
             | Self::ApprovalAddress
@@ -162,7 +154,7 @@ impl Slot {
             | Self::Clock => HoleKind::Name,
         }
     }
-    fn bytes(self, domain: &Limits) -> u32 {
+    fn bytes(self, _domain: &Limits) -> u32 {
         match self {
             Self::Address => 64,
             Self::Code => 9,
@@ -171,18 +163,9 @@ impl Slot {
             Self::Span => 32,
             Self::Number => 20,
             Self::Moment | Self::Clock => 13,
-            Self::Party => domain.client.domain.text,
-            Self::Projects => projects_bytes(domain),
             Self::State => 11, // "Out of date" is the longest state word.
         }
     }
-}
-/// Whole names and their four-byte separators, leaving room for "Projects: ".
-pub(crate) fn projects_bytes(domain: &Limits) -> u32 {
-    let count = u64::from(domain.client.domain.projects);
-    let names = count.saturating_mul(u64::from(domain.client.domain.text));
-    let joined = names.saturating_add(count.saturating_sub(1).saturating_mul(4));
-    u32::try_from(joined.min(u64::from(u32::MAX.saturating_sub(10)))).expect("joined bound fits u32")
 }
 impl Word {
     const fn number(self) -> u16 {
@@ -201,9 +184,7 @@ impl Word {
             Self::NotReady => 12,
             Self::NoAnswer => 13,
             Self::Refused => 14,
-            Self::Connected => 15,
             Self::Connecting => 16,
-            Self::Projects => 17,
             Self::NotKept => 18,
             Self::ApprovalAsking => 19,
             Self::ApprovalTab => 20,
@@ -294,9 +275,7 @@ impl Word {
             Self::NotReady => (&[b"Signing in: the engine is starting or stopping; trying again."], &[]),
             Self::NoAnswer => (&[b"Signing in: no answer from the engine; trying again."], &[]),
             Self::Refused => (&[b"This link was refused. Use the fresh one temper printed."], &[]),
-            Self::Connected => (&[b"Connected to ", b" as ", b""], &[Slot::Address, Slot::Party]),
             Self::Connecting => (&[b"Connecting to ", b""], &[Slot::Address]),
-            Self::Projects => (&[b"Projects: ", b""], &[Slot::Projects]),
             Self::NotKept => (&[b"This sign-in could not be kept: the next temper asks for a link again."], &[]),
             Self::ApprovalAsking => (&[b"Asking temper for a code\xe2\x80\xa6"], &[]),
             Self::ApprovalTab => (&[b"A tab opened in your browser. Check it shows"], &[]),
@@ -337,7 +316,6 @@ impl Word {
 pub struct Words {
     book: Phrasebook,
     view: temper_client_view::words::Words,
-    pub(crate) projects_bytes: u32,
 }
 impl Words {
     /// The TUI's English phrases under its owner, with domain-bounded holes.
@@ -404,17 +382,16 @@ impl Words {
             wall: WallFormat::Clock,
             phrases: phrases.into_boxed(),
         };
-        let projects_bytes = projects_bytes(domain);
         let limits = PhraseLimits {
             languages: 1,
             phrases: 60,
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,
-            hole_bytes: projects_bytes.max(domain.client.domain.text).max(95),
+            hole_bytes: domain.client.domain.text.max(95),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { book, view, projects_bytes })
+        Ok(Words { book, view })
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {

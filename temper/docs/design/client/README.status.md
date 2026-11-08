@@ -119,9 +119,6 @@ its 320 px, as the user accepted in `look-round-17`.
   6.16, *Closing*: the root stays at the inbox, a `Show` is dropped, the
   root's look is the browser's default, and `/exit` closes nothing.
 
-- **Not yet:** 6.14, *The launchpad*: the TUI draws the first screen,
-  "Connected to HOST:PORT as NAME" and its projects.
-
 - **Not yet:** 6.14, *A chat* and *The chat's question*: no chat is
   drawn.
 

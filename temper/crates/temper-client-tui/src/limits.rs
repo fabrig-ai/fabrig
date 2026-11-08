@@ -35,27 +35,46 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         .checked_add(line)?
         .checked_add(Word::QuitKeys.capacity(domain)?)?
         .checked_add(Word::State.capacity(domain)?)?;
-    let connected = Word::Connected.capacity(domain)?.max(Word::Connecting.capacity(domain)?).max(256);
-    let projects = Word::Projects.capacity(domain)?.max(256); // NoProjectYet fits the borrowed-line bound.
-    let first = Word::Title
+    let forge = temper_client_domain::forge::wire_limits(&domain.forge)?;
+    let brief = forge.status_brief_sentence.checked_add(1)?.checked_add(forge.status_brief_lede)?;
+    let need = domain
+        .client
+        .domain
+        .text
+        .max(domain.forge.field_bytes)
+        .checked_add(domain.client.domain.long_text.max(domain.forge.field_bytes))?
+        .checked_add(256)?;
+    line = line.max(brief).max(need);
+    let launchpad = Word::Title
         .capacity(domain)?
-        .checked_add(connected)?
-        .checked_add(projects)?
+        .checked_add(Word::Separator.capacity(domain)?)?
+        .checked_add(domain.client.domain.text)?
+        .checked_add(64)?
+        .checked_add(brief)?
+        .checked_add(Word::Byline.capacity(domain)?)?
         .checked_add(Word::NotKept.capacity(domain)?)?
-        .checked_add(Word::State.capacity(domain)?)?;
+        .checked_add(Word::LeftOff.capacity(domain)?)?
+        .checked_add(domain.client.domain.text)?
+        .checked_add(256)?
+        .checked_add(Word::NeedsYou.capacity(domain)?)?
+        .checked_add(need.checked_mul(5)?)?;
     // The TUI owns its form and command menu even with no supplied page bound.
     // The browser page bound covers model, effort, chat and question lists.
     let foot_nodes = 64_u32;
+    // Up to eight help notes of eighteen lines, and the TUI's unknown-command note.
+    let note_lines = 8_u32.checked_mul(18)?.checked_add(1)?;
+    let nodes = foot_nodes.checked_add(64)?.checked_add(note_lines.checked_mul(2)?)?;
     let foot_text = field.checked_add(line.checked_mul(16)?)?;
     let screens = skein_ui::Limits {
         // Signing in: Page, Main, ten pairs of blocks and text leaves,
         // the field, ContentInfo and its paragraph and status text pairs.
-        nodes: foot_nodes,
-        depth: 7,
-        text_per_node: field.max(line).max(connected).max(projects),
-        text_bytes: signing.max(first.checked_add(own)?).max(foot_text),
+        nodes,
+        depth: 9,
+        text_per_node: field.max(line),
+        text_bytes: signing
+            .max(launchpad.checked_add(own)?.checked_add(foot_text)?.checked_add(line.checked_mul(note_lines)?)?),
         styles_per_node: 1,
-        patches: foot_nodes.checked_mul(4)?,
+        patches: nodes.checked_mul(4)?,
         bindings: 14,
         ..skein_ui::Limits::EMPTY
     };

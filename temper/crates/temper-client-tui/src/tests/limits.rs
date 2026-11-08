@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::words::Word;
-use crate::{Refusal, Told, Tui, View};
+use crate::{Refusal, Told, Tui, View, look};
 use skein_ui::{Role, Tree, phrases::Hole};
 
 fn fits(tree: &Tree, limits: &skein_ui::Limits) {
@@ -26,6 +26,13 @@ fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert_eq!(f::count(tree, Role::Page), 1);
     assert_eq!(f::count(tree, Role::Main), 1);
     assert_eq!(f::count(tree, Role::ContentInfo), 1);
+    let mut top = false;
+    let mut bottom = false;
+    for node in tree.nodes() {
+        top |= node.region == Some(look::TOP);
+        bottom |= node.region == Some(look::BOTTOM);
+    }
+    assert!(top && bottom);
 }
 
 #[test]
@@ -35,7 +42,7 @@ fn the_trees_fit_their_limits() {
     let bounds = crate::limits(&domain, &skein_ui::Limits::EMPTY, 512).expect("fixture limits fit");
     assert!(skein_ui::valid(&bounds));
     let chat = skein_ui::Limits {
-        nodes: 256,
+        nodes: 512,
         depth: 64,
         text_per_node: 1_048_576,
         text_bytes: 2_097_152,
@@ -93,23 +100,14 @@ fn the_trees_fit_their_limits() {
     assert!(failures.is_empty(), "word rows: {failures:?}");
     let name = [b'n'; 32];
     let address = *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:65535";
-    let mut me = f::me(&[&name, &name]);
-    me.party.name = jig_client::contract::DocumentText::complete(
-        jig_client::contract::Text::new(Box::from(name), domain.client.domain.text).unwrap(),
-    );
-    assert_eq!(me.projects.len(), domain.client.domain.projects);
+    let me = f::me(&[&name]);
     let root = f::live(Some(me)).0;
     let mut tui = Tui::new(&address);
     tui.step(Told::Kept { written: false });
     let mut view = View::new(&bounds, f::words());
     f::build(&mut view, &tui, &root);
     fits(view.tree(), &bounds);
-    let projects = f::find(
-        view.tree(),
-        Role::Paragraph,
-        b"Projects: nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn \xc2\xb7 nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-    );
-    assert_eq!(f::text(view.tree(), projects).len(), 78);
+    f::find(view.tree(), Role::Text, b"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
     let full = f::refused(f::full());
     let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
         code: super::approval::code(),
@@ -143,7 +141,5 @@ fn the_trees_fit_their_limits() {
     assert_eq!(crate::limits(&domain, &skein_ui::Limits::EMPTY, u32::MAX), None);
     let mut huge = domain;
     huge.client.domain.text = u32::MAX;
-    huge.client.domain.projects = u32::MAX;
-    assert_eq!(crate::words::projects_bytes(&huge), u32::MAX.checked_sub(10).unwrap());
     assert_eq!(crate::limits(&huge, &skein_ui::Limits::EMPTY, 512), None);
 }
