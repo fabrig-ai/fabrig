@@ -3,6 +3,12 @@ use std::{env, process::ExitCode};
 
 fn main() -> ExitCode {
     skein_fail_stop::install();
+    if env::args_os().nth(1).is_some_and(|argument| argument == smith_agent_shell::relay::FLAG) {
+        return smith_agent_shell::relay::main();
+    }
+    if env::args_os().nth(1).is_some_and(|argument| argument == smith_agent_shell::PROGRAM_CHILD_FLAG) {
+        return smith_agent_shell::program_child::main();
+    }
     match jig_test::configure(env::args_os().skip(1)).and_then(jig_test::run) {
         Ok(code) => ExitCode::from(code),
         Err(why) => {

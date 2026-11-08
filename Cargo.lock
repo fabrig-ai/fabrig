@@ -2193,6 +2193,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-host-protocol",
  "smith-local-service",
+ "smith-protocol-program",
  "tempfile",
 ]
 
