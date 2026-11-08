@@ -107,3 +107,18 @@ Acceptance:
 7. Commit and push.
 
 ## Report
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/start-refusals/foreman-1)
+
+resolve engine.status.md by preserving both tasks’ gap deletions
+The merge conflicts in `jig/docs/design/domain/engine.status.md`, in the first **Not yet** bullet.
+Integration commit `f15f70e6d7` (“Keep covered undecided entries parked until a change”) removed the covered-entry gap; preserve that deletion.
+This branch removes section 8’s invalid-start classification gap; preserve that deletion too.
+The combined bullet must read:
+
+- **Not yet:** 7.1: a message or an entry that arrives between a run's
+  preparation and its claim, and would add to its reasons, is kept back
+  rather than preparing the run again. 7.4: a finish while the task's
+  delegates are live fails its attempt invalid rather than parking it.
+
+Keep the remaining status entries unchanged. `tasks.status.md` auto-merged without a reported conflict.
