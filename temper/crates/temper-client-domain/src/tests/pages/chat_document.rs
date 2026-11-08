@@ -105,3 +105,24 @@ fn collected(body: &[u8]) -> skein_lib::List<document::Section<'_>> {
     }
     sections
 }
+
+#[test]
+fn document_calls_parse_their_first_answer_line() {
+    for (tool, words, expected) in [
+        (
+            b"document".as_slice(),
+            "Note 12 revision 1 written · 64 lines\ndocument: \"Title\" written, 64 lines.",
+            Some(NoteWrite { note: 12, revision: 1, change: NoteChange::First { lines: 64 } }),
+        ),
+        (
+            b"document",
+            "Note 12 revision 3 written · +18 −6 · line 31 · 76 lines\ndocument: ## One replaced, 76 lines.",
+            Some(NoteWrite { note: 12, revision: 3, change: NoteChange::Later { added: 18, removed: 6, first: 31 } }),
+        ),
+        (b"note", "Note 12 revision 1 written · 64 lines\nanother line", None),
+        (b"document", "document: busy; nothing changed. Call again.", None),
+        (b"recall", "Note 12 revision 1 written · 64 lines", None),
+    ] {
+        assert_eq!(document::tool_write(tool, words.as_bytes()), expected, "{words}");
+    }
+}

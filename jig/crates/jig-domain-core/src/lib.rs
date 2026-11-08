@@ -74,7 +74,7 @@ pub use crate::{
         PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
         PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
     },
-    reads::{SettingsAnswer, SettingsRead},
+    reads::{ProposalRead, SettingsAnswer, SettingsRead},
     routing::{
         fire, resume_fleet,
         sibling_routes::{MadeRoute, PersonMessage, SentRoute},
@@ -201,6 +201,8 @@ pub struct ToolFamilies {
     pub recall: authority::Tools,
     pub read: authority::Tools,
     pub settings: u64,
+    /// An application's tools for a run that explains to its person (authority.md, 3).
+    pub ask: authority::Tools,
 }
 
 /// Connector number reserved for the core's recurring procedure (tasks.md, 10).
@@ -223,6 +225,7 @@ impl ToolFamilies {
             self.recall,
             self.read,
             authority::Tools(self.settings),
+            self.ask,
         ] {
             if family.0.count_ones() != 1 || seen & family.0 != 0 {
                 return false;
@@ -232,7 +235,7 @@ impl ToolFamilies {
         true
     }
 
-    /// The eleven engine tool families, numbered alike in every deployment.
+    /// The twelve engine tool families, numbered alike in every deployment.
     pub const JIG: Self = Self {
         delegate: authority::Tools(1),
         message: authority::Tools(2),
@@ -245,6 +248,7 @@ impl ToolFamilies {
         recall: authority::Tools(256),
         read: authority::Tools(512),
         settings: 1024,
+        ask: authority::Tools(2048),
     };
 }
 

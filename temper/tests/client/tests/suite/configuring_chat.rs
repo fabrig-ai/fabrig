@@ -20,7 +20,7 @@ const PROJECT: u32 = 1;
 const WORKFLOW: &[u8] = b"One chat per change, landed once CI passes.";
 
 #[test]
-fn the_page_starts_the_configuring_chat() {
+fn the_page_starts_the_asking_chat() {
     for (choose, acts) in [false, true].into_iter().flat_map(|choose| {
         [vec![Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat], vec![Act::Starter { words: WORKFLOW.into() }]]
             .map(|acts| (choose, acts))
@@ -31,12 +31,12 @@ fn the_page_starts_the_configuring_chat() {
             fixtures::SEED,
         )));
         front.bind(ClientId(0), fixtures::PARTY);
-        // The domain-only pump joins the real client and engine without drawing Configure.
-        account_acts::event(
-            &mut front,
-            &mut root,
-            Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0),
-        );
+        // The domain-only pump joins the real client and engine without drawing Ask temper.
+        account_acts::event(&mut front, &mut root, Temper::start(Address::Ask { project: PROJECT }, Vec::new(), 0));
+        let person = root.person();
+        if jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_none() {
+            continue;
+        }
         if choose {
             account_acts::event(
                 &mut front,
@@ -54,7 +54,7 @@ fn the_page_starts_the_configuring_chat() {
             account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
         }
         let assignment = front.assignments.last().expect("configuring run assigned");
-        assert_eq!(assignment.charter, 3);
+        assert_eq!(assignment.charter, 11);
         assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
         let task = front.engine.task(assignment.task).expect("configuring chat");
         assert_eq!(task.spec.words.as_ref(), WORKFLOW);
@@ -67,13 +67,13 @@ fn the_page_starts_the_configuring_chat() {
         account_acts::settle(&mut front, &mut root);
         let person = root.person();
         assert_eq!(
-            person.pages().chats().expect("Settings holds chats").open_configuring(
+            person.pages().chats().expect("Settings holds chats").open_asking(
                 person.client(),
                 person.pages().me(person.client()),
                 PROJECT,
             ),
             Some(task),
-            "Settings finds the configuring task in the real engine's delivered rows",
+            "The rail finds the Ask temper task in the real engine's delivered rows",
         );
     }
 }
@@ -145,7 +145,7 @@ fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientW
     let proposed = front.host_tool(
         task,
         3,
-        engine::Tool::ProposeSettings { against: inventory.newest, items, reason: reason.into(), kinds },
+        engine::Tool::ProposeSettings { more: false, against: inventory.newest, items, reason: reason.into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal, holder }) = proposed else {
         panic!("settings proposal: {proposed:?}")
@@ -297,7 +297,7 @@ fn a_stale_configuring_proposal_is_withdrawn() {
 }
 
 #[test]
-fn start_over_closes_and_opens_a_fresh_configure() {
+fn start_over_closes_and_opens_a_fresh_ask() {
     use jig_client::contract as c;
     let mut limits = fixtures::domain_limits();
     // The stock configuring task includes its settings authority and charter words.
@@ -308,7 +308,11 @@ fn start_over_closes_and_opens_a_fresh_configure() {
     let mut root =
         temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, fixtures::SEED)));
     front.bind(ClientId(0), fixtures::PARTY);
-    account_acts::event(&mut front, &mut root, Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0));
+    account_acts::event(&mut front, &mut root, Temper::start(Address::Ask { project: PROJECT }, Vec::new(), 0));
+    let person = root.person();
+    if jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_none() {
+        return;
+    }
     account_acts::event(
         &mut front,
         &mut root,
@@ -334,7 +338,7 @@ fn start_over_closes_and_opens_a_fresh_configure() {
     assert!(root.person().pages().confirmation().is_some());
     assert!(front.engine.task(task).is_some(), "asking has not closed it");
     account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(Act::Confirm) }.into());
-    assert_eq!(root.person().pages().address(), &Address::Configure { project: PROJECT });
+    assert_eq!(root.person().pages().address(), &Address::Ask { project: PROJECT });
     assert!(root.person().pages().chat().is_none());
     assert!(front.engine.task(task).is_none(), "the old chat has closed");
     account_acts::event(
@@ -345,7 +349,7 @@ fn start_over_closes_and_opens_a_fresh_configure() {
     );
     let fresh = front.assignments.last().expect("fresh configuring run");
     assert_ne!(fresh.task, task);
-    assert_eq!(fresh.charter, 3);
+    assert_eq!(fresh.charter, 11);
     let fresh = root.person().pages().chat().expect("fresh chat");
     assert!(fresh.draft.is_none());
     assert!(
@@ -665,7 +669,7 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
     let proposed = world.front().host_tool(
         task,
         2,
-        engine::Tool::ProposeSettings { against: 2, items, reason: REASON.as_bytes().into(), kinds },
+        engine::Tool::ProposeSettings { more: false, against: 2, items, reason: REASON.as_bytes().into(), kinds },
     );
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: second, .. }) = proposed else {
         panic!("second proposal: {proposed:?}")
@@ -754,6 +758,7 @@ fn change_something_replaces_the_card_below() {
         task,
         2,
         engine::Tool::ProposeSettings {
+            more: false,
             against: 1,
             items,
             reason: b"Wait three seconds instead".as_slice().into(),

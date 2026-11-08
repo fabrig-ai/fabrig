@@ -476,7 +476,7 @@ fn settings_root_in(page: c::ReadValue, configuring: bool) -> (d::Domain, Queue<
         task.chip.executor = c::ChipExecutor::Agent { charter: 37 };
     }
     // Number order, not delivery order, chooses the default way of zero.
-    let mut templates = List::with_capacity(4);
+    let mut templates = List::with_capacity(5);
     for template in &me.projects.get(0).unwrap().templates {
         templates.push(template.clone()).unwrap();
     }

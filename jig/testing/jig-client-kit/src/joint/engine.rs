@@ -239,6 +239,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::Link(_)
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
+        | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }

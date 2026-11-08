@@ -15,8 +15,23 @@ pub(super) fn is_compaction(prompt: &llm::Prompt) -> bool {
     }
 }
 
-pub(super) fn arguments(prompt: &llm::Prompt, instructions: &[u8], session: &[u8]) -> Option<Box<[Box<[u8]>]>> {
-    let ordinary = start::arguments(&prompt.model, prompt.effort.as_deref(), instructions, b"", b"", 1, session, b"")?;
+pub(super) fn arguments(
+    prompt: &llm::Prompt,
+    instructions: &[u8],
+    session: &[u8],
+    no_workspace: bool,
+) -> Option<Box<[Box<[u8]>]>> {
+    let ordinary = start::arguments(
+        &prompt.model,
+        prompt.effort.as_deref(),
+        instructions,
+        b"",
+        b"",
+        1,
+        session,
+        b"",
+        no_workspace,
+    )?;
     let mut arguments = List::with_capacity(36);
     let mut skip = false;
     for argument in ordinary {

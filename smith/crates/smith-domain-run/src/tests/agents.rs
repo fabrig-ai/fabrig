@@ -1,5 +1,78 @@
 use super::*;
 
+fn survey_limits(tool_payload: u32) -> Limits {
+    crate::derive(&crate::Derivation {
+        conversations: LIMITS.conversations,
+        calls_per_response: LIMITS.calls,
+        inbox: LIMITS.messages,
+        max_waiting: LIMITS.waiting,
+        max_turns: LIMITS.budget.turns,
+        max_spend: LIMITS.budget.spend,
+        max_time: LIMITS.budget.time,
+        check_timeout: LIMITS.check_timeout,
+        wrap_up: LIMITS.wrap_up,
+        sections: LIMITS.brief_sections,
+        host_tools: LIMITS.host_tools,
+        verdicts: LIMITS.verdicts,
+        guide: LIMITS.guide_bytes,
+        shell_tail: LIMITS.check_tail,
+        tool_payload,
+        tool_deadline: LIMITS.host_timeout_max,
+        host: LIMITS.host_part,
+        offer: u64::from(LIMITS.offer_bytes),
+        message: LIMITS.message_bytes,
+        room: LIMITS.room,
+        compaction_threshold: LIMITS.compaction_threshold,
+        compaction_material: LIMITS.compaction_material,
+        effort_bytes: LIMITS.effort_bytes,
+        schema_costs: LIMITS.schema_costs,
+    })
+    .expect("survey declarations derive")
+}
+
+#[test]
+fn derived_child_answer_allowance_preserves_a_survey() {
+    const PAYLOAD: u32 = 16_384;
+    const RECORDED_SURVEY: usize = 1_047;
+    const LARGER_SURVEY: usize = 8_192;
+    const AT_ALLOWANCE: usize = 16_384;
+    const OVER_ALLOWANCE: usize = 16_385;
+    const FINAL_SENTENCE: &str = "The survey ends here: café.";
+    for (length, kept, omitted) in [
+        (RECORDED_SURVEY, RECORDED_SURVEY, 0),
+        (LARGER_SURVEY, LARGER_SURVEY, 0),
+        (AT_ALLOWANCE, AT_ALLOWANCE, 0),
+        (OVER_ALLOWANCE, AT_ALLOWANCE, 1),
+    ] {
+        let mut harness = Harness::new(survey_limits(PAYLOAD));
+        let (_, main) = harness.running_on(1, 100, agents());
+        let (child, opening) = harness.child(main, 7, families(true, false, false), 101);
+        let mut survey = "s".repeat(length - FINAL_SENTENCE.len());
+        survey.push_str(FINAL_SENTENCE);
+        let survey = survey.into_bytes();
+        drop(harness.step(Event::Used { conversation: child, spend: spend(50) }));
+        assert_eq!(
+            harness.step(Event::Yielded { conversation: child, stop: Stop::EndTurn, text: bytes(&survey) }).as_ref(),
+            &[Request::Close { peer: Token::new(101) }]
+        );
+        let requests = harness.step(ended(child, End::Closed, spend(50)));
+        let [Request::Return { call, result: Returned::Answered { text, cut, stop, used, left }, spent }] =
+            requests.as_ref()
+        else {
+            panic!("one settled survey answer: {requests:?}");
+        };
+        assert_eq!(text.len(), kept, "survey answer retained bytes");
+        assert_eq!(text.as_ref(), &survey[..kept]);
+        assert_eq!((*cut, *stop, *call, *spent), (omitted, Stop::EndTurn, Token::new(7), 50));
+        assert_eq!(*used, crate::facts::Used { turns: 1, time: Duration::ZERO, spend: 50 });
+        assert_eq!(*left, Budget { turns: 9, spend: 9_950, ..BUDGET });
+        assert!(skein_lib::bytes::find(&opening.system, b"16384").is_some(), "advertised answer cap");
+        assert!(harness.step(ended(child, End::Closed, spend(50))).is_empty(), "survey settles once");
+        harness.domain.reclaim();
+        assert_eq!((harness.domain.conversations(), harness.domain.calls()), (1, 0));
+    }
+}
+
 #[test]
 fn a_child_closed_after_its_last_charge_tells_the_budget_of_its_return() {
     let mut harness = Harness::new(LIMITS);
@@ -48,43 +121,55 @@ fn a_childs_return_delivers_one_budget_even_with_its_stage_change() {
 
 #[test]
 fn a_sub_agent_answers_with_its_last_message_once_it_has_ended() {
-    let mut harness = Harness::new(LIMITS);
-    let (_, main) = harness.running_on(1, 100, agents());
-    drop(harness.step(Event::Used { conversation: main, spend: spend(100) }));
-    let (child, opening) = harness.child(main, 7, families(true, false, false), 101);
-    assert_eq!((&opening.llm, opening.finish, opening.families), (&agents().llm, false, families(true, false, false)));
-    let left = Budget { turns: BUDGET.turns - 1, spend: BUDGET.spend - 100, ..BUDGET };
-    assert_eq!(opening.budget, left, "its share is what the run has left");
-    assert!(opening.system.starts_with(b"Find the parser."), "its brief is its asker's");
-    drop(harness.step(Event::Used { conversation: child, spend: spend(50) }));
-    let yielded =
-        Event::Yielded { conversation: child, stop: Stop::EndTurn, text: bytes(b"The parser is in src/parse.rs.") };
-    assert_eq!(&*harness.step(yielded), &[Request::Close { peer: Token::new(101) }], "a sub-agent that yields is done");
-    let requests = harness.step(ended(child, End::Closed, spend(50)));
-    let answer = Returned::Answered {
-        text: bytes(b"The parser is in"),
-        cut: 14,
-        stop: Stop::EndTurn,
-        used: crate::facts::Used { turns: 1, time: Duration::ZERO, spend: 50 },
-        left: Budget { turns: 8, spend: 9850, ..BUDGET },
-    };
-    assert_eq!(
-        &*requests,
-        &[Request::Return { call: Token::new(7), result: answer, spent: 50 }],
-        "its answer is cut at the limit and carries the exact priced subtree bill"
-    );
-    harness.domain.reclaim();
-    assert_eq!((harness.domain.conversations(), harness.domain.calls()), (1, 0));
-    let mut returned = 0_u32;
-    while let Some(fact) = harness.pop_fact() {
-        if let crate::facts::FactKind::Returned { call, result: Return::Answered { cut, .. }, .. } = fact.kind
-            && call == Token::new(7)
-        {
-            assert_eq!(cut, 14, "child cap omission");
-            returned += 1;
+    for (yielded, kept, cut) in [
+        (b"The parser is in src/parse.rs.".as_slice(), b"The parser is in".as_slice(), 14),
+        ("The parser is aé in src.".as_bytes(), b"The parser is a".as_slice(), 10),
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let (_, main) = harness.running_on(1, 100, agents());
+        drop(harness.step(Event::Used { conversation: main, spend: spend(100) }));
+        let (child, opening) = harness.child(main, 7, families(true, false, false), 101);
+        assert_eq!(
+            (&opening.llm, opening.finish, opening.families),
+            (&agents().llm, false, families(true, false, false))
+        );
+        let left = Budget { turns: BUDGET.turns - 1, spend: BUDGET.spend - 100, ..BUDGET };
+        assert_eq!(opening.budget, left, "its share is what the run has left");
+        assert!(opening.system.starts_with(b"Find the parser."), "its brief is its asker's");
+        drop(harness.step(Event::Used { conversation: child, spend: spend(50) }));
+        let yielded = Event::Yielded { conversation: child, stop: Stop::EndTurn, text: bytes(yielded) };
+        assert_eq!(
+            &*harness.step(yielded),
+            &[Request::Close { peer: Token::new(101) }],
+            "a sub-agent that yields is done"
+        );
+        let requests = harness.step(ended(child, End::Closed, spend(50)));
+        let answer = Returned::Answered {
+            text: bytes(kept),
+            cut,
+            stop: Stop::EndTurn,
+            used: crate::facts::Used { turns: 1, time: Duration::ZERO, spend: 50 },
+            left: Budget { turns: 8, spend: 9850, ..BUDGET },
+        };
+        assert_eq!(
+            &*requests,
+            &[Request::Return { call: Token::new(7), result: answer, spent: 50 }],
+            "its answer is cut at the limit and carries the exact priced subtree bill"
+        );
+        harness.domain.reclaim();
+        assert_eq!((harness.domain.conversations(), harness.domain.calls()), (1, 0));
+        let mut returned = 0_u32;
+        while let Some(fact) = harness.pop_fact() {
+            if let crate::facts::FactKind::Returned { call, result: Return::Answered { cut: omitted, .. }, .. } =
+                fact.kind
+                && call == Token::new(7)
+            {
+                assert_eq!(omitted, cut, "child cap omission");
+                returned += 1;
+            }
         }
+        assert_eq!(returned, 1, "the child cap reaches its fact once");
     }
-    assert_eq!(returned, 1, "the child cap reaches its fact once");
 }
 
 #[test]

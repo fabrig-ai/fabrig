@@ -28,6 +28,7 @@ const STORY_BYTES: u32 = 262_144;
 pub(crate) const OUTPUT_BYTES: usize = 65_536;
 const FILE_BIT: u64 = 1 << 63;
 const CLOSE_ROOT: Token = Token::new(2);
+const START_DIRECTORY: Token = Token::new(3);
 const QUEUE: u32 = 64;
 const FILE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -63,6 +64,9 @@ pub struct Fake {
     stdout: Output,
     stderr: Output,
     observation: Output,
+    startup_observation: Option<Observation>,
+    startup_process: Option<u32>,
+    startup_story: Option<file::Request>,
     arguments: Vec<String>,
     directory: std::path::PathBuf,
     story: Option<Story>,
@@ -133,6 +137,7 @@ impl Fake {
         faces: Faces,
         directory: &std::path::Path,
     ) -> Self {
+        let directory = if directory.as_os_str().is_empty() { std::path::Path::new(".") } else { directory };
         let command_arguments = crate::faces::file_arguments(arguments, directory).map(|files| files.arguments);
         let limits = limits();
         let mut io = Io::new(&limits);
@@ -140,7 +145,7 @@ impl Fake {
         let stdout = Output::new(Some(io.adopt_write_pipe(faces.stdout, None).expect("stdout slot")));
         let stderr = Output::new(Some(io.adopt_write_pipe(faces.stderr, None).expect("stderr slot")));
         let signal = io.adopt_signals(faces.signal).expect("signal slot");
-        let mut observation =
+        let observation =
             Output::new(faces.observations.map(|fd| io.adopt_append(fd, FILE_TIMEOUT).expect("observation slot")));
         let story_bytes = if environment.iter().any(|entry| entry.as_ref() == b"FAKE_CLAUDE_LARGE_STORY=1") {
             STORY_BYTES
@@ -160,6 +165,8 @@ impl Fake {
         let arguments: Vec<_> = arguments.iter().map(|bytes| String::from_utf8_lossy(bytes).into_owned()).collect();
         let observed = Observation {
             arguments: arguments.clone(),
+            directory: directory.to_string_lossy().into_owned(),
+            directory_has_entries: false,
             environment: environment
                 .iter()
                 .map(|entry| {
@@ -171,9 +178,6 @@ impl Fake {
         let configured = crate::faces::config_path(environment).is_some();
         if configured && config.root.is_some() {
             assert!(observation.token().is_some(), "a configuration root has an observations append descriptor");
-            let mut bytes = serde_json::to_vec(&observed).expect("observation is JSON data");
-            bytes.push(b'\n');
-            observation.push(&bytes);
         }
         let file_request = if configured {
             config.root.map(|root| file::Request::Load {
@@ -187,6 +191,23 @@ impl Fake {
             None
         };
         let story = if file_request.is_none() { Some(Story::default()) } else { None };
+        let startup_observation = (configured && config.root.is_some()).then_some(observed);
+        let mut startup_story = file_request;
+        let file_request = if startup_observation.is_some() {
+            use std::os::unix::ffi::OsStrExt;
+            let path = directory.strip_prefix("/").unwrap_or(directory).as_os_str().as_bytes();
+            Some(file::Request::Scan {
+                owner: START_DIRECTORY,
+                root: config.mcp.expect("startup file namespace"),
+                path: if path.is_empty() { b".".as_slice().into() } else { path.into() },
+                max: 1,
+                max_bytes: u64::from(FILE_BYTES),
+                no_follow: true,
+            })
+        } else {
+            startup_story.take()
+        };
+
         let arguments = match command_arguments {
             Some(arguments) => arguments.iter().map(|bytes| String::from_utf8_lossy(bytes).into_owned()).collect(),
             None => arguments,
@@ -206,6 +227,9 @@ impl Fake {
             stdout,
             stderr,
             observation,
+            startup_observation,
+            startup_process: None,
+            startup_story,
             arguments,
             directory: directory.to_path_buf(),
             story,
@@ -232,6 +256,7 @@ impl Fake {
 
     /// Add the binary's injected process number to its invocation observation.
     pub fn record_process(&mut self, process: u32) {
+        self.startup_process = Some(process);
         self.observation.record_process(process);
     }
 
@@ -299,6 +324,23 @@ impl Fake {
     }
 
     fn file_event(&mut self, event: file::Event) {
+        if event.owner() == START_DIRECTORY {
+            match event {
+                file::Event::Scanned { entries, more, .. } => {
+                    let mut observed = self.startup_observation.take().expect("startup scan observation");
+                    observed.directory_has_entries = more > 0 || !entries.is_empty();
+                    let mut bytes = serde_json::to_vec(&observed).expect("observation is JSON data");
+                    bytes.push(b'\n');
+                    self.observation.push(&bytes);
+                    if let Some(process) = self.startup_process {
+                        self.observation.record_process(process);
+                    }
+                    self.file_request = self.startup_story.take();
+                }
+                _ => self.effects(commands::error("cannot inspect working directory", 1)),
+            }
+            return;
+        }
         if event.owner() == CLOSE_ROOT {
             self.root_closing = false;
             return;

@@ -70,7 +70,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => false,
     }
 }
@@ -138,7 +138,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
     }
 }
@@ -162,7 +162,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => return None,
     };
     let me = accounts::current_me(client)?;

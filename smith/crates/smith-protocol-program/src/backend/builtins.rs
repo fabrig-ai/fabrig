@@ -77,7 +77,12 @@ impl Backend {
             return Some(b"smith: summary program offered tools".as_slice().into());
         }
         let result_contract = self.result_contract();
-        let error = init_error(bytes, self.grants(), result_contract, depth, tokens);
+        let grants = if self.settings.workspace.is_none() {
+            Grants { inspect: false, modify: false, shell: false }
+        } else {
+            self.grants()
+        };
+        let error = init_error(bytes, grants, result_contract, depth, tokens);
         if error.is_none() && stream::checked_init(bytes, &self.tools(), depth, tokens).is_some() {
             None
         } else {

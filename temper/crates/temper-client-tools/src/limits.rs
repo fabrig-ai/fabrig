@@ -53,7 +53,7 @@ pub fn client() -> client::Limits {
             document_bytes: DOCUMENT,
             records: 16,
             kept: 16,
-            projects: 2,
+            projects: 9, // Covers Small and Standard deployment membership capacity.
             text: TEXT,
             long_text: LONG_TEXT,
             turn_text: TEXT,

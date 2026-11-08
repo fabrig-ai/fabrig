@@ -415,6 +415,8 @@ pub enum Now {
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
+    /// A run's proposal read answered (engine.md, 7.3).
+    ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
     /// The root answers this host call with its own busy payload.
     CallBusy { to: ReplyTo },
     /// An effect wait or capacity refusal changed no durable state.
@@ -916,6 +918,11 @@ pub enum NamedAction {
     },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
+    /// A run's read of one proposal of settings, by the `settings` family (engine.md, 7.3).
+    ReadProposal {
+        proposer: jig_domain_people::Proposer,
+        number: u64,
+    },
     /// A run proposes settings against the revision it read (engine.md, 17.6).
     ProposeSettings {
         against: u32,
@@ -1004,15 +1011,23 @@ pub enum NamedAction {
 #[derive(Debug)]
 pub enum ToolKind {
     Settings,
+    /// An application's asking tool, decided by the asking family alone.
+    Ask,
     Delegate,
-    Message { target: u64 },
+    Message {
+        target: u64,
+    },
     Control,
     Decide,
     Propose,
     Subscribe,
     Effect,
-    Note { scope: notes::Scope },
-    Recall { by: notes::Recall },
+    Note {
+        scope: notes::Scope,
+    },
+    Recall {
+        by: notes::Recall,
+    },
     Read,
 }
 /// A task holder's choice on one pending proposal.

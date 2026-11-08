@@ -250,28 +250,6 @@ pub(crate) fn how_work_runs(
     if !missing(b, root, w, bindings, project) {
         b.open(Role::Slot);
         b.style(look::SETTINGS_BODY);
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_SECTION);
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_SETTING);
-        b.open(Role::Slot);
-        crate::cards::text(b, Role::Text, &w.say(Word::ConfigureTitle, &[]));
-        text(b, Role::Text, &w.say(Word::SettingsConfigureHelp, &[]), look::SETTINGS_DETAIL);
-        b.close();
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_END);
-        let task = match root.pages().chats() {
-            Some(chats) => chats.open_configuring(root.client(), root.pages().me(root.client()), project),
-            None => None,
-        };
-        let (word, address) = match task {
-            Some(task) => (Word::ForgeGoOn, Address::Chat { task }),
-            None => (Word::HomeStart, Address::Configure { project }),
-        };
-        button_link(b, w, bindings, word, address, true);
-        b.close();
-        b.close();
-        b.close();
         let stored = root.forge().ways(project);
         let shown = match root.forge().ways_asked(Control::Ways) {
             Some(Asked::Ways(value)) => *value,
@@ -832,14 +810,6 @@ fn text(b: &mut Builder, role: Role, said: &[u8], style: Style) {
 fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address) {
     let name = w.say(word, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address }));
-    b.text(Run::Plain, &name);
-    b.close();
-}
-fn button_link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address, primary: bool) {
-    let name = w.say(word, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address }));
-    b.style(if primary { look::SETTINGS_PRIMARY } else { look::SETTINGS_BTN });
-    b.style(look::SETTINGS_SMALL);
     b.text(Run::Plain, &name);
     b.close();
 }

@@ -12,6 +12,7 @@ a request for a new task, which temper checks as it checks any request.
 A chat defaults to template 1 and a goal to template 2.
 Template 3 is the configuring chat, run by charter 3
 (`temper help chat`); `chat start --template 3` starts it.
+Template 5 is Ask temper, run by charter 11; `chat start --template 5` starts it.
 `--template` selects another offered template.
 
 A template holds:

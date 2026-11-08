@@ -117,8 +117,9 @@ its default. A stored change still wins over a changed default.
   and proposed policy, each whole. Each verb's help gives its arguments:
   `temper ctl help settings apply`.
 - A settings file holds the items: `temper help settings-fields` gives its form.
-- A run needs the settings family in its charter and authority to read
-  with `settings` and propose with `propose_settings`: stock charter 3 alone
+- A run needs the settings family in its charter and authority to read settings
+  and propose with `propose_settings`: stock charter 3 reads with `settings`,
+  and charter 11 uses `see` and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter` and
   `project-policy`, `project-ways` and `project-questions`, in the settings
@@ -132,14 +133,16 @@ its default. A stored change still wins over a changed default.
 On Settings, Models, temper reads each provider's list where it can: as an
 account becomes usable, once a day and when you choose **Read again**.
 A new model starts off the picker, marked “new” for a week. Its prices are
-estimated until the configuring chat sets them. A failed read says so on
+estimated until Ask temper sets them. A failed read says so on
 Models and changes nothing.
 
 A Claude subscription has no list to read: use **Add a model by name** for
 a new model there, or any model a provider's list doesn't show. Choose its
 provider and enter its name; the first run shows whether it is served.
-An owner can turn models on or off in the picker. Tell **Configure temper**
-to change prices, a default or a role's models, or other settings.
+An owner can turn models on or off in the picker. **Ask temper** in the
+project rail opens its newest open chat, or a new chat where you can ask
+about temper or tell it how you work. Use it to change prices, a default
+or a role's models, or other settings.
 
 ### Recovering from a check reserve refusal
 

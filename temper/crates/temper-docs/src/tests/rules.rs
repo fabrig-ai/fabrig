@@ -231,7 +231,7 @@ fn configure_help_says_how_authority_widens_and_holds_no_recipe_of_the_reference
     ] {
         assert!(text.contains(instruction), "configure help must explain: {instruction}");
     }
-    for recipe in ["reference charters", "tools 1983", "coordinator charter 5", "reference-authority"] {
+    for recipe in ["reference charters", "tools 4031", "coordinator charter 5", "reference-authority"] {
         assert!(!text.contains(recipe), "the binary's help must hold no recipe of the reference: {recipe}");
     }
 }
@@ -247,7 +247,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "subscribe_forge",
         "note 128",
         "recall 256",
-        "tools 1983",
+        "tools 4031",
         "goal and project note scopes",
         "notes 3",
         "rules ceiling, policy 1's ceiling and the creator-role authority",

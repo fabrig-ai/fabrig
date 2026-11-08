@@ -68,6 +68,24 @@ impl Tools {
         })
     }
 
+    pub fn proposal_read(
+        &mut self,
+        to: ReplyTo,
+        key: core::CallKey,
+        answer: &core::ProposalRead,
+    ) -> Option<root::Event> {
+        let (_, tool) = self.calls.remove(&key)?;
+        let rendered = kit::proposal_read(answer);
+        Some(root::Event::CallAnswered {
+            to,
+            call: core::SettledCall {
+                serial: 0,
+                tool,
+                answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
+            },
+        })
+    }
+
     pub fn render(
         &mut self,
         to: ReplyTo,

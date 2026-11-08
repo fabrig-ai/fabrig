@@ -2148,6 +2148,100 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
 }
 
 #[test]
+fn an_asking_charter_gets_no_workspace_and_every_family_keeps_the_home_and_context() {
+    use jig_domain_core::settings as s;
+
+    for (tools, empty) in [(engine::RunPolicy::EVERY_FAMILY, false), (tasks::Tools(3072), true)] {
+        let mut world = World::configured(true, false);
+        world.adopt();
+        let mut charter = walking::charter();
+        charter.policy.tools = tools;
+        world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+            reply_to: ReplyTo::new(Token::new(300)),
+            sign_in: world.signed_in.expect("deployment owner"),
+            key: [30; 16],
+            digest: [30; 32],
+            kinds: Box::new([]),
+            change: Box::new(s::Change {
+                against: temper_engine_domain_world::kinds::revision(&world.store.rows),
+                items: Box::new([s::Item {
+                    setting: s::Setting::Charter(1),
+                    edit: s::Edit::Set(s::Value::Charter(Box::new(charter))),
+                }]),
+                running: s::Running::Stays,
+            }),
+        }));
+        world.until(Until::Ready);
+        fake::repository(
+            &mut world.fake,
+            &world.fake_env.limits,
+            raw::Setup {
+                id: 3,
+                name: b"org/extra".as_slice().into(),
+                default: b"main".as_slice().into(),
+                tree: Box::new([]),
+                labels: Box::new([]),
+                workflows: Box::new([]),
+                protection: None,
+                hooked: false,
+                checks: raw::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+            },
+        );
+        fake::grant(&mut world.fake, b"org/extra", 1, raw::Permission::Admin);
+        let mut context = temper_engine_domain_world::fixtures::adoption(1);
+        context.home = false;
+        context.name = b"extra".as_slice().into();
+        context.role = forge_top::Role::Context;
+        world.send(engine::Event::Party(engine::PartyInput::Application {
+            scope: people::ApplicationScope::Project(1),
+            reply_to: ReplyTo::new(Token::new(95)),
+            sign_in: world.signed_in.expect("owner session"),
+            key: [95; 16],
+            digest: [6; 32],
+            carried: None,
+            request: engine::Application::Forge(forge_top::Ask::Adopt(context)),
+        }));
+        for _ in 0..200 {
+            world.tick();
+            if world.adopted.len() == 2 {
+                break;
+            }
+        }
+        assert_eq!(world.adopted.len(), 2, "home and context adopted: {:?}", world.adopted);
+        assert!(matches!(world.adopted[1], forge_top::ApplicationOutcome::Adopted(_)), "{:?}", world.adopted);
+        world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+        let ask = world.chat(1, b"Explain this project");
+        let assignment = assigned_chat(&mut world, 92, ask);
+        assert_eq!(assignment.run.policy.tools, tools, "the run uses the world's changed charter");
+        if empty {
+            assert!(assignment.workspace.repositories.is_empty(), "an asking charter selects no repository");
+        } else {
+            assert_eq!(assignment.workspace.repositories.len(), 2);
+            assert!(
+                assignment.workspace.repositories.iter().any(|repository| repository.provider == forge_world::REPO)
+            );
+            let context = assignment
+                .workspace
+                .repositories
+                .iter()
+                .find(|repository| repository.provider.repository == 3)
+                .expect("context repository remains selected");
+            assert!(context.push.is_none(), "context remains read only");
+        }
+        world.close();
+    }
+}
+
+#[test]
 fn a_saved_repository_tag_becomes_a_concrete_checkout_in_the_next_attempt() {
     let mut world = World::configured(true, false);
     world.adopt();

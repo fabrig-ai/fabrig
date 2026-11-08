@@ -10,7 +10,7 @@ use temper_engine_domain::{CallAnswer, Changed};
 
 use crate::Problem;
 
-struct Text {
+pub(crate) struct Text {
     parts: List<Box<[u8]>>,
     len: usize,
     count_only: bool,
@@ -25,7 +25,7 @@ impl Text {
         Self { parts: List::with_capacity(0), len: 0, count_only: true }
     }
 
-    fn add(&mut self, text: &[u8]) -> Result<(), Problem> {
+    pub(crate) fn add(&mut self, text: &[u8]) -> Result<(), Problem> {
         const DIGITS: &[u8; 16] = b"0123456789abcdef";
         let len = escaped_len(text);
         self.len = self.len.checked_add(len).ok_or(Problem::TooLarge)?;
@@ -62,7 +62,7 @@ impl Text {
     }
 
     // Fixed UTF-8 punctuation in the note acknowledgement is already trusted text.
-    fn literal(&mut self, text: &[u8]) -> Result<(), Problem> {
+    pub(crate) fn literal(&mut self, text: &[u8]) -> Result<(), Problem> {
         self.len = self.len.checked_add(text.len()).ok_or(Problem::TooLarge)?;
         if self.len > HostAnswer::CAPACITY {
             return Err(Problem::TooLarge);
@@ -74,7 +74,7 @@ impl Text {
         Ok(())
     }
 
-    fn number(&mut self, value: u64) -> Result<(), Problem> {
+    pub(crate) fn number(&mut self, value: u64) -> Result<(), Problem> {
         self.add(Decimal::of(value).as_bytes())
     }
 
@@ -523,7 +523,16 @@ fn proposed(
     }
     text.number(proposal)?;
     if settings {
-        text.add(b" to the deployment's owners")?;
+        text.add(b" for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without ")?;
+        if let Some(task) = task {
+            text.add(b"t")?;
+            text.number(task)?;
+            text.add(b"/")?;
+        } else {
+            text.add(b"proposal ")?;
+        }
+        text.number(proposal)?;
+        text.add(b".")?;
     }
     Ok(())
 }
@@ -769,6 +778,8 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             }
             false
         }
+        CallAnswer::Parts(parts) => crate::settings::parts(&mut text, parts)?,
+        CallAnswer::Document(documented) => crate::document::render(&mut text, documented)?,
         CallAnswer::NoteRefused(why) => {
             text.add(b"Note refused: ")?;
             let ending: &[u8] = match why {
@@ -808,7 +819,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
 }
 
 /// The client's note line reads this acknowledgement (temper/docs/design/domain/agent.md, 8.3).
-fn note_written(
+pub(crate) fn note_written(
     text: &mut Text,
     name: u64,
     revision: u32,
@@ -880,7 +891,7 @@ fn authority(text: &mut Text, answer: jig_domain_authority::Answer) -> Result<()
     }
 }
 
-fn authority_findings(
+pub(crate) fn authority_findings(
     text: &mut Text,
     answer: jig_domain_authority::Answer,
     findings: &[jig_domain_authority::Finding],
@@ -944,6 +955,7 @@ fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
         b"note" => b"note",
         b"recall" => b"recall",
         b"settings" | b"propose_settings" => b"settings",
+        b"see" | b"document" => b"asking",
         name if name.starts_with(b"read_") => b"read",
         _ => return None,
     })

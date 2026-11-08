@@ -431,3 +431,20 @@ A read.
 - `topic`: text; optional. A page's name, such as index.
 - `from`: an integer of at least 0; optional. The offset to read from, as next: gave it; 0 when absent.
 - `search`: text; optional. The words a section must hold, every one: at most 8.
+
+## see
+
+Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.
+
+A read.
+
+- `address`: text; required. One line, as your instructions list addresses: settings charter 3, help, more TOKEN.
+
+## document
+
+Keep this chat's one document: write it whole first, its first line # TITLE; then append a section, or replace the one under the same ## heading.
+
+A write.
+
+- `action`: one of `write`, `append` or `replace`; required. write: the whole document; append: a section at its end; replace: the section under body's first ## heading.
+- `body`: text; required. Markdown: the whole document, or one section beginning with its ## heading.

@@ -6,6 +6,13 @@ Sections 2.1, 2.2, 3.9 and 4 have no known gap in endpoint limits,
 `charter_models`, saved-window fallback quantities or entrance checks
 against the endpoint rather than a model declaration.
 
+Section 3.4 has no known gap in a sub-agent's answer allowance following
+the declared `tool_payload`, including the advertised cap, explicit
+overflow marker and usage line. The profile checks cover complete
+delegated feedback, its rendering and transcript receiving bounds at
+payloads 256, 10,662 and 63,740. The larger charter and outcome feedback
+bounds still determine the measured profile figures below.
+
 Section 3.10 has no known gap in charter and outcome allowances following
 `tool_payload`. The profile table pins T at 16,803,810 for payload 10,662
 and output 8,192, and at 18,431,842 for 63,740 and 48,000. The 131,072 and

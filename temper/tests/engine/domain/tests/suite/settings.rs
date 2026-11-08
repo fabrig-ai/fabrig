@@ -284,15 +284,15 @@ fn stock_config() -> engine::Config {
 
 fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // Stock policy 1 holds fourteen grants and twelve executor kinds.
+    // Stock policy 1 holds fourteen grants and thirteen executor kinds.
     limits.authority.grants = 16;
-    limits.authority.executors = 12;
+    limits.authority.executors = 13;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 12;
+    limits.documents.executors = 13;
     limits.notes.scopes = 32;
-    // Seven slots hold the stock charters.
-    limits.tasks.charters = 7;
+    // Eight slots hold the stock charters.
+    limits.tasks.charters = 8;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits
@@ -792,10 +792,18 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
     let proposal: u64 = text
         .strip_prefix(&format!("proposed as t{}/", run.task))
         .expect("proposal number")
-        .strip_suffix(" to the deployment's owners")
+        .split_once(" for the deployment's owners to decide: ")
+        .map(|(number, _)| number)
         .expect("owners")
         .parse()
         .expect("number");
+    assert_eq!(
+        text,
+        format!(
+            "proposed as t{}/{proposal} for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without t{}/{proposal}.",
+            run.task, run.task
+        )
+    );
     owner_reviews_run_proposal(&mut driver, run.task, proposal);
     let before = driver.store.rows.clone();
     // A retry under the same read name is fresh even after a write changed settings.

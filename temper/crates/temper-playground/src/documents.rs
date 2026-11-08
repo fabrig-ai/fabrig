@@ -24,7 +24,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 5;
+pub const DOCUMENT_LINES: u32 = 6;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.
@@ -148,6 +148,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     for (name, count) in [
         ("core.load_slots", 8),
         ("core.run_bytes", 8192),
+        ("core.templates", 3),
         ("documents.rows", 2),
         ("documents.lines", DOCUMENT_LINES),
         ("documents.text_bytes", 128),
@@ -167,12 +168,12 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        ("people.amendment_bytes", 1069),
+        ("people.amendment_bytes", 1077),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
-        // Six slots hold the stock charters except charter 3.
-        ("tasks.charters", 6),
+        // Seven slots hold the stock charters except charter 3.
+        ("tasks.charters", 7),
         ("notes.entries_per_scope", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),
@@ -202,11 +203,11 @@ pub fn chat_policy(value: &mut serde_json::Value) {
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 11),
+        ("authority.executors", 12),
         ("authority.segments", 8),
         ("tasks.authority_grants", 14),
         ("tasks.authority_bytes", 70),
-        ("tasks.executor_kinds", 11),
+        ("tasks.executor_kinds", 12),
         ("tasks.result_bytes", 128),
         ("notes.scopes", 32),
     ] {

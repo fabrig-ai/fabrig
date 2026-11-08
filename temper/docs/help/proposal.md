@@ -85,8 +85,10 @@ change, or a start, makes a new revision.
   withdraws its own with `withdraw`.
 - A run whose charter names the settings family and whose authority
   holds it proposes a change of settings with the host tool
-  `propose_settings`: charter 3 alone in the stock
-  (`temper help charter`). The configuring chat reports an acceptance
+  `propose_settings`: charters 3 and 11 in the stock
+  (`temper help charter`). Its answer tells the run that the card waits in this
+  chat and in Needs you, for a deployment owner to decide; an asking charter
+  may give a large set in parts. The configuring chat reports an acceptance
   with its revision, revises after a rejection's reason, and reads the
   settings again and proposes afresh after a withdrawal as stale
   (`temper help chat`).

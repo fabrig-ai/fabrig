@@ -216,7 +216,7 @@ fn elsewhere_tries_nothing() {
         Address::Settings { project: f::PROJECT },
         Address::Repositories { project: f::PROJECT },
         Address::Builders { project: f::PROJECT },
-        Address::Configure { project: f::PROJECT },
+        Address::Ask { project: f::PROJECT },
         Address::Adopt { project: f::PROJECT },
     ] {
         let (mut root, watch, _) = account_session(address.clone());

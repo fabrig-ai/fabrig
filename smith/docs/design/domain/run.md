@@ -166,6 +166,12 @@ outcomes stay typed (tools.md, section 4).
   appears in no path the prompt shows. With several, the first is the
   working directory, and the prompt says how each other is reached, as
   `/name/...`.
+- **No workspace, no word of one.** A run with no workspace has neither
+  the workspace's section nor the section on its tools that act on it:
+  nothing it could read, write or run is named, so that its system text
+  is its instructions, its brief and the mechanics it has (its budget,
+  how it finishes or replies, and waiting), as a run that only talks or
+  reads through host tools needs (the user, 2026-11-07).
 - **Fixed for the conversation's life.** The system text is written once,
   when the run opens a session, and does not change while that
   conversation lives, across its windows (session.md, sections 3 and 8):
@@ -411,10 +417,20 @@ section 6).
   any other answer. A child returns unanswered only when it fails or is
   closed (9.1).
 - **The result.** The child's final message, up to the answer cap it was
-  told and cut past it with an explicit marker, then a usage line the run
-  writes: whether the child stopped for its budget, what it used, in
-  turns and time, and the turns and time the run has left above its
-  reserve (9.2).
+  told, `answer_bytes`, the outcome's room (protocol/limits.md, 3.10), then
+  a usage line the run writes: whether the child stopped for its budget,
+  what it used, in turns and time, and the turns and time the run has left
+  above its reserve (9.2).
+  - **A cut answer** keeps its head to the cap, cut at a character's
+    boundary, and its marker says how much was left out and how to read
+    it. The child has closed when it answers, so nothing continues it: the
+    rest is read by asking a new child, narrower. Its marker is
+    `[child-result cut=N stop=S]`, then on a line of its own `The answer
+    above is cut: its last N bytes were left out. The sub-agent has closed;
+    to read the rest, ask a new one for it with a narrower brief.`, N the
+    bytes left out and S the stop. An answer cut by nothing, whose stop is
+    not `end-turn`, keeps the bracket alone, `[child-result cut=0
+    stop=S]`.
 - **One writer at a time: the lease.** Write authority over overlapping
   directories has at most one holder at a time. A child granted modify or
   shell holds the run's lease for its call's life: its call is a write,
@@ -1078,6 +1094,10 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
   generated progress output or longer timeout in the run.
 - **A sub-agent's result:** its final message; whether a sub-agent
   may be given a contract of its own.
+- **A cut answer's rest** (5.3): read by asking a new child, narrower.
+  Default: the run keeps nothing of a cut answer past its cap. Whether it
+  keeps the rest for its asker to read by a call, a continuation, waits on
+  runs where asking again costs more than the rest is worth.
 - **A run's refusal on the channel:** a run that refuses its start for
   policy answers failed; whether refusal wants a kind of its own.
 - **Conventions' home:** in the charter, as here, or in the agent's

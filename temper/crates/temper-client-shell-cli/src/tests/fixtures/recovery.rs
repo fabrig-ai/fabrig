@@ -7,6 +7,14 @@ const PROJECT: u32 = 3;
 const BUDGET: u64 = 7; // Fits the shared authority's spend, exposing an admitted chat.
 const ONE: u32 = 1; // One template and one membership are sufficient to offer chat.
 use jig_client_domain::TABLE_VERSION;
+/// The engine's membership offer for recovery and project-setup stories.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Offers {
+    /// A single project offering chat.
+    Chat,
+    /// A deployment with this many project memberships.
+    Projects(u32),
+}
 fn link_limits() -> Limits {
     let limits = crate::limits::native().root.domain.client;
     Limits::new(limits.domain, limits.exchanges).expect("native link limits")
@@ -163,7 +171,7 @@ impl Frame {
     pub fn act_words_with(words: &[&[u8]], store: Box<[u8]>) -> Self {
         let mut frame = Self::act(words);
         frame.store = Some(store);
-        frame.offers = Some(());
+        frame.offers = Some(Offers::Chat);
         frame
     }
     pub fn answer_kept(&mut self) {
@@ -213,18 +221,21 @@ impl Frame {
         if !if self.is_kept(keyed.key()) { self.answer_kept.is_some() } else { self.answer_new.is_some() } {
             return;
         }
-        if self.setup_reply(fd, &keyed) {
+        if self.project_make_reply(fd, &keyed) || self.setup_reply(fd, &keyed) {
             return;
         }
         self.hold_stores = Some(());
         if matches!(keyed.owner(), w::Owner::Family(_)) {
-            self.adopt_reply(fd);
+            self.adopt_reply(fd, &keyed);
             return;
         }
         let value = w::DocumentOutcome::Created(
             w::OutcomeCreated::new(&w::CEILINGS, w::OutcomeCreatedParts { first: 41, last: 41, given: None })
                 .expect("created"),
         );
+        self.document_reply(fd, value);
+    }
+    fn document_reply(&mut self, fd: Fd, value: w::DocumentOutcome) {
         let outcome = w::Outcome::Document(
             w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("owner outcome"),
         );
@@ -300,15 +311,28 @@ impl Frame {
         }
         self.run();
     }
-    fn adopt_reply(&mut self, fd: Fd) {
+    fn adopt_reply(&mut self, fd: Fd, keyed: &w::Keyed) {
         use temper_client_protocol_wire::{self as wire, v1 as f};
         let answer = f::Answer::new(
             &f::CEILINGS,
             f::AnswerParts {
-                outcome: f::Outcome::ForgeRefused(
-                    f::ForgeRefused::new(&f::CEILINGS, f::ForgeRefusedParts { reason: f::ForgeReason::NotFound })
-                        .expect("refusal"),
-                ),
+                outcome: if self.setting_up_projects() {
+                    let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
+                        .expect("adoption envelope");
+                    let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
+                    let f::Request::Adopt(adopt) = request.into_parts().request else { panic!("expected adoption") };
+                    assert_eq!(adopt.project(), 3);
+                    assert_eq!(
+                        (adopt.owner(), adopt.name(), adopt.landing()),
+                        (b"o".as_slice(), b"n".as_slice(), b"main".as_slice())
+                    );
+                    adopted()
+                } else {
+                    f::Outcome::ForgeRefused(
+                        f::ForgeRefused::new(&f::CEILINGS, f::ForgeRefusedParts { reason: f::ForgeReason::NotFound })
+                            .expect("refusal"),
+                    )
+                },
             },
         )
         .expect("answer");
@@ -325,4 +349,104 @@ impl Frame {
         .expect("owned answer");
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
+}
+
+/// Memberships encoded independently of ctl's receiving capacity.
+pub fn project_me(count: u32) -> w::Me {
+    let mut parts = chat_me().into_parts();
+    let mut reader = Reader::new(&parts.projects);
+    let size = reader.u32().expect("membership size");
+    let project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(reader.bytes(size).expect("membership")))
+        .expect("membership record");
+    let mut projects = Vec::new();
+    for number in 1..=count {
+        let mut row = project.clone().into_parts();
+        row.project = number;
+        let name = if number == 3 { "proof-5-clearer-words".to_owned() } else { format!("project-{number}") };
+        row.name = jig_client_test_records::wire_text(name.as_bytes());
+        projects.extend_from_slice(&piece(&encode!(w::MeProject::new(&w::CEILINGS, row).expect("membership"))));
+    }
+    parts.projects = projects.into();
+    w::Me::new(&w::CEILINGS, parts).expect("project frame")
+}
+
+impl Frame {
+    /// Start project creation with two memberships and the shipped ctl preset.
+    pub fn project_setup() -> Self {
+        let mut frame = Self::read(&["project", "make", "proof-5-clearer-words", "--key", "third-project"]);
+        frame.offers = Some(Offers::Projects(2));
+        frame.complete_acts = true;
+        frame
+    }
+    /// Invoke ctl afresh with the same client directory and engine memberships.
+    pub fn setup_call(&self, words: &[&str]) -> Self {
+        let mut frame = Self::read(words);
+        frame.offers = self.offers;
+        frame.store = self.stored(b"store").or(self.store.as_deref()).map(Into::into);
+        frame.address = self.address;
+        frame.token = self.token;
+        frame.complete_acts = true;
+        frame
+    }
+    fn setting_up_projects(&self) -> bool {
+        matches!(self.offers, Some(Offers::Projects(_)))
+    }
+    fn project_make_reply(&mut self, fd: Fd, keyed: &w::Keyed) -> bool {
+        if !self.setting_up_projects() || !matches!(keyed.owner(), w::Owner::Jig) {
+            return false;
+        }
+        let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("setup ask");
+        let w::Ask::MakeProject(make) = ask else { panic!("expected project creation") };
+        assert_eq!(make.name(), b"proof-5-clearer-words");
+        assert_eq!(self.offers, Some(Offers::Projects(2)));
+        self.offers = Some(Offers::Projects(3));
+        let value = w::DocumentOutcome::ProjectMade(
+            w::OutcomeProjectMade::new(&w::CEILINGS, w::OutcomeProjectMadeParts { project: 3 }).expect("made"),
+        );
+        self.document_reply(fd, value);
+        true
+    }
+    /// Answer setup's project read, or the task read used by other stories.
+    pub(super) fn read_setup_or_task(&mut self, fd: Fd) {
+        if !self.setting_up_projects() {
+            self.read_task(fd);
+            return;
+        }
+        let request = &self.sockets.get(&fd).expect("read socket").request;
+        let start = skein_lib::bytes::find(request, b"\r\n\r\n").expect("HTTP head");
+        let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&request[start + 4..])).expect("owned read");
+        let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("project read");
+        let w::Read::Project(read) = read else { panic!("expected project read") };
+        assert_eq!(read.project(), 3);
+        let mut parts = jig_client_test_records::owner_project_record().into_parts();
+        parts.number = 3;
+        parts.name = jig_client_test_records::wire_text(b"proof-5-clearer-words");
+        let value = w::ReadValue::Project(w::Project::new(&w::CEILINGS, parts).expect("project"));
+        let owned = w::Owned::new(
+            &w::CEILINGS,
+            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) },
+        )
+        .expect("project read answer");
+        self.reply(fd, &encode!(w::ReadAnswer::Value(owned)));
+    }
+}
+
+fn adopted() -> temper_client_protocol_wire::v1::Outcome {
+    use temper_client_protocol_wire::v1 as f;
+    f::Outcome::Adopted(
+        f::Adopted::new(
+            &f::CEILINGS,
+            f::AdoptedParts {
+                forge: 3,
+                repository: 42,
+                owner: b"o".as_slice().into(),
+                name: b"n".as_slice().into(),
+                role: f::Role::Owned,
+                home: true,
+                kinds: f::Kinds::new(&f::CEILINGS, f::KindsParts { skein_bools: [true; 9] }).expect("repository kinds"),
+                protection: f::Protection::Unknown,
+            },
+        )
+        .expect("adopted repository"),
+    )
 }

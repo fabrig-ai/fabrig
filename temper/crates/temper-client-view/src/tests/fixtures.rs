@@ -424,6 +424,7 @@ pub(super) fn root_at_with_values(
     use jig_client::contract::{Delivery, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     let forge_rows_answered = forge_rows.is_some();
+    let asking_page = if let temper_client_domain::Address::Ask { project } = address { Some(project) } else { None };
     let env = Env { now: Time::ZERO, wall: NOW, limits: *limits };
     let mut root = temper_client_domain::unlinked(limits, SEED);
     let mut out = Queue::uncapped();
@@ -448,7 +449,7 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
-        | temper_client_domain::Address::Configure { .. }
+        | temper_client_domain::Address::Ask { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Task { .. }
@@ -512,6 +513,9 @@ pub(super) fn root_at_with_values(
         }
     }
     let mut frame = fixture_me(project_name);
+    if asking_page.is_some() {
+        frame = configuring_me(frame);
+    }
     if forge_rows_answered {
         frame.deployment_role = Some(c::HeldRole::Owner);
     }
@@ -1575,6 +1579,9 @@ pub fn playground_frame_with_watch(
         Some(me) => me,
         None => template.pages().me(template.client()).expect("chat template").clone(),
     };
+    if let temper_client_domain::Address::Ask { .. } = address {
+        me = configuring_me(me);
+    }
     if me.providers.is_empty() {
         me.providers = List::with_capacity(1);
         me.providers.push(playground_provider()).unwrap();
@@ -1614,8 +1621,11 @@ pub fn playground_frame_with_watch(
             subagents: List::with_capacity(0),
         },
     }]));
-    let mut charters = List::with_capacity(1);
+    let mut charters = List::with_capacity(2);
     charters.push(1).expect("chat charter");
+    if let temper_client_domain::Address::Ask { .. } = address {
+        charters.push(37).unwrap();
+    }
     me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {
         within: c::CreateBounds {
             authority: Box::new(c::AuthorityDocument::complete(c::Authority {
@@ -2119,17 +2129,27 @@ pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::
     );
 }
 
-/// Template 3's charter deliberately differs from its number and its name is editable.
+/// Template 5's charter deliberately differs from its number and its name is editable.
 pub fn configuring_me(mut me: c::Me) -> c::Me {
     let project = me.projects.get_mut(0).expect("project");
-    let stock = project.templates.get(0).expect("chat template").clone();
+    let stock = match project.templates.get(0) {
+        Some(stock) => stock.clone(),
+        None => {
+            let source = chat::messaging_root();
+            source.pages().me(source.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap().clone()
+        }
+    };
     let mut configuring = stock.clone();
-    configuring.number = 3;
+    configuring.number = 5;
     configuring.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
     configuring.executor = c::TemplateExecutor::Charter(37);
-    project.templates = List::with_capacity(2);
+    let mut former = stock.clone();
+    former.number = 3;
+    former.executor = c::TemplateExecutor::Charter(3);
+    project.templates = List::with_capacity(3);
     project.templates.push(stock).expect("stock");
-    project.templates.push(configuring).expect("configuring");
+    project.templates.push(former).expect("former configuring template");
+    project.templates.push(configuring).expect("asking");
     me
 }
 
