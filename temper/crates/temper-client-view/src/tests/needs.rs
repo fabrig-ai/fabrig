@@ -50,7 +50,8 @@ fn fixture_watched(
     let (mut root, _, watch) = f::root_at(Address::Inbox { filter }, &limits());
     let mut entries = List::with_capacity(count);
     for message in 1..=u64::from(count) {
-        entries.push(documents::entry(object(message), f::PROJECT, message, Wall::EPOCH, None)).unwrap();
+        let project = if filter.project.is_none() && message == 2 { f::SECOND_PROJECT } else { f::PROJECT };
+        entries.push(documents::entry(object(message), project, message, Wall::EPOCH, None)).unwrap();
     }
     let mut out = Queue::uncapped();
     event(
@@ -160,7 +161,12 @@ fn main(view: &crate::View) -> &[skein_ui::Node] {
     &nodes[i..i.checked_add(usize::try_from(nodes[i].size).unwrap()).unwrap()]
 }
 fn styled(view: &crate::View, style: skein_ui::Style) -> &skein_ui::Node {
-    main(view).iter().find(|n| n.styles.as_slice().contains(&style)).expect("styled part")
+    let nodes = main(view);
+    if style == look::ASK_META {
+        let start = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK)).unwrap();
+        return nodes[start..].iter().find(|n| n.styles.as_slice().contains(&style)).expect("card part");
+    }
+    nodes.iter().find(|n| n.styles.as_slice().contains(&style)).expect("styled part")
 }
 fn press(view: &mut crate::View, name: &[u8]) -> d::Action {
     let node = f::find(view.tree(), Role::Button, name).expect("button");
@@ -236,7 +242,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::ASK_CONTEXT,
             look::ASK_SAW,
             look::ASK_CHOICES,
-            look::PAIR,
+            look::NEED_TELL,
             look::NEXT_UP,
         ];
         let order: Vec<_> =
@@ -281,8 +287,10 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             press(&mut view, b"In temper serve"),
             expected(needs::Act::Choose { object, words: b"In temper serve".as_slice().into() })
         );
-        assert_eq!(press(&mut view, "Reply…".as_bytes()), expected(needs::Act::OpenReply { object }));
-        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+        for name in ["Reply…".as_bytes(), b"Later"] {
+            assert!(f::find(view.tree(), Role::Button, name).is_none());
+        }
+        assert!(f::find(view.tree(), Role::TextArea, b"Or tell it something else").is_some());
         home_parts(&root, object);
     }
 }
@@ -299,30 +307,41 @@ fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_re
     }
 }
 #[test]
-fn reply_form_focus_placeholder_value_and_all_acts() {
-    let mut root = root();
-    act(&mut root, needs::Act::OpenReply { object: object(1) });
-    f::root_event(
-        &mut root,
-        Event::Act {
-            action: d::Action::Pages(pages::Act::CardWords { object: object(1), words: b"My reply".as_slice().into() }),
-        },
-    );
-    let mut view = f::browser_page_view(&root);
-    assert_eq!(styled(&view, look::ASK_REPLY).role, Role::Slot);
-    let id = f::find(view.tree(), Role::TextArea, b"Your reply").unwrap();
-    let node = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
-    assert_eq!(node.placeholder.as_deref(), Some("Your words go to welcome-stall’s agent".as_bytes()));
-    assert!(node.focus.is_some());
-    assert_eq!(node.value.as_ref().unwrap().text.as_ref(), b"My reply");
-    assert_eq!(
-        crate::act(&mut view, id, Act::Input { value: b"Changed".as_slice().into() }),
-        Some(d::Action::Pages(pages::Act::CardWords { object: object(1), words: b"Changed".as_slice().into() }))
-    );
-    assert_eq!(press(&mut view, b"Send reply"), expected(needs::Act::SendReply { object: object(1) }));
-    assert_eq!(press(&mut view, b"Cancel"), expected(needs::Act::CancelReply));
-    act(&mut root, needs::Act::CancelReply);
-    assert!(!main(&f::browser_page_view(&root)).iter().any(|n| n.styles.as_slice().contains(&look::ASK_REPLY)));
+fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
+    for (words, send) in
+        [("", false), ("  ", false), ("My reply", true), ("A reply longer than the ordinary card text bound.", true)]
+    {
+        let mut root = root();
+        let mut view = f::browser_page_view(&root);
+        let field = f::find(view.tree(), Role::TextArea, b"Or tell it something else").unwrap();
+        let input = crate::act(&mut view, field, Act::Input { value: words.as_bytes().into() }).unwrap();
+        assert_eq!(
+            input,
+            d::Action::Pages(pages::Act::CardWords { object: object(1), words: words.as_bytes().into() })
+        );
+        event(&mut root, Event::Act { action: input }, &mut Queue::uncapped());
+        let mut view = f::browser_page_view(&root);
+        assert_eq!(styled(&view, look::NEED_TELL).role, Role::Slot);
+        let field = f::find(view.tree(), Role::TextArea, b"Or tell it something else").unwrap();
+        let node = view.tree().find(field).unwrap();
+        assert_eq!(node.placeholder.as_deref(), Some(b"Or tell it something else".as_slice()));
+        assert!(node.focus.is_none());
+        assert_eq!(node.value.as_ref().unwrap().text.as_ref(), words.as_bytes());
+        assert_eq!(f::find(view.tree(), Role::Button, b"Send").is_some(), send);
+        assert!(f::find(view.tree(), Role::Button, b"Cancel").is_none());
+        if send {
+            let action = press(&mut view, b"Send");
+            assert_eq!(action, expected(needs::Act::SendReply { object: object(1) }));
+            event(&mut root, Event::Act { action }, &mut Queue::uncapped());
+            let lines = root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None);
+            assert_eq!(lines[0].label, needs::Label::Reply(words.as_bytes().into()));
+            assert_eq!(lines[0].object, object(1));
+            assert_eq!(
+                root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap().object(),
+                object(2)
+            );
+        }
+    }
 }
 #[test]
 fn plain_and_cut_words_have_no_choices_or_saw() {
@@ -350,7 +369,7 @@ fn plain_and_cut_words_have_no_choices_or_saw() {
                 !main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)
                     || n.styles.as_slice().contains(&look::ASK_SAW))
             );
-            assert!(f::find(view.tree(), Role::Button, "Reply…".as_bytes()).is_some());
+            assert!(f::find(view.tree(), Role::TextArea, b"Or tell it something else").is_some());
             assert!(has(&view, b"Some context.") || has(&view, b"Choice:"));
             let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
             let message = card.group == c::InboxGroup::Questions;
@@ -477,12 +496,84 @@ fn done_with_and_without_lines_and_home_project() {
     }
 }
 #[test]
-fn unfiltered_meta_puts_project_first() {
-    let root = fixture(QUESTION, false, 1, false, d::address::Filter::ALL);
-    assert_eq!(
-        styled(&f::browser_page_view(&root), look::ASK_META).name.as_deref(),
-        Some(b"Shop \xc2\xb7 welcome-stall \xc2\xb7 a question \xc2\xb7 under 1 min".as_slice())
-    );
+fn list_keeps_one_card_and_opens_rows_in_place() {
+    for (filter, kicker, chips) in [
+        (d::address::Filter::ALL, "Needs you · all projects", &["Shop", "Second", "Shop"][..]),
+        (d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }, "Needs you · Shop", &[][..]),
+    ] {
+        let mut root = fixture(QUESTION, false, 3, false, filter);
+        let address = root.pages().address().clone();
+        let mut view = f::browser_page_view(&root);
+        assert!(f::find(view.tree(), Role::Paragraph, kicker.as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Three things need you.").is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 2 }, "Needs you · 3".as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Text, b"oldest first").is_some());
+        let actual: Vec<_> = main(&view)
+            .iter()
+            .filter(|n| n.styles.as_slice().contains(&look::CHIP))
+            .map(|n| core::str::from_utf8(n.name.as_deref().unwrap()).unwrap())
+            .collect();
+        assert_eq!(actual, chips);
+        let shapes: Vec<_> = main(&view)
+            .iter()
+            .filter_map(|n| {
+                if n.styles.as_slice().contains(&look::ASK) {
+                    Some("open")
+                } else if n.styles.as_slice().contains(&look::NEED_ROW) {
+                    Some("closed")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(shapes, ["open", "closed", "closed"]);
+        let closed: Vec<_> =
+            main(&view).iter().filter(|n| n.styles.as_slice().contains(&look::NEED_ROW)).map(|n| n.id).collect();
+        for (id, message, name, project) in [
+            (closed[0], 2, "forge-cards", if chips.is_empty() { "" } else { "Second" }),
+            (closed[1], 3, "third", if chips.is_empty() { "" } else { "Shop" }),
+        ] {
+            let index = view.tree().nodes().iter().position(|n| n.id == id).unwrap();
+            let text = f::node_text(view.tree(), index);
+            assert!(skein_lib::bytes::find(&text, name.as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&text, project.as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&text, b"a question").is_some());
+            assert!(skein_lib::bytes::find(&text, QUESTION.lines().next().unwrap().as_bytes()).is_some());
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(expected(needs::Act::Open { object: object(message) }))
+            );
+        }
+        let action = crate::act(&mut view, closed[0], Act::Press).unwrap();
+        let mut out = Queue::uncapped();
+        event(&mut root, Event::Act { action }, &mut out);
+        assert!(out.is_empty());
+        assert_eq!(root.pages().address(), &address);
+        let view = f::browser_page_view(&root);
+        assert!(
+            styled(&view, look::ASK_META)
+                .name
+                .as_deref()
+                .unwrap()
+                .windows(b"forge-cards".len())
+                .any(|w| w == b"forge-cards")
+        );
+        let shapes: Vec<_> = main(&view)
+            .iter()
+            .filter_map(|n| {
+                if n.styles.as_slice().contains(&look::ASK) {
+                    Some("open")
+                } else if n.styles.as_slice().contains(&look::NEED_ROW) {
+                    Some("closed")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(shapes, ["closed", "open", "closed"]);
+        assert_eq!(styled(&view, look::DOTS).name.as_deref(), Some(b"1 of 3".as_slice()));
+        assert!(has(&view, "Next: welcome-stall · Fix the dropped watch".as_bytes()));
+    }
 }
 #[test]
 fn empty_column_until_delivered_and_terminal_keeps_its_list() {
@@ -831,11 +922,10 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 fn ordered(view: &crate::View) {
-    let positions: Vec<_> =
-        [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::PAIR, look::NEXT_UP]
-            .iter()
-            .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
-            .collect();
+    let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::NEXT_UP]
+        .iter()
+        .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
+        .collect();
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
 }
 #[test]
@@ -873,7 +963,7 @@ fn proposal_parts_accept_reject_and_task_open() {
                 c::Proposer::Party(_) => false,
             }
         );
-        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+        assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
     }
 }
 #[test]
@@ -997,7 +1087,7 @@ fn person_spec_and_plain_acts() {
         );
     }
     assert!(f::find(view.tree(), Role::Button, b"Open").is_some());
-    assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+    assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
 }
 #[test]
 fn mixed_kinds_next_line_uses_each_short() {
@@ -1449,10 +1539,14 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             press(&mut view, b"Open"),
             d::Action::Pages(pages::Act::Go { address: Address::Task { task: row.task } })
         );
-        assert_eq!(
-            press(&mut view, b"Later"),
-            d::Action::Pages(pages::Act::Needs(needs::Act::Later { object: c::ObjectKey::Task(row.task) }))
-        );
+        assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
+        if let Some(primary) = primary {
+            let open = f::find(view.tree(), Role::Button, b"Open").unwrap();
+            let nodes = main(&view);
+            assert!(
+                nodes.iter().position(|n| n.id == primary).unwrap() < nodes.iter().position(|n| n.id == open).unwrap()
+            );
+        }
         assert_eq!(styled(&view, look::FLOW_HEAD).role, Role::Slot);
         assert!(has(&view, b"1 of 1"));
         assert!(has(&view, b"The last one"));

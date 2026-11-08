@@ -1316,6 +1316,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-acts",
         b"temper-ways-use",
         b"temper-ways-refused",
+        b"temper-need-row",
+        b"temper-need-tell",
+        b"temper-needs-head",
+        b"temper-chip",
     ],
     regions: &[b"temper-link"],
 };
@@ -1729,6 +1733,12 @@ pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
 pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
 pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
+
+/// Needs you's list, reply and project identity (client/README.md, 3.5).
+pub const NEED_ROW: Style = Style { owner: owner(), token: 646 };
+pub const NEED_TELL: Style = Style { owner: owner(), token: 647 };
+pub const NEEDS_HEAD: Style = Style { owner: owner(), token: 648 };
+pub const CHIP: Style = Style { owner: owner(), token: 649 };
 
 #[cfg(test)]
 mod tests {
