@@ -19,16 +19,21 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             }
             return;
         }
-        c::Setting::Application { kind: 3, number, .. } => {
-            out.put(b"forge-charter ");
+        c::Setting::Application { kind: kind @ (3 | 9), number, .. } => {
+            out.put(match kind {
+                3 => b"forge-charter ",
+                9 => b"charter-words ",
+                _ => unreachable!("numbered deployment setting"),
+            });
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: 6 | 7, scope, .. } => {
-            out.put(if let c::Setting::Application { kind: 6, .. } = setting {
-                b"project-questions "
-            } else {
-                b"project-ways "
+        c::Setting::Application { kind: kind @ (6 | 7 | 10), scope, .. } => {
+            out.put(match kind {
+                6 => b"project-questions ",
+                7 => b"project-ways ",
+                10 => b"project-words ",
+                _ => unreachable!("project setting without a number"),
             });
             out.number(u64::from(scope));
             return;
@@ -82,16 +87,18 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 3 => out.string(b"forge-charter"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
+                9 => out.string(b"charter-words"),
+                10 => out.string(b"project-words"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 {
+            if kind == 2 || kind == 6 || kind == 7 || kind == 10 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 {
+            } else if kind != 1 && kind != 3 && kind != 9 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 {
+            if kind != 6 && kind != 7 && kind != 10 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
@@ -296,6 +303,25 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
             out.put(b"\n");
             if let Some(value) = &document.value {
                 named_value_text(document.setting, value, limits, out);
+            }
+            if document.value.is_none() {
+                match document.setting {
+                    c::Setting::Application { kind: 9, number, .. } => {
+                        out.put(b"charter-words ");
+                        out.number(u64::from(number));
+                        out.put(b": none kept; Roles says the charter by its instructions' first sentence.\n");
+                    }
+                    c::Setting::Application { kind: 10, .. } => {
+                        out.put(b"project-words: none kept; How work runs says the way's own words.\n");
+                    }
+                    c::Setting::Charter(_)
+                    | c::Setting::Template(_)
+                    | c::Setting::Policy(_)
+                    | c::Setting::Model(_)
+                    | c::Setting::ProjectPolicy { .. }
+                    | c::Setting::Rules
+                    | c::Setting::Application { .. } => {}
+                }
             }
             stock_text(value, out);
             if let Some(state) = &document.application {

@@ -260,7 +260,16 @@ pub(super) fn field(fields: &Fields, name: &[u8]) -> Result<u32, Error> {
 fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
     let fields = d.object(at, &[b"kind", b"number", b"project"])?;
     let kind = d.string(field(&fields, b"kind")?)?;
-    if [b"landing-rule".as_slice(), b"forge-charter", b"project-ways", b"project-questions"].contains(&kind) {
+    if [
+        b"landing-rule".as_slice(),
+        b"forge-charter",
+        b"project-ways",
+        b"project-questions",
+        b"charter-words",
+        b"project-words",
+    ]
+    .contains(&kind)
+    {
         return crate::kinds::setting(d, &fields, kind);
     }
     if kind == b"project-policy" {

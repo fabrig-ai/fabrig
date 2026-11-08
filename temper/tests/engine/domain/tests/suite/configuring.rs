@@ -790,6 +790,15 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     }
 }
 
+fn owner_words_world() -> (World, engine::Assignment) {
+    let mut config = member_config();
+    config.kinds_stock = config.kinds_stock.into_vec().into_iter().filter(|row| row.kind != 9).collect();
+    let mut world = World::new(config);
+    let member = world.member();
+    let run = world.chat(ASK_TEMPLATE, member, 20);
+    (world, run)
+}
+
 #[test]
 fn a_projects_stored_ways_read_as_stored() {
     use serde_json::json;
@@ -807,6 +816,42 @@ fn a_projects_stored_ways_read_as_stored() {
     assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), value);
     assert!(state.starts_with("changed at revision 2, "), "{text}");
     assert!(!text.contains("the stock"), "{text}");
+
+    for (line, headline, lede) in [("Reviews each change", "Our way", "We review each change before landing.")] {
+        use temper_engine_domain_forge::settings::{ProjectWords, Value};
+        use temper_engine_domain_world::kinds;
+        let (mut world, run) = owner_words_world();
+        let (text, _) = see_whole(&mut world.driver, &run, 1, "settings project-words");
+        assert!(text.contains("project-words: none kept; How work runs says the way's own words."), "{text}");
+        let (text, _) = see_whole(&mut world.driver, &run, 4, "settings charter-words 4");
+        assert!(
+            text.contains("charter-words 4: none kept; Roles says the charter by its instructions' first sentence."),
+            "{text}"
+        );
+        let items = Box::new([
+            kinds::item(9, 0, 4, &Value::CharterWords(line.as_bytes().into())),
+            kinds::item(
+                10,
+                PROJECT,
+                1,
+                &Value::ProjectWords(ProjectWords {
+                    headline: headline.as_bytes().into(),
+                    lede: lede.as_bytes().into(),
+                }),
+            ),
+        ]);
+        world.change(1, 21, items);
+        for (completion, address, value) in [
+            (2, "settings charter-words 4", json!(line)),
+            (3, "settings project-words", json!({"headline":headline,"lede":lede})),
+        ] {
+            let (text, _) = see_whole(&mut world.driver, &run, completion, address);
+            let body = text.lines().nth(1).expect("words value after heading");
+            assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("words JSON"), value);
+            assert!(text.contains("revision 2"), "{text}");
+            assert!(!text.contains("none kept"), "{text}");
+        }
+    }
 }
 
 #[test]
@@ -816,7 +861,7 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
     let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
     world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
-    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n";
+    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways, project-questions and project-words take project and no number; charter-words takes number and no project.\nend\n";
     let see_refusal = "see settings charter 999: not read: no such setting. This says nothing about the settings: see settings lists them.";
     for (run, completion, tool, input, expected) in [
         (&run, 1, b"settings".as_slice(), json!({"setting":{"kind":"project-ways","project":999}}), settings_refusal),
@@ -1093,7 +1138,19 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
 fn the_asking_chat_reads_each_kind() {
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
-    world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
+    world.change(
+        1,
+        21,
+        Box::new([
+            owner_charter(b"The newest chat instructions."),
+            temper_engine_domain_world::kinds::item(
+                9,
+                0,
+                4,
+                &temper_engine_domain_forge::settings::Value::CharterWords(b"Reviews each change".as_slice().into()),
+            ),
+        ]),
+    );
     let before = world.driver.store.rows.clone();
     let mut completion = 10;
     for (input, heading, content) in [
@@ -1106,6 +1163,12 @@ fn the_asking_chat_reads_each_kind() {
         ("settings forge-charter 1", "forge-charter 1, revision 2\n", "default, "),
         ("revision 2", "revision 2, against revision 1,", "The newest chat instructions."),
         ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,"),
+        ("settings charter-words 4", "charter-words 4, revision 2\n", "Reviews each change"),
+        (
+            "settings project-words",
+            "project-words 1, revision 2\n",
+            "project-words: none kept; How work runs says the way's own words.",
+        ),
     ] {
         let (text, pages) = see_whole(&mut world.driver, &run, completion, input);
         assert!(text.starts_with(heading), "{text}");
@@ -1128,10 +1191,22 @@ fn the_asking_chat_reads_each_kind() {
 fn an_asking_chat_reads_each_address() {
     use serde_json::json;
     let mut world = World::new(settings_config());
-    world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
+    world.change(
+        1,
+        21,
+        Box::new([
+            owner_charter(b"The newest chat instructions."),
+            temper_engine_domain_world::kinds::item(
+                9,
+                0,
+                4,
+                &temper_engine_domain_forge::settings::Value::CharterWords(b"Reviews each change".as_slice().into()),
+            ),
+        ]),
+    );
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     assert_eq!(run.charter, ASK_CHARTER);
-    assert!(std::str::from_utf8(&run.run.policy.instructions).unwrap().contains(temper_engine_smith::ADDRESSES));
+    assert!(std::str::from_utf8(&run.run.policy.instructions).unwrap().contains("settings [KIND N | rules"));
     let before = world.driver.store.rows.clone();
     let mut completion = 1;
     for (address, heading, content, expected_error) in [
@@ -1171,6 +1246,13 @@ fn an_asking_chat_reads_each_address() {
             "see settings lists them.",
             true,
         ),
+        ("settings charter-words 4", "charter-words 4, revision 2", "Reviews each change", false),
+        (
+            "settings project-words",
+            "project-words 1, revision 2",
+            "project-words: none kept; How work runs says the way's own words.",
+            false,
+        ),
     ] {
         let (body, error) =
             host_tool(&mut world.driver, &run, completion, b"see", json!({"address":address}).to_string().as_bytes());
@@ -1189,6 +1271,8 @@ fn an_asking_chat_reads_each_address() {
         }
         assert_eq!(world.driver.store.rows, before, "{address} commits nothing");
         if address == "settings" {
+            assert!(text.contains("settings charter-words N"), "{text}");
+            assert!(text.contains("settings project-words"), "{text}");
             eprintln!("see settings first part: {} bytes", body.len());
         }
         completion += 1;
