@@ -189,6 +189,10 @@ pub struct DelegationLine { pub kind: Box<[u8]>, pub title: Box<[u8]>, pub state
 pub fn delegation_line(task: &c::Task, w: &Words) -> DelegationLine;
 /// A proposal's title as the browser's terminal card line says it; none for another card.
 pub fn proposal_line(card: &temper_client_domain::pages::inbox::Card, w: &Words) -> Option<Box<[u8]>>;
+/// What the browser draws under its composer for the open page's last send: a chat's start
+/// refused on `Home` or `Ask`, a message refused or failed on a chat, the waiting
+/// question's answer refused; none otherwise.
+pub fn refusal(root: &Domain, w: &Words) -> Option<Box<[u8]>>;
 ```
 
 - Each browser builder that says the same thing builds from its function: `chat_line::Run::flush`
@@ -245,15 +249,27 @@ pub fn limits(domain: &temper_client_domain::Limits, view: &skein_ui::Limits, fi
   with `View`, `build` and `event`.
 - **The view's parts:** `src/view.rs` keeps `View`, `build`, `event`, `escape`, signing in
   and the bindings; one module a part, `src/view/launchpad.rs` (`tui-launchpad`),
-  `src/view/foot.rs` (`tui-foot`), `src/view/chat.rs` (`tui-chat`), each with
-  `pub(crate) fn read(...) -> PART` from the root and the TUI's state and `pub(crate) fn
-  draw(b, &PART, ...)` from that data alone, so that a part's goldens need no engine.
-  `PART`'s shape is the part's task's own. `view.rs` calls, signed in: on `Chat { .. }`
-  `chat::read` then `chat::draw`, else `launchpad::read` then `launchpad::draw`; then
-  `foot::read` and `foot::draw`. Bindings: `view::Binds`, `pub(crate) fn bind(&mut self,
-  event: Event) -> skein_ui::Binding`, token 4 onwards under `look::OWNER`, reset at each
-  build; `event` decodes a bound press, input or submit to its `Event`; `View` keeps the
-  `Event` Esc makes, set by the part that draws a list.
+  `src/view/foot.rs` (`tui-foot`), `src/view/chat.rs` (`tui-chat`), each with `pub(crate)
+  struct` of its data (`Launchpad`, `Foot`, `Chat`), `pub(crate) fn read(root: &Domain,
+  tui: &Tui, words: &Words, wall: Wall) -> PART` and `pub(crate) fn draw(b: &mut Builder,
+  part: &PART, words: &Words, binds: &mut Binds)`, `foot::draw` returning the
+  `Option<Event>` Esc makes. A part's data fields are its task's own. `view.rs`:
+
+  ```rust
+  pub(crate) enum Body { Launchpad(launchpad::Launchpad), Chat(chat::Chat) }
+  pub(crate) struct Signed { pub body: Body, pub foot: foot::Foot }
+  /// The signed-in tree from data alone: the page, the body's top, the body, the foot.
+  pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>);
+  pub(crate) struct Binds { /* List<Event> */ }
+  impl Binds { pub(crate) fn bind(&mut self, event: Event) -> skein_ui::Binding; }
+  ```
+
+  `build`, signed in: `Body::Chat(chat::read(..))` on `Chat { .. }`, else
+  `Body::Launchpad(launchpad::read(..))`, and `foot::read(..)`, then `signed`. A part's
+  goldens build `Signed` from data and lay it with `signed`, through
+  `src/tests/goldens.rs`'s `check`. Binding tokens: under `look::OWNER`, `Binds`' from 4,
+  reset at each build; `event` decodes a bound press to a clone of its `Event`, and the
+  box's input to `Typed` and its submit to `Send`; `View` keeps the `Event` Esc makes.
 - **The names** (`look.rs`), numbers after today's:
 
   | Region | Number | | Style | Number |

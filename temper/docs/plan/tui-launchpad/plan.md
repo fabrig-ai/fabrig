@@ -60,6 +60,8 @@ No compatibility is kept: none is owed before v0.1.0.
 | `screen-entries` | screen-label | skein-ui-screen (an item's mark, a description's paint, spaced children) | 4 | 120 |
 | `view-shared` | | temper-client-view (`shared`: the terminal's words and data; `see`'s phrases) | 1 | 200 |
 | `domain-home` | | temper-client-domain (Home's composer asks Ask temper) | 1 | 100 |
+| `view-lists` | view-shared | temper-client-view (`shared`: the lists, the question, a card's line) | 2 | 180 |
+| `tui-surface` | screen-entries, view-shared | temper-client-tui (events, state, names, themes, words, view parts) | 5 | 210 |
 
 The TUI's view, host and shared words, the domain's change, the joint story and the
 journeys follow in later batches.
