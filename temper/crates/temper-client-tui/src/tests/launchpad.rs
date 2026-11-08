@@ -569,6 +569,7 @@ fn the_launchpads_are_their_goldens() {
     for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
+                background: Some(crate::theme::palette(*scheme)[0].1),
                 name,
                 tree: view.tree(),
                 scheme: *scheme,

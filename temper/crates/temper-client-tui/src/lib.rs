@@ -8,6 +8,7 @@ mod event;
 pub mod limits;
 pub mod look;
 mod note;
+mod place;
 mod state;
 pub mod theme;
 mod view;
@@ -16,9 +17,10 @@ pub use approval::{approval_address, may_ask_again};
 pub use event::Event;
 pub use limits::limits;
 pub use note::Note;
+pub use place::place;
 pub use state::{Browser, Local, Refusal, Signing, Told, Tui};
 pub use theme::{Scheme, theme};
-pub use view::{View, build, escape, event, offered};
+pub use view::{Arrow, View, arrow, build, escape, event, offered};
 
 #[cfg(test)]
 mod tests;

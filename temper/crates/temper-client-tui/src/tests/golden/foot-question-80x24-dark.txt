@@ -53,6 +53,6 @@ b: fore #E08A68 bold
 c: bold
 d: fore #9A9388
 e: fore #E08A68
-f: fore #E08A68 back #2A2825 bold
-g: back #2A2825 bold
+f: fore #E08A68 back #2D2C2A bold
+g: back #2D2C2A bold
 cursor 18 2

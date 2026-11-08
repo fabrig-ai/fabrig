@@ -477,12 +477,25 @@ fn the_chats_are_their_goldens() {
     let full = Size { columns: 80, rows: 24 };
     let narrow = Size { columns: 40, rows: 12 };
     let rows = [
-        ("chat-80x24-dark", full, false, include_bytes!("golden/chat-80x24-dark.txt").as_slice()),
-        ("chat-question-80x24-dark", full, true, include_bytes!("golden/chat-question-80x24-dark.txt").as_slice()),
-        ("chat-40x12-dark", narrow, false, include_bytes!("golden/chat-40x12-dark.txt").as_slice()),
+        ("chat-80x24-dark", full, false, true, include_bytes!("golden/chat-80x24-dark.txt").as_slice()),
+        (
+            "chat-80x24-dark-no-band",
+            full,
+            false,
+            false,
+            include_bytes!("golden/chat-80x24-dark-no-band.txt").as_slice(),
+        ),
+        (
+            "chat-question-80x24-dark",
+            full,
+            true,
+            true,
+            include_bytes!("golden/chat-question-80x24-dark.txt").as_slice(),
+        ),
+        ("chat-40x12-dark", narrow, false, true, include_bytes!("golden/chat-40x12-dark.txt").as_slice()),
     ];
     let mut views = List::uncapped();
-    for (_, size, question, _) in &rows {
+    for (_, size, question, _, _) in &rows {
         let mut entries = List::uncapped();
         entries.push(Entry::Said(REQUEST.into())).unwrap();
         entries
@@ -517,9 +530,10 @@ fn the_chats_are_their_goldens() {
         views.push(draw(data(entries.into_boxed(), size.columns), list)).unwrap();
     }
     let mut checks = List::uncapped();
-    for ((name, size, _, want), view) in rows.iter().zip(&views) {
+    for ((name, size, _, band, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
+                background: band.then_some(crate::theme::palette(Scheme::Dark)[0].1),
                 name,
                 tree: view.tree(),
                 scheme: Scheme::Dark,
@@ -530,4 +544,29 @@ fn the_chats_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the rendered rows are collected as text for comparison"
+)]
+fn agent_markdown_bullets_keep_their_own_mark_at_every_depth() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let bytes = b"Here is how:\n\n- **How temper works**: a box.\n  - nested\n- second\n\n1. one\n2. two";
+    let expected =
+        ["✦ Here is how:", "  • How temper works: a box.", "    • nested", "  • second", "  1. one", "  2. two"];
+    let size = Size { columns: 80, rows: 24 };
+    for growing in [false, true] {
+        let view = draw(data(Box::new([Entry::Agent { words: bytes.as_slice().into(), growing }]), 80), None);
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
+        let lines: Vec<String> = (1..size.rows)
+            .map(|row| frame.row(row).unwrap().iter().map(|cell| cell.glyph).collect::<String>().trim_end().into())
+            .filter(|row: &String| !row.is_empty())
+            .take(expected.len())
+            .collect();
+        assert_eq!(lines, expected, "growing: {growing}");
+    }
 }

@@ -142,11 +142,14 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
         }
         Entry::Agent { words: bytes, growing } => {
             b.style(look::AGENT);
+            b.open(Role::Group);
+            b.style(look::BULLETS);
             if *growing {
                 skein_ui::markdown::read_growing(bytes, 2, |b| text(b, Role::Text, b" ", Some(look::END)), b);
             } else {
                 skein_ui::markdown::read(bytes, 2, b);
             }
+            b.close();
         }
         Entry::Run(line) => {
             b.style(look::RUN);
