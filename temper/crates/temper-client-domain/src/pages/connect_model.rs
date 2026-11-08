@@ -59,6 +59,8 @@ pub const fn open(address: &Address) -> bool {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
@@ -71,6 +73,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => false,
@@ -129,6 +132,8 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
@@ -141,6 +146,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
@@ -155,6 +161,8 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
@@ -167,6 +175,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => return None,

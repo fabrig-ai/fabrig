@@ -5,50 +5,46 @@ demo:
   New project:
     [3] New project: (empty) (enter sends)
     [4] Create
-  [5] Settings for demo
-  [6] Home
-  [7] Needs you
-  [8] Chats
-  [9] + New chat
-  More ways to start work:
-    [10] Chat
-      Ask about the code or ask for a change.
-    [11] Goal
-      Agents plan a larger change and land it.
-    [12] All ways to start work
+  [5] How work runs for demo
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work
+  [10] How work runs (current)
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
   [13] Set up temper
-  [14] Settings (current)
+  [14] Deployment
   * Pat
-demo · settings
+demo · how work runs
 Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
-Settings:
+How work runs:
   [15] How work runs (current)
   [16] Repositories
-  [17] Forges
-  [18] Accounts
-  [19] Models
-  [20] Builders
 ## The path of a change
 ## What needs you
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [21] ( ) Answered by the goal, kept in its decisions
-  [22] ( ) Asked of me too
-  [23] (*) Not asked: each agent decides alone
+  [17] ( ) Answered by the goal, kept in its decisions
+  [18] ( ) Asked of me too
+  [19] (*) Not asked: each agent decides alone
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[24] [x] Chats can write drafts
+[20] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[25] [ ] Goals
+[21] [ ] Goals
 Changes
-The landing queue, as a page.
+The landing queue, as Work's filter.
 Hidden
-[26] [ ] Changes
+[22] [ ] Changes
 Away switch
 Lets agents decide within limits while you’re away.
 Hidden
-[27] [ ] Away switch
+[23] [ ] Away switch

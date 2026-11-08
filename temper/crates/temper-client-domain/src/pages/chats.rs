@@ -16,6 +16,9 @@ use skein_lib::{Env, List, Map, Queue, Time, Writer};
 /// Ask temper's stock template (temper/docs/design/protocol/configuration.md, 13.4).
 pub const ASKING_TEMPLATE: u32 = 5;
 
+/// A design session's stock template (temper/docs/design/protocol/configuration.md, 13.4).
+pub const DRAFTING_TEMPLATE: u32 = 6;
+
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the configured query is private watch bookkeeping")]
 #[expect(
@@ -360,7 +363,15 @@ impl Chats {
         } else {
             self.words.clone()
         };
-        self.send(env, Some(me), project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
+        let template = if draft
+            && let Some(project) = project
+            && jig_client::shapes::template(me, project, DRAFTING_TEMPLATE).is_some()
+        {
+            DRAFTING_TEMPLATE
+        } else {
+            jig_client::shapes::CHAT
+        };
+        self.send(env, Some(me), project, template, words, Some(choice), serial, out);
         if self.start.is_some() {
             self.starting_mode = if draft { Mode::Split } else { Mode::Chat };
         }
@@ -598,6 +609,16 @@ fn handle(number: u64) -> Handle {
 #[must_use]
 pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
     let Some(template) = jig_client::shapes::template(me, project, ASKING_TEMPLATE) else { return false };
+    match template.executor {
+        c::TemplateExecutor::Charter(charter) => *executor == c::ChipExecutor::Agent { charter },
+        c::TemplateExecutor::Chosen => false,
+    }
+}
+
+/// A design session: a chat of template 6's charter (temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn drafting(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
+    let Some(template) = jig_client::shapes::template(me, project, DRAFTING_TEMPLATE) else { return false };
     match template.executor {
         c::TemplateExecutor::Charter(charter) => *executor == c::ChipExecutor::Agent { charter },
         c::TemplateExecutor::Chosen => false,

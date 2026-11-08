@@ -89,6 +89,10 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v9::Limits) -> Optio
     let kind = found?;
     let reader = &mut Reader::new(body);
     match kind {
+        wire::Kind::Draining => {
+            wire::Draining::decode(limits, reader).ok()?;
+            Some(Up::Source(host::LinkUp::Draining))
+        }
         wire::Kind::ListRead => Some(Up::ListRead(wire::ListRead::decode(limits, reader).ok()?)),
         wire::Kind::Logins => {
             let record = wire::Logins::decode(limits, reader).ok()?.into_parts();

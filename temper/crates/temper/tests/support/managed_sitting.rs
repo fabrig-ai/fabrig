@@ -31,46 +31,19 @@ const PAGE: Duration = Duration::from_secs(10);
 const STOP: Duration = Duration::from_secs(5);
 const SCAN: Duration = Duration::from_secs(45);
 const POLL: std::time::Duration = std::time::Duration::from_millis(20);
+const DIAGNOSTIC_LINES: usize = 16;
+const DIAGNOSTIC_BYTES: usize = 4096;
 
+/// Sign in, Connect and adopt through Ready on the sitting's fake peers.
 pub fn run() {
     let scratch = Scratch::new("managed-sitting");
     let root = scratch.path();
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private sitting scratch");
     let binary = paths::binary("temper");
-    let document = json!({
-        "listen":{"socket":"127.0.0.1:0"}, "admin_token":root.join("fake-admin"), "owner":OWNER,
-        "repositories":[
-            {"owner":OWNER,"name":NAME,"landing":"main","ci":null,"id":1},
-            {"owner":OWNER,"name":"temper-probe","landing":"main","ci":null,"id":2}
-        ],
-        "github":{
-            "app":{"id":4242,"slug":"temper-test","bot":4243,"key":0},
-            "accounts":[
-                {"login":"managed-person","id":10,"kind":"user","installation":null},
-                {"login":OWNER,"id":30,"kind":"organization","installation":null},
-                {"login":"managed-other","id":20,"kind":"user","installation":{"id":1,"repositories":"all"}}
-            ], "token_life_seconds":3600
-        }
-    });
-    let document_path = root.join("fake.json");
-    super::write_private(&document_path, &serde_json::to_vec(&document).expect("fake document JSON"));
-    let mut command = child_command(root, &binary, "forge");
-    command.args(["fake", "forge", "--document"]).arg(&document_path).args(["--ready", "listening "]);
-    let mut fake = Process::start(&mut command);
+    let mut fake = start_forge(root, &binary);
     let upstream = address(&fake.line("listening "));
-
     let evidence = root.join("conversion.json");
-    let mut command = child_command(root, &std::env::current_exe().expect("sitting harness"), "relay");
-    command
-        .args(["--ignored", "--exact", "managed_relay", "--nocapture"])
-        .stdin(Stdio::piped())
-        .env("TEMPER_MANAGED_MODE", "fake")
-        .env("TEMPER_MANAGED_SCRATCH", root)
-        .env("TEMPER_MANAGED_UPSTREAM", upstream.to_string())
-        .env("TEMPER_MANAGED_PREFIX", format!("temper/live-{}/", root.file_name().expect("run name").to_string_lossy()))
-        .env("TEMPER_MANAGED_EVIDENCE", &evidence)
-        .env("TEMPER_MANAGED_PERSON", "managed-person");
-    let mut relay = Process::start(&mut command);
+    let mut relay = start_relay(root, upstream, &evidence);
     let ready = root.join("relay-ready.json");
     let mut patience = relay.patience("managed relay readiness", READY);
     let addresses: Value = loop {
@@ -80,7 +53,7 @@ pub fn run() {
             break value;
         }
         relay.running();
-        pause(&mut patience);
+        pause(&relay, &mut patience);
     };
     let api = address(addresses["api"].as_str().expect("relay API address"));
     let git = address(addresses["git"].as_str().expect("relay git address"));
@@ -99,15 +72,54 @@ pub fn run() {
     let link = format!("http://{}", engine.line("http://"));
     let (printed, _) = url(&link, &[clients]);
     assert_eq!(printed, clients, "printed link uses the chosen client port");
-
     managed_client::ready(root, &link, Mode::SignIn);
     super::write_private(&root.join("client/address"), format!("http://{clients}\n").as_bytes());
     let peers = [(upstream, fake.child.id()), (clients, engine.child.id())];
     connect(root, &binary, clients, &peers);
     managed_client::ready(root, &link, Mode::Adopt);
-
     engine.stop();
     fake.stop();
+    finish_relay(&mut relay, &evidence);
+}
+
+fn start_forge(root: &Path, binary: &Path) -> Process {
+    let document = json!({
+        "listen":{"socket":"127.0.0.1:0"}, "admin_token":root.join("fake-admin"), "owner":OWNER,
+        "repositories":[
+            {"owner":OWNER,"name":NAME,"landing":"main","ci":null,"id":1},
+            {"owner":OWNER,"name":"temper-probe","landing":"main","ci":null,"id":2}
+        ],
+        "github":{
+            "app":{"id":4242,"slug":"temper-test","bot":4243,"key":0},
+            "accounts":[
+                {"login":"managed-person","id":10,"kind":"user","installation":null},
+                {"login":OWNER,"id":30,"kind":"organization","installation":null},
+                {"login":"managed-other","id":20,"kind":"user","installation":{"id":1,"repositories":"all"}}
+            ], "token_life_seconds":3600
+        }
+    });
+    let document_path = root.join("fake.json");
+    super::write_private(&document_path, &serde_json::to_vec(&document).expect("fake document JSON"));
+    let mut command = child_command(root, binary, "forge");
+    command.args(["fake", "forge", "--document"]).arg(&document_path).args(["--ready", "listening "]);
+    Process::start(&mut command)
+}
+
+fn start_relay(root: &Path, upstream: SocketAddr, evidence: &Path) -> Process {
+    let mut command = child_command(root, &std::env::current_exe().expect("sitting harness"), "relay");
+    command
+        .args(["--ignored", "--exact", "managed_relay", "--nocapture"])
+        .stdin(Stdio::piped())
+        .env("TEMPER_MANAGED_MODE", "fake")
+        .env("TEMPER_MANAGED_SCRATCH", root)
+        .env("TEMPER_MANAGED_UPSTREAM", upstream.to_string())
+        .env("TEMPER_MANAGED_PREFIX", format!("temper/live-{}/", root.file_name().expect("run name").to_string_lossy()))
+        .env("TEMPER_MANAGED_EVIDENCE", evidence)
+        .env("TEMPER_MANAGED_PERSON", "managed-person");
+    Process::start(&mut command)
+}
+
+fn finish_relay(relay: &mut Process, evidence: &Path) {
     relay.running();
     let mut input = relay.child.stdin.take().expect("relay control pipe");
     input
@@ -133,7 +145,6 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
     }
     let template = template.replace("{{", "{").replace("}}", "}").replace("\"acme\"", &format!("\"{OWNER}\""));
     let mut value: Value = serde_json::from_str(&template).expect("rendered engine template");
-    value["engine"]["policies"] = value["engine"]["projects"].clone();
     value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
     // Bind the machine endpoints as the process GitHub story does.
     value["application"]["machine"]["github"] = json!({
@@ -151,7 +162,7 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
 }
 
 fn connect(root: &Path, binary: &Path, clients: SocketAddr, peers: &[(SocketAddr, u32); 2]) {
-    let output = ctl(root, binary, &["forge", "connect", "1", "github", "--key", "managed-connect"]);
+    let output = ctl(root, binary, &["forge", "connect", "github", "--key", "managed-connect"]);
     let link = output.lines().find(|line| line.starts_with("http://")).expect("Connect link");
     let form = page("GET", link, "", peers, 200);
     let action = attribute(tag(&form.body, "form", None), "action");
@@ -168,13 +179,15 @@ fn connect(root: &Path, binary: &Path, clients: SocketAddr, peers: &[(SocketAddr
     let finish = page("GET", &accepted.location, "", peers, 200);
     assert!(finish.body.contains("temper has the installation"), "selected installation accepted");
     ctl(root, binary, &["forge", "list", "--until", "settled"]);
+    ctl(root, binary, &["project", "make", "Sitting", "--key", "managed-project"]);
 }
 
 fn ctl(root: &Path, binary: &Path, words: &[&str]) -> String {
     let mut command = environment(root, binary);
     command.arg("ctl").arg(root.join("client")).args(words);
     let mut process = Process::start(&mut command);
-    assert!(process.wait(COMMAND).success(), "managed ctl exits successfully");
+    let status = process.wait(COMMAND);
+    assert!(status.success(), "{}", process.failure(status, "during ctl"));
     process.stdout()
 }
 
@@ -212,19 +225,47 @@ fn environment(root: &Path, binary: &Path) -> Command {
 #[derive(Default)]
 struct Lines {
     rows: VecDeque<(bool, String)>,
+    diagnostics: VecDeque<String>,
     bytes: usize,
     failed: bool,
+    pem: bool,
+}
+
+impl Lines {
+    fn record(&mut self, stdout: bool, line: String) {
+        if !stdout {
+            if line.starts_with("-----BEGIN ") {
+                self.pem = true;
+            }
+            let safe = if self.pem { "[redacted]\n".into() } else { diagnostic(&line) };
+            if line.starts_with("-----END ") {
+                self.pem = false;
+            }
+            if self.diagnostics.len() == DIAGNOSTIC_LINES {
+                self.diagnostics.pop_front();
+            }
+            self.diagnostics.push_back(safe);
+        }
+        self.rows.push_back((stdout, line));
+    }
 }
 
 struct Process {
     child: Child,
+    name: String,
     lines: Arc<Mutex<Lines>>,
     readers: Vec<JoinHandle<()>>,
 }
 impl Process {
     fn start(command: &mut Command) -> Self {
+        let name = command
+            .get_current_dir()
+            .and_then(Path::file_name)
+            .expect("named sitting child")
+            .to_string_lossy()
+            .into_owned();
         let child = command.spawn().expect("start private sitting process");
-        let mut process = Self { child, lines: Arc::default(), readers: Vec::new() };
+        let mut process = Self { child, name, lines: Arc::default(), readers: Vec::new() };
         let stdout = process.child.stdout.take().expect("private stdout");
         let stderr = process.child.stderr.take().expect("private stderr");
         process.readers.push(drain(stdout, true, process.lines.clone()));
@@ -239,11 +280,21 @@ impl Process {
     }
 
     fn running(&mut self) {
-        assert!(
-            self.child.try_wait().expect("poll sitting process").is_none(),
-            "sitting process ended before readiness"
-        );
+        if let Some(status) = self.child.try_wait().expect("poll sitting process") {
+            self.join();
+            panic!("{}", self.failure(status, "before readiness"));
+        }
         assert!(!self.lines.lock().expect("private output lock").failed, "private process output bound or encoding");
+    }
+
+    fn failure(&self, status: ExitStatus, when: &str) -> String {
+        let lines = self.lines.lock().expect("private output lock");
+        format!(
+            "sitting child {} (pid {}) ended {when}: {status}; stderr (redacted):\n{}",
+            self.name,
+            self.child.id(),
+            lines.diagnostics.iter().cloned().collect::<String>()
+        )
     }
 
     fn line(&mut self, prefix: &str) -> String {
@@ -259,7 +310,7 @@ impl Process {
                 }
             }
             self.running();
-            pause(&mut patience);
+            pause(self, &mut patience);
         }
     }
 
@@ -274,7 +325,7 @@ impl Process {
                 );
                 return status;
             }
-            pause(&mut patience);
+            pause(self, &mut patience);
         }
     }
 
@@ -353,16 +404,75 @@ fn drain(pipe: impl Read + Send + 'static, stdout: bool, lines: Arc<Mutex<Lines>
                 continue;
             }
             match String::from_utf8(bytes) {
-                Ok(line) => lines.rows.push_back((stdout, line)),
+                Ok(line) => lines.record(stdout, line),
                 Err(_) => lines.failed = true,
             }
         }
     })
 }
 
-fn pause(patience: &mut Patience) {
+fn diagnostic(line: &str) -> String {
+    let lower = line.to_ascii_lowercase();
+    if ["secret", "token", "authorization", "bearer", "key", "http://", "https://", "-----"]
+        .iter()
+        .any(|word| lower.contains(word))
+    {
+        return "[redacted]\n".into();
+    }
+    let mut safe: String = line
+        .char_indices()
+        .take_while(|(at, character)| at + character.len_utf8() < DIAGNOSTIC_BYTES / DIAGNOSTIC_LINES)
+        .map(|(_, character)| character)
+        .collect();
+    if !safe.ends_with('\n') {
+        safe.push('\n');
+    }
+    safe
+}
+
+#[test]
+fn startup_diagnostics_redact_credentials_and_pem_bodies() {
+    for line in [
+        "secret=private",
+        "TOKEN private",
+        "Authorization: private",
+        "Bearer private",
+        "key: private",
+        "http://localhost/private",
+        "https://localhost/private",
+        "-----BEGIN PRIVATE KEY-----",
+    ] {
+        assert_eq!(diagnostic(line), "[redacted]\n");
+    }
+    assert_eq!(diagnostic("serve: configuration refused\n"), "serve: configuration refused\n");
+    let mut lines = Lines::default();
+    for line in ["-----BEGIN PRIVATE KEY-----", "encoded-private-body", "-----END PRIVATE KEY-----"] {
+        lines.record(false, line.into());
+    }
+    assert_eq!(lines.diagnostics.into_iter().collect::<String>(), "[redacted]\n".repeat(3));
+}
+
+#[test]
+fn startup_diagnostics_keep_a_bounded_utf8_tail_after_readiness_consumes_output() {
+    let mut lines = Lines::default();
+    lines.record(true, "private stdout\n".into());
+    for _ in 0..=DIAGNOSTIC_LINES {
+        lines.record(false, "é".repeat(DIAGNOSTIC_BYTES));
+    }
+    lines.rows.clear();
+    assert_eq!(lines.diagnostics.len(), DIAGNOSTIC_LINES);
+    assert!(!lines.diagnostics.iter().any(|line| line.contains("stdout")));
+    assert!(lines.diagnostics.iter().map(String::len).sum::<usize>() <= DIAGNOSTIC_BYTES);
+}
+
+fn pause(process: &Process, patience: &mut Patience) {
     if let Some(figures) = patience.failed() {
-        panic!("managed sitting wait: {figures}");
+        panic!(
+            "sitting child {} (pid {}) wait: {figures}; stderr (redacted):\n{}",
+            process.name,
+            process.child.id(),
+            process.lines.lock().expect("private output lock").diagnostics.iter().cloned().collect::<String>()
+        );
     }
     thread::sleep(POLL);
 }

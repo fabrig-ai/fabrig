@@ -265,6 +265,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         }
                         up @ (host::LinkUp::Piece { .. }
                         | host::LinkUp::ListRead { .. }
+                        | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

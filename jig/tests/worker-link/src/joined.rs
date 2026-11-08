@@ -307,6 +307,7 @@ impl Joined {
                     | host::LinkUp::Unauthorized { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::ListRead { .. }
+                    | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::JobAnswer { .. }
