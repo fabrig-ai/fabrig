@@ -37,7 +37,7 @@ pub enum TabAct {
 #[derive(Debug, Default)]
 pub struct Duties {
     pub screen: Option<bool>,
-    pub keep_look: Option<[u8; 3]>,
+    pub keep_look: Option<[u8; 4]>,
     pub tab: Vec<TabAct>,
     pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
@@ -71,7 +71,7 @@ pub struct Host {
     replace: Option<Box<[u8]>>,
     show: Option<(Box<[u8]>, bool)>,
     copy: Option<(u32, Box<[u8]>)>,
-    keep_look: Option<[u8; 3]>,
+    keep_look: Option<[u8; 4]>,
     screen: Option<bool>,
 }
 impl Host {
@@ -101,6 +101,11 @@ impl Host {
             navigate: None,
             replace: None,
         }
+    }
+    /// The kept look's night on every page (client/README.md, 3.5).
+    #[must_use]
+    pub fn night(&self) -> bool {
+        self.root.pages().look().night
     }
     pub fn forge_sign_in(&mut self, forges: view::forge_sign_in::Forges) {
         self.view.forge_sign_in(forges);
