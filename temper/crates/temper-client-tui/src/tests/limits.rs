@@ -3,6 +3,9 @@ use crate::words::Word;
 use crate::{Refusal, Told, Tui, View, look};
 use skein_ui::{Role, Tree, phrases::Hole};
 
+// temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema, BranchPath: list 24 Stop.
+const WIRE_STOPS: u32 = 24;
+
 pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert_eq!(skein_ui::outline::check(tree), None);
     assert!(tree.len() <= limits.nodes);
@@ -11,7 +14,10 @@ pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     let mut parents = skein_lib::Stack::with_capacity(limits.depth);
     for (index, node) in tree.nodes().iter().enumerate() {
         let index = u32::try_from(index).unwrap();
-        while parents.top().is_some_and(|end| *end <= index) {
+        while match parents.top() {
+            Some(end) => *end <= index,
+            None => false,
+        } {
             parents.pop();
         }
         let depth = parents.len().checked_add(1).unwrap();
@@ -205,7 +211,7 @@ fn the_trees_fit_their_limits() {
         &mut skein_lib::Queue::uncapped(),
     );
     fits(chat_view.tree(), &chat_bounds);
-    let stops = temper_client_domain::Limits::chat_views() * 2 * temper_client_view::paths::STOPS;
+    let stops = temper_client_domain::Limits::chat_views() * 2 * WIRE_STOPS;
     assert_eq!(f::count(chat_view.tree(), Role::Description), usize::try_from(stops * 2).unwrap());
     assert_eq!(crate::limits(&domain, &skein_ui::Limits::EMPTY, u32::MAX), None);
     let mut huge = domain;
@@ -216,6 +222,7 @@ fn the_trees_fit_their_limits() {
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
+    clippy::disallowed_macros,
     reason = "the boundary fixture builds maximum wire paths and collects the admitted views"
 )]
 fn chat_views() -> crate::view::chat::Chat {
@@ -226,8 +233,7 @@ fn chat_views() -> crate::view::chat::Chat {
     };
     use temper_client_protocol_wire::v1 as w;
     let words = vec![b'w'; usize::try_from(temper_client_view::paths::WORDS).unwrap()];
-    let stops: Vec<_> =
-        (0..temper_client_view::paths::STOPS).map(|_| (w::Actor::Code, w::PathStep::Check, words.as_slice())).collect();
+    let stops: Vec<_> = (0..WIRE_STOPS).map(|_| (w::Actor::Code, w::PathStep::Check, words.as_slice())).collect();
     let path = super::printed::path(&stops);
     let pieces = (0..temper_client_domain::Limits::chat_views())
         .map(|_| {

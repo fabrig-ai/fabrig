@@ -126,6 +126,7 @@ const CARD: &[Span] = &[
     ("push its branch", None, 2),
 ];
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks each printed wire variant and read state")]
 fn each_view_prints_its_lines() {
     let short = || path(&[(w::Actor::Agent, w::PathStep::Produce, b"derive these words")]);
     let mut current = WAY.to_vec();

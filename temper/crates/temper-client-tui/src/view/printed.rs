@@ -36,7 +36,7 @@ pub(crate) fn draw(b: &mut Builder, printed: &Printed, words: &Words) {
             Some(look::HINT),
         ),
         Printed::Failed(address) => {
-            text(b, Role::Paragraph, &words.view().say(Word::ViewFailed, &[Hole::Name(address.clone())]), None)
+            text(b, Role::Paragraph, &words.view().say(Word::ViewFailed, &[Hole::Name(address.clone())]), None);
         }
         Printed::Drawn(view) => match view.as_ref() {
             w::View::Way(way) => {
