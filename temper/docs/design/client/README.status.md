@@ -964,3 +964,11 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 5.13, *A way's acts*: the tab shown and the open stop as
+  the page's state, a way's act shown disabled while it is out, and the
+  toast naming the way and the revision (the plan `look-ask-ways`).
+- **Not yet:** 5.16, *Drawn*, *Its layout* and *Pressed*: a path is drawn
+  across with its stops evenly from end to end and every bar alike, never
+  down the page, in one tone, and nothing of it is pressed (the plan
+  `look-ask-ways`).
