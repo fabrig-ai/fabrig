@@ -102,3 +102,12 @@ fn unasked(&mut self, env: &Env<protocol::ComponentLimits>, up: &mut Queue<ToDom
 ## Report
 
 fab's implementer report, with: the panic seen in step 1, each row's outcome after the guard, the counts of the three package runs, and the choices of the options above.
+
+## Rebase (2026-11-08, step merge, foreman program-burst-files/unasked-answer/foreman-1)
+
+resolve the status conflict by retaining the new routing gap and deleting only the unasked-answer abort gap.
+The merge failed in `smith/docs/design/protocol/programs.status.md`.
+Integration commit `00bb0beb809ac09bc1a817f80bf2a96211abe46e` added the adjacent **Not yet** entry beginning “5.1: an answer's program is told by any token the program owns”.
+Task commit `55ab3b6aee1d4d8179d6cd15c2c2a1efb4c3e328` deletes the preceding entry beginning “5.1: an answer not asked for aborts the agent”.
+Rebase onto the landing's current integration tip. Resolve the conflict by preserving the routing entry in full and removing only the seven-line unasked-answer abort entry, as acceptance 4 requires.
+Preserve all other status text and the task's code changes.
