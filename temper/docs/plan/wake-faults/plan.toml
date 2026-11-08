@@ -4,3 +4,66 @@ sources = ["temper/docs/plan/wake-faults/inputs/request.md", "AGENTS.md", "DESIG
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "finish-parks"
+title = "An agent's finish while its task's delegates are live parks the run, never an unexplained invalid attempt"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.4"
+
+[[part]]
+id = "covered-entries"
+title = "An entry a covering run left undecided waits for a change, offered at the next wake"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[part]]
+id = "late-reasons"
+title = "Every reason waiting at a run's claim joins it, a due result among them, and the run reads its part"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[part]]
+id = "start-classes"
+title = "A start refused before its first turn spends a permanent try, and an agent's busy refusal none"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 5.5"
+
+[[slice]]
+id = 1
+story = "A goal's first run on the program backend that ends its cut with a report while its delegates run parks, as its cut should, instead of failing invalid"
+parts = ["finish-parks"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A goal that passed a held repair's question to its person and parked stays parked until the person answers or the hold changes"
+parts = ["covered-entries"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A goal's run that wakes as its landing's result comes due reads the results part"
+parts = ["late-reasons"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A repair whose start its host refuses spends permanent tries, saying so, and none when smith is busy"
+parts = ["start-classes"]
+walk = false
+
+[[question]]
+id = "parked-finish-told"
+text = "Item 1: a goal's first run on the program backend ended its cut with a report while the delegates it had just made were live; the tasks child refused the finish (live delegates), and the core failed the attempt invalid with no reason (jig-domain-core's route_refused_payload), three times. This plan has such a finish park the run instead (task finish-parks; jig/docs/design/domain/engine.md, 7.4): no try spent, the task waiting for its delegates' results. The parked run's finish is dropped, and its next run isn't told it tried to finish. Telling it needs a stored field (a task's note for its next run, or an InvalidResult-like value in the tasks store), which the request makes a question first. Options: (a, recommended) no: the next run is woken by a delegate's result and sees its delegates' state in its brief; revisit if a model is seen finishing again and again while its delegates run; (b) yes, in place before v0.1.0: the tasks store keeps a bounded 'finish put off for live delegates N, M' for the next run's brief, a plan of its own of about two tasks."
+parts = []
