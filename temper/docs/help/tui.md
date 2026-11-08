@@ -25,6 +25,10 @@ asking first while work runs. `temper box --no-tui` runs the box without it.
 `/exit` or Ctrl+C closes the TUI and keeps the sign-in. On the sign-in
 screen, use Ctrl+C. `q` types a character on every screen.
 
+A short chat reads back to its opening automatically. Your opening question
+stays above the answer after the agent finishes. PgUp and PgDn read back
+through the conversation's visible rows.
+
 ## Acting on it
 
 Close the TUI, then run `temper open DIR http://HOST:PORT` with the

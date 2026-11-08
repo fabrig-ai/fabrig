@@ -6462,6 +6462,14 @@ measures it (skein's `ui-web.md`, section 7).
   comes within one and a half screens, whatever brought it there. The same
   rule opens a chat: a long one opens with at least a screen and a half,
   a short one whole.
+- **Opening history:** a chat follows its first page's older cursor without a
+  scroll event, so a short conversation reaches its opening question even
+  when the reply has already ended. Initial reads stop at the history's end,
+  the window's row or byte bound, a lasting read failure or a cursor that
+  does not advance. A page that would exceed the window leaves its held
+  newest rows and older cursor intact. Empty pages spend the same bounded
+  initial read count as nonempty pages, at most the window's row capacity.
+  Transient failures retry the same read under the conversation's retry rule.
 - **The window** fills `document_bytes`, with no count of lines: its `lines`
   is what its bytes hold (`thread_limits`). `Limits::window_bytes` names a
   narrower window, of at least `long_text` and at most `document_bytes`, where
@@ -6513,7 +6521,7 @@ measures it (skein's `ui-web.md`, section 7).
   measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
   6), and each prints the whole window again. These are lines followed by
   Enter, as are the escape sequences PgUp and PgDn make, not raw keys.
-  It opens with one page. The line under its bound log's name says
+  It opens with the bounded initial history above. The line under its bound log's name says
   `(up, down: more lines)`; there is no pill, and sending on a chat reads
   the end again.
 
