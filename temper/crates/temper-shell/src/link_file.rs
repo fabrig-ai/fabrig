@@ -74,3 +74,6 @@ pub fn read(path: &Path, user: u32) -> Option<skein_lib::Secret> {
     let bytes = value.expose();
     Some(skein_lib::Secret::new(bytes.strip_suffix(b"\n").unwrap_or(bytes).into()))
 }
+
+#[cfg(test)]
+mod tests;
