@@ -35,7 +35,8 @@ pub enum Word {
     HowReview,
     HowRepair,
     HowApprove,
-    HowUpdate,
+    HowConflict,
+    HowCatchUp,
     HowResolve,
     HowMerge,
     HowPrepare,
@@ -1557,7 +1558,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
 // The needed agent adds one literal phrase (client/README.md, 5.16).
-const PHRASES: u32 = 2110;
+const PHRASES: u32 = 2111;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1585,10 +1586,10 @@ const PHRASES: u32 = 2110;
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 // The needed agent adds one literal segment (client/README.md, 5.16).
-const SEGMENTS: u32 = 3721;
+const SEGMENTS: u32 = 3722;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51451;
-const ALL: [Word; 1428] = [
+const ENGLISH_BYTES: u32 = 51461;
+const ALL: [Word; 1429] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -1612,7 +1613,8 @@ const ALL: [Word; 1428] = [
     Word::HowReview,
     Word::HowRepair,
     Word::HowApprove,
-    Word::HowUpdate,
+    Word::HowConflict,
+    Word::HowCatchUp,
     Word::HowResolve,
     Word::HowMerge,
     Word::HowPrepare,
@@ -3156,7 +3158,8 @@ impl Word {
             Self::HowReview => 4919,
             Self::HowRepair => 4920,
             Self::HowApprove => 4921,
-            Self::HowUpdate => 4922,
+            Self::HowConflict => 4930,
+            Self::HowCatchUp => 4931,
             Self::HowResolve => 4923,
             Self::HowMerge => 4924,
             Self::HowPrepare => 4925,
@@ -5022,7 +5025,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowReview => (&[b"Review"], &[]),
         Word::HowRepair => (&[b"Repair"], &[]),
         Word::HowApprove => (&[b"Approve"], &[]),
-        Word::HowUpdate => (&[b"Update"], &[]),
+        Word::HowConflict => (&[b"Conflict"], &[]),
+        Word::HowCatchUp => (&[b"Catch up"], &[]),
         Word::HowResolve => (&[b"Resolve"], &[]),
         Word::HowMerge => (&[b"Merge"], &[]),
         Word::HowPrepare => (&[b"Prepare"], &[]),

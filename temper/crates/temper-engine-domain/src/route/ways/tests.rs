@@ -133,17 +133,31 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
 
 #[test]
 fn inputs_gather_the_repository_start_and_readers_roles() {
-    for (name, adopted, home, goal, way, expected_repository, expected_start) in [
-        ("no repository", false, false, false, 0, None, ways::Start::Chat),
-        ("first adopted", true, false, false, 0, Some(b"first".as_slice()), ways::Start::Chat),
-        ("home", true, true, false, 0, Some(b"home".as_slice()), ways::Start::Chat),
-        ("goal", true, true, true, 4, Some(b"home".as_slice()), ways::Start::Goal { charter: COORDINATOR }),
-        ("default goal", false, false, true, 0, None, ways::Start::Goal { charter: COORDINATOR }),
-        ("missing template", false, false, true, 9, None, ways::Start::Chat),
+    for (name, adopted, home, goal, way, merge_job, expected_repository, expected_start) in [
+        ("no repository", false, false, false, 0, false, None, ways::Start::Chat),
+        ("first adopted", true, false, false, 0, false, Some(b"first".as_slice()), ways::Start::Chat),
+        ("home", true, true, false, 0, false, Some(b"home".as_slice()), ways::Start::Chat),
+        ("goal", true, true, true, 4, false, Some(b"home".as_slice()), ways::Start::Goal { charter: COORDINATOR }),
+        (
+            "goal with merge job",
+            true,
+            true,
+            true,
+            4,
+            true,
+            Some(b"home".as_slice()),
+            ways::Start::Goal { charter: COORDINATOR },
+        ),
+        ("chat with merge job", true, true, false, 0, true, Some(b"home".as_slice()), ways::Start::Chat),
+        ("default goal", false, false, true, 0, false, None, ways::Start::Goal { charter: COORDINATOR }),
+        ("missing template", false, false, true, 9, false, None, ways::Start::Chat),
     ] {
         let (mut domain, env) = fixture();
         if adopted {
             repositories(&mut domain, &env, home);
+        }
+        if merge_job {
+            assert!(domain.forge.project_merge_job(PROJECT, b"merge".as_slice().into()));
         }
         let items = [ways::Item {
             kind: 7,
@@ -165,6 +179,12 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         assert_eq!(repository, expected_repository, "{name}");
         assert_eq!(got.branch.as_ref(), if adopted { b"trunk".as_slice() } else { b"main" }, "{name}");
         assert_eq!(got.start, expected_start, "{name}");
+        assert_eq!(got.merge_job, merge_job, "{name}");
+        let mut catch_up = false;
+        for stop in &ways::derive(&got).stops {
+            catch_up |= stop.step == ways::Step::CatchUp;
+        }
+        assert_eq!(catch_up, merge_job && goal, "{name}");
         assert_eq!(
             got.roles.as_ref(),
             [
@@ -175,7 +195,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         );
         assert_eq!(got.agents.as_ref(), [ways::Agent { charter: 1, model: Some(b"scripted".as_slice().into()),
             effort: Some(b"high".as_slice().into()), usable: false,
-            can: b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update".as_slice().into(),
+            can: b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge".as_slice().into(),
             asked: b"Complete the task within its authority.".as_slice().into() }], "{name}");
         assert_eq!(
             got.by,

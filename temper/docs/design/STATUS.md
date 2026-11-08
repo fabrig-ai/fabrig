@@ -141,7 +141,7 @@ page in Settings, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). How work
+`domain/forge.status.md`, 4.7 and 8.13; `domain/forge.md`, 20). How work
 runs, Settings' first tab, is the whole story's milestone P3a, by plan
 `ui-p3a-how`: the way the project runs, "Ask temper to change this",
 the ways as tabs over the path in lanes, You, Agents and Code, a goal's
