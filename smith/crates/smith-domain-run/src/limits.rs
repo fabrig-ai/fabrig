@@ -106,7 +106,8 @@ pub struct Limits {
     pub models: u32,
     /// Conversations a run may have at once, main included.
     pub run_conversations: u32,
-    /// The most bytes of a sub-agent's last message its asker is given.
+    /// The most bytes of a sub-agent's last message its asker is given,
+    /// following the declared `tool_payload`.
     pub answer_bytes: u32,
     /// Nudges a run gives its LLM when it stops without finishing, after which
     /// the run fails.
@@ -230,7 +231,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         budget: Budget { turns: inputs.max_turns, spend: inputs.max_spend, time: inputs.max_time },
         models: 2,
         run_conversations: inputs.conversations,
-        answer_bytes: 1024,
+        answer_bytes: inputs.tool_payload,
         nudges: 1,
         guide_bytes: inputs.guide,
         io_timeout: Duration::from_secs(5),
