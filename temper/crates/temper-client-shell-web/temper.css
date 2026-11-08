@@ -1387,6 +1387,33 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
 
 /* ==== ui: home ==== */
+#app > .temper-home:has(.temper-home-wide) { padding: 56px 40px 80px; gap: 48px; }
+#app > .temper-home:has(.temper-home-wide) > * { max-width: 760px; }
+
+#app > .temper-home .temper-home-phone, #app > .temper-home .temper-need-more { display: none; }
+#app > .temper-home:has(.temper-home-wide) > .temper-home-intro { gap: 14px; }
+#app > .temper-home .temper-need-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--gf-signal-line); border-radius: 12px; background: var(--gf-surface); }
+#app > .temper-home .temper-need-from { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font: 400 13px/1.6 var(--gf-mono); color: var(--gf-muted); }
+#app > .temper-home .temper-need-card .temper-ask-question { margin: 0; font-size: 17px; line-height: 1.55; }
+#app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#app > .temper-home .temper-need-acts :is(a, button), #app > .temper-home .temper-need-more { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; min-height: 40px; padding: 9px 14px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: 400 14px/1.5 var(--gf-sans); color: var(--gf-ink); text-decoration: none; }
+#app > .temper-home .temper-need-acts .temper-recommended { background: var(--gf-ink); border-color: var(--gf-ink); color: var(--gf-surface); order: -1; }
+#app > .temper-home .temper-need-acts .temper-ask-quiet { border-color: transparent; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); }
+#app > .temper-home .temper-need-card > .temper-need-more { display: none; }
+#app > .temper-home .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--gf-line); border-radius: 999px; font: 400 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); background: var(--gf-surface); white-space: nowrap; }
+#app > .temper-home .temper-chip-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gf-good); }
+#app > .temper-home .temper-chip-signal { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal); }
+#app > .temper-home .temper-projects { margin: 0; padding: 0; list-style: none; }
+#app > .temper-home .temper-projects > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 10px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
+#app > .temper-home .temper-projects > li > a { font-weight: 600; }
+#app > .temper-home .temper-decided-head, #app > .temper-home:has(.temper-home-wide) div.temper-home-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decided-head > h2, #app > .temper-home:has(.temper-home-wide) > section > h2, #app > .temper-home:has(.temper-home-wide) .temper-home-head > h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; text-transform: none; color: var(--gf-ink); }
+#app > .temper-home .temper-decided-head > a { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision { display: grid; padding: 12px 0; align-items: start; font-size: 14px; grid-template-columns: 160px minmax(0, 1fr) auto; }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > :first-child { font: 400 12px/1.6 var(--gf-mono); color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > div > :first-child { color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > div > .temper-decision-took { color: var(--gf-ink); }
+
 /* Navigation focuses page targets without drawing a control ring. */
 #app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
 #app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
@@ -2873,7 +2900,7 @@ html:root[data-night] #app > .temper-session .temper-ways-acts > .temper-ways-us
 #app > .temper-home .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
 #app > .temper-home .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-home .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-#app > .temper-home .temper-decision > div > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
 #app > .temper-home .temper-decision-took { font-weight: 500; }
 #app > .temper-home .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
@@ -3099,6 +3126,21 @@ html:root[data-night] #app > .temper-session .temper-ways-acts > .temper-ways-us
 
 /* ==== ui: phone ==== */
 @media (max-width: 760px) {
+  #app > .temper-home:has(.temper-home-phone) { padding: 20px 16px 112px; gap: 20px; }
+  #app > .temper-home:has(.temper-home-phone) h1 { font-size: 24px; }
+  #app > .temper-home .temper-home-wide { display: none; }
+  #app > .temper-home .temper-home-needs .temper-home-head > a { display: none; }
+  #app > .temper-home .temper-home-phone { display: block; }
+  #app > .temper-home .temper-home-phone.temper-home-byline { font-size: 12px; color: var(--gf-faint); }
+  #app > .temper-home > .temper-home-phone > a { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); text-decoration: none; }
+  #app > .temper-home:has(.temper-home-phone) > .temper-home-intro { gap: 10px; }
+  #app > .temper-home .temper-need-card { padding: 14px; gap: 10px; }
+  #app > .temper-home .temper-need-card .temper-ask-question { font-size: 15.5px; }
+  #app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: contents; }
+  #app > .temper-home .temper-need-acts :is(a, button, details, textarea) { display: none; }
+  #app > .temper-home .temper-need-acts .temper-recommended { display: flex; width: 100%; min-height: 44px; }
+  #app > .temper-home .temper-need-card > .temper-need-more { display: flex; min-height: 44px; border-color: transparent; background: none; color: var(--gf-muted); text-decoration: underline; }
+
   #app > .temper-needs > * { max-width: 600px; }
   #app > .temper-needs:has(.temper-ask) > .temper-needs-intro,
   .temper-needs .temper-needs-head,
