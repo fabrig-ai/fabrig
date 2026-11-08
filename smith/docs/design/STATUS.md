@@ -1,6 +1,6 @@
 # Status
 
-2026-11-07. Where smith's code lags or departs from its design, from
+2026-11-08. Where smith's code lags or departs from its design, from
 the status files below. Containment waits on skein's contained trees
 (skein's `io.md`, 6.2 to 6.4): the agent and its commands run as
 plain children in process groups, so the view, the writable scope
@@ -29,7 +29,10 @@ by hand (`protocol/hosts.md`). `domain/session.md`,
 `protocol/transcript.md` have no gap. The agent's standalone `--list`
 request and its host half's bounded stdin/stdout exchange are built,
 without a run slot (`protocol/agent.md`, 6.1; `protocol/hosts.md`, section 2).
-smith has no drafts.
+Sub-agent answers have the outcome's room, with UTF-8 boundary cuts and
+guidance to ask a new child, narrower; retaining the rest for a
+continuation remains deferred (`domain/run.md`, 5.3 and 15;
+`protocol/limits.md`, 3.10 and 13). smith has no drafts.
 
 Failed checks name their repository, convention path and given time,
 with their exit and retained output tail. A silent check still has no
