@@ -823,8 +823,9 @@ fn a_fresh_tui_reads_the_runtime_link_outside_its_state_directory() {
         assert_eq!(engine.link_sign_ins, 1, "{state}: automatic link sign-in");
         assert_eq!(engine.approvals, 0, "{state}: no browser approval");
         let screen = terminal_text(&world.bytes);
-        assert!(screen.contains("Connected to 127.0.0.1:8367"), "{state}: {screen}");
-        assert!(screen.contains("Owner"), "{state}: {screen}");
+        assert!(screen.contains("open http://127.0.0.1:8367 in a"), "{state}: {screen}");
+        assert!(screen.contains("No project yet"), "{state}: {screen}");
+        assert!(screen.contains("● Live"), "{state}: {screen}");
         assert!(!screen.contains("Signed out"), "{state}: {screen}");
         world.draining = true;
         world.sim.peer_close(world.pid, world.input);

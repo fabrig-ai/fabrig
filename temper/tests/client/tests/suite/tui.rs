@@ -15,10 +15,10 @@ use temper_client_world::{
 const TUI: ClientId = ClientId(1_000);
 const ELSEWHERE: ClientId = ClientId(1_001);
 const SIGN_OUT: Token = Token::new(1);
-const CONNECTED: &str = "Connected to 127.0.0.1:8367 as Person";
+const CONNECTED: &str = "temper · Project 1";
 const SIGN_IN: &str = "Sign in this terminal to 127.0.0.1:8367";
 // Walking's one seeded project is party 1's project in `me`.
-const PROJECTS: &str = "Projects: Project 1";
+const PROJECTS: &str = "/ for commands";
 const OFFLINE: Duration = Duration::from_millis(300);
 const STEP: Duration = Duration::from_millis(50);
 const RESTART_SPAN: Duration = Duration::from_secs(2);
@@ -68,8 +68,6 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     let (mut world, mut tui, browser) = approval();
     assert_eq!(tui.opens.len(), 1, "each answered ask opens once");
     let code = opened_code(&mut tui);
-    let root = world.root(browser).person();
-    let party = root.pages().me(root.client()).expect("the browser's party").party.clone();
     open_approval(&mut world, &mut tui, browser, code);
     world.event(browser, client::Event::Act { action: Action::Approve(approve::Act::Approve) }.into());
     tui.run(&mut world, fixtures::WITHIN);
@@ -79,8 +77,8 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     // The take's retry precedes the signed-in stream and its first watches.
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
-    let name = std::str::from_utf8(party.name.bytes()).expect("party name");
-    assert!(text.contains(&format!("Connected to 127.0.0.1:8367 as {name}")), "{text}");
+    assert!(text.contains(CONNECTED), "{text}");
+    assert!(text.contains(PROJECTS), "{text}");
     assert!(tui.status().ends_with("● Live"), "status={:?}; frame={text}", tui.status());
     assert_eq!(tui.opens.len(), 1, "the take opens no second tab");
 }
@@ -148,6 +146,7 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     assert!(tui.text().contains("Connecting to 127.0.0.1:8367"));
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert!(tui.credential().is_some(), "the file's sign-in keeps a credential");
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
@@ -182,6 +181,7 @@ fn a_tui_after_a_browser_spent_the_link_signs_in_by_the_next() {
     );
     assert!(tui.credential().is_some(), "reads={}; sends={}; notes={:?}", tui.reads, tui.sign_in_sends, tui.notes);
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert!(tui.credential().is_some());
     assert_eq!(tui.sign_in_sends, 2);
@@ -225,6 +225,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert_eq!(tui.keeps.len(), 2, "erase, then keep the new sign-in");
     assert!(tui.credential().is_some());
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.approval_asks, 0);
