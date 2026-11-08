@@ -13,12 +13,7 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`forge.md`, section 20).
 
-- **Not yet:** 4.3: a start smith refuses as busy, an agent with no
-  room (`smith::End::Busy`) or a run it has no room for
-  (`Refusal::Busy`), is refused as invalid
-  (`temper-worker-domain`'s `agents.rs`, `ended`, and `hand_out.rs`,
-  `Finish::of`), where the section has it refused busy.
-  4.3: a held task names no run's failure, which the user's
+- **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires
   the user's decision on the bound and readers before that text is kept;
