@@ -38,11 +38,7 @@ parks without spending a try.
   has it park. 8.1, 8.3, 8.6, 9: an entry a run was offered under a
   covering part and left undecided wakes the task again, but for a read
   escalation awaiting an unanswered direct person delegate, kept in an
-  in-memory read set (`Task.read_escalations`). 8.6: a message that
-  arrives between a run's preparation and its claim, whose kind would add
-  to its reasons, is kept back against the parts prepared
-  (`jig-domain-core`'s `preparation_current`), where the section has the
-  run prepare again.
+  in-memory read set (`Task.read_escalations`).
   5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
