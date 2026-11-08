@@ -50,6 +50,7 @@ fn box_line(builder: &mut Builder, words: &Words) {
 }
 
 /// The top bar outside a project (temper/docs/design/client/README.md, 5.1).
+#[expect(clippy::collapsible_if, reason = "the welcome keeps its deployment content separate from the shared end")]
 pub(crate) fn top(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
@@ -78,8 +79,6 @@ pub(crate) fn top(
             box_line(b, w);
             crate::pages::welcome::steps(b, root, w, bindings, *step);
         }
-        b.close();
-        return;
     }
     b.open(Role::Slot);
     b.style(look::TOP_END);
@@ -128,6 +127,16 @@ fn status(b: &mut Builder, said: &[u8], style: Option<Style>) {
     b.name(said);
     b.text(Run::Plain, said);
     b.close();
+}
+
+/// `me` is being read where the page needs it: the page draws the top bar alone
+/// (temper/docs/design/client/README.md, 5.1).
+pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, ways: &crate::sign_in::Ways) -> bool {
+    crate::frame::unavailable(root).is_none()
+        && root.authorization().is_none()
+        && root.approval().is_none()
+        && !crate::sign_in::offered(root, words, ways)
+        && root.pages().me(root.client()).is_none()
 }
 
 /// The deployment has answered and the person has no project (client/README.md, 3.5).

@@ -475,10 +475,8 @@ fn chat_rows() -> List<c::TaskLine> {
 fn another_persons_project_cannot_start_an_asking_chat() {
     let mut f = fixture();
     event(&mut f.root, Event::Went { place: Place::Address(Address::Ask { project: OTHER_PROJECT }) });
-    let out = event(
-        &mut f.root,
-        Event::Act { action: Action::Pages(Act::Starter { words: b"My change".as_slice().into() }) },
-    );
+    event(&mut f.root, Event::Act { action: Action::Pages(Act::ChatWords { words: b"My change".as_slice().into() }) });
+    let out = event(&mut f.root, Event::Act { action: Action::Pages(Act::StartChat) });
     assert!(f.root.pages().chats().unwrap().start.is_none());
     let mut sent = false;
     for request in &out {

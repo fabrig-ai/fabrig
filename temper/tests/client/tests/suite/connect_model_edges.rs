@@ -94,7 +94,7 @@ fn welcome_model_keeps_its_frame_with_a_model_already_usable() {
             gone(Role::Link, b"All ways"),
             gone(Role::Link, b"Later"),
             gone(Role::Link, b"Accounts"),
-            gone(Role::Status, b"Live"),
+            see(Role::Status, b"Live"),
             press(Role::Link, b"Continue"),
             see(Role::Heading { level: 1 }, b"Almost ready"),
         ],

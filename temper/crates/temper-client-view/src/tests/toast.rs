@@ -54,22 +54,122 @@ fn toast_at(tree: &skein_ui::Tree) -> Option<usize> {
 fn act(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, Event::Act { action: d::Action::Pages(act) });
 }
+fn way_answer(kept: bool) -> d::Domain {
+    use jig_client::{Down, UnlinkedRequest, Up};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut root = f::root_with_ways(Address::Home { project: f::PROJECT }, None);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::domain_limits() };
+    let mut out = Queue::uncapped();
+    d::step(&mut root, &env, Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) }, &mut out);
+    let wanted = d::forge::stock_ways::watch(f::PROJECT, &env.limits.forge).unwrap();
+    let mut watch = None;
+    for request in &out {
+        if let d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch: token, subject } } } =
+            request
+            && subject == &wanted
+        {
+            watch = Some(*token);
+        }
+    }
+    let path = w::BranchPath::new(
+        &w::CEILINGS,
+        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
+    )
+    .unwrap();
+    let way = w::StockWay::new(
+        &w::CEILINGS,
+        w::StockWayParts {
+            name: b"A way".as_slice().into(),
+            line: b"A line".as_slice().into(),
+            path: path.clone(),
+            items: List::from_boxed(Box::new([w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 4, edit: w::SettingEdit::Removed },
+            )
+            .unwrap()])),
+            delegation: false,
+        },
+    )
+    .unwrap();
+    let panel = w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts {
+            project: f::PROJECT,
+            ways: List::from_boxed(Box::new([way])),
+            current: if kept { Some(0) } else { None },
+            own: path,
+            may_change: true,
+        },
+    )
+    .unwrap();
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch: watch.expect("ways watch"),
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::ways_panel(&panel),
+                    },
+                },
+            },
+        },
+    );
+    let action = if kept {
+        pages::Act::KeepWay { project: f::PROJECT }
+    } else {
+        pages::Act::UseWay { project: f::PROJECT, way: 0 }
+    };
+    let mut out = Queue::uncapped();
+    d::step(&mut root, &env, Event::Act { action: d::Action::Pages(action) }, &mut out);
+    let mut attempt = None;
+    for request in &out {
+        if let d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Send { attempt: token, .. } } } =
+            request
+        {
+            attempt = Some(*token);
+        }
+    }
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Answer {
+                    attempt: attempt.expect("way act sent"),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
+                        c::OutcomeSettingsChanged { revision: 9 },
+                    )))),
+                    why: None,
+                },
+            },
+        },
+    );
+    root
+}
 #[test]
 fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
     for address in [Address::Home { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All }] {
-        for (reply, later, said) in [
-            (false, false, "Answered: First"),
-            (true, false, "Answered: Replied: “My words”"),
-            (false, true, "Later: it stays in Needs you, after the others."),
+        for (reply, later, way, said) in [
+            (false, false, None, "Answered: First"),
+            (true, false, None, "Answered: Replied: “My words”"),
+            (false, true, None, "Later: it stays in Needs you, after the others."),
+            (false, false, Some(false), "A way is this project's way now, as revision 9."),
+            (false, false, Some(true), "A way is now this project's own, as revision 9."),
         ] {
-            let mut root = root();
-            if later {
+            let mut root = match way {
+                Some(kept) => way_answer(kept),
+                None => root(),
+            };
+            if way.is_none() && later {
                 act(&mut root, pages::Act::Needs(needs::Act::Later { object: OBJECT }));
-            } else if reply {
+            } else if way.is_none() && reply {
                 act(&mut root, pages::Act::Needs(needs::Act::OpenReply { object: OBJECT }));
                 act(&mut root, pages::Act::CardWords { object: OBJECT, words: b"My words".as_slice().into() });
                 act(&mut root, pages::Act::Needs(needs::Act::SendReply { object: OBJECT }));
-            } else {
+            } else if way.is_none() {
                 act(
                     &mut root,
                     pages::Act::Needs(needs::Act::Choose { object: OBJECT, words: b"First".as_slice().into() }),
@@ -86,7 +186,7 @@ fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
                 assert_eq!(nodes[at + 1].role, Role::Text);
                 assert_eq!(nodes[at + 1].text.get(0).unwrap().text.as_ref(), said.as_bytes());
                 let undo = f::find(view.tree(), Role::Button, b"Undo");
-                assert_eq!(undo.is_some(), !later);
+                assert_eq!(undo.is_some(), !later && way.is_none());
                 if let Some(undo) = undo {
                     assert_eq!(
                         crate::act(&mut view, undo, Act::Press),

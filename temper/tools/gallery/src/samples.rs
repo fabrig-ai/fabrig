@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 338;
+pub const N: usize = 344;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -545,19 +545,55 @@ pub fn samples() -> [Sample; N] {
             address: Address::Ask { project: 1 },
             then: Shown,
         },
+        Sample { name: "ask-typing", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
-            name: "ask-reference",
+            name: "ask-ways-approve",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
-            name: "ask-reference-draft",
+            name: "ask-ways-draft",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
-            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
+            then: Shown,
         },
-        Sample { name: "ask-typing", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
+        Sample {
+            name: "ask-ways-card",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-card-person",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-yours",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-refused",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-member",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-kept",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
         Sample { name: "ask-sending", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample { name: "ask-refused", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
@@ -1977,6 +2013,9 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn ask_domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("ask-ways-") {
+        return crate::worlds::ways_world(sample.name);
+    }
     if matches!(
         sample.name,
         "ask-chat-proposal"
@@ -2005,13 +2044,6 @@ fn ask_domain(sample: &Sample) -> Domain {
         return root;
     }
     let mut out = Queue::uncapped();
-    if sample.name.starts_with("ask-reference") {
-        step(&mut root, Event::Act { action: Action::Pages(Act::ShowReference) }, &mut out);
-        if let Then::Mode(mode) = sample.then {
-            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
-        }
-        return root;
-    }
     step(
         &mut root,
         Event::Act {

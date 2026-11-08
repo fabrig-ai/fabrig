@@ -393,7 +393,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
-| `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below) | start an Ask temper chat, from its composer or a starter; open temper's own way beside the page |
+| `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below); the project's `ways` (4.6) | start an Ask temper chat from its composer; show a way's tab and a stop's card in place; "Use this" or "Keep it", jig's `ChangeSettings` (5.13) |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
@@ -782,8 +782,8 @@ keeps (`../protocol/configuration.md`, section 2).
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
     composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
-    from a new chat, its draft, `Ask`, a starter and a suggested request
-    alike. "Start goal" is none of these: it opens the goal's page, its heading
+    from a new chat, its draft, `Ask` and a suggested request alike.
+    "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
   - *Opened any other way,* its composer asks for nothing. From a list or a
     link, a new entry, the chat opens on its heading, so that a person reading
@@ -1442,8 +1442,9 @@ keeps (`../protocol/configuration.md`, section 2).
     where the document shows it.
   - *Its frame* is the top bar (5.1; the look request `outside-pages`):
     temper's mark, a link to `/` (named "temper"), temper box's line and
-    the steps alone: no person's name or "Sign
-    out", no project, navigation or link state, and no accounts' banner
+    the steps, then the top bar's right as on any other page outside a
+    project: the link region, and, signed in, the person's name and "Sign
+    out" (5.1). No project, navigation or switcher, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
     temper is for, in fixed words: "**temper box** · on this machine,
@@ -1452,7 +1453,8 @@ keeps (`../protocol/configuration.md`, section 2).
     (`temper/docs/help/server.md`), the welcome being a quick way to
     try temper, not a deployment's wizard (the user, 2026-11-04). Each
     step's heading is the page's level-1 heading.
-  - *Its steps,* at the frame's end, are a list named Steps of four links,
+  - *Its steps,* after temper box's line, before the top bar's right, are
+    a list named Steps of four links,
     each to its own step in every state: Welcome to `/welcome?at=welcome`,
     Forge, Model and Ready to their `?at=`, with no choice or way. They
     are the welcome's own, not the flows' list (5.2, A flow's parts), which
@@ -2825,49 +2827,64 @@ keeps (`../protocol/configuration.md`, section 2).
     provider's account beside another's model; with no usable account the
     composer says what 5.5 says then, and there is no picker.
   - *The conversation,* a region named "Conversation", its opening a
-    page as `Home` is, starting 28 pixels from the conversation's top, with no
-    kicker: the level-2 heading "How should temper run PROJECT?", drawn
-    as Home's headline; the lede "Tell it how you work, in your own
-    words or by pointing at a document."; a list named "What it sets",
-    each item a term in ink and its line in grey after a pale dot: "How
-    work runs: how chats and goals start, are checked and land",
-    "Models: which plan or model each role runs on" and "Approvals: what
-    waits for you, and what lands on its own"; the note "It proposes the
-    settings; nothing changes until you accept.", small and muted; then,
-    30 pixels under the note, the section "Ways to begin", headed as Home's
-    sections: its starters as cards, as the welcome's choices, three to a
-    row where they fit and one a row on a phone, the whole card the button,
-    its padding 14 and 16 pixels, its title over a line in grey:
+    page as `Home` is, starting 28 pixels from the conversation's top,
+    with no kicker and no heading, so that the ways have the room (the
+    look request `ask-temper-ways`, the user, 2026-11-08). Every path,
+    mark, way's word and card in it comes from the project's `ways` read
+    (4.6; 5.13, *A way's acts*), none written by hand; a way's words are
+    the read's. Until the read answers, the ways' region holds nothing; if
+    its watch ends, it says, muted, "The ways can't be read now.". In this
+    order:
+    - *the lede,* in ink, "Pick a way for PROJECT, or ask temper to build
+      your own.", so that building one's own way with temper, in the
+      composer, reads as the other choice;
+    - *the ways,* a region named "Ways of working", 22 pixels under the
+      lede: one control of tabs named "Ways of working", the full width
+      in a lined frame, a tab for each way in the read's order, from
+      more of the person to more of their agents, "You approve", "Agents
+      review" and "Draft first", then "Yours" where the project runs no
+      stock way; the current way's tab adds "now", small, in mono, in the
+      signal's colour; the tab shown is filled. Under it, small, faint and
+      in mono, "more of you" at its left and "more of your agents" at its
+      right, a line named "From more of you to more of your agents";
+    - *the shown way,* 26 pixels under the tabs, a group named by its
+      name: its line in ink, the read's `line` ("Yours" has none); its
+      path, temper's drawing of a path pressed (5.16), named "The way a
+      change goes", its fallback a stop a line; while a stop is open, its
+      card (below); then its foot, the legend at its left, a line named
+      "An agent, a person, code; no merge tool above the dotted line",
+      small, faint and in mono, "agent", "person", "code" and "no merge
+      tool above", each after its mark, and its act at its right;
+    - *its act,* as 5.13, *A way's acts*, says: "Use this" on a way the
+      project doesn't run, filled in ink (the signal's orange at night),
+      or "Keep it" on the current one while To begin's first step is
+      left; none on "Yours", for a person who may not change settings,
+      or on the current way once that step is done; disabled while one
+      is out. A refusal stands under the foot in jig's words with the
+      forge's reason, as Settings says one under its row (5.13); an act
+      answered says its toast (5.13).
+    - *a stop's card:* a stop pressed, in the drawing or as its line in
+      the fallback, opens its card under the path, the drawing's caret
+      at the stop (5.16); pressed again it closes, another stop moves
+      it, another tab closes it, as the page's state, in no address. It
+      is the stop's `card` from the read, framed as the tabs are: a
+      level-3 heading, the stop's words with a capital ("Review"), its
+      `who` beside it in grey ("an agent · holds a change until it
+      approves"), and, where the stop opens a charter, a gate or a rule,
+      a link "Open NAME ›" at its right, NAME the card's `name` ("the
+      reviewer"), to the project's Settings; then its `facts`, each label
+      small, faint and in mono over against its value ("Model", "Can",
+      "Asked to"; a person's role and what they decide; code's checks,
+      the queue or the turn). A bar opens no card.
 
-    | Title | Line | The words it sends |
-    |---|---|---|
-    | "Small changes, alone" | "One chat per change, landed once CI passes." | "I work alone on small changes: one chat per change, landed once CI passes." |
-    | "A design draft first" | "Agents plan its tasks; they land together." | "I write a design draft first; agents plan its tasks and land them together once checked." |
-    | "Models by role" | "Claude for reviews, my ChatGPT plan for the rest." | "Use Claude for reviews and my ChatGPT plan for everything else." |
-
-    "Models by role" goes with a single account: it stands only while the
-    offer in `me` names two accounts or more, and its line and its words name
-    the first two, "A for reviews, B for the rest." and "Use A for reviews and
-    B for everything else.", each as the accounts page names its kind ("Claude",
-    "my ChatGPT plan", "my OpenAI API key"), so that it names only what is connected.
-
-    A fourth starter, a button drawn as a link, "Not sure yet? Ask what
-    temper can do.", which sends "Not sure yet. What can temper do?",
-    stands in the section's head, at its right. Under the cards, a wide
-    card of temper's own way (`../draft/own-way.md`, 2), a group named
-    "temper’s own way": its title, "At scale, as temper builds itself";
-    under it its steps in small grey, a list named "Its steps: designers
-    cut a draft into parts, coding agents make them in parallel, the goal
-    lands whole", "Draft", "The cut", "Coding agents", "Goal’s branch" and
-    "main", an arrow ending each line where they wrap; at its right two
-    outlined buttons, "See how it works" (*temper's own way, beside the
-    page,* below) and "Start from it", a starter that sends "Set PROJECT
-    up the way temper builds itself, sized for this machine."; on a phone
-    the buttons stand under the words, each half the width. The terminal
-    has no style to tell a term from its line: each item and each card of
-    the three is one line of words, "TERM: LINE", and "Ways to begin" is
-    its section's name, once; the wide card's title, steps and buttons
-    follow in that order, the steps a list with no arrows.
+    On a phone the tabs keep one row, smaller; the path runs down the
+    page (5.16); the card has no caret and its facts stack, each label
+    over its value; the act fills the foot's width. The terminal has no
+    style to tell them apart: the tabs print a line each, the current
+    one's words "NAME, now"; the path its fallback, a stop a line, its
+    actor in words; the card its heading, line, link and facts; then the
+    legend and the act. The opening goes after a first message, as the
+    chat it starts opens in its place.
   - *The composer,* a form named "Ask temper", at the
     foot, focused as the page opens: its text area "Ask temper, or tell it
     how you work", that its placeholder too, its text 14
@@ -2892,59 +2909,26 @@ keeps (`../protocol/configuration.md`, section 2).
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
   neither keeps a gutter and both stand 16 pixels in, the conversation
-  scrolling with no scrollbar drawn, the opening 20 pixels from the top,
-  the question at 26 pixels and the cards keeping their 14 and 16 pixel
-  padding. At 1366 by 680 the whole opening and the
-  composer show with no scrolling.
+  scrolling with no scrollbar drawn, the opening 20 pixels from the top.
+  At 1366 by 680 the opening, with no stop's card open, and the composer
+  show with no scrolling.
 
-  A starter or "Send" starts the chat, the words it sends the first
-  message, as a suggested request does: one act, one request (3.6), from
-  template 5 (`../protocol/configuration.md`, 13.4), with its own models,
-  while `me` lists it among the project's templates. With none it falls
-  back to no other template: "Send" stays disabled, a starter starts
-  nothing, and under the composer "Ask temper isn't set up in this
-  project."; nor do the rail and the tab bar offer it (5.3).
-  While it is out, the four starters, "Start from it" and "Send" are disabled
-  and the words stay; "See how it works" starts nothing, and stays enabled;
-  made, the chat's page opens: it is a chat like any other there; refused,
-  jig's words stay under the composer, the words kept. The chat names no
-  repository.
-- **temper's own way, beside the page** (`../draft/own-way.md`, 2 and 3):
-  "See how it works" opens the reference, "How temper builds temper", in
-  the pane of *A chat's document* (below), in Split, the rail folded, the
-  page's main carrying that mode's style. No chat is made and nothing
-  changes. Every project offers it: no project way hides the card or the
-  pane, so a fresh project's page, Goals hidden, has both, as has a page with
-  drafts turned off.
-  - *The bar* gains the mode group at its right, after the line of what the
-    runs use, once the reference has opened: "Chat", "Split" and "Draft", a
-    group named "How temper builds temper, beside the chat", with a chat's
-    document's shortcut, and the composer's hint is a document's. "Chat"
-    folds the pane, the group staying. The mode is the page's, in no address
-    and kept nowhere: leaving the page or a reload closes the reference.
-  - *In Split,* the ways to begin are one a row, each title and its line on
-    one line where they fit, wrapping at a narrower width, the wide card's
-    buttons under its words. *On a phone* there is
-    no Split: the reference alone, as Draft, the composer under it, as a
-    chat's document is.
-  - *The pane:* its line, in small mono, "temper’s own way · a reference"
-    and "changes nothing"; the page's title, as a document's level-2
-    heading; its summary in grey; then its sections, read by skein-ui's
-    reader (`skein/docs/design/ui.md`, section 10). The reference is the
-    stock page `how-temper-builds-temper`
-    (`../protocol/documentation.md`, 2.2), compiled into the client, so
-    that opening it reads nothing and fetches nothing.
-  - *Its parts:* section 1, the picture, is a numbered list of the flow's six
-    steps, a name in ink and its caption, with one number and no bullet.
-    Section 5's table has a row name in ink over the reader's cells, and the
-    note closing it is muted. The page holds no figures and no link to any.
-  - *The terminal* prints the pane after the composer, as it prints a chat's
-    document: the line, the title, the summary, each section with its
-    heading.
-  - *A chat started beside it,* by a starter or "Send", opens the chat's page
-    as from the page alone, and the reference closes; the chat's own document
-    comes when it writes one. Ask temper reads the same page, as any of
-    temper's pages (`../domain/agent.md`, 8.1).
+  "Send" starts the chat, its words the first message: one act, one
+  request (3.6), from template 5 (`../protocol/configuration.md`, 13.4),
+  with its own models, while `me` lists it among the project's templates.
+  With none it falls back to no other template: "Send" stays disabled,
+  and under the composer "Ask temper isn't set up in this project."; nor
+  do the rail and the tab bar offer it (5.3). While it is out, "Send" is
+  disabled and the words stay; made, the chat's page opens: it is a chat
+  like any other there; refused, jig's words stay under the composer, the
+  words kept. The chat names no repository. A way's act starts no chat:
+  it changes the settings at once (5.13).
+- **temper's own way,** the stock page `how-temper-builds-temper`
+  (`../protocol/documentation.md`, 2.2), has no way in from this page
+  (the look request `ask-temper-ways`, the user, 2026-11-08): the client
+  neither compiles it in nor draws it beside the page; it stays among
+  temper's pages, which Ask temper reads (`../domain/agent.md`, 8.1).
+  Where else it is reached from is `../draft/own-way.md`'s.
 - **An Ask temper chat** is a chat whose chip's executor is the charter
   of template 5 as `me` lists it (*Home,* above). In `Chats` it is listed
   with the others, tagged "Ask temper". Its `Chat { task }`, opened from
@@ -4337,9 +4321,16 @@ client removes no account and closes no chat of its own.
     prints it (6.4); the browser shows the region only while it says
     "Offline", so no "Signed out", "Connecting" or "Live" shows there.
     Until `me` is read, the top bar shows its mark alone, so that no
-    other frame shows before the first page. On `Welcome`, temper's mark alone until the
-    deployment's read answers, then temper box's line and the welcome's
-    steps after it (3.5, The welcome);
+    other frame shows before the first page. On `Welcome`, temper box's
+    line and the welcome's steps follow the mark once the deployment's
+    read answers; its right is as on every other page, before that read
+    too (3.5, The welcome);
+  - *while `me` is read,* the top bar alone, at every address but the
+    sign-in page, the `Authorize` and approval places and the pages not
+    about the work (below), which draw without `me`: no banner, an empty
+    main marked busy and no tab bar, and the browser's terminal look waits
+    too, so that no page's body shows before `me` says which project is open
+    (the look request `outside-pages`);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project
@@ -6119,9 +6110,15 @@ on this tab.
   once more against the revision it names; a refusal is said in jig's
   words with the forge's reason, as an approval too few people can give
   names the forge, the role, how many it asks and how many can
-  (`../protocol/configuration.md`, 13.2); answered, the subject's next
-  document shows the way current. How the page draws the ways is the look
-  request `ask-temper-ways`'s.
+  (`../protocol/configuration.md`, 13.2); answered, a toast names the way
+  and the revision, "You approve is this project's way now, as revision
+  12." or, kept, "Agents review is now this project's own, as revision
+  12.", and the subject's next document shows the way current. The tab
+  shown and the stop whose card is open are the page's state, in no
+  address: the current way's tab as the page opens; kept by the way's
+  place across documents while it stands, else the current one again;
+  the card closed by another tab or a change of the shown path. The page
+  draws them as 3.5, *Ask temper's page*, says.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
@@ -6490,7 +6487,8 @@ terminal draw the same path.
   watch names a newer revision. Until it answers, the block says
   "Drawing VIEW…"; a read refused or failed says in a line that the view
   could not be drawn, and the address.
-- **Drawn:** a path as temper's own drawing kind beside skein's flows:
+- **Drawn:** a path as temper's own drawing kind beside skein's flows,
+  in fabrig.ai's language as the look request `ask-temper-ways` draws it:
   its stops on a line, a person's and an agent's above it, code's below,
   the line rising to each judgement and falling back, the dotted line
   no merge tool crosses, each branch's bar, the landing branch's at its
@@ -6499,11 +6497,45 @@ terminal draw the same path.
   line over its path; a proposal its two paths, "Before" and "After"; a
   charter its card, `who`, `name` and `facts`, as a list of terms; a
   `not_drawn` its words. The drawing's fallback, which the terminal
-  prints and a narrow page keeps, is a stop a line, its words and its
-  actor in words ("produce, an agent").
+  prints, is a stop a line, its words and its actor in words ("produce,
+  an agent").
+- **Its layout,** of the box's width `W` alone:
+  - *across,* 140 pixels high, where `W` is 560 or more and its stops
+    stand at least 48 pixels apart: the dotted line
+    at 72; a person's and an agent's marks at 40, their words over them
+    at 22; code's at 106, its words under it at 131; the stops before the
+    last bar evenly from 12 to `W − 68`, the first's words anchored at its
+    start, the others' at their middle; a goal's branch's bar in a stop's
+    place, dimmer, its words over the dotted line at 88; the landing
+    branch's bar at `W − 8`, its words ending there at 88. The line runs
+    along the base row through code's stops and the bars, rising to each
+    judgement over 0.42 of a step and falling back over as much, a cubic
+    curve each way, and ends at the landing branch's bar: above the
+    dotted line it takes the
+    signal's faint tone, below it the line's, two tones in place of the
+    request's fade, since a scene carries no gradient (skein's `ui.md`,
+    11.2).
+  - *down the page,* narrower, in a column 360 pixels wide centred in the
+    box: the dotted line down its middle at 178; a person's and an
+    agent's marks at its right, at 206, their words after them; code's
+    at its left, at 150, its words before them; a stop every 40 pixels
+    from 16, the landing branch's bar across the line's foot 38 under the
+    last stop, its words before it; the scene's height its own, 14 under
+    that bar (skein's `ui.md`, 11.2).
+- **Pressed,** on Ask temper's page alone (3.5): each stop but a bar is a
+  group whose transparent area, 60 by 52 above the line and 60 by 44
+  below it across, a row 28 high down the page, carries its act, so that
+  a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
+  the open stop has a pale ring of 15 behind its mark and its words in
+  ink, bold, and, across, the scene grows 14 pixels at its foot for its
+  card's caret, a point under the open stop whose base meets the card's
+  top edge, the card following the drawing with no gap (3.5); down the
+  page there is no caret. Its fallback's lines are then buttons doing the same,
+  expanded while their card shows, for the keyboard, a screen reader and
+  the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
-  opening its card, the views `queue`, `task N tree` and `task N
-  timeline`, and the TUI's drawing of views, temper/tui's.
+  in a reply opening its card, the views `queue`, `task N tree` and
+  `task N timeline`, and the TUI's drawing of views, temper/tui's.
 
 ## 6. The terminal shells
 
@@ -8692,6 +8724,13 @@ own tests:
 
 ## 11. Open questions
 
+- **Ask temper's ways after landing** (3.5, *Ask temper's page*; 5.13;
+  5.16): temper/ui compares the look request `ask-temper-ways` with main
+  at 1440, 1000 and 420 px (`../draft/look-requests.md`, 4): each tab, a
+  stop's card open on an agent, a person and code, "Yours", a refusal, a
+  member with no act, "Keep it" gone once To begin's step is done, at
+  night, and the terminal's print. Owner: temper/ui. Default: each
+  difference a finding filed back under the request's trailer.
 - **The two-step Home and night look after landing** (3.5, 5.3): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
   main at 1440, 1000 and 420 px, with menus and disclosures open and
@@ -8718,22 +8757,14 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. The other
-  views, sketches and preferences join at M3b and M4 of
+  instructions. The other views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
-- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
-  sets" and "Ways to begin" give way to the ways as tabs drawn from the
-  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
-  card opening in place: the look request `ask-temper-ways`, its plan
-  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
-  the acts in the domain, drawn by no page until then.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's card in a reply and in the
-  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
-  keeps, against the look request's pages, and walks a real Ask temper
-  chat asked to show a way. M3b adds a stop pressed opening its card, the
-  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  chat's document at 1440, 1000 and 420 px, across and down the page,
+  against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed in a reply opening
+  its card, the views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
   of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
   at an older revision, and a decided proposal's paths, wait for a read of
   the settings as a revision left them. Default: the focused tables and
@@ -8757,6 +8788,13 @@ own tests:
 - **The TUI's command-line flags** (6.11 and 6.12): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
+- **On a box, told by the box** (6.12, *On a box*; 6.14, *The rule
+  above the box*): the engine's link file names an engine of this
+  machine, so `temper serve` run alone reads as a box too, where the
+  user's request of 2026-11-08 names "box" for a temper box. Default: the
+  file, until `temper box` starting the TUI in front tells it, a later
+  plan's, which draws the place in the box's header by `place`. Owner:
+  temper/tui.
 - **The TUI's design location:** sections 6.11 to 6.16 and 7.1 stay
   here; moving them under `client/tui/`, as `../README.md`, section 6
   assigns them, is a later cleanup that must preserve their citations.
@@ -9032,15 +9070,11 @@ own tests:
   `shapes::set_agreed_goal_from`, which stands built with nothing sending it; and a
   proposed goal's line above the composer. Default: 5.14's one sheet, its budget the
   creating bound's, its ways the project's templates, a proposal its toast.
-- **The reference's picture as a flow** (3.5, *temper's own way, beside the page*;
+- **The reference's picture as a flow** (3.5, *temper's own way*;
   `../draft/own-way.md`, 3): the reference shows no figures, the user's word of
   2026-11-06, and a flow is one path, its parts in parallel a caption until they
   branch. Default: the numbered list.
-- **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
-  `../draft/own-way.md`, 3, has a question about it be Ask temper's, beside
-  it. Default: a chat started there closes it, and a question about it
-  goes to a chat that no longer shows it.
-- **The table's QA row** (3.5, *temper's own way, beside the page*): it says "Later"
+- **The table's QA row** (3.5, *temper's own way*): it says "Later"
   until QA after landing is built (`../domain/findings.md`, section 8), then names
   its range as the other rows do. Default: "Later".
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
@@ -9217,8 +9251,8 @@ own tests:
   the focus on its summary, and no toast.
 - **A press that starts a chat, on a phone** (3.5, *Where the focus stands on a
   chat*; the request `ui-composer-focus` of 2026-11-06): the tree has no width, so
-  a starter's or a suggested request's press asks for the composer's focus there
-  too, and a browser that lets a press's activation outlive the answer may raise
+  a suggested request's press asks for the composer's focus there too,
+  and a browser that lets a press's activation outlive the answer may raise
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.

@@ -26,8 +26,14 @@ fn a_start_at_a_stale_filter_shows_its_printed_address() {
     assert_eq!(duties.show, Some((Box::from(b"/?project=3".as_slice()), true)));
     let mut page = host::page(&host.bounds.tree, Primary::Control);
     host.draw(&mut page, &mut Vec::new());
-    assert!(page.html().contains("temper-needs"));
-    assert!(!page.html().contains("temper-filters"));
+    let html = page.html();
+    assert!(html.contains("temper-top"));
+    let (_, main) = html.split_once("<main").expect("main while me is read");
+    let (_, children) = main.split_once('>').expect("main opening tag");
+    assert!(children.starts_with("</main>"), "main is empty while me is read");
+    assert!(!html.contains("temper-needs"));
+    assert!(!html.contains("<h1"));
+    assert!(!html.contains("temper-filters"));
 }
 
 #[test]

@@ -217,12 +217,13 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
     assert!(has_text(&page, b"2 stale proofs"));
 }
 #[test]
-fn projects_are_named_and_the_banner_only_offers_a_known_sign_in() {
+fn projects_are_named_and_the_top_bar_offers_sign_in_from_the_pages_origin() {
     let mut reader = reader(Public::Projects);
     answer(&mut reader, Doc::JigProjects, Heard::Document { body: records::projects(), fresh: Duration::from_secs(5) });
     for (ways, sign_in) in [
         (Ways::NONE, None),
-        (Ways::parse("unknown", b"https://temper.example"), None),
+        (Ways::parse("", b"https://temper.example"), Some(b"https://temper.example/".as_slice())),
+        (Ways::parse("unknown", b"https://temper.example"), Some(b"https://temper.example/".as_slice())),
         (Ways { google: true, origin: None }, None),
         (Ways::parse("google", b"https://temper.example"), Some(b"https://temper.example/".as_slice())),
     ] {

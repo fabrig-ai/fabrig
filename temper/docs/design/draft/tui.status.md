@@ -2,7 +2,7 @@
 
 2026-11-08. Where the design lags or departs from [tui.md](tui.md).
 
-- **Design lags:** 3 and 7: of the direction, the side pane and
+- **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags. 3 and 7: of the direction, the side pane and
   drafting, needs from elsewhere, the hand-offs and the project chosen
   from a checkout; approval between hosts and managing sign-ins; all
   await the user's refinement, and `../client/README.md`, section 11
@@ -91,6 +91,17 @@
     never "✦"; and a chat's title, cut to 20 characters at a word, with
     its number and the engine's place ("box", "box:PORT" or `HOST:PORT`,
     the box told by the engine's link file), is in the rule above the box
-    rather than a top line (`../client/README.md`, 6.12 to 6.15).
+    rather than a top line (`../client/README.md`, 6.12 to 6.15). The
+    landing account's explained differences: the file does not tell a box
+    from `temper serve` run alone, which reads as a box too, where the
+    request names "box" for a temper box, and telling it from the box
+    starting the TUI is later (`../client/README.md`, section 11, *On a
+    box, told by the box*); `launchpad-chat/04` names the place
+    `127.0.0.1:PORT`, not the request's "box:40691", because its walk
+    keeps the TUI apart from the box's link file to walk the approval
+    (`../client/tui/journeys.md`, 8.2 and 11), and lacks the person's
+    opening question until finding-465's repair records it again
+    (`../client/tui/journeys.status.md`, 9). The render check and the
+    walk follow landing (`../client/README.md`, section 11).
 - **Open:**
-  - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.
+  - 3: needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.

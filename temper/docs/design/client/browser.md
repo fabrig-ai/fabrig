@@ -384,7 +384,11 @@ replay says the same clocks (`README.md`, 5.12).
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
   main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
-  place, even back on the main, and a focus request ends the wait.
+  place, even back on the main, and a focus request ends the wait. A new
+  entry with no main yet, as while `me` is read (`README.md`, 5.1), waits
+  for its main alike: when the main is drawn, its heading takes the focus,
+  or the main until the heading comes, unless the focus has moved or a
+  focus request came meanwhile.
 
 ### 2.4 Signing in
 
@@ -594,7 +598,15 @@ replay says the same clocks (`README.md`, 5.12).
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
   hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
-  under, temper box's line takes its own row under them. The main is
+  under, temper box's line takes its own row under them. After the
+  steps, the top bar's end as on every page outside a project, signed
+  in the person's name and "Sign out". The bar packs its rows to their
+  end (`justify-content: flex-end`) and the steps take the free space at
+  their left (`margin-left: auto`, where temper box's line took it at its
+  right), so that the steps and the end keep to the right, temper box's
+  line beside the brand, and an end the row cannot hold wraps to the
+  right of the next; an end straight after the brand, before the
+  deployment's read answers, takes the free space at its own left. The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
@@ -787,12 +799,14 @@ replay says the same clocks (`README.md`, 5.12).
     with `scrollbar-gutter: auto` at every width, where the shell's pane keeps a
     stable gutter on both edges. It restates none of the shell's document rules,
     which `terminal.css` restates as a page outside `#app` must.
-- **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
-  `temper.css` under `/* ==== ui: settings ==== */`: on the page
-  `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
-  a chat's document's, `.temper-doc-flow`, which holds the
-  picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
-  under the chats' marker.
+- **Ask temper's ways** (`README.md`, 3.5 and 5.16) are `ask-temper-ways`'s rules, in
+  `temper.css`: the opening's, `.temper-ways` with its tabs, axis, panel, card, legend
+  and act, under `/* ==== ui: settings ==== */`, where `.temper-starter`'s stand; a
+  path's, `.temper-ways-path` and its marks, under `/* ==== ui: chats ==== */`, which a
+  reply's views share. Where skein draws an element otherwise than the request's page (a
+  tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
+  SVG laid out by width where the page has two), the selector names what is drawn and
+  keeps the request's declarations.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -872,7 +886,10 @@ replay says the same clocks (`README.md`, 5.12).
   - *The glow:* small and faint, at the window's top right, over the whole
     window, as the body's ground under a transparent `#app` and main: the
     overlay's radial gradients over its fractal-noise grain, so that it draws
-    no rings.
+    no rings. The window's ground is the body's however short the page (the
+    welcome at 420 by 900 among them): at night the root's own ground, the
+    placeholder's day paper (`loading.css`), gives way, so that the body's
+    ground fills the canvas.
   - *The switch* (`README.md`, 5.3): `temper-night-switch`, 30 px square, no
     border, at the rail's right, 16 px in and 24 px over its foot, the rail
     `position: sticky`; its icon a mask of 16 px line art in the muted colour,
@@ -935,8 +952,12 @@ replay says the same clocks (`README.md`, 5.12).
     outlined on the surface; acts side by side share a row,
     `temper-outside-acts`, equally; a quiet link, `temper-outside-quiet`,
     follows them, centred, 14 px, muted and underlined. A form puts its
-    field's name above, and the field and its act on one line; its
-    alert is the forms' red.
+    field's name above, 14 px medium in `--gf-ink-2` on the page's
+    22.4 px line, and the field and its act on one line; its alert is the
+    forms' red. The name's rule outweighs skein's small label
+    (`skein-ui.css`'s `label[for^="skein-ui-label-"]:has(+ input…)`,
+    `font-size: small`), which a selector of the column's label alone
+    does not.
   - *The approval's code,* `temper-approve-code`: 30 px in the mono
     face, letter-spaced .14em, centred on the surface in a hairline box,
     so that a person compares it at a glance with the terminal's; the
@@ -1447,7 +1468,9 @@ setup across desktop and phone widths. The twelve test functions in
     before and after a reload (`README.md`, 2). Before that chat, at
     420 px, Home's To begin and its Start open Ask temper's page, whose
     composer and model picker end above the three tabs' top (2.5, *The
-    project's frame*).
+    project's frame*), and whose ways show their tabs, Agents review
+    current; "Draft first" pressed shows its line, its path and "Use this"
+    (`README.md`, 3.5).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, its board and task
@@ -1926,11 +1949,17 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; "Ways to begin", Send disabled while the words are empty |
-| `ask-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
-| `ask-reference-draft` | `ask-reference` in Draft: the reference alone, the composer under it |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; the lede and the ways, Agents review current and shown with "Keep it", Send disabled while the words are empty |
+| `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and "Use this" |
+| `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" shown: its two landings, the goal branch's bar dimmer, "verify" before main |
+| `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
+| `ask-ways-card-person` | `ask-ways-approve` with "you approve" pressed: a person's card, the role and what they decide |
+| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way: a fourth tab, "Yours", current and shown, its path, no act |
+| `ask-ways-refused` | `ask-ways-approve` with "Use this" refused for too few approvers: the forge, the role, how many it asks and how many can, under the foot |
+| `ask-ways-member` | a member's page: the tabs and the paths, no act |
+| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review current with no act, To begin's first step done |
 | `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
-| `ask-sending` | the Ask temper start out; starters and Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
+| `ask-sending` | the Ask temper start out; Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-chat` | the solo world’s T10 as an Ask temper chat, conversation and proposal in its layout, its path through Ask temper |
 | `ask-chat-proposal` | `ask-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
@@ -2263,8 +2292,12 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **Anyone, signed in or not,** sees the same pages at these addresses:
   the answers are the same for every visitor. A signed-in person's
   cookie goes with the `GET` and is never read. The top bar (2.5,
-  *Outside a project*) offers "Sign in" at its right where the deployment
-  has a way, and nothing else of a person's.
+  *Outside a project*) offers "Sign in" at its right, with or without
+  Google's way, and nothing else of a person's: a link to the page's
+  origin, `/`, whose page signed out is the sign-in page where Google's
+  way is given, and otherwise the column "Signed out" with the printed
+  link's words (`README.md`, 5.1, *The pages not about the work*). It
+  needs the page's origin alone, as the view's `Ways` give it.
 
 ### 8.3 What it shows
 
