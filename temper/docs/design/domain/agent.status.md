@@ -3,9 +3,6 @@
 2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
 
 
-- **Not yet:** 4.3: the delegate family's `goal`, `change` and `delegate`
-  are declared whatever the charter names (`temper-engine-smith/src/calls.rs`,
-  `tools_for`).
 
 - **Not yet:** 8.5: the stock holds no drafter's charter and no design
   session (`temper-service/src/stock.rs`).
