@@ -156,7 +156,6 @@ fn queued_panel_lists_the_nearest_tasks_first() {
 
 // domain/forge.md, 8.8: changing another change's priority marks the watched changes behind it.
 #[test]
-#[ignore = "needs: committed priority-change hook; Change creates records and ignores existing tasks"]
 fn priority_moving_ahead_marks_the_waiting_panel() {
     let (mut driver, sign_in) = driver();
     for task in 51..=53 {
@@ -420,7 +419,6 @@ fn aging_moves_an_older_ready_change_ahead_of_a_lower_priority_number() {
 
 // domain/forge.md, 8.8 and 9: leaving the queue marks the changes behind; reentry keeps readiness order.
 #[test]
-#[ignore = "needs: committed queue-exit and reentry hook for seeded changes; Change is create-only"]
 fn queue_exit_and_reentry_refresh_the_panel_behind() {
     let (mut driver, sign_in) = driver();
     for task in 51..=53 {
@@ -493,7 +491,6 @@ fn clean_update_does_not_carry_an_exact_gate_verdict() {
 
 // domain/forge.md, 8.8: saving the change's own record marks its watched panel.
 #[test]
-#[ignore = "needs: committed mutation hook for an existing change record; Change is create-only"]
 fn own_record_change_refreshes_a_watched_panel() {
     let (mut driver, sign_in) = driver();
     driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row: queued(51, 1, 51) })));
