@@ -445,7 +445,8 @@ impl Domain {
         if let Some(bound) = merge_kind {
             forge.merge_kind(bound.spec, bound.result);
         }
-        let root_config = RootConfig { merge_kind, forge_connector, landings: config.landings };
+        let root_config =
+            RootConfig { merge_kind, forge_connector, landings: config.landings, ways_stock: config.ways_stock };
         let link_rng = skein_lib::Rng::new(config.core.seed);
         config.core.kept_starts =
             Box::new([tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE }]);

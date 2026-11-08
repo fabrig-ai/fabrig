@@ -133,7 +133,8 @@ pub(crate) fn answered(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
         let project = project(domain, key);
         let (repository, path) = match super::address(&see.line, project) {
             super::Address::File { repository, path, .. } => (repository, path),
-            super::Address::Inventory
+            super::Address::Ways
+            | super::Address::Inventory
             | super::Address::Setting(_)
             | super::Address::Landing
             | super::Address::Gates { .. }
