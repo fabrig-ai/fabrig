@@ -237,3 +237,13 @@ now?* Same as the answer to team-rail-14: the stop was right; change nothing.
 At 21:51Z `origin/main` (82343d8dfa) holds ui-p1-rail's rail, but this trunk
 (c63ed96fb3) still hasn't taken that main. Rerun once it has; then the base
 check passes and you go on.
+
+2026-11-08. *Run team-rail-18: 4900 to 4949 is full on the base; take 4963 and
+4964 for `TeamTitle` and `TeamFor`?* Yes. How work runs holds 4900 to 4929 and
+Team's words already run on from 4930 to 4962 (`TeamThings`), so Team's words
+continue past 4949: `TeamTitle` = 4963 and `TeamFor` = 4964, unused on this
+trunk and on `origin/main` (cbfe498098), and claimed by no other plan's notes.
+Acceptance 3's "from 4900 to 4949" reads as "Team's ids, after `TeamThings`";
+renumber no existing word. Each variant goes in its four places beside Team's
+words, never at a list's end. Then finish the remaining acceptance from
+`46adfafcb2` as the run's report lists it.
