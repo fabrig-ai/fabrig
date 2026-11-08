@@ -1,0 +1,51 @@
+draft = "look-round-22"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-22/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "endings"
+title = "The server's Google sign-in endings in the client's typographic apostrophe"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 4.3"
+
+[[part]]
+id = "public"
+title = "The public pages' top bar offers Sign in with or without Google"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 8.2"
+
+[[part]]
+id = "ground"
+title = "The column's field names at 14 px over skein's small label, and the night ground over the whole window"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 1
+story = "Every Google sign-in ending says didn’t, can’t, isn’t, hasn’t and couldn’t with the client's typographic apostrophe"
+parts = ["endings"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A public page shows Sign in at its top bar's right on a deployment without Google, leading to the signed-out column's printed-link words"
+parts = ["public"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Code and Project name read 14 px on a 22.4 px line, and the night welcome at 420 by 900 shows no day paper under its ground"
+parts = ["ground"]
+walk = false

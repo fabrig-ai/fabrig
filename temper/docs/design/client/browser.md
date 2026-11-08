@@ -872,7 +872,10 @@ replay says the same clocks (`README.md`, 5.12).
   - *The glow:* small and faint, at the window's top right, over the whole
     window, as the body's ground under a transparent `#app` and main: the
     overlay's radial gradients over its fractal-noise grain, so that it draws
-    no rings.
+    no rings. The window's ground is the body's however short the page (the
+    welcome at 420 by 900 among them): at night the root's own ground, the
+    placeholder's day paper (`loading.css`), gives way, so that the body's
+    ground fills the canvas.
   - *The switch* (`README.md`, 5.3): `temper-night-switch`, 30 px square, no
     border, at the rail's right, 16 px in and 24 px over its foot, the rail
     `position: sticky`; its icon a mask of 16 px line art in the muted colour,
@@ -935,8 +938,12 @@ replay says the same clocks (`README.md`, 5.12).
     outlined on the surface; acts side by side share a row,
     `temper-outside-acts`, equally; a quiet link, `temper-outside-quiet`,
     follows them, centred, 14 px, muted and underlined. A form puts its
-    field's name above, and the field and its act on one line; its
-    alert is the forms' red.
+    field's name above, 14 px medium in `--gf-ink-2` on the page's
+    22.4 px line, and the field and its act on one line; its alert is the
+    forms' red. The name's rule outweighs skein's small label
+    (`skein-ui.css`'s `label[for^="skein-ui-label-"]:has(+ input…)`,
+    `font-size: small`), which a selector of the column's label alone
+    does not.
   - *The approval's code,* `temper-approve-code`: 30 px in the mono
     face, letter-spaced .14em, centred on the surface in a hairline box,
     so that a person compares it at a glance with the terminal's; the
@@ -2263,8 +2270,12 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **Anyone, signed in or not,** sees the same pages at these addresses:
   the answers are the same for every visitor. A signed-in person's
   cookie goes with the `GET` and is never read. The top bar (2.5,
-  *Outside a project*) offers "Sign in" at its right where the deployment
-  has a way, and nothing else of a person's.
+  *Outside a project*) offers "Sign in" at its right, with or without
+  Google's way, and nothing else of a person's: a link to the page's
+  origin, `/`, whose page signed out is the sign-in page where Google's
+  way is given, and otherwise the column "Signed out" with the printed
+  link's words (`README.md`, 5.1, *The pages not about the work*). It
+  needs the page's origin alone, as the view's `Ways` give it.
 
 ### 8.3 What it shows
 
