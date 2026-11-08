@@ -151,6 +151,10 @@ fn shown(value: &c::ReadValue) -> Box<[u8]> {
     crate::render::encode(value, &mut out);
     out.finish()
 }
+const CHARTER_WORDS: &[u8] = br#"{"kind":"charter-words","number":4}"#;
+const PROJECT_WORDS: &[u8] = br#"{"kind":"project-words","project":7}"#;
+const LINE: &[u8] = br#""llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#;
+const WORDS: &[u8] = br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#;
 #[test]
 fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
@@ -162,6 +166,8 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             c::Setting::Application { kind: 2, scope: 7, number: 2 },
         ),
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
+        (CHARTER_WORDS, LINE, c::Setting::Application { kind: 9, scope: 0, number: 4 }),
+        (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
         let item = items.get(0).expect("one item");
@@ -210,6 +216,14 @@ fn temper_kind_member_refusals_name_the_file_path() {
             br#"{"pattern":{"segments":[],"last":{"open":"XX"}}}"#,
             b"settings file item 1: landing-rule.pattern.last.open: lower-case hexadecimal required",
         ),
+        (br#"{"kind":"charter-words","number":4,"project":7}"#, LINE, b"settings file item 1: charter-words.project: unknown member"),
+        (br#"{"kind":"charter-words"}"#, LINE, b"settings file item 1: charter-words.number: missing member"),
+        (CHARTER_WORDS, br#""lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#, b"settings file item 1: charter-words: wire value bound"),
+        (PROJECT_WORDS, br#"{"headline":"Our way"}"#, b"settings file item 1: project-words.lede: missing member"),
+        (PROJECT_WORDS, br#"{"lede":"We review."}"#, b"settings file item 1: project-words.headline: missing member"),
+        (PROJECT_WORDS, br#"{"headline":false,"lede":"We review."}"#, b"settings file item 1: project-words.headline: expected string"),
+        (PROJECT_WORDS, br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"We review."}"#, b"settings file item 1: project-words: wire value bound"),
+        (PROJECT_WORDS, br#"{"headline":"Our way","lede":"lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#, b"settings file item 1: project-words: wire value bound"),
     ] {
         assert_eq!(
             file::decode(&kind_file(setting, value), &Limits::standard()).expect_err("bad member").as_ref(),
@@ -530,7 +544,7 @@ fn project_ways_is_read_and_printed_whole() {
 }
 #[test]
 fn project_settings_require_the_project_and_refuse_a_number() {
-    for kind in [b"project-ways".as_slice(), b"project-questions"] {
+    for (kind, number) in [(b"project-ways".as_slice(), 7), (b"project-questions", 6), (b"project-words", 10)] {
         for (suffix, member) in [
             ("", "project"),
             (",\"project\":0", "project"),
@@ -544,7 +558,7 @@ fn project_settings_require_the_project_and_refuse_a_number() {
         let selector = joined(&[br#"{"setting":{"kind":""#, kind, br#"","project":7}}"#]);
         assert_eq!(
             file::read_setting(&selector, &Limits::standard()).expect("project selector"),
-            c::Setting::Application { kind: if kind == b"project-ways" { 7 } else { 6 }, scope: 7, number: 1 }
+            c::Setting::Application { kind: number, scope: 7, number: 1 }
         );
     }
 }
