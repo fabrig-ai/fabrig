@@ -6,9 +6,6 @@
   tab draws kind 7's "Away switch" row and a proposal's "Away switch: shown",
   from a member the kind keeps. `ui-reaches/ways-away`.
 
-- **Not yet:** 10: the client world holds no story of what reaches a person.
-  `ui-reaches/reaches-story`.
-
 - **Not yet:** 3.5, *Needs you*, *Why it reached you*, in the TUI (6.14, *The
   launchpad*): its need lines say no reason, though
   `temper_client_view::shared::why` gives it; temper/tui draws it with the

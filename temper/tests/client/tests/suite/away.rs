@@ -38,6 +38,7 @@ struct Story {
     probes: Vec<Probe>,
     env: Env<temper_client_domain::Limits>,
     inputs: Vec<(u64, u64, u64, Box<[u8]>)>,
+    keep_settings: bool,
 }
 impl Story {
     fn new() -> Self {
@@ -51,6 +52,7 @@ impl Story {
             probes: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             inputs: Vec::new(),
+            keep_settings: false,
         };
         assert_eq!(story.client(fixtures::PARTY), CLIENT);
         story
@@ -74,11 +76,16 @@ impl Story {
             who,
             Temper::start(Address::Welcome { step: temper_client_domain::address::Step::Welcome }, Vec::new(), 0),
         );
-        // The story needs Away and Home, reserving the fixed engine table for those watches.
-        for handle in [
-            temper_client_domain::pages::accounts::handle(),
-            self.probes[who.0].root.person().forge().settings_handle(),
-        ] {
+        self.event(
+            who,
+            Event::Client {
+                event: jig_client::Event::Unwatch { handle: temper_client_domain::pages::accounts::handle() },
+            }
+            .into(),
+        );
+        // Apply needs the newest settings revision; the other stories reserve that watch for Away and Home.
+        if !self.keep_settings {
+            let handle = self.probes[who.0].root.person().forge().settings_handle();
             self.event(who, Event::Client { event: jig_client::Event::Unwatch { handle } }.into());
         }
     }
@@ -238,6 +245,9 @@ impl Story {
         }
     }
     fn sequence() -> Self {
+        Self::sequence_with_settings(false)
+    }
+    fn sequence_with_settings(keep_settings: bool) -> Self {
         let mut limits = fixtures::domain_limits();
         limits.client.domain.handles = 18;
         limits.client.domain.watches = 18;
@@ -246,6 +256,7 @@ impl Story {
             probes: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             inputs: Vec::new(),
+            keep_settings,
         };
         assert_eq!(story.client(fixtures::PARTY), CLIENT);
         story
@@ -293,8 +304,26 @@ impl Story {
         }
         assert!(!self.facts(CLIENT).to_begin());
     }
+    fn needs(&mut self) {
+        self.event(
+            CLIENT,
+            Temper::went(Address::Inbox {
+                filter: temper_client_domain::address::Filter {
+                    project: Some(PROJECT),
+                    ..temper_client_domain::address::Filter::ALL
+                },
+            }),
+        );
+    }
     fn view(&self) -> View {
-        let (_, mut view) = Temper::new(fixtures::SEED);
+        let mut view = if self.keep_settings {
+            let mut words = fixtures::phrasebooks(&self.env.limits);
+            words.shell = temper_client_view::words::Shell::Browser;
+            let bounds = fixtures::view_bounds(&self.env.limits, &words);
+            View::Person(Box::new(temper_client_view::View::new(&bounds, &self.env.limits, words, fixtures::FORGE)))
+        } else {
+            Temper::new(fixtures::SEED).1
+        };
         let View::Person(person) = &mut view else { panic!("person view") };
         temper_client_view::build(person, self.probes[CLIENT.0].root.person(), self.env.wall, &mut Queue::uncapped());
         view
@@ -319,6 +348,18 @@ impl Story {
                     || node.text.iter().any(|run| run.text.windows(words.len()).any(|part| part == words))
             }),
             "{} in {:?}",
+            String::from_utf8_lossy(words),
+            Temper::tree(&view)
+        );
+    }
+    fn does_not_see(&self, words: &[u8]) {
+        let view = self.view();
+        assert!(
+            !Temper::tree(&view).nodes().iter().any(|node| {
+                node.name.as_deref().is_some_and(|name| name.windows(words.len()).any(|part| part == words))
+                    || node.text.iter().any(|run| run.text.windows(words.len()).any(|part| part == words))
+            }),
+            "{} absent in {:?}",
             String::from_utf8_lossy(words),
             Temper::tree(&view)
         );
@@ -572,6 +613,124 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
         calls.starts_with(&[Box::from(b"decided".as_slice()), Box::from(b"note".as_slice())]),
         "Decided carries on before overturn: {calls:?}"
     );
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one story follows classes, Away, money and Stop asking through both roots"
+)]
+fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
+    use forge::settings::{Edit, SettingKey, SettingSlot, Value};
+    use temper_protocol_reaches::{Class, Kind, Reason, Subject};
+
+    let mut story = Story::sequence_with_settings(true);
+    let classes_key = SettingKey { kind: 8, scope: PROJECT, number: 1, slot: SettingSlot::Change };
+    assert!(
+        !story.front.engine.store.rows.values().any(|record| {
+            matches!(record, Record::Forge { row } if matches!(row.as_ref(),
+            forge::Stored::Setting(row) if row.key.kind == 8 && row.key.scope == PROJECT))
+        }),
+        "the project uses Agents review's stock classes"
+    );
+    story.visit_home();
+    story.sees(b"Away");
+    assert!(!story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
+    let run = story.begin_goal();
+    assert_eq!(story.call(&run, 1, b"decided", LOCAL_DECISION).split_whitespace().next(), Some("Ask:"));
+    let rows = story.decisions();
+    let [asked] = rows.as_slice() else { panic!("one asked row: {rows:?}") };
+    assert_eq!((asked.project, asked.party, asked.task), (PROJECT, fixtures::PARTY, run.task));
+    assert_eq!(asked.took, None);
+    assert!(asked.options.is_empty());
+    assert!(asked.why.is_empty());
+    assert_eq!(
+        (asked.reach.kind, asked.reach.class, asked.reach.reason, asked.reach.away),
+        (Kind::Implementation, Class::Ask, Reason::Kind, false)
+    );
+    assert!(story.call(&run, 2, b"message", br#"{"target":1,"form":"question","words":"Which local implementation?\nChoice: Use Small\nChoice: Use Broad"}"#).starts_with("Message "));
+    story.needs();
+    story.sees(b"Which local implementation?");
+    story.sees(b"Use Small");
+    story.sees("Reached you because it is an implementation choice, which asks you unless you’re away.".as_bytes());
+    story.sees(b"Stop asking");
+
+    story.press(Role::Button, b"Away");
+    assert!(story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
+    story.after(Duration::from_nanos(1));
+    assert_eq!(story.call(&run, 3, b"decided", LOCAL_DECISION).split_whitespace().next(), Some("Decided:"));
+    let rows = story.decisions();
+    let [still_asked, away_decided] = rows.as_slice() else { panic!("asked and decided rows: {rows:?}") };
+    assert_eq!(still_asked, asked);
+    assert_eq!(away_decided.took, Some(0));
+    assert_eq!(
+        (away_decided.reach.kind, away_decided.reach.class, away_decided.reach.away),
+        (Kind::Implementation, Class::Ask, true)
+    );
+    story.needs();
+    story.sees("Decided for you · 1".as_bytes());
+    story.sees("Allowed: implementation choices are decided while you’re away.".as_bytes());
+    story.sees(b"Which local implementation?");
+    story.sees(b"Use Small");
+
+    story.after(Duration::from_nanos(1));
+    assert_eq!(story.call(&run, 4, b"decided", br#"{"question":"Buy more capacity?","options":["Buy","Wait"],"took":0,"why":"More capacity","kind":"money"}"#).split_whitespace().next(), Some("Ask:"));
+    let rows = story.decisions();
+    let [first, second, money] = rows.as_slice() else { panic!("three judged rows: {rows:?}") };
+    assert_eq!((first, second), (asked, away_decided));
+    assert_eq!(money.took, None);
+    assert_eq!((money.reach.kind, money.reach.class, money.reach.away), (Kind::Money, Class::Wait, true));
+    assert!(
+        story
+            .call(
+                &run,
+                5,
+                b"message",
+                br#"{"target":1,"form":"question","words":"Buy more capacity?\nChoice: Buy\nChoice: Wait"}"#
+            )
+            .starts_with("Message ")
+    );
+    story.needs();
+    story.press(Role::Button, b"Later");
+    story.sees(b"Buy more capacity?");
+    story.sees(b"Reached you because it spends money past a budget, which always waits for you.");
+    story.does_not_see(b"Stop asking");
+
+    story.press(Role::Button, b"Away until 08:00");
+    assert!(!story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
+    story.press(Role::Button, b"Later");
+    story.sees(b"Which local implementation?");
+    story.sees(b"Use Small");
+    story.press(Role::Button, b"Stop asking");
+    story.sees(b"Let agents decide implementation choices, then tell you.");
+    story.press(Role::Button, b"Apply");
+    let setting = story.front.engine.store.rows.get(&StoreKey::Forge(forge::Key::Setting(classes_key)));
+    let Some(Record::Forge { row }) = setting else { panic!("project classes saved: {setting:?}") };
+    let forge::Stored::Setting(forge::settings::SettingRow { edit: Edit::Set(value), .. }) = row.as_ref() else {
+        panic!("classes set: {row:?}")
+    };
+    let Value::Classes(classes) = &value.value else { panic!("classes value: {value:?}") };
+    assert_eq!(classes.class_of(Subject::Kind(Kind::Implementation)), Class::Decide);
+    story.sees(b"Applied: the next one is decided and listed. This one still waits for you.");
+    story.sees(b"Which local implementation?");
+    story.sees(b"Use Small");
+    assert_eq!(story.decisions(), rows, "Apply leaves the asked rows waiting");
+
+    story.after(Duration::from_nanos(1));
+    assert_eq!(story.call(&run, 6, b"decided", LOCAL_DECISION).split_whitespace().next(), Some("Decided:"));
+    let final_rows = story.decisions();
+    let [first, second, third, decided] = final_rows.as_slice() else { panic!("four judged rows: {final_rows:?}") };
+    assert_eq!((first, second, third), (asked, away_decided, money));
+    assert_eq!(decided.took, Some(0));
+    assert_eq!(
+        (decided.reach.kind, decided.reach.class, decided.reach.away),
+        (Kind::Implementation, Class::Decide, false)
+    );
+    story.needs();
+    story.sees("Decided for you · 2".as_bytes());
+    story.sees(b"Allowed: implementation choices are decided and listed.");
+    story.sees(b"Which local implementation?");
+    story.sees(b"Use Small");
 }
 
 #[test]
