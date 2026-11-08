@@ -11,8 +11,26 @@ and gate-share measurement outside the runner deferred.
 Sections 10 and 11 have the one-process runner, summary and hand command:
 process CPU from `wait4`, null per-test CPU, selected-test results and
 JUnit, fresh processes after crashes, and alone diagnostics that keep
-failures red. The fixture suites cover the mode's named paths. The
-departures below remain; section 8 defers caller adoption and CPU
+failures red. Sections 11.1 and 11.2 select with the caller's configuration
+and filter spellings, compile the default filter only when used, and warn
+on an empty selection as requested. Sections 11.4 and 11.8 use the named
+pipe with libtest's close-on-exec writer, order fresh jobs by priority and
+estimate, and forward alone diagnostics' lines and output.
+
+Sections 11.6 to 11.8 drop waiting jobs on cancellation, preserve results
+read before the cancellation mark, keep the running test cancelled despite
+later libtest results, and give it a JUnit abort even after a normal exit.
+A forced kill finishes starved: reported outcomes survive without their
+process record, pending outcomes are unobserved, and unknown process CPU
+is excluded. The summary accepts those recordless outcomes only with
+cancellation and keeps a reported failure red. The fixture rows cover
+these paths, including process-index remapping. No implementation gap is
+known in these fixes.
+
+The draft departures below remain: the inproc-fixes cut explicitly kept
+the older scheduling and diagnostic choices, whose reasons are still
+unrecorded, and chose to retain outcomes reported before a forced kill.
+Section 8 carries the two unresolved choices, caller adoption and CPU
 measurement. No `process-of-its-own` override is configured.
 
 - **Not yet:** 4: a `df` that fails in `run --cpu`'s last disk wait, the one before nextest, is no failed disk check: `subprocess.CalledProcessError` passes `main`'s handler, so the run ends in a traceback and exit 1, not 2. `step` and `list_tests` catch it. 7.5: the same `df` before `cpu-run`'s build passes that launcher's handler too, with exit 1 in place of a failed build's 2. The request for plain commands names neither, so its plan left both.
