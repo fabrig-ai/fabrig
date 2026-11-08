@@ -252,7 +252,7 @@ impl Service {
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
             kinds_stock: settings.kinds_stock,
-            ways_stock: Box::default(),
+            ways_stock: settings.ways_stock,
             period_span: crate::stock::PERIOD_SPAN,
             core,
             landings: settings.landings,

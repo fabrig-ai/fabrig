@@ -466,7 +466,7 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         .expect("playground engine limits");
         temper_service::stock::forge(&limits)
     };
-    temper_service::stock::Given::Own { jig: defaults, forge }
+    temper_service::stock::Given::Own { jig: defaults, forge, ways: temper_service::stock::ways() }
 }
 /// Independent streams derived from a world's single seed.
 #[derive(Debug, PartialEq, Eq)]
