@@ -1,6 +1,6 @@
-//! The root stays ready after project 3 and after reopening its store; native
-//! clients reject its three-project me document at their two-project limit.
-//! See temper/docs/design/domain/root.md, 4, 5.7, 9.1, and protocol/README.md, 8.2.
+//! No core wait: the gate is open and the root ready; the client's mandatory `me`
+//! must hold every membership (temper/docs/design/client/tools.md, 12;
+//! jig/docs/design/client/domain/contract.md, 5.1), including a project just made.
 use crate::{
     ctl::{Caller, Command},
     fixtures,
@@ -197,6 +197,7 @@ struct Judge {
     disk: Rc<RefCell<skein_fake_machine::Machine>>,
     seen: Rc<RefCell<Outcome>>,
     warm: bool,
+    whole: bool,
     stage: Stage,
     target: usize,
     answered: usize,
@@ -226,11 +227,48 @@ impl Judge {
         caller.commands.push_back(command);
     }
     fn calls(&mut self, caller: &mut Caller) {
+        let project = "3";
         self.queue(
             caller,
-            &[&["project", "show", "3"], &["me"], &["account", "list"], &["settings", "show"]],
+            &[&["project", "show", project], &["me"], &["account", "list"], &["settings", "show"]],
             Stage::Calls,
         );
+    }
+    fn after_prior(&mut self, caller: &mut Caller) {
+        if self.whole {
+            let account = self.account();
+            self.queue(caller, &[&["account", "forget", &account, "--key", "forget-program"]], Stage::Forget);
+        } else { self.after_forget(caller); }
+    }
+    fn after_forget(&mut self, caller: &mut Caller) {
+        if self.whole {
+                    self.readings = caller.answers.len();
+                    let mut commands = vec![vec!["settings", "show", "rules", "--json"]];
+                    for number in ["1", "2", "4", "6", "9", "10"] {
+                        commands.push(vec!["settings", "show", "charter", number, "--json"]);
+                    }
+                    for kind in ["template", "policy"] {
+                        for number in ["1", "2"] {
+                            commands.push(vec!["settings", "show", kind, number, "--json"]);
+                        }
+                    }
+                    self.target = caller.answers.len() + commands.len();
+                    for words in commands {
+                        Self::command(caller, &words);
+                    }
+                    self.stage = Stage::ReadSettings;
+        } else { self.after_apply(caller); }
+    }
+    fn after_apply(&mut self, caller: &mut Caller) {
+        if self.whole {
+            self.queue(caller, &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "refused-declaration"]], Stage::Declare);
+        } else { self.make(caller); }
+    }
+    fn make(&mut self, caller: &mut Caller) {
+        let mut commands = Vec::new();
+        if self.whole { commands.push(["account", "list"].as_slice()); }
+        commands.push(["project", "make", PROJECT, "--key", "incident-project"].as_slice());
+        self.queue(caller, &commands, Stage::Make);
     }
     fn account(&self) -> String {
         self.store
@@ -314,7 +352,12 @@ impl skein_world::Referee<Proc> for Judge {
                 self.calls(caller);
             } else {
                 Self::sign_in(caller, &link);
-                for words in [
+                if !self.whole {
+                    Self::command(caller, &["project", "make", "Earlier work", "--key", "earlier-project"]);
+                    self.target = 2;
+                    self.stage = Stage::Goal;
+                } else {
+                let commands = [
                     vec!["account", "add-key", "1", "/setup/llm.key", "--deployment", "--key", "incident-key"],
                     vec![
                         "forge",
@@ -359,12 +402,12 @@ impl skein_world::Referee<Proc> for Judge {
                         "--key",
                         "earlier-goal",
                     ],
-                ] {
-                    Self::command(caller, &words);
-                }
+                ];
+                for words in &commands { Self::command(caller, words); }
                 Self::command(caller, &["settings", "show", "charter", "1", "--json"]);
-                self.target = 9;
+                self.target = caller.commands.len();
                 self.stage = Stage::Goal;
+                }
             }
             self.handed = true;
         }
@@ -381,8 +424,9 @@ impl skein_world::Referee<Proc> for Judge {
         self.check_answers(caller, now);
         if self.handed && caller.answers.len() >= self.target {
             match self.stage {
-                Stage::Goal if self.ended_goal() => {
-                    let saved: Value = serde_json::from_slice(&caller.answers[8].output).expect("initial charter");
+                Stage::Goal if !self.whole || self.ended_goal() => {
+                    if !self.whole { self.make(caller); } else {
+                    let saved: Value = serde_json::from_slice(&caller.answers.last().expect("initial charter answer").output).expect("initial charter");
                     for (file, instructions) in [
                         (b"/setup/prior-two.json".as_slice(), "Complete the earlier work."),
                         (b"/setup/prior-three.json".as_slice(), "Complete the earlier work fully."),
@@ -396,6 +440,7 @@ impl skein_world::Referee<Proc> for Judge {
                         temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), file, &prior);
                     }
                     assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "earlier change landed");
+                    if self.whole {
                     self.queue(
                         caller,
                         &[
@@ -412,11 +457,10 @@ impl skein_world::Referee<Proc> for Judge {
                         ],
                         Stage::PriorRevisions,
                     );
+                    } else { self.after_prior(caller); }
+                    }
                 }
-                Stage::PriorRevisions => {
-                    let account = self.account();
-                    self.queue(caller, &[&["account", "forget", &account, "--key", "forget-program"]], Stage::Forget);
-                }
+                Stage::PriorRevisions => self.after_prior(caller),
                 Stage::Forget => {
                     let forgotten = caller.answers.last().expect("forget terminal");
                     assert!(
@@ -425,21 +469,7 @@ impl skein_world::Referee<Proc> for Judge {
                         String::from_utf8_lossy(&forgotten.output),
                         String::from_utf8_lossy(&forgotten.error)
                     );
-                    self.readings = caller.answers.len();
-                    let mut commands = vec![vec!["settings", "show", "rules", "--json"]];
-                    for number in ["1", "2", "4", "6", "9", "10"] {
-                        commands.push(vec!["settings", "show", "charter", number, "--json"]);
-                    }
-                    for kind in ["template", "policy"] {
-                        for number in ["1", "2"] {
-                            commands.push(vec!["settings", "show", kind, number, "--json"]);
-                        }
-                    }
-                    self.target = caller.answers.len() + commands.len();
-                    for words in commands {
-                        Self::command(caller, &words);
-                    }
-                    self.stage = Stage::ReadSettings;
+                    self.after_forget(caller);
                 }
                 Stage::ReadSettings => {
                     self.prepare_settings(caller);
@@ -449,16 +479,8 @@ impl skein_world::Referee<Proc> for Judge {
                         Stage::Apply,
                     );
                 }
-                Stage::Apply => self.queue(
-                    caller,
-                    &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "refused-declaration"]],
-                    Stage::Declare,
-                ),
-                Stage::Declare => self.queue(
-                    caller,
-                    &[&["account", "list"], &["project", "make", PROJECT, "--key", "incident-project"]],
-                    Stage::Make,
-                ),
+                Stage::Apply => self.after_apply(caller),
+                Stage::Declare => self.make(caller),
                 Stage::Make => {
                     let domain = service.service.engine_domain().expect("engine root");
                     assert!(
@@ -481,6 +503,7 @@ impl skein_world::Referee<Proc> for Judge {
                         Self::sign_in(fresh, &self.first_link);
                         self.fresh_handed = true;
                     }
+                    eprintln!("core calls answered: {}; gate {}", self.seen.borrow().calls, self.seen.borrow().gate);
                     self.stage = Stage::Native;
                 }
                 Stage::Native => {
@@ -560,6 +583,7 @@ impl skein_world::Referee<Proc> for Judge {
 
 fn phase(
     warm: bool,
+    whole: bool,
     mut disk: skein_fake_machine::Machine,
     store: Rc<RefCell<Store>>,
     transport: &temper_fake_git_hosted::Typed,
@@ -586,6 +610,7 @@ fn phase(
                 disk: machine.0.clone(),
                 seen: seen.clone(),
                 warm,
+                whole,
                 stage: Stage::Setup,
                 target: 0,
                 answered: 0,
@@ -666,15 +691,15 @@ fn phase(
 }
 
 #[must_use]
-pub fn whole_sequence() -> [Outcome; 2] {
+pub fn sequence(whole: bool) -> [Outcome; 2] {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Restart);
     let transport = forge();
     let store = Rc::new(RefCell::new(Store::new()));
     let mut disk = temper_playground::machine::fresh();
     temper_playground::machine::setup(&mut disk);
-    let (disk, before) = phase(false, disk, store.clone(), &transport);
-    let (_, after) = phase(true, disk, store, &transport);
+    let (disk, before) = phase(false, whole, disk, store.clone(), &transport);
+    let (_, after) = phase(true, whole, disk, store, &transport);
     [before, after]
 }
 
