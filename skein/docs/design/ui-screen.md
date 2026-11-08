@@ -349,6 +349,14 @@ the most bytes of a paste:
   answer is the background's too, unreadable; any other answer is
   dropped; one past 64 bytes is dropped whole, through its end. Before
   `answers`, `ESC ]` is `Alt` and `]`, as the table has it.
+- **`Escape` while the background is awaited:** from `answers` until the
+  terminal's background is no longer `Waiting` (section 8), an `ESC` at a
+  read's end with nothing after it is held, since it may begin the
+  answer; the wait's end, by an answer, an unreadable one or the wait
+  passing, gives a held `ESC` as `Escape`. From then on an `ESC` alone at
+  a read's end is `Escape`, as the table has it, so a late answer split
+  right after its `ESC` reads as `Escape` and its characters; one read
+  whole is never a key.
 
 ### 6.2 The key reader
 
