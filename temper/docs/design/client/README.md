@@ -2197,36 +2197,48 @@ keeps (`../protocol/configuration.md`, section 2).
       agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
-  - *Needs you,* a region named "Needs you": what needs the person in
-    this project, the groups of `Inbox` but its updates, read as `Inbox`
-    reads them filtered by the project, with the project's changes waiting
-    on a review on the forge (*Needs you,* below, *An approval*). Its head is the level-2 heading
-    "Needs you", "Needs you · N" in the signal colour while something
-    does, and, at its right on a wide page while more than one does,
-    "Answer in a row", to that filtered *Needs you*. Empty, once its read has
-    answered: "Work carries on, and this page tells you what changed when you come back.", the
-    headline above having said "Nothing needs you." once.
+  - *Needs you,* a region named "Needs you", drawn while an open card
+    waits (*A page's parts,* below): what needs the person in this
+    project, the groups of `Inbox` but its updates, read as `Inbox` reads
+    them filtered by the project, with the project's changes waiting on a
+    review on the forge (*Needs you,* below, *An approval*). With none
+    open the region is left out, the headline above having said "Nothing
+    needs you." (`../draft/surfaces.md`, 14: no part is drawn empty). Its
+    head is the level-2 heading "Needs you · N", N in the signal colour,
+    and at its right "All needs", to that filtered *Needs you*.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
-      the right "Undo" while its answer is held.
-    - *The first,* a card (`temper-ask`, the mock's `askCard`): a small
-      mono line, the asked task's link as the inbox's card has it, its
-      kind and age ("Add a README · a question · 4 min"), " · later" on
-      a card marked later; then its parts, by its kind as on *Needs you*
-      (below), but: the question in `.q`, 17px; a question's `.choices`
-      in a row, min-height 40, then quiet "Reply" and quiet "Later", in
-      place, the reply form under them; on a proposal or a held task its
-      acts, quiet "Open" and quiet "Later"; on an approval its review link
-      where it has one, then quiet "Open" and quiet "Later" (`forge.md`, 4.1).
-    - *The others,* a line each under it, the whole a link that opens
-      *Needs you* at that card, at most five: its SHORT at the left
-      (*Needs you,* below; a funds row "TITLE: S of L used"), at the
-      right its kind and age.
-    - *On a phone* the card and the lines give way to one block on a pale
-      signal ground, "TITLE: SHORT", the whole a link to *Needs you*,
-      with "Answer" across it for one card and "Answer, one at a time"
-      for more; the browser's alone.
+      the right "Undo" while its answer is held. They show while the
+      region does.
+    - *The cards,* the first three open cards in their order (*What the
+      client keeps,* below), oldest first as the inbox orders them, each a
+      `temper-need-card` (the whole story's `home.html`, `.card.need`):
+      - *its from line,* mono: on Home on All projects (below) the
+        project's chip, `temper-chip`, its name; the asked task's link as
+        the inbox's card has it; its kind and age ("Add a README · a
+        question · 4 min"); " · later" on a card marked later;
+      - *its question* in `.q`, 17px; a funds card's "S of L used." and
+        an approval's question as on *Needs you*;
+      - *its acts* in a row, min-height 40, the recommended one first and
+        primary, the others quiet: a question's choices, the recommended
+        one first as *Needs you* orders them, then "Tell it something
+        else", a link that opens *Needs you* at that card (*At,* below);
+        a proposal's Accept and Reject, a held task's and a funds card's
+        Release and Leave held, through the confirmation they have
+        (3.6); an approval's "Review on FORGE ↗" (*Needs you,* *An
+        approval*), then "Tell it something else". A question in words
+        in no line form has "Tell it something else" alone, primary.
+        A choice answers in place, as on *Needs you*, with its held send
+        and its Undo.
+    - *More,* with more than three open, a line under the cards: "One
+      more" or "N more", N in number words to "Nine", digits after, a
+      link to that filtered *Needs you*.
+    - *On a phone* (the whole story's `phone-home.html`) each card keeps
+      its from line and its question; its recommended act is a
+      full-width button, at least 44 pixels tall, then "More", quiet,
+      which opens *Needs you* at that card; an approval's recommended act
+      is its "Review on FORGE ↗". The browser's alone.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -2253,6 +2265,8 @@ keeps (`../protocol/configuration.md`, section 2).
     signal's colour while `red`; then " · " and "Changes", a link to
     `Changes`. BRANCH is `branch`, "landing" where it is empty. No green
     time is kept, so none is said.
+  - *The Ask temper line,* the page's last part, as *Home on All
+    projects* (below) has it, on this project; not while To begin shows.
 
   In the rail and the tab bar, "Needs you"'s count takes the signal
   colour.
@@ -2279,29 +2293,142 @@ keeps (`../protocol/configuration.md`, section 2).
   where the look is the terminal's, as on the pages it draws. The
   browser's Home sends neither `ChatWords` nor `StartChat` and draws no
   picker, so it is unmoved.
+- **Home on All projects** (`../draft/surfaces.md`, section 3; the whole
+  story's `home.html` and `phone-home.html`, `web/whole-story/`):
+  `AllHome`, at `/home`, Home for every project the person is in, as
+  `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
+  and the rest left out. It draws in the open project's frame, as `Inbox`
+  does: the rail and the tab bar are the open project's, or with none open
+  `me`'s first project's, "Home" current (5.3). Going to it opens no
+  project and moves none. With no project in `me` it draws its intro
+  alone. It has no To begin, no Chats, no Goals and no foot: those are a
+  project's Home's. One column of prose, in this order, each part drawn
+  by its rule (*A page's parts,* below):
+  - *Its reads.* On entering, for each project read, the subjects
+    `status` and `decided` (4.6), as that project's Home watches them, and
+    `Looked` once, so that each project's `previous` and `seen` move as its
+    Home's entry moves them; the inbox unfiltered and the subject
+    `approvals`, as *Needs you* reads them across projects; each showing
+    decision's task (`Read::Task`), as Home reads its rows, within `reads`.
+    Leaving unwatches them all. A project's status counts once its look is
+    answered and its document delivered, as on its Home; a watch refused or
+    ended leaves that project's status unknown, and the rest stand.
+  - *The intro,* one function's composition, `all_home::intro`, so that a
+    later part joins there:
+    - *the kicker:* the day and time, as Home's; then, with the newest
+      `previous` of the projects shown over a minute old, " · you last
+      looked SPAN ago", SPAN Home's own word; then, with an Away spell of
+      the person's on a project read whose `off` is after that look, " ·
+      away SINCE to OFF", both by 5.12's *clock*, the newest such spell;
+    - *the headline:* the landed sentence across projects, then a space
+      and the needs sentence, Home's words over every open card across
+      projects, "N+" where the inbox or `approvals` is cut. With N the sum
+      over the projects shown of `landed` less `seen`, and P the number of
+      them where it is above 0: "N changes landed across P projects.",
+      P in number words to "nine", digits after; with P one, "N changes
+      landed in PROJECT." or "One change landed in PROJECT."; for N 0,
+      with a `last_landed` on any project shown, "The last change landed
+      SPAN ago.", the newest, SPAN the kicker's word, "just now" under a
+      minute; nothing with nothing landed. It never says a brief's
+      `sentence`: across projects the headline is code's;
+    - *the lede:* the briefs joined, `all_home::brief`: each project's
+      brief that is new to the person by Home's rule (*Home on any
+      project*), newest `at` first, at most four, each its project's name
+      and ": " in the strong weight, then the first sentence of its `lede`,
+      up to and with the first ".", "!" or "?" that ends the lede or is
+      followed by a space, the whole lede with none. The name says whose,
+      since one brief a project is written in its own project's words
+      (`../draft/surfaces.md`, 15, its default);
+    - *the byline:* "Written by the status agent at 07:52", the newest
+      joined brief's `at` by 5.12's *clock*, in `temper-home-byline`.
+      With no brief new, neither lede nor byline.
+
+    Until a project's status is shown it counts nothing; while none is,
+    the intro has its kicker's day and time and its needs sentence alone,
+    the needs sentence once the inbox has answered.
+  - *Needs you,* as a project's Home's (*Home*, above, *The cards*) across
+    projects: the open cards of the unfiltered inbox with every
+    `approvals` row, each card's from line with its project's chip; "All
+    needs" and "N more" open `Inbox` unfiltered.
+  - *Decided for you,* a region named "Decided for you", drawn while a
+    row shows (*Away,* below: a row shows for 24 hours from its `at`): its
+    head the level-2 heading "Decided for you · N", N every row showing
+    across the projects read, and at its right "What reaches you", to the
+    open project's `Settings { project }`, whose How work runs tab holds
+    what reaches the person; then at most seven rows, the newest kept,
+    oldest first, each a `temper-decision` as a project's Home draws it
+    (*Away,* *Home, while a decision shows*): mono "PROJECT · TITLE ·
+    01:05", then the question, what it took and why, and at its right what
+    a project's Home has there, "Overturn" on a live task. Overturn is
+    *Away*'s act under the row's project.
+  - *Projects,* a region named "Projects", while the person is in two
+    projects or more: its head the level-2 heading "Projects"; then
+    `temper-projects`, a row a project read, in `me`'s order: its name, a
+    link to its `Home`; and its health in chips: BRANCH, `temper-chip-good`,
+    while its status is shown and not `red`; "BRANCH red",
+    `temper-chip-signal`, while `red`; none while its status is unknown.
+    BRANCH is its status's `branch`, "landing" where it is empty, as Home's
+    foot says it. A project's Now, its tiers, a follow's parity and
+    "owned" are not designed here (*A page's parts*).
+  - *The Ask temper line,* `temper-ask-line` (the mockups' `.ask`), the
+    page's last part: a field named "Ask temper", its placeholder "Ask
+    temper about your projects", and the button "Ask". Enter or "Ask"
+    with words sends `Act::AskWith { words }`, which opens `Ask { project
+    }` on the project in view, the open project here, with the words in
+    its composer, unsent, as if typed there; with none it does nothing.
+  - *On a phone* (`phone-home.html`): the kicker "Sunday 08:04 · last
+    looked 9 h ago", 5.12's short span; the headline and the lede as
+    above; the byline "The status agent, 07:52"; the cards in their phone
+    form; then, while a row shows, one line "Decided for you · N ›", a
+    link to *Needs you* unfiltered, which lists them. No Projects and no
+    Ask line: the phone asks from its Ask tab (`../draft/surfaces.md`,
+    10). The browser's alone.
+
+  In the terminal the page reads as Home's does there: its parts keep
+  their headings, each line one readable run of words, and the cards'
+  choices print as buttons.
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
-  were (`browser.md`, 2.3). It draws one card at a time: no level-1
-  "Inbox", no sections, no filter menus and no "+ New chat". Updates
+  were (`browser.md`, 2.3), across projects by default
+  (`../draft/surfaces.md`, section 4; the whole story's `needs.html` and
+  `phone-need.html`): no filter menus and no "+ New chat". Updates
   leave the browser's page and no page replaces them; `Seen` marking
   stays as it is. Its unfiltered address, `/`, works across projects,
-  the project's name before the owner on the mono line. One card is
-  shown of the open ones (*What the client keeps,* below): the one a Home
-  row asked for, else the first; until the inbox has answered, the column
-  is empty, so that "Nothing needs you." never flashes, and what it said
-  stands through each refresh after that.
+  each card's from line opening with its project's chip. On a wide page
+  it is a list of the open cards (*What the client keeps,* below), in
+  their order, oldest first as the inbox orders them: the shown one, the
+  one a Home row asked for, else the first, open as *The card*; each other
+  closed, a `temper-need-row`, its from line and its SHORT (below), the
+  whole a button that opens it (`needs::Act::Open`), closing the one open.
+  On a phone it is one card at a time, the shown one, as below. Until the
+  inbox has answered, the column is empty, so that "Nothing needs you."
+  never flashes, and what it said stands through each refresh after that.
   - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
-    gap 32.
-  - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
-    item, 22 by 4, radius 2, `--gf-line-2`, the done ones first and ink;
-    at the right "2 of 3" as `.kicker`. The total is what is answered of
-    this session's page plus the open; where the read is cut, "2 of 3+".
+    gap 32; 720 wide on a wide page's list.
+  - *Its intro,* `temper-needs-intro`, while a card is open: the kicker
+    "Needs you · all projects" unfiltered, "Needs you · PROJECT" filtered
+    by a project; the level-1 heading, Home's needs sentence over the open
+    cards, then with a Decided for you row showing " Four were decided for
+    you." or " One was decided for you.", in number words to "Nine",
+    digits after. What reaches the person, the lede `needs.html` draws, is
+    `../draft/what-reaches-you.md`, section 2's, and joins the intro with
+    its classes.
+  - *Its head,* on a wide page: the level-2 heading "Needs you · N", N in
+    the signal colour, "N+" where the read is cut, and at its right "oldest
+    first", muted. On a phone, `.flow-head`: `.dots`, a figure named "2 of
+    3", a pip per item, 22 by 4, radius 2, `--gf-line-2`, the done ones
+    first and ink; at the right "2 of 3" as `.kicker`. The total is what is
+    answered of this session's page plus the open; where the read is cut,
+    "2 of 3+".
   - *The card,* on no ground (`.ask`, no background, no shadow, padding
     0), gap 16:
-    - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's,
-      " · later" with it; the kind "a question", "a proposal", "held", "a
-      person task", "an approval", or "funds" for a held task whose reason is
-      `HoldReason::Budget`;
+    - a `.mono` line, its from line: the project's chip, `temper-chip`, on
+      the unfiltered address; TITLE, a link to the task, · kind · age, as
+      Home's, " · later" with it; the kind "a question", "a proposal",
+      "held", "a person task", "an approval", or "funds" for a held task
+      whose reason is `HoldReason::Budget`. The goal or the role a need
+      comes from and who asked it join the line as their reads come
+      (`../draft/surfaces.md`, 4);
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
       phone;
     - `.ctx`, `--gf-ink-2`, if it has a context;
@@ -2312,17 +2439,20 @@ keeps (`../protocol/configuration.md`, section 2).
       16px; the recommended one, with none the first, primary, and on a
       question alone `.rec`, "recommended", at the far right, 12px, 400,
       opacity .72;
-    - `.pair`, two columns, gap 10: "Reply…" and "Later", min-height 46,
-      radius 12, no border, `--gf-hover`, centred; on a proposal, a held
-      task or a person task other than one in words the first is "Open",
-      to its task's or chat's page, and with no such page it is left out;
-    - the reply form under the pair, hidden until "Reply…": a textarea,
-      min-height 72, `--gf-line-2`, radius 8, `--gf-paper`, its
-      placeholder "Your words go to TITLE’s agent"; "Send reply" (primary,
-      small) and "Cancel" (quiet, small).
+    - *Tell it something else,* `temper-need-tell`, on a question and a
+      person task in words, always open under the choices: a textarea named
+      "Or tell it something else", min-height 72, `--gf-line-2`, radius 8,
+      `--gf-paper`, its placeholder the same words; its words are the
+      card's reply, kept as a reply's are (*What the client keeps,* below),
+      and go to the asker as its next message; "Send", primary and small,
+      while it holds words, answers in them as a reply does. On a
+      proposal, a held task or a person task other than one in words,
+      "Open", quiet, to its task's or chat's page, and with no such page it
+      is left out. The browser draws no "Later"; the terminal's inbox keeps
+      it.
   - *By its kind.* A question reads its words by their line form
     (`../domain/agent.md`, 8.2); words in no such form are answered by
-    "Reply…" alone. A proposal's question line is its reason's first
+    *Tell it something else* alone. A proposal's question line is its reason's first
     sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
     the terminal's card), through the confirmation they have (3.6). A
@@ -2338,7 +2468,7 @@ keeps (`../protocol/configuration.md`, section 2).
     one addressed to a person with a report as its contract, as a goal
     asks the person who started it (`../domain/agent.md`, 8.2), reads as a
     question: its spec's words by the same line form, its kind "a
-    question", its choices, "Reply…" and "Later". Choosing or replying
+    question", its choices and *Tell it something else*. Choosing or replying
     answers it in those words, naming the revision the card showed;
     Later keeps it open. With a task as requester, its line's TITLE is
     "Task N", N its requester, a link there, since the card reads no second
@@ -2349,7 +2479,10 @@ keeps (`../protocol/configuration.md`, section 2).
     report keeps the ordinary person-task card.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (4.6), its kind "an approval", its question, context,
-    review link, "Open" and "Later" as `forge.md`, 4.1 has them, its key
+    review link and "Open" as `forge.md`, 4.1 has them, the review link
+    "Review on GitHub ↗" or "Review on Forgejo ↗" first and primary, one tap
+    to the forge's review page (`../draft/forge-identity.md`, section 8), and
+    in the terminal's inbox "Later" too, its key
     `ObjectKey::Task` of the change, so that Later works on it as on any card.
     The open cards are the inbox's needs and these rows together: the inbox's
     first, in its order, then the rows in theirs, and those marked later last.
@@ -2364,7 +2497,7 @@ keeps (`../protocol/configuration.md`, section 2).
     `long_text`, which bounds a task's words (5.4). Only the whole parses by the
     line form, so its context, "What the agent saw" and its choices draw once it
     has it all; until then the card reads as words in no such form, ending in
-    `…`, answered by "Reply…" alone. A read that ended short is asked again at the
+    `…`, answered by *Tell it something else* alone. A read that ended short is asked again at the
     inbox's next refresh. Words with more than 16 choices read as words in no such
     form, whole. A question by `message` has no such read: its words stay as the
     document has them.
@@ -2373,23 +2506,31 @@ keeps (`../protocol/configuration.md`, section 2).
     Under the words, in `.ctx`: "This question is cut here." and the link "Read
     the rest", to its task's page (the requester's, for a person task in
     words), whose conversation holds them. No question is cut without it.
-  - *SHORT,* what a next-up line or a Home line says of a card: a
+  - *SHORT,* what a next-up line, a closed row or a Home line says of a card: a
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
     sentence; a held task's or another person task's title, a funds card's
     "S of L used"; an approval's question.
-  - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
-    "The last one".
+  - *`.next-up`,* on a phone, centred, 13px, `--gf-faint`: "Next: TITLE ·
+    SHORT", or "The last one".
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
   - *Done,* with none open, `.col.narrow` with no head: the kicker "Needs
     you", the level-1 heading "Nothing needs you.", the lede "Every
     question is answered. Work carries on; Home tells you what changed.",
-    the `.answered` lines, and a plain button-link "Home" (to the open
-    project's `Home`, else the first project's).
-  - *Its acts.* A choice answers and moves to the next card. "Send reply"
-    answers in words. "Later" marks it and moves on, the toast saying
-    "Later: it stays in Needs you, after the others."
+    the `.answered` lines, and a plain button-link "Home": to `AllHome`
+    while `me` lists two projects or more, else to the open project's
+    `Home`, else the first project's.
+  - *Decided for you,* a region named "Decided for you", after the list or
+    the Done column, drawn while a row shows (*A page's parts,* below):
+    the rows of *Home on All projects*, its reads, its count and its
+    Overturn, filtered by the address's project where it has one; its head
+    "Decided for you · N" and at its right "for 24 hours, then in each
+    task's history", muted; each row's why after "Allowed: ". On a phone
+    it follows the card, the target of Home's "Decided for you · N ›".
+  - *Its acts.* A choice answers and opens the next card. "Send" answers
+    in words. On the terminal's inbox "Later" marks it and moves on, the
+    toast saying "Later: it stays in Needs you, after the others."
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
@@ -2448,6 +2589,35 @@ keeps (`../protocol/configuration.md`, section 2).
     held for the session as `dismissed` is, from when `me` is first delivered
     while the link is live: a watch refused or ended is kept as such, with no
     rows, and not opened again until the next sign-in.
+- **A page's parts** (`../draft/surfaces.md`, section 12): what Home,
+  Home on All projects and Needs you draw follows the facts, part by
+  part, decided by one pure function a page in `pages::parts`, which the
+  browser and the terminal share: `parts::home(&parts::HomeFacts) ->
+  parts::HomeParts` and `parts::needs(&parts::NeedsFacts) ->
+  parts::NeedsParts`. Their facts are counts and flags the page's reads
+  give, never a step of the spectrum, so that a project between two steps
+  shows exactly its parts and moving along it flips no page. Each part has
+  one rule:
+
+  | Part | Shows when |
+  |---|---|
+  | Home's lede and byline | a brief new to the person, on a project shown |
+  | Home's Needs you | an open card waits |
+  | Decided for you, on Home and on Needs you | a row shows, within its day |
+  | Home's Projects | on All projects, the person is in two projects or more |
+  | The Ask temper line | always, on a wide page, To begin gone |
+  | Needs you's list | an open card waits; else its Done |
+
+  A part whose rule holds is drawn with what it holds, and none is drawn
+  empty. Every open card is drawn exactly once on Needs you, and on Home
+  among its three cards or counted in its "N more". A card's showing
+  follows its own facts, never the project's settings: an approval asked
+  while the project's way had the person review stays open until it is
+  done, whatever the way becomes. Home's owners' lines and What follows
+  what join this table with the reads that give them
+  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Needs you's
+  why, Only you and Tell temper (`../draft/what-reaches-you.md`, sections
+  5 and 8; `../draft/surfaces.md`, section 9).
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, Work
   under its Changes filter (*Work,* below), a

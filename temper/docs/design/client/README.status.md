@@ -1129,3 +1129,16 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 3.5, *Home on All projects*: no `AllHome` address, no
+  page reading every project's `status` and `decided`, no briefs joined,
+  no Projects rows and no Ask temper line; `parts` holds no rules.
+- **Not yet:** 3.5, *Home*, *The cards*: a project's Home draws its
+  first need as a card and the others as lines, says "Work carries on…"
+  when none waits, and has no Ask temper line.
+- **Not yet:** 3.5, *Needs you*: one card at a time at every width, no
+  intro, no project chip on the unfiltered from line, "Reply…" and
+  "Later" in place of *Tell it something else*, no Decided for you, and
+  Done's "Home" never `AllHome`.
+- **Not yet:** 3.5, *A page's parts*: no `pages::parts`; Home and Needs
+  you decide their parts page by page.
