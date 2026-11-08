@@ -363,7 +363,9 @@ routes' are (`../client/forge.md`, 9.1): the level-1 heading, a
 paragraph, and its links; no script; stock, as the sign-in page is.
 `ADDRESS` is the token's address, escaped. "Use another Google account"
 is `/sign-in/google?then=THEN&account=choose`, "Continue with Google"
-`/sign-in/google?then=THEN`, "Back to sign in" `THEN`.
+`/sign-in/google?then=THEN`, "Back to sign in" `THEN`. Their words take
+the client's typographic apostrophe, ’ (U+2019), as the client's own
+words do: "didn’t", never "didn't".
 
 - **In the client's look outside a project** (`../client/README.md`,
   5.1; the look request `outside-pages`): `<html lang="en">` with the
@@ -383,13 +385,13 @@ is `/sign-in/google?then=THEN&account=choose`, "Continue with Google"
 | Ending | Status | Heading | Paragraph | Links |
 |---|---|---|---|---|
 | a member, minted | `303` to `then` | | | |
-| not a member | 403 | "ADDRESS can't sign in here" | "Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added." | Use another Google account; Back to sign in |
-| bound to another subject | 403 | "ADDRESS signs in here with another Google account" | "This isn't the Google account that first signed in with this address. Use that one, or ask an owner." | Use another Google account; Back to sign in |
-| not verified | 403 | "Google hasn't verified ADDRESS" ("this account's address" with none) | "temper signs in only an address Google has verified. Verify it with Google, or use another account." | Use another Google account; Back to sign in |
-| cancelled, or Google's `error` | 400 | "The sign-in didn't finish" | `access_denied`: "You cancelled at Google. Nothing was kept."; another: "Google answered ERROR. Nothing was kept.", ERROR its code, escaped, at most 64 bytes | Continue with Google; Back to sign in |
-| expired: no cookie, a tag or state unknown, used or past its deadline, a restart since | 400 | "The sign-in didn't finish" | "It took too long, or temper restarted while you were at Google. Nothing was kept." | Continue with Google; Back to sign in |
-| unreachable: the key set or the token endpoint not reached | 502 | "The sign-in didn't finish" | "temper couldn't reach Google. Nothing was kept: try again in a moment." | Continue with Google; Back to sign in |
-| busy: pending full, the root not running, `MintRefused`, bindings full | 503 | "temper couldn't sign you in just now" | "It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment." | Continue with Google |
+| not a member | 403 | "ADDRESS can’t sign in here" | "Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added." | Use another Google account; Back to sign in |
+| bound to another subject | 403 | "ADDRESS signs in here with another Google account" | "This isn’t the Google account that first signed in with this address. Use that one, or ask an owner." | Use another Google account; Back to sign in |
+| not verified | 403 | "Google hasn’t verified ADDRESS" ("this account’s address" with none) | "temper signs in only an address Google has verified. Verify it with Google, or use another account." | Use another Google account; Back to sign in |
+| cancelled, or Google's `error` | 400 | "The sign-in didn’t finish" | `access_denied`: "You cancelled at Google. Nothing was kept."; another: "Google answered ERROR. Nothing was kept.", ERROR its code, escaped, at most 64 bytes | Continue with Google; Back to sign in |
+| expired: no cookie, a tag or state unknown, used or past its deadline, a restart since | 400 | "The sign-in didn’t finish" | "It took too long, or temper restarted while you were at Google. Nothing was kept." | Continue with Google; Back to sign in |
+| unreachable: the key set or the token endpoint not reached | 502 | "The sign-in didn’t finish" | "temper couldn’t reach Google. Nothing was kept: try again in a moment." | Continue with Google; Back to sign in |
+| busy: pending full, the root not running, `MintRefused`, bindings full | 503 | "temper couldn’t sign you in just now" | "It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment." | Continue with Google |
 
 ## 5. The binding
 
