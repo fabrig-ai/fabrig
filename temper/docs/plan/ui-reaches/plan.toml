@@ -75,3 +75,16 @@ id = 5
 story = "Keep asking pressed twice on one item keeps one fact, read back on every device"
 parts = ["keep"]
 walk = false
+
+[[part]]
+id = "client"
+title = "Both clients' pages: Decided for you on Needs you and Home, Away by the classes, each need's reason, Stop asking and Keep asking, kind 7's away member gone"
+mode = "direct"
+needs = ["decide", "classes", "keep"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 6
+story = "On Agents review's table an implementation question asks and its card says why; with Away on the next is decided and listed under Decided for you on Needs you; money waits Away or not; Stop asking applied by an owner decides the next question of that item"
+parts = ["client"]
+walk = false

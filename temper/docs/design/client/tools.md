@@ -393,7 +393,7 @@ agent must name.
   3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
   (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's
-  number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL, "away": BOOL,
+  number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
   "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,
   each ITEM `{"kind": KIND, "words": TEXT, "class": CLASS}` or `{"set": N,

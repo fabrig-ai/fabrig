@@ -2,6 +2,20 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 7.2: `home-decided` and `needs-decided`, and the "Allowed:"
+  line in `home-away`'s rows. `ui-reaches/decided-client`.
+
+- **Not yet:** 7.2: `settings-away` as a view of the classes, and
+  `settings-away-you-approve`. `ui-reaches/away-client`.
+
+- **Not yet:** 7.2: `needs-why`. `ui-reaches/needs-why`.
+
+- **Not yet:** 7.2: `needs-stop-asking` and `needs-stop-asking-set`.
+  `ui-reaches/stop-asking`.
+
+- **Not yet:** 7.2: `settings-away-off` is still printed, its kind 7 member
+  kept. `ui-reaches/ways-away`.
+
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`

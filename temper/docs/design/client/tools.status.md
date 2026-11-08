@@ -6,6 +6,9 @@
   no `project-classes`, and the help pages name none
   (`ui-reaches/classes-tools`).
 
+- **Not yet:** 5.3: a settings file's project ways still take `away`
+  (`ui-reaches/ways-away`).
+
 Section 5.3's Ask temper start uses `chat start --template 5`, under
 charter 11, in the help and chat-template fixtures. The joined world
 starts it through ctl, reads with `see` and accepts its settings

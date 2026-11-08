@@ -3,21 +3,12 @@
 2026-11-08. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
 
 - **Design lags:**
-  - 2: `../client/README.md`, 5.14's goal start still words its choice
-    as the Away switch's ("Follow the away switch").
-  - 3: `../client/README.md`, 3.5's *Away* and 5.13's *While you're away,
-    agents may decide* draw Away's kinds, and Away shows by today's rule,
-    not by the classes (`../domain/forge.md`, 5.10).
   - 4: no design gives a standing role's person
     (`standing-roles.status.md`), so a standing role's case waits for R1
     of `whole-story.execution.md`. `../domain/forge.md`, 5.10 judges the
     paths a call names alone, not those its asker's change touches at its
     head: the forge reads a change's paths with rules by path, section 7,
     N2 of `whole-story.execution.md`.
-  - 5: `../client/README.md`, 3.5's *Needs you* draws no reason line and no
-    "Stop asking"; the client composes no change from a need's reason.
-  - 6: `../client/README.md`, 3.5 shows decided rows on Home alone, and
-    *Needs you* draws nothing of them.
   - 7: a landing rule names no path set (`../protocol/configuration.md`,
     section 3 and 13.3); `../domain/forge.md`, 8.7 reads no paths a change
     touches from its merge base, and 8.12's line names none; 8.12 and

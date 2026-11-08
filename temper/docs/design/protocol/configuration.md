@@ -1813,9 +1813,10 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../client/README.md`, 5.13):
-  `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
-  offer drafts and whether the rail offers Goals, Changes and the
-  Away switch. An Ask temper chat offers a draft regardless, and Goals
+  `drafts`, `goals` and `changes`, each a bool, whether chats
+  offer drafts and whether the rail offers Goals and Changes; the Away
+  switch shows by a project's classes (kind 8; `../client/README.md`,
+  3.5). An Ask temper chat offers a draft regardless, and Goals
   stays shown for a current Goals or goal page or a project holding a goal
   (`../client/README.md`, 3.5 and 5.3). The `way` is a template's number,
   the way a goal starts by, 0 for the first the project offers with
@@ -2035,7 +2036,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: 13.2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../draft/stock-ways.md`, 3.1) |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
-| kind 7 | for every project: `drafts` true; `goals`, `changes` and `away` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
+| kind 7 | for every project: `drafts` true; `goals` and `changes` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
 | kind 8 | for every project: Agents review's table (`../domain/forge.md`, 5.10): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency` and `departure` asking, which Away may decide; no path set |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
@@ -3092,7 +3093,7 @@ defaults (13.4), so that a test world gives its own or none.
   set whole, never reset, so that a way's values become the project's
   own and a release's new stock leaves them.
 - **Nothing else:** charters, models, questions (kind 6), kind 7's
-  `changes` and `away`, a repository's gates and tiers, and the project's
+  `changes`, a repository's gates and tiers, and the project's
   landing stay as they are, so that a person's choices of models survive
   a change of way. You approve and Agents review set no kind 7: a project
   that ran Draft first keeps its goals' way, and their paths over it

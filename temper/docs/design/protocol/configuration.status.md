@@ -19,6 +19,10 @@
 
 - **Not yet:** 13.10: no stock way lays kind 8 (`ui-reaches/classes-ways`).
 
+- **Not yet:** 13.2, 13.4: kind 7's `ProjectWays` still holds `away`, in
+  the wire, the store, the forge's stock and every reader of it
+  (`ui-reaches/ways-away`).
+
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
 rules and the client and run settings reads. The binary supplies kind 2's

@@ -1899,9 +1899,11 @@ from the engine's own answers, is where the look is tuned.
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
-| `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
+| `settings-away` | *How work runs* with the section `#away` as a view of Agents review's classes: "Agents decide, then tell you: …", three checks ticked, the locked last line and "Away until" |
+| `settings-away-you-approve` | *How work runs* on You approve's classes: the section's checks all unticked, no "Away until", and no Away switch in the rail |
 | `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
 | `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
@@ -1976,7 +1978,6 @@ from the engine's own answers, is where the look is tuned.
 | `settings-drafts-off` | `settings` with "Chats can write drafts" off |
 | `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
-| `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
@@ -2074,6 +2075,10 @@ from the engine's own answers, is where the look is tuned.
 | `needs-held` | a held task's card |
 | `needs-funds` | a held task out of budget: "S of L used." |
 | `needs-plain-words` | a question in no line form: "Reply…" alone |
+| `needs-decided` | the unfiltered *Needs you*: a question, then *Decided for you* with rows of two projects, each "PROJECT · TITLE · 01:05" |
+| `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." and "Stop asking" |
+| `needs-stop-asking` | `needs-why` with Stop asking open for an owner: "Let agents decide implementation choices, then tell you." with "Apply", and "Keep asking" |
+| `needs-stop-asking-set` | a question that changes a path set, Stop asking open for a member: the words offer's field, the split, each with "Propose" |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
@@ -2089,7 +2094,7 @@ from the engine's own answers, is where the look is tuned.
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
-| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", following the away switch |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", as the project says |
 | `start-goal-refused` | `start-goal-draft` after a refused start: "Always ask" chosen, `.sheet-error` in jig's words |
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |

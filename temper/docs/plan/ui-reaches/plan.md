@@ -18,17 +18,21 @@ Released:
 | `decide` | `tasks/decide-root.md` | `decide-forge`, `classes-kind` | the caller's person for any task, `Asks: always` judged; the tool's ten kinds, `paths` and `under`; its words naming the reach; the charters; the engine world's table of who decides and what reaches | 150 |
 | `keep` | `tasks/keep-asking.md` | `decide-forge` | the person's fact `KeepAsking`, a second replacing the first | 75 |
 
-Being written by the client's designer, released as each holds together:
+Released from the client's designer (its design: `temper/docs/design/client/README.md`, 3.5, 5.8, 5.13, 5.14, sections 10 and 11; `browser.md`, 7.2):
 
-| Part | Task | Needs | What it makes run |
-|---|---|---|---|
-| `client` | `decided-client` | `decide-forge` | Decided for you for a day on Needs you and Home, across projects, with why and Overturn |
-| `client` | `away-client` | `decide-forge`, `classes-kind` | Away shown by the classes; Settings' section a view of the table |
-| `client` | `needs-why` | `decided-client`, `away-client`, `keep-asking` | each need's reason line; Stop asking in place, applied or proposed; Keep asking |
-| `client` | `ways-away` | `away-client`, `keep-asking` | kind 7's `away` member gone |
-| `client` | `reaches-story` | `decide-root`, `needs-why`, `away-client` | the client world's story of N1's acceptance |
+| Part | Task | Needs | What it makes run | Minutes |
+|---|---|---|---|---|
+| `client` | `tasks/decided-client.md` | `decide-forge`, `classes-value` | one page-held store of the `decided` watches; Decided for you for 24 hours on Home and Needs you, across projects, "Allowed:" from the reach, Overturn from either page; Home's rows whether away or not | 160 |
+| `client` | `tasks/away-client.md` | `decided-client`, `classes-kind`, `classes-value`, `decide-forge` | kind 8 read with the project; Away shown by the classes; Settings' section a view of the table; kind 8 in proposal cards; 5.14's choice by the classes | 150 |
+| `client` | `tasks/needs-why.md` | `away-client`, `decided-client` | each need's reason line, both shells | 140 |
+| `client` | `tasks/stop-asking.md` | `needs-why`, `keep-asking` | Stop asking in place, applied by an owner or proposed; Keep asking for 7 days | 150 |
+| `client` | `tasks/reaches-story.md` | `decide-root`, `stop-asking` | the client world's story of N1's acceptance | 100 |
 
-**Critical path as it stands:** `reach-kit` (120) → `classes-value` (90) → `decide-forge` (180) → `decided-client` → `needs-why` → `reaches-story`, about ten hours of implementer time; `classes-kind`, `classes-tools`, `classes-ways`, `decide-root` and `keep-asking` run beside it.
+Still being written: `ways-away` (kind 7's `away` member gone end to end), after `stop-asking` and `keep-asking`.
+
+The client's tasks run one after another, since each writes the view's `words.rs`, `look.rs`, `shared/reach.rs`, `temper.css` and the gallery's `samples.rs`, `tests.rs` and `names.txt` (the designer's call, kept: those files don't merge well across writers).
+
+**Critical path as it stands:** `reach-kit` (120, landed) → `classes-value` (90) → `decide-forge` (180) → `decided-client` (160) → `away-client` (150) → `needs-why` (140) → `stop-asking` (150) → `reaches-story` (100), about 16 hours of implementer time from here; `classes-kind`, `classes-tools`, `classes-ways`, `decide-root` and `keep-asking` run beside it.
 
 ## What was decided
 
@@ -62,6 +66,8 @@ Being written by the client's designer, released as each holds together:
 - **`temper/docs/design/client/tools.status.md`** is also `restore-stories`': this cut's entry is at the file's head.
 - **`temper-service`** was changed whole by `ui-engine-split`'s merged tasks on their trunk; this plan touches `family.rs`, `limits.rs`, `stock/*` and their tests, a merge meeting theirs taking both.
 
+- **`temper/tests/client/tests/suite/away.rs`:** `decided-client` changes its readers of Home's facts and `decide-root` only the assertions of the tool's words, which may run at once; different lines.
+
 ## Who hears first
 
 **`temper-engine-domain`** (the owner of coding runs writes it too):
@@ -73,4 +79,8 @@ Being written by the client's designer, released as each holds together:
 **`temper-client-domain`** (the TUI's owner):
 - `decide-forge`: `AwayRow.kinds`, `DEFAULT_KINDS`, `forge::away::ask`'s `kinds` and `pages::away::Act::Kinds` removed; fixtures of `v1::Decision` take a `reach`.
 - `keep-asking`: compile-forced arms for the wire's `PersonFact::keep_asking` in the dismissals' readers.
-- The client's tasks (above): listed with their release.
+- `decided-client`: `pages::decided`, a page-held store of the `decided` watches; Home's facts' `away` becomes `decided` and `spell`; `AwayForm`, `DecisionLine` (with `project` and `reach`) and `DecisionTask` move to `pages::decided`; Overturn on Needs you.
+- `away-client`: kind 8's settings slot, `Side::classes`, `forge::classes`; `away_shown` by the classes.
+- `needs-why`: `pages::needs::why` and `ready`; the shown card's classes slot; `ways::progress`'s new argument.
+- `stop-asking`: `pages::stop_asking`; `PersonFact::KeepAsking` sent and read.
+- `ways-away`: `Ways` without `away`.
