@@ -48,8 +48,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 .ccccccccc...............................................................dddddd.
 --
-a: fore #6A655C back #191816
-b: fore #E08A68 back #191816 bold
-c: fore #9A9388 back #191816
-d: fore #8FC28F back #191816
+a: fore #6A655C
+b: fore #E08A68 bold
+c: fore #9A9388
+d: fore #8FC28F
 no cursor
