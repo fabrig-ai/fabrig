@@ -109,3 +109,35 @@ Acceptance:
 
 As the implementer's text says; the again run's attempts and counts,
 and how `04.txt` compares with the request's frame.
+
+## Answers
+
+2026-11-08. *`launchpad-chat/04` lacks the person's opening question
+(finding-465): wait for post-landing-probes' repair, or land without it?*
+Land without it. The missing question is finding-465's: its repair
+(`post-landing-probes/finding-465`, still unlanded on main) owns the code,
+and this task owns none. The request (item 3, *Journeys*) asks the journey
+recorded again on this plan's code, which run `journeys-2` did; it doesn't
+fix the question's presence. So:
+
+- Keep run `journeys-2`'s recording and prints (`a08df03746`) as they
+  stand; don't record again unless main or the trunk has gained the
+  finding-465 repair by the next run (then record once more, as step 1
+  says, and the acceptance holds as written).
+- The acceptance's "starts with the person's question on its first row"
+  and "the person's words in `04.html` are `f-dim` after an `f-accent`
+  `❯`" are met by `04.txt` starting with the conversation (the answer)
+  on its first row, no band in `04.html`, and the dim words held by the
+  view's tables. The rest of the acceptance stands.
+- Close the plan's status entries as the acceptance says. In
+  `temper/docs/design/client/tui/journeys.status.md`, replace the 9
+  entry with one **Not yet** line: `launchpad-chat/04` lacks the
+  person's opening question, a fast chat's fault (finding-465,
+  `post-landing-probes`), so its frame doesn't show the dim person's
+  words of `../README.md`, 6.15; it is recorded again with that repair.
+- The account's rows "The conversation starts on the first row" and
+  "The page change" read: landed (the rule, title and first row), the
+  opening question absent by finding-465, outside this plan; its dim
+  words are checked by the view's rows and in the journey once that
+  repair records it again.
+- List the journey's re-record under `## Left` for finding-465's repair.
