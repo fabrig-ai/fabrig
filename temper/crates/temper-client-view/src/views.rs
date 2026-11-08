@@ -125,6 +125,11 @@ fn card(b: &mut Builder, card: &w::Card) {
     b.style(look::VIEW_MUTED);
     b.text(Run::Plain, card.who());
     b.close();
+    facts(b, card);
+    b.close();
+}
+
+pub(crate) fn facts(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
     for fact in card.facts() {
         b.open(Role::Slot);
@@ -132,7 +137,6 @@ fn card(b: &mut Builder, card: &w::Card) {
         line(b, Role::Description, fact.value());
         b.close();
     }
-    b.close();
     b.close();
 }
 
