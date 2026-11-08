@@ -20,9 +20,8 @@ const HISTORY: u32 = 2;
 const PRUNED_HISTORY: u32 = 1;
 const OWNER_PERSON: u64 = 1;
 const OTHER: u64 = 8;
-// Stock charter 1's 8,938-byte assignment bound plus 25% headroom,
-// rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
-const STOCK_RUN_BYTES: u32 = 12_000;
+// Holds stock charter 5's shared instructions and four parts through restoration.
+const STOCK_RUN_BYTES: u32 = 16_384;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
@@ -288,15 +287,17 @@ fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
     // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
-    limits.authority.executors = 13;
+    limits.authority.executors = 15;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 13;
+    limits.documents.executors = 15;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
-    limits.tasks.charters = 8;
+    limits.tasks.charters = 9;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
+    // The per-row loaded payload includes charter 5's shared instructions and parts.
+    limits.loads.transcript_bytes = STOCK_RUN_BYTES;
     limits
 }
 

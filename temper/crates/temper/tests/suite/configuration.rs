@@ -14,8 +14,8 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
     value["engine"]["limits"]["overrides"]["authority.grants"] = 14.into();
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 14.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 13.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 13.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 14.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 14.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");

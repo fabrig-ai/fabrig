@@ -126,6 +126,12 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
+- **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
+  reference's roles) names the deployment's two landing rules and not
+  the case's project's rule 1, so a box Ask temper configures from the
+  reference's description keeps the stock's rule 1 over its goals'
+  branches until its owner sets the project's.
+
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
   process and live stories. Init pins T at 16,803,810 bytes and

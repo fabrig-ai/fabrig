@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the

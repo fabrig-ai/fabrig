@@ -14,48 +14,40 @@ impl Domain {
     /// Read the procedure's waits from the deployment's and project's held rules.
     #[must_use]
     pub fn held_requires(&self, repository: &Repository, branch: &[u8]) -> Requires {
+        let held = self.landing_rules(repository.project);
         let Some(name) = branch_resource_name(repository, branch) else {
             return Requires { ci: true, up_to_date: true };
         };
-        let (deployment, project) = self.landing_rules(repository.project);
-        let mut held = List::uncapped();
-        for rules in [deployment, project] {
-            for rule in rules {
-                held.push(rule.clone()).expect("held rules bound the scratch list");
-            }
-        }
-        settings::requires(held.as_slice(), &name)
+        settings::requires(&held, &name)
     }
 
     /// Select every covering rule's gates, with advisory rules holding nothing.
     #[must_use]
     pub fn held_gates(&self, limits: &Limits, repository: &Repository, branch: &[u8]) -> Option<Box<[change::Gate]>> {
-        let name = branch_resource_name(repository, branch)?;
-        let (deployment, project) = self.landing_rules(repository.project);
+        branch_resource_name(repository, branch)?;
+        let held = self.landing_rules(repository.project);
         let capacity = limits.landing_rules.checked_mul(limits.change_policy.gates)?.checked_mul(2)?;
         let mut candidates = List::with_capacity(capacity);
         let mut required = List::with_capacity(capacity);
-        for rules in [deployment, project] {
-            for held in rules {
-                let rule = &held.rule;
-                if !gates::covers(&rule.pattern, &name) {
-                    continue;
-                }
-                for gate in &rule.gates {
-                    candidates
-                        .push(GateCandidate {
-                            number: gate.number,
-                            parameters: 0,
-                            blocking: rule.enforce && gate.blocking,
-                            project_scope: held.scope != 0,
-                            freshness: match gate.freshness {
-                                JudgeFreshness::Exact => change::Freshness::Exact,
-                                JudgeFreshness::Clean => change::Freshness::Clean,
-                            },
-                        })
-                        .ok()?;
-                    required.push(rule.enforce).ok()?;
-                }
+        for held in &held {
+            let rule = &held.rule;
+            if !gates::covers_branch(&rule.pattern, repository, branch) {
+                continue;
+            }
+            for gate in &rule.gates {
+                candidates
+                    .push(GateCandidate {
+                        number: gate.number,
+                        parameters: 0,
+                        blocking: rule.enforce && gate.blocking,
+                        project_scope: held.scope != 0,
+                        freshness: match gate.freshness {
+                            JudgeFreshness::Exact => change::Freshness::Exact,
+                            JudgeFreshness::Clean => change::Freshness::Clean,
+                        },
+                    })
+                    .ok()?;
+                required.push(rule.enforce).ok()?;
             }
         }
         let mut selected = gates::selected(limits, repository, candidates.as_slice(), required.as_slice())?;
@@ -98,42 +90,37 @@ impl Domain {
         }
         let row = self.changes.get(&change_task)?;
         let repository = self.repositories.get(&row.repository)?;
-        let name = branch_resource_name(repository, &row.base)?;
-        let (deployment, project) = self.landing_rules(repository.project);
+        branch_resource_name(repository, &row.base)?;
+        let rules = self.landing_rules(repository.project);
         let mut criteria = List::uncapped();
-        for rules in [deployment, project] {
-            for held in rules {
-                let rule = &held.rule;
-                if !rule.enforce || !gates::covers(&rule.pattern, &name) {
-                    continue;
+        for held in &rules {
+            let rule = &held.rule;
+            if !rule.enforce || !gates::covers_branch(&rule.pattern, repository, &row.base) {
+                continue;
+            }
+            if up_to_date {
+                if rule.up_to_date {
+                    criteria.push(Criterion::UpToDate).ok()?;
+                    break;
                 }
-                if up_to_date {
-                    if rule.up_to_date {
-                        criteria.push(Criterion::UpToDate).ok()?;
-                        break;
-                    }
-                    continue;
-                }
-                if rule.ci {
-                    criteria.push(Criterion::Ci).ok()?;
-                }
-                for gate in &rule.gates {
-                    if gate.blocking {
-                        criteria.push(Criterion::Gate { number: gate.number, freshness: gate.freshness }).ok()?;
-                    }
-                }
-                for approval in &rule.approvals {
-                    criteria
-                        .push(Criterion::Approval {
-                            role: approval.role,
-                            people: approval.people,
-                            freshness: approval.freshness,
-                        })
-                        .ok()?;
+                continue;
+            }
+            if rule.ci {
+                criteria.push(Criterion::Ci).ok()?;
+            }
+            for gate in &rule.gates {
+                if gate.blocking {
+                    criteria.push(Criterion::Gate { number: gate.number, freshness: gate.freshness }).ok()?;
                 }
             }
-            if up_to_date && !criteria.is_empty() {
-                break;
+            for approval in &rule.approvals {
+                criteria
+                    .push(Criterion::Approval {
+                        role: approval.role,
+                        people: approval.people,
+                        freshness: approval.freshness,
+                    })
+                    .ok()?;
             }
         }
         let mut result = JudgeVerdict::Met;
@@ -156,19 +143,17 @@ impl Domain {
     pub(crate) fn panel_approvals(&self, row: &crate::ChangeRow) -> Box<[crate::PanelApproval]> {
         let mut approvals = List::uncapped();
         let Some(repository) = self.repositories.get(&row.repository) else { return approvals.into_boxed() };
-        let Some(name) = branch_resource_name(repository, &row.base) else { return approvals.into_boxed() };
-        let (deployment, project) = self.landing_rules(repository.project);
-        for rules in [deployment, project] {
-            for held in rules {
-                if !held.rule.enforce || !gates::covers(&held.rule.pattern, &name) {
-                    continue;
-                }
-                for approval in &held.rule.approvals {
-                    let mut line = self.panel_approval(row, *approval);
-                    line.scope = held.scope;
-                    line.rule = held.number;
-                    approvals.push(line).expect("admitted rules");
-                }
+        let Some(_) = branch_resource_name(repository, &row.base) else { return approvals.into_boxed() };
+        let held = self.landing_rules(repository.project);
+        for held in &held {
+            if !held.rule.enforce || !gates::covers_branch(&held.rule.pattern, repository, &row.base) {
+                continue;
+            }
+            for approval in &held.rule.approvals {
+                let mut line = self.panel_approval(row, *approval);
+                line.scope = held.scope;
+                line.rule = held.number;
+                approvals.push(line).expect("admitted rules");
             }
         }
         approvals.into_boxed()

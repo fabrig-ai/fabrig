@@ -268,14 +268,58 @@ fn reference_call(
 }
 
 #[test]
+fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
+    use jig_domain_tasks::Reasons;
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    // Read the five headings independently of the stock's byte splitter.
+    let text = include_str!("../stock/coordinator.md");
+    let mut sections = text.split("## ");
+    assert_eq!(sections.next(), Some(""), "the first heading opens the file");
+    let sections: Box<[_]> = sections.map(|section| section.split_once('\n').expect("heading line")).collect();
+    assert_eq!(
+        sections.iter().map(|(heading, _)| *heading).collect::<Box<[_]>>().as_ref(),
+        [
+            "shared",
+            "part, on: first",
+            "part, on: question, question_answered, question_ended, question_owed",
+            "part, on: result, notice, nothing_awaited, escalation, proposal, person_stalled",
+            "part, on: news, timer",
+        ],
+        "five sections account for the whole file"
+    );
+    assert_eq!(charter.policy.instructions.as_ref(), sections[0].1.trim_matches('\n').as_bytes());
+    let reasons = [
+        Reasons::FIRST,
+        Reasons::QUESTION
+            .union(Reasons::QUESTION_ANSWERED)
+            .union(Reasons::QUESTION_ENDED)
+            .union(Reasons::QUESTION_OWED),
+        Reasons::RESULT
+            .union(Reasons::NOTICE)
+            .union(Reasons::NOTHING_AWAITED)
+            .union(Reasons::ESCALATION)
+            .union(Reasons::PROPOSAL)
+            .union(Reasons::PERSON_STALLED),
+        Reasons::NEWS.union(Reasons::TIMER),
+    ];
+    assert_eq!(charter.parts.len(), reasons.len(), "four parts in file order");
+    for ((part, on), (_, text)) in charter.parts.iter().zip(reasons).zip(&sections[1..]) {
+        assert_eq!(part.on, on);
+        assert_eq!(part.instructions.as_ref(), text.trim_matches('\n').as_bytes());
+    }
+}
+
+#[test]
 fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(charter.policy.inspect, charter.number != 9 && charter.number != 10 && charter.number != 11);
         assert!(!charter.policy.shell);
-        assert_eq!(charter.policy.modify, charter.number == 2);
-        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
+        assert_eq!(charter.policy.modify, charter.number == 2 || charter.number == 5);
+        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2 || charter.number == 5);
     }
 }
 
@@ -285,9 +329,9 @@ fn ask_temper_is_charter_11_and_template_5() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 512, 0, 0, 3072]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 1023, 512, 0, 0, 3072]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
@@ -309,7 +353,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     for heading in ["## Showing", "## Remembering"] {
         assert!(!words.contains(heading), "excluded {heading}");
     }
-    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 5]);
+    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 5]);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
     expected.name = b"ask".as_slice().into();
@@ -360,24 +404,26 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
-        let bytes = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
+        let resolved = settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        let bytes = jig_domain_core::charter_owned_bytes(&resolved).unwrap();
         if bytes > run.0 {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
+    assert_eq!(run, (13_123, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5822, Setting::Policy(1), "the stock's policy 1 needs 5822 bytes"),
+        (b"core.policy_bytes", 5886, Setting::Policy(1), "the stock's policy 1 needs 5886 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 12, Setting::Rules, "the stock's rules need 12 executors"),
+        (b"authority.executors", 14, Setting::Rules, "the stock's rules need 14 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 7, Setting::Charter(1), "the stock offers 7 charters"),
-        (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
-        (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
+        (b"tasks.charters", 8, Setting::Charter(1), "the stock offers 8 charters"),
+        (b"core.templates", 4, Setting::Template(1), "the stock offers 4 templates"),
+        (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
@@ -446,7 +492,9 @@ fn each_charters_run_bytes_floor_names_that_charter() {
         let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
-        let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
+        let resolved =
+            jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        let needed = jig_domain_core::charter_owned_bytes(&resolved).unwrap();
         let mut limits = engine.limits;
         limits.core.run_bytes = u32::try_from(needed).unwrap();
         assert_eq!(crate::stock::floors(&defaults, &limits), Ok(()));
@@ -471,7 +519,7 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let mut needed = 0;
     for charter in &mut own.charters {
         charter.policy.instructions = Box::default();
-        needed = needed.max(jig_domain_core::policy_owned_bytes(&charter.policy).unwrap());
+        needed = needed.max(jig_domain_core::charter_owned_bytes(charter).unwrap());
     }
     let document = limited(&document, b"core.run_bytes", needed);
     let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
@@ -492,7 +540,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5822 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5886 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -881,7 +929,7 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11]
     );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
@@ -1103,12 +1151,14 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(1),
                 Executor::Charter(2),
                 Executor::Charter(4),
+                Executor::Charter(5),
                 Executor::Charter(6),
                 Executor::Charter(9),
                 Executor::Charter(11),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4),
+                Executor::Job(3),
                 Executor::Role(0),
                 Executor::Role(1),
                 Executor::Role(2),
@@ -1140,6 +1190,22 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
         assert_eq!(roles.as_ref(), expected);
         if expected.is_empty() {
             assert!(authority.delegation.kinds.is_empty());
+        } else {
+            let executors: Box<[_]> = policy
+                .ceiling
+                .delegation
+                .kinds
+                .iter()
+                .copied()
+                .filter(|kind| match kind {
+                    jig_domain_authority::Executor::Role(_) => false,
+                    jig_domain_authority::Executor::Job(_)
+                    | jig_domain_authority::Executor::Charter(_)
+                    | jig_domain_authority::Executor::Procedure(_) => true,
+                })
+                .chain(expected.iter().map(|role| jig_domain_authority::Executor::Role(*role)))
+                .collect();
+            assert_eq!(authority.delegation.kinds.as_ref(), executors.as_ref());
         }
     }
 }
@@ -1320,19 +1386,19 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: one deployment rule and both forge charters.
+    // configuration.md, 13.4: every project's rule 1 and both forge charters.
     const ITEMS: usize = 3;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     assert_eq!(stock.len(), ITEMS);
-    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (1, 0, 1));
+    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (2, 0, 1));
     assert_eq!(
         stock[0].value.value,
         settings::Value::Rule(settings::LandingRule {
             pattern: forge::GatePattern {
-                segments: Box::new([b"forge".as_slice().into()]),
+                segments: Box::new([b"branch".as_slice().into()]),
                 last: forge::GateLast::Open(Box::default()),
             },
             enforce: true,
@@ -1352,6 +1418,10 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
     }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+        assert_eq!(
+            usize::try_from(item.value.size).unwrap(),
+            temper_engine_smith::kinds::encode(&item.value.value).len()
+        );
     }
 }
 
@@ -1373,6 +1443,31 @@ fn the_stock_pool_funds_eighty_chats_at_once() {
 #[test]
 fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let mut engine = engine(&generated());
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let coordinator = stock.charters.iter().find(|charter| charter.number == 5).unwrap();
+    let mut expected = stock.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
+    expected.number = 5;
+    expected.policy.instructions = coordinator.policy.instructions.clone();
+    expected.parts = coordinator.parts.clone();
+    expected.policy.resume = false;
+    expected.policy.waiting = skein_lib::Duration::ZERO;
+    expected.policy.tools = jig_domain_tasks::Tools(1023);
+    expected.wake = jig_domain_tasks::WakePolicy {
+        words: jig_domain_tasks::WakeRule::Immediate,
+        notices: jig_domain_tasks::WakeRule::Immediate,
+        news: jig_domain_tasks::WakeRule::Paced { span: skein_lib::Duration::from_secs(1800) },
+        results: jig_domain_tasks::ResultsWake::Each,
+        questions: true,
+        answers: true,
+        timers: true,
+    };
+    assert_eq!(coordinator, &expected);
+    let mut expected = stock.templates.iter().find(|template| template.number == 2).unwrap().clone();
+    expected.number = 4;
+    expected.name = b"goal for a draft".as_slice().into();
+    expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
+    expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
+    assert_eq!(stock.templates.iter().find(|template| template.number == 4).unwrap(), &expected);
     for result_bytes in [32, 10_660, 262_144] {
         engine.limits.core.tasks.result_bytes = result_bytes;
         let stock = crate::stock::with_models(engine.llm.models.clone(), result_bytes);

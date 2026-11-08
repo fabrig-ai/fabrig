@@ -44,6 +44,15 @@ fn settings_agent_config(allowed: bool) -> engine::Config {
         number: 1,
         value: temper_engine_domain_forge::settings::SizedValue { size: 0, value: landing_value() },
     });
+    let mut given = landing_value();
+    let temper_engine_domain_forge::settings::Value::Rule(rule) = &mut given else { panic!("rule fixture") };
+    rule.pattern.segments = Box::new([b"branch".as_slice().into()]);
+    stock.push(temper_engine_domain_forge::settings::Stock {
+        kind: 2,
+        scope: 0,
+        number: 1,
+        value: temper_engine_domain_forge::settings::SizedValue { size: 0, value: given },
+    });
     config.kinds_stock = stock.into_boxed_slice();
     // The deployment owner creates the project through the root, acquiring
     // its project role within the fixture's existing owner and holding bounds.
@@ -102,18 +111,27 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
 fn a_run_reads_a_landing_rule_and_the_forges_charter() {
     let (mut driver, run) = settings_agent(true);
     let original = driver.store.rows.clone();
-    for (completion, input, heading, value) in [
+    for (completion, input, heading, value, state) in [
         (
             1,
             br#"{"setting":{"kind":"landing-rule","number":1}}"#.as_slice(),
             b"landing-rule 1, revision 1\n".as_slice(),
             br#"{"pattern":{"segments":["666f726765"],"last":{"open":""}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}"#.as_slice(),
+            true,
         ),
         (
             2,
             br#"{"setting":{"kind":"forge-charter","number":1}}"#.as_slice(),
             b"forge-charter 1, revision 1\n".as_slice(),
             b"1".as_slice(),
+            true,
+        ),
+        (
+            3,
+            br#"{"setting":{"kind":"landing-rule","project":1,"number":1}}"#.as_slice(),
+            b"landing-rule 1 --project 1, revision 1\n".as_slice(),
+            br#"{"pattern":{"segments":["6272616e6368"],"last":{"open":""}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}"#.as_slice(),
+            false,
         ),
     ] {
         let (answer, error) = host_tool(&mut driver, &run, completion, b"settings", input);
@@ -122,8 +140,12 @@ fn a_run_reads_a_landing_rule_and_the_forges_charter() {
         assert!(answer.starts_with(heading), "{}", String::from_utf8_lossy(&answer));
         let rest = answer.strip_prefix(heading).expect("document heading");
         assert!(rest.starts_with(value), "{}", String::from_utf8_lossy(&answer));
-        assert!(rest[value.len()..].starts_with(b"\ndefault, "));
-        assert!(answer.ends_with(b" bytes\nend\n"));
+        if state {
+            assert!(rest[value.len()..].starts_with(b"\ndefault, "));
+            assert!(answer.ends_with(b" bytes\nend\n"));
+        } else {
+            assert_eq!(&rest[value.len()..], b"\nend\n");
+        }
     }
     assert_eq!(driver.store.rows, original, "settings reads decide and save nothing");
 }

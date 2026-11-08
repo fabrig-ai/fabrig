@@ -1807,13 +1807,25 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   `authority.roles` approvals; `forge.landing_rules`, a limit of the
   forge's (section 7), is 4 in `small`, as jig's requirements per scope
   bound the rules today.
+- **A project's rule may name a branch** (`../draft/stock-ways.md`,
+  3.2): a pattern of kind 2 may begin at `branch` in place of `forge`,
+  the host, the owner and the name, `{"segments": ["branch"], "last":
+  "exact", "value": "main"}` for `main`, or `"last": "open", "value": ""`
+  for every branch, and covers that branch in each repository of the
+  project, those adopted after the rule among them. It is judged against
+  a merge's landing branch past its repository's segments, the forge's
+  resource path but its first four (section 3), and a project's rules are
+  judged for its own merges alone (13.3), so that a project's way is data
+  naming no repository. A pattern of kind 2 beginning at `forge` keeps
+  its meaning; one of kind 1 begins at `forge` alone.
 - **Judged by the forge, in the change's decision.** The root hands the
   forge each item of its kinds with the value it would leave (jig's
   `domain/connectors.md`, section 17); the forge reads only its own
   state, and refuses an item, naming it by kind, scope and number and
   saying what fails:
   - *a rule* that does not decode; whose pattern's first segment is not
-    `forge`, or passes jig's pattern bounds; with more gates than
+    `forge`, or, of kind 2, `branch`; whose pattern passes jig's pattern
+    bounds; with more gates than
     `forge.change_policy.gates`, or a gate's number twice; with an
     approval of no people, or a role twice, or one past
     `authority.roles`;
@@ -1838,7 +1850,9 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   The root also checks a set rule's enforcing approvals against the
   core's project memberships and known forge user ids, including at
   proposal acceptance (`../domain/forge.md`, 8.9). For each affected
-  project and each forge of the repositories the rule covers, too few
+  project and each forge of the repositories the rule covers, a rule of
+  kind 2 beginning at `branch` covering each repository of its project,
+  too few
   people eligible on that forge refuses the whole change, naming project,
   forge, role, required and eligible counts with the remedy; a rule
   covering the playground's fake forge is refused in its own words. An
@@ -1929,7 +1943,10 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   the forge holds the rules itself.
 - **Judged over the rules the forge holds then.** At a merge, the forge
   takes every rule covering its branch that enforces, the deployment's
-  and the project's: requirement 5 meets when each one's CI, gates and
+  and the project's, a project's rule beginning at `branch` covering the
+  branch of that name in each of the project's repositories (13.2), and
+  its rule 1 the stock's while its owners have set none (13.4):
+  requirement 5 meets when each one's CI, gates and
   approvals are met, waits when one waits and none refuses, and refuses
   when one refuses; requirement 6 likewise for each one's up to date. A
   branch no enforcing rule covers meets both. The forge keeps on the
@@ -1938,9 +1955,13 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   8.7): the words are the forge's, kept with its change, whatever a
   verdict carries through jig.
 - **So a change of landing rules touches nothing of jig's:** no rule,
-  no project's policy. A project made after the first start is covered
-  by the deployment's rules at once, and by its own once its owners
-  set them; a project's rules changed reach its next merge.
+  no project's policy. A project is covered from its making by its own
+  rule 1, the stock's (13.4), and by the rules a deployment's owners
+  add, which every project's merges meet beside its own; a project's
+  rules changed reach its next merge. So a project's owners may land
+  with less than an agent's review in their own project, and a
+  deployment that wants a floor sets one in kind 1
+  (`../draft/stock-ways.md`, 3.1).
 - **jig's rules are the deployment owners' to change,** the two
   requirements among them. A change that removes one leaves landing to
   the change procedure's waits alone; the review page says so under
@@ -1963,10 +1984,13 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | charter 11, Ask temper's | as charter 1, with the `stock` module's `ask.txt` (`../draft/ask-temper.md`, section 8, but its Showing and Remembering parts; `../domain/agent.md`, 8.1 and 8.4), and no inspect, modify, shell or agents; its models Ask temper's order (below); its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document` and `propose_settings` in its asking form alone, and have no workspace (`../domain/agent.md`, 4.2 and 4.3); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
+| charter 5, the coordinator's | its first edition (`../draft/stock-ways.md`, 3.3): the `stock` module's `coordinator.md`, its `## shared` section the instructions and each `## part, on: …` section one part, its `on` set the reasons the heading names and its instructions the text to the next heading (jig's `domain/tasks.md`, 8.6), every byte as written but the blank lines that open and close a section; it cuts a draft into changes it specifies itself, each into its goal's branch with questions `foreman`, and lands the goal whole, with catch-ups and the triage of a red on its goal's tier, as 13.9's charter 5 does, with no designers, no command or path of one project and no model named, so that its runs take the stock's order; models: the stock's order; hosts `workers`; its runs starting fresh, as a charter in parts' must (jig's `domain/tasks.md`, 8.6), and waiting 10 s, as every stock charter, the root refusing a run that waits 0; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; inspect, modify and agents, no shell; charter 1's host families; no documents; the coordinator's wake policy (13.9): questions, failures, each delegate's result, its delegates' and its person's words at once, news at most once in 30 minutes. Numbered as the reference's, whose settings file sets its second edition over it (13.9) |
+| template 4, a goal for a draft | 13.9's: named `goal for a draft`, run by charter 5; no LLM choice, so that its runs take the stock's order; tracked at priority 1; its report template 1's; the creator's budget and deadline; labelled as template 2; *its own goal branch* among its resources (jig's `protocol/configuration.md`, 3.3; `../client/tools.md`, 5.3) |
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (13.9) |
 | policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../domain/agent.md`, 8.3), a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6; `../domain/agent.md`, 8.1 and 8.4); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine.md`, section 10; `../domain/agent.md`, 8.3); a goal has its own scope for its report, while an advisor and a change have none (`../domain/agent.md`, 4.3.2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
-| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 6, 9 and 11 and the change procedure, 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
-| kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
+| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 6, 9 and 11, the change procedure, role 0 and the merge job (job 3), so that a goal for a draft runs on any project (`../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| kind 1 | no rule: the rules a deployment's owners add, which every project's merges meet beside its own (13.3) |
+| kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: 13.2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../draft/stock-ways.md`, 3.1) |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
 | kind 7 | for every project: `drafts` true; `goals`, `changes` and `away` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
@@ -1979,6 +2003,17 @@ init`'s document carries none of them (`setup.md`, 8.3).
   who reads it, the root for kind 6, the client for kind 7 and for a
   run's `settings` read (`../domain/agent.md`, 8.1) the root for both,
   takes the stock.
+- **A project's rule 1 is given to the forge,** for the same reason, as
+  every project's (`../draft/stock-ways.md`, 3.1): the stock module
+  gives it at each start beside the forge's other defaults, an entry of
+  kind 2 for no one scope, of which the forge tells jig nothing, so that
+  a test world that gives its own defaults gives its own or none. The
+  forge holds it as each project's rule 1 while the project has no value
+  of its own set, a removal or a reset of its rule 1 included, among the
+  rules a merge into one of the project's repositories meets (13.3), and
+  answers it as that setting's value, to the client's read and to a
+  run's `settings` read alike; the root takes it where jig knows no
+  setting of that number, as it takes kinds 6 and 7's.
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine.md`, 7.1): charter 1, a chat's, names every host
@@ -2031,8 +2066,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   typed values, the instructions held in the binary; `Service` passes
   jig's kinds' defaults, with the three kinds' declarations (number,
   scope, the forge's connector, the bounds above), to jig's builder in
-  place of the document's members, and temper's kinds' defaults (kind 1
-  rule 1, kind 3) to the forge (jig's `domain/engine.md`, 17.5), and
+  place of the document's members, and temper's kinds' defaults (kind 3,
+  and every project's rule 1 of kind 2) to the forge (jig's
+  `domain/engine.md`, 17.5), and
   makes the engine as today. A test world builds the service with
   defaults of its own in that field's place, the settings its stories
   need, so that a story not about settings makes no change to reach
@@ -2510,7 +2546,9 @@ that changes the stock changes nothing of them.
   its charters' instructions in it as text. An owner applies it once,
   after the deployment's first start, as a walk on fabrig's box does
   (`../draft/v0.1.0.md`, 2.1); a later edition is applied the same
-  way, its values whole. It holds:
+  way, its values whole. Its charter 5 and template 4 are its own
+  editions over the stock's (13.4), and charters 7 and 8 are its own.
+  It holds:
   - *charter 5, the coordinator's:* instructions for the cut (a plan of
     changes it specifies itself, each made by `change` into its own
     goal branch with its dependencies, one batch per family:
@@ -2583,13 +2621,14 @@ that changes the stock changes nothing of them.
     3.3; `../client/tools.md`, 5.3).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
-  `temper ctl settings show --json`, charter 5 added to the rules' and
-  policy 1's delegation and the merge kind (job 3) added too (and charter 6, where their stored values
-  predate it) and jig's control family to their tools and
-  role 0's, so the coordinator may name `change`'s plan members
-  (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
-  coordinator may ask its person through a person task (jig's
-  `domain/people.md`, section 8), and jig's notes family beside it, in
+  `temper ctl settings show --json`, charter 7 added to the rules' and
+  policy 1's delegation (and charters 5 and 6, the merge kind, job 3,
+  and role 0, which the stock's delegation holds (13.4), where their
+  stored values predate it), so the coordinator may delegate to its
+  designers, run its merges and ask its person through a person task
+  (jig's `domain/people.md`, section 8), and jig's control family to
+  their tools and role 0's, so the coordinator may name `change`'s plan
+  members (`../domain/agent.md`, 4.3.1), and jig's notes family beside it, in
   the goal's and the project's scopes, so that it notes what it learns:
   in all, tools 1,983 with the decide, propose, subscribe and recall
   families its row names and no effect family, and notes 3, as the
@@ -2648,7 +2687,11 @@ that changes the stock changes nothing of them.
   head) and the rule for goal branches (the same path to `branch`, open
   on `temper`: enforced, asking no CI, no update and no gate), and no
   rule on every branch, since rules add (`../domain/forge.md`, 8.7) and
-  such a rule's CI would hold every merge into a goal's branch.
+  such a rule's CI would hold every merge into a goal's branch. So the
+  case's project sets its own rule 1 in `project.json`, main's rule
+  naming a branch (`branch`, exactly `main`, as above: 13.2), in place
+  of the stock's rule 1 over every branch, whose CI and review would
+  hold every merge into a goal's branch (13.4).
   `docs/examples/reference/landing.json` is the document's
   `application.landing` (section 3), which the walk's document carries:
   project 1's `merge_job`, `.temper/merge`, and its tiers (below).
@@ -2866,7 +2909,8 @@ that changes the stock changes nothing of them.
   - `project.json`, applied once the case's project is made, its number
     set by `jq` as its `README.md` sets a `project-policy`'s: kind
     7 of that project, all four shown and `way` 4, so that the project
-    shows its goals. A project's setting cannot be in `settings.json`,
+    shows its goals, and its kind 2 rule 1, main's (the landing rules,
+    above). A project's setting cannot be in `settings.json`,
     which is applied before the project exists;
   - the repository's `.temper/pre-pr` and `.temper/merge`, and its
     tiers' workflows (below).
