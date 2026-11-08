@@ -649,3 +649,56 @@ fn proposing_settings_says_a_change_without_its_reason() {
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"proposing a change".as_slice()));
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"private reason").is_none());
 }
+
+type SeeRow = (&'static [&'static [u8]], Option<&'static [u8]>, &'static [u8], Option<&'static [u8]>);
+#[test]
+fn see_says_its_addresses_first_word() {
+    let rows: &[SeeRow] = &[
+        (&[b"changes", b"change 1", b"change 2", b"change 3"], None, b"Listed changes, read 3 changes", None),
+        (&[b"change 3"], None, b"Read change 3", None),
+        (&[b"change 3", b"change 3"], None, b"Read 1 change", None),
+        (&[b"changes", b"task 9", b"task 9 tree"], None, b"Listed changes, read 1 task", None),
+        (&[b"changes", b"goals", b"goals"], None, "Listed changes, listed goals 2×".as_bytes(), None),
+        (&[b"help hold"], None, b"Read the page hold", None),
+        (&[b"help search landing"], None, b"Searched the docs for landing", None),
+        (&[b"changes", b"more x1"], None, b"Listed changes", None),
+        (&[b"more x1"], None, b"Read on", None),
+        (&[b"frobnicate"], None, b"see", None),
+        (&[b"changes"], Some(b"change 2"), b"Listed changes", Some("reading change 2…".as_bytes())),
+        (&[b"tasks"], None, b"Listed tasks", None),
+        (&[b"task 9"], None, b"Read task 9", None),
+        (&[b"inbox"], None, b"Checked the inbox", None),
+        (&[b"me"], None, b"Checked your role", None),
+        (&[b"project"], None, b"Read the project", None),
+        (&[b"settings charter 1"], None, b"Checked settings", None),
+        (&[b"ways"], None, b"Read the ways", None),
+        (&[b"revision 2", b"revisions"], None, b"Read the history, read the history", None),
+        (&[b"proposal t9/1"], None, b"Read proposal t9/1", None),
+        (&[b"proposal t9/1", b"proposal t9/1", b"proposal p1/1"], None, b"Read 2 proposals", None),
+        (&[b"help"], None, b"Read the docs", None),
+        (&[b"help hold", b"help hold", b"help search landing", b"help search landing"], None, b"Read 3 docs", None),
+        (&[b"help search landing", b"help hold", b"help hold", b"help search landing"], None, b"Read 3 docs", None),
+        (&[b"file acme/shop src/main.rs main", b"file acme/shop src/main.rs other"], None, b"Read 1 file", None),
+        (&[b"file acme/shop src/main.rs"], None, b"Read src/main.rs", None),
+        (&[b"", b"frobnicate"], None, "see ×2".as_bytes(), None),
+        (&[], Some(b"change 2"), b"Reading change 2", Some("reading change 2…".as_bytes())),
+    ];
+    let mut failures = List::uncapped();
+    for (addresses, current, expected, description) in rows {
+        let mut calls = List::with_capacity(CALLS);
+        for (at, address) in addresses.iter().enumerate() {
+            let input = skein_lib::bytes::concat(&[br#"{"address":""#, address, br#""}"#]);
+            calls.push(call(u64::try_from(at).unwrap().checked_add(1).unwrap(), b"see", &input, None)).unwrap();
+        }
+        let current = match current {
+            Some(address) => Some(live(b"see", &skein_lib::bytes::concat(&[br#"{"address":""#, address, br#""}"#]))),
+            None => None,
+        };
+        let tree = line_with_words(calls.as_slice(), &[], current.as_ref(), current.is_some(), 0, &fixtures::words());
+        let node = disclosure(&tree);
+        if node.name.as_deref() != Some(*expected) || node.description.as_deref() != *description {
+            failures.push((addresses, expected, description, node.name.clone(), node.description.clone())).unwrap();
+        }
+    }
+    assert_eq!(failures.as_slice(), &[], "every see row");
+}
