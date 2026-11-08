@@ -89,8 +89,10 @@ The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
-implementation gap. Section 10's joined story covers the running line
-before and during provisional text, commitment, navigation and closing.
+implementation gap, including section 5.15's initial history for short
+completed chats. Section 10's joined stories cover the running line before
+and during provisional text, commitment, immediate replies across repeated
+new chats, reopening, PageUp, resizing, navigation and closing.
 The focused view test holds a Writing observation before the first answer,
 through provisional words and commitment: the shared running line and the
 browser terminal say "Working", the chat bar says "Writing", and completion

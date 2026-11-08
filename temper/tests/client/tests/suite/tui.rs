@@ -181,7 +181,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert!(world.front().release_reply(), "commit the whole answer");
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
-    assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
+    assert_said_before_answer(&mut tui, QUESTION, ANSWER);
     assert!(!text.contains("✦ Working"), "the run has ended: {text}");
     assert!(text.contains(PROJECTS), "{text}");
     assert!(text.contains("● Live"), "{text}");
@@ -191,6 +191,75 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     tui.press(&mut world, vec![Key::Enter]);
     tui.run(&mut world, STEP);
     assert!(tui.closed, "/exit asks the shipped host to close");
+}
+
+const FAST_ANSWER: &str = "Hello from the local fake model.";
+
+fn assert_said_before_answer(tui: &mut Tui, question: &str, answer: &str) {
+    let text = tui.text();
+    let said = text.lines().position(|line| line.trim() == format!("❯ {question}"));
+    let reply = text.lines().position(|line| line.trim() == format!("✦ {answer}"));
+    assert!(said.is_some(), "the Said row is separate from the title: {text}");
+    assert!(reply.is_some(), "the completed reply is visible: {text}");
+    assert!(said < reply, "the opening question precedes the reply: {text}");
+}
+
+fn resize_tui(tui: &mut Tui, columns: u16, rows: u16) {
+    let duties =
+        tui.host.report(temper_client_shell_tui::host::Report::Resize(skein_ui_screen::Size { columns, rows }));
+    assert!(duties.asked.is_empty(), "resizing keeps the settled conversation");
+}
+
+fn complete_fast_chat(world: &mut World<Temper, Joint>, tui: &mut Tui, question: &str) {
+    world.front().reply_at_once(FAST_ANSWER.as_bytes());
+    let assigned = world.front().assignments.len();
+    tui.type_words(world, question);
+    assert!(tui.text().contains(&format!("❯ {question}")), "the question is typed before Enter");
+    tui.press(world, vec![Key::Enter]);
+    for _ in 0..100 {
+        tui.run(world, STEP);
+        if world.front().assignments.len() > assigned {
+            break;
+        }
+    }
+    assert_eq!(world.front().assignments.len(), assigned + 1, "{}", tui.text());
+    assert_eq!(
+        world.front().runs_answered,
+        u32::try_from(assigned + 1).expect("four assigned chats"),
+        "the reply commits at assignment"
+    );
+    tui.run(world, fixtures::WITHIN);
+    tui.run(world, Duration::from_secs(1));
+    assert_said_before_answer(tui, question, FAST_ANSWER);
+    assert!(!tui.text().contains("✦ Working"), "the fast reply has completed");
+}
+
+#[test]
+fn a_tuis_fast_completed_chats_keep_the_opening_said_row() {
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    let mut tui = Tui::start(&mut world, TUI, None);
+    tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    resize_tui(&mut tui, 120, 40);
+    let questions = ["What can you tell me about Hello?", "Which checks?", "What landed?", "What is next?"];
+    for question in questions {
+        complete_fast_chat(&mut world, &mut tui, question);
+        tui.type_words(&mut world, "/new");
+        tui.press(&mut world, vec![Key::Enter]);
+        tui.run(&mut world, STEP);
+        assert!(tui.text().contains("❯ Ask temper"), "new returns to the launchpad");
+    }
+    tui.type_words(&mut world, "/chats");
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, STEP);
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
+    tui.press(&mut world, vec![Key::PageUp]);
+    tui.run(&mut world, STEP);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
+    resize_tui(&mut tui, 80, 24);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
 }
 
 fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
