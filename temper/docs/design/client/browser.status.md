@@ -206,8 +206,6 @@ establish no rendered equality.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Not yet:** 2.5, *An Ask temper chat's tag*: `temper.css`'s
-  `.temper-session-right > p:not(.temper-byline)` hides it at every width (look-round-18).
 - **Not yet:** 4.2, 4.3, 4.6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
