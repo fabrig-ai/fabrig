@@ -80,3 +80,7 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the facts each state lacked and how they're delivered, the options taken, the rows changed and their bite, the pages that differed in the print, the runs' counts, and the account as committed.
+
+## Answers
+
+2026-11-08. **The gallery's tests over their 1 s (`browser.md`, 7.3): a follow-up cost repair, or widen this task to optimize the whole gallery?** A follow-up; this task is not widened. The overrun is inherited (pristine base 2.909 CPU s, this change 2.644 s, `heavy cargo test -p temper-client-gallery --lib`, serial): the change lowers the cost, and acceptance 7's budget clause is met for this task by not raising it. Its cause lies in the all-state table and the print, beyond the five states this task owns. The commit `28bcd334e2` stands as pushed; keep its account row "differs: inherited overrun". In addition, so the overrun is carried by the design status and not by this request (`temper/docs/design/draft/look-requests.md`, 5), add one **Departs** entry to `temper/docs/design/client/browser.status.md`: 7.3's cost, the two measurements above with the command, the two costly tests (`each_state_holds_what_its_name_says`, the print check), and its owner, a gallery cost repair (testing-strategy 8.1, question 2: find and fix the cause; only failing that, measurements to the user). This entry is the one design line the task adds besides the deletion of acceptance 6. Rerun nothing but `python3 -I -B tools/citations/citations.py --base origin/main`; commit with the trailer and push.
