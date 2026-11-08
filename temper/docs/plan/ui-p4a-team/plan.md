@@ -19,14 +19,18 @@ design this cut wrote, on the trunk with the first push:
 | Part | Task | Needs | What it makes run | Minutes |
 |---|---|---|---|---|
 | `model` | `tasks/team-surface.md` | | `Team { project }` and its path; `pages::team`'s `Facts`, `gather`, `parts` | 100 |
+| `model` | `tasks/team-reads.md` | team-surface | the project's document, what waits on the reader (Needs you's entries) and on others (a `tasks{query}` watch each) | 160 |
+| `page` | `tasks/team-page.md` | team-surface | Team's page in both shells, its words, tokens and `temper.css`'s `ui: team` | 200 |
+| `proof` | `tasks/team-fuzz.md` | team-surface | section 12's rules over `gather` and `parts`, random members and moves | 70 |
 
-The rest is being written: `team-reads` (the project's document, what
-waits on the reader and on others), `team-page` (the view), `team-fuzz`,
-`team-gallery`, `team-joint` and `team-rail` (the meeting with
-`ui-p1-rail`).
+Being written: `team-prints` (the gallery's states and the terminal's
+print), `team-joint` (the client world with two people) and `team-rail`
+(the meeting with `ui-p1-rail`'s rail).
 
-**Critical path, as it stands:** `team-surface` (100) → `team-page` →
-`team-gallery`.
+**Critical path, as it stands:** `team-surface` (100) → `team-page` (200)
+→ the prints; `team-reads` (160) runs beside `team-page`, and the view
+draws hand-made `Shown` values in its tests so that neither waits on the
+other.
 
 ## What was decided
 

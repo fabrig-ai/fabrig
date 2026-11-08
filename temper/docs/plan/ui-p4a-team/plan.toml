@@ -23,3 +23,29 @@ id = 1
 story = "Team { project } opens at /projects/<project>/team, and its model lists the project's people once each, the reader first, services left out"
 parts = ["model"]
 walk = false
+
+[[part]]
+id = "page"
+title = "Team's page in both shells: its intro, People as boxes, each person's name, role and line, the mockup's look"
+mode = "direct"
+needs = ["model"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "proof"
+title = "Team proved: section 12's rules fuzzed on its model, its gallery states and terminal print, the joint world with two people"
+mode = "direct"
+needs = ["model", "page"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[slice]]
+id = 2
+story = "A person opens Team on their project and reads its people, the reader first, each with their role and what waits on them"
+parts = ["page"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Team's parts hold section 12's rules under random members and moves; its gallery states print; two people read each other's waits in the joint world"
+parts = ["proof"]
+walk = false
