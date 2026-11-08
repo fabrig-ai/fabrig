@@ -55,6 +55,7 @@ No compatibility is kept: none is owed before v0.1.0.
 |---|---|---|---|---|
 | `screen-looks` | | skein-ui-screen (theme, renderer, goldens) | 1 | 150 |
 | `screen-lists` | screen-looks | skein-ui-screen (focus, renderer), skein-ui-screen-terminal (keys) | 2 | 210 |
+| `journey-setup` | | tools/journeys (the TUI's `again`: a setup before the TUI) | 1 | 120 |
 
 The TUI's view, host and shared words, the domain's change, the joint story and the
 journeys follow in later batches.
