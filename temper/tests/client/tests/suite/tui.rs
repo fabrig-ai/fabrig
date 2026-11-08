@@ -164,7 +164,8 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert_eq!(assignment.charter, 11);
     let task = front.engine.task(assignment.task).expect("Ask temper task");
     assert_eq!(task.spec.words.as_ref(), QUESTION.as_bytes());
-    let heading = format!("✦ Project 1 / {QUESTION} T{}", assignment.task);
+    let heading =
+        format!("Project 1 / Which checks should… T{} on {}", assignment.task, core::str::from_utf8(ADDRESS).unwrap());
     let text = tui.text();
     assert!(text.contains(&heading), "{text}");
     assert!(text.contains(&format!("❯ {QUESTION}")), "{text}");

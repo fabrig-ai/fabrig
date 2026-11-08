@@ -12,13 +12,13 @@
 
 
 
-
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
 ────────────────────────────────────────────────────────────────────────────────
-❯ /model   Change the model, from the next turn
-  /new     Start a new chat
-  /chats   Open another chat
-  /theme   Dark or light
-  /help    Commands and keys
-  /exit    Close temper
+❯ /model    Change the model, from the next turn
+  /effort   Change the effort
+  /new      Start a new chat
+  /chats    Open another chat
+  /theme    Dark or light
+  /help     Commands and keys
+  /exit     Close temper

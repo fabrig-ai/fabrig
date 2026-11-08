@@ -5,11 +5,10 @@ use skein_ui::{Owner, Region, Style, look::Names};
 pub const OWNER: Owner = Owner { number: 65_538 };
 pub const TOP: Region = Region { owner: OWNER, number: 0 };
 pub const BOTTOM: Region = Region { owner: OWNER, number: 1 };
-pub const CHAT_TOP: Region = Region { owner: OWNER, number: 2 };
-pub const SECTIONS: Region = Region { owner: OWNER, number: 3 };
-pub const WORKING: Region = Region { owner: OWNER, number: 4 };
-pub const BOX: Region = Region { owner: OWNER, number: 5 };
-pub const LIST: Region = Region { owner: OWNER, number: 6 };
+pub const SECTIONS: Region = Region { owner: OWNER, number: 2 };
+pub const WORKING: Region = Region { owner: OWNER, number: 3 };
+pub const BOX: Region = Region { owner: OWNER, number: 4 };
+pub const LIST: Region = Region { owner: OWNER, number: 5 };
 pub const TITLE: Style = Style { owner: OWNER, token: 0 };
 pub const HINT: Style = Style { owner: OWNER, token: 1 };
 pub const LIVE: Style = Style { owner: OWNER, token: 2 };
@@ -22,25 +21,24 @@ pub const ADDRESS: Style = Style { owner: OWNER, token: 8 };
 pub const BYLINE: Style = Style { owner: OWNER, token: 9 };
 pub const HEAD: Style = Style { owner: OWNER, token: 10 };
 pub const SIGNAL: Style = Style { owner: OWNER, token: 11 };
-pub const STAR: Style = Style { owner: OWNER, token: 12 };
-pub const SAID: Style = Style { owner: OWNER, token: 13 };
-pub const AGENT: Style = Style { owner: OWNER, token: 14 };
-pub const RUN: Style = Style { owner: OWNER, token: 15 };
-pub const RUN_FAILED: Style = Style { owner: OWNER, token: 16 };
-pub const DOTS: Style = Style { owner: OWNER, token: 17 };
-pub const RUNNING: Style = Style { owner: OWNER, token: 18 };
-pub const END: Style = Style { owner: OWNER, token: 19 };
-pub const FIELD: Style = Style { owner: OWNER, token: 20 };
-pub const LIST_HEAD: Style = Style { owner: OWNER, token: 21 };
-pub const OPTION: Style = Style { owner: OWNER, token: 22 };
-pub const NOTE: Style = Style { owner: OWNER, token: 23 };
-pub const SPACED: Style = Style { owner: OWNER, token: 24 };
+pub const SAID: Style = Style { owner: OWNER, token: 12 };
+pub const AGENT: Style = Style { owner: OWNER, token: 13 };
+pub const RUN: Style = Style { owner: OWNER, token: 14 };
+pub const RUN_FAILED: Style = Style { owner: OWNER, token: 15 };
+pub const DOTS: Style = Style { owner: OWNER, token: 16 };
+pub const RUNNING: Style = Style { owner: OWNER, token: 17 };
+pub const END: Style = Style { owner: OWNER, token: 18 };
+pub const FIELD: Style = Style { owner: OWNER, token: 19 };
+pub const LIST_HEAD: Style = Style { owner: OWNER, token: 20 };
+pub const OPTION: Style = Style { owner: OWNER, token: 21 };
+pub const NOTE: Style = Style { owner: OWNER, token: 22 };
+pub const SPACED: Style = Style { owner: OWNER, token: 23 };
 /// Command names use plain weight while active, with descriptions kept in their own paint.
-pub const COMMAND: Style = Style { owner: OWNER, token: 25 };
-pub const BULLETS: Style = Style { owner: OWNER, token: 26 };
-pub const LEFT_OFF: Style = Style { owner: OWNER, token: 27 };
-pub const PICKED: Style = Style { owner: OWNER, token: 28 };
-pub const RULE_TITLE: Style = Style { owner: OWNER, token: 29 };
+pub const COMMAND: Style = Style { owner: OWNER, token: 24 };
+pub const BULLETS: Style = Style { owner: OWNER, token: 25 };
+pub const LEFT_OFF: Style = Style { owner: OWNER, token: 26 };
+pub const PICKED: Style = Style { owner: OWNER, token: 27 };
+pub const RULE_TITLE: Style = Style { owner: OWNER, token: 28 };
 pub const NAMES: Names<'static> = Names {
     owner: OWNER,
     prefix: b"tui",
@@ -57,7 +55,6 @@ pub const NAMES: Names<'static> = Names {
         b"tui-byline",
         b"tui-head",
         b"tui-signal",
-        b"tui-star",
         b"tui-said",
         b"tui-agent",
         b"tui-run",
@@ -76,7 +73,7 @@ pub const NAMES: Names<'static> = Names {
         b"tui-picked",
         b"tui-rule-title",
     ],
-    regions: &[b"tui-top", b"tui-bottom", b"tui-chat-top", b"tui-sections", b"tui-working", b"tui-box", b"tui-list"],
+    regions: &[b"tui-top", b"tui-bottom", b"tui-sections", b"tui-working", b"tui-box", b"tui-list"],
 };
 /// The link field's binding token under OWNER.
 pub const LINK: Token = Token::new(1);
