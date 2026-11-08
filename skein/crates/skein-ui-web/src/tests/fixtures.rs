@@ -172,9 +172,24 @@ pub fn binding(number: u64) -> skein_ui::Binding {
 pub fn drawing_look() -> crate::Look<'static> {
     crate::Look { draw: drawing, ..look() }
 }
+pub const DRAWING_WIDTH: u16 = 720;
 pub const DRAWING_HEIGHT: u16 = 74;
 pub fn scene_height_look() -> crate::Look<'static> {
     crate::Look { draw: drawing_with_height, ..look() }
+}
+pub fn scene_size_look() -> crate::Look<'static> {
+    crate::Look { draw: drawing_with_size, ..look() }
+}
+fn drawing_with_size(
+    kind: skein_ui::DrawingKind,
+    data: &[u8],
+    _: u16,
+    _: u16,
+    scene: &mut skein_ui::scene::Scene,
+) -> bool {
+    scene.set_width(DRAWING_WIDTH);
+    scene.set_height(DRAWING_HEIGHT);
+    drawing(kind, data, DRAWING_WIDTH, DRAWING_HEIGHT, scene) && scene.scene_act(b"bg")
 }
 fn drawing_with_height(
     kind: skein_ui::DrawingKind,
