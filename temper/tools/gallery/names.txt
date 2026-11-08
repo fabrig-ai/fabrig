@@ -40,6 +40,14 @@ ask-model-open
 ask-refused
 ask-sending
 ask-typing
+ask-ways-approve
+ask-ways-card
+ask-ways-card-person
+ask-ways-draft
+ask-ways-kept
+ask-ways-member
+ask-ways-refused
+ask-ways-yours
 builders
 builders-none
 builders-not-owner
