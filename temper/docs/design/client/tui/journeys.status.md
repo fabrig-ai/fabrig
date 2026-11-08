@@ -2,7 +2,7 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-No known implementation gap but the one below. Section 3.1's mark and save keys accept
+No known implementation gap. Section 3.1's mark and save keys accept
 Alt+m and Alt+s beside the Shift forms; without a recording, all four
 reach the host. The recorder's table covers both forms, and the run's
 unit table covers their passage without a recording. Sections 2 to 8 have
@@ -15,5 +15,3 @@ and page frames committed; the overlay is empty. Section 11 keeps the
 user's frame refinement, real-box journeys and other deferred choices.
 The committed frames establish no real-terminal look or macOS runtime
 result; section 11 also keeps the user's manual Meta-key check.
-
-- **Not yet:** 9: `sign-in-approved`'s recording was made on a fake box whose stock held template 3, the configuring chat's, and its `me` records still list it; it is recorded again on a box whose stock no longer does.
