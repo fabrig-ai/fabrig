@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/tui-record-keys/inputs/request.md", "temper/docs/de
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "keys"
+title = "The TUI's record build also takes Alt+m to mark and Alt+s to save, beside Alt+Shift+M and Alt+Shift+S"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tui/journeys.md, 3.1"
+
+[[slice]]
+id = 1
+story = "run::recording_keys_save_whole_and_closing_saves_again marks and saves with Alt+m and Alt+s as with the Shift forms, and a run with no recording gives Alt+m and Alt+s to the host"
+parts = ["keys"]
+walk = false
