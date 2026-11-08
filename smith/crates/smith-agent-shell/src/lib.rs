@@ -14,6 +14,7 @@ pub mod fixture;
 pub mod list;
 #[cfg(unix)]
 pub mod program;
+#[cfg(unix)]
 pub mod program_child;
 #[cfg(unix)]
 pub mod relay;
