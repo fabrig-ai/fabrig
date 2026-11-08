@@ -210,3 +210,18 @@ production protocol, no other fake behaviour; the existing sequential
 `a390303c3b`; the eight rows stay as pushed, and run with the new
 variant as option 2 says.
 
+## Rebase (2026-11-08, step merge, foreman subagent-burst/burst/foreman-2)
+
+reconcile the two burst harnesses while preserving both test sets
+The merge conflicts in `smith/tests/agent-process/src/program_world.rs`.
+Main commit `0c75315dbaf5e94bcd03d1c21436d77d8f55694d` adds `Case::Burst { direct: bool }`; this branch adds `Case::Burst { conversations: u32 }`.
+Keep the branch’s room-based `Burst` and rename main’s survey case, updating its helpers and `a_program_main_survives_a_sub_agent_burst` in `program_children.rs`.
+Preserve the automatically merged survey test and the branch’s eight room rows.
+Keep `room::{configuration,profile,declarations,grant,peer}` for room rows; retain main’s survey configuration, direct peer and grant wiring for the renamed case.
+Extend main’s `workspace()`, `captures()` and `completes()` predicates to include both cases.
+Dispatch configuration, peer spawning and host grants by case; preserve room-derived fake and relay instance counts.
+Keep one `Proc::Peer`, its delegation arms and its shutdown logic.
+Preserve main’s `environment()` and `receiving()` extraction, applying receiving bounds and capture consistently to both cases.
+Retain the branch’s all-at-once MCP and mixed-timing changes.
+Validate both burst tests and the affected program-world tests through heavy, then fmt and clippy.
+No test failure is shown by this refusal; the reported red is the merge conflict.
