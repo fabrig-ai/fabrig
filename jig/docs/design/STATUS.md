@@ -169,6 +169,13 @@ The asking tool family and a run's settings-proposal read are implemented
 (`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
 person remains later work in `domain/engine.md`, section 16.
 
+Removed program names can be declared again by their original holders,
+with the reservation moved atomically and a host login check dispatched;
+live names and another holder's reservation answer name taken
+(`domain/accounts.md`, 3.4 and section 5; `client/domain/contract.md`,
+section 4). Finer reasons for key and sign-in acts' not-offered answers
+remain deferred in those documents' open questions.
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,

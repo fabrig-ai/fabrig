@@ -665,6 +665,15 @@ ctl deadline line are absent; wire reasons and the browser membership
 check remain later work (`protocol/README.status.md`, 8.2;
 `client/tools.status.md`, 6.3; `client/tools.md`, section 14).
 
+Forgotten program accounts can be declared again under their name, with
+the host login check dispatched. Ctl and the web explain declarations'
+name-taken and not-offered answers and a retry or resume's not-offered
+answer; ConnectModel recovers the person's own live name. The joined
+client-world story uses a fake worker. The request's broader wording
+for key and sign-in refusals remains deferred because their not-offered
+answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
+`client/README.md`, 5.5 and section 11).
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
