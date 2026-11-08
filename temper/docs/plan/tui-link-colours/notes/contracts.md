@@ -86,7 +86,8 @@ pub const EXPIRY_SLACK: skein_lib::Duration = 60 s;  // an expiry less this is a
 ```rust
 pub struct Settings { /* as now, but */ pub scheme: Option<temper_client_tui::Scheme>,
     pub link_file: Option<Box<[u8]>>,                // the engine's link file's path, bytes
-    pub note: Option<temper_client_tui::Note> }       // as the binary read it
+    pub note: Option<temper_client_tui::Note>,        // as the binary read it
+    pub files: Option<skein_io::kernel::Fd> }         // the TUI directory's parent, a root for `sign-in`
 // limits.rs
 pub const BACKGROUND: skein_lib::Duration = 200 ms;
 ```
