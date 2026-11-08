@@ -6074,6 +6074,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-docs",
 ]
 
 [[package]]
