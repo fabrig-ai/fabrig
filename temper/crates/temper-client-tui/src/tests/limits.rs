@@ -25,14 +25,18 @@ pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert!(bindings <= limits.bindings);
     assert_eq!(f::count(tree, Role::Page), 1);
     assert_eq!(f::count(tree, Role::Main), 1);
-    assert_eq!(f::count(tree, Role::ContentInfo), 1);
     let mut top = false;
     let mut bottom = false;
+    let mut feet = 0_u32;
     for node in tree.nodes() {
         top |= node.region == Some(look::TOP);
-        bottom |= node.region == Some(look::BOTTOM);
+        bottom |= node.region == Some(look::BOTTOM) || node.region == Some(look::LIST);
+        if node.role == Role::ContentInfo || node.region == Some(look::LIST) {
+            feet = feet.checked_add(1).unwrap();
+        }
     }
     assert!(top && bottom);
+    assert_eq!(feet, 1, "a quiet line or list is the foot");
 }
 
 #[test]

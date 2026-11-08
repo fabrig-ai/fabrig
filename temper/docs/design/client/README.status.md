@@ -1025,9 +1025,6 @@ terminal checks remain section 11's after-landing work.
   `tui-box-front`).
 - **Not yet:** 6.17, the welcome, before and after the person signed in
   (`tui-welcome`, `tui-box-front`).
-- **Not yet:** 6.17, the playground's header and quiet line, the quit
-  question, the box's state on the quiet line, the give up's note and
-  `/log` offered with its note (`tui-front-views`, `tui-box-front`).
 - **Not yet:** 6.11 and 6.17, `temper internal tui --box`: descriptor 3
   read, the terminal opened and its foreground taken, the run given its
   front (`front-command`, `tui-box-front`).
