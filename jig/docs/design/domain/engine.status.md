@@ -73,9 +73,7 @@ and catalogue-number reuse remain section 16's open questions.
 
 ## Gaps and departures
 
-- **Not yet:** 7.1: a message or an entry that arrives between a run's
-  preparation and its claim, and would add to its reasons, is kept back
-  rather than preparing the run again. 7.4: a finish while the task's
+- **Not yet:** 7.4: a finish while the task's
   delegates are live fails its attempt invalid rather than parking it. 8: an
   invalid start other than a transcript's is the invalid class, not the
   permanent one.
