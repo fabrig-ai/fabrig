@@ -451,10 +451,13 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   and writes rules in `tui/journeys/overlay.css` (a palette's custom
   property, a class's paint), then reloads; a frame's words, order or
   layout is edited in place, in its `NN.txt` or `NN.html`.
-- **Requests stack** on the person's `look-requests` branch, one commit
-  each, with a `Look-request: NAME` trailer, kept on `main` by
-  `scripts/look-refresh.sh` and never landed (`../journeys.md`, section
-  7; `../../draft/look-requests.md`).
+- **Requests stack** on a branch of the person's own, `tui-requests`,
+  apart from the browser's `look-requests`, so that the two are asked
+  for in parallel: one commit each, with a `Look-request: NAME` trailer
+  whose NAME starts `tui-`, kept on `main` by the same
+  `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
+  never landed (`../journeys.md`, section 7;
+  `../../draft/look-requests.md`, 2).
 - **Never landed:** the journeys' test refuses a request's frames, which
   differ from the reprint, and its overlay, so `main`'s overlay stays
   empty.
