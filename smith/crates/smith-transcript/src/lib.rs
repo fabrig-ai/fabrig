@@ -67,7 +67,7 @@ pub const FRESH_WINDOWS: &str = "fresh-windows";
 pub mod patches;
 
 /// Decode an archived version-6 or current turn; version 6 has no supplied system context.
-/// Resuming readers use the current codec directly (smith/docs/design/protocol/transcript.md, 6).
+/// Resuming readers use the current codec directly.
 pub fn decode_archived(limits: &v7::Limits, bytes: &[u8]) -> Result<Turn, v7::Problem> {
     if bytes.get(..2) != Some(&[0, 6][..]) {
         return Turn::decode(limits, &mut skein_lib::Reader::new(bytes));
