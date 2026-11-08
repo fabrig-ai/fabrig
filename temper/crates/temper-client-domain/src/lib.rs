@@ -28,7 +28,7 @@ pub mod sign_in;
 mod sign_in_tab;
 pub mod views;
 pub mod words;
-pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind};
+pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind, WorkFilter};
 pub use boundary::{Action, Event, Fact, Request, Tab};
 pub use domain::{Domain, fire, new, next_deadline, shown, step, take, unlinked};
 pub use limits::{Limits, valid};

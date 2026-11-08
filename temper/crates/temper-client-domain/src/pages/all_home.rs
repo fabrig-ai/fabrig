@@ -181,6 +181,9 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::Ask { .. }
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
+        | crate::Address::Work { .. }
+        | crate::Address::Members
+        | crate::Address::Limits
         | crate::Address::Accounts
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }

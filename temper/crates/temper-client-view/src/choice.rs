@@ -47,7 +47,11 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     if root.approval().is_some()
         || crate::frame::unavailable(root).is_some()
         || match root.pages().address() {
-            Address::Accounts | Address::ConnectModel { .. } | Address::Welcome { .. } => true,
+            Address::Members
+            | Address::Limits
+            | Address::Accounts
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. } => true,
             Address::Forges
             | Address::ConnectForge { .. }
             | Address::AllHome
@@ -64,6 +68,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Role { .. }
             | Address::Rule { .. }
             | Address::Repositories { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
             | Address::Adopt { .. } => false,

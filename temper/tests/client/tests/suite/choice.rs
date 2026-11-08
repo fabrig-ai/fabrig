@@ -9,16 +9,22 @@ fn a_model_choice_reaches_the_next_run_document() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-            Step::See { find: Find::exactly_named(Role::Button, b"scripted"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Button, b"scripted") },
-            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
-            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
-            Step::See { find: Find::exactly_named(Role::Disclosure, b"Model"), within: fixtures::WITHIN },
-            Step::See { find: Find::named(Role::Heading { level: 1 }, " · ".as_bytes()), within: fixtures::WITHIN },
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                Step::See { find: Find::exactly_named(Role::Button, b"scripted"), within: fixtures::WITHIN },
+                Step::Press { find: Find::exactly_named(Role::Button, b"scripted") },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: Box::from(*b"Hello"),
+                },
+                Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+                Step::See { find: Find::exactly_named(Role::Disclosure, b"Model"), within: fixtures::WITHIN },
+                Step::See {
+                    find: Find::named(Role::Heading { level: 1 }, " · ".as_bytes()), within: fixtures::WITHIN
+                },
+            ])
+            .collect(),
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");

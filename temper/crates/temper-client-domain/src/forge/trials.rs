@@ -100,7 +100,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
     match root.pages.address() {
         crate::Address::Welcome { step: crate::Step::Model { .. } | crate::Step::Ready }
         | crate::Address::ConnectModel { .. } => {}
-        crate::Address::Accounts => {
+        crate::Address::Members | crate::Address::Limits | crate::Address::Accounts => {
             let Some(page) = root.pages.accounts() else { return };
             if page.added.is_none() || !page.added_from_connect {
                 return;
@@ -119,6 +119,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Chat { .. }
         | crate::Address::Task { .. }
         | crate::Address::Home { .. }
+        | crate::Address::Work { .. }
         | crate::Address::Goals { .. }
         | crate::Address::Changes { .. }
         | crate::Address::Settings { .. }
