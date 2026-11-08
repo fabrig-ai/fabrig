@@ -18,24 +18,31 @@ lags left in `temper/docs/design/draft/surfaces.status.md`.
 | `density` | `pages::parts`'s rules (section 12) held by a fuzz test over each page's model |
 | `proof` | the gallery's states, the joint world's stories across two projects |
 
-## Tasks so far
+## Tasks
 
 | Task | Part | Needs | Crates |
 |---|---|---|---|
 | `all-home-surface` | across | | `temper-client-domain` (address, `all_home`, `parts`), forced arms elsewhere |
 | `needs-list` | needs | | `temper-client-view` (Needs you), `temper.css`, the gallery's needs states |
-
-The rest, written next: `all-home-reads` (domain: the reads across
-projects, Needs you's decisions, `Act::AskWith`, Overturn off a project's
-Home), `all-home-page` (view: the page from its facts), `home-cards`
-(view: Home's cards on both Homes, the Ask line, Needs you's Decided for
-you), then `gallery-across`, `joint-across` and `density-fuzz`.
+| `all-home-reads` | across | `all-home-surface` | `temper-client-domain` (the reads across projects, Needs you's decisions, `AskLine`/`AskWith`, Overturn off a project's Home) |
+| `all-home-page` | across | `all-home-surface`, `needs-list` | `temper-client-view` (Home on All projects, `home_cards`), `temper.css` |
+| `home-cards` | needs | `all-home-page`, `all-home-reads` | `temper-client-view` (a project's Home's cards, the Ask line, Needs you's Decided for you), `temper.css` |
+| `gallery-across` | proof | `home-cards` | `temper-client-gallery` |
+| `joint-across` | proof | `all-home-reads` | `temper-client-world` (stories) |
+| `density-fuzz` | density | `all-home-reads` | `temper-client-world` (`fuzzy::density` alone) |
 
 ## Critical path
 
-`all-home-surface` → `all-home-reads` → `home-cards` → the proof tasks;
-`needs-list` → `all-home-page` → `home-cards` beside it. One writer per
-crate: the domain's tasks run in that order, the view's in theirs.
+`needs-list` (180) → `all-home-page` (200) → `home-cards` (170) →
+`gallery-across` (150), about 700 implementer-minutes; beside it
+`all-home-surface` (100) → `all-home-reads` (170), which `home-cards`,
+`joint-across` and `density-fuzz` also wait on. One writer per crate:
+the domain's two tasks run in order, the view's three in theirs; the
+view's wait on `needs-list` because each appends `look.rs`'s styles and
+`words.rs`'s words, which two branches at once would collide on.
+`joint-across` and `density-fuzz` share `temper-client-world` with
+disjoint files: the stories and fixtures are the first's, `fuzzy/density.rs`
+the second's.
 
 ## Decided
 

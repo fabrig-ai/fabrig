@@ -128,7 +128,8 @@ Acceptance:
    two projects (a question with its choices and context, a funds card, an
    approval) in `src/needs.rs`; `needs-list-second` presses the second
    row; `needs-tell` writes words in the field; `night-needs` is
-   `needs-list` by night. Regenerate `names.txt`. Report the gallery's
+   `needs-list` by night. Regenerate `names.txt` by its test
+   (`SKEIN_CODEGEN_WRITE=1`, `tests::names_are_the_promised_ones`). Report the gallery's
    `--lib` CPU seconds before and after.
 6. Journeys: run the replay (`heavy cargo nextest run -p
    temper-client-journeys`); for a journey it calls stale, `again NAME`
