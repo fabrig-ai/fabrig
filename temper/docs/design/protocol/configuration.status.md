@@ -24,6 +24,11 @@ Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
 reports through coordinator handoff to close-out, keeping uncovered items
 unresolved despite empty Left lists or passing CI. The domain story
 checks delivered rules and retained evidence, not real-model compliance.
+Charter 5's result part also requires acceptance evidence before finishing,
+recovering an absent CI-selection header from a cut job log with a larger
+read. The engine domain story checks the applied result-wake instructions,
+job 50's 6,000-byte tail and enlarged read, and the full/docs labels for
+main pulls #6 and #7; real-model compliance remains unobserved.
 Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
