@@ -15,8 +15,8 @@ const NEXT: u32 = 9;
 // The fixture has two ways, each with two items, and at most one Yours tab.
 const WAYS: u32 = 2;
 const ITEMS: u32 = 2;
-// client/README.md, 4.6 bounds a path at 32 stops.
-const STOPS: u32 = 32;
+// client/README.md, 4.6 bounds a path at 24 stops.
+const STOPS: u32 = 24;
 const TABS: u32 = 3;
 // Each act is one ChangeSettings decision.
 const DECISIONS: usize = 1;
