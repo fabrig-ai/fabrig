@@ -228,8 +228,8 @@ procedure lists, sixteen in an authority's grants and delegation kinds,
 and eighty live delegates in a chat's close. This covers `temper init`'s
 and the owned example's `standard` profile: its `documents.lines`
 sixteen, its grants and executors sixteen, its `tasks.delegates` eighty
-(`../protocol/configuration.md`, 13.4); a settings file and the
-configuring agent's settings form take as many grants and kinds. Each is
+(`../protocol/configuration.md`, 13.4); a settings file and Ask temper's
+proposal of settings take as many grants and kinds. Each is
 a receiving capacity, independent of how many rows a screen shows. A list
 longer than a client receives makes its document undecodable there, and
 jig's link drops its stream on such a record: every watch ends, and the
@@ -380,17 +380,16 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
-| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, Ask temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open Ask temper (*The first chat,* below); adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
+| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
-| `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
-| `Ask { project }` | none: the configuring chat's page, as *Ask temper's page* (below) changes it | Ask temper before its first words, under `Settings`, in the project's frame (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start an Ask temper chat, from its composer |
+| `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start an Ask temper chat, from its composer or a starter; open temper's own way beside the page |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
-| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its number, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree (jig's `client/domain/objects.md`, section 10) and the decided proposals of settings its activity says it made, each at the call that made it where its turn names it, and otherwise after the turn that was running when it was made, so that what comes later comes after it (5.13); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names, or its activity's lines say it made; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its number, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree (jig's `client/domain/objects.md`, section 10) and the decided proposals of settings its activity says it made, each at the call that made it where its turn names it, and otherwise after the turn that was running when it was made, so that what comes later comes after it (5.13); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names, or its activity's lines say it made; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on an Ask temper chat, start over |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Close and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Pause or Resume, Close and its composer (5.11), and its own held card while it is held for any cause but the person's own pause | `task`, `tree`, `activity` a page at a time, earlier and later pages at an agent's conversation's log edges (5.15); `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, close, message, and answer its needs; on an agent's task message, amend, pause, resume, close, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
@@ -409,21 +408,22 @@ keeps (`../protocol/configuration.md`, section 2).
   words, under temper's phrasebook (5.1);
   each card temper's own (section 1).
 - **One layout for every chat** (the greenfield mock's `chat.html`): every
-  chat and `NewChat` take the layout of the configuring chat's page
-  (`temper-session`; *The configuring chat's page,* below). The rail stays
+  chat and `NewChat` take the layout of Ask temper's page
+  (`temper-session`; *Ask temper's page,* below). The rail stays
   on every chat: the user's choice in `configure-chat-in-settings`, which
   supersedes the mock's rail-less chat. On a phone, at 760 px or less, rail
-  and tab bar go. A chat differs from a configuring chat only in its path: a
+  and tab bar go. A chat differs from an Ask temper chat only in its path: a
   chat's path is "PROJECT / Chats /", "‹" on a phone a
-  link to `Chats`; a configuring chat's is still through `Settings`, the
-  rail current on Settings.
+  link to `Chats`; an Ask temper chat's is "PROJECT / Ask temper /", "‹" on a
+  phone a link to `Ask { project }`, the rail's "Ask temper" current.
 - **A chat's bar** holds its path, its level-1 heading named "TN · TITLE", the
   chat's task number and its title (a chat's first message, whole), and at its
   right, in this order:
   1. *Its number:* "T4", the same pixels as the mock's `.byline`. The browser
      alone draws it, as the terminal's heading says it; on a phone it goes.
      The model and effort are the composer's, and the account leaves the bar
-     (*The work's account and model,* below). A configuring chat's is a chat's.
+     (*The work's account and model,* below). An Ask temper chat's is a chat's,
+     then " · Ask temper", in the look of its tag in Chats.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
      A run that can't start says so ("Waiting for an account"), that colour
@@ -440,7 +440,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
   The bar's right part is a flex row.
   After the number, once a chat has a document, its mode group; with none,
-  "+ Draft"; then "Start goal…" or its goal's link; on a configuring chat
+  "+ Draft"; then "Start goal…" or its goal's link; on an Ask temper chat
   "Start over" (*A chat's document,* below).
 - **A chat's heading is short** (the request `chat-title`): it shows its
   title's short form, which a browser draws alone and the terminal after
@@ -710,7 +710,7 @@ keeps (`../protocol/configuration.md`, section 2).
   at `/chats/new`, for the open project. The domain's `Chats` state holds
   its words and start, and `NewChat` opens that state with the page's
   watches, so that `Act::StartChat`, `Act::ChatWords` and `Act::Suggest`
-  are the page's, as they are the configuring chat's. On the layout every
+  are the page's, as they are Ask temper's page's. On the layout every
   chat takes:
   - *Its bar:* the path "PROJECT / Chats /", "‹" on a phone a link to
     `Chats`, and the level-1 heading "New chat". No project yet, in the
@@ -742,7 +742,7 @@ keeps (`../protocol/configuration.md`, section 2).
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
     composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
-    from a new chat, its draft, `Configure`, a starter and a suggested request
+    from a new chat, its draft, `Ask`, a starter and a suggested request
     alike. "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
   - *Opened any other way,* its composer asks for nothing. From a list or a
@@ -775,9 +775,9 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (5.13), true in the stock. It gates the Drafts filter, the Chats
     lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is
-    no configuring chat. A configuring chat offers "+ Draft" whatever `drafts` says:
+    no Ask temper chat. An Ask temper chat offers "+ Draft" whatever `drafts` says:
     `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
-    the act both read, is true on a configuring chat and otherwise `drafts_offered`.
+    the act both read, is true on an Ask temper chat and otherwise `drafts_offered`.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -806,15 +806,15 @@ keeps (`../protocol/configuration.md`, section 2).
     those shown, the next mode's button carrying the shortcut. On
     a phone, Chat and Draft alone; Split left on a wide screen shows as Draft. With
     no document, while `chat_offers_draft` and the chat hasn't ended: `.btn.small`
-    "+ Draft", which follows the first message: `Configure`, before a configuring
+    "+ Draft", which follows the first message: `Ask`, before an Ask temper
     chat's first message, has nothing to write up and draws none. `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
-    linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
-    configuring chat, which has "Start over": it asks "Start over?", "A new
-    configuring chat starts. This one stays in Chats." through `crate::confirm`
+    linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on an
+    Ask temper chat, which has "Start over": it asks "Start over?", "A new
+    Ask temper chat starts. This one stays in Chats." through `crate::confirm`
     (3.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
-    document kept, and opens `Configure { project }`. The composer's hint gains
+    document kept, and opens `Ask { project }`. The composer's hint gains
     " · Ctrl+\ switches the draft" while a document shows.
   - *The layout,* one for both kinds of chat, from `configure-chat-draft`'s rules:
     `temper-mode-chat`, `-split` and `-draft` on the session. Chat: the
@@ -828,8 +828,8 @@ keeps (`../protocol/configuration.md`, section 2).
     terminal, in Chat, the conversation alone; in Split or Draft, the document after
     it as a region named its title.
   - *The pane,* `.temper-doc`, `.temper-doc-inner`: a column of at most 640 pixels.
-    Its line, `.temper-doc-path`: at its left `docs/design/draft/NAME.md`, or on a
-    configuring chat "T7 · not proposed yet", "Proposal 12 · waits for an owner" or
+    Its line, `.temper-doc-path`: at its left `docs/design/draft/NAME.md`, or on an
+    Ask temper chat "T7 · not proposed yet", "Proposal 12 · waits for an owner" or
     "Accepted at 14:03", from its proposal cards; at its right "edited 1 min ago",
     `TimeForm::Ago`, lower case. The body is split at each `#` and `##` line, each
     section read by `skein_ui::markdown::read(.., 1, b)` into a slot, `.temper-doc-sec`, keyed
@@ -868,7 +868,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **A chat's terminal** (the look requests `chat-terminal`, `chat-terminal-font`,
   `chat-terminal-draft` and `chat-terminal-esc` of 2026-11-07, their pages
   `journeys/chat-terminal/`): a browser's other look of a chat's pages, `Chat`,
-  `NewChat` and `Configure`, as a coding agent's terminal, full screen. It is the
+  `NewChat` and `Ask`, as a coding agent's terminal, full screen. It is the
   same page, its state, reads and acts, drawn otherwise: its commands are the
   page's own acts, and nothing new crosses to the engine but the reads named
   below, which other pages make already. The terminal shell (section 6) is
@@ -885,7 +885,7 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing on the page. Another tab reads it at its own start.
   - *Entered:* the button ">_", named "Terminal, full screen", in a
     browser's bar after the mode group or "+ Draft" and before "Start goal…" or
-    "Start over", on every chat, `NewChat` and `Configure`, on a phone too:
+    "Start over", on every chat, `NewChat` and `Ask`, on a phone too:
     `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
     screen in the same step (skein's `ui-web.md`, 11, *Full screen*). The press
     draws the terminal in that step, before the browser answers: every terminal
@@ -898,14 +898,15 @@ keeps (`../protocol/configuration.md`, section 2).
     terminal stays, not full screen, and an open list closes (*Keys,* below). A
     reload, which leaves full screen, opens the terminal again, not full screen,
     since only a person's press may ask for it.
-  - *Where it draws:* in a browser, on `Chat`, `NewChat` and `Configure` while
+  - *Where it draws:* in a browser, on `Chat`, `NewChat` and `Ask` while
     `terminal` is set; every other page, and the terminal shell's, as before.
     The frame draws no rail and no tab bar around it: the page's main is the whole
     window. Its regions in order: the top line, the conversation (with the draft
     beside it), the running line, the box and its list, the quiet line.
   - *The top line:* the bar, on one line. At its left "✦", the project's name, a
     faint "/", the level-1 heading, named as the bar's, showing the title as the
-    bar's does, and the chat's number "T2". At its right "Draft" and "Exit". On a
+    bar's does, and the chat's number "T2", on an Ask temper chat then a faint
+    " · " and "Ask temper". At its right "Draft" and "Exit". On a
     phone the star and the title alone: the project, its "/" and the number go.
     "Draft" is a button pressed while the document shows: `Act::Mode` to Split,
     or back to Chat, its shortcut `Ctrl+\`; with no document, where
@@ -949,7 +950,7 @@ keeps (`../protocol/configuration.md`, section 2).
     | `/draft` | Show or hide the draft | as "Draft" | where "Draft" or "+ Draft" is |
     | `/pause` | Pause this chat; a message resumes it | `Act::Stop` | where Pause is |
     | `/close` | Close this chat; it stays in Chats | `Act::Close`, its confirmation as a list | where Close is |
-    | `/start-over` | Start a new configuring chat | `Act::StartOver`, its confirmation as a list | where Start over is |
+    | `/start-over` | Start a new Ask temper chat | `Act::StartOver`, its confirmation as a list | where Start over is |
     | `/goal` | Start a goal from the draft | "Start goal…", its sheet | where "Start goal…" is |
     | `/new` | Start a new chat | `Act::Go` to `NewChat` | always |
     | `/chats` | Open another chat | its list (below) | always |
@@ -974,7 +975,7 @@ keeps (`../protocol/configuration.md`, section 2).
       (`tasks{query}`, its first page), read when the list opens; taking one is
       `Act::Go` to its `Chat { task }`.
     - `/close` and `/start-over`: the confirmation's question as the head ("Close
-      this chat? It stays in Chats.", "Start over? A new configuring chat starts.
+      this chat? It stays in Chats.", "Start over? A new Ask temper chat starts.
       This one stays in Chats.") and its two acts as choices, "Close" or "Start
       over" first, then "Keep it open" or "Keep this one"; a confirmation that also
       asks its delegates' fates draws as the browser's sheet, over the terminal.
@@ -1036,7 +1037,7 @@ keeps (`../protocol/configuration.md`, section 2).
     activity and the ended page's by when each ended, merged newest first,
     a tie by the lower number first, each row one link: its number's, whose
     `::after` covers the row. A row's top line, `.top.mono`, holds at its
-    left "T9", then for a configuring chat " · Configuring", for a chat with a
+    left "T9", then for an Ask temper chat " · Ask temper", for a chat with a
     document " · writes away-mode.md", then for a goal the person started from it
     " · started goal TITLE", TITLE from the goal's chip by `Subject::Chips`, and at
     its right its status, " · " and its age. The status is the bar's (one word for
@@ -1952,13 +1953,19 @@ keeps (`../protocol/configuration.md`, section 2).
     `domain/accounts.md`, 4.3).
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
-    "Skip"; under them a line by what is left: "Three steps left. Skip
-    them if you like; they stay in Settings and Chats.", "Two steps left.
-    Skip them if you like; they stay in Settings and Chats.", "Two steps
-    left. Skip them if you like; they stay in Settings." with the first
-    and second left, "One step left. Skip it if you like; it stays in
-    Settings." with the first or the second left, and "One step left.
-    Skip it if you like; it stays in Chats." with the third. Then one row
+    "Skip"; under them a line by what is left, each step left staying
+    where it lives, the first in Ask temper, the second in Settings and
+    the third in Chats (the look request `ask-temper-place`): "Three steps
+    left. Skip them if you like; they stay in Ask temper, Settings and
+    Chats."; "Two steps left. Skip them if you like; they stay in Ask
+    temper and Settings." with the first and second left, "Two steps
+    left. Skip them if you like; they stay in Ask temper and Chats." with
+    the first and third, and "Two steps left. Skip them if you like; they
+    stay in Settings and Chats." with the second and third; "One step
+    left. Skip it if you like; it stays in Ask temper." with the first,
+    "One step left. Skip it if you like; it stays in Settings." with the
+    second, and "One step left. Skip it if you like; it stays in Chats."
+    with the third. Then one row
     a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
@@ -1967,14 +1974,14 @@ keeps (`../protocol/configuration.md`, section 2).
     1. "Tell temper how you work", "In your own words: how you plan, review
        and land work. temper proposes how it will run that, and nothing
        changes until you accept.", with "Start", filled, the act of
-       *The first chat* (below). Done once a configuring chat runs or ran
+       *The first chat* (below). Done once an Ask temper chat runs or ran
        in the project, or a line of the `settings` document follows a
-       change; done, its title alone. A configuring chat is a row of the
+       change; done, its title alone. An Ask temper chat is a row of the
        project's chats, as `Chats` reads them, whose chip's executor is
-       the charter of template 3 as `me` lists it
+       the charter of template 5 as `me` lists it
        (`../protocol/configuration.md`, 13.4): a row names its label,
-       which is a chat's, and no template. With no template 3 in `me`
-       the page it opens starts the stock chat, and only a setting's change marks
+       which is a chat's, and no template. With no template 5 in `me`
+       the page it opens starts no chat, and only a setting's change marks
        the step done. A person who cannot read that document sees no
        change.
     2. The repository, in the first state that holds: adopted (a row's
@@ -2034,9 +2041,9 @@ keeps (`../protocol/configuration.md`, section 2).
        lines above say the rest, with no toast. It is for this state alone:
        `../draft/repository-copies.md`, 9's "Add repositories" stays
        Settings'.
-    3. "Start a chat", "Ask a question or ask for a change.", with "New
-       chat", to `NewChat`. Done once the project holds a chat
-       other than a configuring one, live or ended, as `Chats` reads
+    3. "Start a chat", "Ask about the code or ask for a change.", with
+       "New chat", to `NewChat`. Done once the project holds a chat
+       other than an Ask temper one, live or ended, as `Chats` reads
        them; done, its title alone.
   - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
     (4.6), one act, one request (3.6), and the card goes at once, while
@@ -2045,8 +2052,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Refused, or lost, the card comes back with "temper couldn't keep
     that. Try Skip again." under its line; *unknown,* the subject
     answers it, and nothing is said. A skip is never undone, and nothing
-    is lost by it: the first and second steps' acts stay in Settings, the
-    third's in the rail.
+    is lost by it: the first step's act stays in the rail's "Ask temper",
+    the second's in Settings and the third's in the rail's "+ New chat".
   - *Until it is known:* To begin waits for the facts it reads. Until the
     person's dismissals, the `forges` rows, the project's chats and the
     `settings` document are delivered, it is left out, so that a project
@@ -2500,8 +2507,8 @@ keeps (`../protocol/configuration.md`, section 2).
       "PROVIDER already has that model." A press asks `ChangeModel`. The engine
       makes the model (jig's `domain/engine.md`, 17.11), and the field empties;
       its row then reads "added by you". A refusal shows under the form.
-    - *The last line,* in `.facts`: "To change a default or a role’s models, tell
-      Configure temper.", its last words a link to `Configure { project }`.
+    - *The last line,* in `.facts`: "To change a default or a role’s models, ask
+      temper.", its last two words a link to `Ask { project }`.
     - *In the terminal,* the same sections as lines, a row's word and name on one line,
       and the switch and the form as the terminal has them on How work runs (5.13).
   - *Builders* reads jig's `deployment` document, watched while the tab is open
@@ -2512,8 +2519,8 @@ keeps (`../protocol/configuration.md`, section 2).
     CHANNEL" with none; in `small`, "2 slots · 1 in use" ("1 slot" for one); in
     the line's `.when`, "Not connected" while it is not connected, else
     "Draining" while it drains, else "Connected". Under them, `.facts`: "Each
-    agent’s role names which builders it runs on. Tell Configure temper to
-    change it." With no host connected, `.empty`, "No builder is connected.",
+    agent’s role names which builders it runs on. Ask temper to change it."
+    With no host connected, `.empty`, "No builder is connected.",
     above any lines left. A cut document says so, as `Accounts` does. With no
     role in the deployment, one line, "Builders are seen by the deployment’s
     owners.", and no section. Until the document is read, the title "Builders"
@@ -2532,8 +2539,8 @@ keeps (`../protocol/configuration.md`, section 2).
     sheet over Repositories, whose path remains the tab’s (4.4).
     A flow’s completion returns to its tab; Start over on a forge cut
     short returns to Forges.
-  - "Settings" is current on every tab, on `ConnectForge`, `ConnectModel`,
-    `Adopt` and `Configure`, and on a configuring chat. A project's Delete,
+  - "Settings" is current on every tab, on `ConnectForge`, `ConnectModel`
+    and `Adopt`, and never on `Ask` or an Ask temper chat. A project's Delete,
     when it is built, is on How work runs (section 10).
 - **Away** (the greenfield mock's `home.html`, `phone.html` and
   `settings.html`'s `#away`; `../domain/forge.md`, 5.8 and 5.9): a person's
@@ -2714,28 +2721,30 @@ keeps (`../protocol/configuration.md`, section 2).
   the scripted model finds the cue there (`../protocol/setup.md`, 8.4), so
   the chat plays the cue's script; the composer's text is left as it
   was.
-- **The first chat** (`../draft/configuring.md`, 5.1): Home's first step
-  offers "Tell temper how you work", and its "Start" opens `Configure {
-  project }` (below): a step says what the person does, and what it opens
-  is named "Configure temper". Settings keeps its "Configure temper"
-  (*Settings,* below), and "How work runs" makes the same offer (5.13). The
-  chat starts with the person's own words, never with canned ones. The
-  Chats page makes no such offer.
-- **The configuring chat's page** (the mock's
-  `chat.html?id=new&configure=1`, in the project's frame):
-  `Configure { project }`, at `/projects/<project>/settings/configure`,
-  under `Settings`, so that it reads as configuring temper and not as
-  one more chat. It opens that project as `Home` does; with no
+- **The first chat** (`../draft/ask-temper.md`, section 9;
+  `../draft/configuring.md`, 5.1): Home's first step offers "Tell temper
+  how you work", and its "Start" opens Ask temper, as the rail's "Ask
+  temper" and the tab bar's "Ask" do (5.3): the person's newest Ask temper
+  chat open in the project, as `Chats` reads them, or else `Ask { project
+  }` (below). A step says what the person does, and what it opens is
+  named "Ask temper". The chat starts with the person's own words, never
+  with canned ones. Neither Settings nor the Chats page makes the offer.
+- **Ask temper's page** (the mock's `chat.html?id=new&configure=1`, in
+  the project's frame, out of Settings as the look request
+  `ask-temper-place` places it; `../draft/ask-temper.md`, section 9):
+  `Ask { project }`, at `/projects/<project>/ask`, through no Settings, so
+  that it reads as asking temper itself and not as one more chat or a
+  setting. It opens that project as `Home` does; with no
   such project in `me` it says what `Home` says. Each main of this
   layout (`temper-session`) is the page's height, in this order:
   - *Its top bar:* the path, a navigation named "Where": on a wide page
-    PROJECT, a link to `Home`, and "Settings", a link to `Settings`, each
-    followed by "/", then the level-1 heading "Configure
-    temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
-    heading. With a composer its bar names no model: what the chat's runs use is the picker's,
-    under its composer (*The work's account and model,* below): on a
-    configuring chat, what its next run takes, as any chat's; with no chat
-    yet, what one would, template 3's `resolved_default` in `me` (5.5), and a
+    PROJECT, a link to `Home`, followed by "/", then the level-1 heading
+    "Ask temper", the page's title too; on a phone "‹", a link named
+    "Home", alone before the heading. With a composer its bar names no
+    model: what the chat's runs use is the picker's,
+    under its composer (*The work's account and model,* below): on an
+    Ask temper chat, what its next run takes, as any chat's; with no chat
+    yet, what one would, template 5's `resolved_default` in `me` (5.5), and a
     choice made here is the chat's when it starts. It never sets one LLM
     provider's account beside another's model; with no usable account the
     composer says what 5.5 says then, and there is no picker.
@@ -2783,15 +2792,15 @@ keeps (`../protocol/configuration.md`, section 2).
     the three is one line of words, "TERM: LINE", and "Ways to begin" is
     its section's name, once; the wide card's title, steps and buttons
     follow in that order, the steps a list with no arrows.
-  - *The composer,* a form named "Configure temper", at the
-    foot, focused as the page opens: its text area "Describe how you
-    work, or what to change", that its placeholder too, its text 14
+  - *The composer,* a form named "Ask temper", at the
+    foot, focused as the page opens: its text area "Ask temper, or tell it
+    how you work", that its placeholder too, its text 14
     pixels in from the composer's edge; "Send", the send arrow on ink in a rounded
     square, grey while disabled, which it is while the text is empty;
     under it the chat page's hint, "Enter sends · Shift+Enter for a
     new line". Its picker is on that row, as a chat's: a choice there is this
-    chat's alone, and the configuring role's models stay a setting (5.13),
-    which this chat can change. On a
+    chat's alone, and Ask temper's models, charter 11's, stay a setting
+    (5.13), which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
     the foot, and with them the model's line and the composer's hint,
     as the configure-chat look request draws it.
@@ -2809,32 +2818,17 @@ keeps (`../protocol/configuration.md`, section 2).
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
-  message, as a suggested request does: one act, one request (3.6), from template 3
-  (`../protocol/configuration.md`, 13.4) while `me` lists it among the
-  project's templates, else template 1, with its template's own models.
+  message, as a suggested request does: one act, one request (3.6), from
+  template 5 (`../protocol/configuration.md`, 13.4), with its own models,
+  while `me` lists it among the project's templates. With none it falls
+  back to no other template: "Send" stays disabled, a starter starts
+  nothing, and under the composer "Ask temper isn't set up in this
+  project."; nor do the rail and the tab bar offer it (5.3).
   While it is out, the four starters, "Start from it" and "Send" are disabled
   and the words stay; "See how it works" starts nothing, and stays enabled;
-  made, the chat's page opens; refused, jig's words stay under the
-  composer, the words kept. The chat names no repository.
-- **Ask temper's page** (`../draft/ask-temper.md`, section 9): `Ask {
-  project }`, at `/projects/<project>/settings/ask`, under `Settings`, is
-  the configuring chat's page with these differences, the rest as it is
-  there: its path PROJECT / Settings / Ask temper, and its title and
-  level-1 heading "Ask temper"; its opening the level-2 heading "What
-  would you like to know?", drawn as the configuring page's, and the lede
-  "Ask how temper works, how PROJECT is set up, or how a piece of work
-  ran. It changes nothing; where you want temper to work differently, it
-  proposes settings for you to accept.", with no list, no note, no "Ways
-  to begin" and no card of temper's own way; its composer a form named
-  "Ask temper", its text area "Ask about temper or this project", that
-  its placeholder too; its picker, with no chat yet, what template 5's
-  `resolved_default` in `me` gives. "Send" starts the chat from template 5
-  (`../protocol/configuration.md`, 13.4), its words the first message, as
-  the configuring page's does, while `me` lists template 5 among the
-  project's templates; with none, "Send" stays disabled and the composer
-  says "Ask temper isn't set up in this project." The chat names no
-  repository. Made, the chat's page opens: it is a chat like any other
-  there.
+  made, the chat's page opens: it is a chat like any other there; refused,
+  jig's words stay under the composer, the words kept. The chat names no
+  repository.
 - **temper's own way, beside the page** (`../draft/own-way.md`, 2 and 3):
   "See how it works" opens the reference, "How temper builds temper", in
   the pane of *A chat's document* (below), in Split, the rail folded, the
@@ -2869,22 +2863,24 @@ keeps (`../protocol/configuration.md`, section 2).
     heading.
   - *A chat started beside it,* by a starter or "Send", opens the chat's page
     as from the page alone, and the reference closes; the chat's own document
-    comes when it writes one. The configuring agent reads the same page
-    (`../domain/agent.md`, 8.1).
-- **A configuring chat** is a chat whose chip's executor is the charter
-  of template 3 as `me` lists it (*Home,* above). In `Chats` it is listed
-  with the others, tagged "Configuring". Its `Chat { task }`, opened from
-  there, from its start or from its proposal's review (5.13), has this
-  layout: the same top bar, its path still through `Settings`, its
-  heading the chat's number and title as a chat's is, then its number,
-  its status, its spend, Pause or Resume, and Close; the
-  conversation as a chat's in place of the starters; the composer of
-  this layout, its text area "Message" as a chat's, and none on an ended chat; "Settings" is the
-  rail's current entry. Its address stays `/chats/<task>`. A chat from
+    comes when it writes one. Ask temper reads the same page, as any of
+    temper's pages (`../domain/agent.md`, 8.1).
+- **An Ask temper chat** is a chat whose chip's executor is the charter
+  of template 5 as `me` lists it (*Home,* above). In `Chats` it is listed
+  with the others, tagged "Ask temper". Its `Chat { task }`, opened from
+  there, from its start, from the rail's "Ask temper" or from its
+  proposal's review (5.13), has this layout: the same top bar, its path
+  "PROJECT / Ask temper /", "‹" on a phone a link named "Ask temper" to
+  `Ask { project }`, its heading the chat's number and title as a chat's
+  is, then its number and " · Ask temper", its status, its spend, Pause
+  or Resume, and Close; the conversation as a chat's in place of the
+  starters; the composer of this layout, its text area "Message" as a
+  chat's, and none on an ended chat; the rail's "Ask temper" and the tab
+  bar's "Ask" are current. Its address stays `/chats/<task>`. A chat from
   template 1 is any chat.
 - **The work's account and model.** The model and effort sit at the composer,
-  on every chat: a new chat's, Configure temper's, a chat's and a configuring
-  chat's (the look request `model-picker`). A choice is the task's LLM choice,
+  on every chat: a new chat's, Ask temper's page's, a chat's and an Ask
+  temper chat's (the look request `model-picker`). A choice is the task's LLM choice,
   from the chat's next run (jig's `domain/tasks.md`, sections 3 and 7).
   - *The picker* is on the hint's row, at the composer's right edge: a
     disclosure named "Model" (skein's `ui.md`, its disclosure), which folds
@@ -2894,7 +2890,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Its closed line* says the model and effort Create or the next run would
     take, with no account: the draft's LLM choice, or with none the supplied
     `resolved_default` of the chat's template (jig's `client/domain/contract.md`,
-    5.1), a configuring chat's its charter's template, any other's template 1;
+    5.1), an Ask temper chat's its charter's template, 5, any other's template 1;
     "the default model" where neither names one. "Claude" goes before the shown
     name of a model of the `anthropic` provider and no other provider's name
     goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". Its
@@ -3120,7 +3116,7 @@ keeps (`../protocol/configuration.md`, section 2).
   | Confirms | Title | Says | Keeps | Does |
   |---|---|---|---|---|
   | closing a chat | "Close this chat?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close chat" |
-  | "Start over" | "Start over?" | "A new configuring chat starts. This one stays in Chats.", and what it changes | "Keep going" | "Start over" |
+  | "Start over" | "Start over?" | "A new Ask temper chat starts. This one stays in Chats.", and what it changes | "Keep going" | "Start over" |
   | closing a goal | "Close this goal?" | "You can still read it, but it can’t be reopened.", then "What landed on its branch stays there." | "Keep it" | "Close goal" |
   | closing an agent's task | "Close this task?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close task" |
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
@@ -4397,10 +4393,9 @@ page (5.1): a navigation named by the open project, in this order:
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
   there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals` with the filter All, only while the project's
-  kind 7 shows them or the project holds a goal (`Domain::has_goals`, below), the setting hiding an offer and not a person's own work; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
+  kind 7 shows them or the project holds a goal (`Domain::has_goals`, below), the setting hiding an offer and not a person's own work; "Chats", to `Chats`; "Ask temper", to the person's newest Ask temper chat open in the project or else `Ask { project }` (3.5, *The first chat*), only while `me` lists template 5 among the project's templates (`../draft/ask-temper.md`, section 9; the look request `ask-temper-place`); and "Changes", to `Changes { project }`, only while
   kind 7 shows them; current on `Home`, on `Inbox`, on Goals, a tracked goal and a task whose document names a goal, on
-  `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
-  "Settings", and on Changes. On Goals, on a goal and on Changes their
+  `Chats`, `NewChat` and `Chat` but an Ask temper chat's, on `Ask` and an Ask temper chat, and on Changes. On Goals, on a goal and on Changes their
   entry stays shown, so that nothing goes from under the person; a hidden
   page keeps its address, hiding removing the way in and not the page.
   Until kind 7 is read, or if its read is refused, the optional entries
@@ -4413,8 +4408,8 @@ page (5.1): a navigation named by the open project, in this order:
   behind a dashed line, named "More ways to start work", drawn as a chevron, its
   name hidden by style, opening skein-ui's menu (`Role::Menu`; skein's `ui-web.md`,
   section 6), a panel under the entry 288 pixels wide, past the rail's edge and
-  over the page. Its items, a name and a line each: "Chat", "Ask a question or ask
-  for a change.", to `NewChat`; "Goal", "Agents plan a larger change and land it.",
+  over the page. Its items, a name and a line each: "Chat", "Ask about the code
+  or ask for a change.", to `NewChat`; "Goal", "Agents plan a larger change and land it.",
   to `NewChat { draft: true }`, a goal being started from a draft, while
   `drafts_offered` (3.5); then, after a rule, "All ways to start work", muted, one
   line, to `Settings { project }`, or `HowWorkRuns` once it has an address. Each
@@ -4448,9 +4443,10 @@ page (5.1): a navigation named by the open project, in this order:
 rail's navigation: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
-"Needs you", then "Goals" and "Chats" while the rail shows Goals, "Chats"
-and "Settings" while it doesn't, drawn at phone width alone
-(`browser.md`, 2.5); with Goals shown, Settings is reached by the
+"Needs you", then "Goals", "Chats" and "Ask" while the rail shows Goals,
+"Chats", "Ask" and "Settings" while it doesn't, "Ask" named "Ask temper"
+and shown, and current, as the rail's "Ask temper" is, drawn at phone
+width alone (`browser.md`, 2.5); with Goals shown, Settings is reached by the
 switcher's "Settings for PROJECT". The Away switch is a chip in the top
 bar, on the rail's terms. The terminal has no tab bar.
 
@@ -4513,7 +4509,7 @@ With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
 a project keeps the page where it can (3.5): on `Home`, `Changes`, `Settings`,
-`Repositories` and `Configure`, that project's page; on `Forges` and
+`Models`, `Builders`, `Repositories` and `Ask`, that project's page; on `Forges` and
 `Accounts`, the same page, the words naming the project changed.
 
 The acts of both, each one act and one request (3.6):
@@ -4537,7 +4533,7 @@ The acts of both, each one act and one request (3.6):
   name taken, its shape, the role), the form stays and says why under
   its field. A closed form leaves the focus on the switcher's summary
   (skein's `ui-web.md`, 7), or on a page's own field where the page asks
-  it (a new chat, Configure, a composer after a send, 3.5).
+  it (a new chat, Ask temper's page, a composer after a send, 3.5).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
   "Create", or the field's Enter, sends jig's `MakeProject { name,
@@ -4730,7 +4726,7 @@ The words for each offered source are:
   "Pays for": a plan's, "Your own work, and projects where you’re the
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
-- **A run's wait,** above any chat's composer, a configuring chat's too, and
+- **A run's wait,** above any chat's composer, an Ask temper chat's too, and
   on an agent's task's page, says in the person's words why its run can't
   start, from the task's `run_wait`, and offers the act where there is one:
   - *No account for it:* a task given a model, "No account can run MODEL
@@ -4783,7 +4779,7 @@ The words for each offered source are:
 
     A refused hello whose cause is an agent's shortfall with figures, no
     worker admitted at all, says the same of the refused worker: "No worker
-    can take this: charter 3 asks 100,000 turns, and the worker refused at
+    can take this: charter 2 asks 100,000 turns, and the worker refused at
     10:42 takes 800." (5.12's clock), its charter named, as the refusal may
     be another charter's. Every other refused hello keeps 3.5's "Next run
     refused · WHY". The status above the composer is "Cannot start yet"
@@ -4811,8 +4807,8 @@ The words for each offered source are:
     it names none, that model's default in the offer.
     Where neither the task nor the template names a model, it is the supplied
     `resolved_default` of the page's template in `me` (jig's
-    `client/domain/contract.md`, 5.1), a configuring chat's its charter's
-    template, any other's template 1, what a run's check would take now for
+    `client/domain/contract.md`, 5.1), an Ask temper chat's its charter's
+    template, 5, any other's template 1, what a run's check would take now for
     a task keeping no account, in charter order, under the effective
     authority and the current receiving party as payer.
     The composer never infers a default from the project catalogue's
@@ -5887,21 +5883,6 @@ section 5.
 - **The tab,** `Settings { project }` (3.5, *Settings*), under its tabs: its
   sections 44 apart, each a section title and its rows, each row a label,
   small words and a control at its right, a phone stacking them:
-  - *Configure temper,* with no title: "Tell it how you work, in your own
-    words or by pointing at a document. It proposes the settings; nothing
-    changes until you accept."; "Start", primary, to `Configure { project }`;
-    or "Go on", to the person's newest configuring chat open in the project
-    (3.5). To begin's step keeps its words, "Tell temper how you work". The
-    configuring page is a page of its own, its path PROJECT / Settings /
-    Configure temper; it is not folded into this tab or docked beside it.
-  - *Ask temper,* under Configure temper in the same section, with no title:
-    "Ask how temper works, how it's set up here, or how your work ran. It
-    changes nothing; it may propose settings for you to accept."; "Start",
-    primary, to `Ask { project }` (3.5, *Ask temper's page*); or "Go on",
-    to the person's newest Ask temper chat open in the project, a chat whose
-    executor is template 5's configured charter, found as Configure's is for
-    template 3's. While `me` lists no template 5 among the project's
-    templates, the row is not drawn.
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
 
@@ -5932,6 +5913,10 @@ section 5.
   - A disabled section's last line says once "Not built yet: this is what
     temper does today."; Funds' small words say the same. No control does
     nothing: whoever builds a mechanism later turns its row on.
+- **No way into Ask temper:** the tab offers none, and no pointer to it: the
+  rail holds it on every page of the project (5.3), and its page is through no
+  Settings (`../draft/ask-temper.md`, section 9; the look request
+  `ask-temper-place`). Ask temper changes settings by a proposal (below).
 - **What the client holds:** jig's `settings` watch, for the session, as the
   `dismissed` and `forges` watches are held, Home reading the same one. It reads
   kind 7 of the open project as the project opens, and kind 6 on the tab,
@@ -5943,7 +5928,7 @@ section 5.
   while its project is open, kind 6 while the tab is open; leaving that scope
   drops its retry. Until first read, or after a lasting refusal, the optional entries
   read as hidden, with 5.3's exceptions for a current page and a project holding a
-  goal; `drafts_offered` is false, with the configuring chat's exception (3.5).
+  goal; `drafts_offered` is false, with an Ask temper chat's exception (3.5).
   The tab's live controls draw the stock, disabled; a value of none reads as
   the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
@@ -5958,7 +5943,7 @@ section 5.
   one marked so; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
   the offer of Goals and not a goal the project holds; `drafts`,
-  `pages::chats::drafts_offered`, the chats' offer of a draft, a configuring
+  `pages::chats::drafts_offered`, the chats' offer of a draft, an Ask temper
   chat's apart (3.5), and nothing else;
   and these open the tab, `Address` having no anchors: Home's "Show goals",
   "See the settings" and "Limits".
@@ -6086,7 +6071,7 @@ the document gives them; the client hides nothing of its own.
 - **Proposals, but for the tab's own rows** (`../draft/configuring.md`, section
   10; jig keeps the owner's direct change in its API, and the pages send
   `ChangeSettings` only for a row of the tab that is one setting, above). A later row's act is "Change it in a chat", which
-  starts the configuring chat with the row named in its first message.
+  starts an Ask temper chat with the row named in its first message.
   "Reset to default…" on a changed default, "Remove…" on an added
   setting and "Restore…" in the history are the person's own proposals
   (jig's `Propose`), each confirmed (3.6) and opening its review page.
@@ -7651,9 +7636,9 @@ own tests:
   and a refusal leaving the project made and the adoption offered from
   Home; "Skip" on Home reaching every client of the person, holding
   across a restart, and leaving another person's To begin and the
-  person's other projects' as they were; the configuring chat started
-  from `Configure`, from template 3, and `Settings`' "Configure temper"
-  then naming it; a project with no
+  person's other projects' as they were; an Ask temper chat started
+  from `Ask`, from template 5 and run by charter 11, and the rail's "Ask
+  temper" then opening it; a project with no
   repository saying so on its chats page, with "Adopt a repository";
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
@@ -7884,13 +7869,13 @@ own tests:
   Default: no line; a closed agent's task uses its taskbar (5.9).
 - **The closed model line after landing** (3.5, 5.9; the request
   `ui-model-line`): checking the muted header and taskbar in a browser and
-  a real configuring chat remains after landing. Default: the view tables
+  a real Ask temper chat remains after landing. Default: the view tables
   cover both shells and the joined client story carries smith's bytes to
   the terminal's closed header; no browser, walk or render check is a
   condition for completing the plan. A phone retains its hidden byline.
 
 - **The fresh project's draft flow after landing** (3.5, 5.3, 5.13):
-  checking the configuring chat with drafts off, and a fresh chat's draft,
+  checking an Ask temper chat with drafts off, and a fresh chat's draft,
   goal and navigation on a real box. The view tables and `chat-draft`'s
   fake-model journey cover the offers and flow. Default: browser, walk and
   render checks follow landing, under the `ui-drafts-default` request;
@@ -7934,9 +7919,9 @@ own tests:
   field stays mounted and its value count stays unchanged. Keeping the whole
   edit across a new drawing, or in the terminal, needs room beyond that bound.
   Default: the bounded prefix and count, with Send disabled while any lies beyond.
-- **A fresh configuring chat from its composer** (3.5, *The configuring chat's
-  page*): a command ("/clear") once the composer takes commands. Default: "Start
-  over" in its bar.
+- **A fresh Ask temper chat from its composer** (3.5, *Ask temper's page*): a
+  command ("/clear") once the composer takes commands. Default: "Start over" in
+  its bar.
 - **The line's words** (3.5, *its calls*; `../draft/chat-reading.md`, 7): the user
   reads the table's verbs on a real chat. `read_file` and the forge's other reads
   stay their names, as the draft's example has it, and so do `recall` and `message`,
@@ -7959,8 +7944,8 @@ own tests:
   2026-11-06, and a flow is one path, its parts in parallel a caption until they
   branch. Default: the numbered list.
 - **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
-  `../draft/own-way.md`, 3, has a question about it be the configuring chat's,
-  beside it. Default: a chat started there closes it, and a question about it
+  `../draft/own-way.md`, 3, has a question about it be Ask temper's, beside
+  it. Default: a chat started there closes it, and a question about it
   goes to a chat that no longer shows it.
 - **The table's QA row** (3.5, *temper's own way, beside the page*): it says "Later"
   until QA after landing is built (`../domain/findings.md`, section 8), then names

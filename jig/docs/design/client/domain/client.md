@@ -1353,8 +1353,8 @@ with a person in front of a tree, are view.md's, 18.10.
   - `shapes::chat(me, project, words)` fills the chat template into a
     `Create`, and `shapes::chat_from(me, project, template, words)`
     fills a chat's template named by its number the same way, for an
-    application offering more than one (temper's configuring chat,
-    template 3): a template `me` does not offer the project, or one
+    application offering more than one (temper's Ask temper,
+    template 5): a template `me` does not offer the project, or one
     whose flags make no conversation (contract.md, 3.2), gives
     `NotOffered::Template`;
   - `shapes::close_chat(task, disposals)` gives one compound request:
