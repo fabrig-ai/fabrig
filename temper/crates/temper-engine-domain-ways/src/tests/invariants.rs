@@ -13,7 +13,8 @@ pub(crate) fn bounds(path: &Path) {
         }
         for fact in &stop.card.facts {
             assert!(fact.label.len() <= LABEL, "label bound");
-            assert!(fact.value.len() <= VALUE, "value bound");
+            let bound = if fact.label.as_ref() == b"Asked to" { ASKED } else { VALUE };
+            assert!(fact.value.len() <= bound, "value bound");
             assert!(skein_lib::bytes::is_utf8(&fact.value), "value ends at a character boundary");
         }
     }

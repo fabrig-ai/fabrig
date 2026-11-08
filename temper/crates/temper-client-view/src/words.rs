@@ -288,6 +288,10 @@ pub enum Word {
     SettingsBuildersTab,
     SettingsBuildersHeading,
     SettingsBuildersLede,
+    RoleReading,
+    RoleUnreadable,
+    RoleRuleReading,
+    RoleRuleUnreadable,
     BuildersCount,
     BuildersSlot,
     BuildersSlots,
@@ -1538,7 +1542,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2092;
+const PHRASES: u32 = 2096;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1565,10 +1569,10 @@ const PHRASES: u32 = 2092;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3683;
+const SEGMENTS: u32 = 3699;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51396;
-const ALL: [Word; 1410] = [
+const ENGLISH_BYTES: u32 = 51503;
+const ALL: [Word; 1414] = [
     Word::WaysLede,
     Word::WaysTitle,
     Word::WaysNow,
@@ -1838,6 +1842,10 @@ const ALL: [Word; 1410] = [
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
+    Word::RoleReading,
+    Word::RoleUnreadable,
+    Word::RoleRuleReading,
+    Word::RoleRuleUnreadable,
     Word::BuildersCount,
     Word::BuildersSlot,
     Word::BuildersSlots,
@@ -3295,6 +3303,10 @@ impl Word {
             Self::SettingsBuildersTab => 3467,
             Self::SettingsBuildersHeading => 3468,
             Self::SettingsBuildersLede => 3469,
+            Self::RoleReading => 3560,
+            Self::RoleUnreadable => 3561,
+            Self::RoleRuleReading => 3562,
+            Self::RoleRuleUnreadable => 3563,
             Self::BuildersCount => 3470,
             Self::BuildersSlot => 3471,
             Self::BuildersSlots => 3472,
@@ -6008,6 +6020,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsBuildersTab => (&[b"Builders"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
         Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::RoleReading => (&[b"Reading role ", b"\xe2\x80\xa6"], &[Number]),
+        Word::RoleUnreadable => (&[b"This role can't be read now: charter ", b"."], &[Number]),
+        Word::RoleRuleReading => (&[b"Reading rule ", b"/", b"\xe2\x80\xa6"], &[Number, Number]),
+        Word::RoleRuleUnreadable => (&[b"This rule can't be read now: rule ", b"/", b"."], &[Number, Number]),
         Word::BuildersCount => (&[b"Builders \xc2\xb7 ", b""], &[Number]),
         Word::BuildersSlot => (&[b"", b" slot \xc2\xb7 ", b" in use"], &[Number, Number]),
         Word::BuildersSlots => (&[b"", b" slots \xc2\xb7 ", b" in use"], &[Number, Number]),

@@ -133,9 +133,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
@@ -418,6 +418,11 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+A start smith refuses as busy spends no try, but `temper help task` still
+says an "invalid results" hold may mean a start refused before any turn,
+which spends a permanent try (`domain/worker.md`). Template 4's report
+reaches its run as at most 1,024 bytes, jig's contract text bound, where
+the reference gives it 63,738 (`protocol/configuration.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment

@@ -11,24 +11,30 @@ fn a_mark_past_scene_marks_refuses_the_scene() {
     assert_eq!(scene.marks().len(), 0);
 }
 #[test]
-fn a_scene_says_its_height_until_cleared_or_refused() {
+fn a_scene_says_its_size_until_cleared_or_refused() {
     let limits = Limits { scene_marks: 1, ..LIMITS };
-    for height in [0, 74, u16::MAX] {
+    for (width, height) in [(0, 0), (720, 74), (u16::MAX, u16::MAX)] {
         for refuse in [false, true] {
             let mut scene = Scene::new(&limits);
+            assert_eq!(scene.width(), None);
             assert_eq!(scene.height(), None);
             assert!(scene.rect(ZERO, Point { x: 4, y: 4 }, 0, &[]));
+            scene.set_width(1);
+            scene.set_width(width);
             scene.set_height(1);
             scene.set_height(height);
+            assert_eq!(scene.width(), Some(width));
             assert_eq!(scene.height(), Some(height));
-            let expected = alloc::fmt::format(format_args!("height {height}\nrect 0,0 4x4 r0\n"));
+            let expected = alloc::fmt::format(format_args!("width {width}\nheight {height}\nrect 0,0 4x4 r0\n"));
             assert_eq!(alloc::fmt::format(format_args!("{scene}")), expected);
             if refuse {
                 assert!(!scene.circle(ZERO, 1, &[]));
+                scene.set_width(width);
                 scene.set_height(height);
             } else {
                 scene.clear();
             }
+            assert_eq!(scene.width(), None, "width {width}, refuse {refuse}");
             assert_eq!(scene.height(), None, "height {height}, refuse {refuse}");
             assert_eq!(alloc::fmt::format(format_args!("{scene}")), "");
         }

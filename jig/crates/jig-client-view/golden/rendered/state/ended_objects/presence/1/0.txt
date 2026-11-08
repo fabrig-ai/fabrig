@@ -76,12 +76,11 @@
           ## Result
           * Open
           Task 9: Review:
-            Task 9: Review:
-              [3] Task 9: Review
-              Person 1
-              Held
-              Held budget
-              Current revision 4
+            [3] Task 9: Review
+            Person 1
+            Held
+            Held budget
+            Current revision 4
             Completed
             Completion time not supplied
             Verdict 1
@@ -93,12 +92,11 @@
           ## Result
           * Open
           Task 9: Review:
-            Task 9: Review:
-              [5] Task 9: Review
-              Person 1
-              Held
-              Held budget
-              Current revision 4
+            [5] Task 9: Review
+            Person 1
+            Held
+            Held budget
+            Current revision 4
             Completed
             Completion time not supplied
             Verdict 1
@@ -112,12 +110,11 @@
         Funded by
         Funded by pool in project 4, person 1, period 3
       Task 8: Review:
-        Task 8: Review:
-          [6] Task 8: Review
-          Person 1
-          Held
-          Held budget
-          Current revision 4
+        [6] Task 8: Review
+        Person 1
+        Held
+        Held budget
+        Current revision 4
         Completed
         Completion time not supplied
         independent result

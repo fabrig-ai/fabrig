@@ -162,6 +162,9 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Person(PersonStep::Go { address: b"/".as_slice().into() }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
+        // The rail comes with the page once `me` is read; until then the main is empty and busy
+        // (temper/docs/design/client/README.md, 5.1).
+        see(Find::exactly_named(Role::Link, b"New chat")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
         press(Role::Link, b"New chat"),
@@ -179,6 +182,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats".as_slice().into()),
         pressed(b"All"),
         Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
+        see(Find::exactly_named(Role::Link, b"New chat")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
         Step::Address(b"/".as_slice().into()),

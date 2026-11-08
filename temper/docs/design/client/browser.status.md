@@ -31,7 +31,7 @@ and the phone's three tabs. No known implementation gap remains in
 these repairs. The existing history story has the night reload row and
 story 11's phone Ask row (4.6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test
-function, and no passing run of either is supplied here.
+function, and both pass in that story's runs alone (4.6, below).
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
@@ -51,18 +51,23 @@ reference's pane are gone. `ask-first-run` draws the ways and the eight
 `ask-ways-*` states stand; `ask-reference` and `ask-reference-draft` are
 gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
 first" to its "Use this", in the existing history story; it checks
-neither Agents review's "now" nor the line and the path, and no passing
-run of it is supplied here. The rendered comparison follows landing
-(`README.md`, section 11).
+neither Agents review's "now" nor the line and the path. The rendered
+comparison follows landing (`README.md`, section 11).
 
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation
 gap remains in those reads. The client takes its filter from the address;
 Drafts arriving before Closed is section 5's deferred row movement, not
-a loss of the selected filter. The runtime and whole-tier budget gaps
-below remain; the supplied evidence contains no browser-run results for
-this repair.
+a loss of the selected filter. After each new load of `/` and of an
+address that is no page, the story awaits the rail's "New chat" link,
+drawn with the page once `me` is read (`README.md`, 5.1), before its
+unchanged main and Needs checks, so the empty busy main meets none of
+them. The whole story, its phone Ask, call-line and night rows with it,
+passed ten runs in a row by name and alone, unloaded, at `0320c6fcd6`;
+main has changed neither the story nor the browser's client since. No
+whole-tier run on record holds it, and the runtime and whole-tier budget
+gaps below remain.
 
 Sections 2.5 and 7.2 have the Models tab's shipped view and gallery states.
 Every Settings select has the chevron rule above its scoped backgrounds
@@ -260,10 +265,10 @@ establish no rendered equality.
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
   re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
-  and phone geometry) retain story labels for failed steps. No supplied
-  passing run proves all these current merged stories in Chromium. The call line's
-  retained open node, the picker's 420 px, one-press model and effort,
-  outside and Escape checks, a step changing and restoring anchoring on a
+  and phone geometry) retain story labels for failed steps. Test 2 alone
+  has passing runs on record in Chromium, run alone (4.6, above); none
+  proves the other current merged stories. The picker's 420 px, one-press
+  model and effort, outside and Escape checks, a step changing and restoring anchoring on a
   live page (4.3), and both sign-ins in one browser (4.2) await after-landing
   proof (section 5). The picker's separate render and fake-box proof at
   `1d82a937df` establishes no passing run of the merged story. Whether
