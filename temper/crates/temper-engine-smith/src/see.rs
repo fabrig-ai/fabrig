@@ -287,6 +287,8 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
             temper_engine_domain_forge::Follows::Branch(branch) => branch,
             temper_engine_domain_forge::Follows::Goals => b"goals' branches".as_slice(),
         };
+        let checks =
+            if tier.description.is_empty() { Box::default() } else { join(&[b", checks ", &tier.description]) };
         parts
             .push(join(&[
                 b"  ",
@@ -297,6 +299,7 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
                 &tier.artifact,
                 b", follows ",
                 follows,
+                &checks,
                 &ignored_text(&tier.ignored),
                 b"\n",
             ]))

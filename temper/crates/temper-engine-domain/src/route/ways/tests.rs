@@ -118,7 +118,8 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 artifact: b"result".as_slice().into(),
                 format: temper_engine_domain_forge_tiers::Format::Junit,
                 follows: forge::Follows::Goals,
-                span: None
+                span: None,
+                description: b"the slow suites".as_slice().into(),
             }]),
         }]),
         forge::AfterLanding {
@@ -193,7 +194,11 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             assert_eq!(repository.gates.as_ref(), [Box::from(b"focused".as_slice())], "{name}");
             assert_eq!(
                 repository.tiers.as_ref(),
-                [ways::Tier { name: b"fuzzy".as_slice().into(), follows: forge::Follows::Goals }],
+                [ways::Tier {
+                    name: b"fuzzy".as_slice().into(),
+                    follows: forge::Follows::Goals,
+                    description: b"the slow suites".as_slice().into()
+                }],
                 "{name}"
             );
         }

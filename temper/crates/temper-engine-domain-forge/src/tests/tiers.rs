@@ -48,6 +48,7 @@ fn restoring_following(follows: Follows) -> Domain {
                 format: p::Format::Lines,
                 follows,
                 span: None,
+                description: Box::default(),
             }])
         }]),
         AfterLanding {

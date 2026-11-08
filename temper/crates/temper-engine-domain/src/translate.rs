@@ -94,6 +94,7 @@ pub struct TierCheck {
     pub format: temper_engine_domain_forge_tiers::Format,
     pub follows: forge::Follows,
     pub span_ms: u64,
+    pub description: Box<[u8]>,
 }
 /// A project's verification settings (protocol/configuration.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -130,6 +131,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                         0 => None,
                         millis => Some(skein_lib::Duration::from_millis(millis)),
                     },
+                    description: tier.description.clone(),
                 })
                 .expect("counted tiers");
         }

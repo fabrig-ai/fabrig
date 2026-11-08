@@ -2222,6 +2222,7 @@ fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierChec
             None => super::forge::Follows::Landing,
         },
         span_ms: 0,
+        description: Box::default(),
     }
 }
 

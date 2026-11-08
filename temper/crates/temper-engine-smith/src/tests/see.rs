@@ -309,6 +309,7 @@ fn landing_and_gates_read_the_configured_values() {
                 ignored: Box::new([b"docs".as_slice().into()]),
                 follows,
                 span: None,
+                description: b"the slow suites".as_slice().into(),
             })
             .into(),
     };
@@ -316,7 +317,7 @@ fn landing_and_gates_read_the_configured_values() {
         (none, "gates of org/empty:\n  none\ntiers of org/empty:\n  none\n"),
         (
             SeeRepository { name: b"org/repo".as_slice().into(), checks },
-            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, ignoring docs\n",
+            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
         ),
     ] {
         assert_eq!(
