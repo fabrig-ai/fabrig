@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
 ><title
->How work runs in Hello. · temper</title
+>Agents review · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -120,20 +120,24 @@
 >Night mode</button
 ></nav
 ><main class="temper-main temper-settings"
-><div class="temper-settings-col"
+><div class="temper-settings-col temper-how-wide"
 ><div class="temper-settings-intro"
 ><p aria-label="Hello · settings" class="temper-settings-kicker"
 ><span
 >Hello · settings</span
 ></p
-><h1 aria-label="How work runs in Hello." class="temper-settings-headline"
+><h1 aria-label="Agents review" class="temper-settings-headline"
 ><span
->How work runs in Hello.</span
+>Agents review</span
 ></h1
-><p aria-label="Everything the other pages do for this project comes from here, so each project, and each person, can work its own way." class="temper-settings-lede"
+><p aria-label="An agent makes each change, another reviews it, and code lands it. Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it." class="temper-settings-lede"
 ><span
->Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.</span
+>An agent makes each change, another reviews it, and code lands it. Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.</span
 ></p
+><a aria-label="Ask temper to change this" class="temper-settings-primary" href="/projects/1/ask"
+><span
+>Ask temper to change this</span
+></a
 ></div
 ><nav aria-label="Settings" class="temper-settings-tabs"
 ><a aria-label="How work runs" aria-current="page" href="/projects/1/settings"
@@ -163,148 +167,202 @@
 ></nav
 ><div class="temper-settings-body"
 ><div class="temper-settings-section"
-><h2 aria-label="What the project shows" class="temper-settings-section-title"
+><div class="temper-settings-section-head"
+><h2 aria-label="The path of a change" class="temper-settings-section-title"
 ><span
->What the project shows</span
+>The path of a change</span
 ></h2
-><div class="temper-settings-setting"
-><div
-><span aria-label="Chats can write drafts"
+><span aria-label="the way: Agents review" class="temper-how-way"
 ><span
->Chats can write drafts</span
-></span
-><small role="generic" aria-label="A chat keeps a document beside it, in docs/design/draft/, that a goal can start from." class="temper-settings-detail"
-><span
->A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="On"
-><span
->On</span
-></span
-><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-84"
-><label for="skein-ui-label-84"
->Chats can write drafts</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Goals"
-><span
->Goals</span
-></span
-><small role="generic" aria-label="Bigger work from a draft: a plan, tasks, landing." class="temper-settings-detail"
-><span
->Bigger work from a draft: a plan, tasks, landing.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-94"
-><label for="skein-ui-label-94"
->Goals</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Changes"
-><span
->Changes</span
-></span
-><small role="generic" aria-label="The landing queue, as a page." class="temper-settings-detail"
-><span
->The landing queue, as a page.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-104"
-><label for="skein-ui-label-104"
->Changes</label
-></div
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Away switch"
-><span
->Away switch</span
-></span
-><small role="generic" aria-label="Lets agents decide within limits while you’re away." class="temper-settings-detail"
-><span
->Lets agents decide within limits while you’re away.</span
-></small
-></div
-><div class="temper-settings-toggle-row"
-><span aria-label="Hidden"
-><span
->Hidden</span
-></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-114"
-><label for="skein-ui-label-114"
->Away switch</label
-></div
-></div
-></div
-><div class="temper-settings-section"
-><h2 aria-label="Status" class="temper-settings-section-title"
-><span
->Status</span
-></h2
-><div class="temper-settings-setting"
-><div
-><span aria-label="Status lines and reports"
-><span
->Status lines and reports</span
-></span
-><small role="generic" aria-label="Written words, beside the counts temper keeps itself." class="temper-settings-detail"
-><span
->Written words, beside the counts temper keeps itself.</span
-></small
-></div
-><select aria-label="Status lines and reports" disabled=""
-><option selected=""
->Written by each goal’s agent</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Rewritten"
-><span
->Rewritten</span
+>the way: Agents review</span
 ></span
 ></div
-><select aria-label="Rewritten" disabled=""
-><option selected=""
->When someone opens it</option
-></select
-></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="The brief on Home"
+><div role="tablist" aria-label="Ways of working" class="temper-ways-tabs"
+><a role="tab" href=""
 ><span
->The brief on Home</span
+>You approve</span
+></a
+><a role="tab" href="" aria-selected="true"
+><span
+>Agents review</span
+><span class="temper-ways-now"
+><span
+>now</span
 ></span
-><small role="generic" aria-label="What changed since you last looked." class="temper-settings-detail"
+></a
+><a role="tab" href=""
 ><span
->What changed since you last looked.</span
-></small
+>Draft first</span
+></a
 ></div
-><select aria-label="The brief on Home" disabled=""
-><option selected=""
->On</option
-></select
-></div
-><p aria-label="Not built yet: this is what temper does today." class="temper-settings-facts"
+><p aria-label="From more of you to more of your agents" class="temper-ways-axis"
 ><span
->Not built yet: this is what temper does today.</span
+>more of you</span
+><span
+>more of your agents</span
 ></p
+><div role="group" aria-label="Agents review" class="temper-ways-panel"
+><p aria-label="An agent makes each change, another reviews it, and code lands it." class="temper-ways-says"
+><span
+>An agent makes each change, another reviews it, and code lands it.</span
+></p
+><div class="temper-how-scroll"
+><table aria-label="The path of a change" class="temper-how-path"
+><tr
+><th scope="col" aria-label="" class="temper-how-head"
+><span
+></span
+></th
+><th scope="col" aria-label="Ask" class="temper-how-head"
+><span
+>Ask</span
+></th
+><th scope="col" aria-label="Produce" class="temper-how-head"
+><span
+>Produce</span
+></th
+><th scope="col" aria-label="Check" class="temper-how-head"
+><span
+>Check</span
+></th
+><th scope="col" aria-label="Review" class="temper-how-head"
+><span
+>Review</span
+></th
+><th scope="col" aria-label="Repair" class="temper-how-head"
+><span
+>Repair</span
+></th
+><th scope="col" aria-label="Check" class="temper-how-head"
+><span
+>Check</span
+></th
+><th scope="col" aria-label="Update" class="temper-how-head"
+><span
+>Update</span
+></th
+><th scope="col" aria-label="Resolve" class="temper-how-head"
+><span
+>Resolve</span
+></th
+><th scope="col" aria-label="Merge" class="temper-how-head"
+><span
+>Merge</span
+></th
+><th scope="col" aria-label="main" class="temper-how-head temper-how-bar"
+><span
+>main</span
+></th
+></tr
+><tr
+><th scope="row" aria-label="You" class="temper-how-lane"
+><span
+>You</span
+></th
+><td
+><button type="button" class="temper-how-person"
+>you ask</button
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td
+></td
+><td class="temper-how-bar"
+></td
+></tr
+><tr
+><th scope="row" aria-label="Agents" class="temper-how-lane"
+><span
+>Agents</span
+></th
+><td
+></td
+><td
+><button type="button" class="temper-how-agent"
+>the coding agent</button
+></td
+><td
+></td
+><td
+><button type="button" class="temper-how-agent"
+>the reviewer</button
+></td
+><td
+><button type="button" class="temper-how-agent"
+>the coding agent</button
+></td
+><td
+></td
+><td
+></td
+><td
+><button type="button" class="temper-how-agent"
+>the coding agent</button
+></td
+><td
+></td
+><td class="temper-how-bar"
+></td
+></tr
+><tr
+><td colspan="11" class="temper-how-line"
+><span
+>authority: no merge tool above this line</span
+></td
+></tr
+><tr
+><th scope="row" aria-label="Code" class="temper-how-lane"
+><span
+>Code</span
+></th
+><td
+></td
+><td
+></td
+><td
+><button type="button" class="temper-how-code"
+>CI</button
+></td
+><td
+></td
+><td
+></td
+><td
+><button type="button" class="temper-how-code"
+>CI</button
+></td
+><td
+><button type="button" class="temper-how-code"
+>the queue</button
+></td
+><td
+></td
+><td
+><button type="button" class="temper-how-code"
+>the queue</button
+></td
+><td class="temper-how-bar"
+></td
+></tr
+></table
+></div
+><div class="temper-ways-acts"
+><button type="button" class="temper-ways-use"
+>Keep it</button
+></div
+></div
 ></div
 ><div class="temper-settings-section"
 ><h2 aria-label="What needs you" class="temper-settings-section-title"
@@ -327,60 +385,96 @@
 >Not asked: each agent decides alone</option
 ></select
 ></div
-><div class="temper-settings-setting"
-><div
-><span aria-label="Funds"
-><span
->Funds</span
-></span
-><small role="generic" aria-label="Not built yet: this is what temper does today." class="temper-settings-detail"
-><span
->Not built yet: this is what temper does today.</span
-></small
-></div
-><select aria-label="Funds" disabled=""
-><option selected=""
->Ask when a budget is used up</option
-></select
-></div
 ></div
 ><div class="temper-settings-section"
-><h2 aria-label="Telling you" class="temper-settings-section-title"
+><h2 aria-label="What the project shows" class="temper-settings-section-title"
 ><span
->Telling you</span
+>What the project shows</span
 ></h2
 ><div class="temper-settings-setting"
 ><div
-><span aria-label="Notifications"
+><span aria-label="Chats can write drafts"
 ><span
->Notifications</span
+>Chats can write drafts</span
 ></span
-><small role="generic" aria-label="Only when something needs you; never for status." class="temper-settings-detail"
+><small role="generic" aria-label="A chat keeps a document beside it, in docs/design/draft/, that a goal can start from." class="temper-settings-detail"
 ><span
->Only when something needs you; never for status.</span
+>A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.</span
 ></small
 ></div
-><select aria-label="Notifications" disabled=""
-><option selected=""
->Off</option
-></select
+><div class="temper-settings-toggle-row"
+><span aria-label="On"
+><span
+>On</span
+></span
+><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-196"
+><label for="skein-ui-label-196"
+>Chats can write drafts</label
+></div
 ></div
 ><div class="temper-settings-setting"
 ><div
-><span aria-label="Quiet hours"
+><span aria-label="Goals"
 ><span
->Quiet hours</span
+>Goals</span
 ></span
-></div
-><select aria-label="Quiet hours" disabled=""
-><option selected=""
->None</option
-></select
-></div
-><p aria-label="Not built yet: this is what temper does today." class="temper-settings-facts"
+><small role="generic" aria-label="Bigger work from a draft: a plan, tasks, landing." class="temper-settings-detail"
 ><span
->Not built yet: this is what temper does today.</span
-></p
+>Bigger work from a draft: a plan, tasks, landing.</span
+></small
+></div
+><div class="temper-settings-toggle-row"
+><span aria-label="Hidden"
+><span
+>Hidden</span
+></span
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-206"
+><label for="skein-ui-label-206"
+>Goals</label
+></div
+></div
+><div class="temper-settings-setting"
+><div
+><span aria-label="Changes"
+><span
+>Changes</span
+></span
+><small role="generic" aria-label="The landing queue, as a page." class="temper-settings-detail"
+><span
+>The landing queue, as a page.</span
+></small
+></div
+><div class="temper-settings-toggle-row"
+><span aria-label="Hidden"
+><span
+>Hidden</span
+></span
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-216"
+><label for="skein-ui-label-216"
+>Changes</label
+></div
+></div
+><div class="temper-settings-setting"
+><div
+><span aria-label="Away switch"
+><span
+>Away switch</span
+></span
+><small role="generic" aria-label="Lets agents decide within limits while you’re away." class="temper-settings-detail"
+><span
+>Lets agents decide within limits while you’re away.</span
+></small
+></div
+><div class="temper-settings-toggle-row"
+><span aria-label="Hidden"
+><span
+>Hidden</span
+></span
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-226"
+><label for="skein-ui-label-226"
+>Away switch</label
+></div
+></div
 ></div
 ></div
 ></div

@@ -1046,9 +1046,3 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
-
-- **Not yet:** 5.13, *The page*: `Settings { project }` draws the tab:
-  the frame's heading "How work runs in PROJECT." and its lede, no "Ask
-  temper to change this", no path, ways or Budgets, and the disabled
-  Status, Funds and Telling you rows (`temper-client-view`'s
-  `pages/settings.rs`).
