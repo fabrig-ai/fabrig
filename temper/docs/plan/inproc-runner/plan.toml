@@ -4,3 +4,20 @@ sources = ["temper/docs/plan/inproc-runner/inputs/request.md", "tools/tiers/cpu.
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "starved"
+title = "In a one-process run a starved pass writes its line and unwinds, ending only its test"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 5"
+
+[[slice]]
+id = 1
+story = "Under TIERS_ONE_PROCESS a starved deadline writes the skein-world: starved: line, last, and unwinds with StarvedPass; the process runs on; under NEXTEST it exits 0 and elsewhere fails, as now"
+parts = ["starved"]
+walk = false
