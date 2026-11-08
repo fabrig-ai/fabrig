@@ -3429,8 +3429,9 @@ fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
 }
 
 #[test]
-fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_agent_calls() {
+fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls() {
     let (mut world, goal, producer, branch) = change_world_with_policy(true, 1000, None, false, false, false, true);
+    world.env.limits.tasks.subscriptions = 2;
     let subscriptions = |world: &World| -> Vec<forge_top::Subscriber> {
         world
             .store
@@ -3483,29 +3484,38 @@ fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_ag
     world.send(event);
     for _ in 0..180 {
         world.tick();
-        // Ordered outbox handoff shifts the watcher schedule; the durable
-        // subscription alone does not guarantee restart's drained API cut.
-        if world.pending.is_empty()
-            && world.store.pending.is_empty()
-            && subscriptions(&world).iter().any(|subscriber| {
-                subscriber.topic
-                    == forge_top::Topic::Ci { repository: forge_world::REPO, head: translate::commit(pushed) }
-            })
-        {
-            break;
-        }
     }
     assert!(world.store.rows.values().any(|stored| matches!(stored,
         Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::BranchHead(head) if head.commit == translate::commit(pushed)))));
     let current = subscriptions(&world);
-    let ci = current
-        .iter()
-        .find(|subscriber| {
-            subscriber.topic == forge_top::Topic::Ci { repository: forge_world::REPO, head: translate::commit(pushed) }
-        })
-        .expect("goal's own CI topic");
-    assert!(matches!(world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(goal.task)))),
-        Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) if task.subscriptions.iter().any(|sub| sub.number == ci.number)));
+    assert!(
+        !current.iter().any(|subscriber| matches!(subscriber.topic, forge_top::Topic::Ci { .. })),
+        "the core keeps only landing topics for a goal"
+    );
+    assert_eq!(live_task(&world, goal.task).subscriptions.len(), 1, "one jig row for the landing branch");
+    let before = world.answers.len();
+    let event = world.protocol.call(
+        Token::new(7),
+        goal.task,
+        goal.attempt,
+        95,
+        engine::Call {
+            completion: 2,
+            position: 1,
+            tool: engine::Tool::Subscribe {
+                kind: tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None },
+            },
+        },
+    );
+    world.send(event);
+    for _ in 0..200 {
+        world.tick();
+        if world.answers.len() > before {
+            break;
+        }
+    }
+    let answer = world.answers.get(before).expect("timer subscription answered");
+    assert!(matches!(answer, engine::CallAnswer::Subscribed { .. }), "room for the goal's timer: {answer:?}");
     world.restart(true, true);
     for _ in 0..100 {
         world.tick();
