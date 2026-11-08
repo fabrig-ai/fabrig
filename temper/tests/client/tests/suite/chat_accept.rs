@@ -22,7 +22,7 @@ fn proposed() -> (ClientWorld, ClientId, u64, ClientId) {
         way: 0,
     });
     let item = temper_engine_domain_world::kinds::item(7, PROJECT, 1, &value);
-    let (mut world, agent, task, _) = super::configuring_chat::propose(false, Some(Box::new([item])));
+    let (mut world, agent, task, _) = super::asking_chat::propose(false, Some(Box::new([item])));
     let person = world.client(fixtures::PARTY, Address::Chat { task });
     steps(&mut world, person, vec![see(Find::exactly_named(Role::Button, b"Accept"))]);
     assert_eq!(rail(&world, person), 1);
@@ -50,7 +50,7 @@ fn newest(world: &mut ClientWorld, agent: ClientId, revision: u64) {
 }
 
 #[test]
-fn a_configuring_chat_accepts_its_own_proposal() {
+fn an_asking_chat_accepts_its_own_proposal() {
     let (mut world, agent, task, person) = proposed();
     steps(
         &mut world,
@@ -96,7 +96,7 @@ fn a_configuring_chat_accepts_its_own_proposal() {
 }
 
 #[test]
-fn a_configuring_chat_rejects_its_own_proposal() {
+fn an_asking_chat_rejects_its_own_proposal() {
     let (mut world, agent, task, person) = proposed();
     let object = world.root(person).person().pages().chat().expect("chat").cards.get(0).expect("proposal").object;
     for act in [
@@ -119,7 +119,7 @@ fn a_configuring_chat_rejects_its_own_proposal() {
     assert_eq!(rail(&world, person), 0);
     newest(&mut world, agent, 1);
     assert!(
-        world.front().engine.task(task).expect("configuring chat").inbox.iter().any(|word| {
+        world.front().engine.task(task).expect("Ask temper chat").inbox.iter().any(|word| {
             matches!(
                 word.kind,
                 jig_domain_tasks::MessageKind::SettingsDecision {

@@ -1597,17 +1597,17 @@ pub fn kinds_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_kinds(seed, domain_limits()))
 }
 
-/// The configuring stories alone offer the stock's charter 3 and template 3.
+/// The Ask temper stories offer the stock's charter 11 and template 5.
 #[must_use]
-pub fn configuring_world(seed: u64, member: bool) -> World<Temper, Joint> {
+pub fn asking_world(seed: u64, member: bool) -> World<Temper, Joint> {
     let mut limits = domain_limits();
     // The proposal's whole reason and charter remain visible in its review.
     limits.client.domain.text = 4096;
     limits.client.domain.long_text = 4096;
-    world_with(seed, Joint::with_configuring(seed, limits, member))
+    world_with(seed, Joint::with_asking(seed, limits, member))
 }
 
-pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Config {
+pub(crate) fn asking_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
     config.core.kinds =
@@ -1641,21 +1641,23 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
         llm.models.clone(),
         temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
     );
-    let configuring = stock.charters.iter().find(|charter| charter.number == 3).expect("stock charter 3").clone();
-    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
-    let template = stock.templates.iter().find(|template| template.number == 3).expect("stock template 3").clone();
+    let asking = stock.charters.iter().find(|charter| charter.number == 11).expect("stock charter 11").clone();
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), asking]);
+    let template = stock.templates.iter().find(|template| template.number == 5).expect("stock template 5").clone();
     let mut templates = config.core.defaults.templates.to_vec();
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();
-    config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+    config.core.defaults.rules.ceiling.tools.0 |=
+        jig_domain_core::ToolFamilies::JIG.settings | jig_domain_core::ToolFamilies::JIG.ask.0;
     config.core.defaults.rules.ceiling.notes = authority::Scopes::GOAL;
     config.core.defaults.rules.ceiling.delegation.kinds =
-        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
+        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(11)]);
     for project in &mut config.core.seed_projects {
         let policy = &mut project.policy.policy;
         policy.ceiling = config.core.defaults.rules.ceiling.clone();
         let owner = &mut policy.roles[0];
-        owner.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        owner.authority.tools.0 |=
+            jig_domain_core::ToolFamilies::JIG.settings | jig_domain_core::ToolFamilies::JIG.ask.0;
         owner.authority.notes = authority::Scopes::GOAL;
         owner.authority.delegation.kinds.clone_from(&policy.ceiling.delegation.kinds);
         let mut member = owner.clone();
@@ -1673,7 +1675,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
 }
 
 /// A second person is the ctl caller, with a member's project role.
-pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
+pub(crate) fn asking_member(driver: &mut Driver) -> u64 {
     use jig_domain_people as people;
     use skein_lib::ReplyTo;
     driver.sign_in();
@@ -1741,7 +1743,7 @@ pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
 }
 
 /// The same ctl root as the other stories, under this world's caller.
-pub fn configuring_agent(world: &mut World<Temper, Joint>) -> jig_client_kit::harness::ClientId {
+pub fn asking_agent(world: &mut World<Temper, Joint>) -> jig_client_kit::harness::ClientId {
     let party = world.front().caller;
     let limits = crate::agent::limits().domain;
     world.front().next_client_limits(limits);
