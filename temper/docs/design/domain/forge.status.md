@@ -142,6 +142,9 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     a retried repair's saved branch deleted as it closes (`saved_close.rs`).
     They do not establish that deployment's branch cleanup or that the new
     brief would avoid the reported failed `read_job`.
+  - 8.4, *A resolution*: its pull section carries every file whole on both
+    sides, cut at the section's room, and names none past it
+    (`temper-engine-domain-forge/src/brief.rs`, the `PullFiles` arm).
   - 8.11, *Which target*: the coding charter's sentence and the refusal's words
     stand on a script alone
     (`tests/engine/domain/tests/suite/forge_routes/question_target.rs`). No real
@@ -443,3 +446,8 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 5.3, 8.4 (*Stalls*), 8.7: a nonempty ancestry page that says
+  more follow, or a range refused as too large to list, reads as unknown, so a
+  head far behind its base waits at its turn until its stall holds it, with no
+  update and no resolution (`temper-engine-domain-forge/src/domain.rs`,
+  `ancestry_status`); a catch-up retries the same range.

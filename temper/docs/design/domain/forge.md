@@ -964,9 +964,15 @@ for it, never a read of another kind or another party's.
 - **Containment needs only ancestry.** The landing decision reads
   `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
   the head and base tip this step observed. A complete empty reverse
-  range proves the head contains that base tip; a complete nonempty
-  range disproves it. A failed or incomplete range leaves containment
-  unknown and never permits a merge. This read collects no changed
+  range proves the head contains that base tip. Any commit the range
+  lists disproves it, whether or not more follow, and so does a range
+  the forge refuses as too large to list (`TooLarge`), which only a
+  range with commits in it can be: the head lacks the base's tip
+  however far behind it is, and the change takes its base (8.2). A
+  failed read otherwise, or an empty page that says more follow, leaves
+  containment unknown and never permits a merge. A catch-up's range,
+  from its landing branch's tip to the commit it takes, is read by the
+  same rule (8.2, step 1). This read collects no changed
   files or file contents, so a goal's diff and forward history do not
   bound its landing. After an update the proof is made again at the
   new head (section 10).
@@ -2001,6 +2007,15 @@ delegate's terminal wakes it to offer the landed result.
   Required preservation instructions precede optional merge-job results. A
   result is appended only with room for its context and any truncation marker;
   it never displaces the preservation instructions.
+  Its pull section carries each of the pull's files whole, both sides, where
+  they fit the room the section has left. A file that doesn't is named
+  instead, never carried in part, for the resolver to read in its checkout,
+  where the merge in progress holds it marked: `File: PATH`, then
+  `[not carried, past the brief's room: B bytes before, A bytes after; read
+  it in your checkout]`, a side the file lacks reading `absent before` or
+  `absent after`. A named file takes its lines' room alone, so the files
+  after it are carried as they fit. The charter's fit
+  (`agent.md`, 4.3) can still cut the section's end, with its own line.
   If the pull section's pinned comparison exceeds the forge client's answer
   byte or row limit, the section keeps its pull identity and gathered content
   and appends a comparison-omitted notice within its byte budget. This completes
@@ -2107,7 +2122,11 @@ delegate's terminal wakes it to offer the landed result.
   `domain/tasks.md`, 5.5). The stall counts from that delegate's end, as
   it does while a question of that agent's is open (8.11), from the step
   that relays its last answer down. A gate's task is a wait on the forge
-  as this bullet names it, and stays bounded.
+  as this bullet names it, and stays bounded. A head behind its base is
+  no wait: a range that lists a commit, or one too large to list, says
+  the head lacks the base's tip (5.3), so the change takes its base, or
+  in conflict goes to its merge job and then a resolution, however many
+  commits behind it is.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks.md`, 5.5 and section 9): the
@@ -2244,7 +2263,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
 | 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
-| 2, up to date | none | the head contains the base's tip | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
+| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head | guarded |
 
@@ -2354,7 +2373,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
   | 5, the landing rules | none | each such rule's CI, gates and approvals are met, as 1, 3 and 4 above; or no rule enforces there | one waits, and none refuses | one refuses | guarded |
-  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
+  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind
