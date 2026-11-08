@@ -2,6 +2,21 @@
 
 2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
+Section 8.1's sign-in deadline distinguishes the last not-ready refusal
+from busy, names startup or an unanswering core, points to serve's log
+and keeps the link usable until expiry. The CLI's sign-in tests
+checks the line. Section 12's nine-membership bound is present in ctl,
+the native preset and the web preset. The native decoder table covers
+three and nine memberships, and rejects ten; the one-process reduced,
+whole-incident and stored-state stories check answers across a restart.
+The browser boundary check remains later work (section 14).
+
+- **Not yet:** 6.3: the accepted `core-after-project` not-ready watch
+  refusal and ctl deadline diagnostic are absent. Jig has no
+  `WatchRefusal::NotReady`, and a shut service gate still sends `Busy`,
+  so the client can claim all watches are in use. The sign-in's distinct
+  line does not cover this path (`../protocol/README.status.md`, 8.2).
+
 Section 5.3 has no known implementation gap in settings files, the form,
 apply and show carrying ordered charter parts and a template's later
 choice. The decoder names malformed parts by their path before sending;
@@ -21,9 +36,9 @@ lookup and the program-login command against its configured prefix.
 Host waits name no command. The settings reference's non-waiting help
 pointer remains deferred in section 14.
 
-Unlisted sections have no known gap, including 6.3's watch-capacity
-diagnostic and deadline words, and 8.2's retry spans. Sections 7's key
-refusals, 6.1's unpinned account wait and failure-log directions, 5.5's
+Unlisted sections have no known gap, including 6.3's deadline words
+apart from the not-ready watch path above, and 8.2's retry spans.
+Sections 7's key refusals, 6.1's unpinned account wait and failure-log directions, 5.5's
 setup ending and 5.3's effort check against `me` have no known gap.
 Sections 5.3 and 6.2's publication words are in `project amend`'s help
 and successful answer's stderr, as text or a `may_show` JSON object.

@@ -746,9 +746,12 @@ gate is open: the root started and its decisions open
 the first periods given (configuration.md, section 8) and the forges'
 names resolved (forge.md, 2.2). While the gate is shut, the clients'
 component answers a party's input not ready and a public read busy, at
-once; an input the root hands back at its watermark waits in the
-service for room (`../domain/root.md`, section 4). Either way a client
-sees only that nothing answered, so the service's log says why.
+once. A watch refused while the gate is shut says not ready, distinct
+from a full watch room. An input the root hands back at its watermark
+waits in the service for room (`../domain/root.md`, section 4). The
+client names not ready when its answer carries that refusal; the
+service's log names what the gate waits on. No gate reason travels on
+the client wire (section 14).
 
 - **The line.** When the gate has kept a party's input from the root for
   1 s or more, answered not ready or held, the service writes one stderr
@@ -1031,6 +1034,12 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 
 Each document keeps its own; these cross them:
 
+- **The gate's reason on the client wire** (8.2): a distinct not-ready
+  watch refusal lets a client distinguish startup or an unanswering core
+  from watch capacity, but carries no reason. Sending the start's step
+  or the gate's other reason needs jig's vocabulary, wire and client
+  link to retain it. Default: the client names not ready and points to
+  serve's log; the log alone names why (`../client/tools.md`, section 14).
 - **The TUI's later passes** (section 4): the browser's approval,
   recording and post-landing terminal walk stay with the client's
   design (`../client/README.md`, section 11).
