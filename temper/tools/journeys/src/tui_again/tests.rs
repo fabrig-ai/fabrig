@@ -3,6 +3,19 @@ use skein_lib::Queue;
 use skein_scratch::Scratch;
 use skein_ui_screen_terminal::Decoder;
 
+fn setup_journeys(root: &Path, walk: &[u8]) -> (std::path::PathBuf, std::path::PathBuf) {
+    let tui = root.join("tui");
+    let browser = root.join("browser");
+    fs::create_dir_all(tui.join("first")).expect("TUI journey");
+    fs::create_dir(&browser).expect("browser journeys");
+    fs::write(tui.join("first/walk"), walk).expect("walk");
+    (tui, browser)
+}
+
+fn walker_paths(scratch: &Path) -> Paths {
+    Paths { temper: "temper".into(), bundle: "bundle".into(), chromium: "chromium".into(), scratch: scratch.into() }
+}
+
 #[test]
 fn a_tui_walk_is_read_before_any_build_or_child() {
     let scratch = Scratch::new("tui-again-starting");
@@ -15,18 +28,114 @@ fn a_tui_walk_is_read_before_any_build_or_child() {
         (b"walk 2\nend\n".as_slice(), 1, "expected walk 1"),
     ] {
         fs::write(&path, bytes).expect("write invalid walk");
-        let refusal = starting(root, "first").expect_err("invalid walk refused without building");
+        let refusal = starting(root, root, "first").expect_err("invalid walk refused without building");
         let Refusal::TuiWalk { name, unreadable } = refusal else { panic!("walk refusal: {refusal:?}") };
         assert_eq!(name, "first");
         assert_eq!(unreadable.line, line);
         assert!(unreadable.why.contains(why), "{}: {why}", unreadable.why);
     }
     fs::write(path, b"walk 1\nsee \"Sign in\"\nend\n").expect("write first walk");
-    assert_eq!(
-        starting(root, "first").expect("no earlier recording needed"),
-        vec![WalkStep::See(b"Sign in".as_slice().into()), WalkStep::End]
-    );
+    let read = starting(root, root, "first").expect("no earlier recording needed");
+    assert_eq!(read.steps, vec![WalkStep::See(b"Sign in".as_slice().into()), WalkStep::End]);
+    assert!(read.setup.is_none());
+    let paths = walker_paths(root);
+    let walker = Walker::new("first", &paths, vec![], &read);
+    assert!(matches!(walker.phase, Phase::Opening));
     assert!(!root.join("first/recording").exists());
+}
+
+#[test]
+fn a_tui_setup_is_read_whole_before_any_build_or_child() {
+    use temper_client_shell_web::journey::SetupStep;
+    let scratch = Scratch::new("tui-again-setup");
+    let (tui, browser) = setup_journeys(scratch.path(), b"walk 1\nsee \"Sign in\"\nend\n");
+    for directory in [tui.join("base"), browser.join("base")] {
+        fs::create_dir(directory).expect("parent journey directory");
+    }
+    // A same-named TUI setup must not supply the parent's steps.
+    fs::write(tui.join("base/setup"), b"setup 1\nsee \"Wrong parent\"\nreload \"/wrong\"\n").expect("TUI parent");
+    fs::write(
+        browser.join("base/setup"),
+        b"setup 1\npress button \"Create\" 2\nreload \"/base\"\nmark 1 \"Browser mark\"\n",
+    )
+    .expect("browser parent");
+    let path = tui.join("first/setup");
+    fs::write(&path, b"setup 1\nafter \"base\"\nsee \"Ready\"\nreload \"/child\"\n").expect("TUI setup");
+    let read = starting(&tui, &browser, "first").expect("complete setup read before building");
+    assert_eq!(read.steps, vec![WalkStep::See(b"Sign in".as_slice().into()), WalkStep::End]);
+    let prepared = read.setup.as_ref().expect("setup retained before building");
+    assert!(matches!(&prepared.setup.steps[..],
+        [SetupStep::Act { role: Role::Button, name, order: 2, act: Act::Press }, SetupStep::See { text }]
+        if name.as_ref() == b"Create" && text.as_ref() == b"Ready"));
+    assert_eq!(prepared.setup.reload.as_ref(), b"/child");
+    assert!(prepared.setup.marks.is_empty(), "parent's marks are not inherited");
+    assert_eq!(prepared.sources, [("base".into(), 2), ("first".into(), 3)]);
+    assert!(!tui.join("first/recording").exists());
+    let paths = walker_paths(scratch.path());
+    let mut walker = Walker::new("first", &paths, vec![], &read);
+    assert!(matches!(walker.phase, Phase::SetupStep { at: 0 }));
+    let mut face = BrowserFace::new(skein_lib::Token::new(1), "127.0.0.1:1");
+    for (phase, source, line, sought) in
+        [(Phase::SetupStep { at: 0 }, "base", 2, "Create"), (Phase::SetupSee { at: 1 }, "first", 3, "Ready")]
+    {
+        walker.phase = phase;
+        walker.since = None;
+        assert_eq!(
+            walker.progress(&mut face, Time::ZERO).expect("pending setup query"),
+            Next::Wait { until: Some(Time::from_nanos(50_000_000)) }
+        );
+        assert!(walker.terminal.is_none(), "setup runs before the TUI");
+        assert!(walker.deadline(Time::from_nanos(59_999_999_999)).is_ok());
+        walker.check_deadline(&mut face, Time::from_nanos(60_000_000_000));
+        let refusal = walker.refusal.take().expect("setup deadline while a query is pending");
+        assert!(matches!(refusal,
+            Refusal::SetupTimeout { name, setup, line: found, sought: query }
+            if name == "first" && setup == source && found == line && query.contains(sought)));
+    }
+    walker.phase = Phase::SetupStep { at: 2 };
+    walker.since = None;
+    walker.progress(&mut face, Time::ZERO).expect("setup complete");
+    assert!(matches!(walker.phase, Phase::Load));
+    assert_eq!(
+        walker.progress(&mut face, Time::ZERO).expect("reload after setup"),
+        Next::Do(Doing::Go { address: b"/child".as_slice().into() })
+    );
+    assert!(matches!(walker.phase, Phase::Opening));
+    assert!(walker.terminal.is_none(), "reload precedes the TUI");
+}
+
+#[test]
+fn a_tui_setup_refuses_marks_before_building() {
+    let scratch = Scratch::new("tui-again-setup-refusal");
+    let (tui, browser) = setup_journeys(scratch.path(), b"walk 1\nend\n");
+    for (bytes, line) in [
+        (b"setup 1\nreload \"/\"\nmark 1 \"Ready\"\n".as_slice(), 3),
+        (b"setup 1\nsee \"Home\"\nreload \"/\"\nmark 2 \"Ready\"\n".as_slice(), 4),
+        (b"setup 1\nafter \"base\"\nsee \"Home\"\nreload \"/\"\nmark 3 \"Ready\"\n".as_slice(), 5),
+    ] {
+        fs::write(tui.join("first/setup"), bytes).expect("setup with mark");
+        let refusal = starting(&tui, &browser, "first").expect_err("TUI setup mark refused");
+        let Refusal::SetupUnreadable { name, unreadable } = refusal else { panic!("setup refusal: {refusal:?}") };
+        assert_eq!(name, "first");
+        assert_eq!(unreadable.line, line);
+        assert!(unreadable.why.contains("mark"), "{}", unreadable.why);
+    }
+}
+
+#[test]
+fn a_tui_setup_refuses_a_missing_browser_setup_before_building() {
+    let scratch = Scratch::new("tui-again-missing-setup");
+    let (tui, browser) = setup_journeys(scratch.path(), b"walk 1\nend\n");
+    fs::create_dir(browser.join("missing")).expect("browser journey without setup");
+    fs::create_dir(tui.join("missing")).expect("same-named TUI journey");
+    fs::write(tui.join("missing/setup"), b"setup 1\nreload \"/\"\n").expect("TUI setup cannot be the parent");
+    fs::write(tui.join("first/setup"), b"setup 1\nafter \"missing\"\nreload \"/\"\n").expect("after setup");
+    assert!(matches!(starting(&tui, &browser, "first"),
+        Err(Refusal::SetupAfter { name, after, why: "has no setup" }) if name == "first" && after == "missing"));
+    fs::remove_file(tui.join("first/setup")).expect("remove optional setup");
+    let read = starting(&tui, &browser, "first").expect("no setup reads as before");
+    assert_eq!(read.steps, vec![WalkStep::End]);
+    assert!(read.setup.is_none());
 }
 
 #[test]
@@ -120,17 +229,13 @@ fn a_save_is_a_replacement_even_when_its_bytes_are_unchanged() {
 
 #[test]
 fn a_step_has_thirty_seconds_and_names_its_position() {
-    let paths = Paths {
-        temper: "temper".into(),
-        bundle: "bundle".into(),
-        chromium: "chromium".into(),
-        scratch: "/tmp/journey".into(),
-    };
+    let paths = walker_paths(Path::new("/tmp/journey"));
     let mut walker = Walker {
         name: "first".into(),
         paths: &paths,
         environment: vec![],
         steps: vec![WalkStep::End],
+        setup: None,
         at: 0,
         phase: Phase::Step,
         since: Some(Time::ZERO),

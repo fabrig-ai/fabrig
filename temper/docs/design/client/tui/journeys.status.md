@@ -16,7 +16,5 @@ user's frame refinement, real-box journeys and other deferred choices.
 The committed frames establish no real-terminal look or macOS runtime
 result; section 11 also keeps the user's manual Meta-key check.
 
-- **Not yet:** 8.2: a TUI journey's `setup`, walked in the signed-in
-  browser before the TUI starts, and 7's rows for it.
 - **Not yet:** 9: `sign-in-approved` recorded to the launchpad, and
   `launchpad-chat`, neither recorded.
