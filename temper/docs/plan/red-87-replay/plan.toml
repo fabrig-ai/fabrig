@@ -1,0 +1,6 @@
+draft = "red-87-replay"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-87-replay/inputs/request.md", "skein/crates/skein-playground/src/replay.rs", "temper/tests/client-browser/tests/browser_all/browser_playground.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
