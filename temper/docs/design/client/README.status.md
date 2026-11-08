@@ -710,11 +710,6 @@ read's head explicit.
   rail a project's members (jig's `Read::Project` is the Members tab's) or a
   standing role (`../draft/standing-roles.md`), and Team has no page
   (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
-- **Not yet:** 3.5, *Work*, *Goals* and *Changes*: Work has no address or
-  page, and Goals and Changes draw their own intros and open their reads alone
-  (`temper-client-domain`'s `address.rs` and `pages.rs`; `temper-client-view`'s
-  `pages/goals.rs` and `pages/changes.rs`); `temper-client-domain` has no
-  `pages::work`.
 - **Not yet:** 3.5, *Work*, *What the reads lack*: no read lists a landed
   draft ready to start a goal; a chat's card holds its changes, not its other
   delegates; a change's card names no maker.

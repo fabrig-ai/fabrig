@@ -84,6 +84,51 @@ pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
 
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PAGE: Style = Style { owner: owner(), token: 650 };
+/// Work, client/README.md, 3.5.
+pub const WORK_INTRO: Style = Style { owner: owner(), token: 651 };
+/// Work, client/README.md, 3.5.
+pub const WORK_KICKER: Style = Style { owner: owner(), token: 652 };
+/// Work, client/README.md, 3.5.
+pub const WORK_HEADLINE: Style = Style { owner: owner(), token: 653 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LEDE: Style = Style { owner: owner(), token: 654 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LANDING: Style = Style { owner: owner(), token: 655 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FILTERS: Style = Style { owner: owner(), token: 656 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CHIP: Style = Style { owner: owner(), token: 657 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CURRENT: Style = Style { owner: owner(), token: 658 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION: Style = Style { owner: owner(), token: 659 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 660 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CARD: Style = Style { owner: owner(), token: 661 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FROM: Style = Style { owner: owner(), token: 662 };
+/// Work, client/README.md, 3.5.
+pub const WORK_AGENT: Style = Style { owner: owner(), token: 663 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CODE: Style = Style { owner: owner(), token: 664 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PERSON: Style = Style { owner: owner(), token: 665 };
+/// Work, client/README.md, 3.5.
+pub const WORK_QUOTE: Style = Style { owner: owner(), token: 666 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BAR: Style = Style { owner: owner(), token: 667 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROWS: Style = Style { owner: owner(), token: 668 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROW: Style = Style { owner: owner(), token: 669 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BYLINE: Style = Style { owner: owner(), token: 670 };
+/// Work, client/README.md, 3.5.
+pub const WORK_MONO: Style = Style { owner: owner(), token: 671 };
+
 /// The Goals column (client/README.md, 3.5).
 pub const GOALS: Style = Style { owner: owner(), token: 270 };
 /// Goals’ intro (client/README.md, 3.5).
@@ -1321,28 +1366,28 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-647",
         b"temper-reserved-648",
         b"temper-reserved-649",
-        b"temper-reserved-650",
-        b"temper-reserved-651",
-        b"temper-reserved-652",
-        b"temper-reserved-653",
-        b"temper-reserved-654",
-        b"temper-reserved-655",
-        b"temper-reserved-656",
-        b"temper-reserved-657",
-        b"temper-reserved-658",
-        b"temper-reserved-659",
-        b"temper-reserved-660",
-        b"temper-reserved-661",
-        b"temper-reserved-662",
-        b"temper-reserved-663",
-        b"temper-reserved-664",
-        b"temper-reserved-665",
-        b"temper-reserved-666",
-        b"temper-reserved-667",
-        b"temper-reserved-668",
-        b"temper-reserved-669",
-        b"temper-reserved-670",
-        b"temper-reserved-671",
+        b"temper-work-page",
+        b"temper-work-intro",
+        b"temper-work-kicker",
+        b"temper-work-headline",
+        b"temper-work-lede",
+        b"temper-work-landing",
+        b"temper-work-filters",
+        b"temper-work-chip",
+        b"temper-work-current",
+        b"temper-work-section",
+        b"temper-work-section-head",
+        b"temper-work-card",
+        b"temper-work-from",
+        b"temper-work-agent",
+        b"temper-work-code",
+        b"temper-work-person",
+        b"temper-work-quote",
+        b"temper-work-bar",
+        b"temper-work-rows",
+        b"temper-work-row",
+        b"temper-work-byline",
+        b"temper-work-mono",
         b"temper-reserved-672",
         b"temper-reserved-673",
         b"temper-reserved-674",
