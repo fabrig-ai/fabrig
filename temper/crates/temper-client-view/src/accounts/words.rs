@@ -235,6 +235,9 @@ pub(crate) enum Word {
     PasteTooMany,
     PasteEnded,
     PasteAgain,
+    ProgramNameTaken,
+    ProgramNotOffered,
+    ResumeNotOffered,
 }
 const ROWS: &[(Word, &[u8])] = &[
     (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
@@ -427,6 +430,8 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::PasteState, b"That address is from an earlier sign-in. Paste the one from this sign-in's tab, or start again."),
     (Word::PasteEnded, b"This sign-in has ended."),
     (Word::PasteAgain, b"That address wasn't sent. Paste it again."),
+    (Word::ProgramNotOffered, b"This provider offers you no program login. Choose another way to connect."),
+    (Word::ResumeNotOffered, b"This source isn't limited, so there's nothing to resume. Its state above is current."),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
 pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
@@ -473,6 +478,7 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::ProgramLogin, b"program-login ", b""),
     (Word::EnvironmentCommand, b"temper program-login ", b""),
     (Word::ProgramCommandHere, b"On this machine, run: ", b""),
+    (Word::ProgramNameTaken, b"The name ", b" is taken. Choose another name for this login."),
 ];
 // PLAN is hole 0 and DISPLAY hole 1; hole 2 repeats PLAN in a renewal.
 struct EndWords {

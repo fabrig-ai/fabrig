@@ -512,7 +512,7 @@ impl ConnectModel {
             {
                 Some(*source)
             } else if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
-                refusal: c::Refusal::NotOffered,
+                refusal: c::Refusal::NameTaken,
                 ..
             })) = outcome
             {
