@@ -89,6 +89,9 @@ records within the service's spans; extracting those records before the
 process drops leaves their heap outside that drop. No outcome or peaks return,
 so the memory test remains ignored and its high water is not yet bound
 (`temper/docs/design/playground.status.md`, 9).
+Measuring that figure needs a skein mechanism for a service world's observer
+to keep its storage outside the process's span first
+(`skein/docs/design/testing.md`, 5).
 
 ## Halving the knobs
 

@@ -5,7 +5,7 @@ use temper_one_process_world::{fixtures, world};
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 #[test]
-#[ignore = "shared referee allocations outlive process 0's metered drop (playground.status.md, 9): ownership fails before peaks return"]
+#[ignore = "a service world's observer has no way to keep its storage outside the process's span (skein/docs/design/testing.md, 5): process 0's exact release check fails (playground.status.md, 9)"]
 fn story_a_at_its_high_water() {
     let mut settings = fixtures::calm(fixtures::SEED);
     settings.config.trace = skein_sim::Trace::Off;
