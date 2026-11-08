@@ -8,9 +8,6 @@
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
-- **Not yet:** 8.2: the public pages' top bar offers "Sign in" only
-  where Google's way is given; `look-round-22`'s `public-sign-in`
-  closes it.
 
 - **Not yet:** 2.5, *The welcome's look*: the welcome's top bar spreads
   its row (`justify-content: space-between`, temper box's line taking
