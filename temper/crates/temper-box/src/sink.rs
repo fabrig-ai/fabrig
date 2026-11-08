@@ -191,6 +191,11 @@ pub struct Sink {
 }
 impl Sink {
     #[must_use]
+    #[cfg(test)]
+    pub(crate) fn held(&self) -> u32 {
+        self.queued.len()
+    }
+    #[must_use]
     pub fn new(token: Token, entries: u32) -> Self {
         Self { token, queued: Queue::with_capacity(entries), phase: Phase::Idle, dirty: false }
     }

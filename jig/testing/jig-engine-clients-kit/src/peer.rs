@@ -174,6 +174,7 @@ pub struct Peer {
     next_socket: u64,
     links: Vec<Box<[u8]>>,
     local_links: Vec<Box<[u8]>>,
+    link_signed_in: usize,
     core: VecDeque<core::Event>,
     application: VecDeque<jig_protocol_engine_clients::ToApplication>,
     keep: Option<(SecretOwner, Kept)>,
@@ -242,6 +243,7 @@ impl Peer {
             next_socket: 100,
             links: Vec::new(),
             local_links: Vec::new(),
+            link_signed_in: 0,
             core: VecDeque::new(),
             application: VecDeque::new(),
             keep: None,
@@ -450,6 +452,7 @@ impl Peer {
                     }
                     Request::Link { secret } => self.links.push(fixtures::printed(&secret)),
                     Request::LocalLink { secret } => self.local_links.push(fixtures::printed(&secret)),
+                    Request::LinkSignedIn => self.link_signed_in += 1,
                     Request::Minted { exchange, credential, expires } => {
                         self.mints.insert(exchange, Ok((credential, expires)));
                     }
@@ -745,6 +748,10 @@ impl Peer {
     #[must_use]
     pub fn local_link_count(&self) -> usize {
         self.local_links.len()
+    }
+    #[must_use]
+    pub const fn link_signed_in_count(&self) -> usize {
+        self.link_signed_in
     }
     #[must_use]
     pub fn local_link(&self) -> Box<[u8]> {

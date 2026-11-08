@@ -65,6 +65,11 @@ impl Component {
         let spent = self.take_reservation(exchange);
         match reply {
             people::Reply::SignedIn { person, sign_in, expires } => {
+                if let Some((which, _)) = &spent
+                    && *which == sign_in::Which::Printed
+                {
+                    out.push(Request::LinkSignedIn);
+                }
                 self.spend_link(spent, env, out);
                 if held == Some(sign_in) {
                     let value = w::SignedIn::new(
