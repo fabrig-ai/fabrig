@@ -34,7 +34,7 @@ pub(super) fn card(who: &[u8], name: &[u8], facts: Box<[Fact]>) -> Card {
 }
 
 pub(super) fn stop(actor: Actor, step: Step, words: &[u8], opens: Opens, card: Card) -> Stop {
-    Stop { actor, step, words: text(words, WORDS), opens, card }
+    Stop { actor, step, words: text(words, WORDS), opens, card, needed: false, over: Box::default() }
 }
 
 pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8]) -> Card {

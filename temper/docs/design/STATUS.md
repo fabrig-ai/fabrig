@@ -296,17 +296,17 @@ repository's gates are still the document's
 (`protocol/configuration.md`, `domain/landing.md`), and the forge's
 world tells none of their stories (`domain/forge.md`,
 `domain/testing.md`). A goal's own branch and its landing are built,
-but for the held landing's story, ignored for a restart fault
-(`domain/forge.md`). A change relays its agents' questions through a
+and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, but the restore's stories in the domain world and
-the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories run but
+one, which, with the joined client world's, stays ignored: a setting
+reset to a default the forge does not report to jig loses its state at
+restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -494,8 +494,11 @@ The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
 with story labels for failed steps but with no run in Chromium yet. Reading's
 four stories, apart, passed with ctl history
-and a 131,072-byte window, but their CPU medians sum to
-44.849900 s and the three targets remain unmet; no whole-tier run proves the
+and a 131,072-byte window, their CPU medians summing to
+44.849900 s against three unmet targets. The tier's window, `long_text` and
+`turn_text` are now 32,768 bytes, reading's code lines scaled with them, and
+skein's decoder indexes each CDP message once, with no CPU figure on record
+since; no whole-tier run proves the
 repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
 for now, to be revisited. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading
@@ -712,7 +715,8 @@ into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain. The fake box keeps two walks, `here_key`
+and no run on record reads the tier as it stands against its 540 CPU s.
+The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
 CPU without them is read after landing. The copy stories' world and the

@@ -4,7 +4,6 @@ mod commands;
 mod help;
 mod init_clients;
 mod limits;
-mod program_environment;
 mod reference_settings;
 mod settings_fields;
 mod tui;
@@ -391,68 +390,6 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
-fn github_default_log_origins_include_the_second_results_host() {
-    fn resolve(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
-        let jig_protocol_config::Address::Host { port, .. } = configured else {
-            return Err("expected default host".into());
-        };
-        Ok(([192, 0, 2, 17], *port).into())
-    }
-    let roots = super::trust(None).expect("machine roots");
-    let runtime = super::github_runtime(None, &roots, resolve).expect("default resolves");
-    assert_eq!(runtime.log_origins.len(), 20);
-    assert!(
-        runtime
-            .log_origins
-            .iter()
-            .any(|entry| entry.origin.host.as_ref() == b"productionresultssa17.blob.core.windows.net")
-    );
-    assert!(runtime.log_origins.iter().all(|entry| entry.origin.tls && entry.origin.port == 443));
-}
-
-#[test]
-fn github_log_origins_skip_unresolved_defaults_but_refuse_explicit_hosts() {
-    fn missing(_: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
-        Err("no address".into())
-    }
-    assert!(super::github_logs::resolve(None, missing).expect("offline startup").is_empty());
-    let explicit =
-        [skein_forge::github::redirect::Origin { tls: true, host: b"logs.example.test".as_slice().into(), port: 443 }];
-    let why = super::github_logs::resolve(Some(&explicit), missing).expect_err("explicit host must resolve");
-    assert!(why.contains("logs.example.test"));
-    assert!(super::github_logs::resolve(Some(&[]), missing).expect("disabled").is_empty());
-}
-
-#[test]
-fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
-    fn reject_names(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
-        match configured {
-            jig_protocol_config::Address::Host { name, port }
-                if name.as_ref() == b"productionresultssa1.blob.core.windows.net" =>
-            {
-                Ok(([192, 0, 2, 1], *port).into())
-            }
-            jig_protocol_config::Address::Host { .. } => Err("no resolver in this test".into()),
-            jig_protocol_config::Address::Addr(address) => Ok(address.socket().expect("socket fixture")),
-        }
-    }
-    let roots = super::trust(None).expect("machine trust roots");
-    let default = super::github_runtime(None, &roots, reject_names).expect("held default");
-    assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
-    assert_eq!(default.log_origins.len(), 1);
-    let machine = temper_forge_setup::machine::GitHubMachine {
-        git: None,
-        api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),
-        tls: false,
-        remote: b"http://127.0.0.1:3001".as_slice().into(),
-        web: b"http://127.0.0.1:3001".as_slice().into(),
-    };
-    let fake = super::github_runtime(Some(&machine), &roots, reject_names).expect("machine socket");
-    assert_eq!(fake.address, ([127, 0, 0, 1], 3001).into());
-    assert!(matches!(fake.transport, skein_forge_connection::settings::Transport::Plaintext { .. }));
-}
-
-#[test]
 fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_arguments() {
     use temper_box::host::Echo;
     for (flags, variable, expected) in [
@@ -498,22 +435,6 @@ fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_argum
             .map(|word| Box::from(word.as_bytes()))
             .collect::<Vec<_>>();
         assert!(super::configure_with(&words, &[], b"/").is_err(), "leftover flags stay refused");
-    }
-}
-
-#[test]
-fn each_box_adoption_refusal_renders_one_line_naming_what_it_lacks() {
-    use temper_service::system::BoxRefusal;
-    for (why, expected) in [
-        (BoxRefusal::Sockets { limit: 1 }, "the box's pipes need two free socket slots; the service socket limit is 1"),
-        (BoxRefusal::Adopted, "the box's pipes were already adopted"),
-        (BoxRefusal::NoEngine, "the box's pipes need an engine"),
-        (BoxRefusal::ZeroLine, "the box's pipes need a nonzero application.limits.overrides.box.line_bytes"),
-    ] {
-        assert_eq!(
-            super::prefixed("temper serve", &super::box_refusal(why)),
-            format!("temper serve: --box: {expected}\n")
-        );
     }
 }
 

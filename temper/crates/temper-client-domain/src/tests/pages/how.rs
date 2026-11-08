@@ -169,6 +169,8 @@ fn path() -> w::BranchPath {
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed: false,
+                        over: Box::default(),
                         actor,
                         step,
                         words: words.into(),

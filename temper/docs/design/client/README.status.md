@@ -39,9 +39,10 @@ dispatch, without establishing a real provider's login or rendered look.
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
-chat starts. Section 5.13 offers neither configuring chat nor Ask temper
-on Settings. The post-landing walk, M3b's views and preferences remain
-section 11's work.
+chat starts. Section 5.13 offers no configuring chat, and How work runs
+reaches Ask temper by "Ask temper to change this" alone. The
+post-landing walk, M3b's views and preferences remain section 11's
+work.
 
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
@@ -55,8 +56,6 @@ redrawn at a newer revision, drawn as temper's path drawing kind with a
 stop a line as the terminal's fallback.
 
 - **Not yet:**
-  - 4.6 (`path-stops`, `look-round-25`): `PathStep` holds `update` and
-    neither `conflict` nor `catch_up`; `Stop` has no `needed` or `over`.
   - 4.6 and 5.16 (`roles-view`, `look-round-25`): `View` has no `roles`,
     and no address reads one.
 
@@ -211,8 +210,10 @@ Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
-implementation gap. Section 10's joined story covers the running line
-before and during provisional text, commitment, navigation and closing.
+implementation gap, including section 5.15's initial history for short
+completed chats. Section 10's joined stories cover the running line before
+and during provisional text, commitment, immediate replies across repeated
+new chats, reopening, PageUp, resizing, navigation and closing.
 The focused view test holds a Writing observation before the first answer,
 through provisional words and commitment: the shared running line and the
 browser terminal say "Working", the chat bar says "Writing", and completion
@@ -613,9 +614,7 @@ read's head explicit.
   the switcher keeps its inline new-project form; a chat keeps its status,
   Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
-  mock's budget field nor its earlier reports. Settings keeps unsupported
-  status, funds and notification controls
-  disabled with their explanation. The welcome's Claude card says
+  mock's budget field nor its earlier reports. The welcome's Claude card says
   "a config of its own" rather than the mock's "an environment of its
   own" (3.5). Home and Changes omit the mock's "main green at" time:
   their landing panel supplies a red flag, not that timestamp. A
@@ -730,9 +729,9 @@ read's head explicit.
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
 - **Not yet:** 5.15: the whole-bound manual reading check is not on record
-  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
-  history and the smaller window; they do not prove the person's whole-bound
-  layout or repair the failed-head-read retry below.
+  (`browser.status.md`, 4.3). The browser tier's reading stories read the tier's
+  32,768-byte window, with ctl history (`browser.md`, 4.3); they do not prove the
+  person's whole-bound layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

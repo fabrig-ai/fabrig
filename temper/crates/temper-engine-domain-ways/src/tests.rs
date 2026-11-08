@@ -249,6 +249,8 @@ fn stop() -> Stop {
         step: Step::Ask,
         words: b"you ask".as_slice().into(),
         opens: Opens::Nothing,
+        needed: false,
+        over: Box::default(),
         card: Card { who: b"person".as_slice().into(), name: b"you".as_slice().into(), facts: Box::default() },
     }
 }
@@ -266,9 +268,20 @@ fn same_compares_drawn_stops_and_ignores_cards() {
     words.words = b"draft".as_slice().into();
     let mut opens = own.clone();
     opens.opens = Opens::Charter(1);
-    for (other, expected) in
-        [(own.clone(), true), (card, true), (actor, false), (step, false), (words, false), (opens, false)]
-    {
+    let mut needed = own.clone();
+    needed.needed = true;
+    let mut over = own.clone();
+    over.over = b"tests".as_slice().into();
+    for (other, expected) in [
+        (own.clone(), true),
+        (card, true),
+        (actor, false),
+        (step, false),
+        (words, false),
+        (opens, false),
+        (needed, false),
+        (over, false),
+    ] {
         assert_eq!(own.same(&other), expected);
     }
 }
@@ -329,14 +342,31 @@ fn sentence_stops_trims_and_cuts_at_a_word_end() {
 
 #[test]
 fn can_names_families_in_order_and_always_forbids_merging() {
-    for (inspect, modify, shell, agents, expected) in [
-        (false, false, false, false, b"finish alone; never merge or update".as_slice()),
-        (true, false, false, false, b"read the code and the forge; never merge or update"),
-        (false, true, false, false, b"change and push its branch; never merge or update"),
-        (false, false, true, false, b"run commands; never merge or update"),
-        (false, false, false, true, b"start sub-agents; never merge or update"),
-        (true, true, true, true, b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update"),
-    ] { assert_eq!(can(inspect, modify, shell, agents), expected); }
+    for (inspect, modify, shell, agents, settings, expected) in [
+        (false, false, false, false, false, b"read the facts in its task; never merge".as_slice()),
+        (
+            false,
+            false,
+            false,
+            false,
+            true,
+            b"read temper's records and the forge; propose settings; never change anything",
+        ),
+        (true, false, false, false, false, b"read the code and the forge; never merge"),
+        (false, true, false, false, false, b"change and push its branch; never merge"),
+        (false, false, true, false, false, b"run commands; never merge"),
+        (false, false, false, true, false, b"start sub-agents; never merge"),
+        (
+            true,
+            true,
+            true,
+            true,
+            false,
+            b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge",
+        ),
+    ] {
+        assert_eq!(can(inspect, modify, shell, agents, settings), expected);
+    }
 }
 
 #[test]
@@ -374,6 +404,7 @@ fn derive_keeps_the_branch_and_repository() {
             producer: 1,
             reviewer: 2,
             by: temper_engine_domain_forge_change::Way::Queue,
+            merge_job: false,
             roles: Box::default(),
             agents: Box::default(),
         };

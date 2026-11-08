@@ -230,7 +230,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
             (Person, S::Approve, b"you approve"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -242,7 +242,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Review, b"review"),
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -256,7 +256,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Bar, S::Branch, b"goal branch"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Code, S::Verify, b"verify"),
@@ -296,12 +296,12 @@ fn path(index: usize) -> w::BranchPath {
                 S::Prove => {
                     Some((w::Opens::Turn, "code · runs the test gates at the candidate", "the turn", "Gates", "unit"))
                 }
-                S::Update => Some((
+                S::Conflict => Some((
                     w::Opens::Queue,
-                    "code · brings the change up to date with its branch",
+                    "code · main has moved in a way that clashes with the change",
                     "the queue",
-                    "Does",
-                    "merges the branch's tip into the change, never by an agent",
+                    "When",
+                    "the change reaches the front of the queue: main is merged into it, never by an agent",
                 )),
                 S::Verify => Some((
                     w::Opens::Tier(
@@ -323,12 +323,15 @@ fn path(index: usize) -> w::BranchPath {
                 | S::Resolve
                 | S::Prepare
                 | S::Turn
+                | S::CatchUp
                 | S::Branch => None,
             };
             let code = if *actor == Code { code } else { None };
             w::Stop::new(
                 &w::CEILINGS,
                 w::StopParts {
+                    needed: false,
+                    over: Box::default(),
                     actor: actor.clone(),
                     step: step.clone(),
                     words: (*words).into(),
@@ -481,7 +484,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"check, code",
                 b"you approve, a person",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -493,7 +496,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"review, an agent",
                 b"repair, an agent",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -507,7 +510,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"goal branch, a branch",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"verify, code",
@@ -828,7 +831,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "review, an agent",
         "repair, an agent",
         "check, code",
-        "update, code",
+        "conflict, code",
         "resolve, an agent",
         "merge, code",
         "main, a branch",
@@ -879,6 +882,85 @@ fn lede_uses_the_project_name() {
                 [format!("Pick a way for {}, or ask temper to build your own.", String::from_utf8_lossy(name))
                     .as_bytes()]
             );
+        }
+    }
+}
+
+fn draft_first() -> Ways {
+    let mut f = fixture(Some(CURRENT), true, false);
+    input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab: 2 });
+    let mut view = f::browser_page_view(&f.root);
+    let use_this = named(view.tree(), Role::Button, b"Use this").id;
+    let action = crate::act(&mut view, use_this, Act::Press).expect("Use this is enabled");
+    assert_eq!(action, d::Action::Pages(pages::Act::UseWay { project: f::PROJECT, way: 2 }));
+    let out = event(&mut f.root, d::Event::Act { action });
+    let attempt = out
+        .iter()
+        .find_map(|request| {
+            let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } },
+            } = request
+            else {
+                return None;
+            };
+            Some(*attempt)
+        })
+        .expect("Use this sends the way's settings");
+    up(
+        &mut f.root,
+        Up::Answer {
+            attempt,
+            envelope: skein_lib::RequestEnvelope::Final,
+            why: None,
+            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
+                c::OutcomeSettingsChanged { revision: NEWEST },
+            )))),
+        },
+    );
+    settings_document(&mut f, true);
+    show(&mut f, &panel(Some(2), true));
+    f
+}
+
+#[test]
+fn asking_composer_uses_the_message_bound_for_send_and_enter() {
+    let mut f = draft_first();
+    let bound = usize::try_from(f.root.pages().me(f.root.client()).unwrap().words_bytes).unwrap();
+    let mut limits = f::domain_limits();
+    limits.client.domain.long_text = 10_000;
+    for browser in [false, true] {
+        let words = if browser { f::browser_words() } else { f::words() };
+        let envelope = crate::Limits::of(&limits, &words).unwrap();
+        let mut view = crate::View::new(&envelope, &limits, words, f::FORGE);
+        for length in [257, bound, bound + 1, 10_001, 257] {
+            let words = vec![b'a'; length].into_boxed_slice();
+            d::step(
+                &mut f.root,
+                &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+                d::Event::Act { action: d::Action::Pages(pages::Act::ChatWords { words: words.clone() }) },
+                &mut Queue::uncapped(),
+            );
+            f::build(&mut view, &f.root);
+            let entry = named(view.tree(), Role::TextArea, ENTRY);
+            assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), &words[..length.min(10_000)]);
+            assert_eq!(entry.states.as_slice().contains(&State::SubmitsOnEnter), length <= bound);
+            let entry = entry.id;
+            let send = named(view.tree(), Role::Button, b"Send");
+            assert_eq!(disabled(send), length > bound);
+            let send = send.id;
+            let expected = (length <= bound).then_some(d::Action::Pages(pages::Act::StartChat));
+            assert_eq!(crate::act(&mut view, entry, Act::Submit), expected);
+            assert_eq!(crate::act(&mut view, send, Act::Press), expected);
+            let line = format!(
+                "That's {} character{} over what one message holds.",
+                String::from_utf8_lossy(&crate::words::grouped(u64::try_from(length.saturating_sub(bound)).unwrap())),
+                if length == bound + 1 { "" } else { "s" }
+            );
+            if length > bound {
+                named(view.tree(), Role::Status, line.as_bytes());
+            } else {
+                assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("over what one message holds"));
+            }
         }
     }
 }
