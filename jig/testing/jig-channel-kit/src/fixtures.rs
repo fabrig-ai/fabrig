@@ -666,3 +666,24 @@ pub(crate) fn providers_store_names() -> &'static [jig_domain_core::settings::Mo
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models()))
 }
+
+/// The redial ceiling from the same worker document the world starts.
+#[must_use]
+pub(crate) fn worker_redial_ceiling() -> Duration {
+    static CEILING: std::sync::OnceLock<Duration> = std::sync::OnceLock::new();
+    *CEILING.get_or_init(|| {
+        let bytes = u32::try_from(WORKER_DOCUMENT.len()).expect("fixture size");
+        let document = jig_protocol_config::document(
+            WORKER_DOCUMENT,
+            &jig_protocol_config::DocumentLimits { bytes, tokens: bytes, depth: 32 },
+        )
+        .expect("worker document");
+        let array = document.member(0, b"workers").expect("worker array");
+        let at = array.checked_add(1).expect("first worker");
+        jig_protocol_config::worker(&document, at, &jig_protocol_config::Directories::working())
+            .expect("fixture worker")
+            .limits
+            .link
+            .ceiling
+    })
+}

@@ -163,6 +163,7 @@ impl LinkPeer {
                 | engine_link::Request::Lower { .. }
                 | engine_link::Request::Close { .. }
                 | engine_link::Request::Abort { .. }
+                | engine_link::Request::Ended { .. }
                 | engine_link::Request::Lost { .. }
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }

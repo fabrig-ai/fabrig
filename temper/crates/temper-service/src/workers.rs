@@ -135,6 +135,7 @@ impl Workers {
                 }));
             }
             kit::host::Output::Up { channel, up, parts } => self.received(channel, up, &parts, events),
+            kit::host::Output::Ended { .. } => {}
             kit::host::Output::Lost { channel } => {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
             }
