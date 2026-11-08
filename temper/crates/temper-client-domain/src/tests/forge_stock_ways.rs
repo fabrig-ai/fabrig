@@ -336,20 +336,51 @@ fn ways_watch_has_project_scope_and_the_pages_lifetime() {
         wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(),
         &w::Watch::Ways(w::WaysSubject::new(&w::CEILINGS, w::WaysSubjectParts { project: f::PROJECT }).unwrap())
     );
-    for input in [
-        Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
-        Event::Went { place: Place::Address(Address::Ask { project: OTHER }) },
-        Event::Went { place: Place::Missing },
-    ] {
-        let mut f = fixture();
-        assert_eq!(f.root.pages().stock_ways().unwrap().state(), &State::Loading);
-        assert_eq!(f.root.pages().stock_ways().unwrap().shown(), None);
-        let out = event(&mut f.root, input);
-        assert!(closed(&out, f.watch));
+    for address in [Address::Ask { project: f::PROJECT }, Address::Settings { project: f::PROJECT }] {
+        for input in [
+            Event::Went { place: Place::Address(Address::Home { project: f::PROJECT }) },
+            Event::Went { place: Place::Address(Address::Ask { project: OTHER }) },
+            Event::Went { place: Place::Address(Address::Settings { project: OTHER }) },
+            Event::Went { place: Place::Missing },
+        ] {
+            let mut f = fixture();
+            go(&mut f.root, address.clone());
+            assert_eq!(f.root.pages().stock_ways().unwrap().state(), &State::Loading);
+            assert_eq!(f.root.pages().stock_ways().unwrap().shown(), None);
+            let out = event(&mut f.root, input);
+            assert!(closed(&out, f.watch));
+        }
     }
     let mut f = fixture();
-    let out = go(&mut f.root, Address::Ask { project: f::PROJECT });
-    assert!(!closed(&out, f.watch));
+    show(&mut f, &panel(f::PROJECT, Some(0), true));
+    for address in [
+        Address::Settings { project: f::PROJECT },
+        Address::Ask { project: f::PROJECT },
+        Address::Settings { project: f::PROJECT },
+    ] {
+        let page = f.root.pages().stock_ways().unwrap();
+        let before = (page.shown(), page.open());
+        let out = go(&mut f.root, address);
+        assert!(!closed(&out, f.watch));
+        let page = f.root.pages().stock_ways().unwrap();
+        assert_eq!((page.shown(), page.open()), before);
+        act(&mut f, pages::Act::WayTab { project: f::PROJECT, tab: 1 });
+        act(&mut f, pages::Act::WayStop { project: f::PROJECT, stop: 0 });
+        assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(1));
+        assert_eq!(f.root.pages().stock_ways().unwrap().open(), Some(0));
+        act(&mut f, pages::Act::WayTab { project: OTHER, tab: 0 });
+        act(&mut f, pages::Act::WayStop { project: OTHER, stop: 1 });
+        assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(1));
+        assert_eq!(f.root.pages().stock_ways().unwrap().open(), Some(0));
+    }
+    go(&mut f.root, Address::Home { project: f::PROJECT });
+    up(&mut f.root, Up::WatchEnded { watch: f.watch, end: c::WatchEnd::Closed });
+    let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
+    let watch = opened(&out, &stock_ways::watch(f::PROJECT, &f::limits().forge).unwrap()).expect("Settings ways watch");
+    assert_ne!(watch, f.watch);
+    up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
+    let out = go(&mut f.root, Address::Home { project: f::PROJECT });
+    assert!(closed(&out, watch));
 }
 
 #[test]

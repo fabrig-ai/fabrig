@@ -409,7 +409,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
 | `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open Ask temper (*The first chat,* below); adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
-| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
+| `Settings { project }` | the whole story's `web/whole-story/how.html`; the greenfield mock's `settings.html` for its foot | How work runs, the first tab of a project's settings: the way the project runs, the path of a change by who acts, the ways as tabs, a goal's budget, what needs the person and while the person is away, and at its foot what the project shows and its ways of working (5.13, *The page*) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's `ways` (4.6); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13); show a way's tab and a stop's card in place; "Use this" or "Keep it" (5.13, *A way's acts*) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
@@ -2484,7 +2484,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
     | Tab | Heading | Lede |
     |---|---|---|
-    | How work runs | How work runs in PROJECT. | Everything the other pages do for this project comes from here, so each project, and each person, can work its own way. |
+    | How work runs | the way the project runs (5.13, *The page*) | that way's line, then how to change it (5.13, *The page*) |
     | Repositories | What PROJECT works on. | The repositories chats and goals in PROJECT read and change. |
     | Forges | Where your code lives. | Each forge temper is connected to, or setting up. Add one to bring its repositories to temper. |
     | Accounts | What agents run on. | The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it. |
@@ -4750,7 +4750,8 @@ and reserves for each print only what that page's tree may print
 (6.8).
 
 A note's body and a task's words are `long_text`, 131,072 on each of temper's
-clients, past a field's `text` (jig's `client/domain/client.md`, section 14), and
+clients (the browser tier's bundle may name less, with its window: `browser.md`,
+4.3), past a field's `text` (jig's `client/domain/client.md`, section 14), and
 a chat's document's section is read within the view's `text_bytes`, which prices one.
 
 A line of a conversation holds words the store took, and they are `long_text` too:
@@ -6087,12 +6088,90 @@ The settings, their revisions and their proposals are
 `domain/engine.md`, section 17; the draft is `../draft/configuring.md`,
 section 5.
 
-Ask temper is reached from the rail and tab bar (5.3), with no chat offer
-on this tab.
+Ask temper is reached from the rail and tab bar (5.3), and from this page's
+"Ask temper to change this".
 
-- **The tab,** `Settings { project }` (3.5, *Settings*), under its tabs: its
-  sections 44 apart, each a section title and its rows, each row a label,
-  small words and a control at its right, a phone stacking them:
+- **The page,** `Settings { project }` (3.5, *Settings*), is How work runs,
+  the project's process (`../draft/surfaces.md`, section 7), its look the
+  whole story's `web/whole-story/how.html` and `pair/how.html`
+  (`browser.md`, 2.5, *How work runs' look*). It draws what the engine
+  holds (`../draft/whole-story.execution.md`, section 2): what reaches the
+  person, rules by path, what follows a landing and a role's budget are
+  later milestones' (section 11), and none of them is drawn, as an empty
+  section, a placeholder or a made-up value. Under the frame's kicker, in
+  order, its sections 44 apart, each a section title and its rows:
+  - *Its heading and lede,* in the frame's place for them (3.5,
+    *Settings*): the heading names the way the project runs, the `ways`
+    read's `name` of its current way ("Agents review"), or "A way of its
+    own" where it runs no stock way; the lede is that way's `line`, or
+    "PROJECT runs settings of its own, drawn below." with none, then "Ask
+    temper to change any of it, in words; an owner accepts its proposal,
+    and new work follows it." Until the read answers, and once its watch
+    has ended, the heading is "How work runs in PROJECT." and the lede
+    that last sentence alone. A way's name and line are the read's, never
+    written here.
+  - *"Ask temper to change this,"* under the lede, a primary link to `Ask {
+    project }`, while `me` lists Ask temper's template among the project's
+    (3.5, *Ask temper's page*); then the frame's tabs.
+  - *The path of a change,* a section: its title, and at its head's right,
+    small and muted, "the way: NAME", NAME the current way's, or "its own"
+    where it runs none. Under it the ways' tabs as Ask temper's page draws
+    them (3.5): a tab a way of the read, in its order, then "Yours" where
+    the project runs no stock way, the current one's "now", the shown one
+    selected, and the line "From more of you to more of your agents"; the
+    shown way's `line`; its path in lanes (below); while a stop is open,
+    its card, as Ask temper's page draws a stop's card, with no caret; then
+    the shown way's act at the section's right, "Use this" or "Keep it"
+    (*A way's acts,* below), and a refusal under it. The shown tab and the
+    open stop are the page's state, as on Ask temper's page. Until the read
+    answers the section holds its title alone; once its watch has ended,
+    "The ways can't be read now.", muted.
+  - *A path in lanes,* a table named "The path of a change": its first row
+    column headers, an empty one, then one a stop of the path, in its
+    order, naming the stop's step: "Ask", "Draft", "Plan", "Produce" (for
+    `produce` and `produce_many`), "Check", "Review", "Repair", "Approve",
+    "Update", "Resolve", "Merge", "Prepare", "Prove", "Turn" and "Verify",
+    and for a bar its `words`, "goal branch" or the landing branch's name.
+    Then a row each for "You", "Agents" and "Code", its row header that
+    word, then a cell a stop: in the row of the stop's actor, a person's in
+    You, an agent's in Agents, code's in Code, a button opening the stop's
+    card as a stop of Ask temper's drawing does (`Act::WayStop`), pressed
+    again closing it, current while its card is open, named by what the
+    cell says: a person's stop's `words` ("you ask", "you approve", "an
+    owner approves"), an agent's or code's its card's `name` ("the coding
+    agent", "the reviewer", "CI", "the queue", a tier's name). A bar's
+    cells hold nothing and draw its column's bar; every other cell is
+    empty. Between the Agents and Code rows, a row of one cell across every
+    column, "authority: no merge tool above this line": no agent's stop
+    stands under it (`../domain/forge.md`, 8.13).
+  - *Budgets,* while one is set (`../draft/surfaces.md`, section 12): what
+    a goal is given when it starts, while kind 7 has Goals shown and its
+    goal's template, the one `way` names or else the first tracked one in
+    `me`, gives an amount or a cap (its `budget`). A section "Budgets",
+    then one row: "Goals", in small type "each given its own when it
+    starts", and at its right the amount, a whole number as a chat's bar
+    says a budget, or "up to N" for a cap. A budget a goal's starter gives,
+    or one only its policy bounds, has no figure, and so no row.
+  - *What needs you* and *While you're away, agents may decide,* below,
+    until What reaches you takes their place
+    (`../draft/whole-story.execution.md`, section 3, P3b).
+  - *At its foot,* *What the project shows* and, while Goals is shown,
+    *Ways of working*, below: the switches stay as overrides of what each
+    page's own rule shows (`../draft/surfaces.md`, section 12).
+
+  A row is a label, small words and a control at its right, a phone
+  stacking them. On a phone the path's table keeps its columns and scrolls
+  sideways in its box. Nothing disabled is drawn: a mechanism not built
+  has no row until it is.
+- **Its parts** are one pure function, `pages::how::parts`, of the facts
+  `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
+  read's state and current way, kind 7's Goals and its goal template's
+  budget), which the web and the terminal share (`../draft/surfaces.md`,
+  section 12): the heading's way, "Ask temper to change this", the path
+  section's state and Budgets' row. The lanes are another,
+  `pages::how::lanes`: a column a stop of a path, in its order, a stop's in
+  its actor's lane and a bar's in none, every stop placed once.
+- **Its rows:**
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
 
@@ -6109,24 +6188,11 @@ on this tab.
     N." or " Used by none yet." where a goal's template is recorded; a radio,
     " The default". A stored `way` of 0, or of a template no longer offered,
     reads as the first. A goal's start preselects it.
-  - *Status,* disabled, each showing what temper does today: "Status lines and
-    reports", "Written words, beside the counts temper keeps itself.";
-    "Rewritten"; "The brief on Home", "What changed since you last looked.", "On".
   - *What needs you:* "Questions a goal can answer from its plan", live, kind
     6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
-    too" (`up`), "Not asked: each agent decides alone" (`none`); "Funds",
-    disabled, "Ask when a budget is used up".
+    too" (`up`), "Not asked: each agent decides alone" (`none`).
   - *While you're away, agents may decide,* after What needs you, shown only
     while the Away switch is; its controls write through `SetAway`.
-  - *Telling you,* disabled: "Notifications", "Only when something needs you;
-    never for status.", "Off"; "Quiet hours", "None".
-  - A disabled section's last line says once "Not built yet: this is what
-    temper does today."; Funds' small words say the same. No control does
-    nothing: whoever builds a mechanism later turns its row on.
-- **No way into Ask temper:** the tab offers none, and no pointer to it: the
-  rail holds it on every page of the project (5.3), and its page is through no
-  Settings (`../draft/ask-temper.md`, section 9; the look request
-  `ask-temper-place`). Ask temper changes settings by a proposal (below).
 - **What the client holds:** jig's `settings` watch, for the session, as the
   `dismissed` and `forges` watches are held, Home reading the same one. It reads
   kind 7 of the open project as the project opens, and kind 6 on the tab,
@@ -6150,8 +6216,9 @@ on this tab.
   value. A `stale` refusal is sent once more against the revision it names.
   Answered, the client takes the value at once and reads it again.
 - **A way's acts** (`../draft/stock-ways.md`, section 5;
-  `../protocol/configuration.md`, 13.10): Ask temper's page watches the
-  project's `ways` (4.6) while open, its state the page's. *"Use this"* on a
+  `../protocol/configuration.md`, 13.10): Ask temper's page and How work
+  runs each watch the project's `ways` (4.6) while open, its state the
+  page's. *"Use this"* on a
   way the project doesn't run sends at once jig's `ChangeSettings` of that
   way's `items`, running work staying, against the newest revision the person
   has, one decision, as a control on this tab does; where the way's
@@ -6174,8 +6241,9 @@ on this tab.
   shown and the stop whose card is open are the page's state, in no
   address: the current way's tab as the page opens; kept by the way's
   place across documents while it stands, else the current one again;
-  the card closed by another tab or a change of the shown path. The page
-  draws them as 3.5, *Ask temper's page*, says.
+  the card closed by another tab or a change of the shown path. Ask
+  temper's page draws them as 3.5, *Ask temper's page*, says, and How work
+  runs as *The page* does, above.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
@@ -6256,7 +6324,7 @@ on this tab.
   never both say it. A proposal with no card standing keeps its row.
 
 **Later: the fuller page.** Roles, ways to start work, rules, running work and
-history join the tab, the review page opens, and the card gains "Review". The
+history join the page, the review page opens, and the card gains "Review". The
 pages then read jig's `settings` document and each setting they show whole
 (`setting`, jig's `client/domain/contract.md`, 5.1 and 6), again as the document
 says it changed; temper's kinds' values, and a proposal's items of them, from
@@ -9591,14 +9659,19 @@ own tests:
   hidden and no Goals or goal page current, Goals leaves the bar until the
   project is opened again. Default: one read, as 5.3 has it.
 - **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
-  start work, rules, running work and history on the tab; `Proposal { proposal
+  start work, rules, running work and history on the page; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
-  agents follow that the mock's `.proposal-split` draws. Default: the tab's rows
+  agents follow that the mock's `.proposal-split` draws. Default: the page's parts
   and the card alone.
-- **How work runs' disabled rows** (5.13): Status, Funds and Telling you are
-  drawn disabled, showing what temper does today, since no setting stands behind
-  a report, the brief, funds or a notification. Default: whoever builds one turns
-  its row on.
+- **How work runs' later parts** (`../draft/surfaces.md`, sections 7 and 12;
+  `../draft/whole-story.execution.md`, section 3): What reaches you (P3b), Rules
+  by path and the path's stops for a path set (P3c), What follows a landing and
+  a role's budget (P3d), each drawn by its milestone from the engine's reads;
+  "History · N changes" beside "Ask temper to change this", once a page lists
+  the settings' revisions (*Later: the fuller page*); the next step suggested
+  when the facts earn it; and the project's repositories at the page's foot
+  rather than its frame's second tab. Default: none of them is drawn until it
+  is built, and Repositories stays the second tab.
 - **How many goals take a way** (5.13): " Used by N." and " Used by none yet."
   need a goal's template, and jig's `TaskLine`, what a client is given of a goal,
   records none. Default: the sentence is left out.

@@ -362,17 +362,25 @@ fn direct_landing_finish_and_two_writes() {
 }
 
 #[test]
-#[ignore = "needs: ruleset knob on the GitHub joint"]
 fn ruleset_refuses_merge_without_landing() {
     // QA: skein forge-github.md 7 (405 rule violation -> Protected); Q3.
-    // Missing Setup.protection must expose a required approval on main,
-    // no bot-9 bypass, and enforce it at merge with the real 405 mapping.
     let mut world = Protocol::github(743);
+    world.protect(raw::Protection {
+        linear: false,
+        code_owners: false,
+        bypassing_users: Box::new([]),
+        queue: false,
+        branch: Box::from(b"main".as_slice()),
+        contexts: Box::new([]),
+        approvals: 1,
+        dismiss_stale: false,
+    });
     opened(&mut world);
     let mut held = false;
     for entry in 2..20 {
         match step(&mut world, entry, change::Status::Unknown) {
-            change::Decision::Hold(_) => {
+            change::Decision::Hold(why) => {
+                assert_eq!(why, change::Hold::Failed, "QA: Protected writes fail the change's effect");
                 held = true;
                 break;
             }
@@ -393,6 +401,18 @@ fn ruleset_refuses_merge_without_landing() {
         }
     }
     assert!(held, "QA: ruleset refusal must hold the change");
+    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(51)) else {
+        panic!("held change");
+    };
+    assert!(
+        row.effect_account
+            .as_ref()
+            .expect("protected merge's outcome")
+            .words
+            .windows(b"forge protection refused the write".len())
+            .any(|words| words == b"forge protection refused the write")
+    );
+    assert_eq!(world.tally().routes.get(&Route::Merge), Some(&1), "QA: protected merge is tried once");
     assert!(!world.observations().iter().any(|o| matches!(o, Observation::Merged { .. })));
     world.finish();
 }
@@ -479,13 +499,11 @@ fn pending_ci_across_token_hour_completes_on_fresh_token() {
 }
 
 #[test]
-#[ignore = "needs: cut after applied merge before confirming read on the GitHub joint"]
 fn restart_after_merge_before_read_never_merges_twice() {
     // QA: domain/forge.md 6, 16; protocol/forge.md 10; Q5.
     let mut world = Protocol::github(746);
     opened(&mut world);
-    // Missing joint control must be armed here, to stop an admitted merge
-    // after apply and before answer/confirming read, preserving its entry.
+    world.cut_after_next_merge();
     let mut requested = false;
     for entry in 2..20 {
         if matches!(
@@ -497,19 +515,37 @@ fn restart_after_merge_before_read_never_merges_twice() {
         }
     }
     assert!(requested, "precondition: the merge was admitted");
+    assert!(world.cut_taken(), "cut must stop the run before the merge's answer is delivered");
     assert_eq!(
         world.observations().iter().filter(|o| matches!(o, Observation::Merged { .. })).count(),
         1,
         "cut must follow an applied merge"
     );
-    assert!(
-        world.stored().iter().any(|(_, row)| matches!(row, forge::Stored::Entry { .. })),
-        "cut must preserve the outstanding merge entry"
-    );
+    let merge_entry = world
+        .stored()
+        .iter()
+        .find_map(|(_, row)| {
+            if let forge::Stored::Entry { entry, .. } = row
+                && entry.task == 51
+                && matches!(entry.effect.write, skein_forge::api::Write::Merge { head, .. }
+                if head == commit(world.branch(b"temper/51")))
+            {
+                Some(entry)
+            } else {
+                None
+            }
+        })
+        .expect("cut must preserve the outstanding merge entry")
+        .clone();
+    assert!(world.merge_pending(&merge_entry), "the merge entry's own call must still await its answer");
     let writes = world.writes();
+    let landed = world.branch(b"main");
     world.restart();
+    assert!(!world.cut_taken(), "restart clears the cut");
     let finishes = scheduled_landing(&mut world, 20, 30);
     assert_eq!(world.writes(), writes, "QA: recovery must find the merge without another write");
+    assert_eq!(world.branch(b"main"), landed);
+    assert!(world.stored().get(&forge::Key::Entry(merge_entry.number)).is_none());
     landed_once(&world, &finishes, 2);
     world.finish();
 }

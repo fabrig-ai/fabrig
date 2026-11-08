@@ -494,9 +494,13 @@ The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
 with story labels for failed steps but with no run in Chromium yet. Reading's
 four stories, apart, passed with ctl history
-and a 131,072-byte window, but their CPU medians sum to
-44.849900 s and the three targets remain unmet; no whole-tier run proves the
-repair within 85 CPU s. The listener-full ctl failure is repaired; the public
+and a 131,072-byte window, their CPU medians summing to
+44.849900 s against three unmet targets. The tier's window, `long_text` and
+`turn_text` are now 32,768 bytes, reading's code lines scaled with them, and
+skein's decoder indexes each CDP message once, with no CPU figure on record
+since; no whole-tier run proves the
+repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
+for now, to be revisited. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
 (`client/browser.md`). A stale view still rereads held Markdown and rebuilds
@@ -696,8 +700,9 @@ focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
 6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
 130.202313 fuzzy CPU s for the measured packages alone; the whole focused
 total remains unknown. The whole fuzzy suite's three warm serial runs
-pass all 81 tests each, but their median is 125.579032 CPU s against 120
-(119.288299–127.664356, including the driver).
+pass all 81 tests each, but their median is 125.579032 CPU s against the
+strategy's 120 (119.288299–127.664356, including the driver), within the 180
+to which the user raised the budget by half on 11-08, for now, to be revisited.
 The requested roughly 15 CPU s reduction and reliable headroom remain
 unachieved; gate accounting is distinct (`domain/testing.md`, sections 6,
 6.1 and 11). The real-loop focused median is 31.769481 CPU s against

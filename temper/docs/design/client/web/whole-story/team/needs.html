@@ -16,7 +16,7 @@
     <span class="switcher">shop <small>1 project</small></span>
     <div class="nav">
       <a href="home.html">Home</a>
-      <a class="on" href="needs.html">Needs you <span class="count">2</span></a>
+      <a class="on" href="needs.html">Needs you <span class="count">3</span></a>
       <a href="work.html">Work</a>
       <a href="team.html">Team</a>
       <a href="#">Ask temper</a>
@@ -36,13 +36,13 @@
     <div class="col">
       <header class="intro">
         <p class="kicker">Needs you · shop</p>
-        <h1 class="headline">Two sign-offs wait on you. One waits on Kit.</h1>
-        <p class="lede">On shop, every change needs one of you to sign off after an agent's review, and payments/ needs two of you. Agents decide only retries and wording, and list them here.</p>
+        <h1 class="headline">Three changes wait for one of you to sign off.</h1>
+        <p class="lede">On shop, every change needs one of you to sign off after an agent's review, and payments/ needs two of you. Agents decide only retries, splits and wording, and list them here.</p>
         <p class="small"><a href="how.html">What reaches you on shop</a></p>
       </header>
 
       <section class="section">
-        <div class="shead"><h2>Your turn · 2</h2><span>oldest first</span></div>
+        <div class="shead"><h2>Sign-offs · 3</h2><span>for any of you, oldest first</span></div>
         <div class="card need">
           <p class="from"><span class="chip">payments/</span> change #214 · asked by Sam in a chat Friday · reviewed by an agent · 2 d ago</p>
           <p class="q">Retry a declined card once, after 2 s</p>
@@ -51,12 +51,22 @@
             <li><b>Changes:</b> payments/retry.go +31 −4, payments/retry_test.go +7 −2.</li>
             <li><b>Checks:</b> CI green at this head; the agent's review passed with no notes.</li>
           </ul>
-          <p class="why">Reached you because payments/ needs two of you. 1 of 2 signed: Sam, Saturday 10:52.</p>
+          <p class="why">Reached you because payments/ needs two of you. 1 of 2 signed: Sam; you or Kit can give the second.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
+            <a class="choice quiet" href="#">Ask for changes on Forgejo ↗</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">storefront/</span> change #213 · asked by Kit in a chat Thursday · reviewed by an agent · 2 d ago</p>
+          <p class="q">Product page shows stock per size</p>
+          <p class="small">Each size shows its stock beside its button, and a size out of stock is greyed with its restock date. The reviewer checked the page in both themes.</p>
+          <p class="why">Reached you because every change on shop needs one of you.</p>
           <div class="choices">
             <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
             <a class="choice" href="#">See the change</a>
           </div>
-          <label class="field">Or ask for a change<input type="text" value="" placeholder="Your words go to the change's agent"></label>
         </div>
         <div class="card need">
           <p class="from"><span class="chip">coupons</span> change #215 · goal "coupons", 2 of 3 · asked by Kit · 1 d ago</p>
@@ -71,32 +81,21 @@
       </section>
 
       <section class="section">
-        <div class="shead"><h2>Others' turn · 1</h2><span>shown so you know, nothing to do</span></div>
-        <div class="rows">
-          <div class="row">
-            <span class="mono">Kit's turn · 2 d</span>
-            <div><p>Storefront: product page shows stock per size.</p><p class="small muted">storefront is Kit's area, so Kit signs off.</p></div>
-            <a class="r" href="#">Nudge Kit</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
         <div class="shead"><h2>Decided for you · 1</h2><span>for 24 hours, then in the change's history</span></div>
         <div class="rows">
           <div class="row">
-            <span class="mono">shop · CI · Sat 09:12</span>
-            <div><p>A checkout test timed out once.</p><p class="took">Reran it.</p><p class="small muted">Allowed: Agents review decides retries.</p></div>
+            <span class="mono">shop · coupons goal · Sat 09:12</span>
+            <div><p>A task ran out of turns on the coupon rules.</p><p class="took">Split it in two.</p><p class="small muted">Allowed: retrying or splitting a task.</p></div>
             <a class="r" href="#">Overturn</a>
           </div>
         </div>
       </section>
 
       <section class="section">
-        <div class="shead"><h2>Tell temper</h2><span>feedback becomes a finding for its area's owners</span></div>
+        <div class="shead"><h2>Tell temper</h2><span>feedback becomes a finding for its area's owner</span></div>
         <div class="card">
           <label class="field">Something off?<textarea rows="2">The order email's courier link opens the tracking page in English for German customers.</textarea></label>
-          <p class="small muted">About shop · emails. Goes to: the three of you, as everything outside payments/ and storefront is.</p>
+          <p class="small muted">About shop · emails. Goes to you, the triager, who hands it to its area's owner.</p>
           <div class="choices"><a class="choice rec" href="#">File it</a><a class="choice quiet" href="#">Ask temper instead</a></div>
         </div>
       </section>
