@@ -1,0 +1,53 @@
+draft = "walks-lower"
+repo = "fabrig"
+sources = ["temper/docs/plan/walks-lower/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
+
+# plan.md says what was decided and why, with one row per walk.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "status"
+title = "Home's brief on a person's plan past the sitting, and the landing count and skip kept across restarts, in the joint world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "away"
+title = "Away on, a goal decided, carried on, overturned and asked again, then off and waiting, on Home in the joint world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "goal"
+title = "A chat's goal writes its report, reached from Home's Goals link through its row, in the joint world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "model"
+title = "A welcome sign-in's account reads usable from the engine in the joint world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "issuer"
+title = "The fake issuer leaves a sign-in room beside a browser's held sockets in the real loop, and its process logs each turn-away"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 1
+story = "What the fake box's status, Away, goal and sign-in walks proved runs in the joint world, the real loop and the fake's own stories, each failing first where it guards a fix"
+parts = ["status", "away", "goal", "model", "issuer"]
+walk = false
