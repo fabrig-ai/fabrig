@@ -192,20 +192,16 @@ pub const BACK: Style = Style { owner: owner(), token: 241 };
 pub const TRAIL: Style = Style { owner: owner(), token: 242 };
 /// The session’s account and model line. (client/README.md, 3.5).
 pub const BYLINE: Style = Style { owner: owner(), token: 243 };
-/// Ask temper’s introduction and starters. (client/README.md, 3.5).
+/// Ask temper’s opening. (client/README.md, 3.5).
 pub const STARTER: Style = Style { owner: owner(), token: 244 };
-/// Ask temper’s suggested first messages. (client/README.md, 3.5).
+/// A new chat’s suggested first messages. (client/README.md, 3.5).
 pub const STARTERS: Style = Style { owner: owner(), token: 245 };
 /// Ask temper’s opening’s lede (client/README.md, 3.5).
 pub const STARTER_LEDE: Style = Style { owner: owner(), token: 248 };
-/// Ask temper’s opening’s sets (client/README.md, 3.5).
-pub const STARTER_SETS: Style = Style { owner: owner(), token: 249 };
-/// Ask temper’s opening’s note (client/README.md, 3.5).
-pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
+
 /// Ask temper’s opening’s ways (client/README.md, 3.5).
 pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
-/// Ask temper’s opening’s unsure (client/README.md, 3.5).
-pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
+
 /// The rail switcher's panel.
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
@@ -933,10 +929,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-session-right",
         b"temper-reserved-247",
         b"temper-starter-lede",
-        b"temper-starter-sets",
-        b"temper-starter-note",
+        b"temper-reserved-249",
+        b"temper-reserved-250",
         b"temper-starter-ways",
-        b"temper-starter-unsure",
+        b"temper-reserved-252",
         b"temper-meta-line",
         b"temper-chats-page",
         b"temper-chats-intro",
@@ -1131,12 +1127,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
-        b"temper-starter-head",
-        b"temper-starter-own",
-        b"temper-starter-own-text",
-        b"temper-starter-own-title",
-        b"temper-starter-own-steps",
-        b"temper-starter-own-acts",
+        b"temper-reserved-447",
+        b"temper-reserved-448",
+        b"temper-reserved-449",
+        b"temper-reserved-450",
+        b"temper-reserved-451",
+        b"temper-reserved-452",
         b"temper-doc-sub",
         b"temper-doc-flow",
         b"temper-reserved-455",
@@ -1312,6 +1308,24 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-landing",
         b"temper-ways-end",
         b"temper-ways-caret",
+        b"temper-ways-lede",
+        b"temper-ways",
+        b"temper-ways-tabs",
+        b"temper-ways-now",
+        b"temper-ways-axis",
+        b"temper-ways-panel",
+        b"temper-ways-says",
+        b"temper-ways-zoom",
+        b"temper-ways-zoom-head",
+        b"temper-ways-foot",
+        b"temper-ways-legend",
+        b"temper-ways-kind-agent",
+        b"temper-ways-kind-person",
+        b"temper-ways-kind-code",
+        b"temper-ways-kind-line",
+        b"temper-ways-acts",
+        b"temper-ways-use",
+        b"temper-ways-refused",
     ],
     regions: &[b"temper-link"],
 };
@@ -1473,14 +1487,6 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
-
-/// Ask temper’s own way card (temper/docs/design/client/README.md, 3.5).
-pub const STARTER_HEAD: Style = Style { owner: owner(), token: 447 };
-pub const STARTER_OWN: Style = Style { owner: owner(), token: 448 };
-pub const STARTER_OWN_TEXT: Style = Style { owner: owner(), token: 449 };
-pub const STARTER_OWN_TITLE: Style = Style { owner: owner(), token: 450 };
-pub const STARTER_OWN_STEPS: Style = Style { owner: owner(), token: 451 };
-pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 
 /// The stock reference beside Ask temper (temper/docs/design/client/README.md, 3.5).
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
@@ -1702,6 +1708,26 @@ pub const WAYS_OPEN: Style = Style { owner: owner(), token: 624 };
 pub const WAYS_LANDING: Style = Style { owner: owner(), token: 625 };
 pub const WAYS_END: Style = Style { owner: owner(), token: 626 };
 pub const WAYS_CARET: Style = Style { owner: owner(), token: 627 };
+
+/// Ask temper’s ways (temper/docs/design/client/README.md, 3.5).
+pub const WAYS_LEDE: Style = Style { owner: owner(), token: 628 };
+pub const WAYS: Style = Style { owner: owner(), token: 629 };
+pub const WAYS_TABS: Style = Style { owner: owner(), token: 630 };
+pub const WAYS_NOW: Style = Style { owner: owner(), token: 631 };
+pub const WAYS_AXIS: Style = Style { owner: owner(), token: 632 };
+pub const WAYS_PANEL: Style = Style { owner: owner(), token: 633 };
+pub const WAYS_SAYS: Style = Style { owner: owner(), token: 634 };
+pub const WAYS_ZOOM: Style = Style { owner: owner(), token: 635 };
+pub const WAYS_ZOOM_HEAD: Style = Style { owner: owner(), token: 636 };
+pub const WAYS_FOOT: Style = Style { owner: owner(), token: 637 };
+pub const WAYS_LEGEND: Style = Style { owner: owner(), token: 638 };
+pub const WAYS_KIND_AGENT: Style = Style { owner: owner(), token: 639 };
+pub const WAYS_KIND_PERSON: Style = Style { owner: owner(), token: 640 };
+pub const WAYS_KIND_CODE: Style = Style { owner: owner(), token: 641 };
+pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
+pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
+pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
+pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 
 #[cfg(test)]
 mod tests {

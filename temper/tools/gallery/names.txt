@@ -36,8 +36,6 @@ ask-chat-withdrawn
 ask-chats-tag
 ask-first-run
 ask-model-open
-ask-reference
-ask-reference-draft
 ask-refused
 ask-sending
 ask-typing

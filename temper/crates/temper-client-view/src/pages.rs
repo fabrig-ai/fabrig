@@ -23,6 +23,7 @@ pub(crate) mod model_check;
 pub(crate) mod models;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
+#[cfg(test)]
 pub(crate) mod reference;
 pub(crate) mod session;
 pub(crate) mod settings;
