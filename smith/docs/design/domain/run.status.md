@@ -17,10 +17,6 @@ for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
 a silent check still has no output to report (section 15).
 
-- **Not yet:** 5.3: a sub-agent's answer cap is 1,024 bytes rather than
-  the outcome's room, and a cut falls at a byte rather than a character's
-  boundary (`smith-domain-run/src/limits.rs`, `derive`; `src/agent.rs`,
-  `yielded`).
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
