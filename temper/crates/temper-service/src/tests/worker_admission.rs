@@ -308,24 +308,56 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
 }
 
 #[test]
-fn the_link_is_not_read_until_its_last_output_is_taken() {
+fn a_new_wire_record_past_the_entrance_faults_the_link() {
+    use jig_protocol_engine_workers as engine_link;
+    let mut stand = socket_stand();
+    let mut peer = LinkPeer::new();
+    peer.open(&mut stand.worker);
+    while stand.worker.notes().pop().is_some() {}
+    load(&mut stand.worker, WATERMARK);
+    for _ in 0..stand.worker.held.capacity() {
+        stand.worker.link(fixtures::NOW, assignment());
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+    }
+    let link::Request::Down { down, parts } = assignment() else { panic!("assignment") };
+    peer.component.down(
+        fixtures::NOW,
+        engine_link::Event::Down { channel: Token::new(1), down, parts, values: Box::new([]) },
+        &mut peer.out,
+    );
+    for _ in 0..PEER_STEPS {
+        peer.exchange(&mut stand.worker);
+        stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
+        if let Some(note) = stand.worker.notes().pop() {
+            assert_eq!(note, crate::Note::Lost {
+                worker: b"worker-a".as_slice().into(),
+                address: Box::new(([127, 0, 0, 1], 7100).into()),
+                why: link::Loss::Fault,
+            });
+            assert_eq!(stand.worker.held.len(), stand.worker.held.capacity());
+            assert!(stand.worker.engine.iter().all(|event| !root::is_new_work(event)), "the extra record is dropped");
+            assert!(stand.worker.notes().is_empty());
+            return;
+        }
+    }
+    panic!("a wire record past the entrance faults the link");
+}
+
+#[test]
+fn the_link_is_read_while_its_last_output_waits() {
     let mut stand = socket_stand();
     let mut engine = LinkPeer::new();
     engine.open(&mut stand.worker);
     while stand.worker.notes().pop().is_some() {}
     stand.worker.engine.push(root::Event::Lost);
-    let output_taken = stand.worker.link_taken();
-    // Use the service's IO event routing gate with a socket terminal.
+    // Reading never waits for the root (temper/docs/design/domain/worker.md, 3.1).
     let mut service = super::worker::alone_service();
     service.worker = Some(stand.worker);
     let owner = engine.owner;
     service.told.push(io::Event::Closed { owner });
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     let waiting = service.told.len();
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert!(!output_taken);
-    assert_eq!(waiting, 1, "socket input waits until the last engine record is taken");
-    assert!(service.told.is_empty(), "the next iteration routes it after the entrance drained");
+    assert_eq!(waiting, 0, "socket input is routed while the last engine record waits");
 }
 
 #[test]
@@ -354,7 +386,7 @@ fn a_full_held_entrance_lets_a_passing_answer_pass() {
     let hosting = stand.worker.root.hosting();
     let admitted = hosting.get(0).expect("the admitted run");
     load(&mut stand.worker, WATERMARK);
-    for _ in 0..crate::worker::HELD_ENTRANCE {
+    for _ in 0..stand.worker.held.capacity() {
         stand.worker.link(fixtures::NOW, assignment());
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     }
@@ -374,7 +406,7 @@ fn a_full_held_entrance_lets_a_passing_answer_pass() {
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     assert_eq!(stand.worker.root.retained_turns(), 0, "the passing answer reaches its owner without a held slot");
     assert_eq!(stand.worker.held.room(), 0, "the held entrance remains full");
-    assert_eq!(stand.worker.held.len(), crate::worker::HELD_ENTRANCE);
+    assert_eq!(stand.worker.held.len(), stand.worker.held.capacity());
     assert_eq!(stand.worker.engine.len(), 1, "the new record behind the answer still waits");
     let waiting = stand.worker.engine.iter().next().expect("the next new record");
     assert!(root::is_new_work(waiting));

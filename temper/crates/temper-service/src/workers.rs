@@ -19,6 +19,7 @@ pub struct Workers {
     pub(crate) encoding: Encoding,
     pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
+    pub(crate) notes: Queue<crate::Note>,
 }
 impl Workers {
     pub fn new(
@@ -39,7 +40,7 @@ impl Workers {
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
-        Ok(Self { host, encoding, forges: table, bad_parts: 0 })
+        Ok(Self { host, encoding, forges: table, bad_parts: 0, notes: Queue::uncapped() })
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
         self.host.down(now, event);
