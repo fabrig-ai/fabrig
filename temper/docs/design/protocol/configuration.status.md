@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.2: the stock declares no kind 8 to jig, so no project
-  sets one; the client wire's `settings_kind` refuses 8, no read in a
-  project's scope takes it, and no agent's `settings` or
-  `propose_settings` names `project-classes` (`ui-reaches/classes-kind`).
-
 - **Not yet:** 13.10: no stock way lays kind 8 (`ui-reaches/classes-ways`).
 
 - **Not yet:** 13.2, 13.4: kind 7's `ProjectWays` still holds `away`, in

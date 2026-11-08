@@ -784,6 +784,11 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     for (completion, kind, value) in [
         (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
+        (
+            3,
+            "project-classes",
+            r#"{"items":[{"kind":"wording","words":"","class":"decide"},{"kind":"retry","words":"","class":"decide"},{"kind":"tests","words":"","class":"decide"},{"kind":"implementation","words":"","class":"ask"},{"kind":"dependency","words":"","class":"ask"},{"kind":"departure","words":"","class":"ask"}],"sets":[]}"#,
+        ),
     ] {
         let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {kind}"));
         assert_eq!(text, format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\n"));
@@ -793,20 +798,48 @@ fn a_project_with_no_ways_reads_at_their_stock() {
 #[test]
 fn a_projects_stored_ways_read_as_stored() {
     use serde_json::json;
-    let mut world = World::stock();
-    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
-    let setting = json!({"kind":"project-ways","project":PROJECT});
-    let value = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1});
-    let items = json!([{"setting":setting,"set":value}]);
-    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
-    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
-    assert_eq!(world.head().number, 2);
-    let (text, _) = see_whole(&mut world.driver, &run, 2, "settings project-ways");
-    let body = text.strip_prefix("project-ways 1, revision 2\n").expect("newest setting heading");
-    let (body, state) = body.split_once('\n').expect("value and application state");
-    assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), value);
-    assert!(state.starts_with("changed at revision 2, "), "{text}");
-    assert!(!text.contains("the stock"), "{text}");
+    for (kind, value) in [
+        ("project-ways", json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1})),
+        ("project-classes", json!({"items":[{"kind":"implementation","words":"","class":"decide"}],"sets":[]})),
+    ] {
+        let mut world = World::new(member_config());
+        let member = world.member();
+        let run = world.chat(ASK_TEMPLATE, member, 20);
+        if kind == "project-ways" {
+            let setting = json!({"kind":kind,"project":PROJECT});
+            let items = json!([{"setting":setting,"set":value}]);
+            let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+            world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+        } else {
+            use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject};
+            let classes = Classes {
+                items: Box::new([Item {
+                    subject: Subject::Kind(Kind::Implementation),
+                    words: Box::default(),
+                    class: Class::Decide,
+                }]),
+                sets: Box::default(),
+            };
+            let bytes =
+                temper_engine_smith::kinds::encode(&temper_engine_domain_forge::settings::Value::Classes(classes));
+            world.change(
+                1,
+                21,
+                Box::new([s::Item {
+                    setting: s::Setting::Application { kind: 8, scope: PROJECT, number: 1 },
+                    edit: s::Edit::Set(s::Value::Application(bytes)),
+                }]),
+            );
+        }
+        assert_eq!(world.head().number, 2);
+        let (text, _) = see_whole(&mut world.driver, &run, 2, &format!("settings {kind}"));
+        let heading = format!("{kind} {PROJECT}, revision 2\n");
+        let body = text.strip_prefix(&heading).expect("newest setting heading");
+        let (body, state) = body.split_once('\n').expect("value and application state");
+        assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("project JSON"), value);
+        assert!(state.starts_with("changed at revision 2, "), "{text}");
+        assert!(!text.contains("the stock"), "{text}");
+    }
 }
 
 #[test]
@@ -1104,6 +1137,9 @@ fn the_asking_chat_reads_each_kind() {
         ("settings rules", "rules, revision 2\n", "\"ceiling\":"),
         ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2\n", "\"enforce\":true"),
         ("settings forge-charter 1", "forge-charter 1, revision 2\n", "default, "),
+        ("settings project-ways", "project-ways 1, revision 2\n", "the stock"),
+        ("settings project-questions", "project-questions 1, revision 2\n", "the stock"),
+        ("settings project-classes", "project-classes 1, revision 2\n", "\"class\":\"ask\""),
         ("revision 2", "revision 2, against revision 1,", "The newest chat instructions."),
         ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,"),
     ] {
@@ -1144,6 +1180,7 @@ fn an_asking_chat_reads_each_address() {
         ("settings forge-charter 1", "forge-charter 1, revision 2", "default, ", false),
         ("settings project-ways", "project-ways 1, revision 2", "the stock", false),
         ("settings project-questions", "project-questions 1, revision 2", "the stock", false),
+        ("settings project-classes", "project-classes 1, revision 2", "the stock", false),
         ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,", false),
         ("revision 2", "revision 2, against revision 1,", "The newest chat instructions.", false),
         ("help", "index: temper", "What temper is", false),

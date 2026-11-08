@@ -64,3 +64,13 @@ The implementer's report: the words and JSON forms as written, the rows and the 
 ## Answers
 
 2026-11-08. **Q** (asked by `classes-kind`): who owns the settings form's kind 8? **A:** `classes-kind`, since smith's settings reach selectors and proposals through the form and this task needs `classes-kind`. This task keeps `settings show`, the help pages and `ctl-settings.md`, and reads the form as `classes-kind` left it.
+
+### 2026-11-08: Resume after `ui-reaches/classes-kind` pushes its completed settings-form work (recommended), or provide a completed replacement dependency ref? (ui-reaches/classes-tools-1, foreman ui-reaches/classes-tools/foreman-1)
+
+Resume after `ui-reaches/classes-kind` pushes its completed kind-8 settings-form work.
+The spec declares `needs = ["classes-kind"]`.
+Ownership: “The form's kind 8 is `classes-kind`'s; a hook `settings show` needs from the form is made and named.”
+The settled answer says this task “reads the form as `classes-kind` left it.”
+Acceptance 2 requires `show --json` to round-trip through a settings file; the report says this remains blocked.
+After the completed dependency is pushed, fetch and merge it, run each blocked row alone, then the acceptance packages, and regenerate references if changed.
+Delete the `ui-reaches/classes-tools` Not yet entry after acceptance holds; commit and push the completion.

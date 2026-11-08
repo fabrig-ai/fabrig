@@ -1928,6 +1928,36 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             root::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 2 } },
         ),
         (
+            w::Request::Dismiss(
+                w::Dismiss::new(
+                    &w::CEILINGS,
+                    w::DismissParts {
+                        what: w::PersonFact::KeepAsking(
+                            w::KeepAsking::new(
+                                &w::CEILINGS,
+                                w::KeepAskingParts {
+                                    project: 2,
+                                    subject: temper_protocol_reaches::subject_record(
+                                        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+                                    ),
+                                    at: 17,
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            root::Application::Dismiss {
+                what: forge::PersonFact::KeepAsking {
+                    project: 2,
+                    subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+                    at: 17,
+                },
+            },
+        ),
+        (
             w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
             root::Application::Forge(forge::Ask::RemoveForge { forge: 9 }),
         ),
@@ -2774,6 +2804,31 @@ fn dismissals_encode_the_partys_rows() {
                 .unwrap();
         }
         assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
+    }
+    for subject in [
+        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+        temper_protocol_reaches::Subject::Set(6),
+    ] {
+        let what = forge::PersonFact::KeepAsking { project: 2, subject, at: u64::MAX };
+        let bytes =
+            family::document(forge::Document::Dismissals(Box::new([what])), &fixtures::forge_table(&[]), &w::CEILINGS)
+                .unwrap();
+        let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(got.dismissed().len(), 1);
+        assert_eq!(
+            got.dismissed().iter().next(),
+            Some(&w::PersonFact::KeepAsking(
+                w::KeepAsking::new(
+                    &w::CEILINGS,
+                    w::KeepAskingParts {
+                        project: 2,
+                        subject: temper_protocol_reaches::subject_record(subject),
+                        at: u64::MAX,
+                    }
+                )
+                .unwrap()
+            ))
+        );
     }
 }
 

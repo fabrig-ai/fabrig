@@ -504,33 +504,51 @@ fn forge_document_forms_use_the_registered_connector_and_round_trip() {
 }
 
 const PROJECT_WAYS: &[u8] = br#"{"kind":"project-ways","project":7}"#;
+const PROJECT_CLASSES: &[u8] = br#"{"kind":"project-classes","project":7}"#;
+const CLASSES: &[u8] = br#"{"items":[{"kind":"implementation","words":"","class":"decide"},{"kind":"tests","words":"Keep coverage","class":"ask"},{"set":1,"words":"","class":"ask-away"}],"sets":[{"number":1,"name":"Core","patterns":["src/**","Cargo.*"]}]}"#;
 const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"away":false,"way":4294967295}"#;
 #[test]
 fn project_ways_is_read_and_printed_whole() {
-    let items = file::decode(&kind_file(PROJECT_WAYS, WAYS), &Limits::standard()).expect("project ways file");
-    let item = items.get(0).expect("one item");
-    assert_eq!(item.setting, c::Setting::Application { kind: 7, scope: 7, number: 1 });
-    let c::SettingEdit::Set(set) = &item.edit else { panic!("whole value") };
-    let c::SettingValue::Application(bytes) = &set.value else { panic!("ways bytes") };
+    for (setting, kind, value) in [(PROJECT_WAYS, 7, WAYS), (PROJECT_CLASSES, 8, CLASSES)] {
+        let items = file::decode(&kind_file(setting, value), &Limits::standard()).expect("whole project file");
+        let item = items.get(0).expect("one item");
+        assert_eq!(item.setting, c::Setting::Application { kind, scope: 7, number: 1 });
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("whole value") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("project bytes") };
+        let bounds = JsonLimits { depth: 32, length: 4096 };
+        let mut measure = Encoder::measure(&bounds);
+        assert!(crate::kinds::render(kind, bytes, &mut measure));
+        let mut out = Encoder::write(measure.measured().expect("project value fits"), &bounds);
+        assert!(crate::kinds::render(kind, bytes, &mut out));
+        let shown = out.finish();
+        assert_eq!(shown.as_ref(), value);
+        assert_eq!(file::decode(&kind_file(setting, &shown), &Limits::standard()).expect("rendered file"), items);
+        let mut trailing = Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
+        trailing.put(bytes).expect("encoding room");
+        trailing.put(&[0]).expect("trailing byte room");
+        assert!(!crate::kinds::render(kind, &trailing.finish(), &mut Encoder::measure(&bounds)));
+        let mut selector = Encoder::measure(&bounds);
+        crate::render::encode_setting(item.setting, &mut selector);
+        let mut out = Encoder::write(selector.measured().expect("selector fits"), &bounds);
+        crate::render::encode_setting(item.setting, &mut out);
+        assert_eq!(out.finish().as_ref(), setting);
+    }
+    let no_words = br#"{"items":[{"kind":"implementation","class":"decide"}],"sets":[]}"#;
+    let items = file::decode(&kind_file(PROJECT_CLASSES, no_words), &Limits::standard()).expect("optional words");
+    let c::SettingEdit::Set(set) = &items.get(0).expect("one item").edit else { panic!("whole value") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("classes bytes") };
     let mut reader = skein_lib::Reader::new(bytes);
-    let ways =
-        temper_client_protocol_wire::v1::ProjectWays::decode(&temper_client_protocol_wire::v1::CEILINGS, &mut reader)
-            .expect("ways record");
-    assert_eq!(
-        (ways.drafts(), ways.goals(), ways.changes(), ways.away(), ways.way()),
-        (true, false, true, false, u32::MAX)
-    );
+    let record = temper_client_protocol_wire::v1::ProjectClasses::decode(
+        &temper_client_protocol_wire::v1::CEILINGS,
+        &mut reader,
+    )
+    .expect("classes record");
     assert!(reader.is_empty());
-    let bounds = JsonLimits { depth: 32, length: 4096 };
-    let mut measure = Encoder::measure(&bounds);
-    assert!(crate::kinds::render(7, bytes, &mut measure));
-    let mut out = Encoder::write(measure.measured().expect("ways fits"), &bounds);
-    assert!(crate::kinds::render(7, bytes, &mut out));
-    assert_eq!(out.finish().as_ref(), WAYS);
+    assert_eq!(temper_protocol_reaches::classes_from(&record).items[0].words.as_ref(), b"");
 }
 #[test]
 fn project_settings_require_the_project_and_refuse_a_number() {
-    for kind in [b"project-ways".as_slice(), b"project-questions"] {
+    for (kind, number) in [(b"project-ways".as_slice(), 7), (b"project-questions", 6), (b"project-classes", 8)] {
         for (suffix, member) in [
             ("", "project"),
             (",\"project\":0", "project"),
@@ -544,12 +562,83 @@ fn project_settings_require_the_project_and_refuse_a_number() {
         let selector = joined(&[br#"{"setting":{"kind":""#, kind, br#"","project":7}}"#]);
         assert_eq!(
             file::read_setting(&selector, &Limits::standard()).expect("project selector"),
-            c::Setting::Application { kind: if kind == b"project-ways" { 7 } else { 6 }, scope: 7, number: 1 }
+            c::Setting::Application { kind: number, scope: 7, number: 1 }
         );
     }
 }
 #[test]
 fn project_values_refuse_missing_unknown_and_wrong_members() {
+    let full = kind_file(PROJECT_CLASSES, CLASSES);
+    for (member, field) in
+        [(b"items".as_slice(), 0_u8), (b"sets", 1), (b"words", 2), (b"name", 3), (b"patterns", 4), (b"patterns", 5)]
+    {
+        let mut limits = Limits::standard();
+        match field {
+            0 => limits.kinds.project_classes_items = 0,
+            1 => limits.kinds.project_classes_sets = 0,
+            2 => limits.kinds.class_item_words = 0,
+            3 => limits.kinds.path_set_name = 0,
+            4 => limits.kinds.path_set_patterns = 0,
+            5 => limits.kinds.path_set_patterns_item = 0,
+            _ => unreachable!("table field"),
+        }
+        let why = file::decode(&full, &limits).expect_err("receiving bound enforced");
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+        assert!(skein_lib::bytes::find(&why, b"bound 0").is_some(), "{why:?}");
+    }
+    // A well-shaped wire record can still be outside the table's rules.
+    for (kind, class) in [
+        (temper_protocol_reaches::Kind::Money, temper_protocol_reaches::Class::Ask),
+        (temper_protocol_reaches::Kind::Tests, temper_protocol_reaches::Class::Wait),
+    ] {
+        let classes = temper_protocol_reaches::Classes {
+            items: Box::new([temper_protocol_reaches::Item {
+                subject: temper_protocol_reaches::Subject::Kind(kind),
+                words: Box::default(),
+                class,
+            }]),
+            sets: Box::default(),
+        };
+        let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
+        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("record length"));
+        record.encode(&mut bytes).expect("measured record");
+        let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
+        assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
+    }
+    for (value, member) in [
+        (b"{}".as_slice(), b"items".as_slice()),
+        (br#"{"items":[]}"#.as_slice(), b"sets".as_slice()),
+        (br#"{"items":[],"sets":[],"extra":0}"#.as_slice(), b"extra".as_slice()),
+        (br#"{"items":[{"kind":"money","class":"ask"}],"sets":[]}"#.as_slice(), b"always wait".as_slice()),
+        (br#"{"items":[{"kind":"wording","class":"wait"}],"sets":[]}"#.as_slice(), b"class".as_slice()),
+        (br#"{"items":[{"kind":"unknown","class":"ask"}],"sets":[]}"#.as_slice(), b"kind".as_slice()),
+        (br#"{"items":[{"kind":"tests","set":1,"class":"ask"}],"sets":[]}"#.as_slice(), b"kind/set".as_slice()),
+        (br#"{"items":[{"class":"ask"}],"sets":[]}"#.as_slice(), b"kind/set".as_slice()),
+        (br#"{"items":[{"kind":"tests"}],"sets":[]}"#.as_slice(), b"class".as_slice()),
+        (br#"{"items":[{"set":1,"class":"ask"}],"sets":[]}"#.as_slice(), b"items.set".as_slice()),
+        (br#"{"items":[{"kind":"tests","class":"ask","extra":1}],"sets":[]}"#.as_slice(), b"extra".as_slice()),
+        (
+            br#"{"items":[{"kind":"tests","class":"ask"},{"kind":"tests","class":"decide"}],"sets":[]}"#.as_slice(),
+            b"items.words".as_slice(),
+        ),
+        (
+            br#"{"items":[],"sets":[{"number":0,"name":"Core","patterns":["src/**"]}]}"#.as_slice(),
+            b"sets.number".as_slice(),
+        ),
+        (br#"{"items":[],"sets":[{"number":1,"name":"","patterns":["src/**"]}]}"#.as_slice(), b"sets.name".as_slice()),
+        (br#"{"items":[],"sets":[{"number":1,"name":"Core","patterns":[]}]}"#.as_slice(), b"sets.patterns".as_slice()),
+        (
+            br#"{"items":[],"sets":[{"number":1,"name":"Core","patterns":["/src"]}]}"#.as_slice(),
+            b"sets.patterns".as_slice(),
+        ),
+        (
+            br#"{"items":[],"sets":[{"number":256,"name":"Core","patterns":["src/**"]}]}"#.as_slice(),
+            b"number".as_slice(),
+        ),
+    ] {
+        let why = file::decode(&kind_file(PROJECT_CLASSES, value), &Limits::standard()).expect_err("malformed classes");
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+    }
     for (value, member) in [
         (br#"{"drafts":true,"goals":true,"changes":true,"away":true}"#.as_slice(), b"way".as_slice()),
         (br#"{"drafts":true,"goals":true,"changes":true,"way":0}"#, b"away"),
