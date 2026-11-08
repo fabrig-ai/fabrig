@@ -1,0 +1,12 @@
+walk 1
+see "then press Approve."
+approve
+see "Ask temper"
+mark
+key char "/"
+see "Start a new chat"
+key escape
+key paste "What can you tell me about Hello?"
+key enter
+see "Hello from the local fake model."
+end
