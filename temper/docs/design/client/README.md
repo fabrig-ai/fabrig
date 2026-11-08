@@ -4715,7 +4715,8 @@ and reserves for each print only what that page's tree may print
 (6.8).
 
 A note's body and a task's words are `long_text`, 131,072 on each of temper's
-clients, past a field's `text` (jig's `client/domain/client.md`, section 14), and
+clients (the browser tier's bundle may name less, with its window: `browser.md`,
+4.3), past a field's `text` (jig's `client/domain/client.md`, section 14), and
 a chat's document's section is read within the view's `text_bytes`, which prices one.
 
 A line of a conversation holds words the store took, and they are `long_text` too:
