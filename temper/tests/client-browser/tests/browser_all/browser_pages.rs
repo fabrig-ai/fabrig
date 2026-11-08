@@ -77,6 +77,7 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the named stories share one playground and harness")]
 fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let tier = Tier::demo_asked(
         "history-chat-filter-address",
@@ -96,9 +97,35 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         name: b"needs-page".as_slice().into(),
     };
     let words = b"Add CSV export to widget";
-    let mut steps = temper_client_browser_world::start_playground_chat(words);
+    let mut steps = temper_client_browser_world::playground_ready();
     let mut stories = Stories::of_person(0);
+    stories.begin("phone ask", &steps);
+    let ask = || Find::exactly_named(Role::TextArea, b"Ask temper, or tell it how you work");
+    let tabs = || Find::exactly_named(Role::Navigation, b"Sections");
+    steps.extend([
+        Step::Viewport { width: 420, height: 900 },
+        // NewChat hides its tab bar on a phone; open the project's Home by address.
+        Step::Person(PersonStep::Go { address: b"/projects/1".as_slice().into() }),
+        see(Find::exactly_named(Role::Region, b"To begin")),
+        temper_client_browser_world::connected(),
+        press(Role::Button, b"Start"),
+        Step::Address(b"/projects/1/ask".as_slice().into()),
+        see(ask()),
+        see(tabs()),
+        keep_box(ask(), "phone-ask/composer"),
+        keep_box(Find::named(Role::Disclosure, b"Model"), "phone-ask/picker"),
+        keep_box(tabs(), "phone-ask/tabs"),
+        Step::Viewport { width: 1280, height: 800 },
+        // Start adds an entry: Back through Home to the ready playground's NewChat.
+        Step::Back,
+        Step::Address(b"/projects/1".as_slice().into()),
+        Step::Back,
+        Step::Address(b"/chats/new".as_slice().into()),
+        see(tier.states().live),
+        temper_client_browser_world::connected(),
+    ]);
     stories.begin("call line", &steps);
+    steps.extend(temper_client_browser_world::playground_chat(words));
     steps.extend(call_line_steps());
     stories.begin("history", &steps);
     steps.extend([
@@ -156,6 +183,17 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let mut script = Script::new(steps.into_boxed_slice());
     let mut harness = Harness::new(tier.setup());
     stories.assert_done(harness.run(&mut [&mut script]));
+    let (composer_y, composer_height) = box_of(&harness, "phone-ask", "composer");
+    let (picker_y, picker_height) = box_of(&harness, "phone-ask", "picker");
+    let (tabs_y, _) = box_of(&harness, "phone-ask", "tabs");
+    assert!(
+        composer_y + composer_height <= tabs_y,
+        "phone ask: composer {composer_y} + {composer_height} overlaps tabs at {tabs_y}"
+    );
+    assert!(
+        picker_y + picker_height <= tabs_y,
+        "phone ask: picker {picker_y} + {picker_height} overlaps tabs at {tabs_y}"
+    );
     let lines: Vec<_> = harness.kept().iter().filter(|kept| kept.name.as_ref() == b"call-line").collect();
     let [before, after] = lines.as_slice() else {
         panic!("call line: the open call line is kept before and after the reply")
