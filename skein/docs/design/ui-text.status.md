@@ -1,8 +1,10 @@
 # ui-text: status
 
-2026-11-07. Where skein's code lags or departs from [ui-text.md](ui-text.md).
+2026-11-08. Where skein's code lags or departs from [ui-text.md](ui-text.md).
 
-No gap. Section 5's drawing prints its name only where it has one;
+- **Not yet:** 5: a node named as the nearest ancestor that printed `NAME:` prints its own `NAME:` again, indented under it (`look-round-24`, `text-once`).
+
+Otherwise no gap. Section 5's drawing prints its name only where it has one;
 the flow golden reads both named and unnamed cases as their fallback.
 A node's hint is not printed; a heading's visible short form stays
 its text, independently of its whole name and hint.

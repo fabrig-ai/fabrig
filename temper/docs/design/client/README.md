@@ -393,6 +393,8 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Role { project, charter }` | none: the look request `ask-temper-ways`'s card names the role it opens | one role of the project, a charter: its name, who it is and its facts, as Ask temper's `charter N` view draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `charter N` in the project (4.6) | none |
+| `Rule { project, kind, number }` | none, as `Role`'s | one landing rule, of the deployment (kind 1) or the project (kind 2): what it covers and asks, as the view `rule K/N` draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `rule K/N` in the project (4.6) | none |
 | `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below); the project's `ways` (4.6) | start an Ask temper chat from its composer; show a way's tab and a stop's card in place; "Use this" or "Keep it", jig's `ChangeSettings` (5.13) |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
@@ -2872,7 +2874,10 @@ keeps (`../protocol/configuration.md`, section 2).
       `who` beside it in grey ("an agent · holds a change until it
       approves"), and, where the stop opens a charter, a gate or a rule,
       a link "Open NAME ›" at its right, NAME the card's `name` ("the
-      reviewer"), to the project's Settings; then its `facts`, each label
+      reviewer"), to what it opens: a charter's role,
+      `Role { project, charter }`, a gate's its reviews' charter's role,
+      the gate's `charter`, and a rule's page, `Rule { project, kind,
+      number }` (*A role's or a rule's page,* below); then its `facts`, each label
       small, faint and in mono over against its value ("Model", "Can",
       "Asked to"; a person's role and what they decide; code's checks,
       the queue or the turn). A bar opens no card.
@@ -2923,6 +2928,21 @@ keeps (`../protocol/configuration.md`, section 2).
   like any other there; refused, jig's words stay under the composer, the
   words kept. The chat names no repository. A way's act starts no chat:
   it changes the settings at once (5.13).
+- **A role's or a rule's page:** `Role { project, charter }` and `Rule {
+  project, kind, number }`, what a stop's card opens, each a page in
+  Settings' frame with How work runs' tab current, reading the forge's
+  `View` (4.6) of `charter N` or `rule K/N` in the project, the same
+  read and the same card a reply's view draws (5.16): its heading, level
+  1, the card's `name` with a capital ("The reviewer", "The project's
+  rule 1"); its `who` under it, muted; then its `facts`, each label
+  small, faint and in mono over against its value, as a stop's card's
+  are. On a phone, "‹", a link named "How work runs" to `Settings {
+  project }`, alone before the heading. Until the read answers the page
+  says "Reading NAME…" (NAME "role N" or "rule K/N"); a `not_drawn`
+  answer, a refusal or a failed read says, muted, in a line, that it
+  can't be read now, and the address. It has no act: a role's or a
+  rule's change is a proposal, Ask temper's. The terminal prints its
+  heading, `who` and facts, as any page.
 - **temper's own way,** the stock page `how-temper-builds-temper`
   (`../protocol/documentation.md`, 2.2), has no way in from this page
   (the look request `ask-temper-ways`, the user, 2026-11-08): the client
@@ -4131,13 +4151,18 @@ the person to check existence and grant the repository to the App.
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
   - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
-    `scope`, `number`), `gate` (`number`), `tier` (`name`), `queue` or
+    `scope`, `number`), `gate` (`number`, and `charter`, its reviews'
+    charter, the role its card opens), `tier` (`name`), `queue` or
     `turn`;
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
     change until it approves"; `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
-    at most 32 bytes and `value` at most 128, as "Model" and "Opus 5.5 ·
-    high", "Can", "Asked to".
+    at most 32 bytes and `value` at most 184, as "Model" and "Opus 5.5 ·
+    high", "Can", "Asked to": the engine makes every value at most 128
+    bytes but an agent's "Asked to", its instructions' first sentence
+    in quotes, at most 184 (`../domain/forge.md`, 8.13), so that the worst
+    ways document and the worst view answer still fit one decision's
+    delivery in the smallest profile.
 - **A project's ways, the subject `ways`:** of the project's scope, for a
   party with a role there, its window unused; on the wire `Watching`'s
   `ways`, `WaysSubject`: `project`. The root makes its document, since
@@ -4163,7 +4188,8 @@ the person to check existence and grant the repository to the App.
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
   a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
-  `CharterView`, `charter` and its `card`; or `not_drawn`, `words`, at
+  `CharterView`, `charter` and its `card`; `rule`, a `RuleView`, `kind`,
+  `number` and its `card`; or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
@@ -6479,8 +6505,10 @@ terminal draw the same path.
   [BRANCH]`, a repository of the chat's project, its landing branch when
   left out; `proposal tN/K`, a waiting proposal's path before and after
   over the project's home repository's landing branch; `charter N`, a
-  role. A path or a charter takes `@revision N`, drawn when N is the
-  newest revision; an older one is not drawn yet, and says so.
+  role; `rule K/N`, a landing rule, K 1 for the deployment's and 2 for
+  the chat's project's, N its number. A path or a charter takes
+  `@revision N`, drawn when N is the newest revision; an older one is not
+  drawn yet, and says so.
 - **Read when shown:** the chat page reads each address it shows once,
   through the forge's read `View` in the chat's project (4.6), equal
   addresses sharing one read, and again when the session's `settings`
@@ -6495,8 +6523,8 @@ terminal draw the same path.
   end; each stop its mark, an agent's a four-point star, a person's a
   ring, code's a small square, and its words. A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
-  charter its card, `who`, `name` and `facts`, as a list of terms; a
-  `not_drawn` its words. The drawing's fallback, which the terminal
+  charter or a rule its card, `who`, `name` and `facts`, as a list of
+  terms; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
   an agent").
 - **Its layout,** of the box's width `W` alone:

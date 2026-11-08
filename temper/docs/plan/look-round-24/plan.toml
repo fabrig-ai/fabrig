@@ -49,3 +49,49 @@ id = 3
 story = "The gallery's ask-first-run at 420 runs the path down the page, and over 760 across, as the shell draws them"
 parts = ["gallery"]
 walk = false
+
+[[part]]
+id = "wire"
+title = "The ways' wire and engine shapes: a fact of 184 bytes, a gate's reviews' charter, a rule's view"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[part]]
+id = "cards"
+title = "A card's first sentence whole, cut on a word past its bound; CI's card names the required checks; the view rule K/N"
+mode = "direct"
+needs = ["wire"]
+design = "temper/docs/design/domain/forge.md, 8.13"
+
+[[part]]
+id = "terminal"
+title = "The text shell prints a NAME: line its nearest such ancestor printed once"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-text.md, 5"
+
+[[part]]
+id = "links"
+title = "A role's page and a rule's page, and every card's link opening its role or its rule"
+mode = "direct"
+needs = ["wire", "terminal"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 4
+story = "The reviewer's card says its charter's first sentence whole, and CI's card names the CI workflows' checks the landing branch requires, or every check they report"
+parts = ["wire", "cards"]
+walk = false
+
+[[slice]]
+id = 5
+story = "temper open prints Ask temper's page with Ways of working: and The way a change goes: once each"
+parts = ["terminal"]
+walk = false
+
+[[slice]]
+id = 6
+story = "Open the reviewer › opens the reviewer's role page, drawn from the engine's charter view, and Open CI › the rule's page"
+parts = ["links"]
+walk = false
