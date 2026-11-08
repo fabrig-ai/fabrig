@@ -19,6 +19,7 @@ mod public;
 mod question;
 mod status;
 mod trials;
+mod views;
 
 pub(crate) mod fixtures;
 mod forge_ways;
