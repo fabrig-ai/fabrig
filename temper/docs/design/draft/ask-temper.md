@@ -211,6 +211,7 @@ tools.
 | `settings KIND N` | a charter, template, policy, model or forge charter, whole | `settings show`; `model list` for a model |
 | `settings rules`, `settings landing-rule N [project]`, `settings project-ways`, `settings project-questions` | the rules; a landing rule, the deployment's, or the project's with `project`; the project's ways and questions | `settings show` |
 | `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration.md`, 13.2), which no client reads |
+| `ways` | the stock ways, each with its words and its path over the project, and which one the project runs (`stock-ways.md`, section 5) | the forge's `ways` |
 | `revisions`, `revision N` | the history; one revision: who decided it, when, from which proposal, its items | `revision list`, `revision show` |
 | `proposal tN/K`, `proposal pN/K` | a proposal, a task's or a party's, with its review and its outcome | `proposal show` |
 | `help`, `help NAME`, `help search WORDS` | temper's pages | `read_docs` |
@@ -292,6 +293,7 @@ bound.
 | `queue OWNER/NAME [BRANCH]` | what is on its way to landing there now: in order, each gate's state, what is held | the change |
 | `task N tree` | the task's tree, each task with its executor, role, model, state and spend | the task |
 | `task N timeline` | a task's runs over time: turns, calls, gates, repairs, questions to people | the turn |
+| `way NAME` | a stock way's path over the chat's project (`stock-ways.md`, section 4) | its charter, its gate, its rule |
 | `charter N` | a role: who acts, its models and efforts, its tools by family, what wakes it, its instructions' first lines | its instructions, whole |
 | `proposal tN/K` | its path before and after, what temper enforces apart from what agents follow | the setting |
 
