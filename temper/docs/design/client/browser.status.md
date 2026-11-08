@@ -108,10 +108,8 @@ establish no rendered equality.
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
 - **Not yet:** 7.1, 7.2: the gallery has no `-night` states and prints no
-  `data-night`, and its To begin states are `home-three-left`,
-  `home-two-left`, `home-one-left` and `home-begin-one-chats`, of three
-  steps. The plan `look-round-19`'s tasks `two-steps` (the `home-begin-*`
-  rows) and `night-switch` (the `night-*` rows) build them.
+  `data-night`. The plan `look-round-19`'s task `night-switch` builds the
+  `night-*` rows.
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
