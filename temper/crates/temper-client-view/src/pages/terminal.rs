@@ -3,11 +3,13 @@
 pub(crate) mod commands;
 mod question;
 pub(crate) mod words;
+use crate::shared::{TerminalWord as T, say};
 use crate::{
     frame::Bindings,
     look,
     words::{Shell, Word, Words},
 };
+use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::{Builder, Modifier, Role, Run, Shortcut, State, Style, phrases::Hole};
 use temper_client_domain::{
@@ -18,7 +20,6 @@ use temper_client_domain::{
         terminal::{self, Font, Look, Theme},
     },
 };
-use words::{TerminalWord as T, say};
 
 pub(crate) fn shown(root: &Domain, w: &Words) -> bool {
     w.shell == Shell::Browser && root.pages().look().terminal && terminal::draws(root.pages().address())
@@ -178,7 +179,7 @@ pub(crate) fn under(
     b.text(Run::Plain, &hint);
     b.close();
     b.open(Role::Slot);
-    let line = crate::choice::closed_line(root, task, w);
+    let line = crate::shared::closed_line(root, task, w);
     b.open(Role::Button);
     b.name(&line);
     b.bind(bindings.insert(Act::Terminal(terminal::Act::Run { command: terminal::Command::Model })));
@@ -213,9 +214,13 @@ pub(crate) fn enter(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
     b.close();
 }
 pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
-    let Some(chat) = root.pages().chat() else { return };
-    let Some(task) = chat.task(root.client()) else { return };
-    let Some(me) = root.pages().me(root.client()) else { return };
+    running(b, crate::shared::running(root, w).as_deref());
+}
+/// The running line (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+    let chat = root.pages().chat()?;
+    let task = chat.task(root.client())?;
+    let me = root.pages().me(root.client())?;
     let delegates = chat.waiting_delegates(root.client());
     let account = match task.run_wait {
         Some(c::TaskRunWait::Account { .. }) => true,
@@ -236,9 +241,9 @@ pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
             me,
             w,
         );
-        running(b, Some(&words));
+        Some(words)
     } else {
-        running(b, None);
+        None
     }
 }
 

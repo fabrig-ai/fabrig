@@ -81,13 +81,13 @@ pub(crate) fn main(
     b.close();
 }
 
-struct Intro {
+pub(crate) struct Intro {
     kicker: Box<[u8]>,
-    headline: Box<[u8]>,
+    pub(crate) headline: Box<[u8]>,
     lede: Option<Box<[u8]>>,
     byline: Option<Box<[u8]>>,
 }
-fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
+pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     // The kicker is this Home's day and time, not a project's creation time.
     let day = times.say(w, TimeForm::Weekday, times.now);
     let clock = times.say(w, TimeForm::Clock, times.now);
@@ -481,27 +481,27 @@ fn needs(
                 b.style(look::HOME_ROWS);
                 for card in others {
                     b.open(Role::Item);
-                    let (title, when) = match card {
+                    let (title, short, _) = need_words(card, w);
+                    let title = match card {
                         needs::Need::Card(card) => {
                             let asked = super::ask::read(card, w);
-                            let title = if card.page.is_none() {
-                                super::ask::need_title(card, w)
+                            if card.page.is_none() {
+                                title
                             } else {
                                 match asked.kind {
-                                    super::ask::Kind::Funds { .. } => {
-                                        w.say(Word::HomeAskLine, &[Hole::Name(asked.title), Hole::Name(asked.short)])
-                                    }
+                                    super::ask::Kind::Funds { .. } => need_sentence(&title, &short, w),
                                     super::ask::Kind::Question
                                     | super::ask::Kind::Proposal
                                     | super::ask::Kind::Held
-                                    | super::ask::Kind::PersonTask => asked.short,
+                                    | super::ask::Kind::PersonTask => short,
                                 }
-                            };
-                            (title, super::ask::need_when(card, w, times))
+                            }
                         }
-                        needs::Need::Approval(row) => {
-                            (super::approval::question(row, w), super::approval::when(row, w, times))
-                        }
+                        needs::Need::Approval(_) => short,
+                    };
+                    let when = match card {
+                        needs::Need::Card(card) => super::ask::need_when(card, w, times),
+                        needs::Need::Approval(row) => super::approval::when(row, w, times),
                     };
                     let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
                     crate::link(b, &label, bindings.insert(Act::Needs(needs::Act::Open { object: card.object() })));
@@ -513,13 +513,9 @@ fn needs(
             }
             if w.shell == Shell::Browser {
                 match first {
-                    needs::Need::Card(card) if card.page.is_some() => {
-                        let asked = super::ask::read(card, w);
-                        phone(b, &asked.title, &asked.short, count, w, bindings, project);
-                    }
-                    needs::Need::Card(_) => {}
-                    needs::Need::Approval(row) => {
-                        phone(b, &row.title, &super::approval::question(row, w), count, w, bindings, project);
+                    needs::Need::Card(card) if card.page.is_none() => {}
+                    needs::Need::Card(_) | needs::Need::Approval(_) => {
+                        phone_need(b, first, count, w, bindings, project);
                     }
                 }
             }
@@ -550,8 +546,8 @@ fn ask(
     }
     b.close();
 }
-fn phone(b: &mut Builder, title: &[u8], short: &[u8], count: usize, w: &Words, bindings: &mut Bindings, project: u32) {
-    let line = w.say(Word::HomeAskLine, &[Hole::Name(title.into()), Hole::Name(short.into())]);
+fn phone_need(b: &mut Builder, need: &needs::Need<'_>, count: usize, w: &Words, bindings: &mut Bindings, project: u32) {
+    let line = crate::shared::need_line(need, w).words;
     let go = w.say(if count == 1 { Word::HomeAnswer } else { Word::HomeAnswerMany }, &[]);
     let name = w.say(Word::HomeAnswerName, &[Hole::Name(line.clone()), Hole::Name(go.clone())]);
     crate::link(b, &name, bindings.insert(Act::Go { address: inbox_address(project) }));
@@ -661,7 +657,7 @@ fn chats(
         for line in live_rows.iter().chain(ended.iter()).take(ROWS) {
             b.open(Role::Item);
             let status = match root.pages().me(root.client()) {
-                Some(me) => super::chats::status_name(line, me, w),
+                Some(me) => crate::shared::chat_state(line, me, w),
                 None => Box::default(),
             };
             let age = times.say(w, TimeForm::Span, line.ended_at.unwrap_or(line.last_activity));
@@ -1196,4 +1192,28 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
         b.close();
     }
     b.close();
+}
+
+/// Home's need words (temper/docs/design/client/README.md, 3.5, Home, Needs you).
+pub(crate) fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, crate::shared::NeedKind) {
+    match need {
+        needs::Need::Card(card) => {
+            let asked = super::ask::read(card, w);
+            let title = if card.page.is_none() { super::ask::need_title(card, w) } else { asked.title };
+            let kind = match asked.kind {
+                super::ask::Kind::Question => crate::shared::NeedKind::Question,
+                super::ask::Kind::Proposal
+                | super::ask::Kind::Held
+                | super::ask::Kind::Funds { .. }
+                | super::ask::Kind::PersonTask => crate::shared::NeedKind::Other,
+            };
+            (title, asked.short, kind)
+        }
+        needs::Need::Approval(row) => {
+            (row.title.clone(), super::approval::question(row, w), crate::shared::NeedKind::Other)
+        }
+    }
+}
+pub(crate) fn need_sentence(title: &[u8], short: &[u8], w: &Words) -> Box<[u8]> {
+    w.say(Word::HomeAskLine, &[Hole::Name(title.into()), Hole::Name(short.into())])
 }

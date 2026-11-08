@@ -48,7 +48,7 @@ pub(crate) fn main(
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
-        let short = short_title(task.chip.title.bytes());
+        let short = crate::shared::heading(task.chip.title.bytes());
         let whole = words.say(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],

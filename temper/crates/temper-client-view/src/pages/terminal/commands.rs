@@ -10,7 +10,7 @@ use temper_client_domain::{
     },
 };
 
-pub(super) fn description(command: Command) -> &'static [u8] {
+pub(crate) fn description(command: Command) -> &'static [u8] {
     match command {
         Command::Model => b"Change the model, from the next turn",
         Command::Effort => b"Change the effort",
@@ -36,7 +36,7 @@ fn efforts(root: &Domain) -> bool {
     let Some(model) = models.get(index) else { return false };
     !model.efforts.is_empty()
 }
-fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
+pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
     match command {
         Command::Model => crate::choice::changeable(root, task),
         Command::Effort => crate::choice::changeable(root, task) && efforts(root),
@@ -225,7 +225,7 @@ pub(super) fn under(
         }
         let mut any = false;
         for command in Command::ALL {
-            if command.name().starts_with(words) && offered(root, task, command) {
+            if command.name().starts_with(words) && crate::shared::offered(root, task, command) {
                 any = true;
             }
         }
@@ -234,10 +234,10 @@ pub(super) fn under(
         }
         menu(b, b"Commands", None, false);
         for command in Command::ALL {
-            if command.name().starts_with(words) && offered(root, task, command) {
+            if command.name().starts_with(words) && crate::shared::offered(root, task, command) {
                 b.open(Role::MenuItem);
                 b.name(command.name());
-                b.description(description(command));
+                b.description(crate::shared::description(command));
                 b.bind(bindings.insert(Act::Terminal(terminal::Act::Run { command })));
                 b.close();
             }
@@ -320,24 +320,28 @@ fn help() -> Box<[u8]> {
 }
 pub(super) fn notes(b: &mut Builder, root: &Domain) {
     for note in root.pages().notes() {
-        let (role, words) = match note {
-            Note::Help => (Role::Code, help()),
-            Note::Unknown { words } => {
-                (Role::Paragraph, crate::accounts::words::join(&[b"Unknown command ", words, b". /help lists them."]))
-            }
-            Note::Font { font } => (
-                Role::Paragraph,
-                skein_lib::bytes::copy_of(match font {
-                    terminal::Font::DejaVu => b"Font: DejaVu Sans Mono.",
-                    terminal::Font::Plex => b"Font: IBM Plex Mono.",
-                }),
-            ),
-            Note::Closed => (Role::Paragraph, skein_lib::bytes::copy_of(b"This chat is closed. /new starts another.")),
+        let role = match note {
+            Note::Help => Role::Code,
+            Note::Unknown { .. } | Note::Font { .. } | Note::Closed => Role::Paragraph,
         };
+        let words = crate::shared::note(note);
         b.open(role);
         b.style(look::TERMINAL_NOTE);
         b.name(&words);
         b.text(Run::Plain, &words);
         b.close();
+    }
+}
+
+/// A terminal note (temper/docs/design/client/README.md, 3.5, The terminal's notes).
+pub(crate) fn note(note: &Note) -> Box<[u8]> {
+    match note {
+        Note::Help => help(),
+        Note::Unknown { words } => crate::accounts::words::join(&[b"Unknown command ", words, b". /help lists them."]),
+        Note::Font { font } => skein_lib::bytes::copy_of(match font {
+            terminal::Font::DejaVu => b"Font: DejaVu Sans Mono.",
+            terminal::Font::Plex => b"Font: IBM Plex Mono.",
+        }),
+        Note::Closed => skein_lib::bytes::copy_of(b"This chat is closed. /new starts another."),
     }
 }

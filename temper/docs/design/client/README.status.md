@@ -92,12 +92,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-- **Not yet:** 3.5, *its calls*, and 6.14, *Its words*: `see`'s phrases in
-  a run's line, and the view's shared surface's words,
-  `temper_client_view::shared` (Home's headline, a chat's state, a need's
-  line, a run's line, the running line, the closed line, a chat's
-  heading, the commands' words and offers, the notes, the terminal's
-  phrases), are not built: `see` reads "see ×N".
 
 
 - **Not yet:** 6.14, *The commands* and *The chat's question*, *Its

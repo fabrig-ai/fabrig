@@ -11,6 +11,7 @@ mod model_forge;
 mod models;
 mod new_chat;
 mod reference;
+mod shared;
 mod terminal;
 pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
