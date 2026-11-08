@@ -123,3 +123,18 @@ its document by the forge's limits.
 Then the steps' runs, plus `-p temper-engine-domain-ways` and
 `-p temper-client-protocol-wire` (`--lib` and its tests) and `temper/tests/codecs`'s
 drift test, by name.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-m3a/ways-family/foreman-2)
+
+resolve README.status.md by preserving both completed-gap removals
+Rebase onto the current integration tip.
+The conflict is in `temper/docs/design/client/README.status.md`’s final **Not yet** bullet.
+Branch commit `3d247000e0` removes the completed 4.6 wire/service gap.
+Integration commit `2ef7f7a1c5` removes the completed 5.13 delegation-policy gap.
+Preserve both removals, leaving:
+```markdown
+- **Not yet:** 5.16:
+  a `view` block shows as code, the chat page reads no view, and no path is
+  drawn.
+```
+Keep the rest of the status file unchanged. Preserve the automatic merge of `temper/crates/temper-client-domain/src/tests/forge_stock_ways.rs`.
