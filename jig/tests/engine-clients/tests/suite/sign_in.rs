@@ -27,6 +27,10 @@ fn a_given_secret_signs_in_as_the_first_link_and_no_link_is_said() {
     assert_eq!(answer.party(), fixtures::FIRST_PERSON);
     assert_eq!(answer.expires(), fixtures::expires().as_nanos());
     assert_eq!(peer.link_count(), 0);
+    assert_eq!(peer.local_link_count(), 1);
+    let local = peer.local_link();
+    assert!(local != given_link(), "the given secret belongs only to the printed link");
+    finish_given_sign_in(&mut peer, &local);
 }
 #[test]
 fn a_given_secret_spent_draws_a_fresh_link() {
@@ -95,6 +99,7 @@ fn a_given_secret_without_the_printed_link_is_no_link() {
     assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
     assert!(peer.take_core().is_none());
     assert_eq!(peer.link_count(), 0);
+    assert_eq!(peer.local_link_count(), 0);
 }
 fn peer() -> Peer {
     Peer::started(&fixtures::settings())
@@ -190,13 +195,15 @@ fn a_sign_in_refused_above_the_fill_mark_is_answered_refused() {
 }
 #[test]
 fn no_core_event_holds_a_token_or_digest() {
-    let mut peer = peer();
-    let link = peer.printed_link();
-    peer.post_link(&link);
-    assert_eq!(
-        peer.core_record(),
-        "SignIn { reply_to: ReplyTo(Token(1)), identity: Identity { key: IdentityKey { provider: 0, subject: [111, 119, 110, 101, 114] }, login: [111, 119, 110, 101, 114], name: [79, 119, 110, 101, 114] }, held: None }"
-    );
+    for local in [false, true] {
+        let mut peer = peer();
+        let link = if local { peer.local_link() } else { peer.printed_link() };
+        peer.post_link(&link);
+        assert_eq!(
+            peer.core_record(),
+            "SignIn { reply_to: ReplyTo(Token(1)), identity: Identity { key: IdentityKey { provider: 0, subject: [111, 119, 110, 101, 114] }, login: [111, 119, 110, 101, 114], name: [79, 119, 110, 101, 114] }, held: None }"
+        );
+    }
 }
 
 #[test]
@@ -411,29 +418,33 @@ fn aborting_a_links_pending_credential_check_releases_no_sign_in_or_token() {
 
 #[test]
 fn a_lost_links_credential_check_spends_the_link_like_a_lost_core_answer() {
-    let mut peer = peer();
-    let first = complete_sign_in(&mut peer);
-    let bearer = bearer(first.token().as_ref().expect("credential").expose());
-    let link = fresh_link(&mut peer);
-    peer.hold_gets();
-    let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
-    peer.cut_exchange(exchange);
-    peer.answer_get();
-    let Some(jig_domain_core::Event::SignIn { reply_to, held: Some(fixtures::FIRST_SIGN_IN), .. }) = peer.take_core()
-    else {
-        panic!("the admitted lost exchange still spends its link");
-    };
-    peer.answer_request(
-        reply_to,
-        jig_domain_people::Reply::SignedIn {
-            person: fixtures::FIRST_PERSON,
-            sign_in: fixtures::FIRST_SIGN_IN,
-            expires: fixtures::expires(),
-        },
-    );
-    assert_eq!(peer.answered(exchange), None);
-    assert_eq!(peer.digest_kept(), None);
-    assert_ne!(fresh_link(&mut peer), link);
+    for local in [false, true] {
+        let mut peer = peer();
+        let first = complete_sign_in(&mut peer);
+        let bearer = bearer(first.token().as_ref().expect("credential").expose());
+        let link = if local { peer.local_link() } else { fresh_link(&mut peer) };
+        peer.hold_gets();
+        let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
+        peer.cut_exchange(exchange);
+        peer.answer_get();
+        let Some(jig_domain_core::Event::SignIn { reply_to, held: Some(fixtures::FIRST_SIGN_IN), .. }) =
+            peer.take_core()
+        else {
+            panic!("the admitted lost exchange still spends its link");
+        };
+        peer.answer_request(
+            reply_to,
+            jig_domain_people::Reply::SignedIn {
+                person: fixtures::FIRST_PERSON,
+                sign_in: fixtures::FIRST_SIGN_IN,
+                expires: fixtures::expires(),
+            },
+        );
+        assert_eq!(peer.answered(exchange), None);
+        assert_eq!(peer.digest_kept(), None);
+        let next = if local { peer.local_link() } else { fresh_link(&mut peer) };
+        assert!(next != link, "the lost sign-in spends its link");
+    }
 }
 
 fn retry_answers() -> [jig_domain_people::Reply; 3] {
@@ -458,9 +469,17 @@ fn decoded(peer: &Peer, exchange: skein_lib::Token) -> w::SignInAnswer {
 
 #[test]
 fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
-    for reply in retry_answers() {
+    let [not_ready, busy, full] = retry_answers();
+    for (local, reply) in [
+        (false, not_ready.clone()),
+        (false, busy.clone()),
+        (false, full.clone()),
+        (true, not_ready),
+        (true, busy),
+        (true, full),
+    ] {
         let mut peer = peer();
-        let link = peer.printed_link();
+        let link = if local { peer.local_link() } else { peer.printed_link() };
         let exchange = peer.post_link(&link);
         let to = pending_reply(&mut peer);
         peer.advance_time(skein_lib::Duration::from_secs(1));
@@ -485,14 +504,14 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
         };
         peer.answer_request(to, reply);
         assert_eq!(decoded(&peer, exchange), expected);
-        assert_eq!(peer.printed_link(), link);
+        assert!(if local { peer.local_link() == link } else { peer.printed_link() == link }, "retry keeps its link");
         // One nanosecond before the original expiry remains usable.
         peer.advance_time(skein_lib::Duration::from_nanos(299_000_000_000 - 1));
         let exchange = peer.post_link(&link);
         peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
         peer.answer_kept(fixtures::FIRST_SIGN_IN);
         assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
-        assert_eq!(peer.printed_link(), link);
+        assert!(local || peer.printed_link() == link, "printed link is unchanged");
     }
 }
 
@@ -515,41 +534,64 @@ fn a_returned_link_past_its_original_expiry_is_expired_and_replaced() {
 
 #[test]
 fn a_reserved_link_answers_its_secret_busy_and_another_unknown_without_drawing() {
-    let mut peer = peer();
-    let link = peer.printed_link();
-    let original = peer.post_link(&link);
-    let to = pending_reply(&mut peer);
-    let crossed = peer.post_link(&link);
-    assert_eq!(decoded(&peer, crossed), w::SignInAnswer::Busy);
-    let other =
-        w::LinkSignIn::new(&w::CEILINGS, w::LinkSignInParts { secret: skein_lib::Secret::new(Box::new([0; 32])) })
-            .expect("real-length link secret");
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure()));
-    other.encode(&mut bytes).expect("measured link record");
-    let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
-    assert_eq!(decoded(&peer, wrong), w::SignInAnswer::LinkUnknown);
-    assert_eq!(peer.printed_link(), link);
-    assert!(peer.take_core().is_none());
-    peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
-    assert_eq!(decoded(&peer, original), w::SignInAnswer::Busy);
-    let exchange = peer.post_link(&link);
-    peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
-    peer.answer_kept(fixtures::FIRST_SIGN_IN);
-    assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+    for local in [false, true] {
+        let mut peer = peer();
+        let link = if local { peer.local_link() } else { peer.printed_link() };
+        let original = peer.post_link(&link);
+        let to = pending_reply(&mut peer);
+        let crossed = peer.post_link(&link);
+        assert_eq!(decoded(&peer, crossed), w::SignInAnswer::Busy);
+        let other =
+            w::LinkSignIn::new(&w::CEILINGS, w::LinkSignInParts { secret: skein_lib::Secret::new(Box::new([0; 32])) })
+                .expect("real-length link secret");
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure()));
+        other.encode(&mut bytes).expect("measured link record");
+        let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
+        assert_eq!(decoded(&peer, wrong), w::SignInAnswer::LinkUnknown);
+        assert!(if local { peer.local_link() == link } else { peer.printed_link() == link }, "reserved link unchanged");
+        assert!(peer.take_core().is_none());
+        peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
+        assert_eq!(decoded(&peer, original), w::SignInAnswer::Busy);
+        let exchange = peer.post_link(&link);
+        peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
+        peer.answer_kept(fixtures::FIRST_SIGN_IN);
+        assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+    }
 }
 
 #[test]
 fn a_core_refusal_drops_the_reservation_and_the_next_attempt_prints_a_link() {
-    let mut peer = peer();
-    let link = peer.printed_link();
-    let exchange = peer.post_link(&link);
-    peer.refuse_sign_in();
-    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
-    let retried = peer.post_link(&link);
-    assert_eq!(decoded(&peer, retried), w::SignInAnswer::LinkUsed);
-    assert_eq!(peer.link_count(), 2);
-    assert_ne!(peer.printed_link(), link);
-    complete_sign_in(&mut peer);
+    for case in ["printed", "local", "local stopped", "local signed out", "local refused"] {
+        let mut peer = peer();
+        let local = case != "printed";
+        let link = if local { peer.local_link() } else { peer.printed_link() };
+        let exchange = peer.post_link(&link);
+        if case == "local signed out" || case == "local refused" {
+            let to = pending_reply(&mut peer);
+            let reply = if case == "local signed out" {
+                jig_domain_people::Reply::SignedOut
+            } else {
+                jig_domain_people::Reply::Refused(jig_domain_people::Refusal::Unknown)
+            };
+            peer.answer_request(to, reply);
+        } else {
+            if case == "local stopped" {
+                peer.event(Event::Stop);
+            }
+            peer.refuse_sign_in();
+        }
+        assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+        assert_eq!(peer.local_link_count(), 1 + usize::from(local), "local refusal renews at once");
+        assert_eq!(peer.link_count(), 1);
+        if case != "local stopped" {
+            let retried = peer.post_link(&link);
+            assert_eq!(decoded(&peer, retried), w::SignInAnswer::LinkUsed);
+            assert_eq!(peer.link_count(), if local { 1 } else { 2 });
+            let next = if local { peer.local_link() } else { peer.printed_link() };
+            assert!(next != link, "refused link replaced");
+            finish_given_sign_in(&mut peer, &next);
+        }
+    }
 }
 
 #[test]
@@ -612,6 +654,9 @@ fn a_link_that_cannot_sign_in_answers_why() {
     ] {
         let mut peer = peer();
         let oldest = peer.printed_link();
+        let local = peer.local_link();
+        peer.post_link(&local);
+        let local_reservation = pending_reply(&mut peer);
         if used {
             finish_given_sign_in(&mut peer, &oldest);
             peer.post_link(&oldest);
@@ -640,5 +685,106 @@ fn a_link_that_cannot_sign_in_answers_why() {
             peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
         }
         finish_given_sign_in(&mut peer, &live);
+        peer.answer_request(local_reservation, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
     }
+}
+
+fn links_are_never_printed(printed: &[Box<[u8]>], local: &[Box<[u8]>]) {
+    assert!(printed.iter().all(|link| !local.contains(link)), "local links are never printed");
+}
+#[test]
+fn the_printed_and_the_local_link_each_sign_in_once_and_leave_the_other() {
+    for case in ["printed first", "local first", "crossing"] {
+        let mut peer = peer();
+        assert_eq!(peer.link_count(), 1);
+        assert_eq!(peer.local_link_count(), 1, "one local link at start");
+        let printed = peer.printed_link();
+        let local = peer.local_link();
+        assert!(printed != local, "the links differ");
+        let mut locals = vec![local.clone()];
+        if case == "crossing" {
+            let exchange = peer.post_link(&printed);
+            let to = pending_reply(&mut peer);
+            let retry = peer.post_link(&printed);
+            assert_eq!(decoded(&peer, retry), w::SignInAnswer::Busy);
+            finish_given_sign_in(&mut peer, &local);
+            peer.answer_request(
+                to,
+                jig_domain_people::Reply::SignedIn {
+                    person: fixtures::FIRST_PERSON,
+                    sign_in: fixtures::FIRST_SIGN_IN + 1,
+                    expires: fixtures::expires(),
+                },
+            );
+            peer.answer_kept(fixtures::FIRST_SIGN_IN + 1);
+            assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+        } else {
+            let (first, second) = if case == "printed first" { (&printed, &local) } else { (&local, &printed) };
+            let local_count = peer.local_link_count();
+            finish_given_sign_in(&mut peer, first);
+            assert_eq!(peer.local_link_count(), local_count + usize::from(case == "local first"));
+            let local_count = peer.local_link_count();
+            finish_given_sign_in(&mut peer, second);
+            assert_eq!(peer.local_link_count(), local_count + usize::from(case == "printed first"));
+        }
+        assert_eq!(peer.link_count(), 1, "spending either link never prints");
+        assert_eq!(peer.local_link_count(), 2, "spending the local link replaces it at once");
+        let next = peer.local_link();
+        assert!(next != local, "the next local link differs");
+        locals.push(next.clone());
+        finish_given_sign_in(&mut peer, &next);
+        locals.push(peer.local_link());
+        assert_eq!(peer.link_count(), 1);
+        for link in [&printed, &local] {
+            let exchange = peer.post_link(link);
+            assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUsed, "{case}");
+        }
+        links_are_never_printed(&[printed, peer.printed_link()], &locals);
+    }
+}
+#[test]
+fn a_local_links_dead_secret_never_prints_a_link() {
+    for case in ["used", "expired"] {
+        let mut peer = peer();
+        let printed = peer.printed_link();
+        let local = peer.local_link();
+        let expected = if case == "used" {
+            finish_given_sign_in(&mut peer, &local);
+            w::SignInAnswer::LinkUsed
+        } else {
+            peer.advance_time(fixtures::limits().link_span);
+            w::SignInAnswer::LinkExpired
+        };
+        let count = peer.link_count();
+        let exchange = peer.post_link(&local);
+        assert_eq!(decoded(&peer, exchange), expected);
+        assert_eq!(peer.link_count(), count, "a dead local link never prints");
+        let next = peer.local_link();
+        assert!(next != local, "a fresh local link is said");
+        finish_given_sign_in(&mut peer, &next);
+        assert_eq!(peer.link_count(), count);
+        links_are_never_printed(&[printed, peer.printed_link()], &[local, next, peer.local_link()]);
+    }
+}
+#[test]
+fn a_restart_forgets_both_links() {
+    let mut settings = fixtures::settings();
+    let mut peer = Peer::started(&settings);
+    let old_printed = peer.printed_link();
+    let old_local = peer.local_link();
+    settings.seed = Secret::new(Box::new([8; 32]));
+    peer.restart(&settings);
+    assert_eq!(peer.link_count(), 2);
+    assert_eq!(peer.local_link_count(), 2);
+    let printed = peer.printed_link();
+    let local = peer.local_link();
+    assert!(printed != old_printed, "restart draws a new printed link");
+    assert!(local != old_local, "restart draws a new local link");
+    for old in [&old_printed, &old_local] {
+        let exchange = peer.post_link(old);
+        assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUnknown);
+    }
+    finish_given_sign_in(&mut peer, &printed);
+    finish_given_sign_in(&mut peer, &local);
+    links_are_never_printed(&[old_printed, printed], &[old_local, local, peer.local_link()]);
 }

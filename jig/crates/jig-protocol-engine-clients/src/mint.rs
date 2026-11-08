@@ -41,10 +41,13 @@ impl Component {
             false
         }
     }
-    fn return_link(&mut self, spent: Option<sign_in::Link>) {
-        if spent.is_some() && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped) {
-            assert!(self.link.is_none(), "a reserved link is not open");
-            self.link = spent;
+    fn return_link(&mut self, spent: Option<(sign_in::Which, sign_in::Link)>) {
+        if let Some((which, link)) = spent
+            && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
+        {
+            let slot = self.slot_mut(which);
+            assert!(slot.live.is_none(), "a reserved link is not open");
+            slot.live = Some(link);
         }
     }
     pub(super) fn sign_in_reply(
@@ -59,18 +62,10 @@ impl Component {
         if self.stopping() && self.mint_refused(exchange, MintRefusal::NotReady, out) {
             return;
         }
-        let spent = match self.spending.take() {
-            Some((held, link)) if held == exchange => Some(link),
-            other => {
-                self.spending = other;
-                None
-            }
-        };
+        let spent = self.take_reservation(exchange);
         match reply {
             people::Reply::SignedIn { person, sign_in, expires } => {
-                if let Some(link) = spent {
-                    self.remember_link(link, sign_in::Past::Used);
-                }
+                self.spend_link(spent, env, out);
                 if held == Some(sign_in) {
                     let value = w::SignedIn::new(
                         &env.limits.wire,
@@ -120,7 +115,7 @@ impl Component {
             people::Reply::Full { sign_ins, earliest } => {
                 if !self.mint_refused(exchange, MintRefusal::Busy, out) {
                     let answer = match &spent {
-                        Some(link) => {
+                        Some((_, link)) => {
                             let left = link.until.as_nanos().saturating_sub(env.now.as_nanos());
                             let link_until = env.wall.as_nanos().saturating_add(left);
                             routes::sign_in_full(&env.limits.wire, sign_ins, earliest.as_nanos(), link_until)
@@ -135,9 +130,7 @@ impl Component {
             | people::Reply::SignedOut
             | people::Reply::Outcome(_)
             | people::Reply::Refused(_) => {
-                if let Some(link) = spent {
-                    self.remember_link(link, sign_in::Past::Used);
-                }
+                self.spend_link(spent, env, out);
                 if !self.mint_refused(exchange, MintRefusal::Bound, out) {
                     self.respond(exchange, routes::refused());
                 }
