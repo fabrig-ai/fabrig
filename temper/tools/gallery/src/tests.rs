@@ -1347,7 +1347,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "all-home",
         heading: "31 changes landed across three projects. Two things need you.",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "Sunday, 08:04 · you last looked 9 hours ago" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Sunday, 08:04 · you last looked 9 hours ago · away 23:10 to 08:00",
+            },
             Part::StyledText {
                 style: temper_client_view::look::HOME_LEDE,
                 text: &[
@@ -1440,7 +1443,7 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Text { text: "Approve Monthly totals by category on GitHub" },
             Part::Text { text: "Send budget alerts by email, or only show them in the app?" },
-            Part::Text { text: "main last moved 6 min ago" },
+            Part::Text { text: "main last moved 2 h 54 min ago" },
             Part::Absent { role: Role::Region, name: "Decided for you" },
             // Home has no landed-changes list; the brief and Landing foot hold what landed.
         ],

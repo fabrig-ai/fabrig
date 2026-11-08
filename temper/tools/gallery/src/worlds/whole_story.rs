@@ -122,14 +122,21 @@ fn status(name: &str, project: u32) -> w::ProjectStatus {
         }
     };
     let nothing_new = name == "all-home-nothing-new";
+    let landed_age = if nothing_new {
+        600
+    } else if name == "home-step-pair" {
+        174
+    } else {
+        6
+    };
     w::ProjectStatus::new(
         &w::CEILINGS,
         w::ProjectStatusParts {
             project,
             landed,
             seen: if nothing_new { landed } else { 0 },
-            previous: Some(since(name, 540).as_nanos()),
-            last_landed: (landed > 0).then(|| since(name, if nothing_new { 600 } else { 6 }).as_nanos()),
+            previous: Some(since(name, if name == "home-step-team" { 3765 } else { 540 }).as_nanos()),
+            last_landed: (landed > 0).then(|| since(name, landed_age).as_nanos()),
             queued: u32::from(project == 4) * 3,
             branch: b"main".as_slice().into(),
             red: across(name) && project == 4,
@@ -463,9 +470,27 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                         &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: List::with_capacity(0) })
                             .expect("dismissals"),
                     ),
-                    w::Watch::Away => wire::aways(
-                        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("aways"),
-                    ),
+                    w::Watch::Away => {
+                        let mut rows = List::with_capacity(1);
+                        if across(name) && name != "all-home-nothing-new" {
+                            rows.push(
+                                w::AwayRow::new(
+                                    &w::CEILINGS,
+                                    w::AwayRowParts {
+                                        project: 1,
+                                        since: since(name, 534).as_nanos(),
+                                        until: None,
+                                        kinds: 7,
+                                        landed: 12,
+                                        off: Some(since(name, 4).as_nanos()),
+                                    },
+                                )
+                                .expect("Sunday's away spell"),
+                            )
+                            .expect("one away spell");
+                        }
+                        wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).expect("aways"))
+                    }
                     _ => continue,
                 };
                 family(&mut root, name, watch, bytes, &mut out);
