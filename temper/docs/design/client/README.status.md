@@ -940,8 +940,7 @@ TUI stories cover approval by the browser's party, credential keeping,
 the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
-  subject `ways` and the read `View`. 5.13, *A way's acts*: a way's
+- **Not yet:** 5.13, *A way's acts*: a way's
   `delegation` adds no policy item. 5.16:
   a `view` block shows as code, the chat page reads no view, and no path is
   drawn.

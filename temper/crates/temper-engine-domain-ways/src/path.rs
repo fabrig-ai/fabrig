@@ -82,13 +82,13 @@ pub struct Path {
     pub stops: Box<[Stop]>,
 }
 
-pub const STOPS: usize = 32; // a path's most stops
+pub const STOPS: usize = 24; // a path's most stops
 pub const FACTS: usize = 4; // a card's most facts
 pub const WORDS: usize = 64; // a stop's words' most bytes
 pub const WHO: usize = 128; // a card's `who`
 pub const NAME: usize = 64; // a card's `name`
 pub const LABEL: usize = 32; // a fact's label
-pub const VALUE: usize = 384; // a fact's value
+pub const VALUE: usize = 128; // a fact's value
 
 impl Stop {
     /// Compare the drawn stop, ignoring its card.

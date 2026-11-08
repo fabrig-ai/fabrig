@@ -3394,115 +3394,69 @@ fn the_worst_small_changes_document_fits_its_decision() {
     );
 }
 
-fn largest_ways_rule() -> forge::settings::Value {
-    let limits = &w::CEILINGS;
-    let mut segments = List::uncapped();
-    for _ in 0..limits.landing_pattern_segments {
-        segments.push(repeated(b's', limits.landing_pattern_segments_item)).unwrap();
-    }
-    let mut gates = List::uncapped();
-    for number in 0..limits.landing_rule_gates {
-        gates
-            .push(forge::settings::RuleGate { number, blocking: true, freshness: forge::JudgeFreshness::Exact })
-            .unwrap();
-    }
-    let mut approvals = List::uncapped();
-    for role in 0..limits.landing_rule_approvals {
-        approvals
-            .push(forge::settings::RuleApproval { role, people: u32::MAX, freshness: forge::JudgeFreshness::Exact })
-            .unwrap();
-    }
-    forge::settings::Value::Rule(forge::settings::LandingRule {
-        pattern: forge::GatePattern {
-            segments: segments.into_boxed(),
-            last: forge::GateLast::Exact(repeated(b'l', limits.landing_exact_value)),
-        },
-        enforce: true,
-        ci: true,
-        up_to_date: true,
-        gates: gates.into_boxed(),
-        approvals: approvals.into_boxed(),
-    })
-}
-
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
-    let wire_limits = &w::CEILINGS;
-    let mut facts = List::uncapped();
-    for _ in 0..wire_limits.card_facts {
-        facts
-            .push(ways::Fact {
-                label: repeated(b'l', wire_limits.fact_label),
-                value: repeated(b'v', wire_limits.fact_value),
-            })
-            .unwrap();
-    }
+    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let value_bytes = u32::try_from(ways::VALUE).unwrap();
+    // Approval and tier stops are smaller: words and name at most 64 bytes,
+    // with one fact of VALUE bytes for a tier, or two short approval facts.
     let card = ways::Card {
-        who: repeated(b'w', wire_limits.card_who),
-        name: repeated(b'n', wire_limits.card_name),
-        facts: facts.into_boxed(),
+        who: "an agent · repairs what a check or a review found, then goes back through them".as_bytes().into(),
+        name: b"the coding agent".as_slice().into(),
+        facts: Box::new([
+            ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
+            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
+            ways::Fact { label: b"Asked to".as_slice().into(), value: repeated(b'a', value_bytes) },
+        ]),
     };
     let mut stops = List::uncapped();
-    for _ in 0..wire_limits.branch_path_stops {
+    for _ in 0..ways::STOPS {
         stops
             .push(ways::Stop {
                 actor: ways::Actor::Agent,
-                step: ways::Step::Check,
-                words: repeated(b'w', wire_limits.stop_words),
-                opens: ways::Opens::Tier(repeated(b't', wire_limits.opens_tier_name)),
+                step: ways::Step::ProduceMany,
+                words: "produce ×n".as_bytes().into(),
+                opens: ways::Opens::Charter(u32::MAX),
                 card: card.clone(),
             })
             .unwrap();
     }
+    let owner = repeated(b'o', limits.forge.name_bytes);
+    let name = repeated(b'n', limits.forge.name_bytes);
     let path = ways::Path {
-        repository: Some(repeated(b'r', wire_limits.branch_path_repository_some)),
-        branch: repeated(b'b', wire_limits.branch_path_branch),
+        repository: Some(skein_lib::bytes::concat(&[&owner, b"/", &name])),
+        branch: repeated(b'b', limits.forge.name_bytes),
         stops: stops.into_boxed(),
     };
-    let rule = largest_ways_rule();
-    let rule_bytes = temper_engine_smith::kinds::encode(&rule).len();
+    let project = 7;
+    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, away: true, way: u32::MAX };
     let mut entries = List::uncapped();
-    for _ in 0..wire_limits.ways_panel_ways {
-        let mut items = List::uncapped();
-        for number in 0..wire_limits.stock_way_items {
-            items.push(ways::Item { kind: 2, scope: 7, number, edit: ways::Edit::Set(rule.clone()) }).unwrap();
-        }
+    for way in crate::stock::ways() {
+        let items = ways::items(&way, project, Some(&kind7));
         entries
             .push(ways::WayEntry {
-                name: repeated(b'n', wire_limits.stock_way_name),
-                line: repeated(b'l', wire_limits.stock_way_line),
+                name: way.name,
+                line: way.line,
                 path: path.clone(),
-                items: items.into_boxed(),
-                delegation: true,
+                items,
+                delegation: way.delegation,
             })
             .unwrap();
     }
     let document =
-        ways::WaysDocument { project: 7, ways: entries.into_boxed(), current: Some(0), own: path, may_change: true };
-    let bytes = family::ways_panel(document.clone(), wire_limits).unwrap();
-    assert!(wire::decode_ways_panel(&bytes, wire_limits).is_some());
-    let own_only_bytes = family::ways_panel(
-        ways::WaysDocument {
-            project: 7,
-            ways: Box::new([]),
-            current: None,
-            own: document.own.clone(),
-            may_change: true,
-        },
-        wire_limits,
-    )
-    .unwrap()
-    .len();
-    let limits = crate::limits::profile(crate::limits::Profile::Small).root.journal;
+        ways::WaysDocument { project, ways: entries.into_boxed(), current: None, own: path, may_change: true };
+    let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
+    assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
     let mut journal = root::Journal::uncapped(1, 0);
-    let mut decision = root::Decision::decide(&mut journal, &limits);
-    decision.deliver(&limits, root::Delivery::Ways { watcher: WATCHER, document: Box::new(document) }).unwrap();
-    let delivery_bytes = limits.result_bytes.max(limits.transcript_bytes);
+    let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
+    decision
+        .deliver(&limits.root.journal, root::Delivery::Ways { watcher: WATCHER, document: Box::new(document) })
+        .unwrap();
+    let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
     assert!(
         bytes.len() <= usize::try_from(delivery_bytes).unwrap(),
-        "WaysPanel: {} encoded bytes; own path alone in a panel: {own_only_bytes}; a maximal typed rule: {rule_bytes}; decision allowance: {delivery_bytes}; schema encoded bound: {}",
-        bytes.len(),
-        w::WaysPanel::encoded_bound(wire_limits).unwrap()
+        "WaysPanel: {} encoded bytes; decision allowance: {delivery_bytes}",
+        bytes.len()
     );
 }
 
