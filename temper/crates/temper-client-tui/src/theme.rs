@@ -32,9 +32,28 @@ const fn fore(colour: Rgb) -> Paint {
     Paint { fore: Some(colour), ..Paint::NONE }
 }
 
+pub const BAND_STEP: u8 = 20;
+
+/// Move each channel toward the ink, saturating (temper/docs/design/client/README.md, 6.15).
+#[must_use]
+pub const fn band(background: Rgb) -> Rgb {
+    match Scheme::of_background(background) {
+        Scheme::Dark => Rgb {
+            red: background.red.saturating_add(BAND_STEP),
+            green: background.green.saturating_add(BAND_STEP),
+            blue: background.blue.saturating_add(BAND_STEP),
+        },
+        Scheme::Light => Rgb {
+            red: background.red.saturating_sub(BAND_STEP),
+            green: background.green.saturating_sub(BAND_STEP),
+            blue: background.blue.saturating_sub(BAND_STEP),
+        },
+    }
+}
+
 /// The named palette shared by the terminal and its journey pages (temper/docs/design/client/tui/journeys.md, 6.4).
 #[must_use]
-pub const fn palette(scheme: Scheme) -> [(&'static str, Rgb); 7] {
+pub const fn palette(scheme: Scheme) -> [(&'static str, Rgb); 6] {
     match scheme {
         Scheme::Dark => [
             ("bg", rgb(0x19, 0x18, 0x16)),
@@ -43,7 +62,6 @@ pub const fn palette(scheme: Scheme) -> [(&'static str, Rgb); 7] {
             ("faint", rgb(0x6a, 0x65, 0x5c)),
             ("accent", rgb(0xe0, 0x8a, 0x68)),
             ("good", rgb(0x8f, 0xc2, 0x8f)),
-            ("sel", rgb(0x2a, 0x28, 0x25)),
         ],
         Scheme::Light => [
             ("bg", rgb(0xff, 0xfe, 0xfd)),
@@ -52,7 +70,6 @@ pub const fn palette(scheme: Scheme) -> [(&'static str, Rgb); 7] {
             ("faint", rgb(0xb5, 0xae, 0xa3)),
             ("accent", rgb(0xb8, 0x66, 0x4e)),
             ("good", rgb(0x3f, 0x7d, 0x4e)),
-            ("sel", rgb(0xf4, 0xf0, 0xe9)),
         ],
     }
 }
@@ -75,8 +92,13 @@ fn region(region: skein_ui::Region, place: Place, arrange: Arrange, pad: u16, bo
     RegionLook { region, place, arrange, pad, border, paint: Paint::NONE }
 }
 #[must_use]
-pub fn theme(scheme: Scheme) -> Theme {
-    let [_, _, (_, dim), (_, faint), (_, accent), (_, good), (_, sel)] = palette(scheme);
+#[expect(clippy::manual_map, reason = "step code spells out the optional background")]
+pub fn theme(scheme: Scheme, background: Option<Rgb>) -> Theme {
+    let [_, _, (_, dim), (_, faint), (_, accent), (_, good)] = palette(scheme);
+    let back = match background {
+        Some(background) => Some(band(background)),
+        None => None,
+    };
     let border =
         Border {
             corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: fore(faint), title: true, sides: true
@@ -85,22 +107,21 @@ pub fn theme(scheme: Scheme) -> Theme {
         base: Paint::NONE,
         focus: fore(accent),
         placeholder: fore(faint),
-        active: Paint { back: Some(sel), ..Paint::NONE },
+        active: Paint { back, ..Paint::NONE },
         regions: Box::new([
             region(look::TOP, Place::Top, Arrange::Lines, 1, Some(border)),
             region(look::BOTTOM, Place::Bottom, Arrange::Spread, 1, None),
-            region(look::CHAT_TOP, Place::Top, Arrange::Spread, 1, None),
             region(look::SECTIONS, Place::Body, Arrange::Lines, 1, None),
             region(look::WORKING, Place::Bottom, Arrange::Lines, 0, None),
-            region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: false, sides: false, ..border })),
+            region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: true, sides: false, ..border })),
             region(look::LIST, Place::Bottom, Arrange::Lines, 0, None),
         ]),
-        styles: styles(dim, faint, accent, good, sel),
+        styles: styles(dim, faint, accent, good, back),
         glyphs: Glyphs { focus: '❯', mask: '•' },
     }
 }
 
-fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, sel: Rgb) -> Box<[StyleLook]> {
+fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Box<[StyleLook]> {
     let star = Some(Mark { glyph: '✦', paint: fore(accent) });
     let bold = Paint { bold: true, ..Paint::NONE };
     Box::new([
@@ -116,11 +137,10 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, sel: Rgb) -> Box<[StyleL
         StyleLook { align: Align::End, ..style(look::BYLINE, fore(dim)) },
         style(look::HEAD, bold),
         style(look::SIGNAL, fore(accent)),
-        style(look::STAR, fore(accent)),
         StyleLook {
-            band: true,
-            mark: Some(Mark { glyph: '❯', paint: fore(dim) }),
-            ..style(look::SAID, Paint { back: Some(sel), ..Paint::NONE })
+            band: back.is_some(),
+            mark: Some(Mark { glyph: '❯', paint: fore(if back.is_some() { dim } else { accent }) }),
+            ..style(look::SAID, if back.is_some() { Paint { back, ..Paint::NONE } } else { fore(dim) })
         },
         StyleLook { mark: star, ..style(look::AGENT, Paint::NONE) },
         StyleLook { mark: Some(Mark { glyph: '▸', paint: fore(dim) }), ..style(look::RUN, fore(dim)) },
@@ -134,5 +154,13 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, sel: Rgb) -> Box<[StyleL
         StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },
         style(look::NOTE, fore(dim)),
         StyleLook { spaced: true, ..style(look::SPACED, Paint::NONE) },
+        StyleLook { mark: Some(Mark { glyph: '•', paint: Paint::NONE }), ..style(look::BULLETS, Paint::NONE) },
+        StyleLook { mark: Some(Mark { glyph: ' ', paint: Paint::NONE }), ..style(look::LEFT_OFF, Paint::NONE) },
+        StyleLook {
+            band: back.is_some(),
+            mark: Some(Mark { glyph: '❯', paint: fore(accent) }),
+            ..style(look::PICKED, Paint { back, ..fore(accent) })
+        },
+        StyleLook { align: Align::End, ..style(look::RULE_TITLE, Paint::NONE) },
     ])
 }

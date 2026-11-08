@@ -13,8 +13,12 @@ to Ask temper opens a chat and receives the fake model's answer.
   a new chat", before Escape closes them.
 - `03.html` and `03.txt`: "What can you tell me about Hello?" typed in
   the launchpad's box, before Enter sends it.
-- `04.html` and `04.txt`: the Ask temper chat with the person's question
-  and "Hello from the local fake model.", at the recording's end.
+- `04.html` and `04.txt`: the Ask temper chat from the first row, the
+  person's question and "Hello from the local fake model.", with
+  "Hello", the title cut to "What can you tell…", its number and the engine's
+  `127.0.0.1:PORT` in the rule above the box, at the recording's end.
+  The walk's TUI reads no engine's link file, so the place is the
+  address, not "box" (`../../journeys.md`, 8.2).
 
 The code, the port and the clocks are the recording's own. The walk is
 recorded by `again launchpad-chat` from its `walk` after its `setup`;

@@ -48,6 +48,10 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
+    left_off: List<u64>,
+    selected: Option<u64>,
+    box_empty: bool,
+    left_off_arrows: bool,
 }
 impl View {
     #[must_use]
@@ -60,6 +64,10 @@ impl View {
             shown: 0,
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
+            left_off: List::with_capacity(3),
+            selected: None,
+            box_empty: false,
+            left_off_arrows: false,
         }
     }
     #[must_use]
@@ -245,6 +253,10 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     }
     let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
     if signed_out {
+        view.left_off.clear();
+        view.selected = None;
+        view.box_empty = false;
+        view.left_off_arrows = false;
         view.shown = view.shown.wrapping_add(1);
         view.binds.events.clear();
         let words = &view.words;
@@ -294,6 +306,24 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         Body::Launchpad(part) => part.tick,
         Body::Chat(_) => None,
     };
+    view.left_off.clear();
+    view.selected = None;
+    match &signed.body {
+        Body::Launchpad(part) => {
+            for line in &part.left_off {
+                view.left_off.push(line.task).expect("three left-off tasks");
+                if part.selected == Some(line.task) {
+                    view.selected = part.selected;
+                }
+            }
+        }
+        Body::Chat(_) => {}
+    }
+    view.box_empty = match &signed.foot.composer {
+        Some(composer) => composer.value.is_empty(),
+        None => false,
+    };
+    view.left_off_arrows = view.box_empty && signed.foot.list.is_none();
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
@@ -302,6 +332,9 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
     view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
+    if signed.foot.list.is_none() && view.selected.is_some() {
+        view.escape = Some(Event::LeftOff { task: None });
+    }
     b.close();
     view.render.finish(b, view.shown, out);
 }
@@ -329,7 +362,17 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
             if bound.binding.token == look::LINK {
                 Some(Event::SignIn)
             } else if bound.binding.token == BOX {
-                Some(Event::Send)
+                if view.box_empty
+                    && let Some(task) = view.selected
+                {
+                    Some(Event::Act {
+                        act: temper_client_domain::pages::Act::Go {
+                            address: temper_client_domain::Address::Chat { task },
+                        },
+                    })
+                } else {
+                    Some(Event::Send)
+                }
             } else {
                 None
             }
@@ -363,8 +406,8 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
     let mut commands = List::with_capacity(13);
     for command in Command::ALL {
         let screen = match command {
-            Command::Model => project && picker,
-            Command::Effort | Command::Pause => chat,
+            Command::Model | Command::Effort => project && picker,
+            Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Theme | Command::Help | Command::Exit => true,
@@ -375,4 +418,30 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
         }
     }
     commands.into_boxed()
+}
+
+/// The launchpad's selection keys (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Arrow {
+    Up,
+    Down,
+}
+
+/// The event made on the tree last built, or None for the key reader.
+#[must_use]
+pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
+    if !view.left_off_arrows {
+        return None;
+    }
+    let mut picked = 0;
+    for index in 0..view.left_off.len() {
+        if view.left_off.get(index).copied() == view.selected {
+            picked = match arrow {
+                Arrow::Up => index.saturating_sub(1),
+                Arrow::Down => index.saturating_add(1).min(view.left_off.len().saturating_sub(1)),
+            };
+            break;
+        }
+    }
+    Some(Event::LeftOff { task: Some(*view.left_off.get(picked)?) })
 }
