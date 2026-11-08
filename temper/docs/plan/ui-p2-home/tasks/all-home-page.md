@@ -163,3 +163,18 @@ Keep the resulting recording and all generated frames together; do not splice re
 Generation is authorized by the task and `temper/docs/design/client/tui/journeys.md`, sections 6 and 8.
 On `a key mark caught a moving page`, retry generation at most three times.
 Run the focused journey replay and the task’s focused checks through heavy; report regenerated artifacts and test counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-p2-home/all-home-page/foreman-4)
+
+preserve Home and How module registrations and regenerate the combined vocabulary
+Merge current `origin/ui-p2-home/integration` into the task branch.
+The conflicts are in `temper/crates/temper-client-view/src/pages.rs` and `src/words.rs`.
+Integration commit `9430783b5b` brings main’s How work runs changes from `db801753b4` and shared ways module from `a4a965ba4d`.
+In `pages.rs`, retain all four registrations: `all_home`, `home_cards`, `how`, and `ways`.
+In `words.rs`, retain the task’s sixteen Home/card words, IDs 4325–4340, and their English forms.
+Retain integration’s thirty `How*` words, IDs 4900–4929, and its removal of obsolete Settings words.
+Keep the existing role-reading vocabulary.
+Combine the `ALL` entries provisionally so the crate compiles; regenerate its length and the counted declarations instead of choosing either side’s counts.
+Through heavy, run `tests::accounts::english_phrase_declarations_match_the_vocabulary` in `temper-client-view` with `SKEIN_CODEGEN_WRITE=1`, then verify the same test without generation.
+Retain the automatic merges in `temper.css`, `look.rs`, and `tests.rs`.
+Run the task’s focused checks and journey replay through heavy; regenerate any journey reported stale using its tool and report the resulting artifacts and test counts.
