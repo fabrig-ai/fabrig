@@ -963,26 +963,57 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
 
 #[test]
 fn reply_past_choice_bound_is_held_whole_for_the_engine() {
-    let mut pages = fixture();
     let words = repeated(temper_client_protocol_wire::CUE_BYTES.checked_add(1).unwrap(), b"");
     let mut limits = fixtures::limits();
-    limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
-    limits.client.domain.turn_text = 2048;
     let env = fixtures::env(&limits);
     let client = super::composer::root(&limits);
-    let mut out = Queue::uncapped();
-    for act in [
-        pages::Act::Needs(Act::OpenReply { object: FIRST }),
-        pages::Act::CardWords { object: FIRST, words: words.clone() },
-        pages::Act::Needs(Act::SendReply { object: FIRST }),
-    ] {
-        pages::step(&mut pages, &env, client.client(), pages::Event::Act { act }, &mut out);
+    for explicitly_open in [false, true] {
+        for (mut pages, object) in answer_fixtures() {
+            if explicitly_open {
+                act(&mut pages, 0, Act::OpenReply { object });
+            }
+            let mut out = Queue::uncapped();
+            for act in
+                [pages::Act::CardWords { object, words: words.clone() }, pages::Act::Needs(Act::SendReply { object })]
+            {
+                pages::step(&mut pages, &env, client.client(), pages::Event::Act { act }, &mut out);
+            }
+            assert!(out.is_empty());
+            assert!(pages.needs().held(object), "{object:?}: reply opened explicitly: {explicitly_open}");
+            let (_, ask) = sent(&mut fire(&mut pages, HOLD_DUE));
+            let sent = c::Text::new(words.clone(), limits.client.domain.long_text).unwrap();
+            let on = if object == FIRST {
+                c::AnswerOn::Question { task: f::TASK, message: f::MESSAGE, words: sent }
+            } else {
+                c::AnswerOn::Person { task: f::TASK, revision: f::REVISION, answer: c::PersonAnswer::Words(sent) }
+            };
+            assert_eq!(ask, c::Ask::Answer { project: fixtures::PROJECT, on });
+        }
     }
-    assert!(pages.needs().held(FIRST));
-    let (_, ask) = sent(&mut fire(&mut pages, HOLD_DUE));
-    let c::Ask::Answer { on: c::AnswerOn::Question { words: sent, .. }, .. } = ask else { panic!("question reply") };
-    assert_eq!(sent.bytes(), &*words);
+    let object = ObjectKey::Proposal(f::PROPOSAL);
+    let mut pages = f::pages(object, f::proposal(c::ActKind::Reject, c::Admission::Allowed));
+    for (words, kept) in [
+        (repeated(limits.client.domain.text, b""), true),
+        (repeated(limits.client.domain.text.checked_add(1).unwrap(), b""), false),
+    ] {
+        let mut out = Queue::uncapped();
+        pages::step(
+            &mut pages,
+            &env,
+            client.client(),
+            pages::Event::Act { act: pages::Act::CardWords { object, words: words.clone() } },
+            &mut out,
+        );
+        assert!(out.is_empty());
+        assert!(!pages.needs().replying(object));
+        let card_words = pages.inbox().unwrap().cards.get(0).unwrap().words.as_ref().unwrap().bytes();
+        if kept {
+            assert_eq!(card_words, &*words);
+        } else {
+            assert_eq!(card_words.len(), usize::try_from(limits.client.domain.text).unwrap());
+        }
+    }
 }
 
 #[test]
@@ -1092,7 +1123,6 @@ fn composer_reply(words: Box<[u8]>) -> (Pages, crate::Domain, crate::Limits) {
     let limits = super::composer::limits();
     let root = super::composer::root(&limits);
     let mut pages = fixture();
-    composer_act(&mut pages, &root, &limits, pages::Act::Needs(Act::OpenReply { object: FIRST }));
     composer_act(&mut pages, &root, &limits, pages::Act::CardWords { object: FIRST, words });
     (pages, root, limits)
 }

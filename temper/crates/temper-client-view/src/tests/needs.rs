@@ -319,7 +319,7 @@ fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
             input,
             d::Action::Pages(pages::Act::CardWords { object: object(1), words: words.as_bytes().into() })
         );
-        f::root_event(&mut root, Event::Act { action: input });
+        event(&mut root, Event::Act { action: input }, &mut Queue::uncapped());
         let mut view = f::browser_page_view(&root);
         assert_eq!(styled(&view, look::NEED_TELL).role, Role::Slot);
         let field = f::find(view.tree(), Role::TextArea, b"Or tell it something else").unwrap();
@@ -332,7 +332,7 @@ fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
         if send {
             let action = press(&mut view, b"Send");
             assert_eq!(action, expected(needs::Act::SendReply { object: object(1) }));
-            f::root_event(&mut root, Event::Act { action });
+            event(&mut root, Event::Act { action }, &mut Queue::uncapped());
             let lines = root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None);
             assert_eq!(lines[0].label, needs::Label::Reply(words.as_bytes().into()));
             assert_eq!(lines[0].object, object(1));

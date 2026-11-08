@@ -102,6 +102,7 @@ fn find_card(pages: &mut Pages, object: ObjectKey) -> Option<&mut Card> {
 pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::CardWords { object, words } => {
+            crate::pages::needs::open_reply(pages, object);
             if pages.needs().replying(object) {
                 crate::pages::needs::write_reply(pages, object, words, env.limits.client.domain.long_text);
                 return;
