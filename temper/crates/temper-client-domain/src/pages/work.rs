@@ -253,3 +253,156 @@ fn has_queued(changes: &List<Change>, owner: Belongs) -> bool {
     }
     false
 }
+
+/// Kind 7's read Hidden switches override Work's filters (client/README.md, 3.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Overrides {
+    pub goals: bool,
+    pub changes: bool,
+}
+#[expect(clippy::derivable_impls, reason = "the strict subset forbids deriving Default")]
+impl Default for Overrides {
+    fn default() -> Self {
+        Self { goals: false, changes: false }
+    }
+}
+
+/// The nonempty filters that no override hides; the view also keeps the current one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "one switch per filter")]
+pub struct Shown {
+    pub drafts: bool,
+    pub goals: bool,
+    pub changes: bool,
+    pub chats: bool,
+}
+
+/// A filter is drawn while it holds something and no override hides it.
+#[must_use]
+pub fn shown(filters: &Filters, overrides: Overrides) -> Shown {
+    Shown {
+        drafts: filters.drafts > 0,
+        goals: filters.goals > 0 && !overrides.goals,
+        changes: filters.changes > 0 && !overrides.changes,
+        chats: filters.chats > 0,
+    }
+}
+
+/// Neither switch hides a filter until Kind 7 is read.
+#[must_use]
+pub fn overrides(root: &crate::Domain, project: u32) -> Overrides {
+    match root.forge().ways(project) {
+        Some(ways) => Overrides { goals: !ways.goals, changes: !ways.changes },
+        None => Overrides::default(),
+    }
+}
+
+/// Gather the three lists only once each has answered (client/README.md, 3.5, Work).
+#[must_use]
+pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
+    use super::changes::State;
+    let goals = root.pages().goals()?;
+    let changes = root.pages().changes()?;
+    let chats = root.pages().chats()?;
+    if root.pages().project() != Some(project)
+        || changes.project != project
+        || !goals.known(root.client())
+        || !chats.known(root.client())
+        || !chats.documents_known()
+    {
+        return None;
+    }
+    let panel = match changes.state() {
+        State::Loading => return None,
+        State::Shown(panel) => Some(panel),
+        State::Ended => None,
+    };
+    let mut facts = Facts::default();
+    for line in &goals.live(root.client())?.rows {
+        facts
+            .goals
+            .push(Goal { task: line.chip.task, live: !super::chats::ended(&line.chip), activity: line.last_activity })
+            .expect("one fact per goal row");
+    }
+    for line in goals.ended() {
+        facts
+            .goals
+            .push(Goal { task: line.chip.task, live: false, activity: line.last_activity })
+            .expect("one fact per goal row");
+    }
+    if let Some(panel) = panel {
+        for queue in panel.queues() {
+            for (index, row) in queue.changes().iter().enumerate() {
+                facts
+                    .changes
+                    .push(Change {
+                        task: row.task(),
+                        at: Where::Queued {
+                            place: u32::try_from(index)
+                                .expect("wire queue fits")
+                                .checked_add(1)
+                                .expect("wire queue fits"),
+                            since: Wall::from_nanos(row.ready_since()),
+                        },
+                        belongs: belongs(root, row.task()),
+                    })
+                    .expect("one fact per change row");
+            }
+        }
+        for row in panel.landed() {
+            facts
+                .changes
+                .push(Change {
+                    task: row.task(),
+                    at: Where::Landed { at: Wall::from_nanos(row.at()) },
+                    belongs: belongs(root, row.task()),
+                })
+                .expect("one fact per change row");
+        }
+    }
+    for line in &chats.live(root.client())?.rows {
+        gather_chat(&mut facts, chats, line);
+    }
+    if let Some(page) = &chats.page {
+        for line in &page.live {
+            gather_chat(&mut facts, chats, line);
+        }
+        match &page.ended {
+            jig_client::contract::EndedGroup::Rows { rows, .. } => {
+                for line in rows {
+                    gather_chat(&mut facts, chats, line);
+                }
+            }
+            jig_client::contract::EndedGroup::None => {}
+        }
+    }
+    Some(facts)
+}
+
+fn gather_chat(facts: &mut Facts, chats: &super::chats::Chats, line: &jig_client::contract::TaskLine) {
+    for chat in &facts.chats {
+        if chat.task == line.chip.task {
+            return;
+        }
+    }
+    facts
+        .chats
+        .push(Chat {
+            task: line.chip.task,
+            activity: line.last_activity,
+            draft: chats.documents.contains_key(&line.chip.task),
+        })
+        .expect("one fact per chat row");
+}
+
+fn belongs(root: &crate::Domain, task: u64) -> Belongs {
+    use super::changes::From;
+    let Some(page) = root.pages().changes() else { return Belongs::Nothing };
+    if let Some(goal) = page.goal(task) {
+        return Belongs::Goal(goal);
+    }
+    match page.from(root.client(), task) {
+        Some(From::Chat(task)) => Belongs::Chat(task),
+        Some(From::Goal(_)) | None => Belongs::Nothing,
+    }
+}
