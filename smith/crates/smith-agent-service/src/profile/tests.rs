@@ -103,6 +103,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
                 let limits = derived.expect("two-model profile derives");
                 assert_eq!(limits.domain.run.run_bytes, run_bytes);
                 assert_eq!(limits.domain.run.outcome_bytes, outcome_bytes);
+                assert_eq!(u64::from(limits.domain.run.answer_bytes), limits.domain.run.outcome_bytes);
                 let turn = limits.channel.bodies.turn_body;
                 assert_eq!(turn, expected);
                 assert!(turn <= TURN_BODY_CEILING);
