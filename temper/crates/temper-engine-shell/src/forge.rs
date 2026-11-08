@@ -17,6 +17,10 @@ use temper_forge_setup::{
     upgrade::Course,
 };
 use temper_forge_setup_shell::{command, prepare, run as host};
+use temper_shell::{
+    commands::{Argument, DIRECTORIES, Row, Who},
+    directories::{self, EnvironmentEntry},
+};
 /// A command's diagnostic, without any credential contents.
 #[derive(Debug)]
 pub struct Refused {
@@ -27,8 +31,11 @@ pub struct Refused {
 impl Refused {
     #[must_use]
     pub fn line(&self) -> String {
+        self.line_with_binary("temper")
+    }
+    fn line_with_binary(&self, binary: &str) -> String {
         let forge = self.number.map_or_else(String::new, |n| format!("forge {n}: "));
-        super::prefixed(&format!("temper forge {}", self.verb), &format!("{forge}{}", self.why))
+        super::prefixed(&format!("{binary} forge {}", self.verb), &format!("{forge}{}", self.why))
     }
 }
 fn text(bytes: &[u8]) -> String {
@@ -47,7 +54,7 @@ pub(crate) fn command_error(why: command::Error) -> String {
         command::Error::Spawn(why) => format!("command could not start: {why:?}"),
     }
 }
-fn failure(why: prepare::Failed, place: &Place) -> String {
+fn failure(binary: &str, why: prepare::Failed, place: &Place) -> String {
     match why {
         prepare::Failed::Held(file) => format!(
             "{} is running or being prepared already",
@@ -79,12 +86,12 @@ fn failure(why: prepare::Failed, place: &Place) -> String {
             Failure::Newer { which, recorded } => {
                 let (name, pin) = pinned(which);
                 format!(
-                    "{name} is prepared at {}, newer than this temper's pin {pin}: its migrations only go forward",
+                    "{name} is prepared at {}, newer than this {binary}'s pin {pin}: its migrations only go forward",
                     text(&recorded)
                 )
             }
             Failure::Unreadable { which } => {
-                format!("{} is prepared at a version this temper cannot read", pinned(which).0)
+                format!("{} is prepared at a version this {binary} cannot read", pinned(which).0)
             }
         },
     }
@@ -96,9 +103,18 @@ fn pinned(which: Which) -> (&'static str, &'static str) {
         Which::Runner => ("runner", RUNNER_VERSION),
     }
 }
-fn run_refusal(why: Refusal, launch: &run::Launch, number: u16, directories: &super::Directories) -> String {
+fn prepare_hint(binary: &str, why: &str, number: u16, directories: &super::Directories) -> String {
     let flags = directories.flags().iter().map(|arg| text(arg)).collect::<Vec<_>>().join(" ");
-    let prepare = |why: String| format!("{why}: run temper forge prepare {flags} {number}");
+    format!("{why}: run {binary} forge prepare {flags} {number}")
+}
+fn run_refusal(
+    binary: &str,
+    why: Refusal,
+    launch: &run::Launch,
+    number: u16,
+    directories: &super::Directories,
+) -> String {
+    let prepare = |why: String| prepare_hint(binary, &why, number, directories);
     match why {
         Refusal::NoRunner => "the setup has no runner".into(),
         Refusal::NotPrepared => prepare("not prepared".into()),
@@ -109,16 +125,16 @@ fn run_refusal(why: Refusal, launch: &run::Launch, number: u16, directories: &su
             "prepared without a runner, and the setup has one".into()
         }),
         Refusal::Versions { course: Course::Unreadable, .. } => {
-            "prepared at a version this temper cannot read: no command of this temper runs it".into()
+            format!("prepared at a version this {binary} cannot read: no command of this {binary} runs it")
         }
         Refusal::Versions { forgejo, runner, course } => {
             use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
             let recorded =
                 runner.map_or_else(|| text(&forgejo), |runner| format!("{} / {}", text(&forgejo), text(&runner)));
             let pinned = if launch.runner { format!("{VERSION} / {RUNNER_VERSION}") } else { VERSION.into() };
-            let reason = format!("prepared at {recorded}, this temper pins {pinned}");
+            let reason = format!("prepared at {recorded}, this {binary} pins {pinned}");
             if course == Course::Newer {
-                format!("{reason}: no command of this temper runs it")
+                format!("{reason}: no command of this {binary} runs it")
             } else {
                 prepare(reason)
             }
@@ -126,9 +142,15 @@ fn run_refusal(why: Refusal, launch: &run::Launch, number: u16, directories: &su
         Refusal::Binary { printed } => format!("{} printed {printed:?}, not the pinned release", text(&launch.program)),
     }
 }
-fn run_failure(why: host::Failed, launch: &run::Launch, number: u16, directories: &super::Directories) -> String {
+fn run_failure(
+    binary: &str,
+    why: host::Failed,
+    launch: &run::Launch,
+    number: u16,
+    directories: &super::Directories,
+) -> String {
     match why {
-        host::Failed::Refused(why) => run_refusal(why, launch, number, directories),
+        host::Failed::Refused(why) => run_refusal(binary, why, launch, number, directories),
         host::Failed::Locked => format!(
             "{} is running or being prepared already",
             if launch.which == Which::Forgejo { "forgejo" } else { "runner" }
@@ -150,17 +172,25 @@ fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, Stri
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
     skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(super::listeners_refusal)
 }
-pub(crate) fn start(
+pub fn start(
     directories: &super::Directories,
     arguments: &[OsString],
     ssl_cert_file: Option<std::path::PathBuf>,
 ) -> Result<u8, Refused> {
-    let usage = || {
-        Refused {
+    start_with_binary("temper", directories, arguments, ssl_cert_file)
+}
+fn start_with_binary(
+    binary: &str,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+) -> Result<u8, Refused> {
+    let usage = || Refused {
         verb: "prepare",
         number: None,
-        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
-    }
+        why: format!(
+            "usage: {binary} forge fetch [DIRECTORIES] FORGE | {binary} forge prepare [DIRECTORIES] FORGE | {binary} forge run [DIRECTORIES] FORGE forgejo|runner | {binary} forge sign-in [DIRECTORIES] FORGE | {binary} forge remove [DIRECTORIES] FORGE"
+        ),
     };
     let (verb, number, which) = match arguments {
         [verb, number] if verb == "remove" => ("remove", number, None),
@@ -223,7 +253,7 @@ pub(crate) fn start(
         Place { directory: directory.as_os_str().as_bytes().into(), user: super::login(user).map_err(refused)? };
     let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
     if let Some(which) = which {
-        return run_process(owned, &place, which, listener, (number, directories), &limits).map_err(refused);
+        return run_process(binary, owned, &place, which, listener, (number, directories), &limits).map_err(refused);
     }
     if verb == "source" {
         return super::forge_sign_in::source(&bytes, &named, owned, &place, checked.limits.deadline).map_err(refused);
@@ -254,7 +284,7 @@ pub(crate) fn start(
             checked.limits.deadline,
         ),
     )
-    .map_err(|why| refused(failure(why, &place)))?;
+    .map_err(|why| refused(failure(binary, why, &place)))?;
     Ok(0)
 }
 fn fetch(
@@ -287,6 +317,7 @@ fn fetch(
 }
 /// Admits fd 3 and runs the process, returning its exit or why it did not start.
 fn run_process(
+    binary: &str,
     owned: &temper_forge_setup::setup::Owned,
     place: &Place,
     which: Which,
@@ -303,9 +334,9 @@ fn run_process(
     }
     if let Some(address) = listener {
         return temper_forge_setup_shell::parent::run(limits, &launch, address)
-            .map_err(|why| run_failure(why, &launch, number, directories));
+            .map_err(|why| run_failure(binary, why, &launch, number, directories));
     }
-    Err(run_failure(host::run(limits, &launch), &launch, number, directories))
+    Err(run_failure(binary, host::run(limits, &launch), &launch, number, directories))
 }
 /// The fake shares only the private directory and token with an owned forge (protocol/setup.md, 8.4).
 fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
@@ -327,8 +358,13 @@ fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
     }
 }
 #[must_use]
-pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_file: Option<std::path::PathBuf>) -> u8 {
-    match start(directories, arguments, ssl_cert_file) {
+pub fn run(
+    binary: &str,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+) -> u8 {
+    match start_with_binary(binary, directories, arguments, ssl_cert_file) {
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
@@ -341,7 +377,7 @@ pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_fi
                 println!("source failed {reason}");
                 0
             } else {
-                eprint!("{}", why.line());
+                eprint!("{}", why.line_with_binary(binary));
                 1
             }
         }
@@ -353,7 +389,7 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
 
 /// Composes a forge's setup entry: its group's kind, or the machine's `owned` part with none
 /// (temper/docs/design/protocol/setup.md, 7.1 and 7.4).
-pub(crate) fn entry(
+pub fn entry(
     directories: &super::Directories,
     machine: &temper_forge_setup::machine::Machine,
     number: u16,
@@ -398,7 +434,7 @@ fn remove(directories: &super::Directories, number: u16) -> Result<(), String> {
     let directory = data.join(super::path(&temper_forge_setup::machine::directory(number, kind)));
     remove_directory(data, &directory, super::path(&directories.cache))
 }
-pub(crate) fn remove_directory(
+pub fn remove_directory(
     data: &std::path::Path,
     directory: &std::path::Path,
     cache: &std::path::Path,
@@ -425,3 +461,158 @@ pub(crate) fn remove_directory(
         Err(why) => Err(format!("{}: {why}", directory.display())),
     }
 }
+
+pub const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
+
+pub const FETCH: Row = Row {
+    words: &["forge", "fetch"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE"],
+    line: "Download an owned forge's Forgejo and runner binaries into the cache.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
+};
+
+pub const PREPARE: Row = Row {
+    words: &["forge", "prepare"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE"],
+    line: "Prepare an owned forge before its Forgejo first runs.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
+};
+
+pub const RUN: Row = Row {
+    words: &["forge", "run"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE forgejo|runner"],
+    line: "Run an owned forge's Forgejo or its runner.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
+};
+
+pub const REMOVE: Row = Row {
+    words: &["forge", "remove"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE"],
+    line: "Remove a stopped box slot's forge directory, keeping the cache.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
+};
+
+pub const SOURCE: Row = Row {
+    words: &["forge", "source"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE"],
+    line: "Add the box’s public temper sign-in source to its owned Forgejo.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.",
+};
+
+pub const SIGN_IN: Row = Row {
+    words: &["forge", "sign-in"],
+    who: Who::Deployment,
+    forms: &["[DIRECTORIES] FORGE"],
+    line: "Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.",
+    arguments: &[DIRECTORIES, FORGE],
+    settings: &[&directories::SETTINGS],
+    notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
+};
+
+pub const FORGE_CHILD: Row = Row {
+    words: &["internal", "forge-child"],
+    who: Who::Spawned,
+    forms: &["--parent PID --signal kill|terminate -- PROGRAM ARGS..."],
+    line: "Run an owned forge's program, sent SIGNAL when its parent PID ends.",
+    arguments: &[
+        Argument { shown: "PID", line: "The process whose end ends the program." },
+        Argument { shown: "PROGRAM", line: "The program to run, with its ARGS." },
+    ],
+    settings: &[],
+    notes: "",
+};
+
+/// Whether the forge command checks the deployment document (protocol/README.md, 4.2).
+#[must_use]
+pub fn reads_document(row: &Row) -> bool {
+    row.words.first() == Some(&"forge") && row.words != REMOVE.words
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Command {
+    Forge { directories: super::Directories, arguments: Vec<OsString>, ssl_cert_file: Option<std::path::PathBuf> },
+    ForgeChild { parent: u32, signal: skein_io::kernel::Signal, program: OsString, arguments: Vec<OsString> },
+}
+
+pub fn configure(
+    row: &Row,
+    arguments: &[Box<[u8]>],
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+) -> Result<Command, String> {
+    let invalid = || "invalid arguments".to_string();
+    let os =
+        |args: &[Box<[u8]>]| args.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect::<Vec<_>>();
+    if row.words == FORGE_CHILD.words {
+        let [flag, parent, signal_flag, signal, separator, program, rest @ ..] = arguments else {
+            return Err(invalid());
+        };
+        if flag.as_ref() != b"--parent"
+            || signal_flag.as_ref() != b"--signal"
+            || separator.as_ref() != b"--"
+            || program.is_empty()
+        {
+            return Err(invalid());
+        }
+        let parent = std::str::from_utf8(parent).ok().and_then(|pid| pid.parse::<u32>().ok()).ok_or_else(invalid)?;
+        let signal = match signal.as_ref() {
+            b"kill" => skein_io::kernel::Signal::Kill,
+            b"terminate" => skein_io::kernel::Signal::Terminate,
+            _ => return Err(invalid()),
+        };
+        return Ok(Command::ForgeChild {
+            parent,
+            signal,
+            program: std::ffi::OsStr::from_bytes(program).into(),
+            arguments: os(rest),
+        });
+    }
+    let ["forge", verb] = row.words else {
+        return Err(invalid());
+    };
+    let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
+    let rest = os(&rest);
+    let valid =
+        if *verb == "run" { rest.len() == 2 && (rest[1] == "forgejo" || rest[1] == "runner") } else { rest.len() == 1 };
+    if !valid || rest[0].to_str().and_then(|n| n.parse::<u16>().ok()).is_none() {
+        return Err(invalid());
+    }
+    let mut arguments = vec![OsString::from(verb)];
+    arguments.extend(rest);
+    let ssl_cert_file = environment
+        .iter()
+        .find(|(name, _)| name.as_ref() == b"SSL_CERT_FILE")
+        .filter(|(_, value)| !value.is_empty())
+        .map(|(_, value)| super::path(value).to_path_buf());
+    Ok(Command::Forge { directories, arguments, ssl_cert_file })
+}
+
+pub fn command(binary: &str, command: Command) -> Result<u8, String> {
+    match command {
+        Command::Forge { directories, arguments, ssl_cert_file } => {
+            Ok(run(binary, &directories, &arguments, ssl_cert_file))
+        }
+        Command::ForgeChild { parent, signal, program, arguments } => {
+            let why = temper_forge_setup_shell::process::child(parent, signal, &program, &arguments);
+            Err(super::prefixed(&format!("{binary} internal forge-child"), &why.to_string()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

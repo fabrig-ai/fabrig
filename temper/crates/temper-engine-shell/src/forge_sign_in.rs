@@ -44,7 +44,7 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
 }
 
 /// Never read existing credentials. New files are complete and private before rename.
-pub(crate) fn make_missing(path: &Path, key: bool) -> Result<(), String> {
+pub fn make_missing(path: &Path, key: bool) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(_) => return Ok(()),
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}

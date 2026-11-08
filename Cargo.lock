@@ -4899,6 +4899,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-world",
+ "temper-engine-shell",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
@@ -5530,6 +5531,27 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-forge-world",
  "temper-service",
+]
+
+[[package]]
+name = "temper-engine-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-protocol-config",
+ "serde_json",
+ "skein-forge",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-shell",
+ "temper-box",
+ "temper-fake",
+ "temper-forge-setup",
+ "temper-forge-setup-shell",
+ "temper-playground",
+ "temper-service",
+ "temper-shell",
 ]
 
 [[package]]
