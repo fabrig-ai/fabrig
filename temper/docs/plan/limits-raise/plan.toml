@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/limits-raise/inputs/request.md", "tools/tiers/budge
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "raise-half"
+title = "Four budgets in tools/tiers/budgets.toml rise by half for now, by the user's word of 11-08, and every document stating one as current changes with it"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "tools/tiers/budgets.toml reads 180 for temper's fuzzy share, 217.5 for browser-skein, 127.5 for browser-temper and 540 for process-temper, each comment saying they were raised by half by the user's word of 11-08, to be revisited; the budget reader takes the file, and the design and status lines that gave the old figures as current give the new ones"
+parts = ["raise-half"]
+walk = false
