@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StockWay {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     /// The project's rules it sets, by number, each of 1 to `RULES`; every other number of 1 to `RULES` it removes.
     pub rules: Box<[(u32, temper_engine_domain_forge::settings::LandingRule)]>,
@@ -38,6 +39,7 @@ pub enum Edit {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WayEntry {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     pub path: Path,
     pub items: Box<[Item]>,

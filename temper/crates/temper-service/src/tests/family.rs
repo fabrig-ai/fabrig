@@ -2973,6 +2973,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
         entries
             .push(ways::WayEntry {
                 name: name.into(),
+                headline: b"A way to work.".as_slice().into(),
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
@@ -3002,8 +3003,8 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     assert_eq!(panel.ways().len(), 3);
     for (got, entry) in panel.ways().iter().zip(document.ways.iter()) {
         assert_eq!(
-            (got.name(), got.line(), got.delegation()),
-            (entry.name.as_ref(), entry.line.as_ref(), entry.delegation)
+            (got.name(), got.headline(), got.line(), got.delegation()),
+            (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
         );
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 2);
@@ -3397,6 +3398,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
 
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
+    // A stock headline's bound (temper/docs/design/protocol/configuration.md, 13.10).
+    const HEADLINE_BYTES: u32 = 120;
     let limits = crate::limits::profile(crate::limits::Profile::Small);
     let value_bytes = u32::try_from(ways::VALUE).unwrap();
     // Approval and tier stops are smaller: words and name at most 64 bytes,
@@ -3440,6 +3443,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         entries
             .push(ways::WayEntry {
                 name: way.name,
+                headline: repeated(b'h', HEADLINE_BYTES),
                 line: way.line,
                 path: path.clone(),
                 items,

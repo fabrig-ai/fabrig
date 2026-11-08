@@ -360,6 +360,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
             ways: ["One", "Two"]
                 .map(|name| WayEntry {
                     name: name.as_bytes().into(),
+                    headline: b"A way to work.".as_slice().into(),
                     line: b"A way.".as_slice().into(),
                     path: branch_path(),
                     items: Box::new([]),

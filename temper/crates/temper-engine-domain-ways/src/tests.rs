@@ -39,6 +39,7 @@ fn stock_ways() -> [StockWay; 3] {
     [
         StockWay {
             name: b"You approve".as_slice().into(),
+            headline: b"You approve every change".as_slice().into(),
             line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
             rules: Box::new([(1, approve)]),
             ways: None,
@@ -46,6 +47,7 @@ fn stock_ways() -> [StockWay; 3] {
         },
         StockWay {
             name: b"Agents review".as_slice().into(),
+            headline: b"Agents review every change, and code lands it".as_slice().into(),
             line: b"An agent makes each change, another reviews it, and code lands it.".as_slice().into(),
             rules: Box::new([(1, review)]),
             ways: None,
@@ -53,6 +55,7 @@ fn stock_ways() -> [StockWay; 3] {
         },
         StockWay {
             name: b"Draft first".as_slice().into(),
+            headline: b"Draft first, then agents build it on its own branch".as_slice().into(),
             line: b"You and an agent write a design draft; agents build it on its own branch, and it lands whole."
                 .as_slice()
                 .into(),
