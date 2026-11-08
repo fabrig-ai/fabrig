@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 336;
+pub const N: usize = 344;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -546,6 +546,54 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "ask-typing", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
+        Sample {
+            name: "ask-ways-approve",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-draft",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-card",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-card-person",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-yours",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-refused",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-member",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-kept",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
         Sample { name: "ask-sending", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample { name: "ask-refused", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
@@ -1965,6 +2013,9 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn ask_domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("ask-ways-") {
+        return crate::worlds::ways_world(sample.name);
+    }
     if matches!(
         sample.name,
         "ask-chat-proposal"
