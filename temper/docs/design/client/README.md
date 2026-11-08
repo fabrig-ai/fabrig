@@ -4069,7 +4069,7 @@ the person to check existence and grant the repository to the App.
   (`forge.md`, 9.2).
 - **A path, `BranchPath`** (`../domain/forge.md`, 8.13): `repository`, option,
   `owner/name`, none for a project with no repository; `branch`; `stops`,
-  at most 32, in order, each a `Stop`:
+  at most 24, in order, each a `Stop`:
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
   - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
     `check`, `review`, `repair`, `approve`, `update`, `resolve`, `merge`,
@@ -4082,7 +4082,7 @@ the person to check existence and grant the repository to the App.
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
     change until it approves"; `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
-    at most 32 bytes and `value` at most 384, as "Model" and "Opus 5.5 ·
+    at most 32 bytes and `value` at most 128, as "Model" and "Opus 5.5 ·
     high", "Can", "Asked to".
 - **A project's ways, the subject `ways`:** of the project's scope, for a
   party with a role there, its window unused; on the wire `Watching`'s
@@ -4099,7 +4099,11 @@ the person to check existence and grant the repository to the App.
     project's settings, an owner of it.
 
   Marked at each committed change of settings, at each adoption into the
-  project or removal from it, and at a change of the reader's role.
+  project or removal from it, and at a change of the reader's role. A
+  path's bounds are set so that the worst document the root makes, the
+  stock's ways and the project's own path, each at 24 stops of the
+  largest agent's card, fits one decision's delivery in the smallest
+  profile.
 - **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
   512 bytes, a `view` block's line (5.16), read in the project's scope by a
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
