@@ -133,6 +133,9 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"gates", repository] if repository_name(repository) => {
             Address::Gates { repository: (*repository).into() }
         }
+        [b"settings", b"project-words"] => {
+            Address::Setting(Setting::Application { kind: 10, scope: project, number: 1 })
+        }
         [b"settings", b"project-ways"] => Address::Setting(Setting::Application { kind: 7, scope: project, number: 1 }),
         [b"settings", b"project-questions"] => {
             Address::Setting(Setting::Application { kind: 6, scope: project, number: 1 })
@@ -141,6 +144,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"template", number] => setting_number(b"template", number),
         [b"settings", b"policy", number] => setting_number(b"policy", number),
         [b"settings", b"model", number] => setting_number(b"model", number),
+        [b"settings", b"charter-words", number] => setting_number(b"charter-words", number),
         [b"settings", b"forge-charter", number] => setting_number(b"forge-charter", number),
         [b"settings", b"landing-rule", number] => setting_number(b"landing-rule", number),
         [b"settings", b"landing-rule", number, b"project"] => match small(number) {
@@ -211,6 +215,7 @@ fn setting_number(kind: &[u8], word: &[u8]) -> Address {
         b"template" => Setting::Template(number),
         b"policy" => Setting::Policy(number),
         b"model" => Setting::Model(number),
+        b"charter-words" => Setting::Application { kind: 9, scope: 0, number },
         b"forge-charter" => Setting::Application { kind: 3, scope: 0, number },
         b"landing-rule" => Setting::Application { kind: 1, scope: 0, number },
         _ => unreachable!("setting grammar names its kinds"),
