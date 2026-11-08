@@ -5,5 +5,9 @@ use alloc::boxed::Box;
 pub enum Event {
     Typed { value: Box<[u8]> },
     SignIn,
-    Quit,
+    Send,
+    Command { command: temper_client_domain::pages::terminal::Command },
+    Act { act: temper_client_domain::pages::Act },
+    Aside { object: jig_client::contract::ObjectKey },
+    Dismiss,
 }

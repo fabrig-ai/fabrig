@@ -115,10 +115,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 
 
-- **Not yet:** 6.14, the TUI's state and events, and 6.15, `sel`, the
-  regions, the tokens and their looks: `temper-client-tui` holds the
-  first pass's alone.
-
 - **Not yet:** 6.14, *The foot* and *The commands*: no box, running line,
   quiet line, list or note is drawn; the first screen's bottom row says
   "q to quit".
