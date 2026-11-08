@@ -35,12 +35,15 @@
   - 9: no design holds Tell temper.
   - 10: no design holds Tell temper on a phone, or Team and How work runs
     reached from Home's project rows.
-  - 11: `tui.md`, section 3, and `../client/README.md`, 6.14, hold the
-    launchpad as the look request `tui-launchpad` drew it, with no Where
-    you left off as listed here, no Team, no Start, no design session in
-    the terminal, no side pane and no talking with a role; 11.4's added
-    commands have no design. The drafter and its session on the web are
-    `../domain/agent.md`, 8.5, and `../client/README.md`, 3.5.
+  - 11: `../client/README.md`, 6.13 and 6.14, hold the launchpad as
+    11.1 draws it but for its team lines and `/draft` and `/talk` in
+    Start, 11.4's commands but for `/draft`, `/talk` and `/tell`, and
+    11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
+    left off and Needs you are the project's until Home reads every
+    project (3). No design holds 11.2's design session, the drafter in
+    the terminal or the side pane, or 11.3's talking with a role. The
+    drafter and its session on the web are `../domain/agent.md`, 8.5,
+    and `../client/README.md`, 3.5.
   - 12: `../client/README.md`, 5.13, *The page*, keeps "What the
     project shows" at How work runs' foot as overrides of each page's
     rule; How work runs and Team each decide their parts by one pure
@@ -69,7 +72,8 @@
     another party's inbox (jig's `domain/people.md`, section 6). Decided
     by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
 - **Open:**
-  - 11.1 and 15: `/chats` or `/resume N` for Where you left off.
+  - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
+    design takes the default, `/chats N` (`../client/README.md`, 6.14).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.
