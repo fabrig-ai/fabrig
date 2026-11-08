@@ -440,6 +440,8 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
+        | temper_client_domain::Address::Members
+        | temper_client_domain::Address::Limits
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::AllHome
         | temper_client_domain::Address::Inbox { .. }
@@ -451,6 +453,7 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Role { .. }
         | temper_client_domain::Address::Rule { .. }
         | temper_client_domain::Address::Repositories { .. }
+        | temper_client_domain::Address::Work { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Ask { .. }
         | temper_client_domain::Address::Adopt { .. }

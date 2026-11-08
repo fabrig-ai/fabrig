@@ -143,7 +143,7 @@ fn change_me(root: &mut d::Domain, watch: Token, me: c::Me) {
 }
 
 #[test]
-fn tabs_put_models_between_accounts_and_builders() {
+fn tabs_put_models_between_forges_and_workers() {
     let root = fixture(true).0;
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
@@ -152,9 +152,9 @@ fn tabs_put_models_between_accounts_and_builders() {
         let links: Vec<_> = subtree(tree, nav).iter().filter(|n| n.role == Role::Link).collect();
         assert_eq!(
             links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-            [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Models", b"Builders"]
+            [b"Accounts".as_slice(), b"Forges", b"Models", b"Workers", b"Members", b"Limits"]
         );
-        let models = links[4];
+        let models = links[2];
         assert!(models.states.as_slice().contains(&State::Current));
         let id = models.id;
         assert_eq!(crate::href(&mut view, id).unwrap().as_ref(), b"/projects/1/settings/models");

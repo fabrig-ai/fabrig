@@ -1,9 +1,9 @@
 use super::fixtures;
 use crate::{
-    Address, ChatsFilter,
+    Address, ChatsFilter, GoalsFilter, WorkFilter,
     pages::{self, Act, Event, Pages, Request, switcher},
 };
-use jig_client::{Told, contract as c};
+use jig_client::{Handle, Readable, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};
 
 const OTHER: u32 = 2;
@@ -110,6 +110,14 @@ fn unlisted_project_addresses_keep_the_open_project() {
 #[test]
 fn switching_projects_keeps_home_settings_ask_or_chats() {
     for (address, shown) in [
+        (
+            Address::Work { project: fixtures::PROJECT, filter: WorkFilter::All },
+            Some(Address::Work { project: OTHER, filter: WorkFilter::All }),
+        ),
+        (
+            Address::Work { project: fixtures::PROJECT, filter: WorkFilter::Drafts },
+            Some(Address::Work { project: OTHER, filter: WorkFilter::Drafts }),
+        ),
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
         (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
@@ -199,14 +207,189 @@ fn choosing_a_project_keeps_the_builders_tab() {
     assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Builders { project: OTHER } }));
 }
 
-fn view_read(out: &mut Queue<Request>) -> Option<(jig_client::Handle, u32, Box<[u8]>)> {
+fn work_addresses(project: u32) -> [Address; 5] {
+    [
+        Address::Work { project, filter: WorkFilter::All },
+        Address::Work { project, filter: WorkFilter::Drafts },
+        Address::Goals { project, filter: GoalsFilter::All },
+        Address::Goals { project, filter: GoalsFilter::Needs },
+        Address::Changes { project },
+    ]
+}
+
+fn work_me() -> c::Me {
+    let mut me = two_projects();
+    for project in me.projects.iter_mut() {
+        let chat = project.templates.get(0).expect("chat template").clone();
+        let mut goal = chat.clone();
+        goal.number = jig_client::shapes::GOAL;
+        goal.tracked = Some(1);
+        project.templates = List::from_boxed(Box::from([chat, goal]));
+    }
+    me
+}
+
+fn requests(f: &mut Fixture) -> List<Request> {
+    let mut requests = List::uncapped();
+    while let Some(request) = f.out.pop() {
+        requests.push(request).expect("uncapped requests");
+    }
+    requests
+}
+
+struct WorkReads {
+    goal_handles: [Handle; 4],
+    chat_handles: [Handle; 4],
+    change: Handle,
+    chat_query: c::TaskQuery,
+}
+
+fn work_reads(f: &mut Fixture, address: &Address) -> WorkReads {
+    let project = fixtures::PROJECT;
+    let goals = f.pages.goals().expect("goals on Work");
+    let chats = f.pages.chats().expect("chats on Work");
+    assert_eq!(f.pages.changes().expect("changes on Work").project, project);
+    let goal_handles = [goals.live, goals.ended, goals.needs, goals.report];
+    let chat_handles = [chats.live, chats.closed, chats.notes, chats.goals];
+    let goal_query = c::TaskQuery {
+        project: Some(project),
+        requester: None,
+        root: None,
+        parent: None,
+        label: Some(7),
+        phase: None,
+        executor: None,
+        tracked: Some(true),
+        order: c::QueryOrder::Priority,
+    };
+    let chat_query = c::TaskQuery {
+        requester: Some(c::Requester::Person(fixtures::PARTY)),
+        tracked: None,
+        order: c::QueryOrder::Activity,
+        ..goal_query
+    };
+    let mut expected = List::uncapped();
+    for (handle, query) in [(goals.live, goal_query), (chats.live, chat_query)] {
+        expected
+            .push(Request::Client(jig_client::Event::Watch {
+                handle,
+                subject: Watchable::Jig(c::Subject::Tasks { query, window: fixtures::limits().client.domain.rows }),
+            }))
+            .expect("watch");
+    }
+    for (handle, query) in [(goals.ended, goal_query), (chats.closed, chat_query)] {
+        expected
+            .push(Request::Client(jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(c::Read::Tasks {
+                    query: c::TaskQuery { phase: Some(c::PhaseClass::Ended), order: c::QueryOrder::Ended, ..query },
+                    live: None,
+                    ended: None,
+                }),
+            }))
+            .expect("ended read");
+    }
+    expected
+        .push(Request::Client(jig_client::Event::Read {
+            handle: goals.needs,
+            read: Readable::Jig(c::Read::Inbox {
+                group: c::InboxReadGroup::Needs,
+                project: Some(project),
+                kind: None,
+                goal: None,
+                after: None,
+            }),
+        }))
+        .expect("goal needs");
+    expected
+        .push(Request::Client(jig_client::Event::Read {
+            handle: chats.notes,
+            read: Readable::Jig(c::Read::Notes {
+                scope: c::NoteScope::Tasks { project },
+                description: None,
+                after: None,
+            }),
+        }))
+        .expect("chat documents");
+    let opened = requests(f);
+    for request in &expected {
+        assert!(opened.as_slice().contains(request), "{address:?}: missing {request:?}, got {opened:?}");
+    }
+    let subject = crate::forge::changes::watch(project, &fixtures::limits().forge).expect("changes watch");
+    let mut change = None;
+    for request in &opened {
+        if let Request::Client(jig_client::Event::Watch { handle, subject: watched }) = request
+            && *watched == subject
+        {
+            assert!(change.replace(*handle).is_none(), "one changes watch");
+        }
+    }
+    let change = change.expect("changes watch opened");
+    let mut handles = alloc::collections::BTreeSet::new();
+    for handle in goal_handles.into_iter().chain(chat_handles).chain([change]) {
+        assert!(handles.insert(handle.number), "independent page handles");
+    }
+    WorkReads { goal_handles, chat_handles, change, chat_query }
+}
+
+#[test]
+fn works_addresses_open_and_keep_the_three_reads() {
+    let project = fixtures::PROJECT;
+    for address in work_addresses(project) {
+        let mut f = fixture();
+        deliver(&mut f, work_me());
+        requests(&mut f);
+        event(&mut f, Event::Went { address: address.clone() });
+        let WorkReads { goal_handles, chat_handles, change, chat_query } = work_reads(&mut f, &address);
+        for destination in work_addresses(project) {
+            event(&mut f, Event::Went { address: destination.clone() });
+            assert!(f.out.is_empty(), "{address:?} to {destination:?}: {out:?}", out = f.out);
+            assert_eq!(f.pages.goals().unwrap().live, goal_handles[0]);
+            assert_eq!(f.pages.chats().unwrap().live, chat_handles[0]);
+            assert_eq!(f.pages.changes().unwrap().project, project);
+            if let Address::Goals { filter, .. } = destination {
+                assert_eq!(f.pages.goals().unwrap().filter, filter);
+            }
+            event(&mut f, Event::Went { address: address.clone() });
+            assert!(f.out.is_empty(), "return to {address:?} keeps reads");
+        }
+        event(&mut f, Event::Went { address: Address::Chats { filter: ChatsFilter::All } });
+        assert!(f.pages.goals().is_none());
+        assert!(f.pages.changes().is_none());
+        assert_eq!(f.pages.chats().unwrap().filter, ChatsFilter::All);
+        let left = requests(&mut f);
+        for handle in goal_handles.into_iter().chain(chat_handles).chain([change]) {
+            assert!(
+                left.as_slice().contains(&Request::Client(jig_client::Event::Unwatch { handle })),
+                "released {handle:?}"
+            );
+        }
+        let chats = f.pages.chats().unwrap();
+        assert!(
+            left.as_slice().contains(&Request::Client(jig_client::Event::Watch {
+                handle: chats.live,
+                subject: Watchable::Jig(c::Subject::Tasks {
+                    query: chat_query,
+                    window: fixtures::limits().client.domain.rows
+                }),
+            })),
+            "Chats reopens its own query"
+        );
+        event(&mut f, Event::Went { address });
+        requests(&mut f);
+        let goals = f.pages.goals().unwrap().live;
+        event(&mut f, Event::Went { address: Address::Work { project: OTHER, filter: WorkFilter::Drafts } });
+        assert_eq!(f.pages.changes().unwrap().project, OTHER);
+        assert!(requests(&mut f).as_slice().contains(&Request::Client(jig_client::Event::Unwatch { handle: goals })));
+    }
+}
+
+fn view_read(out: &mut Queue<Request>) -> Option<(Handle, u32, Box<[u8]>)> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let mut found = None;
     while let Some(request) = out.pop() {
-        if let Request::Client(jig_client::Event::Read {
-            handle,
-            read: jig_client::Readable::Family { scope, record, .. },
-        }) = request
+        if let Request::Client(jig_client::Event::Read { handle, read: Readable::Family { scope, record, .. } }) =
+            request
         {
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
             if let w::Read::View(view) = reading.read() {
@@ -258,6 +441,9 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Work { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }

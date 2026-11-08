@@ -135,7 +135,7 @@ fn account_sign_in_links_print_the_target() {
 fn the_first_run_prints_settings_and_the_playground_banner() {
     let print = fixtures::print(&fixtures::chat::first_run());
     let text = String::from_utf8_lossy(print.text.as_slice());
-    assert!(text.contains("] Settings\n"));
+    assert!(text.contains("] Deployment\n"));
     assert!(text.contains("Use the wizard to set up temper"));
 }
 

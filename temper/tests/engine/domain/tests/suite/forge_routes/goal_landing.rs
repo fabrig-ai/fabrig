@@ -43,6 +43,141 @@ pub(super) fn assert_goal_holds(world: &World, goal: u64, branch: &[u8]) {
     assert!(live_task(world, goal).holdings.contains(&tasks::Holding::Write { resource: resource(branch), kind: 1 }));
 }
 
+fn enable_scope_questions(world: &mut World) {
+    use temper_engine_domain_world::kinds;
+    let revision = kinds::revision(&world.store.rows);
+    world.send(kinds::change(
+        world.signed_in.expect("owner"),
+        revision,
+        191,
+        Box::new([kinds::item(
+            6,
+            1,
+            1,
+            &forge_top::settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
+        )]),
+    ));
+    world.until(Until::Ready);
+    assert_eq!(kinds::revision(&world.store.rows), revision + 1, "{:?}", world.web_replies);
+}
+
+fn settle_scope_question(
+    world: &mut World,
+    goal: &engine::Assignment,
+    child: u64,
+    producer: &engine::Assignment,
+    call: u64,
+    words: &[u8],
+    release: bool,
+) {
+    world.producer_question(producer, call, words);
+    world.until(Until::Ready);
+    if release {
+        for _ in 0..STEPS {
+            world.tick();
+            if matches!(live_task(world, child).phase, tasks::Phase::Held { .. }) && world.store.pending.is_empty() {
+                break;
+            }
+        }
+        assert!(matches!(live_task(world, child).phase, tasks::Phase::Held { .. }));
+        let revision = live_task(world, child).revisions.hold;
+        assert!(matches!(
+            world.scripted_call(goal, call + 1, engine::Tool::Release { target: child, revision, again: None }),
+            engine::CallAnswer::Revised { .. }
+        ));
+    }
+    for _ in 0..STEPS {
+        world.tick();
+        if row(world, child)
+            .questions
+            .open
+            .first()
+            .is_some_and(|q| q.stands == temper_engine_domain_forge_change::Stands::Asked)
+        {
+            break;
+        }
+    }
+    let question = questions::replies(world, goal.task, child)
+        .into_iter()
+        .find(|word| word.kind == tasks::MessageKind::Question && word.words.as_ref() == words)
+        .expect("scope question reaches goal")
+        .number;
+    world.goal_answer(goal, call + 2, child, question, b"Yes, keep this scope.");
+    questions::wait_answer(world, producer.task, child);
+}
+
+fn await_landed(world: &mut World, change: u64) {
+    let mut reviewed = None;
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. })) = row(world, change).delegate
+            && let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned()
+            && reviewed != Some(task)
+        {
+            reviewed = Some(task);
+            reviews::finish_review(
+                world,
+                &run,
+                tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+            );
+        }
+        if ended(world, change).is_some() {
+            break;
+        }
+    }
+    assert!(ended(world, change).is_some(), "change ended: {:?}", row(world, change));
+    assert!(matches!(row(world, change).change.state, temper_engine_domain_forge_change::State::Landed { .. }));
+}
+
+#[test]
+fn a_whole_goals_words_only_child_lands_into_its_goal_branch() {
+    let (mut world, goal, branch) = goal_branch::running_stock_goal();
+    let main = branch_tip(&mut world, b"main");
+    enable_scope_questions(&mut world);
+    // Reconstructed brief: the retained walk has no verbatim tool transcript.
+    let answer = mine(&mut world, &goal, LANDING_CALL,
+        br#"{"words":"Commit the source draft and the product document. Land this change into the goal branch; the whole goal lands into main after all tasks and checks complete."}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("child change admitted: {answer:?}") };
+    let child = made[0].task;
+    world.until(Until::Ready);
+    assert_eq!(row(&world, child).base, branch, "words-only child stays on the whole goal's branch");
+    let producer = questions::next_producer(&mut world, child);
+    settle_scope_question(&mut world, &goal, child, &producer, 110, b"May I commit the source draft?", false);
+    settle_scope_question(&mut world, &goal, child, &producer, 120, b"May I commit the product document?", true);
+    let change_branch = row(&world, child).branch.clone();
+    push_goal_child(&mut world, child, &branch, b"draft.md");
+    let head =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, b"product.md", b"design", 1)
+            .expect("producer pushes the product document");
+    status(&mut world, head, raw::Check::Passed);
+    finish_goal_change(&mut world, child, &producer);
+    let number = row(&world, child).pull.expect("child pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else {
+        panic!("child pull")
+    };
+    assert_eq!(pull.base, branch);
+    assert_ne!(branch_tip(&mut world, &branch), main);
+    assert_eq!(branch_tip(&mut world, b"main"), main);
+    assert!(ended(&world, goal.task).is_none(), "the goal remains live after its child lands");
+    let head = branch_tip(&mut world, &branch);
+    let answer = mine(&mut world, &goal, LANDING_CALL + 1, br#"{"words":"Land the goal whole","branch":"mine"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("final landing admitted: {answer:?}") };
+    let landing = made[0].task;
+    status(&mut world, head, raw::Check::Passed);
+    await_landed(&mut world, landing);
+    let raw::Answer::Pull(pull) = world
+        .external(1, raw::Op::Read(raw::Read::Pull { number: row(&world, landing).pull.expect("whole goal pull") }))
+    else {
+        panic!("whole goal pull")
+    };
+    assert_eq!(pull.base.as_ref(), b"main");
+    assert_eq!(pull.head, branch);
+    assert!(pull.merged.is_some());
+    assert_ne!(branch_tip(&mut world, b"main"), main);
+    finish_goal(&mut world, &goal);
+    world.close();
+}
+
 #[test]
 fn a_goals_landing_lands_its_branch_into_main_whole_leaving_it_held_by_the_goal() {
     let (mut world, goal, branch) = running_goal();
@@ -180,6 +315,115 @@ fn refused(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8],
     );
 }
 
+const OUTSIDE_GOAL: &[u8] =
+    b"landing: this task's goal holds a branch; land child changes into it, then land it whole with branch mine.";
+
+#[test]
+fn a_whole_goals_explicit_base_child_is_refused_before_delegation() {
+    let (mut world, goal, _) = running_goal();
+    refused(&mut world, &goal, LANDING_CALL, br#"{"words":"Bypass goal isolation","landing":"main"}"#, OUTSIDE_GOAL);
+    refused(
+        &mut world,
+        &goal,
+        LANDING_CALL + 1,
+        br#"{"changes":[{"words":"Valid child"},{"words":"Bypass goal isolation","landing":"main"}]}"#,
+        OUTSIDE_GOAL,
+    );
+    world.close();
+}
+
+fn parallel_goal() -> (World, engine::Assignment, Box<[u8]>) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits { slots: Some(3), tasks_batch: Some(2), authority_batch: Some(2), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 3, Box::new([])));
+    let request = goal_branch::goal_request(&world, true);
+    let goal = assigned_chat(&mut world, 92, request);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    (world, goal, branch)
+}
+
+#[test]
+fn a_whole_goals_batched_omissions_stay_on_its_goal_branch() {
+    let (mut world, goal, branch) = parallel_goal();
+    let answer =
+        mine(&mut world, &goal, LANDING_CALL, br#"{"changes":[{"words":"First child"},{"words":"Second child"}]}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("batch admitted: {answer:?}") };
+    assert_eq!(made.len(), 2);
+    world.until(Until::Ready);
+    for child in &made {
+        assert!(
+            live_task(&world, child.task)
+                .spec
+                .parameters
+                .contains(&tasks::Parameter::Bytes { name: 2, value: branch.clone() })
+        );
+        let producer = questions::next_producer(&mut world, child.task);
+        push_goal_child(&mut world, child.task, &branch, &child.task.to_be_bytes());
+        finish_goal_change(&mut world, child.task, &producer);
+    }
+    finish_goal(&mut world, &goal);
+    world.close();
+}
+
+#[test]
+fn a_whole_goals_subtree_inherits_its_landing_and_refuses_the_base() {
+    let (mut world, goal, branch) = parallel_goal();
+    let mut authority = live_task(&world, goal.task).authority.clone();
+    authority.budget.spend = 100;
+    authority.delegation.tasks = 6;
+    authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
+    let assigned = world.assigned.len();
+    let answer = world.scripted_call(
+        &goal,
+        LANDING_CALL,
+        engine::Tool::Delegate {
+            batch: Box::new([engine::Delegate {
+                authority,
+                ..temper_engine_domain_world::fixtures::report_delegate(b"Coordinate a child", Box::new([]))
+            }]),
+        },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Delegated(_)), "subtree coordinator admitted: {answer:?}");
+    let coordinator = reviews::next_assignment(&mut world, assigned);
+    refused(
+        &mut world,
+        &coordinator,
+        LANDING_CALL + 1,
+        br#"{"words":"Bypass from subtree","landing":"main"}"#,
+        OUTSIDE_GOAL,
+    );
+    let answer = mine(&mut world, &coordinator, LANDING_CALL + 2, br#"{"words":"A child from the subtree"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("subtree child admitted: {answer:?}") };
+    assert!(
+        live_task(&world, made[0].task)
+            .spec
+            .parameters
+            .contains(&tasks::Parameter::Bytes { name: 2, value: branch.clone() })
+    );
+    let child = made[0].task;
+    let producer = questions::next_producer(&mut world, child);
+    push_goal_child(&mut world, child, &branch, b"subtree");
+    finish_goal_change(&mut world, child, &producer);
+    finish_run(&mut world, &coordinator, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
+    for _ in 0..STEPS {
+        world.tick();
+        if ended(&world, coordinator.task).is_some() {
+            break;
+        }
+    }
+    assert!(ended(&world, coordinator.task).is_some());
+    finish_goal(&mut world, &goal);
+    world.close();
+}
+
 #[test]
 fn branch_mine_with_landing_goal_is_refused() {
     let (mut world, goal, _) = running_goal();
@@ -271,6 +515,11 @@ pub(super) fn producing_into_goal(
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("goal change admitted: {answer:?}") };
     let change = made[0].task;
     let producer = reviews::next_assignment(world, assigned);
+    push_goal_child(world, change, branch, file);
+    (change, producer)
+}
+
+fn push_goal_child(world: &mut World, change: u64, branch: &[u8], file: &[u8]) {
     let change_branch = row(world, change).branch.clone();
     let base = branch_tip(world, branch);
     assert_eq!(
@@ -280,16 +529,18 @@ pub(super) fn producing_into_goal(
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &change_branch, file, b"added", 1)
         .expect("producer pushes its change");
     status(world, head, raw::Check::Passed);
-    (change, producer)
 }
 
 fn finish_goal_change(world: &mut World, change: u64, producer: &engine::Assignment) {
+    let tasks::Contract::Change { connector, .. } = live_task(world, producer.task).contract else {
+        panic!("producer's change contract")
+    };
     finish_run(
         world,
         producer,
         tasks::TaskResult::Change {
             title: tasks::ChangeTitle::new(b"Add to the goal".as_slice().into()),
-            connector: 0,
+            connector,
             kind: 2,
             resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
             words: b"pushed".as_slice().into(),
