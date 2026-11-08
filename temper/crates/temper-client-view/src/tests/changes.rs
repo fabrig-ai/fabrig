@@ -354,7 +354,7 @@ fn loading_ended_and_empty_keep_their_own_words_and_the_landed_rule() {
     }
 }
 #[test]
-fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
+fn work_is_current_for_changes_in_the_rail_and_tabbar() {
     let (mut root, watch) = opened();
     show(&mut root, watch, &panel(&[], 0, false, b"main"));
     let mut view = view(&root, true);
@@ -370,10 +370,10 @@ fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
             }
             if node.styles.as_slice().contains(&look::RAIL_NAV) {
                 assert_eq!(rows.len(), 4);
-                for (row, name) in rows.iter().zip([b"Home".as_slice(), b"Needs you", b"Chats", b"Changes"]) {
+                for (row, name) in rows.iter().zip([b"Home".as_slice(), b"Needs you", b"Work", b"How work runs"]) {
                     assert_eq!(row.name.as_deref(), Some(name));
                 }
-                let row = rows.last().unwrap();
+                let row = rows.get(2).unwrap();
                 assert!(row.states.as_slice().contains(&skein_ui::State::Current));
                 changes = Some(row.id);
             } else {
@@ -383,7 +383,7 @@ fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
             }
         }
     }
-    assert_eq!(crate::href(&mut view, changes.unwrap()).as_deref(), Some(b"/projects/1/changes".as_slice()));
+    assert_eq!(crate::href(&mut view, changes.unwrap()).as_deref(), Some(b"/projects/1/work".as_slice()));
 }
 #[test]
 fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {

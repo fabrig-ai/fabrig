@@ -627,12 +627,15 @@ pub enum Word {
     WelcomeModelSubscription,
     BrandChats,
     BrandHome,
-    RailNewMenu,
-    RailNewChat,
-    RailNewChatDescription,
-    RailNewGoal,
-    RailNewGoalDescription,
-    RailNewAll,
+    RailNewDraftOrChange,
+    RailNewChange,
+    RailDraftDescription,
+    RailChangeDescription,
+    RailAskDescription,
+    RailWork,
+    RailDeployment,
+    RailProjectsCount,
+    RailHowFor,
     RailHome,
     NeedsYouCount,
     NeedsYouCountCut,
@@ -664,7 +667,6 @@ pub enum Word {
     NewProjectPlaceholder,
     CreateProject,
     NoProjectYet,
-    SettingsFor,
     ProjectNotYours,
     NoProjectLine,
     ProjectName,
@@ -1602,7 +1604,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The Ask temper opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-// The rail menu adds six literal phrases (client/README.md, 5.3).
+// The rail names its navigation, new box and switcher (client/README.md, 5.3).
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
@@ -1610,7 +1612,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2163;
+const PHRASES: u32 = 2165;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1637,10 +1639,10 @@ const PHRASES: u32 = 2163;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3834;
+const SEGMENTS: u32 = 3838;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52767;
-const ALL: [Word; 1481] = [
+const ENGLISH_BYTES: u32 = 52826;
+const ALL: [Word; 1483] = [
     Word::WaysLede,
     Word::WaysTitle,
     Word::WaysNow,
@@ -2242,12 +2244,15 @@ const ALL: [Word; 1481] = [
     Word::WelcomeModelSubscription,
     Word::BrandChats,
     Word::BrandHome,
-    Word::RailNewMenu,
-    Word::RailNewChat,
-    Word::RailNewChatDescription,
-    Word::RailNewGoal,
-    Word::RailNewGoalDescription,
-    Word::RailNewAll,
+    Word::RailNewDraftOrChange,
+    Word::RailNewChange,
+    Word::RailDraftDescription,
+    Word::RailChangeDescription,
+    Word::RailAskDescription,
+    Word::RailWork,
+    Word::RailDeployment,
+    Word::RailProjectsCount,
+    Word::RailHowFor,
     Word::RailHome,
     Word::NeedsYouCount,
     Word::NeedsYouCountCut,
@@ -2277,7 +2282,6 @@ const ALL: [Word; 1481] = [
     Word::NewProjectPlaceholder,
     Word::CreateProject,
     Word::NoProjectYet,
-    Word::SettingsFor,
     Word::ProjectNotYours,
     Word::NoProjectLine,
     Word::ProjectName,
@@ -3760,12 +3764,15 @@ impl Word {
             Self::WelcomeForgejoRun => 2134,
             Self::BrandChats => 2110,
             Self::BrandHome => 3080,
-            Self::RailNewMenu => 3674,
-            Self::RailNewChat => 3633,
-            Self::RailNewChatDescription => 3634,
-            Self::RailNewGoal => 3635,
-            Self::RailNewGoalDescription => 3636,
-            Self::RailNewAll => 3637,
+            Self::RailNewDraftOrChange => 4600,
+            Self::RailNewChange => 4601,
+            Self::RailDraftDescription => 4603,
+            Self::RailChangeDescription => 4605,
+            Self::RailAskDescription => 4606,
+            Self::RailWork => 4607,
+            Self::RailDeployment => 4608,
+            Self::RailProjectsCount => 4610,
+            Self::RailHowFor => 4611,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
             Self::NeedsYouCountCut => 3332,
@@ -3797,7 +3804,6 @@ impl Word {
             Self::NewProjectPlaceholder => 2188,
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
-            Self::SettingsFor => 2200,
             Self::ProjectNotYours => 2201,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
@@ -5573,7 +5579,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewProjectPlaceholder => (&[b"+ New project"], &[]),
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
-        Word::SettingsFor => (&[b"Settings for ", b""], &[Name]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
         Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
         Word::ProjectName => (&[b"Project name"], &[]),
@@ -5636,12 +5641,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::BrandHome => (&[b"temper home"], &[]),
-        Word::RailNewMenu => (&[b"More ways to start work"], &[]),
-        Word::RailNewChat => (&[b"Chat"], &[]),
-        Word::RailNewChatDescription => (&[b"Ask about the code or ask for a change."], &[]),
-        Word::RailNewGoal => (&[b"Goal"], &[]),
-        Word::RailNewGoalDescription => (&[b"Agents plan a larger change and land it."], &[]),
-        Word::RailNewAll => (&[b"All ways to start work"], &[]),
+        Word::RailNewDraftOrChange => (&[b"New draft or change"], &[]),
+        Word::RailNewChange => (&[b"New change"], &[]),
+        Word::RailDraftDescription => (&[b"A design session that ends in a goal, best had in the terminal."], &[]),
+        Word::RailChangeDescription => (&[b"Ask for one change."], &[]),
+        Word::RailAskDescription => (&[b"Ask about this project, or change how its work runs."], &[]),
+        Word::RailWork => (&[b"Work"], &[]),
+        Word::RailDeployment => (&[b"Deployment"], &[]),
+        Word::RailProjectsCount => (&[b"", b" projects"], &[Number]),
+        Word::RailHowFor => (&[b"How work runs for ", b""], &[Name]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
         Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
