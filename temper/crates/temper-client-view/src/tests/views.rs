@@ -43,7 +43,7 @@ fn card() -> w::Card {
                         &w::CEILINGS,
                         w::FactParts {
                             label: b"Can".as_slice().into(),
-                            value: b"change and push its branch; never merge or update".as_slice().into(),
+                            value: b"change and push its branch; never merge".as_slice().into(),
                         },
                     )
                     .unwrap(),
@@ -72,7 +72,15 @@ fn path(repository: bool) -> w::BranchPath {
                     .map(|(actor, step, words)| {
                         w::Stop::new(
                             &w::CEILINGS,
-                            w::StopParts { actor, step, words: words.into(), opens: w::Opens::Nothing, card: card() },
+                            w::StopParts {
+                                needed: false,
+                                over: Box::default(),
+                                actor,
+                                step,
+                                words: words.into(),
+                                opens: w::Opens::Nothing,
+                                card: card(),
+                            },
                         )
                         .unwrap()
                     })

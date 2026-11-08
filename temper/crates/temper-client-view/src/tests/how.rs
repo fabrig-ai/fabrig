@@ -197,8 +197,19 @@ fn path(draft: bool) -> w::BranchPath {
                 },
             )
             .unwrap();
-            w::Stop::new(&w::CEILINGS, w::StopParts { actor, step, words: words.as_bytes().into(), opens, card })
-                .unwrap()
+            w::Stop::new(
+                &w::CEILINGS,
+                w::StopParts {
+                    needed: false,
+                    over: Box::default(),
+                    actor,
+                    step,
+                    words: words.as_bytes().into(),
+                    opens,
+                    card,
+                },
+            )
+            .unwrap()
         })
         .collect();
     w::BranchPath::new(

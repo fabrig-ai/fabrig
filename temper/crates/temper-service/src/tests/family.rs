@@ -2880,6 +2880,7 @@ fn changes_document_encodes_and_decodes() {
     let landed = got.landed().get(0).unwrap();
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
 }
+#[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
     let facts = Box::new([
         ways::Fact { label: b"Model".as_slice().into(), value: b"a model".as_slice().into() },
@@ -2901,8 +2902,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
         w::Card::new(&w::CEILINGS, w::CardParts { who: card.who.clone(), name: card.name.clone(), facts: wire_facts })
             .unwrap();
     let mut stops = List::uncapped();
-    let mut wire_stops = List::with_capacity(4);
-    for (actor, step, words, opens, wire_actor, wire_step, wire_opens) in [
+    let mut wire_stops = List::with_capacity(7);
+    for (actor, step, words, opens, wire_actor, wire_step, wire_opens, needed, over) in [
         (
             ways::Actor::Person,
             ways::Step::Ask,
@@ -2911,6 +2912,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Person,
             w::PathStep::Ask,
             w::Opens::Nothing,
+            false,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Agent,
@@ -2920,6 +2923,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Agent,
             w::PathStep::Produce,
             w::Opens::Charter(w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap()),
+            false,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Code,
@@ -2929,6 +2934,41 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Code,
             w::PathStep::Merge,
             w::Opens::Queue,
+            false,
+            b"into goal".as_slice(),
+        ),
+        (
+            ways::Actor::Code,
+            ways::Step::Conflict,
+            b"conflict".as_slice(),
+            ways::Opens::Queue,
+            w::Actor::Code,
+            w::PathStep::Conflict,
+            w::Opens::Queue,
+            true,
+            b"".as_slice(),
+        ),
+        (
+            ways::Actor::Agent,
+            ways::Step::Repair,
+            b"repair".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Agent,
+            w::PathStep::Repair,
+            w::Opens::Nothing,
+            true,
+            b"tests, review".as_slice(),
+        ),
+        (
+            ways::Actor::Code,
+            ways::Step::CatchUp,
+            b"catch up".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Code,
+            w::PathStep::CatchUp,
+            w::Opens::Nothing,
+            true,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Bar,
@@ -2938,14 +2978,20 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Bar,
             w::PathStep::Branch,
             w::Opens::Nothing,
+            false,
+            b"".as_slice(),
         ),
     ] {
-        stops.push(ways::Stop { actor, step, words: words.into(), opens, card: card.clone() }).unwrap();
+        stops
+            .push(ways::Stop { needed, over: over.into(), actor, step, words: words.into(), opens, card: card.clone() })
+            .unwrap();
         wire_stops
             .push(
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed,
+                        over: over.into(),
                         actor: wire_actor,
                         step: wire_step,
                         words: words.into(),
@@ -3406,7 +3452,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         name: b"the coding agent".as_slice().into(),
         facts: Box::new([
             ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
-            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
+            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true, false).into() },
             ways::Fact {
                 label: b"Asked to".as_slice().into(),
                 value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
@@ -3417,6 +3463,8 @@ fn the_worst_small_ways_document_fits_its_decision() {
     for _ in 0..ways::STOPS {
         stops
             .push(ways::Stop {
+                needed: true,
+                over: b"tests, review".as_slice().into(),
                 actor: ways::Actor::Agent,
                 step: ways::Step::ProduceMany,
                 words: "produce ×n".as_bytes().into(),

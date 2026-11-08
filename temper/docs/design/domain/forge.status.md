@@ -14,7 +14,7 @@ derives a branch's path from what the root gathers in the answering
 decision, for the `ways` read, `see ways` and the `View` read alike. A
 focused table holds the look request's three paths with CI and both
 tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
-random rules, finds no agent's stop for an update, a merge, a prepare,
+random rules, finds no agent's stop for a conflict, a merge, a catch-up, a prepare,
 a proof or a turn, and every path ending at a bar. A card's "Asked to"
 is its charter's first sentence within `ASKED`, 184 bytes with its
 quotes, every fact past its bound cut on a word with "…"
@@ -26,13 +26,6 @@ workflows report, and the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
 stand. The workflows by name are section 20's.
 
-- **Not yet:** 8.13 (`path-stops`, `look-round-25`): the derivation
-  draws "update" as a stop of its own before "resolve", with no
-  "conflict" and no "catch up"; no stop says whether
-  it is made only when needed or carries the small words over its own;
-  the conflict's, the catch-up's and the goal's merges' cards are not
-  derived; *What an agent can* says "never merge or update" and "finish
-  alone".
 - **Not yet:** 8.13, *The project's roles* (`roles-view`,
   `look-round-25`): no view lists the agents a project's work runs.
 - **Not yet:** 8.13, *CI's card* (`ci-card`, `look-round-25`): the card

@@ -106,7 +106,8 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             ways::Step::Review => w::PathStep::Review,
             ways::Step::Repair => w::PathStep::Repair,
             ways::Step::Approve => w::PathStep::Approve,
-            ways::Step::Update => w::PathStep::Update,
+            ways::Step::Conflict => w::PathStep::Conflict,
+            ways::Step::CatchUp => w::PathStep::CatchUp,
             ways::Step::Resolve => w::PathStep::Resolve,
             ways::Step::Merge => w::PathStep::Merge,
             ways::Step::Prepare => w::PathStep::Prepare,
@@ -134,7 +135,15 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             .push(
                 w::Stop::new(
                     limits,
-                    w::StopParts { actor, step, words: stop.words, opens, card: card(stop.card, limits)? },
+                    w::StopParts {
+                        actor,
+                        step,
+                        words: stop.words,
+                        needed: stop.needed,
+                        over: stop.over,
+                        opens,
+                        card: card(stop.card, limits)?,
+                    },
                 )
                 .ok()?,
             )

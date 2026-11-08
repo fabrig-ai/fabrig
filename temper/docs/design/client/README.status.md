@@ -56,8 +56,6 @@ redrawn at a newer revision, drawn as temper's path drawing kind with a
 stop a line as the terminal's fallback.
 
 - **Not yet:**
-  - 4.6 (`path-stops`, `look-round-25`): `PathStep` holds `update` and
-    neither `conflict` nor `catch_up`; `Stop` has no `needed` or `over`.
   - 4.6 and 5.16 (`roles-view`, `look-round-25`): `View` has no `roles`,
     and no address reads one.
 
