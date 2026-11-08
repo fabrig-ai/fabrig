@@ -1,0 +1,25 @@
+draft = "red-82-chat-opening"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-82-chat-opening/inputs/request.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "chat-opening"
+title = "A chat's opening reads stop at the history's end or a screen and a half held, whichever comes first"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 1
+story = "A short chat opens whole, its opening question above a fast reply; a long one opens with a screen and a half, and reading back loads earlier pages with \"Loading earlier messages\""
+parts = ["chat-opening"]
+walk = false

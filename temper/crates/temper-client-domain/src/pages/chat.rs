@@ -40,6 +40,7 @@ struct CardRead {
 )]
 pub struct Chat {
     pub mode: Mode,
+    opening_mode: Option<Mode>,
     pub restarting: bool,
     pub decided: Option<(u64, Wall)>,
     pub departed_proposal: Option<u64>,
@@ -122,6 +123,7 @@ impl Chat {
         asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             mode,
+            opening_mode: Some(mode),
             restarting: false,
             decided: None,
             departed_proposal: None,
@@ -228,6 +230,8 @@ impl Chat {
         newest
     }
     pub(crate) fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
+        // The page refresh runs after every event, including a later arrival of me.
+        self.opening_mode(client);
         let next = match self.goal_fact(client, forge) {
             Some((goal, _)) => Some(goal),
             None => None,
@@ -244,6 +248,20 @@ impl Chat {
                 handle: self.goal_read,
                 subject: Watchable::Jig(c::Subject::Chips { tasks: List::from_boxed(Box::new([goal])) }),
             }));
+        }
+    }
+    fn opening_mode(&mut self, client: &Client) {
+        let Some(opening) = self.opening_mode else { return };
+        if self.mode != opening {
+            self.opening_mode = None;
+            return;
+        }
+        let Some(task) = self.task(client) else { return };
+        let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+        let drafting = super::chats::drafting(me, task.project, &task.chip.executor);
+        self.opening_mode = None;
+        if drafting && opening == Mode::Chat {
+            self.mode = Mode::Split;
         }
     }
     #[must_use]
@@ -576,7 +594,7 @@ impl Chat {
         };
         if more
             && previous != self.thread.lines.edges.after
-            && (self.initial_pages > 0 || (!filling && empty))
+            && ((self.initial_pages > 0 && weight < OPENING_WEIGHT) || (!filling && empty))
             && self.thread.lines.edges.reaches(End::Before)
             && self.thread.lines.rows.len() < self.thread.limits.lines
             && weight < self.thread.limits.bytes
@@ -1194,6 +1212,7 @@ impl Chat {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the exhaustive conversation act routing stays in one match")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -1210,7 +1229,10 @@ impl Chat {
             Act::MessageWords { words } => {
                 (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
-            Act::Mode { mode } => self.mode = mode,
+            Act::Mode { mode } => {
+                self.opening_mode = None;
+                self.mode = mode;
+            }
             Act::ShowSection { line } => {
                 if self.mode == Mode::Chat {
                     self.mode = Mode::Split;
@@ -1419,6 +1441,10 @@ impl Chat {
         }
     }
 }
+/// A screen and a half as a chat's opening reads hold it: the held lines'
+/// weight, a screen and a half of an 80 by 24 terminal
+/// (temper/docs/design/client/README.md, 5.15).
+pub(crate) const OPENING_WEIGHT: u64 = 2_880;
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
     let bytes = match limits.window_bytes {

@@ -228,6 +228,8 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
+// A chat's families without delegate (temper/docs/design/protocol/configuration.md, 13.4).
+const DRAFTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1022);
 const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const ASK_TOOLS: jig_domain_tasks::Tools =
     jig_domain_tasks::Tools(ToolFamilies::JIG.ask.0 | ToolFamilies::JIG.settings);
@@ -367,6 +369,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         status(&models),
         trial(&models),
         ask_charter(&models),
+        drafter(&models),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     let mut completion = 0;
@@ -386,7 +389,13 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(result_bytes), goal(result_bytes), draft_goal(result_bytes), ask(result_bytes)]);
+    let templates = Box::new([
+        chat(result_bytes),
+        goal(result_bytes),
+        draft_goal(result_bytes),
+        ask(result_bytes),
+        design(result_bytes),
+    ]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
@@ -462,9 +471,9 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
     }
 }
 
-// Chat and Ask temper charter rows (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat, Ask temper and drafter charter rows (temper/docs/design/protocol/configuration.md, 13.4).
 const CHAT_TURNS: u32 = 64;
-// Chat and Ask temper charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat, Ask temper and drafter charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
 const CHAT_TIME: Duration = Duration::from_secs(3_600);
 // Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration.md, 13.4).
 const WORK_TURNS: u32 = 800;
@@ -533,6 +542,7 @@ fn charter(
                 9 => STATUS_TOOLS,
                 10 => TRIAL_TOOLS,
                 11 => ASK_TOOLS,
+                12 => DRAFTER_TOOLS,
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -544,6 +554,16 @@ fn ask_charter(models: &[CatalogueModel]) -> Charter {
     value.policy.modify = false;
     value.policy.shell = false;
     value.policy.agents = false;
+    value
+}
+// The drafter's chat policy (temper/docs/design/protocol/configuration.md, 13.4;
+// temper/docs/design/domain/agent.md, 8.5).
+fn drafter(models: &[CatalogueModel]) -> Charter {
+    let mut value = charter(12, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/drafter.txt"), models, FIRST_CHOICES);
+    value.policy.inspect = false;
+    value.policy.modify = false;
+    value.policy.shell = false;
+    value.policy.agents = true;
     value
 }
 fn reviewer(models: &[CatalogueModel]) -> Charter {
@@ -647,6 +667,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
                 authority::Executor::Charter(11),
+                authority::Executor::Charter(12),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
@@ -682,6 +703,15 @@ fn chat(result_bytes: u32) -> Template {
 }
 fn ask(result_bytes: u32) -> Template {
     Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
+}
+// A design session is a chat (temper/docs/design/protocol/configuration.md, 13.4).
+fn design(result_bytes: u32) -> Template {
+    Template {
+        number: 6,
+        name: bytes::copy_of(b"design session"),
+        executor: TemplateExecutor::Charter(12),
+        ..chat(result_bytes)
+    }
 }
 fn draft_goal(result_bytes: u32) -> Template {
     Template {
