@@ -69,3 +69,7 @@ Acceptance:
 
 Each journey recorded, its tries, its prints' changes; any wait widened; the replay
 test's result.
+
+## Answers
+
+2026-11-08 (temper/ui). Neither as asked: first find which it is, from your scratch directory /tmp/temper-journey-2572037-0, its last still save, without a new walk. (1) If the goal page has its Draft return link, but to another chat than task 2, task numbers moved when the configuring chat stopped being made. Then the walk changed, and the recording isn't the product's fault. Leave chat-draft's recording and prints at the base. Run its focused replay. If that passes, add one line to the browser journeys' status: chat-draft is to be walked anew, as its task numbers moved with the configuring chat's removal. Then finish: I'll have it walked anew after landing. (2) If the goal page has no Draft return link at all, it's this plan's regression. Repair it in its owning code under a failing focused test first, then run again chat-draft once. (3) If the replay fails in case (1), stop with Question: and its first differing step. Say in the report which case it was, with the still save's evidence.
