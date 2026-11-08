@@ -28,12 +28,17 @@ impl Flags {
         let mut arguments = arguments.iter();
         while let Some(flag) = arguments.next() {
             let value = match flag.as_str() {
-                "-p" | "--verbose" | "--strict-mcp-config" | "--include-partial-messages" => String::new(),
+                "-p"
+                | "--verbose"
+                | "--strict-mcp-config"
+                | "--include-partial-messages"
+                | "--disable-slash-commands" => String::new(),
                 "--input-format"
                 | "--output-format"
                 | "--setting-sources"
                 | "--model"
                 | "--append-system-prompt-file"
+                | "--system-prompt-file"
                 | "--mcp-config"
                 | "--permission-prompt-tool"
                 | "--tools"
@@ -48,15 +53,22 @@ impl Flags {
                 || (value.is_empty()
                     && !matches!(
                         flag.as_str(),
-                        "-p" | "--verbose" | "--strict-mcp-config" | "--include-partial-messages" | "--tools"
+                        "-p" | "--verbose"
+                            | "--strict-mcp-config"
+                            | "--include-partial-messages"
+                            | "--disable-slash-commands"
+                            | "--tools"
                     ))
                 || values.insert(flag.clone(), value).is_some()
             {
                 return None;
             }
         }
-        for flag in ["-p", "--verbose", "--model", "--append-system-prompt-file", "--tools"] {
+        for flag in ["-p", "--verbose", "--model", "--tools"] {
             values.get(flag)?;
+        }
+        if values.contains_key("--append-system-prompt-file") == values.contains_key("--system-prompt-file") {
+            return None;
         }
         for (flag, value) in
             [("--input-format", "stream-json"), ("--output-format", "stream-json"), ("--setting-sources", "user")]
@@ -226,7 +238,14 @@ impl Print {
         }
         let Some(root) = self.config.mcp else { return error("cannot read system prompt", 1) };
         self.state = State::Prompt;
-        vec![load(root, &self.flags.values["--append-system-prompt-file"])]
+        vec![load(
+            root,
+            self.flags
+                .values
+                .get("--append-system-prompt-file")
+                .or_else(|| self.flags.values.get("--system-prompt-file"))
+                .expect("one prompt flag"),
+        )]
     }
 
     fn begin(&mut self) -> Vec<Effect> {

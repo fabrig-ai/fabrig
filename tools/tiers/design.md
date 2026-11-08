@@ -380,10 +380,12 @@ with the same three keys and no `auto_reap`. It is no pair: no tier reads
 it, and whatever measures that share reads its verdict there, recording
 a run that goes over rather than refusing it.
 Smith's and Skein's `default` and `fuzzy` entries use `cpu_suite_s` alone,
-at 30 and 120 respectively; whether those are their CPU figures remains
-open (section 8).
-Jig's `fuzzy` entry uses `cpu_suite_s` alone at 120, with its CPU figure
-likewise open (section 8); Jig has no `default` entry.
+at 30 and 120 CPU seconds respectively. Jig's and Temper's `fuzzy` entries
+use `cpu_suite_s` alone at 120 CPU seconds; neither has a `default` entry.
+These figures are the strategy's section 8 figures
+(`skein/docs/foundation/testing-strategy.md`), by the user's word of 11-07,
+recorded beside their entries. Temper's entry follows Jig's, as does its
+comment, and sets no `wall_hard_s`.
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -620,15 +622,7 @@ hold their options in their own words, and read no list: whether they read
 by a record kept outside this repository; stating where the figures come
 from in this repository's own words is left for later.
 
-Whether Smith's and Skein's focused and fuzzy figures, 30 s and 120 s from
-`skein/docs/foundation/testing-strategy.md`, section 8, are CPU seconds
-per tree remains open. Their `cpu_suite_s` entries settle no such decision,
-and no measurement establishes them here.
-
-Whether Jig's fuzzy figure, 120 s from the same strategy section, is its
-CPU figure remains open too. Its focused entry awaits the user's word:
-the request reports that suite over its figure. No measurement is made
-here to settle either.
+Jig's and Temper's focused gate entries await the user's word.
 
 `budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
 beyond that (7.3): what measures a tree's share of a gate suite and records

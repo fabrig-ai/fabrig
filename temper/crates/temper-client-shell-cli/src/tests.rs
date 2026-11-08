@@ -1327,3 +1327,52 @@ fn landing_reads_keep_missing_and_invalid_document_statuses_in_both_modes() {
         }
     }
 }
+
+#[test]
+fn a_third_project_keeps_setup_calls_usable() {
+    let mut setup = fixtures::Frame::project_setup();
+    setup.sign_in_then_deliver_me();
+    assert_eq!(setup.exit(), Some(Exit::Code(0)));
+    assert_eq!(setup.stdout(), b"project 3\n");
+    let mut show = setup.setup_call(&["project", "show", "3"]);
+    show.sign_in_then_deliver_me();
+    show.advance_past(limits::DEADLINE);
+    assert_eq!(show.exit(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(show.stderr()));
+    assert!(String::from_utf8_lossy(show.stdout()).contains("proof-5-clearer-words"));
+    let mut adopt = show.setup_call(&[
+        "repository",
+        "adopt",
+        "--project",
+        "3",
+        "--owner",
+        "o",
+        "--name",
+        "n",
+        "--landing",
+        "main",
+        "--key",
+        "adopt-third",
+    ]);
+    adopt.sign_in_then_deliver_me();
+    assert!(adopt.act_sent(), "adoption reaches the available engine");
+    assert_eq!(adopt.exit(), Some(Exit::Code(0)));
+    assert!(String::from_utf8_lossy(adopt.stdout()).contains("Adopted"));
+    for _ in 0..2 {
+        let mut me = adopt.setup_call(&["me"]);
+        me.sign_in_then_deliver_me();
+        assert_eq!(me.exit(), Some(Exit::Code(0)));
+        assert!(String::from_utf8_lossy(me.stdout()).contains("proof-5-clearer-words"));
+    }
+    let native = crate::limits::native();
+    let preset = native.root.domain.client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("shipped link limits");
+    let frame = fixtures::recovery::project_me(9); // Standard's deployment capacity.
+    let bytes = frame.measure();
+    let decoded = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("nine memberships");
+    assert_eq!(decoded.projects.len(), 9);
+    eprintln!(
+        "nine-project me: {bytes} wire bytes; membership slots: {:?} bytes; document bound: {} bytes",
+        skein_lib::List::<jig_client::contract::MeProject>::price(9),
+        preset.domain.document_bytes
+    );
+}

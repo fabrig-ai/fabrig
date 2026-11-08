@@ -47,7 +47,7 @@ policy 1's ceiling and the creator-role authority before starting a reference go
 Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`, `decided`),
 decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
 (`subscribe`, `subscribe_forge`), note 128, recall 256, forge reads 512.
-Stock tools 1671 include note 128 and settings 1024; widening gives tools 1983.
+Stock tools 3975 include note 128 and settings 1024; widening gives tools 4031.
 Writes need goal and project note scopes, bits 1 and 2: notes 3.
 
 `ROLE`: creator role (stock owner 0). `PROJECT`: existing project number.

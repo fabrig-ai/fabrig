@@ -108,7 +108,9 @@ Authority
   (engine.md, 7.3), in families of their own: delegate; message, with
   `introduce`; amend and cancel, with `release`; decide, with
   `withdraw`; propose; subscribe, with `unsubscribe`; effect; note;
-  recall. A procedure has no tools; its authority's tools are empty. On
+  recall; and asking, the tools an application declares to a run that
+  explains to its person, whatever each reads or writes, decided as one
+  family (engine.md, 7.3). A procedure has no tools; its authority's tools are empty. On
   a program backend, the program's own tools are these families too,
   each call asked of smith's policy before it runs (8.5).
 - **Models:** the catalogue's models a task's LLM choice may name, bit `i`

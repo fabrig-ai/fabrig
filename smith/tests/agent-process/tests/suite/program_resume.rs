@@ -113,6 +113,14 @@ fn a_compaction_runs_its_own_program() {
     );
     let print: Vec<_> = run.invocations.iter().filter(|invocation| invocation.arguments[0] == "-p").collect();
     assert_eq!(print.len(), 2);
+    for invocation in &print {
+        assert!(invocation.arguments.iter().any(|flag| flag == "--system-prompt-file"));
+        assert!(invocation.arguments.iter().any(|flag| flag == "--disable-slash-commands"));
+        assert!(argument(invocation, "--tools").is_empty());
+        assert!(invocation.directory.starts_with("/programs/.runs/"));
+        assert!(invocation.directory.ends_with("/work"));
+        assert!(!invocation.directory_has_entries);
+    }
     let ids: Vec<_> = print
         .iter()
         .map(|invocation| {
@@ -170,7 +178,7 @@ fn waiting_charter() -> Box<[u8]> {
     })
 }
 
-fn session_argument<'a>(invocation: &'a smith_fake_claude::Observation, flag: &str) -> &'a str {
+fn argument<'a>(invocation: &'a smith_fake_claude::Observation, flag: &str) -> &'a str {
     &invocation.arguments.windows(2).find(|pair| pair[0] == flag).expect("session argument")[1]
 }
 
@@ -203,7 +211,7 @@ fn a_parked_run_resumes_its_session() {
     );
     let print: Vec<_> = run.invocations.iter().filter(|call| call.arguments[0] == "-p").collect();
     assert_eq!(print.len(), 1);
-    assert_eq!(session_argument(print[0], "--resume"), session_argument(first, "--session-id"));
+    assert_eq!(argument(print[0], "--resume"), argument(first, "--session-id"));
     let text = run.received[0]["message"]["content"].as_str().expect("one tail message");
     assert!(text.contains("Begin"));
     assert!(text.contains("result of"));
@@ -227,10 +235,10 @@ fn a_gone_session_is_carried_over() {
     );
     let print: Vec<_> = run.invocations.iter().filter(|call| call.arguments[0] == "-p").collect();
     assert_eq!(print.len(), 3, "missing resume, summary, new window");
-    assert_eq!(session_argument(print[0], "--resume"), session_argument(first, "--session-id"));
+    assert_eq!(argument(print[0], "--resume"), argument(first, "--session-id"));
     assert!(!print[1].arguments.contains(&"--mcp-config".into()));
     assert!(print[2].arguments.contains(&"--mcp-config".into()));
-    assert_ne!(session_argument(print[2], "--session-id"), session_argument(first, "--session-id"));
+    assert_ne!(argument(print[2], "--session-id"), argument(first, "--session-id"));
     assert!(
         run.received.last().expect("new prompt")["message"]["content"]
             .as_array()
@@ -308,7 +316,7 @@ fn a_resumed_chat_receives_changed_instructions_and_the_current_document() {
         parked_chat(&resumed);
         let print = resumed.invocations.iter().find(|call| call.arguments[0] == "-p").expect("resume");
         let first = old.invocations.iter().find(|call| call.arguments[0] == "-p").expect("first");
-        assert_eq!(session_argument(print, "--resume"), session_argument(first, "--session-id"));
+        assert_eq!(argument(print, "--resume"), argument(first, "--session-id"));
         let text = resumed.received[0]["message"]["content"].as_str().expect("activation text");
         assert!(text.contains("End every reply with the word ZINC."), "{text}");
         assert!(text.contains("## Document rules.md\n\nhead new: use SILVER."), "{text}");

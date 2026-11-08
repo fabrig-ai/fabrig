@@ -12,13 +12,13 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has seven charters, fourteen grants and twelve executor kinds. The
+// Stock has eight charters, fourteen grants and thirteen executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 8;
+const CHARTERS: u32 = 9;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 13; // Twelve stock kinds and the removable world's charter.
+const EXECUTORS: u32 = 14; // Thirteen stock kinds and the removable world's charter.
 const RUN_BYTES: u32 = 16_384;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
@@ -118,7 +118,8 @@ pub(super) fn repository_projects() -> World {
     bounds.authority.projects = 2;
     bounds.people.projects = 3; // Two projects and the deployment roster.
     bounds.people.initial_owners = 3;
-    bounds.people.holdings = 4; // The owner holds deployment and both projects.
+    bounds.people.people = 3; // Owner, deployment service and the approval story's member.
+    bounds.people.holdings = 5; // The owner holds deployment and both projects.
     World::with_limits(config, &bounds)
 }
 
@@ -661,14 +662,23 @@ pub(super) fn propose(
     let input = json!({"against":against,"reason":REASON,"items":items});
     let (body, error) = host_tool(driver, run, completion, b"propose_settings", input.to_string().as_bytes());
     assert!(!error, "{}", String::from_utf8_lossy(&body));
-    std::str::from_utf8(&body)
-        .expect("proposal answer")
+    let text = std::str::from_utf8(&body).expect("proposal answer");
+    let number = text
         .strip_prefix(&format!("proposed as t{}/", run.task))
         .expect("proposal")
-        .strip_suffix(" to the deployment's owners")
-        .expect("deployment owners")
-        .parse()
+        .split_whitespace()
+        .next()
         .expect("proposal number")
+        .parse()
+        .expect("proposal number");
+    assert_eq!(
+        text,
+        format!(
+            "proposed as t{}/{number} for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without t{}/{number}.",
+            run.task, run.task
+        )
+    );
+    number
 }
 pub(super) fn assert_heard(run: &engine::Assignment, expected: &[u8]) {
     let smith_domain::Event::Start(smith_domain::Start { messages, .. }) = temper_engine_smith::start(
@@ -683,4 +693,43 @@ pub(super) fn assert_heard(run: &engine::Assignment, expected: &[u8]) {
         panic!("smith start")
     };
     assert!(messages.iter().any(|message| message.text.as_ref() == expected), "{messages:?}");
+}
+
+/// A decoded settings call, including the engine's unrecorded parts answers.
+pub(super) fn parts_call(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    against: u32,
+    items: &Value,
+    more: bool,
+) -> (String, bool) {
+    let input = json!({"against":against,"reason":REASON,"items":items,"more":more});
+    let (body, error) =
+        host_tool(&mut world.driver, run, completion, b"propose_settings", input.to_string().as_bytes());
+    (String::from_utf8(body.into()).expect("settings call answer is UTF-8"), error)
+}
+/// Restart the root and reconnect the same person and worker, keeping the store.
+pub(super) fn restart_settings_world(world: &mut World, run: &engine::Assignment) {
+    let config = config();
+    let identity = config.core.owners[0].identity.clone();
+    world.driver.reopen(config);
+    let mut greeting = worker_hello();
+    let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
+        panic!("hello")
+    };
+    hello.hosting = Box::new([protocol::hosting(run.task, run.attempt, jig_domain_link::Phase::Active)]);
+    world.driver.send(greeting);
+    world.driver.settle();
+    world.driver.send(Event::Party(PartyInput::SignedIn {
+        held: Some(world.owner),
+        reply_to: ReplyTo::new(Token::new(101)),
+        identity: people::Identity {
+            key: identity,
+            login: b"person".as_slice().into(),
+            name: b"Person".as_slice().into(),
+        },
+    }));
+    world.driver.settle();
+    world.owner = world.driver.session();
 }

@@ -2343,6 +2343,7 @@ terminal's, whose window shows two rows:
 | a result's text | 32 KiB |
 | a turn's part | 16 KiB |
 | one document, the client's `document_bytes` | 1 MiB |
+| project memberships in `me` | 9, covering the Small and Standard deployment profiles |
 | a path's segments; an authority's entries | 9; 12, as the terminal's (`README.md`, 5.4) |
 | the link's deadline: the engine unreachable, or a call's request or answer unheard | 30 s |
 | a retry's span, a request's and a watch's: at least half of it, jittered | from 1 s, doubling to at most 2 s, the most a sign-in's link waits between tries (8.2) |
@@ -2354,6 +2355,12 @@ terminal's, whose window shows two rows:
 | a wait's timeout | 300 s by default, at most 3600 (5.4) |
 
 The client's other limits are the terminal's (`README.md`, section 2).
+The mandatory `me` frame takes every membership the deployment may serve
+(jig's `client/domain/contract.md`, 5.1), including a project just made.
+Its project list grows as it fills up to nine entries; the whole document
+keeps its 1 MiB wire bound. Templates and models keep their per-project
+bounds. Raising the membership count reserves no storage for absent
+memberships.
 
 ## 13. What it takes of jig
 

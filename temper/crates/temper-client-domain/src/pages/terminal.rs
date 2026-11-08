@@ -66,7 +66,7 @@ impl Look {
 pub fn draws(address: &crate::Address) -> bool {
     use crate::Address;
     match address {
-        Address::Chat { .. } | Address::NewChat { .. } | Address::Configure { .. } => true,
+        Address::Chat { .. } | Address::NewChat { .. } | Address::Ask { .. } => true,
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts

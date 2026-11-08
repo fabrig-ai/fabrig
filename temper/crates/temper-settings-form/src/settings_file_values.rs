@@ -4,7 +4,7 @@ use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::Kind;
 use skein_lib::{Duration, List, Wall, bytes};
-pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
+pub(super) fn charter(d: &Decoder<'_>, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
         &[
@@ -88,7 +88,7 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
         },
     })
 }
-fn charter_parts(d: &Decoder, at: Option<u32>) -> Result<List<c::CharterPart>, Error> {
+fn charter_parts(d: &Decoder<'_>, at: Option<u32>) -> Result<List<c::CharterPart>, Error> {
     let Some(at) = at else { return Ok(List::with_capacity(0)) };
     let positions = match d.array(at, d.limits.charter_parts, b"charter.parts") {
         Ok(positions) => positions,
@@ -120,7 +120,7 @@ fn indexed_error(path: &[u8], index: usize, why: Error) -> Error {
     }
     why.at(&out.finish())
 }
-fn charter_part(d: &Decoder, at: u32) -> Result<c::CharterPart, Error> {
+fn charter_part(d: &Decoder<'_>, at: u32) -> Result<c::CharterPart, Error> {
     let fields = d.object(at, &[b"on", b"instructions"])?;
     let on = part_reasons(d, field(&fields, b"on")?)?;
     let instructions = match d.words(
@@ -133,7 +133,7 @@ fn charter_part(d: &Decoder, at: u32) -> Result<c::CharterPart, Error> {
     };
     Ok(c::CharterPart { on, instructions })
 }
-fn part_reasons(d: &Decoder, at: u32) -> Result<u32, Error> {
+fn part_reasons(d: &Decoder<'_>, at: u32) -> Result<u32, Error> {
     // Each name takes a distinct bit; the JSON token bound limits malformed lists.
     let positions = d.array(at, d.doc.len(), b"on")?;
     if positions.is_empty() {
@@ -176,13 +176,13 @@ fn reason_error(name: &[u8], why: &[u8]) -> Error {
     }
     Error { member: b"".as_slice().into(), rule: out.finish(), bound: None }
 }
-fn wake_policy(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+fn wake_policy(d: &Decoder<'_>, at: u32) -> Result<c::WakePolicy, Error> {
     match wake_policy_value(d, at) {
         Ok(value) => Ok(value),
         Err(why) => Err(wake_error(b"charter.wake", why)),
     }
 }
-fn wake_policy_value(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
+fn wake_policy_value(d: &Decoder<'_>, at: u32) -> Result<c::WakePolicy, Error> {
     let fields = d.object(at, &[b"words", b"notices", b"news", b"results", b"questions", b"answers", b"timers"])?;
     Ok(c::WakePolicy {
         words: wake_rule(d, field(&fields, b"words")?, b"words")?,
@@ -199,13 +199,13 @@ fn wake_policy_value(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
         timers: d.boolean(field(&fields, b"timers")?)?,
     })
 }
-fn wake_rule(d: &Decoder, at: u32, path: &[u8]) -> Result<c::WakeRule, Error> {
+fn wake_rule(d: &Decoder<'_>, at: u32, path: &[u8]) -> Result<c::WakeRule, Error> {
     match wake_rule_value(d, at) {
         Ok(value) => Ok(value),
         Err(why) => Err(wake_error(path, why)),
     }
 }
-fn wake_rule_value(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+fn wake_rule_value(d: &Decoder<'_>, at: u32) -> Result<c::WakeRule, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"never" => Ok(c::WakeRule::Never),
@@ -225,7 +225,7 @@ fn wake_rule_value(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
         Err(why) => Err(wake_error(b"batch", why)),
     }
 }
-fn wake_batch(d: &Decoder, at: u32) -> Result<c::WakeRule, Error> {
+fn wake_batch(d: &Decoder<'_>, at: u32) -> Result<c::WakeRule, Error> {
     let fields = d.object(at, &[b"count", b"age"])?;
     let count = u32::try_from(d.number(field(&fields, b"count")?)?).or(Err(error(b"count", b"integer bound")))?;
     Ok(c::WakeRule::Batch { count, age: Duration::from_nanos(d.number(field(&fields, b"age")?)?) })
@@ -234,7 +234,7 @@ fn wake_error(path: &[u8], why: Error) -> Error {
     why.at(path)
 }
 
-fn documents(d: &Decoder, at: u32) -> Result<List<c::CharterDocument>, Error> {
+fn documents(d: &Decoder<'_>, at: u32) -> Result<List<c::CharterDocument>, Error> {
     let positions = d.array(at, d.limits.charter_documents, b"charter.documents")?;
     let mut values = List::with_capacity(positions.len());
     for (index, at) in positions.iter().enumerate() {
@@ -257,19 +257,40 @@ fn document_member(index: usize, member: &[u8], out: &mut crate::Text) {
     out.put(b"].");
     out.put(member);
 }
-fn document(d: &Decoder, at: u32) -> Result<c::CharterDocument, Error> {
+fn document(d: &Decoder<'_>, at: u32) -> Result<c::CharterDocument, Error> {
     let fields = d.object(at, &[b"forge", b"repository", b"branch", b"path", b"heading", b"connector", b"name"])?;
     for member in [b"name".as_slice(), b"connector"] {
         if optional(&fields, member).is_some() {
             return Err(error(member, b"shape: forge branch required"));
         }
     }
-    let forge = d.document_string(field(&fields, b"forge")?, b"forge")?;
+    let forge = match optional(&fields, b"forge") {
+        Some(at) => Some(d.document_string(at, b"forge")?),
+        None if d.repositories.is_some() => None,
+        None => return Err(error(b"forge", b"missing member")),
+    };
     let repository = d.document_string(field(&fields, b"repository")?, b"repository")?;
     let branch = d.document_string(field(&fields, b"branch")?, b"branch")?;
     let slash = bytes::find(repository, b"/").ok_or(error(b"repository", b"OWNER/NAME required"))?;
     let owner = repository.get(..slash).expect("repository prefix");
     let repo = repository.get(slash.checked_add(1).expect("slash position")..).expect("repository suffix");
+    let (forge, owner, repo) = match forge {
+        Some(forge) => (forge, owner, repo),
+        None => {
+            let repositories = d.repositories.expect("host proposal resolver");
+            let mut found = None;
+            for identity in repositories {
+                if owner.eq_ignore_ascii_case(identity.owner) && repo.eq_ignore_ascii_case(identity.name) {
+                    found = Some(identity);
+                    break;
+                }
+            }
+            match found {
+                Some(identity) => (identity.host, identity.owner, identity.name),
+                None => return Err(repository_missing(repository, repositories)),
+            }
+        }
+    };
     let segment_bound = d.limits.charter_document_name_item;
     document_segment(forge, segment_bound, b"forge")?;
     document_segment(owner, segment_bound, b"repository")?;
@@ -311,7 +332,33 @@ fn document(d: &Decoder, at: u32) -> Result<c::CharterDocument, Error> {
     };
     Ok(c::CharterDocument { connector: 1, name, path, heading })
 }
-impl Decoder {
+
+fn repository_missing(name: &[u8], repositories: &[super::Repository<'_>]) -> Error {
+    let mut measure = crate::Text::measure();
+    repository_refusal(&mut measure, name, repositories);
+    let mut out = crate::Text::writing_exact(measure);
+    repository_refusal(&mut out, name, repositories);
+    Error { member: b"repository".as_slice().into(), rule: out.finish(), bound: None }
+}
+fn repository_refusal(out: &mut crate::Text, name: &[u8], repositories: &[super::Repository<'_>]) {
+    out.put(b"no repository ");
+    out.put(name);
+    out.put(b" in this project");
+    if repositories.is_empty() {
+        out.put(b"; it has none");
+    } else {
+        out.put(b"; its repositories: ");
+        let mut separator = b"".as_slice();
+        for repository in repositories {
+            out.put(separator);
+            out.put(repository.owner);
+            out.put(b"/");
+            out.put(repository.name);
+            separator = " · ".as_bytes();
+        }
+    }
+}
+impl Decoder<'_> {
     fn document_string(&self, at: u32, member: &[u8]) -> Result<&[u8], Error> {
         match self.string(at) {
             Ok(bytes) => Ok(bytes),
@@ -328,7 +375,7 @@ fn document_segment(bytes: &[u8], most: u32, member: &[u8]) -> Result<(), Error>
     }
     Ok(())
 }
-pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
+pub(super) fn template(d: &Decoder<'_>, at: u32) -> Result<c::Template, Error> {
     let fields = d.object(
         at,
         &[
@@ -381,7 +428,7 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
         },
     })
 }
-fn template_resources(d: &Decoder, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
+fn template_resources(d: &Decoder<'_>, at: Option<u32>) -> Result<List<c::Symbol>, Error> {
     let Some(at) = at else { return Ok(List::with_capacity(0)) };
     let positions = d.array(at, d.limits.template_resources, b"template.resources")?;
     let mut values = List::with_capacity(positions.len());
@@ -394,7 +441,7 @@ fn template_resources(d: &Decoder, at: Option<u32>) -> Result<List<c::Symbol>, E
     }
     Ok(values)
 }
-fn template_symbol(d: &Decoder, at: u32) -> Result<c::Symbol, Error> {
+fn template_symbol(d: &Decoder<'_>, at: u32) -> Result<c::Symbol, Error> {
     let fields = match d.object(at, &[b"connector", b"symbol"]) {
         Ok(fields) => fields,
         Err(why) => return Err(why.at(b"template.resources")),
@@ -404,7 +451,7 @@ fn template_symbol(d: &Decoder, at: u32) -> Result<c::Symbol, Error> {
         symbol: symbol_number(d, field(&fields, b"symbol"), b"symbol")?,
     })
 }
-fn symbol_number(d: &Decoder, at: Result<u32, Error>, member: &[u8]) -> Result<u16, Error> {
+fn symbol_number(d: &Decoder<'_>, at: Result<u32, Error>, member: &[u8]) -> Result<u16, Error> {
     let number = match at {
         Ok(at) => d.number(at),
         Err(why) => return Err(why.at(b"template.resources")),
@@ -415,7 +462,7 @@ fn symbol_number(d: &Decoder, at: Result<u32, Error>, member: &[u8]) -> Result<u
     };
     u16::try_from(number).or(Err(error(member, b"integer bound").at(b"template.resources")))
 }
-pub(super) fn setting_policy(d: &Decoder, at: u32) -> Result<c::SettingPolicy, Error> {
+pub(super) fn setting_policy(d: &Decoder<'_>, at: u32) -> Result<c::SettingPolicy, Error> {
     let fields = d.object(
         at,
         &[
@@ -496,7 +543,7 @@ pub(super) fn setting_policy(d: &Decoder, at: u32) -> Result<c::SettingPolicy, E
         },
     })
 }
-pub(super) fn rules(d: &Decoder, at: u32) -> Result<c::Rules, Error> {
+pub(super) fn rules(d: &Decoder<'_>, at: u32) -> Result<c::Rules, Error> {
     let fields = d.object(
         at,
         &[b"ceiling", b"period_spend", b"minimum_run_spend", b"maximum_run_spend", b"implies", b"requirements"],
@@ -525,7 +572,7 @@ pub(super) fn rules(d: &Decoder, at: u32) -> Result<c::Rules, Error> {
         },
     })
 }
-fn setting_model(d: &Decoder, at: u32) -> Result<c::SettingModel, Error> {
+fn setting_model(d: &Decoder<'_>, at: u32) -> Result<c::SettingModel, Error> {
     let fields = d.object(
         at,
         &[
@@ -600,7 +647,7 @@ fn setting_model(d: &Decoder, at: u32) -> Result<c::SettingModel, Error> {
         },
     })
 }
-fn setting_hosts(d: &Decoder, at: u32) -> Result<c::SettingHosts, Error> {
+fn setting_hosts(d: &Decoder<'_>, at: u32) -> Result<c::SettingHosts, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"workers" => Ok(c::SettingHosts::Workers),
@@ -611,7 +658,7 @@ fn setting_hosts(d: &Decoder, at: u32) -> Result<c::SettingHosts, Error> {
     }
     Err(error(b"setting_hosts", b"expected word"))
 }
-fn template_executor(d: &Decoder, at: u32) -> Result<c::TemplateExecutor, Error> {
+fn template_executor(d: &Decoder<'_>, at: u32) -> Result<c::TemplateExecutor, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"chosen" => Ok(c::TemplateExecutor::Chosen),
@@ -629,7 +676,7 @@ fn template_executor(d: &Decoder, at: u32) -> Result<c::TemplateExecutor, Error>
     }
     Err(error(b"template_executor", b"unknown variant"))
 }
-fn task_contract_document(d: &Decoder, at: u32) -> Result<c::TaskContractDocument, Error> {
+fn task_contract_document(d: &Decoder<'_>, at: u32) -> Result<c::TaskContractDocument, Error> {
     let fields = d.object(at, &[b"approval", b"report", b"verdict", b"change", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"task_contract_document", b"one variant required"));
@@ -696,7 +743,7 @@ fn task_contract_document(d: &Decoder, at: u32) -> Result<c::TaskContractDocumen
     }
     Err(error(b"task_contract_document", b"unknown variant"))
 }
-fn template_budget(d: &Decoder, at: u32) -> Result<c::TemplateBudget, Error> {
+fn template_budget(d: &Decoder<'_>, at: u32) -> Result<c::TemplateBudget, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"given" => Ok(c::TemplateBudget::Given),
@@ -722,7 +769,7 @@ fn template_budget(d: &Decoder, at: u32) -> Result<c::TemplateBudget, Error> {
     }
     Err(error(b"template_budget", b"unknown variant"))
 }
-fn template_deadline(d: &Decoder, at: u32) -> Result<c::TemplateDeadline, Error> {
+fn template_deadline(d: &Decoder<'_>, at: u32) -> Result<c::TemplateDeadline, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"none" => Ok(c::TemplateDeadline::None),
@@ -739,7 +786,7 @@ fn template_deadline(d: &Decoder, at: u32) -> Result<c::TemplateDeadline, Error>
     }
     Err(error(b"template_deadline", b"unknown variant"))
 }
-fn task_flags(d: &Decoder, at: u32) -> Result<c::TaskFlags, Error> {
+fn task_flags(d: &Decoder<'_>, at: u32) -> Result<c::TaskFlags, Error> {
     let fields = d.object(at, &[b"conversation", b"listed", b"retention", b"ended_by"])?;
     Ok(c::TaskFlags {
         conversation: d.boolean(field(&fields, b"conversation")?)?,
@@ -748,7 +795,7 @@ fn task_flags(d: &Decoder, at: u32) -> Result<c::TaskFlags, Error> {
         ended_by: ended_by(d, field(&fields, b"ended_by")?)?,
     })
 }
-fn llm_choice(d: &Decoder, at: u32) -> Result<c::LlmChoice, Error> {
+fn llm_choice(d: &Decoder<'_>, at: u32) -> Result<c::LlmChoice, Error> {
     let fields = d.object(at, &[b"account", b"main", b"subagents", b"later"])?;
     Ok(c::LlmChoice {
         later: match optional(&fields, b"later") {
@@ -778,7 +825,7 @@ fn llm_choice(d: &Decoder, at: u32) -> Result<c::LlmChoice, Error> {
         },
     })
 }
-fn llm_later(d: &Decoder, at: u32) -> Result<c::LlmLater, Error> {
+fn llm_later(d: &Decoder<'_>, at: u32) -> Result<c::LlmLater, Error> {
     let fields = d.object(at, &[b"main", b"subagents"])?;
     let main = match later_model_effort(d, field(&fields, b"main")?) {
         Ok(main) => main,
@@ -797,7 +844,7 @@ fn llm_later(d: &Decoder, at: u32) -> Result<c::LlmLater, Error> {
     }
     Ok(c::LlmLater { main, subagents })
 }
-fn later_model_effort(d: &Decoder, at: u32) -> Result<c::ModelEffort, Error> {
+fn later_model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
     let fields = d.object(at, &[b"model", b"effort"])?;
     let model = match d.words(field(&fields, b"model")?, d.limits.model_effort_model, b"model") {
         Ok(model) => model,
@@ -812,7 +859,7 @@ fn later_model_effort(d: &Decoder, at: u32) -> Result<c::ModelEffort, Error> {
     };
     Ok(c::ModelEffort { model, effort })
 }
-fn owner_authority(d: &Decoder, at: u32) -> Result<c::Authority, Error> {
+fn owner_authority(d: &Decoder<'_>, at: u32) -> Result<c::Authority, Error> {
     let fields = d.object(
         at,
         &[b"models", b"tools", b"grants", b"delegation", b"spend", b"deadline", b"notes", b"note_resources"],
@@ -855,7 +902,7 @@ fn owner_authority(d: &Decoder, at: u32) -> Result<c::Authority, Error> {
         },
     })
 }
-fn owner_grant(d: &Decoder, at: u32) -> Result<c::Grant, Error> {
+fn owner_grant(d: &Decoder<'_>, at: u32) -> Result<c::Grant, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"pattern"])?;
     Ok(c::Grant {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -865,7 +912,7 @@ fn owner_grant(d: &Decoder, at: u32) -> Result<c::Grant, Error> {
         pattern: owner_pattern(d, field(&fields, b"pattern")?)?,
     })
 }
-fn policy_edit_role(d: &Decoder, at: u32) -> Result<c::PolicyEditRole, Error> {
+fn policy_edit_role(d: &Decoder<'_>, at: u32) -> Result<c::PolicyEditRole, Error> {
     let fields = d.object(at, &[b"number", b"authority", b"period_spend", b"requests", b"decides"])?;
     Ok(c::PolicyEditRole {
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
@@ -878,7 +925,7 @@ fn policy_edit_role(d: &Decoder, at: u32) -> Result<c::PolicyEditRole, Error> {
             .or(Err(error(b"policy_edit_role_decides", b"integer bound")))?,
     })
 }
-fn policy_requirement(d: &Decoder, at: u32) -> Result<c::PolicyRequirement, Error> {
+fn policy_requirement(d: &Decoder<'_>, at: u32) -> Result<c::PolicyRequirement, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"pattern", b"judge", b"guard", b"must_be_guarded"])?;
     Ok(c::PolicyRequirement {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -891,7 +938,7 @@ fn policy_requirement(d: &Decoder, at: u32) -> Result<c::PolicyRequirement, Erro
         must_be_guarded: d.boolean(field(&fields, b"must_be_guarded")?)?,
     })
 }
-fn policy_permission(d: &Decoder, at: u32) -> Result<c::PolicyPermission, Error> {
+fn policy_permission(d: &Decoder<'_>, at: u32) -> Result<c::PolicyPermission, Error> {
     let fields = d.object(at, &[b"connector", b"permission", b"role"])?;
     Ok(c::PolicyPermission {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -902,7 +949,7 @@ fn policy_permission(d: &Decoder, at: u32) -> Result<c::PolicyPermission, Error>
             .or(Err(error(b"policy_permission_role", b"integer bound")))?,
     })
 }
-fn template_override(d: &Decoder, at: u32) -> Result<c::TemplateOverride, Error> {
+fn template_override(d: &Decoder<'_>, at: u32) -> Result<c::TemplateOverride, Error> {
     let fields = d.object(at, &[b"template", b"executor", b"budget", b"deadline", b"priority"])?;
     Ok(c::TemplateOverride {
         template: u32::try_from(d.number(field(&fields, b"template")?)?)
@@ -932,7 +979,7 @@ fn template_override(d: &Decoder, at: u32) -> Result<c::TemplateOverride, Error>
         },
     })
 }
-fn owner_kind_implication(d: &Decoder, at: u32) -> Result<c::KindImplication, Error> {
+fn owner_kind_implication(d: &Decoder<'_>, at: u32) -> Result<c::KindImplication, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"implies"])?;
     Ok(c::KindImplication {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -943,7 +990,7 @@ fn owner_kind_implication(d: &Decoder, at: u32) -> Result<c::KindImplication, Er
             .or(Err(error(b"owner_kind_implication_implies", b"integer bound")))?,
     })
 }
-fn owner_part(d: &Decoder, at: u32) -> Result<c::Part, Error> {
+fn owner_part(d: &Decoder<'_>, at: u32) -> Result<c::Part, Error> {
     let fields = d.object(at, &[b"connector", b"kind", b"key"])?;
     Ok(c::Part {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -952,7 +999,7 @@ fn owner_part(d: &Decoder, at: u32) -> Result<c::Part, Error> {
         key: owner_part_key(d, field(&fields, b"key")?)?,
     })
 }
-fn verdict_choice(d: &Decoder, at: u32) -> Result<c::VerdictChoice, Error> {
+fn verdict_choice(d: &Decoder<'_>, at: u32) -> Result<c::VerdictChoice, Error> {
     let fields = d.object(at, &[b"code", b"words", b"followups", b"fields"])?;
     Ok(c::VerdictChoice {
         code: u32::try_from(d.number(field(&fields, b"code")?)?)
@@ -972,7 +1019,7 @@ fn verdict_choice(d: &Decoder, at: u32) -> Result<c::VerdictChoice, Error> {
         },
     })
 }
-fn retention(d: &Decoder, at: u32) -> Result<c::Retention, Error> {
+fn retention(d: &Decoder<'_>, at: u32) -> Result<c::Retention, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"kept" => Ok(c::Retention::Kept),
@@ -982,7 +1029,7 @@ fn retention(d: &Decoder, at: u32) -> Result<c::Retention, Error> {
     }
     Err(error(b"retention", b"expected word"))
 }
-fn ended_by(d: &Decoder, at: u32) -> Result<c::EndedBy, Error> {
+fn ended_by(d: &Decoder<'_>, at: u32) -> Result<c::EndedBy, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"result" => Ok(c::EndedBy::Result),
@@ -992,7 +1039,7 @@ fn ended_by(d: &Decoder, at: u32) -> Result<c::EndedBy, Error> {
     }
     Err(error(b"ended_by", b"expected word"))
 }
-fn model_effort(d: &Decoder, at: u32) -> Result<c::ModelEffort, Error> {
+fn model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
     let fields = d.object(at, &[b"model", b"effort"])?;
     Ok(c::ModelEffort {
         model: d.words(field(&fields, b"model")?, d.limits.model_effort_model, b"model_effort_model")?,
@@ -1003,7 +1050,7 @@ fn model_effort(d: &Decoder, at: u32) -> Result<c::ModelEffort, Error> {
         },
     })
 }
-fn authority_models(d: &Decoder, at: u32) -> Result<c::AuthorityModels, Error> {
+fn authority_models(d: &Decoder<'_>, at: u32) -> Result<c::AuthorityModels, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"all" => Ok(c::AuthorityModels::All),
@@ -1028,7 +1075,7 @@ fn authority_models(d: &Decoder, at: u32) -> Result<c::AuthorityModels, Error> {
     }
     Err(error(b"authority_models", b"unknown variant"))
 }
-fn owner_delegation(d: &Decoder, at: u32) -> Result<c::Delegation, Error> {
+fn owner_delegation(d: &Decoder<'_>, at: u32) -> Result<c::Delegation, Error> {
     let fields = d.object(at, &[b"kinds", b"tasks", b"depth"])?;
     Ok(c::Delegation {
         kinds: {
@@ -1045,7 +1092,7 @@ fn owner_delegation(d: &Decoder, at: u32) -> Result<c::Delegation, Error> {
             .or(Err(error(b"owner_delegation_depth", b"integer bound")))?,
     })
 }
-fn owner_resource_scope(d: &Decoder, at: u32) -> Result<c::ResourceScope, Error> {
+fn owner_resource_scope(d: &Decoder<'_>, at: u32) -> Result<c::ResourceScope, Error> {
     let fields = d.object(at, &[b"connector", b"pattern"])?;
     Ok(c::ResourceScope {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -1053,7 +1100,7 @@ fn owner_resource_scope(d: &Decoder, at: u32) -> Result<c::ResourceScope, Error>
         pattern: owner_pattern(d, field(&fields, b"pattern")?)?,
     })
 }
-fn owner_pattern(d: &Decoder, at: u32) -> Result<c::Pattern, Error> {
+fn owner_pattern(d: &Decoder<'_>, at: u32) -> Result<c::Pattern, Error> {
     let fields = d.object(at, &[b"segments", b"last"])?;
     Ok(c::Pattern {
         segments: {
@@ -1069,7 +1116,7 @@ fn owner_pattern(d: &Decoder, at: u32) -> Result<c::Pattern, Error> {
         last: owner_pattern_end(d, field(&fields, b"last")?)?,
     })
 }
-fn policy_judge(d: &Decoder, at: u32) -> Result<c::PolicyJudge, Error> {
+fn policy_judge(d: &Decoder<'_>, at: u32) -> Result<c::PolicyJudge, Error> {
     let fields = d.object(at, &[b"connector", b"requirement", b"parameters"])?;
     Ok(c::PolicyJudge {
         connector: u16::try_from(d.number(field(&fields, b"connector")?)?)
@@ -1080,7 +1127,7 @@ fn policy_judge(d: &Decoder, at: u32) -> Result<c::PolicyJudge, Error> {
             .or(Err(error(b"policy_judge_parameters", b"integer bound")))?,
     })
 }
-fn policy_guard(d: &Decoder, at: u32) -> Result<c::PolicyGuard, Error> {
+fn policy_guard(d: &Decoder<'_>, at: u32) -> Result<c::PolicyGuard, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"guarded" => Ok(c::PolicyGuard::Guarded),
@@ -1099,7 +1146,7 @@ fn policy_guard(d: &Decoder, at: u32) -> Result<c::PolicyGuard, Error> {
     }
     Err(error(b"policy_guard", b"unknown variant"))
 }
-fn owner_part_kind(d: &Decoder, at: u32) -> Result<c::PartKind, Error> {
+fn owner_part_kind(d: &Decoder<'_>, at: u32) -> Result<c::PartKind, Error> {
     if d.kind(at)? == Kind::String {
         return match d.string(at)? {
             b"resource" => Ok(c::PartKind::Resource),
@@ -1114,7 +1161,7 @@ fn owner_part_kind(d: &Decoder, at: u32) -> Result<c::PartKind, Error> {
     }
     Err(error(b"owner_part_kind", b"expected word"))
 }
-fn owner_part_key(d: &Decoder, at: u32) -> Result<c::PartKey, Error> {
+fn owner_part_key(d: &Decoder<'_>, at: u32) -> Result<c::PartKey, Error> {
     let fields = d.object(at, &[b"path", b"number"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_part_key", b"one variant required"));
@@ -1136,14 +1183,14 @@ fn owner_part_key(d: &Decoder, at: u32) -> Result<c::PartKey, Error> {
     }
     Err(error(b"owner_part_key", b"unknown variant"))
 }
-fn field_rule(d: &Decoder, at: u32) -> Result<c::FieldRule, Error> {
+fn field_rule(d: &Decoder<'_>, at: u32) -> Result<c::FieldRule, Error> {
     let fields = d.object(at, &[b"name", b"max"])?;
     Ok(c::FieldRule {
         name: d.hex(field(&fields, b"name")?, d.limits.field_rule_name, b"field_rule_name")?,
         max: u32::try_from(d.number(field(&fields, b"max")?)?).or(Err(error(b"field_rule_max", b"integer bound")))?,
     })
 }
-fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::AuthorityExecutor, Error> {
+fn owner_authority_executor(d: &Decoder<'_>, at: u32) -> Result<c::AuthorityExecutor, Error> {
     let fields = d.object(at, &[b"charter", b"procedure", b"role", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_authority_executor", b"one variant required"));
@@ -1170,7 +1217,7 @@ fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::AuthorityExecutor
     }
     Err(error(b"owner_authority_executor", b"unknown variant"))
 }
-fn owner_pattern_end(d: &Decoder, at: u32) -> Result<c::PatternEnd, Error> {
+fn owner_pattern_end(d: &Decoder<'_>, at: u32) -> Result<c::PatternEnd, Error> {
     let fields = d.object(at, &[b"exact", b"open"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_pattern_end", b"one variant required"));
@@ -1184,7 +1231,7 @@ fn owner_pattern_end(d: &Decoder, at: u32) -> Result<c::PatternEnd, Error> {
     Err(error(b"owner_pattern_end", b"unknown variant"))
 }
 
-pub(super) fn catalogue(d: &Decoder, at: u32) -> Result<c::CatalogueEntry, Error> {
+pub(super) fn catalogue(d: &Decoder<'_>, at: u32) -> Result<c::CatalogueEntry, Error> {
     let fields = d.object(
         at,
         &[b"number", b"model", b"shown", b"description", b"picker", b"withdrawn", b"source", b"estimated"],
@@ -1206,7 +1253,12 @@ pub(super) fn catalogue(d: &Decoder, at: u32) -> Result<c::CatalogueEntry, Error
         estimated: d.boolean(field(&fields, b"estimated")?)?,
     })
 }
-fn catalogue_text(d: &Decoder, fields: &super::Fields, member: &[u8], bound: u32) -> Result<Option<c::Text>, Error> {
+fn catalogue_text(
+    d: &Decoder<'_>,
+    fields: &super::Fields,
+    member: &[u8],
+    bound: u32,
+) -> Result<Option<c::Text>, Error> {
     let at = field(fields, member)?;
     if d.kind(at)? == Kind::Null { Ok(None) } else { Ok(Some(d.words(at, bound, member)?)) }
 }

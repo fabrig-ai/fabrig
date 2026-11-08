@@ -147,6 +147,7 @@ impl ClientPeer {
             core::Now::Link(_)
             | core::Now::EffectAnswer { .. }
             | core::Now::TaskRead { .. }
+            | core::Now::ProposalRead { .. }
             | core::Now::SettingsAnswer { .. }
             | core::Now::SettledCallRefused { .. }
             | core::Now::Call { .. }

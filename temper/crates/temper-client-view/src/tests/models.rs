@@ -187,8 +187,8 @@ fn a_row_says_name_effort_and_the_default() {
             ]
         };
         assert_eq!(words, expected);
-        let id = named(tree, "Configure temper.").id;
-        assert_eq!(crate::href(&mut view, id).unwrap().as_ref(), b"/projects/1/settings/configure");
+        let id = named(tree, "ask temper.").id;
+        assert_eq!(crate::href(&mut view, id).unwrap().as_ref(), b"/projects/1/ask");
     }
 }
 #[test]

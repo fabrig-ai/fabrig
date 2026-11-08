@@ -5,6 +5,7 @@
 # Smith's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Skein's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Jig's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
+# Temper's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
 
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
@@ -29,6 +30,9 @@ cpu_suite_s = 30
 cpu_suite_s = 120
 
 [gate.jig.fuzzy]
+cpu_suite_s = 120
+
+[gate.temper.fuzzy]
 cpu_suite_s = 120
 
 [browser-skein]

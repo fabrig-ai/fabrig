@@ -271,12 +271,21 @@ impl Backend {
             Box::default()
         };
         let root = self.settings.workspace.or(self.settings.directory)?;
-        let directory = if self.settings.workspace.is_some() { Box::default() } else { self.run_relative() };
+        let directory = if self.settings.workspace.is_some() {
+            Box::default()
+        } else {
+            skein_lib::bytes::concat(&[&self.run_relative(), b"/work"])
+        };
         let configuration = configuration_directory(&self.settings.program, &self.grant.as_ref()?.source).ok()?;
         let instructions = self.run_path(b"instructions.md");
         let mcp_file = self.run_path(b"mcp.json");
         let mut arguments = if super::compact::is_compaction(prompt) {
-            super::compact::arguments(prompt, &instructions, &self.startup.session())?
+            super::compact::arguments(
+                prompt,
+                &instructions,
+                &self.startup.session(),
+                self.settings.workspace.is_none(),
+            )?
         } else {
             arguments(
                 &prompt.model,
@@ -287,6 +296,7 @@ impl Backend {
                 self.settings.max_turns,
                 &self.startup.session(),
                 &super::policy::tools_flag(prompt.tools),
+                self.settings.workspace.is_none(),
             )?
         };
         if self.startup.resuming() {
@@ -328,6 +338,7 @@ pub(super) fn arguments(
     max_turns: u32,
     session: &[u8],
     tools: &[u8],
+    no_workspace: bool,
 ) -> Option<Box<[Box<[u8]>]>> {
     let turns = Decimal::of(u64::from(max_turns));
     let mut arguments = List::with_capacity(36);
@@ -351,16 +362,18 @@ pub(super) fn arguments(
         arguments.push(Box::from(effort)).ok()?;
     }
     let permission = skein_lib::bytes::concat(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
+    let prompt_flag: &[u8] = if no_workspace { b"--system-prompt-file" } else { b"--append-system-prompt-file" };
+    for argument in [prompt_flag, instructions, b"--mcp-config", mcp_file, b"--strict-mcp-config"] {
+        arguments.push(Box::from(argument)).ok()?;
+    }
+    if no_workspace {
+        arguments.push(Box::from(b"--disable-slash-commands".as_slice())).ok()?;
+    }
     for argument in [
-        b"--append-system-prompt-file".as_slice(),
-        instructions,
-        b"--mcp-config",
-        mcp_file,
-        b"--strict-mcp-config",
-        b"--permission-prompt-tool",
+        b"--permission-prompt-tool".as_slice(),
         permission.as_ref(),
         b"--tools",
-        tools,
+        if no_workspace { b"" } else { tools },
         b"--max-turns",
         turns.as_bytes(),
         b"--session-id",

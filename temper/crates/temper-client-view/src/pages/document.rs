@@ -228,10 +228,10 @@ fn proposal_line(b: &mut Builder, chat: &Chat, words: &Words, times: &mut Times)
 
 /// Successful writes leave the ordinary tool disclosure.
 pub(crate) fn write(call: &c::Call) -> Option<NoteWrite> {
-    if call.failed || call.tool.bytes() != b"note" {
+    if call.failed || !document::writes(call.tool.bytes()) {
         return None;
     }
-    document::note_write(call.outcome.as_ref()?.bytes())
+    document::tool_write(call.tool.bytes(), call.outcome.as_ref()?.bytes())
 }
 
 pub(crate) fn tool_line(b: &mut Builder, call: &c::Call, chat: Option<&Chat>, words: &Words, bindings: &mut Bindings) {

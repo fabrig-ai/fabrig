@@ -1192,14 +1192,14 @@ fn configuring_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
                 let tree = b.finish();
                 let top = style_index(&tree, look::CHATS_TOP);
                 let top_text = fixtures::node_text(&tree, top);
-                assert_eq!(skein_lib::bytes::find(&top_text, "T9 · Configuring".as_bytes()).is_some(), tagged);
+                assert_eq!(skein_lib::bytes::find(&top_text, "T9 · Ask temper".as_bytes()).is_some(), tagged);
                 assert_eq!(tree.nodes()[top].role, Role::Slot);
                 let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
                 skein_ui_text::render(&tree, b"temper", None, &mut print);
-                assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Configuring").is_some(), tagged);
+                assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Ask temper").is_some(), tagged);
                 if tagged && words.shell == crate::words::Shell::Terminal {
                     assert!(
-                        skein_lib::bytes::find(print.text.as_slice(), "[1] T9 · Configuring\n".as_bytes()).is_some()
+                        skein_lib::bytes::find(print.text.as_slice(), "[1] T9 · Ask temper\n".as_bytes()).is_some()
                     );
                 }
                 assert!(skein_lib::bytes::find(print.text.as_slice(), b"A renamed role").is_none());
@@ -1507,7 +1507,7 @@ fn a_configuring_chat_keeps_its_tag() {
                 let text = fixtures::node_text(view.tree(), index);
                 if skein_lib::bytes::find(&text, b"T9").is_some() {
                     assert!(
-                        skein_lib::bytes::find(&text, "T9 · Configuring · writes away-mode.md".as_bytes()).is_some()
+                        skein_lib::bytes::find(&text, "T9 · Ask temper · writes away-mode.md".as_bytes()).is_some()
                     );
                     found = true;
                 }

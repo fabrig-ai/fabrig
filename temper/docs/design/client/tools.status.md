@@ -130,5 +130,4 @@ unknown-proposal explanation; the generated help states the same limit.
   `task amend` prints `task amend 41 --key KEY`, where that request has the act
   and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
-  authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
-  not in the table.
+  authority's entries are 14 (`limits.rs`).

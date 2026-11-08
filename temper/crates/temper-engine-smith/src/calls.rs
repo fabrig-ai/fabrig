@@ -152,9 +152,30 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
+const SEE: Spec = Spec {
+    name: b"see",
+    description: b"Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.",
+    schema: br#"{"type":"object","additionalProperties":false,"required":["address"],"properties":{"address":{"type":"string","description":"One line, as your instructions list addresses: settings charter 3, help, more TOKEN."}}}"#,
+    effect: run::HostEffect::Read,
+};
+
+const DOCUMENT: Spec = Spec {
+    name: b"document",
+    description: b"Keep this chat's one document: write it whole first, its first line # TITLE; then append a section, or replace the one under the same ## heading.",
+    schema: br#"{"type":"object","additionalProperties":false,"required":["action","body"],"properties":{"action":{"enum":["write","append","replace"],"description":"write: the whole document; append: a section at its end; replace: the section under body's first ## heading."},"body":{"type":"string","description":"Markdown: the whole document, or one section beginning with its ## heading."}}}"#,
+    effect: run::HostEffect::Write,
+};
+
+const ASK_PROPOSE_SETTINGS: Spec = Spec {
+    name: b"propose_settings",
+    description: b"Propose whole settings against the newest revision you read; an owner decides, and nothing changes until then. A large set goes in parts.",
+    schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","project-policy","project-ways","project-questions"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Required for project settings; optional for landing-rule (the deployment's when absent)."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole value as a settings file holds it; forge-charter takes a number; a document's repository is OWNER/NAME."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting, in this call's part."},"more":{"type":"boolean","description":"true: hold these items for the next call; the call without it proposes them all."}},"required":["against","reason","items"]}"#,
+    effect: run::HostEffect::Write,
+};
+
 const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; run: your own run branch, what you delivered, landed as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#, effect: run::HostEffect::Write };
 
-pub(crate) const SPECS: [Spec; 41] = [
+pub(crate) const SPECS: [Spec; 43] = [
     Spec { name: b"decided", description: b"Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","description":"The question, at most 400 bytes."},"options":{"type":"array","minItems":2,"maxItems":6,"items":{"type":"string"},"description":"Two to six options, each at most 120 bytes."},"took":{"type":"integer","minimum":0,"maximum":5,"description":"The chosen option's index, starting at zero."},"why":{"type":"string","description":"Why you chose it, at most 400 bytes."},"kind":{"type":"string","enum":["implementation","retry","wording","dependency","other"]}},"required":["question","options","took","why","kind"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"goal", description: b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#, effect: run::HostEffect::Write },
@@ -209,27 +230,44 @@ pub(crate) const SPECS: [Spec; 41] = [
     COLLABORATORS_SPEC,
     PERMISSION_SPEC,
     Spec { name: b"read_docs", description: b"Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.", schema: br#"{"type":"object","properties":{"topic":{"type":"string","description":"A page's name, such as index."},"from":{"type":"integer","description":"The offset to read from, as next: gave it; 0 when absent.","minimum":0},"search":{"type":"string","description":"The words a section must hold, every one: at most 8."}}}"#, effect: run::HostEffect::Read },
+    SEE,
+    DOCUMENT,
 ];
 
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, tasks::Tools(u64::MAX))
+    offered_tools(timeout, tasks::Tools(u64::MAX), true)
 }
 
+/// An asking charter offers its own tools alone, gated by authority.
 /// Settings declarations require the charter's and the run's settings family.
 /// Message, task-read and plan declarations require their run families.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
+    if engine::asking(charter) {
+        let mut tools = List::with_capacity(3);
+        for spec in [SEE, DOCUMENT, ASK_PROPOSE_SETTINGS] {
+            let allowed = if spec.name == b"propose_settings" {
+                charter.0 & authority.0 & families.settings != 0
+            } else {
+                authority.0 & families.ask.0 != 0
+            };
+            if allowed {
+                tools.push(declaration(spec, timeout)).expect("three asking declarations");
+            }
+        }
+        return tools.into_boxed();
+    }
     let mut offered = authority;
     if charter.0 & families.settings == 0 {
         offered.0 &= !families.settings;
     }
-    offered_tools(timeout, offered)
+    offered_tools(timeout, offered, false)
 }
 
-fn offered_tools(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     let settings = authority.0 & families.settings != 0;
     let message = authority.0 & families.message.0 != 0;
@@ -238,24 +276,27 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTo
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
-        if (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
+        if (!full && (spec.name == b"see" || spec.name == b"document"))
+            || (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
             || (!message && spec.name == b"message")
             || (!read && spec.name == b"read_task")
         {
             continue;
         }
-        tools
-            .push(run::HostTool {
-                reserve: false,
-                name: bytes::copy_of(spec.name),
-                description: bytes::copy_of(spec.description),
-                schema: bytes::copy_of(spec.schema),
-                effect: spec.effect,
-                timeout,
-            })
-            .expect("fixed tool list");
+        tools.push(declaration(spec, timeout)).expect("fixed tool list");
     }
     tools.into_boxed()
+}
+
+fn declaration(spec: Spec, timeout: Duration) -> run::HostTool {
+    run::HostTool {
+        reserve: false,
+        name: bytes::copy_of(spec.name),
+        description: bytes::copy_of(spec.description),
+        schema: bytes::copy_of(spec.schema),
+        effect: spec.effect,
+        timeout,
+    }
 }
 
 /// Decode an attested Smith host call under one activation-qualified name.
@@ -265,7 +306,6 @@ pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<
 }
 
 /// Decode host calls with execution models and whole catalogue settings.
-#[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
 pub fn call_configured(
     name: run::CallName,
     tool: &[u8],
@@ -273,11 +313,29 @@ pub fn call_configured(
     models: &[engine::Model],
     catalogue: &[jig_domain_core::settings::CatalogueModel],
 ) -> Result<Decoded, Problem> {
+    call_in(name, tool, input, models, catalogue, &[])
+}
+
+/// Decode host calls with the task project's readable repository identities.
+#[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
+pub fn call_in(
+    name: run::CallName,
+    tool: &[u8],
+    input: &run::HostInput,
+    models: &[engine::Model],
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
+    repositories: &[engine::RepositoryIdentity],
+) -> Result<Decoded, Problem> {
     if tool == b"propose_settings" {
-        return crate::settings::proposal(name, input.bytes(), catalogue);
+        return crate::settings::proposal(name, input.bytes(), catalogue, repositories);
     }
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
+        b"see" => match crate::see::decode(&value)? {
+            Ok(tool) => tool,
+            Err(answer) => return Ok(Decoded::Answered(answer)),
+        },
+        b"document" => crate::document::decode(&value)?,
         b"read_task" => task_read(&value)?,
         b"settings" => crate::settings::read(&value, input.bytes())?,
         b"read_docs" => {

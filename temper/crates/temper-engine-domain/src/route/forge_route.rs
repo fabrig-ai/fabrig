@@ -1756,7 +1756,12 @@ pub(crate) fn run_workspace(
     let root = domain.core.tasks.root(context.task)?;
     let modify = match context.executor {
         tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
-            Some(charter) => charter.policy.modify,
+            Some(charter) => {
+                if crate::asking(charter.policy.tools) {
+                    return Some(status_route::workspace(context.task));
+                }
+                charter.policy.modify
+            }
             None => false,
         },
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,

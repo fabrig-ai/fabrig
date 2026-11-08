@@ -15,7 +15,7 @@ pub(super) fn world(name: &str) -> Domain {
     let address = if name.starts_with("chat-started-") || name == "chat-model-fixed" {
         Address::Chat { task: 1 }
     } else if name == "configure-model-open" {
-        Address::Configure { project: PROJECT }
+        Address::Ask { project: PROJECT }
     } else {
         Address::NewChat { draft: false }
     };
@@ -88,7 +88,7 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
     }
     member.defaults = List::from_boxed(Box::new([
         c::MeDefault { template: 1, choice: chosen() },
-        c::MeDefault { template: 3, choice: chosen() },
+        c::MeDefault { template: 5, choice: chosen() },
     ]));
     let sample = super::frame(World::Solo, false, false)
         .projects

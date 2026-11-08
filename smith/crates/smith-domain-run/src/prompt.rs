@@ -526,10 +526,12 @@ fn render_system(
     for guide in &found.guides {
         render_guide(text, repositories, guide, conventions::guide(charter));
     }
-    render_tools(text, families.tools);
-    text.put(b"\n");
-    render_checkout(text, repositories, found.checks.as_slice(), conventions::checks(charter));
-    text.put(b"\n");
+    if mounted.is_some() {
+        render_tools(text, families.tools);
+        text.put(b"\n");
+        render_checkout(text, repositories, found.checks.as_slice(), conventions::checks(charter));
+        text.put(b"\n");
+    }
     if families.agents {
         render_agents(text, &charter.models);
         text.put(b"\n");
@@ -978,11 +980,15 @@ mod tests {
             },
             ..charter()
         };
-        let rendered = system(&charter, None, &Found::with_capacity(0), charter.budget, false);
-        let rendered = text(&rendered);
-        assert!(rendered.contains("There is no checkout."));
-        assert!(rendered.contains("Report: text up to 16 bytes, with these host-required fields:\n(none)"));
-        assert!(!rendered.contains("Change:") && !rendered.contains("Verdict:"));
+        for mounted in [None, Some(workspace())] {
+            let rendered = system(&charter, mounted.as_ref(), &Found::with_capacity(0), charter.budget, false);
+            let rendered = text(&rendered);
+            for heading in ["## Tools", "## Checkout"] {
+                assert_eq!(rendered.contains(heading), mounted.is_some(), "{heading}");
+            }
+            assert!(rendered.contains("Report: text up to 16 bytes, with these host-required fields:\n(none)"));
+            assert!(!rendered.contains("Change:") && !rendered.contains("Verdict:"));
+        }
     }
 
     #[test]
@@ -1102,7 +1108,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
             ..charter()
         };
         let main = system(&selected, None, &Found::with_capacity(0), selected.budget, false);
-        let prefix = b"literal role\n\n## Repeated\n\nparent first body\n\n## \n\n\n\n## Repeated\n\nparent last body\n\n## Tools\n\n";
+        let prefix = b"literal role\n\n## Repeated\n\nparent first body\n\n## \n\n\n\n## Repeated\n\nparent last body\n\nCall `wait`";
         assert!(main.starts_with(prefix), "host bytes and exact paragraph delimiters: {}", text(&main));
         let child = child(
             &selected,
@@ -1113,7 +1119,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
             share(1_999_000_000),
             8192,
         );
-        assert!(child.starts_with(b"own task\n\n## Tools\n\n"));
+        assert!(child.starts_with(b"own task\n\n## Answering\n\n"));
         for inherited in [b"literal role".as_slice(), b"Repeated", b"parent first body", b"parent last body"] {
             assert!(skein_lib::bytes::find(&child, inherited).is_none(), "child scope excludes parent text");
         }
@@ -1123,16 +1129,30 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
     fn empty_role_and_brief_emit_no_prefix_but_empty_sections_are_still_rendered() {
         let selected =
             Charter { instructions: Box::new([]), brief: crate::Brief { sections: Box::new([]) }, ..charter() };
-        assert!(system(&selected, None, &Found::with_capacity(0), selected.budget, false).starts_with(b"## Tools\n\n"));
+        for mounted in [None, Some(workspace())] {
+            let rendered = system(&selected, mounted.as_ref(), &Found::with_capacity(0), selected.budget, false);
+            let first = if mounted.is_some() { b"## Tools\n\n".as_slice() } else { super::WAIT };
+            assert!(rendered.starts_with(first));
+            for heading in ["## Tools", "## Checkout"] {
+                assert_eq!(text(&rendered).contains(heading), mounted.is_some(), "{heading}");
+            }
+        }
         let selected = Charter {
             instructions: bytes(b"role without LF"),
             brief: crate::Brief { sections: Box::new([crate::Section { title: Box::new([]), text: Box::new([]) }]) },
             ..selected
         };
-        assert!(
-            system(&selected, None, &Found::with_capacity(0), selected.budget, false)
-                .starts_with(b"role without LF\n\n## \n\n\n\n## Tools\n\n")
-        );
+        for mounted in [None, Some(workspace())] {
+            let rendered = system(&selected, mounted.as_ref(), &Found::with_capacity(0), selected.budget, false);
+            let prefix = b"role without LF\n\n## \n\n\n\n";
+            assert!(rendered.starts_with(prefix));
+            let mechanics = rendered.get(prefix.len()..).expect("prefix precedes mechanics");
+            let first = if mounted.is_some() { b"## Tools\n\n".as_slice() } else { super::WAIT };
+            assert!(mechanics.starts_with(first));
+            for heading in ["## Tools", "## Checkout"] {
+                assert_eq!(text(&rendered).contains(heading), mounted.is_some(), "{heading}");
+            }
+        }
     }
 
     #[test]

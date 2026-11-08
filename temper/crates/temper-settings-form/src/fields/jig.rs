@@ -213,7 +213,7 @@ pub static FIELDS: [Field; 213] = [
         null: false,
         line: b"The longest one of the run's calls to temper's tools may take.",
     },
-    Field { shape: Shape::Charter, name: b"tools", value: Value::Integer(Width::U64), list: None, null: false, line: b"The host families its runs are offered, a bit each as an authority's `tools` has them; a family it or its task's authority leaves out is not offered, and temper offers by it the settings family's tools (1024) alone; 1023, every family but settings, when left out." },
+    Field { shape: Shape::Charter, name: b"tools", value: Value::Integer(Width::U64), list: None, null: false, line: b"Host families offered where both charter and task allow them. Asking (2048) alone or with settings (1024) declares only see, document and, with settings, propose_settings; other charters get settings tools by 1024. Default 1023: every family but settings and asking." },
     Field {
         shape: Shape::Charter,
         name: b"hosts",
@@ -981,7 +981,7 @@ pub static FIELDS: [Field; 213] = [
         value: Value::Integer(Width::U64),
         list: None,
         null: false,
-        line: b"The engine's tool families its runs may call, a bit each: 1 delegate, 2 message, 4 amend, cancel and release, 8 decide and withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 the forge's reads, 1024 settings.",
+        line: b"The engine's tool families its runs may call, a bit each: 1 delegate, 2 message, 4 amend, cancel and release, 8 decide and withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 the forge's reads, 1024 settings, 2048 asking.",
     },
     Field {
         shape: Shape::Authority,

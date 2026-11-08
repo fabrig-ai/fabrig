@@ -155,6 +155,8 @@ both do. `--until changed` returns at the subject's next change.
 
 `temper help configuration`: what needs a restart.
 
+- ctl receives up to nine project memberships, covering Small and Standard
+  deployments. Its document limit remains 1 MiB.
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
 - The link's deadline is 30 seconds: no engine answer by then fails
   the call (exit 1), and its line says what it waited for: the link,

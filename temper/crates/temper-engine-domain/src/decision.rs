@@ -811,6 +811,19 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
         // The core admits these with the same document bounds as Delivery::Read.
         // Their held-output payload is priced by core reads::answer_bound.
         crate::HostDelivery::Settings { .. } => true,
+        crate::HostDelivery::See { answer, .. } => match answer.as_ref() {
+            crate::SeeAnswer::Call { answer, .. } => {
+                bytes_within(crate::store::call_answer_bytes(answer), limits.transcript_bytes)
+            }
+            crate::SeeAnswer::Settings(_)
+            | crate::SeeAnswer::Page { .. }
+            | crate::SeeAnswer::Search { .. }
+            | crate::SeeAnswer::Landing(_)
+            | crate::SeeAnswer::Gates(_)
+            | crate::SeeAnswer::Proposal(_)
+            | crate::SeeAnswer::NotYet
+            | crate::SeeAnswer::Unknown => true,
+        },
         crate::HostDelivery::Render { name, tool, answer, .. } => {
             !name.is_empty()
                 && length_within(name.len().checked_add(tool.len()), limits.transcript_bytes)

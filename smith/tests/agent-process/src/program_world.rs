@@ -915,7 +915,7 @@ fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_c
 fn redacted_invocations(bytes: &[u8]) -> Vec<smith_fake_claude::Observation> {
     let mut invocations = smith_fake_claude::observations(bytes);
     for invocation in &mut invocations {
-        for argument in &mut invocation.arguments {
+        for argument in invocation.arguments.iter_mut().chain(std::iter::once(&mut invocation.directory)) {
             if let Some(start) = argument.find("/.runs/") {
                 let after = start + "/.runs/".len();
                 if let Some(end) = argument[after..].find('/') {

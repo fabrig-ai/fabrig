@@ -8,16 +8,18 @@ pub mod file;
 mod json;
 mod kinds;
 pub mod page;
+pub mod proposal;
 pub mod render;
 mod text;
 pub mod values;
 pub mod view;
 pub mod wire;
 use alloc::boxed::Box;
+pub use proposal::{ended_proposal_text, proposal_text};
 use skein_json::writer::Encoder;
 pub use text::{Text, text_end};
 
-/// Every jig family but settings: a charter's `tools` when its file leaves it out.
+/// Every jig family but settings and asking: a charter's `tools` when its file leaves it out.
 pub const CHARTER_TOOLS_DEFAULT: u64 = 1023;
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {

@@ -116,6 +116,7 @@ fn init(tools: &[&str], granted: bool) -> (Backend, Queue<ToDomain>) {
 
 fn init_contract(tools: &[&str], granted: bool, contract: bool) -> (Backend, Queue<ToDomain>) {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+    backend.settings.workspace = Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) });
     if let Some(Complete { prompt, .. }) = backend.current.request_mut() {
         prompt.tools.inspect = granted;
         if contract {
