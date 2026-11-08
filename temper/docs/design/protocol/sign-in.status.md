@@ -39,14 +39,14 @@ combined default-box proof remain unverified as recorded in
   busy page without an authorize HTTP request. The successful fresh-profile
   pairs do not settle that admission/loss path; its cause is unknown
   (`temper/docs/development/ui-repo-link-review.md`).
-  The cross-site restart story's red-71 is also unresolved: it passes
-  alone but fails after earlier stories in the same browser binary,
-  as the browser tier's logs at `0c00e03c9d` and `bf198e50bb` show
-  (11.9 s into the suite; 2.2 s alone). The landed `ui-authorize-red`
-  result is not reproduced, with no product, fixture or story change. Its two isolated passes
-  establish neither the suite-order cause nor a repair. The request's
-  cause and fix remain outstanding; whether this is the same path as
-  the exploratory failure is unknown.
+  The cross-site restart failure is transport admission loss: cancelled watch
+  exchanges and cleanup calls still occupied the browser's fetch table after
+  the client stopped counting them. The unsent authorization became `Lost`,
+  which draws the same busy page. `jig-client-protocol-link` now counts every
+  emitted HTTP exchange until its reply or failure; the client's existing
+  authorization wait therefore waits for transport credit. This also explains
+  how that busy page can appear without an authorize HTTP request; the
+  exploratory runs did not trace their failed exchange's source.
 - **Design departs:** 9.9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page

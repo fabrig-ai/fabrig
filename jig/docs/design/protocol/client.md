@@ -210,6 +210,13 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   turn crosses beside the line's references: its bytes; its size, where
   the turn alone passes the read's byte bound; or unread (`store.md`,
   7.3).
+- **An invalid run end carries its cause.** `RunEndFailed.invalid_reason`
+  is present only for the invalid failure class. It names the saved
+  contract-result kind: form, verdict, words, change or followups
+  (`../domain/tasks.md`, 5.6). With no saved kind it says unreadable
+  result, for an adapter's decode or translation failure. Every other
+  class omits it. This is the ended attempt's immutable fact, not the
+  task's current retry context. Wire 19 changes in place under section 9.
 - **No time crosses, only walls.** Documents carry wall times, which the
   store keeps (`../client/domain/contract.md`, 5.3); durations (a
   retention, a heartbeat, a grace, a deadline a request gives as a span,

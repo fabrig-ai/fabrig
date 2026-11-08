@@ -1,5 +1,5 @@
 //! Durable task values translated exhaustively (protocol/store.md, 5.1).
-use super::{proposals, value};
+use super::{proposals, state, value};
 use crate::tasks_v9 as wire;
 use jig_domain_tasks as domain;
 use skein_lib::Wall;
@@ -300,9 +300,16 @@ pub fn end_kind(source: &domain::EndKind, limits: &wire::Limits) -> Result<wire:
         domain::EndKind::Parked => wire::EndKind::Parked,
         domain::EndKind::Finished => wire::EndKind::Finished,
         domain::EndKind::Cancelled => wire::EndKind::Cancelled,
-        domain::EndKind::Failed { class } => {
-            wire::EndKind::Failed(wire::FailedEnd::new(limits, wire::FailedEndParts { class: value::class(*class) })?)
-        }
+        domain::EndKind::Failed { class, invalid_result } => wire::EndKind::Failed(wire::FailedEnd::new(
+            limits,
+            wire::FailedEndParts {
+                class: value::class(*class),
+                invalid_result: match invalid_result {
+                    Some(reason) => Some(state::invalid_result(*reason)),
+                    None => None,
+                },
+            },
+        )?),
         domain::EndKind::Refused => wire::EndKind::Refused,
     })
 }
@@ -313,8 +320,14 @@ pub fn read_end_kind(source: wire::EndKind) -> Result<domain::EndKind, wire::Pro
         wire::EndKind::Finished => domain::EndKind::Finished,
         wire::EndKind::Cancelled => domain::EndKind::Cancelled,
         wire::EndKind::Failed(source) => {
-            let wire::FailedEndParts { class } = source.into_parts();
-            domain::EndKind::Failed { class: value::read_class(class) }
+            let wire::FailedEndParts { class, invalid_result } = source.into_parts();
+            domain::EndKind::Failed {
+                class: value::read_class(class),
+                invalid_result: match invalid_result {
+                    Some(reason) => Some(state::read_invalid_result(reason)),
+                    None => None,
+                },
+            }
         }
         wire::EndKind::Refused => domain::EndKind::Refused,
     })

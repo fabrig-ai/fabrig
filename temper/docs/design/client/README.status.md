@@ -2,6 +2,10 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Section 5.9's run-ended activity line names the invalid contract kind or
+says its result could not be read. The view's renderer table distinguishes
+these endings. No known gap remains in this line.
+
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
