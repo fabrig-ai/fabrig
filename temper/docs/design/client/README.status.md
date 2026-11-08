@@ -2,14 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Away*; 5.13, *While you're away, agents may decide*,
-  *What the client holds*, *Its acts* and *The card in a chat*'s kind 8; 5.8,
-  *How it runs*; 5.14, "When it needs you": the client reads no kind 8, the
-  switch shows by a goal or kind 7's `away`, Settings' section draws no
-  table, a proposal's kind 8 item reads as `temper ctl` names it, and a
-  goal's asking choice is worded as the Away switch's.
-  `ui-reaches/away-client`.
-
 - **Not yet:** 3.5, *Needs you*, *Why it reached you*, and *A card that
   needs the person*; 5.13, kind 8 of the shown card's project: no need says
   why it reached the person, and no card waits for its project's `decided`
@@ -934,10 +926,6 @@ read's head explicit.
     again" first: a refused message leaves the row marked, and its task won't ask.
   - 3.5: Home's away form is not drawn while To begin shows, where the request has
     it with any row showing.
-  - 5.8: "follows the away switch" stands on every goal whose words hold no line
-    `Asks: always`, where the request has it where its requester has a switch: no
-    read says that, and a requester with none has its goal told to ask
-    (`../domain/forge.md`, 5.9) under those words.
   - 5.13: the tab's "Away switch" row says "Hidden" with kind 7's `away` false, and
     a project with a goal, or the party's row on, shows the switch all the same,
     since the request has any of the three show it.
