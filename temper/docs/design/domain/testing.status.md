@@ -241,6 +241,14 @@ the fake's own process story.
   B1's are still the real loop's own fixtures
   (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.4: B2's twin
   (`../../development/acceptance.md`, section 8).
+  2.6, 5.3: the cluster's 4.6 process story is ignored: its fixture
+  expects `engine.llm.models` in the startup configuration, which holds
+  no model since models became settings (`../protocol/configuration.md`,
+  section 2), so the story has not run since ws says it drains, and jig's
+  hub, translation and fleet tests alone hold the drain (jig's
+  `domain/engine.status.md`, its 8), where the request `ignored-misc` of
+  2026-11-08 asked that it run by name and pass, a test whose design has
+  moved being rewritten to it.
   2.6: the
   playground's stories, in and out and a reset the box's death cut, and
   GitHub gone on after a restart, as `../protocol/setup.status.md` records

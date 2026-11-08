@@ -62,9 +62,7 @@
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
     left off and Needs you are the project's until Home reads every
     project (3). No design holds 11.2's design session, the drafter in
-    the terminal or the side pane, or 11.3's talking with a role. The
-    drafter and its session on the web are `../domain/agent.md`, 8.5,
-    and `../client/README.md`, 3.5.
+    the terminal or the side pane, or 11.3's talking with a role.
   - 12: `../client/README.md`, 3.5, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as
@@ -89,9 +87,25 @@
     none of Team, Tell temper or the phone's tabs at 390 pixels is held,
     and `../client/journeys.md` records none of this section's four
     journeys.
+- **Design departs:**
+  - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
+    ends each chat's row with "/chats N", N its place, which `/chats N`
+    opens, where the mockups draw "/chats" once, on the first row, and
+    number no row. Decided by the cut of `tui-whole-t1`, from 15's
+    default, a list numbered as the launchpad numbers it; the mockups
+    win (13), so a look request or T2 draws the rows as they do.
+  - 11.1 and 13: `../client/README.md`, 6.14, draws a need's row as
+    Home's line alone (*Needs you*), with no asker or age, where the Pair
+    mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
+    by the change 20 min ago"; and a left-off row's time today as the
+    view's clock, "18:40", where it has "today 18:40". Decided by the cut
+    of `tui-whole-t1`, whose list of the launchpad's departures from its
+    mockups names neither. The code also lacks the blank row under the
+    header that the mockups and the design draw
+    (`../client/README.status.md`, 6.14).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
-    design takes the default, `/chats N` (`../client/README.md`, 6.14).
+    design takes `/chats N` (above).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
     `../client/README.md`, 3.5, *Needs you*, takes the default: the list,
     one at a time on a phone.
