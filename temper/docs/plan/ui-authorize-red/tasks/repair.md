@@ -117,3 +117,7 @@ Follow the implementer's text. Also give:
 - the focused test you added, the rule you broke by hand, and the failure you saw;
 - every file you changed outside `files`, and why;
 - what you ruled out.
+
+## Answers
+
+2026-11-08 (temper/ui). Added before this task's run, from agents/loop's read of the logs: this story fails only in the full browser suite. At 0c00e03c9d, browser-temper.log fails it after 11.9 s in the suite, and browser-temper-1.log, its rerun alone, passes in 2.2 s. The same holds at bf198e50bb. So the failure depends on what ran before it in the same browser_all binary, not on the clock alone. Run alone, the story will pass, and that proves nothing. Read both full-suite logs for the tests that ran before it in that binary, and what each leaves behind: a shared browser profile, cookies, a sign-in in flight, a rate or attempt limit ("couldn't sign you in just now"), a port, a store. Don't run the suite. Reproduce it with a failing variant of this story: run it by name, alone, with the state the earlier test leaves recreated in its own setup. Then make the story independent of order at its lowest place. That's the shared fixture's reset, or the product's limit if a person could meet it too, under a failing focused test first. Say in the report which test left what.
