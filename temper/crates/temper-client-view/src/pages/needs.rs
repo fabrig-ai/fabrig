@@ -66,7 +66,15 @@ pub(crate) fn main(
             crate::link(
                 b,
                 &w.say(Word::RailHome, &[]),
-                bindings.insert(Act::Go { address: Address::Home { project } }),
+                bindings.insert(Act::Go {
+                    address: if let Some(me) = root.pages().me(root.client())
+                        && me.projects.len() >= 2
+                    {
+                        Address::AllHome
+                    } else {
+                        Address::Home { project }
+                    },
+                }),
             );
             b.style(look::NEEDS_HOME);
             b.text(Run::Plain, &w.say(Word::RailHome, &[]));
@@ -426,7 +434,7 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize) {
     b.close();
 }
 
-fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindings: &mut Bindings) {
+pub(crate) fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindings: &mut Bindings) {
     let card = asked.card;
     if let Some(parsed) = &asked.parsed
         && !parsed.choices.is_empty()

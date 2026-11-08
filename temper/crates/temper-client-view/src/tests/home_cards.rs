@@ -1,0 +1,215 @@
+//! Home's shared cards (temper/docs/design/client/README.md, 3.5, Home, The cards).
+#![expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "view tables inspect semantic nodes and bindings"
+)]
+use super::fixtures as f;
+use crate::{
+    frame::Bindings,
+    look,
+    words::{Times, Words},
+};
+use jig_client::contract as c;
+use skein_ui::{Builder, Role, Tree};
+use temper_client_domain::{self as d, pages::needs::Need};
+fn draw(root: &d::Domain, needs: &[Need<'_>], across: bool, w: &Words) -> (Tree, Bindings) {
+    let mut b = Builder::new(&f::tree_limits());
+    let mut bindings = Bindings::new(128);
+    b.open(Role::Main);
+    crate::pages::home_cards::cards(&mut b, root, needs, across, w, &mut bindings, &mut Times::new(f::NOW));
+    b.close();
+    (b.finish(), bindings)
+}
+fn control(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
+    let n = tree
+        .nodes()
+        .iter()
+        .find(|n| n.name.as_deref() == Some(name.as_bytes()) && n.binding.is_some())
+        .expect("bound control");
+    bindings.decode(n.binding.unwrap().token, skein_ui::Act::Press).unwrap()
+}
+fn question_card(root: &d::Domain) -> d::pages::inbox::Card {
+    let mut card =
+        root.pages().inbox().unwrap().cards.iter().find(|card| card.group == c::InboxGroup::Questions).unwrap().clone();
+    let question = c::Question {
+        task: f::task::document().chip,
+        from: None,
+        message: f::INBOX_QUESTION,
+        words: c::DocumentText::complete(
+            c::Text::new(
+                b"Hold the suffix?\n\nChoice: Count it\nChoice: Catch up first (recommended)".as_slice().into(),
+                4096,
+            )
+            .unwrap(),
+        ),
+        since: skein_lib::Wall::EPOCH,
+        acts: skein_lib::List::uncapped(),
+        ending: None,
+    };
+    card.page = Some(c::ReadValue::Question(Box::new(question)));
+    card
+}
+#[test]
+fn three_cards_keep_order_project_scope_and_the_remaining_link() {
+    let root = f::inbox_root();
+    let base = question_card(&root);
+    for (count, more) in [(3, None), (4, Some("One more")), (5, Some("2 more"))] {
+        let cards: Vec<_> = (1..=count)
+            .map(|i| {
+                let mut card = base.clone();
+                card.object = c::ObjectKey::Question { task: f::INBOX_TASK, message: i };
+                card
+            })
+            .collect();
+        let needs: Vec<_> = cards.iter().map(Need::Card).collect();
+        for across in [false, true] {
+            for w in [f::words(), f::browser_words()] {
+                let (tree, bindings) = draw(&root, &needs, across, &w);
+                assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::NEED_CARD)).count(), 3);
+                assert_eq!(
+                    tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::CHIP)).count(),
+                    if across { 3 } else { 0 }
+                );
+                let objects: Vec<_> = tree
+                    .nodes()
+                    .iter()
+                    .filter(|n| n.name.as_deref() == Some(b"Tell it something else"))
+                    .map(|n| bindings.decode(n.binding.unwrap().token, skein_ui::Act::Press).unwrap())
+                    .collect();
+                assert_eq!(
+                    objects,
+                    (1..=3)
+                        .map(|message| d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Open {
+                            object: c::ObjectKey::Question { task: f::INBOX_TASK, message }
+                        })))
+                        .collect::<Vec<_>>()
+                );
+                assert_eq!(tree.nodes().iter().any(|n|n.role==Role::Link && n.name.as_deref().is_some_and(|name|name.ends_with(b" more"))),more.is_some());
+                if let Some(more) = more {
+                    assert_eq!(
+                        control(&tree, &bindings, more),
+                        d::Action::Pages(d::pages::Act::Go {
+                            address: d::Address::Inbox {
+                                filter: d::address::Filter {
+                                    project: if across { None } else { root.pages().project() },
+                                    ..d::address::Filter::ALL
+                                }
+                            }
+                        })
+                    );
+                }
+            }
+        }
+    }
+}
+#[test]
+fn a_question_orders_the_primary_choice_before_other_acts() {
+    let root = f::inbox_root();
+    let card = question_card(&root);
+    for w in [f::words(), f::browser_words()] {
+        let (tree, bindings) = draw(&root, &[Need::Card(&card)], true, &w);
+        let buttons: Vec<_> = tree
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Button && !n.styles.as_slice().contains(&look::NEED_MORE))
+            .collect();
+        assert_eq!(
+            buttons.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            vec![b"Catch up first".as_slice(), b"Count it", b"Tell it something else"]
+        );
+        assert!(buttons[0].styles.as_slice().contains(&look::RECOMMENDED));
+        assert_eq!(
+            control(&tree, &bindings, "Catch up first"),
+            d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Choose {
+                object: card.object,
+                words: b"Catch up first".as_slice().into()
+            }))
+        );
+        assert!(f::find(&tree, Role::Paragraph, b"Hold the suffix?").is_some());
+        assert_eq!(f::find(&tree, Role::Button, b"More").is_some(), w.shell == crate::words::Shell::Browser);
+    }
+}
+#[test]
+fn plain_questions_have_a_primary_way_to_tell() {
+    let root = f::inbox_root();
+    let mut card = question_card(&root);
+    if let Some(c::ReadValue::Question(q)) = &mut card.page {
+        q.words = c::DocumentText::complete(c::Text::new(b"No choices here.".as_slice().into(), 64).unwrap());
+    }
+    for w in [f::words(), f::browser_words()] {
+        let (tree, bindings) = draw(&root, &[Need::Card(&card)], false, &w);
+        let tell = tree.nodes().iter().find(|n| n.name.as_deref() == Some(b"Tell it something else")).unwrap();
+        assert!(tell.styles.as_slice().contains(&look::RECOMMENDED));
+        assert_eq!(
+            control(&tree, &bindings, "Tell it something else"),
+            d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Open { object: card.object }))
+        );
+    }
+}
+#[test]
+fn proposals_held_tasks_and_approvals_keep_their_acts() {
+    let mut proposal = super::needs::proposal(c::Proposer::Task(f::INBOX_TASK));
+    proposal.key.number = f::INBOX_QUESTION;
+    let proposal_root = f::inbox_with_document(
+        d::address::Filter::ALL,
+        Some((c::Read::Proposal { proposal: proposal.key }, c::ReadValue::Proposal(Box::new(proposal)))),
+    );
+    let source = f::task::held_root();
+    let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
+    task.chip.task = f::INBOX_TASK;
+    let offers = [c::ActKind::Release, c::ActKind::LeaveHeld]
+        .into_iter()
+        .map(|act| c::Offered { act, admission: c::Admission::Allowed, effect: None })
+        .collect::<Vec<_>>();
+    let held = c::Escalation { task: Box::new(task), acts: skein_lib::List::from_boxed(offers.into_boxed_slice()) };
+    let held_root = f::inbox_with_document(
+        d::address::Filter::ALL,
+        Some((c::Read::Escalation { task: f::INBOX_TASK }, c::ReadValue::Escalation(Box::new(held)))),
+    );
+    let mut funds = held_root
+        .pages()
+        .inbox()
+        .unwrap()
+        .cards
+        .iter()
+        .find(|c| c.group == c::InboxGroup::Escalations)
+        .unwrap()
+        .clone();
+    if let Some(c::ReadValue::Escalation(held)) = &mut funds.page {
+        held.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+        held.task.budget.numbers.spent = 31;
+        held.task.budget.numbers.budget = 40;
+    }
+    for (root, group, expected) in [
+        (&proposal_root, c::InboxGroup::Proposals, ["Accept", "Reject"]),
+        (&held_root, c::InboxGroup::Escalations, ["Release", "Leave held"]),
+    ] {
+        let card = root.pages().inbox().unwrap().cards.iter().find(|c| c.group == group).unwrap();
+        for w in [f::words(), f::browser_words()] {
+            let (tree, _) = draw(root, &[Need::Card(card)], true, &w);
+            for name in expected {
+                assert!(tree.nodes().iter().any(|n| n.name.as_deref() == Some(name.as_bytes())), "{name}");
+            }
+        }
+    }
+    for w in [f::words(), f::browser_words()] {
+        let (tree, _) = draw(&held_root, &[Need::Card(&funds)], true, &w);
+        assert!(f::find(&tree, Role::Paragraph, b"31 of 40 used.").is_some());
+    }
+    let mut approval = super::needs::approval_row();
+    approval.kind = d::forge::forges::Kind::GitHub;
+    let root = f::inbox_root();
+    for w in [f::words(), f::browser_words()] {
+        let (tree, bindings) = draw(&root, &[Need::Approval(&approval)], true, &w);
+        let review = tree.nodes().iter().find(|n| n.name.as_deref() == Some("Review on GitHub ↗".as_bytes())).unwrap();
+        assert!(review.styles.as_slice().contains(&look::RECOMMENDED));
+        assert_eq!(
+            control(&tree, &bindings, "Tell it something else"),
+            d::Action::Pages(d::pages::Act::Needs(d::pages::needs::Act::Open {
+                object: c::ObjectKey::Task(approval.task)
+            }))
+        );
+    }
+}
