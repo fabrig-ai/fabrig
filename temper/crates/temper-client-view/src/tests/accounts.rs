@@ -1033,6 +1033,80 @@ fn answer_account_operation(root: &mut d::Domain, operation: Operation, outcome:
         },
     );
 }
+
+fn account_act_page(program: bool) -> (d::Domain, Token) {
+    let (mut root, watch) =
+        if program { super::connect_model::flow_fixture(d::WayKind::Program) } else { fixtures::account_root() };
+    let mut doc = document(0);
+    let control = if program {
+        "I’ve signed in"
+    } else {
+        doc = card_document(b"openai", b"alice", c::AccountKind::SignIn);
+        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = c::AccountState::Later { until: None };
+        "Resume"
+    };
+    deliver(&mut root, watch, doc);
+    let mut view = fixtures::view();
+    let node = fixtures::find(fixtures::build(&mut view, &root), Role::Button, control.as_bytes())
+        .expect("offered account control");
+    let event = crate::event(&view, node, Act::Press).expect("account control decodes");
+    let out = trial_event(&mut root, event);
+    let stored = trial_event(&mut root, d::Event::Client { event: jig_client::Event::Stored });
+    let attempt = out
+        .iter()
+        .chain(stored.iter())
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } = request
+            {
+                Some(*attempt)
+            } else {
+                None
+            }
+        })
+        .expect("the page sent its account act");
+    (root, attempt)
+}
+
+#[test]
+fn account_act_refusals_say_why_and_what_next() {
+    for (program, refusal, expected) in [
+        (true, c::Refusal::NameTaken, "The name claude-pat is taken. Choose another name for this login."),
+        (true, c::Refusal::NotOffered, "This provider offers you no program login. Choose another way to connect."),
+        (
+            false,
+            c::Refusal::NotOffered,
+            "This source isn't limited, so there's nothing to resume. Its state above is current.",
+        ),
+        (true, c::Refusal::Unknown, "No visible object with that name"),
+    ] {
+        let (mut root, attempt) = account_act_page(program);
+        fixtures::root_event(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused { refusal, at: None })),
+                        why: None,
+                    },
+                },
+            },
+        );
+        let view = fixtures::browser_page_view(&root);
+        let lines: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| node.role == Role::Status)
+            .map(|(index, _)| fixtures::node_text(view.tree(), index))
+            .collect();
+        assert!(lines.iter().any(|line| line.as_ref() == expected.as_bytes()), "expected {expected:?}, got {lines:?}");
+    }
+}
 #[test]
 fn only_settled_account_statuses_have_the_done_style() {
     use crate::accounts::words::{self, Word as W};

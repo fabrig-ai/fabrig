@@ -869,8 +869,3 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
-- **Not yet:** 3.5, 5.5: *A refused account act*: a declaration refused
-  *name taken* or *not offered*, and a resume refused *not offered*, draw
-  jig's word alone, and `ConnectModel` checks the person's own source of a
-  declared name on *not offered*, not *name taken* (the request
-  `ui-account-again` of 2026-11-08).
