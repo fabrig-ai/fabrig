@@ -986,9 +986,6 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 4.8 and 6.17, `Side::linked`, `welcome::signed_in`, and the
-  playground read again when the `forges` watch gains or loses its fake
-  row (`domain-front`, `tui-box-front`).
 - **Not yet:** 6.13, 6.16 and 6.17, the seam's `Start.front` and
   `Report::Front`, the handed link's sign-in with `held`, the box's lines
   read and their end closing the run, Ctrl+C and `/exit` in front, `/log`

@@ -905,3 +905,72 @@ fn connection_steps_replace_settings_with_the_open_row_but_keep_welcome() {
         }
     }
 }
+
+pub(super) fn forges_document(modes: &[w::Mode], linked: bool) -> Family {
+    let mut forges = List::with_capacity(u32::try_from(modes.len()).unwrap());
+    for (number, mode) in modes.iter().enumerate() {
+        forges
+            .push(wire_connection_row(
+                u16::try_from(number.checked_add(1).unwrap()).unwrap(),
+                w::Kind::Forgejo,
+                mode.clone(),
+                w::Connection::NotConnected,
+                w::Offer::NotOffered,
+                None,
+            ))
+            .unwrap();
+    }
+    Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges, linked }).unwrap()),
+    }
+}
+
+pub(super) fn deliver_forges(root: &mut crate::Domain, watch: skein_lib::Token, record: Family) {
+    crate::step(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        crate::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+
+#[test]
+fn the_forges_document_says_whether_the_printed_link_signed_in() {
+    for ending in [jig_client::Link::SignedOut, jig_client::Link::OutOfDate, jig_client::Link::Live] {
+        let (mut root, _, watch) = super::connect::opened(true);
+        assert_eq!(root.forge().linked(), None, "no document yet");
+        for linked in [false, true] {
+            let record = forges_document(&[w::Mode::Connected], linked);
+            let (decoded, flag) = family::forges_document(&record.bytes, &limits()).unwrap();
+            assert_eq!(decoded, family::forges(&record.bytes, &limits()).unwrap());
+            assert_eq!(flag, linked);
+            deliver_forges(&mut root, watch, record);
+            assert_eq!(root.forge().linked(), Some(linked));
+        }
+        let mut out = skein_lib::Queue::uncapped();
+        if ending == jig_client::Link::Live {
+            crate::step(
+                &mut root,
+                &fixtures::env(&fixtures::limits()),
+                crate::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed },
+                    },
+                },
+                &mut out,
+            );
+        } else if ending == jig_client::Link::SignedOut {
+            crate::step(&mut root, &fixtures::env(&fixtures::limits()), crate::Event::SignedOut, &mut out);
+        } else {
+            crate::route::told(
+                &mut root,
+                &fixtures::env(&fixtures::limits()),
+                jig_client::Told::Link { link: ending },
+                &mut out,
+            );
+        }
+        assert_eq!(root.forge().linked(), None, "{ending:?}");
+    }
+}
