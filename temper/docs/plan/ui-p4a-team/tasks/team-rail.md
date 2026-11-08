@@ -143,3 +143,13 @@ The implementer's report: the base's check, where the document is now
 read, the rail's count, the entry and the switcher's row in both shells,
 the rows and bites with their failures, each journey, golden and story
 repaired, the runs' counts, and what is left.
+
+## Answers
+
+2026-11-08. *Run team-rail-2 found no `pages/rail.rs` on its base (ui-p1-rail not
+landed): what now?* The stop was right; nothing changes. ui-p1-rail is not on main
+yet (`origin/main` 30f6c3e70d has no `pages/rail.rs`). Don't build on
+`origin/ui-p1-rail/integration` or copy its rail: that is another plan's
+unlanded work. Rerun only once ui-p1-rail has landed and this trunk has taken
+main; then do the base check again first, as the Goal says, and go on if it
+passes.
