@@ -2699,15 +2699,29 @@ that changes the stock changes nothing of them.
   routing the gap for repair before declaring the item built. Missing
   coverage remains an unresolved gap even when Left is empty or CI
   passes; close-out and the goal's landing wait for it to be resolved.
+  Each requested deliverable also carries its requested evidence, from
+  the coordinator's spec through production, results review and close-out.
+  When each scoped-check table row's cost is requested, each row needs
+  its own measured timing; suite wall time and an arithmetic average
+  cannot establish individual row costs. Charter 2 reports missing
+  measurements as unfinished. Charter 5 checks the deliverable-to-evidence
+  mapping and carries it and every missing measurement in the close-out's
+  words; charter 7 checks and retains them in its report. An unmet
+  requested deliverable remains unfinished despite passing CI, a status
+  entry or a proposed accepted Left disposition. It goes for repair;
+  changing the requested scope requires the person's decision. A Later
+  entry or the draft's retirement cannot waive that acceptance.
   The domain world checks the assigned instructions and retained
-  evidence through fake landings and bounded report continuations;
+  evidence through fake landings and bounded report continuations,
+  including aggregate-only and complete per-row timing cases; its
   scripted choices establish no model compliance.
 - **Charter 5's plan done, and its landing's words**
   (`../draft/reference-code-production.md`, section 12;
   `../draft/reference-landing.md`, section 3, step 2), in its
   instructions beside the rest. The plan is done when every change has
-  landed or been cancelled, every Left list is made into a change or
-  accepted as left, and its goal branch's tier is settled: no red of
+  landed or been cancelled, every requested deliverable has its evidence,
+  every Left list is made into a change or accepted as optional follow-up
+  outside requested acceptance, and its goal branch's tier is settled: no red of
   that tier it has heard is left without a repair that landed after it
   or a live repair owning its failing tests. A green run says nothing
   (`../domain/after-landing.md`, section 7), and a red still failing
