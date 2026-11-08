@@ -45,8 +45,10 @@ The standard brief follows the declarations at 354,988 bytes;
 the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
 milestone stands in the code (`README.md`). Ask temper's first milestone
-stands in the code beside the configuring chat
-(`draft/ask-temper.execution.md`, M1), its walk following landing.
+stands in the code, with its own project page, rail entry and phone tab
+(`draft/ask-temper.execution.md`, M1); charter 3 and template 3 remain in
+the stock. Its walk follows landing. The remaining reads, views and
+preferences belong to M2 to M4 (`draft/ask-temper.status.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -640,6 +642,12 @@ form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief; its implemented path still needs
+  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)
