@@ -225,3 +225,9 @@ now?* Same as the answer to team-rail-14: the stop was right; change nothing.
 At 21:33Z `origin/main` (0d6f7a9b65) holds ui-p1-rail's rail, but this trunk
 (3529ac68fd) still hasn't taken that main. Rerun once it has; then the base
 check passes and you go on.
+
+2026-11-08. *Run team-rail-16 again found no `pages/rail.rs` on its base: what
+now?* Same as the answer to team-rail-14: the stop was right; change nothing.
+At 21:42Z `origin/main` (0d6f7a9b65) holds ui-p1-rail's rail, but this trunk
+(250722add7) still hasn't taken that main. Rerun once it has; then the base
+check passes and you go on.
