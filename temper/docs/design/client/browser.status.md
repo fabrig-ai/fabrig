@@ -373,8 +373,5 @@ reads the rules, whose effect is rendered; that comparison is section
   chat terminal's `--accent` take the signal, `#c2410c`, which the
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
-- **Not yet:** 2.5, *How work runs' look*: `temper.css` has no
-  `/* ==== ui: how ==== */` and no `temper-how-*` rule, and the ways'
-  tabs, card and act are styled under Ask temper's page alone.
 - **Not yet:** 7.2: the gallery holds none of the states from `how` to
   `night-how`.
