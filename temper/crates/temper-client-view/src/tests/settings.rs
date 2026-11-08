@@ -1458,7 +1458,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
             bytes: temper_client_protocol_wire::forges(
-                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
             ),
         };
         drive(

@@ -2063,7 +2063,9 @@ impl Joint {
                 .expect("scripted playground forge"),
             )
             .expect("playground row fits");
-        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("scripted forges"));
+        record.bytes = wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).expect("scripted forges"),
+        );
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2084,7 +2086,8 @@ impl Joint {
             }
             forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("host forge row")).expect("bounded forge rows");
         }
-        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("host forges"));
+        record.bytes =
+            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).expect("host forges"));
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);

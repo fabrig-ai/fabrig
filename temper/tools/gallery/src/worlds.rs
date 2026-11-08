@@ -1009,7 +1009,9 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("making rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("making rows"),
+        ),
     };
     step(
         root,
@@ -1036,7 +1038,9 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("Ready rows"),
+        ),
     };
     step(
         root,
@@ -1269,7 +1273,7 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows }).expect("gallery forges"))
+    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows, linked: false }).expect("gallery forges"))
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;

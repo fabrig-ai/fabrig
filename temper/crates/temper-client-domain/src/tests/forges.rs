@@ -289,7 +289,7 @@ fn every_connection_decodes_into_the_forges_words() {
     let record = Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges: records }).unwrap()),
+        bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges: records, linked: false }).unwrap()),
     };
     assert_eq!(rows(&record, &fixtures::limits().forge).unwrap().as_ref(), expected.as_slice());
     for bytes in [b"bad".as_slice(), &record.bytes[..record.bytes.len() - 1]] {
@@ -358,7 +358,7 @@ fn decoded_connection_row(connection: w::Connection) -> Row {
     forges
         .push(wire_connection_row(FORGE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered, None))
         .unwrap();
-    let record = w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap();
+    let record = w::Forges::new(&limits(), w::ForgesParts { forges, linked: false }).unwrap();
     family::forges(&wire::forges(&record), &limits()).unwrap().into_iter().next().unwrap()
 }
 
@@ -521,7 +521,7 @@ fn an_out_of_order_document_is_refused() {
     let record = Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap()),
+        bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges, linked: false }).unwrap()),
     };
     assert!(rows(&record, &fixtures::limits().forge).is_none());
 }
@@ -611,7 +611,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
         let record = Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap()),
+            bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges, linked: false }).unwrap()),
         };
         assert_eq!(
             rows(&record, &fixtures::limits().forge).unwrap()[0].first,
@@ -699,7 +699,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
             .unwrap(),
         )
         .unwrap();
-    let bytes = wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap());
+    let bytes = wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap());
     let rows = family::forges(&bytes, &limits).unwrap();
     assert_eq!(
         rows[0].installations.as_ref(),
@@ -763,7 +763,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                     .unwrap(),
                 )
                 .unwrap();
-            let bytes = wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap());
+            let bytes = wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap());
             let rows = family::forges(&bytes, &limits).unwrap();
             assert_eq!(rows[0].admin, admin);
             assert_eq!(rows[0].ended_stop, expected);
@@ -799,7 +799,7 @@ fn the_first_choice_survives_forge_row_decode() {
         parts.starts_with = starts_with;
         let mut forges = List::with_capacity(1);
         forges.push(w::ForgeRow::new(&limits(), parts).unwrap()).unwrap();
-        let record = w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap();
+        let record = w::Forges::new(&limits(), w::ForgesParts { forges, linked: false }).unwrap();
         let decoded = family::forges(&wire::forges(&record), &limits()).unwrap();
         assert_eq!(decoded[0].starts_with, expected);
         assert_eq!(decoded[0].first, None);
@@ -855,7 +855,7 @@ fn connection_steps_replace_settings_with_the_open_row_but_keep_welcome() {
                 None,
             ))
             .unwrap();
-            let record = w::Forges::new(&limits(), w::ForgesParts { forges: rows }).unwrap();
+            let record = w::Forges::new(&limits(), w::ForgesParts { forges: rows, linked: false }).unwrap();
             out.clear();
             crate::step(
                 &mut root,
