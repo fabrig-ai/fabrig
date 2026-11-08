@@ -19,10 +19,6 @@ use temper_client_view::{
 
 pub(crate) mod lists;
 mod notes;
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "read by the tasks tui-launchpad and tui-chat of tui-launchpad")
-)]
 pub(crate) use notes::{Notes, draw_notes, read_notes};
 
 #[derive(Debug)]

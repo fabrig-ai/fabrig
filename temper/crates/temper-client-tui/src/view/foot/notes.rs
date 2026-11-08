@@ -40,7 +40,6 @@ fn help(root: &Domain, words: &Words, lines: &mut List<Box<[u8]>>) {
         lines.push(words.say(key, &[])).expect("help keys counted");
     }
 }
-#[cfg_attr(not(test), expect(dead_code, reason = "read by the tasks tui-launchpad and tui-chat of tui-launchpad"))]
 pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     let mut lines = List::with_capacity(
         8_u32
@@ -62,7 +61,6 @@ pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     }
     Notes { lines: lines.into_boxed() }
 }
-#[cfg_attr(not(test), expect(dead_code, reason = "read by the tasks tui-launchpad and tui-chat of tui-launchpad"))]
 pub(crate) fn draw_notes(b: &mut Builder, notes: &Notes, _words: &Words) {
     for line in &notes.lines {
         text(b, Role::Paragraph, line, Some(look::NOTE));
