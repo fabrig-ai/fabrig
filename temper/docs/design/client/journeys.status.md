@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-Section 8.1's control outside a menu lags: `journey::control` names the
-first node giving the event, which on a project's page is the rail's
-closed "New draft or change" menu item for `NewChat`. The
-`ui-p1-rail/regenerate` task repairs it.
-
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
 The five journeys' prints include the unpressed night switch, with no
