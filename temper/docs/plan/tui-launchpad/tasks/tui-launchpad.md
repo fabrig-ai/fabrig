@@ -135,3 +135,26 @@ from 01, and why; the prints reprinted or left for `again`.
 
 - For `again`: `temper/docs/design/client/tui/journeys/sign-in-approved/walk`'s `see
   "Connected to"`.
+
+## Rebase (2026-11-08, step merge, foreman tui-launchpad/tui-launchpad/foreman-1)
+
+rebase the launchpad onto integration, preserving the landed foot and chat work
+The merge failed on content, modify/delete and snapshot rename collisions; this is the branch’s conflict to resolve.
+Rebase against `origin/tui-launchpad/integration` (`eb30333aad`), including foot fixes through `2d8bfe3549` and chat work through `a52e6e4880`.
+`origin/main` alone does not contain these sibling changes.
+
+Resolve `temper/crates/temper-client-tui/src/` as follows:
+- `limits.rs`: retain the launchpad’s brief, needs, notes, depth and combined text bounds; preserve the supplied view/chat limits merge and foot capacities.
+- `words.rs`: retain the foot vocabulary and launchpad vocabulary; remove obsolete `Connected`, `Projects`, their slots and `projects_bytes`, keeping phrase IDs stable.
+- `tests/limits.rs`: retain launchpad header/bounds assertions and overflow coverage; discard obsolete joined-project assertions while preserving applicable foot/chat coverage.
+- `tests/screens.rs`: remove `the_first_screen_says_the_links_state_and_me` and its unused imports; preserve sign-in tests and the repaired reopening focus expectation of 3.
+- `tests/foot.rs`: retain the landed foot tests, expose `template` for launchpad fixtures, and remove only the four obsolete `first-*` golden rows.
+- `tests/golden/first-*`: keep all four deleted; modify/delete conflicts must not restore the first screen.
+- `tests/golden/foot-commands-80x24-dark.txt` and `foot-question-80x24-dark.txt`: reconcile their headers with the launchpad while preserving the command menu, question and foot assertions.
+- Retain all four `launchpad-*` goldens, including `launchpad-none-80x24-dark.txt`; resolve rename collisions by intended filenames, without carrying nested conflict markers.
+- Preserve integration’s `view/chat.rs`, chat tests and chat goldens. Review the automatic `view.rs` merge so launchpad tick propagation survives alongside chat dispatch.
+
+In `temper/docs/design/client/README.status.md`, preserve integration’s unrelated status updates and removal of completed host/chat gaps; remove only the launchpad’s obsolete **Not yet** entry.
+Regenerate `temper/docs/design/client/tui/journeys/sign-in-approved/02.{txt,html}` from the combined code using the journey generator; retain the launchpad’s no-project output.
+Leave the walk’s obsolete `Connected to` expectation to `again`, as specified.
+Verify the resolved launchpad, foot, limits and sign-in tests through `heavy`, then the required focused checks; compile slow-tier stories without running them.
