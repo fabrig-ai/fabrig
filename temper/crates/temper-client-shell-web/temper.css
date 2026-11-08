@@ -1488,7 +1488,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
   .temper-view-card > [role="group"] > div { grid-template-columns: 1fr; gap: .25rem; }
 }
 /* ask-temper-ways: judgement above the dotted authority boundary, code below. */
-.temper-ways-path[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text) { stroke: none; }
+.temper-ways-path[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text):not([data-fade]) { stroke: none; }
 #app > .temper-session .temper-ways-path,
 #app > .temper-settings .temper-ways-path { margin: 0; }
 #app > .temper-session .temper-ways-path > svg,
@@ -1497,36 +1497,53 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-settings .temper-ways-path text { font: 400 11.5px var(--gf-mono); fill: var(--gf-ink-2); }
 #app > .temper-session .temper-ways-path .temper-ways-end,
 #app > .temper-settings .temper-ways-path .temper-ways-end { fill: var(--gf-muted); }
-#app > .temper-session .temper-ways-base,
-#app > .temper-settings .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
-#app > .temper-session .temper-ways-rise,
-#app > .temper-settings .temper-ways-rise { fill: none; stroke: var(--gf-signal); stroke-opacity: .28; stroke-width: 1.5; }
-#app > .temper-session .temper-ways-auth,
-#app > .temper-settings .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
+#app > .temper-session .temper-ways-base:not([data-fade]),
+#app > .temper-settings .temper-ways-base:not([data-fade]) { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
+#app > .temper-session :is(.temper-ways-rise-person, .temper-ways-rise-agent),
+#app > .temper-settings :is(.temper-ways-rise-person, .temper-ways-rise-agent) { fill: none; stroke-width: 1.5; }
+#app > .temper-session .temper-ways-fade-person,
+#app > .temper-settings .temper-ways-fade-person { stop-color: var(--gf-signal); stop-opacity: .8; }
+#app > .temper-session .temper-ways-fade-person-faint,
+#app > .temper-settings .temper-ways-fade-person-faint { stop-color: var(--gf-signal); stop-opacity: .28; }
+#app > .temper-session .temper-ways-fade-agent,
+#app > .temper-settings .temper-ways-fade-agent { stop-color: var(--gf-ink); stop-opacity: .3; }
+#app > .temper-session .temper-ways-fade-agent-faint,
+#app > .temper-settings .temper-ways-fade-agent-faint { stop-color: var(--gf-ink); stop-opacity: .1; }
+#app > .temper-session .temper-ways-fade-base,
+#app > .temper-settings .temper-ways-fade-base { stop-color: var(--gf-line-2); stop-opacity: 1; }
+#app > .temper-session .temper-ways-auth:not([data-fade]),
+#app > .temper-settings .temper-ways-auth:not([data-fade]) { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
 #app > .temper-session .temper-ways-main,
 #app > .temper-settings .temper-ways-main { fill: var(--gf-ink); }
 #app > .temper-session .temper-ways-landing > .temper-ways-main,
 #app > .temper-settings .temper-ways-landing > .temper-ways-main { fill: var(--gf-muted); }
 #app > .temper-session .temper-ways-agent,
-#app > .temper-settings .temper-ways-agent { fill: var(--gf-signal); }
-#app > .temper-session .temper-ways-person,
-#app > .temper-settings .temper-ways-person { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
+#app > .temper-settings .temper-ways-agent { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-person:not([data-fade]),
+#app > .temper-settings .temper-ways-person:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
 #app > .temper-session .temper-ways-code,
-#app > .temper-settings .temper-ways-code { fill: var(--gf-ink-2); }
+#app > .temper-settings .temper-ways-code { fill: var(--gf-muted); }
 #app > .temper-session .temper-ways-hit,
 #app > .temper-settings .temper-ways-hit { fill: transparent; }
-#app > .temper-session .temper-ways-halo,
-#app > .temper-settings .temper-ways-halo { fill: var(--gf-signal-pale); stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-halo:not([data-fade]),
+#app > .temper-settings .temper-ways-halo:not([data-fade]) { fill: var(--gf-signal-pale); stroke: var(--gf-signal-line); }
 #app > .temper-session .temper-ways-stop,
 #app > .temper-settings .temper-ways-stop { cursor: pointer; outline: none; }
 #app > .temper-session .temper-ways-stop:is(:hover, :focus-visible) text,
 #app > .temper-settings .temper-ways-stop:is(:hover, :focus-visible) text { fill: var(--gf-ink); }
-#app > .temper-session .temper-ways-stop:focus-visible .temper-ways-hit,
-#app > .temper-settings .temper-ways-stop:focus-visible .temper-ways-hit { stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-stop:focus-visible .temper-ways-hit:not([data-fade]),
+#app > .temper-settings .temper-ways-stop:focus-visible .temper-ways-hit:not([data-fade]) { stroke: var(--gf-signal-line); }
 #app > .temper-session .temper-ways-path .temper-ways-open,
 #app > .temper-settings .temper-ways-path .temper-ways-open { fill: var(--gf-ink); font-weight: 600; }
-#app > .temper-session .temper-ways-caret,
-#app > .temper-settings .temper-ways-caret { fill: var(--gf-surface); stroke: var(--gf-line-2); stroke-width: 1; }
+#app > .temper-session .temper-ways-caret:not([data-fade]),
+#app > .temper-settings .temper-ways-caret:not([data-fade]) { fill: var(--gf-surface); stroke: var(--gf-line-2); stroke-width: 1; }
+
+#app > .temper-session .temper-ways-agent.temper-ways-maybe:not([data-fade]),
+#app > .temper-settings .temper-ways-agent.temper-ways-maybe:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-ink); stroke-width: 1.3; stroke-linejoin: round; }
+#app > .temper-session .temper-ways-code.temper-ways-maybe:not([data-fade]),
+#app > .temper-settings .temper-ways-code.temper-ways-maybe:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-muted); stroke-width: 1.3; }
+#app > .temper-session .temper-ways-path .temper-ways-why,
+#app > .temper-settings .temper-ways-path .temper-ways-why { font-size: 10px; fill: var(--gf-faint); }
 
 /* model-picker: the model and effort sit at the composer, on every chat. */
 #app > :is(.temper-session, .temper-agent-page) .temper-session-foot { position: relative; z-index: 5; overflow: visible; }
@@ -2862,11 +2879,13 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-session .temper-ways-legend > span::before,
 #app > .temper-settings .temper-ways-legend > span::before { display: inline-block; margin-right: 6px; vertical-align: -1px; content: ''; }
 #app > .temper-session .temper-ways-legend > .temper-ways-kind-agent::before,
-#app > .temper-settings .temper-ways-legend > .temper-ways-kind-agent::before { content: '✦'; color: var(--gf-signal); font-size: 14px; line-height: 1; vertical-align: -1px; }
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-agent::before { content: '✦'; color: var(--gf-ink); font-size: 14px; line-height: 1; vertical-align: -1px; }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-maybe::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-maybe::before { content: '✧'; color: var(--gf-ink); font-size: 14px; line-height: 1; vertical-align: -1px; }
 #app > .temper-session .temper-ways-legend > .temper-ways-kind-person::before,
 #app > .temper-settings .temper-ways-legend > .temper-ways-kind-person::before { width: 7px; height: 7px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
 #app > .temper-session .temper-ways-legend > .temper-ways-kind-code::before,
-#app > .temper-settings .temper-ways-legend > .temper-ways-kind-code::before { width: 8px; height: 8px; border-radius: 2px; background: var(--gf-ink-2); }
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-code::before { width: 8px; height: 8px; border-radius: 2px; background: var(--gf-muted); }
 #app > .temper-session .temper-ways-legend > .temper-ways-kind-line::before,
 #app > .temper-settings .temper-ways-legend > .temper-ways-kind-line::before { width: 18px; height: 0; border-top: 1px dotted var(--gf-line-2); vertical-align: 3px; }
 #app > .temper-session .temper-ways-acts,

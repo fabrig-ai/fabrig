@@ -51,6 +51,7 @@ pub enum Word {
     WaysPath,
     WaysOpen,
     WaysLegend,
+    WaysMaybe,
     WaysAgent,
     WaysPerson,
     WaysCode,
@@ -1555,7 +1556,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2109;
+// The needed agent adds one literal phrase (client/README.md, 5.16).
+const PHRASES: u32 = 2110;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1582,10 +1584,11 @@ const PHRASES: u32 = 2109;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3720;
+// The needed agent adds one literal segment (client/README.md, 5.16).
+const SEGMENTS: u32 = 3721;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51418;
-const ALL: [Word; 1427] = [
+const ENGLISH_BYTES: u32 = 51451;
+const ALL: [Word; 1428] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -1625,6 +1628,7 @@ const ALL: [Word; 1427] = [
     Word::WaysPath,
     Word::WaysOpen,
     Word::WaysLegend,
+    Word::WaysMaybe,
     Word::WaysAgent,
     Word::WaysPerson,
     Word::WaysCode,
@@ -3168,6 +3172,7 @@ impl Word {
             Self::WaysPath => 4308,
             Self::WaysOpen => 4309,
             Self::WaysLegend => 4310,
+            Self::WaysMaybe => 5100,
             Self::WaysAgent => 4311,
             Self::WaysPerson => 4312,
             Self::WaysCode => 4313,
@@ -5032,7 +5037,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaysAgents => (&[b"more of your agents"], &[]),
         Word::WaysPath => (&[b"The way a change goes"], &[]),
         Word::WaysOpen => (&[b"Open ", b" \xe2\x80\xba"], &[Name]),
-        Word::WaysLegend => (&[b"An agent, a person, code; no merge tool above the dotted line"], &[]),
+        Word::WaysMaybe => (match shell { Shell::Browser => &[b"when needed"], Shell::Terminal => &[b"when needed, "] }, &[]),
+        Word::WaysLegend => (&[b"An agent, an agent when needed, a person, code; no merge tool above the dotted line"], &[]),
         Word::WaysAgent => (match shell { Shell::Browser => &[b"agent"], Shell::Terminal => &[b"agent, "] }, &[]),
         Word::WaysPerson => (match shell { Shell::Browser => &[b"person"], Shell::Terminal => &[b"person, "] }, &[]),
         Word::WaysCode => (match shell { Shell::Browser => &[b"code"], Shell::Terminal => &[b"code; "] }, &[]),
