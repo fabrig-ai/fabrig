@@ -1,0 +1,5 @@
+draft = "temper-release-strip"
+repo = "fabrig"
+sources = ["temper/docs/plan/temper-release-strip/inputs/request-strip.md", "AGENTS.md", "DESIGN.md", ".github/workflows/release-macos.yml"]
+# Plan options, written by fab call cut --set; keep them
+owner = "ops"
