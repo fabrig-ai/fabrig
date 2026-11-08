@@ -122,6 +122,10 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Destination { name: &'static str, href: &'static str },
+    FirstButton { disclosure: &'static str, name: &'static str },
+    CardChanges { title: &'static str, changes: &'static [&'static str] },
+    Cards { section: &'static str, from: &'static [&'static str] },
     HowPath { you: &'static str, agent: &'static str, code: &'static str, verify: bool },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
     Current { name: &'static str },
@@ -171,6 +175,284 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds { name: "night-team", heading: "Who owns what on shop", parts: &[Part::Pressed { name: "Night mode" }] },
+    Holds {
+        name: "rail-new-change",
+        heading: "Four in flight, two landed this week.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "New change" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "rail-all-projects",
+        heading: "Nothing in flight yet.",
+        parts: &[
+            Part::FirstButton { disclosure: "vsr", name: "All projects" },
+            Part::Named { role: Role::Text, name: "2 projects" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "rail-across",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Pressed { name: "All projects" },
+            Part::Named { role: Role::Disclosure, name: "All projects" },
+            Part::Destination { name: "Work", href: "/projects/1/work" },
+            Part::Destination { name: "How work runs", href: "/projects/1/settings" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work",
+        heading: "Four in flight, two drafts, four landed this week.",
+        parts: &[
+            Part::Cards {
+                section: "In flight · 4",
+                from: &[
+                    "goalmembership-handoff · Draft first · 31 of 50 spent",
+                    "goalfuzz-corpus · Draft first · 6 of 15 spent",
+                    "changeWitness rejoin test · queued 3rd",
+                    "chatwith you · “the comment on vsr_step_many is stale”",
+                ],
+            },
+            Part::Cards {
+                section: "Drafts · 2",
+                from: &[
+                    "draftread-barriers.md · a chat with you · 07:21",
+                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                ],
+            },
+            Part::Named { role: Role::Region, name: "Landed this week · 4" },
+            Part::CardChanges {
+                title: "membership-handoff",
+                changes: &[
+                    "Witness rejoin fix",
+                    "Witness retention across a handoff",
+                    "Handoff states and their tests",
+                ],
+            },
+            Part::CardChanges {
+                title: "with you · “the comment on vsr_step_many is stale”",
+                changes: &["Comment rewritten from the code", "io_uring: retry a short write once"],
+            },
+            Part::Named { role: Role::Progress, name: "6 / 9" },
+            Part::Named { role: Role::Paragraph, name: "Written by the goal at 07:31" },
+            Part::Named { role: Role::Paragraph, name: "Written by the goal at 06:55" },
+            Part::Links {
+                style: temper_client_view::look::WORK_FILTERS,
+                names: &["All", "Drafts · 2", "Goals · 2", "Changes · 7", "Chats · 1"],
+            },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Six of nine tasks landed on the goal's branch. The witness rejoin fix waits on your answer; two tasks wait on it.",
+            },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work-pair",
+        heading: "Four in flight, two landed this week.",
+        parts: &[
+            Part::Cards {
+                section: "In flight · 4",
+                from: &[
+                    "chatwith you · “Monthly totals by category”",
+                    "chatwith you · “Budget alerts”",
+                    "chatwith you · “Dark mode for the dashboard”",
+                    "chatwith you · “Export a year as CSV”",
+                ],
+            },
+            Part::Named { role: Role::Link, name: "New change" },
+            Part::Links {
+                style: temper_client_view::look::WORK_FILTERS, names: &["All", "Changes · 6", "Chats · 6"]
+            },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work-drafts",
+        heading: "Four in flight, two drafts, four landed this week.",
+        parts: &[
+            Part::Cards {
+                section: "Drafts · 2",
+                from: &[
+                    "draftread-barriers.md · a chat with you · 07:21",
+                    "draftwitness-catch-up.md · a chat with you · 07:20",
+                ],
+            },
+            Part::Absent { role: Role::Region, name: "In flight · 4" },
+            Part::Absent { role: Role::Region, name: "Landed this week · 4" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work-goals",
+        heading: "2 goals, 2 under way.",
+        parts: &[
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Four in flight, two drafts, four landed this week.",
+            },
+            Part::Named { role: Role::Navigation, name: "Work's filters" },
+            Part::Goals { rows: &["membership-handoff", "fuzz-corpus"] },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work-changes",
+        heading: "Three changes are on the way to main.",
+        parts: &[
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Four in flight, two drafts, four landed this week.",
+            },
+            Part::Named { role: Role::Navigation, name: "Work's filters" },
+            Part::Named { role: Role::Link, name: "Witness rejoin test" },
+            Part::Named { role: Role::Text, name: "checking" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "work-empty",
+        heading: "Nothing in flight yet.",
+        parts: &[
+            Part::Links { style: temper_client_view::look::WORK_FILTERS, names: &["All"] },
+            Part::Absent { role: Role::Region, name: "In flight · 0" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "members",
+        heading: "Who may do what.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "The deployment" },
+            Part::Named { role: Role::Paragraph, name: "You are its owner." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "vsr · 2" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "cowsql · 2" },
+            Part::Named { role: Role::Text, name: "Owner" },
+            Part::Named { role: Role::Text, name: "Prover" },
+            Part::Named { role: Role::Text, name: "owner" },
+            Part::Named { role: Role::Text, name: "maintainer" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "members-refused",
+        heading: "Who may do what.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "vsr · 2" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "cowsql" },
+            Part::Named { role: Role::Paragraph, name: "Read by the project’s members." },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "limits",
+        heading: "What this deployment holds.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Capacities" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "By project" },
+            Part::Named { role: Role::Text, name: "12 of 100" },
+            Part::Named { role: Role::Text, name: "3 of 8" },
+            Part::Named { role: Role::Text, name: "4 of 16 · 2 waiting" },
+            Part::Named { role: Role::Text, name: "1 of 32" },
+            Part::Named { role: Role::Text, name: "4.1 MB of 64 MB" },
+            Part::Named { role: Role::Text, name: "9 of 50 tasks" },
+            Part::Named { role: Role::Text, name: "3 of 50 tasks" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "limits-not-owner",
+        heading: "What this deployment holds.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Limits are seen by the deployment’s owners." },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Capacities" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "night-work",
+        heading: "Four in flight, two drafts, four landed this week.",
+        parts: &[
+            Part::Cards {
+                section: "In flight · 4",
+                from: &[
+                    "goalmembership-handoff · Draft first · 31 of 50 spent",
+                    "goalfuzz-corpus · Draft first · 6 of 15 spent",
+                    "changeWitness rejoin test · queued 3rd",
+                    "chatwith you · “the comment on vsr_step_many is stale”",
+                ],
+            },
+            Part::Pressed { name: "Night mode" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
+    Holds {
+        name: "night-limits",
+        heading: "What this deployment holds.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Capacities" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "By project" },
+            Part::Named { role: Role::Text, name: "12 of 100" },
+            Part::Named { role: Role::Text, name: "3 of 8" },
+            Part::Named { role: Role::Text, name: "4 of 16 · 2 waiting" },
+            Part::Named { role: Role::Text, name: "1 of 32" },
+            Part::Named { role: Role::Text, name: "4.1 MB of 64 MB" },
+            Part::Named { role: Role::Text, name: "9 of 50 tasks" },
+            Part::Named { role: Role::Text, name: "3 of 50 tasks" },
+            Part::Pressed { name: "Night mode" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
+            },
+        ],
+    },
     Holds {
         name: "how",
         heading: "Agents review",
@@ -305,7 +587,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
@@ -317,9 +599,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Pressed { name: "Night mode" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
@@ -711,20 +993,20 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "rail-new-menu",
-        heading: "tally",
+        heading: "factory",
         parts: &[
-            Part::Named { role: Role::Menu, name: "More ways to start work" },
-            Part::Described {
-                role: Role::MenuItem,
-                name: "Chat",
-                description: "Ask about the code or ask for a change.",
+            Part::Named { role: Role::Menu, name: "New draft or change" },
+            Part::Named { role: Role::MenuItem, name: "Ask temper" },
+            Part::Links {
+                style: temper_client_view::look::TABBAR,
+                names: &["Home", "Needs you", "Work", "Ask temper"],
             },
             Part::Described {
                 role: Role::MenuItem,
-                name: "Goal",
-                description: "Agents plan a larger change and land it.",
+                name: "Draft",
+                description: "A design session that ends in a goal, best had in the terminal.",
             },
-            Part::Named { role: Role::MenuItem, name: "All ways to start work" },
+            Part::Described { role: Role::MenuItem, name: "Change", description: "Ask for one change." },
         ],
     },
     Holds {
@@ -1016,7 +1298,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "builders",
         heading: "Where agents work.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Workers · 3" },
             Part::Text { text: "Workshop" },
             Part::Text { text: "Finishing" },
             Part::Text { text: "Away" },
@@ -1030,14 +1312,14 @@ static HOLDS: [Holds; samples::N] = [
         name: "builders-none",
         heading: "Where agents work.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 0" },
-            Part::Text { text: "No builder is connected." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Workers · 0" },
+            Part::Text { text: "No worker is connected." },
         ],
     },
     Holds {
         name: "builders-not-owner",
         heading: "Where agents work.",
-        parts: &[Part::Text { text: "Builders are seen by the deployment’s owners." }],
+        parts: &[Part::Text { text: "Workers are seen by the deployment’s owners." }],
     },
     Holds {
         name: "forges-empty",
@@ -1340,7 +1622,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
@@ -1384,7 +1666,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-with-goals",
         heading: "One thing needs you.",
         parts: &[
-            Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Link, name: "Work" },
             Part::Named { role: Role::Region, name: "Goals" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Goals" },
             Part::Named { role: Role::Link, name: "All 8" },
@@ -2311,9 +2593,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
@@ -2484,9 +2766,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -2500,9 +2782,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -2516,9 +2798,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -2782,7 +3064,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "repositories",
         heading: "What tally works on.",
         parts: &[
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "How work runs" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
             Part::Named { role: Role::Text, name: "robin/tally" },
             Part::Named { role: Role::Link, name: "Add repositories" },
@@ -2814,7 +3096,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "forges-in-settings",
         heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "Deployment" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
         ],
     },
@@ -2823,7 +3105,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "Deployment" },
             Part::Named { role: Role::Text, name: "Signed in as Robin" },
             Part::Named { role: Role::Button, name: "Sign out" },
         ],
@@ -2843,11 +3125,9 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
             Part::Named { role: Role::Check, name: "Away switch" },
-            Part::Named { role: Role::Link, name: "Builders" },
-            Part::Named { role: Role::Link, name: "Forges" },
-            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Links { style: temper_client_view::look::SETTINGS_TABS, names: &["How work runs", "Repositories"] },
             Part::Absent { role: Role::Link, name: "Start" },
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "How work runs" },
         ],
     },
     Holds {
@@ -3588,7 +3868,15 @@ fn each_state_holds_what_its_name_says() {
         let (mut view, bounds, _) = built_root(&sample, inputs.clone(), &root);
         let tree = view.tree();
         let mut main = TreeFace::new(tree);
-        let h1 = in_main(Role::Heading { level: 1 }, row.heading);
+        let level = if matches!(
+            root.pages().address(),
+            temper_client_domain::Address::Goals { .. } | temper_client_domain::Address::Changes { .. }
+        ) {
+            2
+        } else {
+            1
+        };
+        let h1 = in_main(Role::Heading { level }, row.heading);
         if row.heading.is_empty() {
             assert_eq!(main.find(&h1), Found::Absent, "{} has no main heading", sample.name);
         } else {
@@ -3596,8 +3884,68 @@ fn each_state_holds_what_its_name_says() {
         }
         // Count-only names may repeat; described parts follow conversation order.
         let mut described = tree.nodes().iter();
+        let mut destinations = Vec::new();
         for part in row.parts {
             match part {
+                Part::Destination { name, href } => {
+                    let Found::Node(node) = main.find(&Find::exactly_named(Role::Link, name.as_bytes())) else {
+                        panic!("{}: missing link {name}", sample.name)
+                    };
+                    destinations.push((node, href));
+                }
+                Part::FirstButton { disclosure, name } => {
+                    let nodes = descendants(tree, Role::Disclosure, disclosure, sample.name);
+                    let first = nodes.iter().find(|node| node.role == Role::Button).expect("switcher's first row");
+                    assert_eq!(first.name.as_deref(), Some(name.as_bytes()), "{}: first project row", sample.name);
+                }
+                Part::CardChanges { title, changes } => {
+                    let link = find(tree, Role::Link, title, sample.name);
+                    let nodes = tree.nodes();
+                    let at = nodes.iter().position(|node| node.id == link).expect("card's link");
+                    let (start, card) = nodes
+                        .iter()
+                        .enumerate()
+                        .take(at)
+                        .rev()
+                        .find(|(start, node)| {
+                            node.styles.as_slice().contains(&temper_client_view::look::WORK_CARD)
+                                && at < start + usize::try_from(node.size).expect("card size")
+                        })
+                        .expect("link's card");
+                    let end = start + usize::try_from(card.size).expect("card size");
+                    let links: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Link && node.id != link)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("change name")).expect("English"))
+                        .collect();
+                    assert_eq!(links, *changes, "{}: {title} changes", sample.name);
+                }
+                Part::Cards { section, from } => {
+                    let nodes = descendants(tree, Role::Region, section, sample.name);
+                    let cards: Vec<_> = nodes
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::WORK_CARD))
+                        .collect();
+                    assert_eq!(cards.len(), from.len(), "{}: {section} card count", sample.name);
+                    for ((start, card), expected) in cards.iter().zip(*from) {
+                        let end = start + usize::try_from(card.size).expect("card subtree");
+                        let card = &nodes[*start..end];
+                        let start = card
+                            .iter()
+                            .position(|node| {
+                                node.role == Role::Paragraph
+                                    && node.styles.as_slice().contains(&temper_client_view::look::WORK_FROM)
+                            })
+                            .expect("card's from line");
+                        let end = start + usize::try_from(card[start].size).expect("from subtree");
+                        let text: Vec<_> = card[start..end]
+                            .iter()
+                            .flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied()))
+                            .collect();
+                        assert_eq!(String::from_utf8_lossy(&text), *expected, "{}: {section} from line", sample.name);
+                    }
+                }
                 Part::HowPath { you, agent, code, verify } => {
                     let table = descendants(tree, Role::Table, "The path of a change", sample.name);
                     for (lane, stop) in [("You", you), ("Agents", agent), ("Code", code)] {
@@ -3852,6 +4200,14 @@ fn each_state_holds_what_its_name_says() {
                 }
             }
         }
+        for (node, expected) in destinations {
+            assert_eq!(
+                temper_client_view::href(&mut view, node).as_deref(),
+                Some(expected.as_bytes()),
+                "{}: destination",
+                sample.name
+            );
+        }
         each_chat_reads_its_allotment(&sample, &view);
         no_state_reads_of_zero(&sample, &view);
         no_named_control_draws_a_text_child_in_any_state(&sample, &view);
@@ -3987,7 +4343,7 @@ fn print_writes_every_page_and_the_bundle() {
                 assert!(!page.contains(&format!("class=\"{class}\"")), "{}: no {class}", sample.name);
             }
         } else if page.contains("class=\"temper-rail\"") {
-            assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
+            assert!(page.contains("class=\"temper-tabbar"), "{}: project sections", sample.name);
         } else {
             assert!(page.contains("class=\"temper-top\""), "{}: top bar", sample.name);
             assert!(!page.contains("temper-menu"), "{}: no menu", sample.name);
@@ -4333,12 +4689,19 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
             let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
             assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
         }
-        for (label, expected) in [("Goals", true), ("Changes", changes)] {
-            let present = tree
-                .nodes()
-                .iter()
-                .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
-            assert_eq!(present, expected, "{name}: {label} navigation");
+        let root = samples::domain(&sample);
+        let filters = temper_client_domain::pages::work::shown(
+            &temper_client_domain::pages::work::Filters {
+                goals: 1,
+                changes: 1,
+                ..temper_client_domain::pages::work::Filters::default()
+            },
+            temper_client_domain::pages::work::overrides(&root, 1),
+        );
+        for (label, present, expected) in
+            [("Goals", filters.goals, off != "Goals"), ("Changes", filters.changes, changes)]
+        {
+            assert_eq!(present, expected, "{name}: {label} Work filter");
         }
         let ways = tree
             .nodes()
@@ -4370,7 +4733,12 @@ fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
 
 #[test]
 fn the_open_samples_open_only_their_named_disclosure() {
-    for (name, disclosure) in [("chat-model-open", "Model"), ("chat-work-open", "Checked settings 3×, read 7 docs")] {
+    for (name, disclosure) in [
+        ("chat-model-open", "Model"),
+        ("chat-work-open", "Checked settings 3×, read 7 docs"),
+        ("rail-all-projects", "vsr"),
+        ("rail-across", "All projects"),
+    ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).unwrap();
         let view = view(&sample);
         let node = view
@@ -4392,8 +4760,9 @@ fn the_rail_menu_sample_opens_the_menu() {
     assert!(html.contains("aria-expanded=\"true\""));
     let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
     assert!(!menu.contains("hidden"), "{menu}");
-    assert!(html.contains("Ask about the code or ask for a change."));
-    assert!(html.contains("Agents plan a larger change and land it."));
+    assert!(html.contains("Ask for one change."));
+    assert!(html.contains("Ask about this project, or change how its work runs."));
+    assert!(html.contains("A design session that ends in a goal, best had in the terminal."));
 }
 
 #[test]

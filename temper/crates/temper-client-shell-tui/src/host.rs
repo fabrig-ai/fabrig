@@ -554,7 +554,8 @@ impl Host {
                 self.went(address);
                 return;
             }
-            Address::Goals { project, .. }
+            Address::Work { project, .. }
+            | Address::Goals { project, .. }
             | Address::Changes { project }
             | Address::Settings { project }
             | Address::Repositories { project }
@@ -568,6 +569,8 @@ impl Host {
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
