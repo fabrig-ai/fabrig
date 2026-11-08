@@ -1341,7 +1341,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-rail > .temper-rail-new { position: relative; display: flex; padding: 0; border: 1px dashed var(--gf-rail-new-line); border-radius: 8px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-new:hover { border-color: var(--gf-rail-new-hover-line); }
 #app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup]) { flex: 1; min-width: 0; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; background: none; color: inherit; font: inherit; text-align: left; }
-#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup])::before { content: '+ '; }
+#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup])::before { content: '+ ' / ''; }
 #app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup]):hover { background: var(--gf-rail-hover); }
 #app > .temper-rail > .temper-rail-new > [aria-expanded=true] { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-rail:has(> .temper-rail-new > [aria-expanded=true]) { overflow: visible; }
