@@ -5745,6 +5745,7 @@ dependencies = [
  "temper-fake",
  "temper-fake-git-hosted",
  "temper-fixtures",
+ "temper-forge-setup",
  "temper-github-app",
  "temper-playground",
  "temper-protocol-store",
