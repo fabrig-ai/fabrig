@@ -151,6 +151,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "night-ask",
         heading: "Ask temper",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Pressed { name: "Night mode" },
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
@@ -2131,6 +2135,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
@@ -2163,6 +2171,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "ask-typing",
         heading: "Ask temper",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
@@ -2175,6 +2187,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "ask-sending",
         heading: "Ask temper",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
@@ -2187,6 +2203,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "ask-refused",
         heading: "Ask temper",
         parts: &[
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
@@ -3265,12 +3285,9 @@ fn each_state_holds_what_its_name_says() {
                     find(tree, *role, name, sample.name);
                 }
                 Part::Absent { role, name } => {
-                    assert_eq!(
-                        main.find(&in_main(*role, name)),
-                        Found::Absent,
-                        "{}: absent {role:?} {name:?}",
-                        sample.name
-                    );
+                    let query =
+                        if *role == Role::Menu { Find::named(*role, name.as_bytes()) } else { in_main(*role, name) };
+                    assert_eq!(main.find(&query), Found::Absent, "{}: absent {role:?} {name:?}", sample.name);
                 }
                 Part::NoRole { role } => {
                     assert!(!tree.nodes().iter().any(|node| node.role == *role), "{}: absent {role:?}", sample.name);
@@ -3668,12 +3685,19 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
 fn asking_gallery_states_list_the_template_and_send_readiness() {
     for (name, sending, disabled, refusal) in [
         ("ask-first-run", false, true, false),
+        ("night-ask", false, true, false),
         ("ask-typing", false, false, false),
         ("ask-sending", true, true, false),
         ("ask-refused", false, false, true),
     ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).expect("sample");
         let root = samples::domain(&sample);
+        let wall = worlds::now(sample.world);
+        assert_eq!(root.pages().address(), &temper_client_domain::Address::Ask { project: 1 }, "{name}");
+        let facts = temper_client_domain::pages::home::facts(&root, 1, wall);
+        assert!(temper_client_domain::pages::home::beginning(&root, 1, wall), "{name}");
+        assert_eq!(facts.left(), 1, "{name}: only the way of working is left");
+        assert!(matches!(facts.repository, temper_client_domain::pages::home::Repository::In { .. }), "{name}");
         assert!(
             root.pages()
                 .me(root.client())
