@@ -3,19 +3,26 @@ use crate::words::Word;
 use crate::{Refusal, Told, Tui, View, look};
 use skein_ui::{Role, Tree, phrases::Hole};
 
+// temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema, BranchPath: list 24 Stop.
+const WIRE_STOPS: u32 = 24;
+
 pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert_eq!(skein_ui::outline::check(tree), None);
     assert!(tree.len() <= limits.nodes);
     let mut total = 0_u32;
     let mut bindings = 0_u32;
+    let mut parents = skein_lib::Stack::with_capacity(limits.depth);
     for (index, node) in tree.nodes().iter().enumerate() {
-        let mut depth = 1_u32;
-        for (start, parent) in tree.nodes().iter().enumerate().take(index) {
-            if start.checked_add(usize::try_from(parent.size).unwrap()).unwrap() > index {
-                depth = depth.checked_add(1).unwrap();
-            }
+        let index = u32::try_from(index).unwrap();
+        while match parents.top() {
+            Some(end) => *end <= index,
+            None => false,
+        } {
+            parents.pop();
         }
+        let depth = parents.len().checked_add(1).unwrap();
         assert!(depth <= limits.depth);
+        parents.push(index.checked_add(node.size).unwrap()).unwrap();
         assert!(node.text_bytes() <= limits.text_per_node);
         total = total.checked_add(node.text_bytes()).unwrap();
         bindings = bindings.checked_add(u32::from(node.binding.is_some())).unwrap();
@@ -35,7 +42,7 @@ pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
             feet = feet.checked_add(1).unwrap();
         }
     }
-    assert!(top && bottom);
+    assert!((top || f::count(tree, Role::Log) == 1) && bottom);
     assert_eq!(feet, 1, "a quiet line or list is the foot");
 }
 
@@ -82,8 +89,32 @@ fn the_trees_fit_their_limits() {
     let gave_up = skein_lib::bytes::concat(&[step.as_bytes(), b" gave up"]);
     let gave_up_note =
         skein_lib::bytes::concat(&[b"The box gave up: ", step.as_bytes(), b". /log shows why; Ctrl+C closes."]);
-    let mut failures = skein_lib::List::with_capacity(56);
+    let change_start = skein_lib::bytes::concat(&[b"one change, run as ", title.as_bytes(), b"'s way says"]);
+    // Seven scheme bytes, 64 authority bytes, seven path bytes and twenty task digits.
+    let page_address = skein_lib::bytes::concat(&[b"http://", &[b'a'; 64], b"/tasks/18446744073709551615"]);
+    let open_at = skein_lib::bytes::concat(&[b"Open ", &page_address, b" in your browser."]);
+    let mut failures = skein_lib::List::with_capacity(76);
     for (word, holes, want) in [
+        (Word::KindChat, &[][..], ", a chat".as_bytes()),
+        (Word::KindGoal, &[][..], ", a goal".as_bytes()),
+        (Word::WalksThem, &[][..], "n walks them".as_bytes()),
+        (Word::MoneyNeed, &[][..], "$".as_bytes()),
+        (Word::SignOffNeed, &[][..], "✓".as_bytes()),
+        (Word::StartHead, &[][..], "Start".as_bytes()),
+        (Word::ChangeCommand, &[][..], "One change, run as the project's way says".as_bytes()),
+        (Word::BriefCommand, &[][..], "The brief, whole".as_bytes()),
+        (Word::NeedsCommand, &[][..], "Walk what needs you".as_bytes()),
+        (Word::OpenCommand, &[][..], "Open this on the web".as_bytes()),
+        (Word::BriefMore, &[][..], " · /brief".as_bytes()),
+        (Word::BoxStart, &[][..], "Ask for a change, or ask temper.  / for commands".as_bytes()),
+        (Word::ToWalk, &[][..], "n to walk".as_bytes()),
+        (Word::Next, &[][..], "Next".as_bytes()),
+        (Word::OpenOnWeb, &[][..], "Open it on the web".as_bytes()),
+        (Word::WalkDone, &[][..], "Nothing else needs you.".as_bytes()),
+        (Word::KeyWalk, &[][..], "n walks what needs you".as_bytes()),
+        (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
+        (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
+        (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),
         (Word::BoxPurpose, &[][..], "on this machine, to try it".as_bytes()),
         (Word::WelcomeOpen, &[][..], "Welcome. Set temper up in your browser: open this link on this machine.".as_bytes()),
         (Word::LinkOnce, &[][..], "It signs you in as this temper's owner, once, within 2 hours.".as_bytes()),
@@ -192,8 +223,116 @@ fn the_trees_fit_their_limits() {
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
+    // Home's three rows, five needs, Start and the whole brief coexist at their bounds.
+    for bytes in [200_usize, 600] {
+        use crate::view::{self, launchpad};
+        let root = super::launchpad::home(None, &[]);
+        let mut part = launchpad::read(&root, &tui, &words, f::NOW);
+        part.project = Some(name.into());
+        part.lines
+            .push(launchpad::Line { role: Role::Paragraph, words: "s".repeat(200).as_bytes().into(), style: None })
+            .unwrap();
+        part.lines
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"written by the status agent 07:42 \xc2\xb7 /brief".as_slice().into(),
+                style: Some(look::BYLINE),
+            })
+            .unwrap();
+        for task in 0..3 {
+            part.left_off
+                .push(launchpad::LeftOff {
+                    task,
+                    project: name.into(),
+                    title: title.as_bytes().into(),
+                    kind: launchpad::LeftKind::Chat { number: u32::try_from(task + 1).unwrap() },
+                    at: b"Fri 18:40".as_slice().into(),
+                    state: b"waiting on you".as_slice().into(),
+                })
+                .unwrap();
+        }
+        let mut needs = skein_lib::List::with_capacity(5);
+        for _row in 0_u32..5 {
+            needs
+                .push(launchpad::NeedRow {
+                    mark: temper_client_view::shared::NeedMark::SignOff,
+                    project: name.into(),
+                    words: Box::new([b'w'; 512]),
+                })
+                .unwrap();
+        }
+        part.needs = needs.into_boxed();
+        for length in [200, bytes] {
+            part.brief
+                .push(launchpad::Line {
+                    role: Role::Paragraph,
+                    words: "b".repeat(length).as_bytes().into(),
+                    style: Some(look::NOTE),
+                })
+                .unwrap();
+        }
+        part.brief
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"written by the status agent 07:42".as_slice().into(),
+                style: Some(look::NOTE),
+            })
+            .unwrap();
+        let foot = view::foot::read(&root, &tui, &words, f::NOW);
+        view::signed(
+            &mut view,
+            &view::Signed { body: view::Body::Launchpad(part), foot },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        fits(view.tree(), &bounds);
+    }
+    // Each retained view can replace an address with two full printed paths.
+    let page = temper_client_view::Limits::of(&domain, words.view()).unwrap();
+    let chat_bounds = crate::limits(&domain, &page.tree, 512).unwrap();
+    let part = chat_views();
+    let mut chat_view = View::new(&chat_bounds, words);
+    let foot = crate::view::foot::read(&root, &tui, &f::words(), f::NOW);
+    crate::view::signed(
+        &mut chat_view,
+        &crate::view::Signed { body: crate::view::Body::Chat(part), foot },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    fits(chat_view.tree(), &chat_bounds);
+    let stops = temper_client_domain::Limits::chat_views() * 2 * WIRE_STOPS;
+    assert_eq!(f::count(chat_view.tree(), Role::Description), usize::try_from(stops * 2).unwrap());
     assert_eq!(crate::limits(&domain, &skein_ui::Limits::EMPTY, u32::MAX), None);
     let mut huge = domain;
     huge.client.domain.text = u32::MAX;
     assert_eq!(crate::limits(&huge, &skein_ui::Limits::EMPTY, 512), None);
+}
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "the boundary fixture builds maximum wire paths and collects the admitted views"
+)]
+fn chat_views() -> crate::view::chat::Chat {
+    use crate::view::{
+        chat::{Chat, Entry, Piece},
+        foot,
+        printed::Printed,
+    };
+    use temper_client_protocol_wire::v1 as w;
+    let words = vec![b'w'; usize::try_from(temper_client_view::paths::WORDS).unwrap()];
+    let stops: Vec<_> = (0..WIRE_STOPS).map(|_| (w::Actor::Code, w::PathStep::Check, words.as_slice())).collect();
+    let path = super::printed::path(&stops);
+    let pieces = (0..temper_client_domain::Limits::chat_views())
+        .map(|_| {
+            Piece::View(Printed::Drawn(Box::new(w::View::Proposal(
+                w::ProposalView::new(&w::CEILINGS, w::ProposalViewParts { before: path.clone(), after: path.clone() })
+                    .unwrap(),
+            ))))
+        })
+        .collect();
+    Chat {
+        to_end: 1,
+        entries: Box::new([Entry::Viewed(pieces)]),
+        notes: foot::Notes { lines: Box::default(), gave_up: None, log: None },
+    }
 }

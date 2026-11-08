@@ -632,7 +632,7 @@ pub(super) fn proposal(proposer: c::Proposer) -> c::Proposal {
         .unwrap();
     proposal
 }
-fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
+pub(super) fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
     let source = f::task::held_root();
     let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
     task.chip.title = words("first-run-projects");
@@ -712,7 +712,7 @@ fn finished_person(whole: bool) -> d::Domain {
     };
     word_person_read("Fix the dropped watch", true, false, c::Requester::Task(42), Some(result))
 }
-fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
+pub(super) fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
     kinds_read(values, None)
 }
 fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c::ReadResult>) -> d::Domain {
