@@ -36,3 +36,16 @@ id = 2
 story = "An owner sets a charter's words and a project's words, and reads them back from the forge, in ctl and in a run's see"
 parts = ["words"]
 walk = false
+
+[[part]]
+id = "stock"
+title = "The stock's words: each stock way's headline and each stock charter's line"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.10"
+
+[[slice]]
+id = 3
+story = "A fresh deployment's ways read gives each stock way its headline, and the forge holds each stock charter's line"
+parts = ["stock"]
+walk = false
