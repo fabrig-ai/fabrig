@@ -3823,7 +3823,6 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                     wake_queue(d, &row);
                 }
                 save_queue_change(d, env, before, row.clone(), out);
-                topics::head_changed(d, row.task, out);
                 topics::refresh(d, env, row.task, out);
                 emit(
                     out,
@@ -5390,7 +5389,6 @@ fn subscribe(d: &mut Domain, env: &Env<Limits>, subscription: Subscriber, out: &
         Topic::Landings { .. } => true,
         Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => false,
     };
-    topics::subscribe(d, &subscription, out);
     let tasks = subscription.goal_tasks.clone();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Subscription(subscription) });
     if let Some(tasks) = tasks {
@@ -6204,6 +6202,14 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
 fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
     if d.fit_restored(&env.limits).is_err() {
         return;
+    }
+    for (_, subscriber) in &d.subscriptions {
+        match &subscriber.topic {
+            Topic::Ci { .. } if subscriber.goal_tasks.is_some() => {
+                emit(out, Request::GoalUntopic { goal: subscriber.task, topic: subscriber.topic.clone() });
+            }
+            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+        }
     }
     d.rebuild_settings();
     d.restore_phase = RestorePhase::Restoring;

@@ -60,7 +60,7 @@ mod google_runtime;
 pub mod help;
 mod host;
 mod init;
-pub mod link_file;
+pub use temper_shell::link_file;
 pub mod open;
 mod printed;
 mod program_login;

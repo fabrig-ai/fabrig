@@ -2,10 +2,12 @@
 
 2026-11-08. Where the slow tier runner's code lags or departs from [design.md](design.md).
 
-Section 7.3 has no known gap in Temper's fuzzy gate entry: `cpu_suite_s`
-alone at 120, after Jig's entry, with the requested comment after Jig's
-and no `wall_hard_s`. The gate figures beside it agree with the user's
-word recorded in `budgets.toml`. Section 8 keeps the unset focused entries
+Section 7.3 has no known gap in the gate entries: Skein's `default` is
+`cpu_suite_s` alone at 40, with the header's Skein line naming the user's
+word of 11-08 for it and of 11-07 for the fuzzy 120; Temper's fuzzy entry
+is `cpu_suite_s` alone at 120, after Jig's entry, with the requested
+comment after Jig's and no `wall_hard_s`. The other gate figures agree
+with the user's word recorded in `budgets.toml`. Section 8 keeps the unset focused entries
 and gate-share measurement outside the runner deferred.
 
 Sections 10 and 11 have the one-process runner, summary and hand command:

@@ -4911,6 +4911,7 @@ dependencies = [
  "temper-real-loop-world",
  "temper-service",
  "temper-settings-form",
+ "temper-shell",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -4929,6 +4930,18 @@ dependencies = [
  "skein-sim",
  "skein-world",
  "temper-forge-setup",
+]
+
+[[package]]
+name = "temper-client"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "skein-shell",
+ "temper-client-shell-cli",
+ "temper-client-shell-tui",
+ "temper-shell",
 ]
 
 [[package]]
@@ -5105,9 +5118,11 @@ dependencies = [
  "jig-client-shell-native",
  "jig-client-test-records",
  "skein-codec",
+ "skein-fail-stop",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-ui",
@@ -5118,6 +5133,7 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
+ "temper-shell",
 ]
 
 [[package]]
@@ -6064,6 +6080,16 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "temper-client-protocol-wire",
+]
+
+[[package]]
+name = "temper-shell"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "temper-docs",
 ]
 
 [[package]]

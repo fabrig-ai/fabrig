@@ -1430,6 +1430,16 @@ goals.
   (jig's `domain/connectors.md`, 5.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
   change into each is made, until the goal ends.
+- **Those are a goal's only topics from the core.** CI on its changes'
+  heads is each change's own, read by its procedure (7.1); the goal hears
+  a change's end or hold as any requester hears its delegate's (jig's
+  `domain/tasks.md`, 8.1), and a run that wants a head's CI subscribes to
+  it. So the topics the core keeps for a goal number its landing branches,
+  however many changes it makes, and its run keeps room in its task's
+  subscriptions for its own: a person task it waits on, a repair before a
+  held landing's release, its timers (`agent.md`, 4.3). A goal's
+  subscription to CI on a head that the core holds at restart is dropped
+  there, its jig row with it.
 - **A landing temper did not make** is news like any other: what landed
   is read, a pull request or a range of commits.
 
