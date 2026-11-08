@@ -204,3 +204,29 @@ trunk, or that it passed there; per mode of the fifty-loss table, whether
 it reproduced fault 2; what the channel world's story found and its time;
 the rules broken for each bite and the failures seen; each reader file
 edited and how.
+
+## Answers
+
+2026-11-08. **May `Story::Cuts` alone use a longer simulated completion
+deadline, or should its cut count fall to fit 300 seconds?** The longer
+deadline, for `Story::Cuts` alone; keep fifty cuts. The 300 seconds in
+`jig/testing/jig-channel-kit/src/referee.rs` is the referee's story horizon
+in simulated time, not a product figure: *No figure changes* covers the
+profiles' intervals, deadlines, graces and limits, every fixture's
+`limits()`, and the CPU budgets and wall limits, and none of those moves.
+Fifty cuts is the design's (`jig/docs/design/protocol/channel.md`, 12), and
+immediate cuts never reach the worker's `proved` interval, so its redial
+backoff climbs to its `ceiling` by the configured profile, which the run
+measured (18 hellos by 300 s). So:
+
+- Put the horizon in one place, a referee method used by `next_deadline`,
+  `overdue` and `observe_engine` in place of the three literals: 300 s for
+  every other story, unchanged; for `Cuts { times }`, 300 s plus `times`
+  times the worker link's configured redial `ceiling` (read from the
+  profile the world runs, not a literal), with checked arithmetic.
+- The story's CPU time still answers to the focused guide (1 s): if it
+  passes it, the pre-approved rule in *Owns and may change* holds as
+  written (find why; then the fewest cuts that pass the old connection's
+  closing deadline twice). Name its nextest time in the report.
+- If the story still fails within the longer horizon, that is the finding
+  the story exists for (fault 2 through real io): report how far it got.
