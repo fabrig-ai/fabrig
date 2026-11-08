@@ -169,19 +169,19 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert!(text.contains(&heading), "{text}");
     assert!(text.contains(&format!("❯ {QUESTION}")), "{text}");
     assert!(text.contains("✦ Run the focused checks"), "{text}");
-    assert!(text.contains("✦ working"), "{text}");
+    assert!(text.contains("✦ Working"), "{text}");
     assert!(!text.contains(ANSWER), "only the first piece is released: {text}");
 
     assert!(world.front().release_reply(), "release the second piece without committing");
     tui.run(&mut world, STEP);
     let text = tui.text();
     assert!(text.contains(ANSWER), "{text}");
-    assert!(text.contains("✦ working"), "the whole reply is still provisional: {text}");
+    assert!(text.contains("✦ Working"), "the whole reply is still provisional: {text}");
     assert!(world.front().release_reply(), "commit the whole answer");
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
     assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
-    assert!(!text.contains("✦ working"), "the run has ended: {text}");
+    assert!(!text.contains("✦ Working"), "the run has ended: {text}");
     assert!(text.contains(PROJECTS), "{text}");
     assert!(text.contains("● Live"), "{text}");
     assert!(!world.front().release_reply(), "no reply remains held after commit");
