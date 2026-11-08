@@ -6,7 +6,7 @@ use crate::{
 };
 use jig_client::{Event, Request};
 use skein_lib::{Secret, Time, Wall};
-use skein_ui_screen::Size;
+use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::{Note, Scheme};
 
@@ -17,8 +17,10 @@ pub struct Facts {
     pub wall: Wall,
     pub size: Size,
     pub scheme: Scheme,
+    pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
+    pub boxed: bool,
     pub note: Option<Note>,
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
@@ -31,6 +33,8 @@ impl Facts {
         let report = Report::Start(Start {
             size: self.size,
             scheme: self.scheme,
+            background: self.background,
+            boxed: self.boxed,
             address: self.address.clone(),
             local: self.local,
             note: self.note,
@@ -61,12 +65,18 @@ impl Recorder {
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Screen { size: facts.size, scheme: facts.scheme },
-            Line::Address(facts.address.clone()),
         ] {
             this.keep(&line);
         }
+        if let Some(background) = facts.background {
+            this.keep(&Line::Background(background));
+        }
+        this.keep(&Line::Address(facts.address.clone()));
         if facts.local {
             this.keep(&Line::Local);
+        }
+        if facts.boxed {
+            this.keep(&Line::Box);
         }
         for record in &facts.kept {
             this.keep(&Line::Stored { key: record.key.clone(), bytes: record.bytes.clone() });
@@ -243,6 +253,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Seed(_)
         | Line::Clocks { .. }
         | Line::Screen { .. }
+        | Line::Background(_)
+        | Line::Box
         | Line::Address(_)
         | Line::Local
         | Line::Stored { .. }

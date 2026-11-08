@@ -3,7 +3,7 @@ use crate::limits::{self, Limits};
 use jig_client::{Link, Message, With};
 use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
-use skein_ui_screen::{Cell, Focus, Frame, Size, Theme};
+use skein_ui_screen::{Cell, Focus, Frame, Rgb, Size, Theme};
 use skein_ui_screen_terminal::{Command, Key, command};
 use temper_client_domain::{
     self as root, Address, Event, Place,
@@ -36,8 +36,10 @@ enum Phase {
 pub struct Start {
     pub size: Size,
     pub scheme: tui::Scheme,
+    pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
+    pub boxed: bool,
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
     pub note: Option<tui::Note>,
@@ -83,6 +85,8 @@ pub struct Host {
     bounds: skein_ui::Limits,
     theme: Theme,
     size: Size,
+    background: Option<Rgb>,
+    boxed: bool,
     focus: Focus,
     frame: Frame,
     mapping: jig_client_protocol_http::Mapping,
@@ -116,6 +120,8 @@ impl Host {
             bounds: limits.view,
             theme: tui::theme(tui::Scheme::Dark),
             size: Size { rows: 0, columns: 0 },
+            background: None,
+            boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
@@ -242,6 +248,8 @@ impl Host {
         assert!(self.state.is_none(), "the TUI starts once");
         self.state = Some(tui::Tui::new(&start.address));
         self.size = start.size;
+        self.background = start.background;
+        self.boxed = start.boxed;
         self.tell(Told::Size { columns: start.size.columns });
         self.credential.clone_from(&start.credential);
         self.local = start.local;
