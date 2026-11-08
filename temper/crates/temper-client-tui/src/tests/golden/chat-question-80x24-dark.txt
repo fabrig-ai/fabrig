@@ -1,0 +1,59 @@
+ ✦ Hello / What landed overnight? T2                             127.0.0.1:8367
+❯ What landed overnight?
+
+▸ Listed changes, read 3 changes  6 s
+
+✦ Three changes landed between 22:10 and 06:40:
+  1. csv-export: the report's columns, the first of its three tasks.
+  2. csv-export: the export button on the report page.
+  3. fix-login: a session no longer ends when the forge restarts.
+  csv-export's last task waits on you: whether the file separates its
+  values with a comma or a semicolon. Most spreadsheets expect a comma.
+
+❯ Answer it with a comma
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+Answer csv-export's question with "Comma"?
+❯ 1. Answer Comma
+  2. Answer Semicolon
+  3. Tell it something else
+--
+.aabbbbbcccbbbbbbbbbbbbbbbbbbbbbbddd.............................dddddddddddddd.
+efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+................................................................................
+ddddddddddddddddddddddddddddddddddddd...........................................
+................................................................................
+a...............................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+aa..............................................................................
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb......................................
+gggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..................................................
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb..................................................
+--
+a: fore #E08A68
+b: bold
+c: fore #6A655C
+d: fore #9A9388
+e: fore #9A9388 back #2A2825
+f: back #2A2825
+g: fore #E08A68 back #2A2825 bold
+h: back #2A2825 bold
+cursor 18 2

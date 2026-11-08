@@ -126,9 +126,6 @@ its 320 px, as the user accepted in `look-round-17`.
 - **Not yet:** 6.14, *The launchpad*: the TUI draws the first screen,
   "Connected to HOST:PORT as NAME" and its projects.
 
-- **Not yet:** 6.14, *A chat* and *The chat's question*: no chat is
-  drawn.
-
 - **Not yet:** 10, *The TUI in the joint world*: no story asks temper
   from the launchpad and reads the chat it starts.
 

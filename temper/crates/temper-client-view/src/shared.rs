@@ -13,3 +13,10 @@ pub use words::{
     NeedKind, NeedLine, Run, RunLine, TerminalWord, chat_state, closed_line, description, heading, home_headline,
     need_line, note, offered, running, say,
 };
+
+/// Whether the open chat's run line is under way (temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn working(root: &temper_client_domain::Domain, w: &crate::words::Words) -> bool {
+    let Some(chat) = root.pages().chat() else { return false };
+    crate::pages::chats::working(root, w, &chat.thread)
+}
