@@ -1,6 +1,6 @@
 //! One stdio MCP child for smith/docs/design/protocol/programs.md, sections 5 and 8. Keeps
 //! framing and request IDs, never credentials or observations. The driver
-//! routes owned I/O events here; notices settle startup or the current call.
+//! routes owned I/O events here; notices settle startup or calls matched by ID.
 
 use crate::output::Output;
 use serde_json::{Value, json};
@@ -29,14 +29,14 @@ const OWNER: Token = Token::new(100);
 #[derive(Debug)]
 pub(crate) enum Notice {
     Settled { connected: bool, tools: Vec<String>, schema_error: Option<String> },
-    Reply(Result<Value, String>),
+    Reply { id: String, reply: Result<Value, String> },
 }
 
 #[derive(Debug)]
 enum Pending {
     Initialize,
     List,
-    Call,
+    Call(String),
 }
 
 #[derive(Debug)]
@@ -45,8 +45,9 @@ pub(crate) struct Mcp {
     input: Option<Token>,
     output: Output,
     bytes: Vec<u8>,
+    reading: bool,
     sequence: u64,
-    pending: Option<(u64, Pending)>,
+    pending: BTreeMap<u64, Pending>,
     spawning: bool,
     settled: bool,
     connected: bool,
@@ -61,8 +62,9 @@ impl Mcp {
             input: None,
             output: Output::new(None),
             bytes: Vec::new(),
+            reading: false,
             sequence: 0,
-            pending: None,
+            pending: BTreeMap::new(),
             spawning: false,
             settled: false,
             connected: false,
@@ -151,6 +153,7 @@ impl Mcp {
             }
             Event::Stream { up, .. } => match up {
                 Up::Bytes(bytes) => {
+                    self.reading = false;
                     self.bytes.extend_from_slice(&bytes);
                     if self.bytes.len() > super::fake::MCP_INPUT_BYTES as usize {
                         self.failed();
@@ -195,8 +198,13 @@ impl Mcp {
         }
     }
 
-    fn read(&self, requests: &mut Queue<Request>) {
+    fn read(&mut self, requests: &mut Queue<Request>) {
+        // Finish sending a group before accepting any of its answers.
+        if self.reading || !self.output.drained() || (self.pending.is_empty() && !self.ending) {
+            return;
+        }
         if let Some(input) = self.input {
+            self.reading = true;
             requests.push(Request::Stream {
                 stream: input,
                 down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: crate::fake::FILE_BYTES }, room: 0 },
@@ -212,15 +220,15 @@ impl Mcp {
 
     fn request(&mut self, method: &str, params: Value, pending: Pending) {
         self.sequence = self.sequence.checked_add(1).expect("MCP request ID fits");
-        self.pending = Some((self.sequence, pending));
+        self.pending.insert(self.sequence, pending);
         self.send(json!({"jsonrpc":"2.0", "id":self.sequence, "method":method, "params":params}));
     }
 
     fn message(&mut self, value: Value) {
-        if self.ending || self.pending.as_ref().is_none_or(|(id, _)| value["id"].as_u64() != Some(*id)) {
+        if self.ending {
             return;
         }
-        let (_, pending) = self.pending.take().expect("matching request");
+        let Some(pending) = value["id"].as_u64().and_then(|id| self.pending.remove(&id)) else { return };
         match pending {
             Pending::Initialize => {
                 if value.get("error").is_some() || !value["result"].is_object() {
@@ -264,21 +272,22 @@ impl Mcp {
                     _ => self.failed(),
                 }
             }
-            Pending::Call => {
+            Pending::Call(id) => {
                 let reply = match value.get("result") {
                     Some(result) if value.get("error").is_none() => Ok(result.clone()),
                     _ => Err(value["error"]["message"].as_str().unwrap_or("MCP call failed").into()),
                 };
-                self.notices.push_back(Notice::Reply(reply));
+                self.notices.push_back(Notice::Reply { id, reply });
             }
         }
     }
 
     fn failed(&mut self) {
-        if matches!(self.pending, Some((_, Pending::Call))) {
-            self.notices.push_back(Notice::Reply(Err("MCP server ended".into())));
+        for pending in std::mem::take(&mut self.pending).into_values() {
+            if let Pending::Call(id) = pending {
+                self.notices.push_back(Notice::Reply { id, reply: Err("MCP server ended".into()) });
+            }
         }
-        self.pending = None;
         self.connected = false;
         self.ending = true;
         if !self.settled {
@@ -287,25 +296,26 @@ impl Mcp {
         }
     }
 
-    pub fn call(&mut self, tool: String, input: Value) {
+    pub fn call(&mut self, id: String, tool: String, input: Value) {
         if !self.connected {
-            self.notices.push_back(Notice::Reply(Err("MCP server unavailable".into())));
+            self.notices.push_back(Notice::Reply { id, reply: Err("MCP server unavailable".into()) });
         } else {
-            self.request("tools/call", json!({"name":tool, "arguments":input}), Pending::Call);
+            self.request("tools/call", json!({"name":tool, "arguments":input}), Pending::Call(id));
         }
     }
 
     pub fn cancel(&mut self) {
-        self.pending = None;
+        self.pending.clear();
     }
 
     pub fn stop(&mut self) {
         self.ending = true;
-        self.pending = None;
+        self.pending.clear();
     }
 
     pub fn progress(&mut self, requests: &mut Queue<Request>) {
         self.output.progress(self.ending, requests);
+        self.read(requests);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -323,6 +333,82 @@ mod tests {
         stream::{Down, Held, Up},
     };
 
+    #[test]
+    fn a_group_is_sent_before_any_answer_is_read() {
+        for count in [1, 2, 6] {
+            let input = Token::new(1);
+            let output = Token::new(2);
+            let mut mcp = Mcp::new();
+            mcp.connected = true;
+            mcp.input = Some(input);
+            mcp.output = crate::output::Output::new(Some(output));
+            for id in 0..count {
+                mcp.call(id.to_string(), "lookup".into(), json!({}));
+            }
+            let mut requests = Queue::with_capacity(8);
+            for sent in 0..count {
+                mcp.progress(&mut requests);
+                assert!(
+                    matches!(requests.pop(), Some(Request::Stream { stream, down: Down::Demand { room, .. } }) if stream == output && room > 0)
+                );
+                assert!(requests.is_empty(), "no answer read before all {count} sends: sent {sent}");
+                mcp.event(Event::Stream { owner: output, up: Up::Room }, &mut requests);
+                assert!(
+                    matches!(requests.pop(), Some(Request::Stream { stream, down: Down::Send(_) }) if stream == output)
+                );
+                assert!(requests.is_empty());
+            }
+            mcp.progress(&mut requests);
+            assert!(
+                matches!(requests.pop(), Some(Request::Stream { stream, down: Down::Demand { room: 0, .. } }) if stream == input)
+            );
+            assert!(requests.is_empty());
+        }
+    }
+
+    #[test]
+    fn outstanding_calls_match_once_by_id_and_cancel_together() {
+        for (order, cancel, failed, expected) in [
+            (vec![2, 1], false, false, vec!["second", "first"]),
+            (vec![9, 1, 1, 2], false, false, vec!["first", "second"]),
+            (vec![2, 1], true, false, vec![]),
+            (vec![], false, true, vec!["first", "second"]),
+        ] {
+            let mut mcp = Mcp::new();
+            mcp.connected = true;
+            mcp.call("first".into(), "lookup".into(), json!({}));
+            mcp.call("second".into(), "lookup".into(), json!({}));
+            if cancel {
+                mcp.cancel();
+            }
+            if failed {
+                mcp.failed();
+                mcp.failed();
+            }
+            for id in order {
+                mcp.message(json!({"id":id, "result":{"content":[{"text":format!("answer-{id}")}]}}));
+            }
+            let replies: Vec<_> = mcp
+                .notices
+                .drain(..)
+                .filter_map(|notice| match notice {
+                    Notice::Reply { id, reply } => Some((id, reply)),
+                    Notice::Settled { .. } => None,
+                })
+                .collect();
+            assert_eq!(replies.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(), expected);
+            for (id, reply) in replies {
+                if failed {
+                    assert_eq!(reply, Err("MCP server ended".into()));
+                } else {
+                    let wire = if id == "first" { 1 } else { 2 };
+                    assert_eq!(reply.expect("answer")["content"][0]["text"], format!("answer-{wire}"));
+                }
+            }
+            assert!(mcp.pending.is_empty());
+        }
+    }
+
     // T1's measured relay tools/list wire size, including LF.
     const RELAY_LIST_BYTES: usize = 25_566;
     // One complete JSON line should require one delivery, regardless of its size.
@@ -333,7 +419,7 @@ mod tests {
         let input = Token::new(1);
         let mut mcp = Mcp::new();
         mcp.input = Some(input);
-        mcp.pending = Some((1, Pending::List));
+        mcp.pending.insert(1, Pending::List);
         let mut value = json!({"jsonrpc":"2.0", "id":1, "result":{"tools":[{"name":"finish","inputSchema":{"type":"object"}}]}, "padding":""});
         let envelope = serde_json::to_vec(&value).expect("JSON").len() + 1;
         value["padding"] = json!("x".repeat(RELAY_LIST_BYTES - envelope));

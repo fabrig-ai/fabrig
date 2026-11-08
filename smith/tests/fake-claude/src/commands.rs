@@ -20,7 +20,7 @@ pub(crate) enum Effect {
     Seen(crate::Seen),
     Received(serde_json::Value),
     McpStart { configuration: serde_json::Value, directory: String },
-    McpCall { tool: String, input: serde_json::Value },
+    McpCall { id: String, tool: String, input: serde_json::Value },
     McpCancel,
     End(u8),
 }
