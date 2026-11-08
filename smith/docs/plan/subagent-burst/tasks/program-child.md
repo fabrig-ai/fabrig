@@ -3,7 +3,7 @@ id = "program-child"
 part = "lifetime"
 kind = "feature"
 needs = []
-files = ["smith/crates/smith-agent-shell/src/program_child.rs", "smith/crates/smith-agent-shell/src/program_child/**", "smith/crates/smith-agent-shell/src/lib.rs", "smith/crates/smith-agent-shell/src/agent_shell.rs", "smith/crates/smith-agent-shell/src/config/programs.rs", "smith/src/bin/smith-agent.rs", "smith/crates/smith-protocol-program/src/lib.rs", "smith/crates/smith-protocol-program/src/backend.rs", "smith/crates/smith-protocol-program/src/backend/start.rs", "smith/crates/smith-protocol-program/src/backend/fixtures.rs", "smith/crates/smith-protocol-program/src/backend/diagnostics.rs", "smith/crates/smith-protocol-program/src/backend/launch_tests.rs", "smith/crates/smith-agent-service/src/service/program.rs", "smith/tests/end-to-end/program_lifetime.rs", "smith/tests/end-to-end/end_to_end.rs", "smith/tests/end-to-end/support/lifetime.rs", "smith/tests/end-to-end/support/mod.rs", "smith/docs/design/protocol/programs.status.md", "smith/docs/design/shell.status.md", "smith/docs/design/STATUS.md"]
+files = ["smith/crates/smith-agent-shell/src/program_child.rs", "smith/crates/smith-agent-shell/src/program_child/**", "smith/crates/smith-agent-shell/src/lib.rs", "smith/crates/smith-agent-shell/src/agent_shell.rs", "smith/crates/smith-agent-shell/src/config/programs.rs", "smith/src/bin/smith-agent.rs", "smith/crates/smith-protocol-program/src/lib.rs", "smith/crates/smith-protocol-program/src/backend.rs", "smith/crates/smith-protocol-program/src/backend/start.rs", "smith/crates/smith-protocol-program/src/backend/fixtures.rs", "smith/crates/smith-protocol-program/src/backend/diagnostics.rs", "smith/crates/smith-protocol-program/src/backend/launch_tests.rs", "smith/crates/smith-agent-service/src/service/program.rs", "smith/tests/end-to-end/program_lifetime.rs", "smith/tests/end-to-end/end_to_end.rs", "smith/tests/end-to-end/support/lifetime.rs", "smith/tests/end-to-end/support/mod.rs", "smith/tests/end-to-end/credentials.rs", "smith/docs/design/protocol/programs.status.md", "smith/docs/design/shell.status.md", "smith/docs/design/STATUS.md"]
 effort = "high"
 minutes = 180
 +++
@@ -195,3 +195,19 @@ As the implementer's text says, and: the processes the abort row found
 and how it found them, the CPU and wall time it took, whether the relay
 ended at its input's end, the rules broken by hand and the failures
 seen, and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-08. *May this task repair the inherited `Secret` compile errors
+in `smith/tests/end-to-end/credentials.rs`?* Yes, narrowly: the
+`end_to_end` binary holds this task's abort row and does not compile
+without it (main carries the same break since `6c401e7d17` made
+`SavedToken`'s tokens `Secret`). Change only the conversions the
+compiler names (lines 47, 51, 52, 81, 82): build each `Secret` with
+`Secret::new(..)` from the same bytes, and replace `clone_from(&held)`
+with an assignment of a `Secret` of `held`'s bytes. The fixture's bytes,
+the records it writes and every assertion stay as they are; no other
+test of the file changes. Commit it alone, saying it repairs the
+fixture for the `Secret` record fields, before the row's commits; then
+resume from `480d12d44e`.
+
