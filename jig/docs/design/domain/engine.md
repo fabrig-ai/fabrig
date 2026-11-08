@@ -1266,6 +1266,18 @@ The fleet child domain knows the hosts and the runs they host:
   reconnects says what it hosts, and the core keeps or cancels each. Past
   the grace they are lost, and their tasks retry. The engine's own slots
   are lost only with the engine (section 6).
+- **A draining worker leaves placement.** A worker that starts to shut
+  down says it drains before anything its runs' ends send (hosts.md,
+  6.7): from then until its channel is lost, the fleet places nothing
+  on it, neither a run nor a job, whatever slots free there, while the
+  runs it hosts go on to their ends and their turns and answers are
+  taken as ever. An attempt the fleet chose for it and has not yet
+  assigned there is placed again, as one refused as busy is, and no
+  attempt is refused for the drain. A refusal as busy keeps a worker out
+  only until a slot frees there; a drain keeps it out for the rest of
+  its channel. A
+  worker that dials again is a new channel, placed on once its logins
+  answer.
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops
@@ -2547,7 +2559,14 @@ judges and keeps it within the change's decision.
   compares them with those it stored, and tells the core which of its
   settings' defaults differ and their sizes, so that a changed default
   no change is over joins the release's revision (17.7), the decision
-  in which the connector saves the new ones. A stored value it cannot
+  in which the connector saves the new ones. It also names, by kind,
+  scope and number, each default it stored that the application no
+  longer gives: a setting that follows one of those is removed in that
+  revision, its state erased. A setting that follows a default its
+  connector neither reports nor names, as one a reset returned to a
+  default the application gives its connector for no one scope, or
+  gives none of, keeps its state, its size and its slot (below), and
+  the release's revision does not name it. A stored value it cannot
   read refuses the start, naming it, as a record it cannot read does; a
   default past its kind's bounds refuses it, naming the kind; and a
   stored setting, the core's or the connector's, of a kind the

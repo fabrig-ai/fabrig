@@ -1,5 +1,5 @@
 //! The browser terminal's conversation walk (temper/docs/design/client/README.md, 3.5 and 6.14).
-use super::{Entry, Words, shared};
+use super::{Entry, Piece, Words, printed, shared};
 use alloc::boxed::Box;
 use jig_client::{
     contract as c,
@@ -13,6 +13,7 @@ use temper_client_domain::{
         chat::{Chat, document},
         delegation,
     },
+    views::{self, Part},
 };
 use temper_client_view::words::Word;
 
@@ -70,9 +71,7 @@ fn committed<'a>(
                 c::Block::Text(text) => {
                     if message.speaker == c::Speaker::Assistant && !text.bytes().is_empty() {
                         flush(run, entries, words);
-                        entries
-                            .push(Entry::Agent { words: text.bytes().into(), growing: false })
-                            .expect("conversation entries fit memory");
+                        entries.push(agent(text.bytes(), chat)).expect("conversation entries fit memory");
                     }
                 }
                 c::Block::Call(call) => {
@@ -103,6 +102,33 @@ fn committed<'a>(
             }
         }
     }
+}
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the protocol validated committed UTF-8; the view splitter borrows it as str"
+)]
+fn agent(bytes: &[u8], chat: &Chat) -> Entry {
+    let text = core::str::from_utf8(bytes).expect("committed text is UTF-8");
+    let parts = views::parts(text);
+    let mut viewed = false;
+    for part in &parts {
+        match part {
+            Part::Text(_) => {}
+            Part::View(_) => viewed = true,
+        }
+    }
+    if !viewed {
+        return Entry::Agent { words: bytes.into(), growing: false };
+    }
+    let mut pieces = List::with_capacity(parts.len());
+    for part in parts.into_boxed() {
+        let piece = match part {
+            Part::Text(text) => Piece::Text(text.as_bytes().into()),
+            Part::View(address) => Piece::View(printed::read(address, chat.view(address))),
+        };
+        pieces.push(piece).expect("one piece per text part");
+    }
+    Entry::Viewed(pieces.into_boxed())
 }
 fn cancelling_party(ending: &c::ChipEnding) -> Option<c::Requester> {
     match ending {

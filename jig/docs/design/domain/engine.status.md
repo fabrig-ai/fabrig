@@ -139,18 +139,6 @@ and catalogue-number reuse remain section 16's open questions.
   `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
-- **Not yet:** 17.5, 17.7, 17.10: a setting reset to a default its
-  connector does not report keeps its slot only until the next start:
-  `jig-domain-core/src/settings/application.rs`, `prepare_start`, erases
-  every default-following state the connectors' defaults leave out, with
-  a removal in the release's revision, where 17.7 makes that revision of
-  defaults that differ alone and 17.5 keeps a reset's slot. The stored
-  state does not tell such a reset from an empty default a release
-  dropped, whose removal must make the release's revision, so telling
-  them apart takes a stored-format or connector-contract change. Two of
-  temper's restore stories stay ignored for it
-  (`temper/docs/design/protocol/configuration.status.md`); no jig test
-  holds it.
 
 - **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the

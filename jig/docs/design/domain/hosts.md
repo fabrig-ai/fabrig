@@ -726,7 +726,10 @@ happens.
 
 ### 6.7 Shutting down
 
-Shutting down cancels every run and admits no more. The host is done
+Shutting down cancels every run and admits no more. A worker's hub
+first says it drains, on its link, before anything the cancelled runs
+send, and again after each hello while it shuts down, so that the fleet
+places nothing more on it (engine.md, section 8). The host is done
 once the engine has every turn and answer. A worker gives up what it
 keeps, counted, only once no run is left and the engine is still out of
 reach past the grace.

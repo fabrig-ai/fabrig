@@ -137,7 +137,7 @@ take no outline, under 720 it is the request's picture scaled, an open
 card stands 14 px under it, the gallery prints it down the page at 420,
 a card's "Asked to" is its charter's first sentence whole, CI's card
 names the required checks, every card's link opens a role's or a rule's
-page in Settings, and the terminal prints "Ways of working:" and "The
+page in How work runs' frame, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
@@ -151,7 +151,21 @@ lanes over CI and tiers and over neither, and six gallery states; its
 render check and walk follow landing. The draft draws the path as Ask
 temper's ways do, the agent's star in ink, which the design doesn't yet
 say, and Roles, which it defers (`client/README.md`, 5.13 and 11; `client/browser.md`,
-2.5 and 7.2; `draft/surfaces.status.md`, 7 and 13). Ask temper's
+2.5 and 7.2; `draft/surfaces.status.md`, 7 and 13). The rail, Work and
+Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
+rail and the tab bar from one pure function of their parts, Work, the
+hairline, How work runs, the new box and Deployment at the foot, the
+switcher's All projects; Work's one list, its head, filters and cards,
+Goals and Changes its filters; Deployment's six tabs, Members and Limits
+new; with a fuzz test of the draft's density rules, the joint world's Work
+across two projects and fifteen gallery states; their render check and
+walk follow landing. Team is never shown, as no read gives the rail a
+project's members or roles; the draft, redrawn after the plan's cut,
+adds a hairline and How work runs to To begin's rail, drops the words
+that still name Settings and takes Away across projects, which the
+design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
+`client/browser.status.md`, 2.3, 2.5 and 7.2;
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -729,7 +743,14 @@ and no run on record reads the tier as it stands against its 540 CPU s.
 The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
-CPU without them is read after landing. The copy stories' world and the
+CPU without them is read after landing. B0's two offline proofs and the
+managed sitting's Ready joined the tier by name, with no pass there on
+record, and the sitting's driver still sets up its fake half otherwise
+than the test; the six tests that need a person name what in their
+reasons, and the playground's heap at start and the forge's two-change
+hint profile are bound in the focused suite, the heap on figures past a
+quarter above 11-03's (`domain/testing.md`, 2.6, 2.7 and 11;
+`playground.md`, 9). The copy stories' world and the
 issuer's log story depart from the request `walks-lower`, and polling past a
 hook that delivers nothing stands on the forge's world alone
 (`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from

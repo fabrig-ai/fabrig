@@ -312,7 +312,7 @@ fn active_command_name_is_plain_weight() {
         let theme = crate::theme(scheme, None);
         let mut focus = Focus::default();
         let mut frame = Frame::new(size);
-        for active in [b"/model".as_slice(), b"/new"] {
+        for active in [b"/change".as_slice(), b"/new"] {
             if active == b"/new" {
                 focus.active = Some(f::find(view.tree(), Role::MenuItem, active).id);
             }
@@ -354,7 +354,7 @@ fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_u
             }
         }
     }
-    assert_eq!(commands, 7);
+    assert_eq!(commands, 10);
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
@@ -368,31 +368,21 @@ fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
 fn the_foot_says_each_state() {
     let mut failures = List::with_capacity(32);
     for (name, project, chat, typed, listing, placeholder, commands) in [
-        ("launchpad", true, false, "", None, Some("Ask temper"), &[][..]),
+        ("launchpad", true, false, "", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
         ("no project", false, false, "", None, Some("/ for commands"), &[][..]),
         ("chat", true, true, "", None, Some("Reply"), &[][..]),
+        ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
+        ("unknown", true, false, "/zz", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
+        ("whitespace", true, false, "/new ", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
         (
-            "commands",
+            "unicode whitespace",
             true,
             false,
-            "/",
+            "/new\u{a0}",
             None,
-            None,
-            &[
-                Command::Model,
-                Command::Effort,
-                Command::New,
-                Command::Chats,
-                Command::Theme,
-                Command::Help,
-                Command::Exit,
-            ][..],
+            Some("Ask for a change, or ask temper.  / for commands"),
+            &[][..],
         ),
-        ("launchpad prefix", true, false, "/c", None, None, &[Command::Chats][..]),
-        ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
-        ("unknown", true, false, "/zz", None, Some("Ask temper"), &[][..]),
-        ("whitespace", true, false, "/new ", None, Some("Ask temper"), &[][..]),
-        ("unicode whitespace", true, false, "/new\u{a0}", None, Some("Ask temper"), &[][..]),
         ("models", true, false, "", Some(Listing::Model), None, &[][..]),
         ("launchpad efforts", true, false, "", Some(Listing::Effort), None, &[][..]),
         ("efforts", true, true, "", Some(Listing::Effort), None, &[][..]),
@@ -509,11 +499,7 @@ fn read_states() {
         let root = root_state(true, true, true, false, false, state);
         let part = foot::read(&root, &tui, &words, f::NOW);
         assert_eq!(part.composer.as_ref().unwrap().placeholder.as_ref(), placeholder.as_bytes(), "{name}");
-        assert_eq!(
-            part.hint.as_ref(),
-            if paused { "paused · a message resumes it".as_bytes() } else { b"/ for commands" },
-            "{name}"
-        );
+        assert_eq!(part.paused, paused, "{name}");
         assert_eq!(part.running.is_some(), running, "{name}");
         let expected = part.running.clone();
         let view = draw(part);
@@ -606,11 +592,12 @@ fn quiet_states() {
         ("one", 1, false, 0, "Claude Opus 5.5 · high", true, "1 needs you"),
         ("three", 3, false, 0, "Claude Opus 5.5 · high", true, "3 need you"),
         ("cut", 3, true, 0, "Claude Opus 5.5 · high", true, "3+ need you"),
+        ("medium", 1, false, 60, "Claude Opus 5.5 · high", true, "1 needs you"),
         ("narrow", 1, false, 40, "Claude Opus 5.5 · high", false, "1 needs you"),
-        ("fits exactly", 0, false, 49, "Claude Opus 5.5 · high", true, ""),
-        ("one column short", 0, false, 48, "Claude Opus 5.5 · high", false, ""),
-        ("wide glyph fits", 0, false, 29, "界", true, ""),
-        ("wide glyph short", 0, false, 28, "界", false, ""),
+        ("fits exactly", 0, false, 42, "Claude Opus 5.5 · high", true, ""),
+        ("one column short", 0, false, 41, "Claude Opus 5.5 · high", false, ""),
+        ("wide glyph fits", 0, false, 22, "界", true, ""),
+        ("wide glyph short", 0, false, 21, "界", false, ""),
     ] {
         let mut part = foot::read(&root, &tui, &words, f::NOW);
         part.needs = d::pages::needs::Count { count, cut };
@@ -624,6 +611,7 @@ fn quiet_states() {
             assert_eq!(f::text(view.tree(), signal).as_ref(), expected.as_bytes(), "{name}");
         }
         assert_eq!(has(view.tree(), look::HINT, line.as_bytes()), closed, "{name}");
+        assert_eq!(has(view.tree(), look::HINT, b"n to walk"), count > 0 && columns == 0, "{name}");
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let start = f::index(view.tree(), bottom.id);
         let mut next = start.checked_add(1).unwrap();
@@ -635,6 +623,54 @@ fn quiet_states() {
             }
         }
         assert_eq!(children, 2, "{name}");
+    }
+    let part = foot::read(&root, &tui, &words, f::NOW);
+    assert_eq!(
+        part.composer.as_ref().unwrap().placeholder.as_ref(),
+        b"Ask for a change, or ask temper.  / for commands"
+    );
+    let view = draw(part);
+    let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+    assert_eq!(f::text(view.tree(), bottom).as_ref(), "Demo · model · high · ● Live".as_bytes());
+    for (name, project, picker, chat, task, columns, left, right) in [
+        (
+            "launchpad",
+            true,
+            true,
+            false,
+            TaskState::Idle,
+            80,
+            "Demo · Claude Opus 5.5 · high · ● Live",
+            "1 needs you · n to walk",
+        ),
+        ("medium", true, true, false, TaskState::Idle, 60, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
+        ("narrow", true, true, false, TaskState::Idle, 40, "Demo · ● Live", "1 needs you"),
+        ("chat", true, true, true, TaskState::Idle, 80, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
+        (
+            "paused",
+            true,
+            true,
+            true,
+            TaskState::Paused,
+            110,
+            "Demo · Claude Opus 5.5 · high · ● Live",
+            "paused · a message resumes it · 1 needs you",
+        ),
+        ("no picker", true, false, false, TaskState::Idle, 80, "Demo · ● Live", "1 needs you · n to walk"),
+        ("no project", false, false, false, TaskState::Idle, 80, "● Live", ""),
+    ] {
+        let root = root_state(project, picker, chat, false, false, task);
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.columns = columns;
+        part.closed = if picker { Some("Claude Opus 5.5 · high".as_bytes().into()) } else { None };
+        part.needs = d::pages::needs::Count { count: u32::from(project), cut: false };
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
+        assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
     }
     front_quiet(&root, &words);
     let no_picker = root_state(true, false, false, false, false, TaskState::Idle);
@@ -747,6 +783,7 @@ fn question(primary: Option<usize>, empty: bool) -> shared::Question {
 #[expect(clippy::disallowed_methods, reason = "test assertions collect the question's rendered options")]
 #[expect(clippy::disallowed_types, reason = "test assertions collect the question's rendered options")]
 fn question_states() {
+    walk_states();
     let root = root(true, true, true, false, false);
     let words = f::words();
     let tui = Tui::new(f::ADDRESS);
@@ -819,6 +856,7 @@ fn question_states() {
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions filter the rendered note paragraphs")]
 fn note_states() {
+    walk_notes();
     front_notes();
     let mut root = root(true, true, false, false, false);
     let words = f::words();
@@ -828,10 +866,13 @@ fn note_states() {
     tui.step(Told::Unknown { words: Some(b"/font".as_slice().into()) });
     let notes: foot::Notes = foot::read_notes(&root, &tui, &words);
     let want = [
+        "/change  One change, run as the project's way says",
+        "/ask     Ask temper",
         "/model   Change the model, from the next turn",
         "/effort  Change the effort",
         "/new     Start a new chat",
         "/chats   Open another chat",
+        "/open    Open this on the web",
         "/theme   Dark or light",
         "/help    Commands and keys",
         "/exit    Close temper",
@@ -870,8 +911,8 @@ fn note_states() {
             exit = Some(index);
         }
     }
-    assert_eq!(log, Some(6));
-    assert_eq!(exit, Some(7));
+    assert_eq!(log, Some(9));
+    assert_eq!(exit, Some(10));
     assert!(notes.lines.iter().any(|line| line.as_ref() == b"Ctrl+C closes temper and stops the box"));
 }
 
@@ -895,10 +936,35 @@ fn the_foots_are_their_goldens() {
             2,
             include_bytes!("golden/foot-question-80x24-dark.txt").as_slice(),
         ),
+        (
+            "foot-walk-80x24-dark",
+            Scheme::Dark,
+            Size { columns: 80, rows: 24 },
+            3,
+            include_bytes!("golden/foot-walk-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "foot-walk-80x24-light",
+            Scheme::Light,
+            Size { columns: 80, rows: 24 },
+            3,
+            include_bytes!("golden/foot-walk-80x24-light.txt").as_slice(),
+        ),
+        (
+            "foot-walk-110x32-dark",
+            Scheme::Dark,
+            Size { columns: 110, rows: 32 },
+            3,
+            include_bytes!("golden/foot-walk-110x32-dark.txt").as_slice(),
+        ),
     ];
     let mut views = List::with_capacity(6);
     let words = f::words();
     for (_, _, size, kind, _) in &rows {
+        if *kind == 3 {
+            views.push(walk_golden(*size)).unwrap();
+            continue;
+        }
         let mut root = root(true, true, *kind == 2, false, false);
         if *kind == 1 {
             act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
@@ -1105,30 +1171,14 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
     const PAST_STEP: usize = 65;
     type StepCase = (Box<[u8]>, Box<[u8]>);
     for (name, step, playground, count, columns, expected, closed) in [
-        ("restarting", Some(false), false, 0, 0, "/ for commands · forgejo-3 restarting", true),
-        ("gave up", Some(true), false, 0, 0, "/ for commands · forgejo-3 gave up", true),
-        ("playground", None, true, 0, 0, "/ for commands · playground", true),
-        (
-            "restarting with needs",
-            Some(false),
-            false,
-            1,
-            0,
-            "/ for commands · forgejo-3 restarting · 1 needs you",
-            true,
-        ),
-        ("gave up with needs", Some(true), false, 1, 0, "/ for commands · forgejo-3 gave up · 1 needs you", true),
-        ("playground with needs", None, true, 1, 0, "/ for commands · playground · 1 needs you", true),
-        (
-            "all in order",
-            Some(false),
-            true,
-            1,
-            0,
-            "/ for commands · forgejo-3 restarting · playground · 1 needs you",
-            true,
-        ),
-        ("narrow with state", Some(false), false, 0, 65, "/ for commands · forgejo-3 restarting", false),
+        ("restarting", Some(false), false, 0, 0, "forgejo-3 restarting", true),
+        ("gave up", Some(true), false, 0, 0, "forgejo-3 gave up", true),
+        ("playground", None, true, 0, 0, "playground", true),
+        ("restarting with needs", Some(false), false, 1, 0, "forgejo-3 restarting · 1 needs you · n to walk", true),
+        ("gave up with needs", Some(true), false, 1, 0, "forgejo-3 gave up · 1 needs you · n to walk", true),
+        ("playground with needs", None, true, 1, 0, "playground · 1 needs you · n to walk", true),
+        ("all in order", Some(false), true, 1, 0, "forgejo-3 restarting · playground · 1 needs you · n to walk", true),
+        ("narrow with state", Some(false), false, 0, 60, "forgejo-3 restarting", false),
     ] {
         let root = super::launchpad::home_read(
             None,
@@ -1154,6 +1204,8 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
         let view = draw(part);
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let paragraph = &view.tree().nodes()[f::index(view.tree(), bottom.id).checked_add(1).unwrap()];
+        let paragraph = &view.tree().nodes()
+            [f::index(view.tree(), paragraph.id).checked_add(usize::try_from(paragraph.size).unwrap()).unwrap()];
         assert_eq!(f::text(view.tree(), paragraph).as_ref(), expected.as_bytes(), "{name}");
         assert_eq!(has(view.tree(), look::HINT, "Claude Opus 5.5 · high".as_bytes()), closed, "{name}");
         if let Some(gave_up) = step {
@@ -1199,4 +1251,470 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
             }
         }
     }
+}
+
+const WALK_QUESTION: c::ObjectKey = c::ObjectKey::Question { task: 9, message: 1 };
+const WALK_HELD: c::ObjectKey = c::ObjectKey::Escalation(10);
+
+// Feed the page's public reads, including a primary choice after a non-primary one.
+#[expect(clippy::too_many_lines, reason = "one fixture delivers Home's reads, question, held task and status")]
+pub(super) fn walk_root(choices: bool) -> Domain {
+    use jig_client::Up;
+    let mut root = f::signed_out();
+    let mut out = f::event(
+        &mut root,
+        Event::Start {
+            address: Address::Home { project: 1 },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+    );
+    let mut more = f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } });
+    while let Some(request) = more.pop() {
+        out.push(request);
+    }
+    while let Some(request) = out.pop() {
+        let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+        let up = match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
+                let mut me = f::me(&[b"Hello"]);
+                let project = me.projects.get_mut(0).unwrap();
+                project.templates = List::from_boxed(Box::new([template(1), template(5)]));
+                project.models = List::from_boxed(Box::new([super::commands::model()]));
+                project.defaults = List::from_boxed(Box::new([c::MeDefault {
+                    template: d::pages::chats::ASKING_TEMPLATE,
+                    choice: c::LlmChoice {
+                        account: Some(1),
+                        main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                        subagents: List::with_capacity(0),
+                        later: None,
+                    },
+                }]));
+                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
+                        party: 73,
+                        needs: List::with_capacity(0),
+                        updates: List::with_capacity(0),
+                        next: None,
+                        cached_needs: 0,
+                        cached_updates: c::Count { value: 0, limited: false },
+                        results_seen: 0,
+                        updates_time_complete: true,
+                        selection: None,
+                    }))),
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
+                let mut rows = List::with_capacity(2);
+                if group == c::InboxReadGroup::Needs {
+                    for (number, object) in
+                        [(9, c::InboxObject::Question { message: 1 }), (10, c::InboxObject::Escalation { revision: 1 })]
+                    {
+                        rows.push(c::InboxEntry {
+                            reply: None,
+                            task: c::TaskLink::Stored { number, status: None },
+                            project: Some(1),
+                            object,
+                            activity: Some(1),
+                            at: Some(f::NOW),
+                            unread: None,
+                            cursor: c::InboxCursor::Inbox { task: number, object, at: Some(f::NOW) },
+                            projects: List::with_capacity(0),
+                        })
+                        .unwrap();
+                    }
+                }
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                        c::InboxPage { rows, cut: false, before: None, after: None, selection: None },
+                    )))),
+                }
+            }
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject) == d::forge::status::watch(1, &f::limits().forge).as_ref() =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let brief = w::StatusBrief::new(
+                    &w::CEILINGS,
+                    w::StatusBriefParts {
+                        sentence: b"One change landed.".as_slice().into(),
+                        lede: Box::default(),
+                        at: 0,
+                        landed: 1,
+                    },
+                )
+                .unwrap();
+                let status = w::ProjectStatus::new(
+                    &w::CEILINGS,
+                    w::ProjectStatusParts {
+                        project: 1,
+                        landed: 1,
+                        seen: 0,
+                        last_landed: Some(0),
+                        previous: Some(0),
+                        queued: 0,
+                        red: false,
+                        branch: b"main".as_slice().into(),
+                        brief: Some(brief),
+                    },
+                )
+                .unwrap();
+                Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::project_status(&status),
+                    },
+                }
+            }
+            jig_client::Down::Send { attempt, request, .. }
+                if Some(&request) == d::forge::status::ask(1, &f::limits().forge).as_ref() =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::answer(
+                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
+                        ),
+                    })),
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {
+                let mut chip = walk_task().chip;
+                chip.task = task;
+                chip.title = c::DocumentText::complete(text(b"csv-export"));
+                let words: &[u8] = if choices {
+                    b"csv-export: comma or semicolon?\nChoice: Semicolon\nChoice: Comma (recommended)"
+                } else {
+                    b"csv-export: comma or semicolon?"
+                };
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(Box::new(
+                        c::Question {
+                            task: chip,
+                            from: None,
+                            message,
+                            words: c::DocumentText::complete(c::Text::new(words.into(), 256).unwrap()),
+                            since: f::NOW,
+                            acts: List::from_boxed(Box::new([c::Offered {
+                                act: c::ActKind::Answer,
+                                admission: c::Admission::Allowed,
+                                effect: None,
+                            }])),
+                            ending: None,
+                        },
+                    )))),
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Escalation { task }) } => {
+                let mut document = walk_task();
+                document.chip.task = task;
+                document.chip.title = c::DocumentText::complete(text(b"Held task"));
+                document.hold = None;
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Escalation(Box::new(
+                        c::Escalation { task: Box::new(document), acts: List::with_capacity(0) },
+                    )))),
+                }
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) } => {
+                Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: List::with_capacity(0),
+                        more: false,
+                    }))),
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
+                        c::TaskPage { live: List::with_capacity(0), live_after: None, ended: c::EndedGroup::None },
+                    )))),
+                }
+            }
+            jig_client::Down::Open { subject, .. }
+                if Some(&subject) == d::forge::approvals::watch(&f::limits().forge).as_ref() =>
+            {
+                continue;
+            }
+            jig_client::Down::Open { subject: jig_client::Watchable::Jig(c::Subject::Accounts), .. }
+            | jig_client::Down::Save { .. }
+            | jig_client::Down::Erase { .. }
+            | jig_client::Down::Send { .. }
+            | jig_client::Down::Continue { .. }
+            | jig_client::Down::Close { .. }
+            | jig_client::Down::Read { .. } => continue,
+            jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
+        };
+        let mut more = f::client(&mut root, jig_client::Event::Up { up });
+        while let Some(request) = more.pop() {
+            out.push(request);
+        }
+    }
+    root
+}
+fn walk_task() -> c::Task {
+    let bounds =
+        jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
+    jig_client_protocol_link::translate::documents::task(jig_client_test_records::task_record(), &bounds).unwrap()
+}
+fn walk_review(root: &mut Domain) {
+    f::event(
+        root,
+        Event::Forge(d::forge::Event::Approvals {
+            event: d::forge::approvals::Event::Rows {
+                more: 0,
+                rows: Box::new([d::forge::approvals::Row {
+                    task: 81,
+                    project: 1,
+                    goal: None,
+                    forge: 3,
+                    kind: d::forge::forges::Kind::Forgejo,
+                    owner: b"work".as_slice().into(),
+                    name: b"hello".as_slice().into(),
+                    pull: 24,
+                    address: b"https://forge.example/work/hello/pulls/24/files".as_slice().into(),
+                    title: b"A change".as_slice().into(),
+                    since: f::NOW,
+                    scope: 1,
+                    rule: 1,
+                    role: 1,
+                    required: 1,
+                    counted: 0,
+                    behind: 0,
+                    whole: true,
+                    yours: d::forge::approvals::Yours::Counts,
+                }]),
+            },
+        }),
+    );
+}
+#[expect(clippy::disallowed_methods, reason = "walk rows inspect the rendered menu items")]
+fn walk_states() {
+    use crate::WalkStep;
+    let words = f::words();
+    for (name, choices, shown, prefix, expected) in [
+        ("question", true, &[][..], "", &["1. Comma", "2. Semicolon", "3. Tell it something else", "4. Next"][..]),
+        ("unparsed", false, &[][..], "", &["1. Tell it something else", "2. Next"][..]),
+        (
+            "before commands",
+            true,
+            &[][..],
+            "/",
+            &["1. Comma", "2. Semicolon", "3. Tell it something else", "4. Next"][..],
+        ),
+        ("second need", true, &[WALK_QUESTION][..], "", &["1. Open it on the web", "2. Next"][..]),
+        (
+            "shown object gone",
+            true,
+            &[c::ObjectKey::Task(999)][..],
+            "",
+            &["1. Comma", "2. Semicolon", "3. Tell it something else", "4. Next"][..],
+        ),
+        ("done", true, &[WALK_QUESTION, WALK_HELD][..], "", &[][..]),
+        ("review", true, &[WALK_QUESTION, WALK_HELD][..], "review", &["1. Review on Forgejo ↗", "2. Next"][..]),
+    ] {
+        let mut root = walk_root(choices);
+        if prefix == "review" {
+            walk_review(&mut root);
+        }
+        if prefix == "/" {
+            act(&mut root, d::pages::Act::ChatWords { words: b"/".as_slice().into() });
+        }
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Walk { by_key: true });
+        for object in shown {
+            tui.step(Told::Walked { object: *object });
+        }
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        if expected.is_empty() {
+            assert!(part.list.is_none(), "{name}");
+            continue;
+        }
+        let list = part.list.as_ref().expect(name);
+        assert_eq!(list.items.len(), expected.len(), "{name}");
+        assert_eq!(list.escape, TuiEvent::EndWalk, "{name}");
+        let object = if prefix == "review" {
+            c::ObjectKey::Task(81)
+        } else if name == "second need" {
+            WALK_HELD
+        } else {
+            WALK_QUESTION
+        };
+        let head = if prefix == "review" {
+            "A change: Approve A change on Forgejo"
+        } else if name == "second need" {
+            "Held task: Held task"
+        } else {
+            "csv-export: comma or semicolon?"
+        };
+        assert_eq!(list.head.as_deref(), Some(head.as_bytes()), "{name}");
+        for (index, (item, expected)) in list.items.iter().zip(expected).enumerate() {
+            assert_eq!(item.name.as_ref(), expected.as_bytes(), "{name}");
+            let step = if expected.ends_with("Next") {
+                WalkStep::Next
+            } else if expected.contains("Review") {
+                WalkStep::Open { address: b"https://forge.example/work/hello/pulls/24/files".as_slice().into() }
+            } else if expected.contains("web") {
+                WalkStep::Open { address: b"http://127.0.0.1:8367/?project=1".as_slice().into() }
+            } else if expected.contains("something else") {
+                assert_eq!(item.event, TuiEvent::Aside { object }, "{name}");
+                continue;
+            } else {
+                WalkStep::Choose {
+                    words: if index == 0 { b"Comma".as_slice().into() } else { b"Semicolon".as_slice().into() },
+                }
+            };
+            assert_eq!(item.event, TuiEvent::Walk { object, step }, "{name}");
+            assert_eq!(item.selected, choices && object == WALK_QUESTION && index == 0, "{name}");
+        }
+        let view = draw(part);
+        assert_eq!(crate::escape(&view), Some(TuiEvent::EndWalk));
+        for item in view.tree().nodes().iter().filter(|node| node.role == Role::MenuItem) {
+            assert!(crate::event(&view, item.id, Act::Press).is_some(), "{name}");
+        }
+    }
+    // The walk owns the prompt even where the chat has its own question.
+    let mut root = super::launchpad::question_root();
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Walk { by_key: false });
+    let list = foot::read(&root, &tui, &words, f::NOW).list.unwrap();
+    assert_eq!(list.items[0].name.as_ref(), b"1. Tell it something else");
+    assert_eq!(list.escape, TuiEvent::EndWalk);
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Close }));
+    assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::EndWalk);
+    act(&mut root, d::pages::Act::Cancel);
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Chats }));
+    assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::EndWalk);
+    tui.step(Told::Front);
+    tui.step(Told::Quitting);
+    assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::Stay);
+}
+#[expect(clippy::disallowed_methods, reason = "note rows find each rendered note by its words")]
+fn walk_notes() {
+    let mut root = walk_root(true);
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Font));
+    let words = f::words();
+    for (name, done, opened, clear) in [
+        ("walking", false, false, false),
+        ("done", true, false, false),
+        ("opener", false, true, false),
+        ("both", true, true, false),
+        ("cleared", true, true, true),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Walk { by_key: false });
+        if done {
+            for object in [WALK_QUESTION, WALK_HELD] {
+                tui.step(Told::Walked { object });
+            }
+        }
+        if opened {
+            tui.step(Told::NotOpened { address: Some(b"http://127.0.0.1:8367/projects/1".as_slice().into()) });
+        }
+        if clear {
+            tui.step(Told::Cleared);
+        }
+        let notes = foot::read_notes(&root, &tui, &words);
+        assert_eq!(notes.lines[0].as_ref(), b"Font: IBM Plex Mono.", "root's notes first: {name}");
+        assert_eq!(
+            notes.lines.len(),
+            1_usize
+                .checked_add(usize::from(done && !clear))
+                .unwrap()
+                .checked_add(usize::from(opened && !clear))
+                .unwrap(),
+            "{name}"
+        );
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        for line in &notes.lines {
+            assert!(has(view.tree(), look::NOTE, line), "{name}: {line:?}");
+        }
+        assert_eq!(
+            notes.lines.iter().any(|line| line.as_ref() == b"Nothing else needs you."),
+            done && !clear,
+            "{name}"
+        );
+        assert_eq!(
+            notes.lines.iter().any(|line| line.as_ref() == b"Open http://127.0.0.1:8367/projects/1 in your browser."),
+            opened && !clear,
+            "{name}"
+        );
+    }
+}
+
+fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
+    use shared::NeedMark;
+    use view::launchpad::{self, LeftKind, LeftOff, NeedRow};
+    const MINUTE: u64 = 60_000_000_000;
+    let now = skein_lib::Wall::from_nanos(582 * MINUTE);
+    let root = super::launchpad::home(Some(true), &[super::launchpad::line(9, b"Away mode", 492 * MINUTE, false)]);
+    let words = f::words();
+    let tui = Tui::new(f::ADDRESS);
+    let mut body = launchpad::read(&root, &tui, &words, now);
+    body.columns = size.columns;
+    body.left_off
+        .push(LeftOff {
+            task: 7,
+            project: b"Hello".as_slice().into(),
+            title: b"csv-export".as_slice().into(),
+            kind: LeftKind::Goal,
+            at: b"07:42".as_slice().into(),
+            state: b"Working".as_slice().into(),
+        })
+        .unwrap();
+    body.needs = if size.columns == 110 {
+        Box::new([
+            NeedRow {
+                mark: NeedMark::Question,
+                project: b"Hello".as_slice().into(),
+                words: b"csv-export: comma or semicolon?".as_slice().into(),
+            },
+            NeedRow {
+                mark: NeedMark::Money,
+                project: b"Demo".as_slice().into(),
+                words: b"Porter: raise its weekly budget?".as_slice().into(),
+            },
+            NeedRow {
+                mark: NeedMark::SignOff,
+                project: b"Hello".as_slice().into(),
+                words: b"Monthly totals: ready for review".as_slice().into(),
+            },
+            NeedRow {
+                mark: NeedMark::Other,
+                project: b"Demo".as_slice().into(),
+                words: b"Proposal: review the new way".as_slice().into(),
+            },
+        ])
+    } else {
+        Box::new([NeedRow {
+            mark: NeedMark::Question,
+            project: b"Hello".as_slice().into(),
+            words: b"csv-export: comma or semicolon?".as_slice().into(),
+        }])
+    };
+    let root = walk_root(true);
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Walk { by_key: true });
+    let mut foot = foot::read(&root, &tui, &words, now);
+    foot.columns = size.columns;
+    let mut view = f::view();
+    view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(body), foot }, &mut Queue::uncapped());
+    view
 }

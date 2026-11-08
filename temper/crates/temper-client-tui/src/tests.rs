@@ -11,6 +11,7 @@ mod launchpad;
 mod limits;
 mod note;
 mod place;
+mod printed;
 mod screens;
 mod state;
 mod theme;

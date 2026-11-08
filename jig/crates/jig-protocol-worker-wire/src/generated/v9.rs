@@ -771,6 +771,8 @@ pub enum Path {
     ListReadOutcome,
     /// Bytes after `ListRead`.
     ListReadTail,
+    /// Bytes after `Draining`.
+    DrainingTail,
 }
 
 /// A decoding or bound failure at a schema path.
@@ -5277,6 +5279,30 @@ impl ListRead {
     }
 }
 
+/// Movable fields of `Draining`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct DrainingParts {
+}
+
+/// `Draining` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Draining {
+}
+
+impl Draining {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: DrainingParts) -> Result<Self, Problem> {
+        let DrainingParts {  } = parts;
+        let value = Self {  };
+        Ok(value)
+    }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> DrainingParts { DrainingParts {  } }
+
+}
+
 impl Credential {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -9648,6 +9674,28 @@ impl ListRead {
     }
 }
 
+impl Draining {
+    /// Measures this empty record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 { 0_u32 }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        writer.put(&[])
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader);
+        if !reader.is_empty() { return Err(Problem { path: Path::DrainingTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {
+        Self {}
+    }
+}
+
 impl Credential {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -12712,6 +12760,32 @@ impl ListRead {
     }
 }
 
+impl Draining {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let size = 0_u64;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let heap = 0_u64;
+        heap.checked_add(0)
+    }
+}
+
 /// Maximum wire bytes among this family's top-level types.
 #[must_use]
 pub fn encoded_bound(limits: &Limits) -> Option<u64> {
@@ -12833,6 +12907,7 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ListFailureValue::encoded_bound_within(limits)?);
     biggest = biggest.max(ListOutcome::encoded_bound_within(limits)?);
     biggest = biggest.max(ListRead::encoded_bound_within(limits)?);
+    biggest = biggest.max(Draining::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
@@ -12957,12 +13032,13 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ListFailureValue::decoded_bound_within(limits)?);
     biggest = biggest.max(ListOutcome::decoded_bound_within(limits)?);
     biggest = biggest.max(ListRead::decoded_bound_within(limits)?);
+    biggest = biggest.max(Draining::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Credential, CredentialParts, JobBound, JobBoundParts, EndpointBound, EndpointBoundParts, Bounds, BoundsParts, Phase, Hosting, HostingParts, Hello, HelloParts, MessageRefusal, Refused, RefusedParts, Turn, TurnParts, Call, CallParts, StartCause, InvalidStart, InvalidStartParts, Invalid, InvalidValue, InvalidValueParts, Refusal, RefusalValue, RefusalValueParts, Work, WorkParts, Ended, EndedParts, Parked, ParkedParts, Resource, ResourceParts, Preparation, PreparationValue, PreparationValueParts, LimitedAccount, LimitedAccountParts, RefusedAccount, RefusedAccountParts, Bound, Exceeded, ExceededParts, RunFailure, RunFailureValue, RunFailureValueParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Failure, Failed, FailedParts, Ending, Answer, AnswerParts, Operation, Long, LongParts, CountKind, Count, CountParts, PhaseValue, PhaseValueParts, InputCall, InputCallParts, LiveKind, Piece, PieceParts, FactValue, Fact, FactParts, Unauthorized, UnauthorizedParts, Limited, LimitedParts, AccountRefused, AccountRefusedParts, Message, MessageParts, Workspace, WorkspaceParts, HostAnswer, HostAnswerParts, DeliveryOutcome, DeliveryAnswer, DeliveryAnswerParts, SettledAnswer, AnsweredCall, AnsweredCallParts, Scheme, CredentialValue, CredentialValueParts, ApplicationValue, ApplicationValueParts, ProgramValue, ProgramValueParts, GrantValue, Grant, GrantParts, LiveAsk, LiveAskParts, Assignment, AssignmentParts, Job, JobParts, JobInvalidStart, JobInvalidStartParts, JobInvalid, JobInvalidValue, JobInvalidValueParts, JobRefusal, JobRefusalValue, JobRefusalValueParts, JobFinished, JobFinishedParts, DeliveryOutcomeValue, DeliveryOutcomeValueParts, JobFailure, JobFailed, JobFailedParts, JobEnding, JobAnswer, JobAnswerParts, Inbound, InboundParts, RelayText, RelayTextParts, RelayAnswer, Relayed, RelayedParts, TurnKept, TurnKeptParts, TurnBusy, TurnBusyParts, Acknowledge, AcknowledgeParts, Cancel, CancelParts, Granted, GrantedParts, ProgramSource, ProgramSourceParts, Sources, SourcesParts, Check, CheckParts, SignOut, SignOutParts, SourceFailure, SourceFailed, SourceFailedParts, LoginOtherwise, LoginOtherwiseParts, LoginState, Login, LoginParts, Logins, LoginsParts, SignOutResult, SignedOut, SignedOutParts, ReadList, ReadListParts, ListRow, ListRowParts, ListRefused, ListRefusedParts, ListFailed, ListedRows, ListedRowsParts, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, Path};
+    use super::{CEILINGS, Credential, CredentialParts, JobBound, JobBoundParts, EndpointBound, EndpointBoundParts, Bounds, BoundsParts, Phase, Hosting, HostingParts, Hello, HelloParts, MessageRefusal, Refused, RefusedParts, Turn, TurnParts, Call, CallParts, StartCause, InvalidStart, InvalidStartParts, Invalid, InvalidValue, InvalidValueParts, Refusal, RefusalValue, RefusalValueParts, Work, WorkParts, Ended, EndedParts, Parked, ParkedParts, Resource, ResourceParts, Preparation, PreparationValue, PreparationValueParts, LimitedAccount, LimitedAccountParts, RefusedAccount, RefusedAccountParts, Bound, Exceeded, ExceededParts, RunFailure, RunFailureValue, RunFailureValueParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Failure, Failed, FailedParts, Ending, Answer, AnswerParts, Operation, Long, LongParts, CountKind, Count, CountParts, PhaseValue, PhaseValueParts, InputCall, InputCallParts, LiveKind, Piece, PieceParts, FactValue, Fact, FactParts, Unauthorized, UnauthorizedParts, Limited, LimitedParts, AccountRefused, AccountRefusedParts, Message, MessageParts, Workspace, WorkspaceParts, HostAnswer, HostAnswerParts, DeliveryOutcome, DeliveryAnswer, DeliveryAnswerParts, SettledAnswer, AnsweredCall, AnsweredCallParts, Scheme, CredentialValue, CredentialValueParts, ApplicationValue, ApplicationValueParts, ProgramValue, ProgramValueParts, GrantValue, Grant, GrantParts, LiveAsk, LiveAskParts, Assignment, AssignmentParts, Job, JobParts, JobInvalidStart, JobInvalidStartParts, JobInvalid, JobInvalidValue, JobInvalidValueParts, JobRefusal, JobRefusalValue, JobRefusalValueParts, JobFinished, JobFinishedParts, DeliveryOutcomeValue, DeliveryOutcomeValueParts, JobFailure, JobFailed, JobFailedParts, JobEnding, JobAnswer, JobAnswerParts, Inbound, InboundParts, RelayText, RelayTextParts, RelayAnswer, Relayed, RelayedParts, TurnKept, TurnKeptParts, TurnBusy, TurnBusyParts, Acknowledge, AcknowledgeParts, Cancel, CancelParts, Granted, GrantedParts, ProgramSource, ProgramSourceParts, Sources, SourcesParts, Check, CheckParts, SignOut, SignOutParts, SourceFailure, SourceFailed, SourceFailedParts, LoginOtherwise, LoginOtherwiseParts, LoginState, Login, LoginParts, Logins, LoginsParts, SignOutResult, SignedOut, SignedOutParts, ReadList, ReadListParts, ListRow, ListRowParts, ListRefused, ListRefusedParts, ListFailed, ListedRows, ListedRowsParts, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, Draining, DrainingParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -13015,7 +13091,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 408] = [
+    static GOLDEN_0: [Case; 410] = [
         ("record_credential_smallest", || { let value = Credential::new(&CEILINGS, CredentialParts { name: Box::from([].as_slice()), secret: skein_lib::Secret::new(Box::from([].as_slice())), payload: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Credential::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_credential_full", || { let value = Credential::new(&CEILINGS, CredentialParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), secret: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())), payload: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Credential::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_job_bound_smallest", || { let value = JobBound::new(&CEILINGS, JobBoundParts { kind: 0_u32, spec: 0_u32, result: 0_u32, deadline: skein_lib::Duration::from_nanos(0_u64) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, JobBound::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -13424,6 +13500,8 @@ mod golden_tests {
         ("enum_list_outcome_failed_full", || { let value = ListOutcome::Failed(ListFailureValue::new(&CEILINGS, ListFailureValueParts { value: ListFailed::Refused(ListRefused::new(&CEILINGS, ListRefusedParts { status: u16::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ListOutcome::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_list_read_smallest", || { let value = ListRead::new(&CEILINGS, ListReadParts { read: 0_u64, outcome: ListOutcome::Listed(ListedRows::new(&CEILINGS, ListedRowsParts { rows: skein_lib::List::with_capacity(0) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ListRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_list_read_full", || { let value = ListRead::new(&CEILINGS, ListReadParts { read: u64::MAX, outcome: ListOutcome::Listed(ListedRows::new(&CEILINGS, ListedRowsParts { rows: { let mut items = skein_lib::List::with_capacity(1); items.push(ListRow::new(&CEILINGS, ListRowParts { name: Box::from([0_u8, 127_u8, 255_u8].as_slice()), shown: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())), window: Some(u32::MAX), output: Some(u32::MAX), efforts: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items } }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 1, 0, 0, 0, 3, 0, 127, 255, 1, 255, 255, 255, 255, 1, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ListRead::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_draining_smallest", || { let value = Draining::new(&CEILINGS, DrainingParts {  }).expect("golden within ceilings"); let bytes: &[u8] = &[]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Draining::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_draining_full", || { let value = Draining::new(&CEILINGS, DrainingParts {  }).expect("golden within ceilings"); let bytes: &[u8] = &[]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Draining::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];
 
     #[test]

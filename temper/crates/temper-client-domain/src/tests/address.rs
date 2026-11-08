@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 34] = [
+    let pages: [(Address, &[u8]); 35] = [
         (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
         (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
         (Address::Members, b"/deployment/members"),
@@ -18,6 +18,7 @@ fn each_page_round_trips_through_its_path() {
         (Address::Changes { project: 3 }, b"/projects/3/changes"),
         (Address::Changes { project: u32::MAX }, b"/projects/4294967295/changes"),
         (Address::Home { project: 0 }, b"/projects/0"),
+        (Address::AllHome, b"/home"),
         (Address::Home { project: u32::MAX }, b"/projects/4294967295"),
         (Address::Settings { project: 0 }, b"/projects/0/settings"),
         (Address::Settings { project: u32::MAX }, b"/projects/4294967295/settings"),
@@ -81,6 +82,10 @@ fn the_inbox_prints_its_set_fields_in_one_order() {
 
 #[test]
 fn another_pages_query_is_dropped() {
+    for path in [b"/home".as_slice(), b"/home?x=1"] {
+        assert_eq!(parse(path), Place::Address(Address::AllHome));
+        assert_eq!(print(&Address::AllHome).as_ref(), b"/home");
+    }
     assert_eq!(parse(b"/chats/7?x=1"), Place::Address(Address::Chat { task: 7 }));
     assert_eq!(parse(b"/projects/3/ask?x=1"), Place::Address(Address::Ask { project: 3 }));
 }
@@ -117,6 +122,7 @@ fn a_field_it_cannot_read_is_dropped() {
 fn one_trailing_slash_is_ignored() {
     for (path, expected) in [
         (&b"/chats/7/"[..], Place::Address(Address::Chat { task: 7 })),
+        (b"/home/", Place::Address(Address::AllHome)),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
         (b"/projects/3/ask/", Place::Address(Address::Ask { project: 3 })),
@@ -171,6 +177,7 @@ fn a_path_that_is_no_page_is_missing() {
         b"//",
         b"/chats/%37",
         b"/nowhere",
+        b"/home/1",
         b"/chats/abc",
         b"/chats/-1",
         b"/chats/99999999999999999999999999",

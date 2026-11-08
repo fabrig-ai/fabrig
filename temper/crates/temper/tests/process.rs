@@ -1944,7 +1944,6 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
 }
 
 #[test]
-#[ignore = "backlog: a start without DNS fails while sign-in endpoints resolve at start (director 554)"]
 fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     use std::{ffi::OsString, fs, os::unix::fs::PermissionsExt};
     let scratch = support::Scratch::new("first-run-no-dns");
@@ -2025,10 +2024,7 @@ exec "$@"
         listening || diagnostic.contains("failed to lookup address information"),
         "unexpected startup refusal: {diagnostic}"
     );
-    assert!(
-        listening,
-        "no-DNS start must reach serve's listening; the current sign-in endpoint resolution refuses it: {diagnostic}"
-    );
+    assert!(listening, "no-DNS start must reach serve's listening: {diagnostic}");
     assert_eq!(ended.exit, Some(Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
 }
@@ -2066,7 +2062,7 @@ exec "$@"
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
 // until after the ended chat's watch joins; the oracle checks both attempts.
 #[test]
-#[ignore = "waits on jig's fleet: a retry placed on a stopping worker's still-linked channel is rechecked and journaled as an extra refused attempt (3 in 85 runs since the waiting read, all under load); jig is to take a worker out of placement as it drains, before its runs end"]
+#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/domain/testing.md, 5.3; temper/docs/design/protocol/configuration.md, section 2 and 13.4)"]
 fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
 {
     use temper_real_loop_world::case::{self, acts, oracle};

@@ -10,12 +10,12 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes::concat};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain,
+    Address,
     forge::{
         approvals::{Row, Yours},
         forges::Kind,
     },
-    pages::{Act, needs},
+    pages::Act,
 };
 
 pub(crate) fn address(row: &Row, sign_in: &Forges) -> Option<Box<[u8]>> {
@@ -107,76 +107,15 @@ pub(crate) fn when(row: &Row, w: &Words, times: &mut Times) -> Box<[u8]> {
         &times.say(w, TimeForm::Span, row.since),
     ])
 }
-#[expect(clippy::too_many_arguments, reason = "the shared card draws page-specific heading and pair styles")]
-pub(crate) fn card(
-    b: &mut Builder,
-    root: &Domain,
-    row: &Row,
-    w: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-    sign_in: &Forges,
-    flow: bool,
-) {
-    b.open(Role::Slot);
-    b.style(look::ASK);
-    let object = jig_client::contract::ObjectKey::Task(row.task);
-    let project = if flow && root.pages().inbox().expect("approval inbox").filter.project.is_none() {
-        super::project_name(root.pages().me(root.client()), row.project)
-    } else {
-        None
-    };
-    let sep = w.say(Word::ToolSeparator, &[]);
-    let prefix = match project {
-        Some(project) => concat(&[&project, &sep]),
-        None => Box::default(),
-    };
-    let later = if root.pages().needs().later(object) { w.say(Word::NeedsLaterMeta, &[]) } else { Box::default() };
-    let suffix = concat(&[&sep, &when(row, w, times), &later]);
-    b.open(Role::Paragraph);
-    b.style(look::ASK_META);
-    b.name(&concat(&[&prefix, &row.title, &suffix]));
-    b.text(Run::Plain, &prefix);
-    ask::link(b, bindings, &row.title, Address::Task { task: row.task });
-    b.text(Run::Plain, &suffix);
-    b.close();
-    ask::text(
-        b,
-        if flow { Role::Heading { level: 1 } } else { Role::Paragraph },
-        &question(row, w),
-        if flow { look::FLOW_Q } else { look::ASK_QUESTION },
-    );
-    b.open(Role::Slot);
-    b.style(look::ASK_CONTEXT);
-    for line in &sentences(row, w) {
-        ask::text(b, Role::Paragraph, line, look::ASK_CONTEXT);
-    }
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::ASK_CHOICES);
-    review(b, row, w, sign_in, look::RECOMMENDED);
-    if flow {
-        b.close();
-        b.open(Role::Slot);
-        b.style(look::PAIR);
-    }
-    ask::button(
-        b,
-        bindings,
-        &w.say(Word::HomeOpen, &[]),
-        Act::Go { address: Address::Task { task: row.task } },
-        look::ASK_QUIET,
-    );
-    ask::button(b, bindings, &w.say(Word::NeedsLater, &[]), Act::Needs(needs::Act::Later { object }), look::ASK_QUIET);
-    b.close();
-    b.close();
+pub(crate) fn review_words(row: &Row, w: &Words) -> Box<[u8]> {
+    w.say(Word::ApprovalReview, &[Hole::Name(forge(row, w))])
 }
 fn review(b: &mut Builder, row: &Row, w: &Words, sign_in: &Forges, style: skein_ui::Style) -> bool {
     if row.yours != Yours::Counts {
         return false;
     }
     let Some(address) = address(row, sign_in) else { return false };
-    let label = w.say(Word::ApprovalReview, &[Hole::Name(forge(row, w))]);
+    let label = review_words(row, w);
     b.open(Role::Link);
     if style == look::GOAL_PRIMARY {
         b.style(look::GOAL_BTN);

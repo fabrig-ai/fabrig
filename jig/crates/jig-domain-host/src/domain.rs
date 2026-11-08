@@ -254,6 +254,7 @@ impl Hub {
 }
 
 /// Handles one event and emits its requests.
+#[expect(clippy::too_many_lines, reason = "the hub routes the complete event vocabulary in one step")]
 pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::ListRead { read, outcome } => crate::sources::list_read(&mut domain.sources, env, read, outcome, out),
@@ -285,6 +286,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::RelayCancelled { run, attempt, call } => hosted::relay_cancelled(domain, run, attempt, &call, out),
         Event::CancelAll { reason } => {
             if reason == Reason::Shutdown {
+                out.push(Request::Up(LinkUp::Draining));
                 crate::sources::close(&mut domain.sources, out);
             }
             hosted::cancel_all(domain, reason);
@@ -292,6 +294,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Opened { stop_bound, workstreams, bounds, jobs } => {
             domain.job_kinds = jobs;
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
+            if domain.shut {
+                out.push(Request::Up(LinkUp::Draining));
+            }
         }
         Event::Job(event) => crate::jobs::reported(domain, env, event, out),
         Event::Prepared { owner, workspace } => {

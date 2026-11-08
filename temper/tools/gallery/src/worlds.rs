@@ -8,6 +8,10 @@ pub(super) fn rail_work_world(name: &str, address: Address) -> Domain {
 }
 mod views;
 mod ways;
+pub(crate) mod whole_story;
+pub(super) fn whole_story_world(name: &str, address: Address) -> Domain {
+    whole_story::domain(name, address)
+}
 pub(super) fn ways_world(name: &str) -> Domain {
     ways::world(name)
 }
@@ -38,7 +42,7 @@ const QUESTION: &str =
     "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?";
 fn person(w: World) -> &'static str {
     match w {
-        Reference | World::Bare => "Pat",
+        Reference | World::Bare | World::WholeStory => "Pat",
         Solo => "Robin",
         FirstRun { .. } => "Sam",
     }
@@ -47,7 +51,7 @@ fn project(w: World) -> &'static str {
     match w {
         Reference => "factory",
         Solo => "tally",
-        World::Bare => "gallery",
+        World::Bare | World::WholeStory => "gallery",
         FirstRun { step: 22 } => "widget",
         FirstRun { .. } => "Hello",
     }
@@ -58,7 +62,7 @@ fn doc(s: &str) -> c::DocumentText {
 fn has_playground(w: World) -> bool {
     match w {
         FirstRun { step: 1..=5 | 10 } => true,
-        FirstRun { .. } | Reference | Solo | World::Bare => false,
+        FirstRun { .. } | Reference | Solo | World::Bare | World::WholeStory => false,
     }
 }
 fn model(w: World) -> c::LlmChoice {
@@ -69,7 +73,7 @@ fn model(w: World) -> c::LlmChoice {
             model: text(if has_playground(w) { "Scripted model" } else { "Opus" }),
             effort: match w {
                 Reference => Some(text("xhigh")),
-                Solo | World::Bare => Some(text("high")),
+                Solo | World::Bare | World::WholeStory => Some(text("high")),
                 FirstRun { .. } => None,
             },
         },
@@ -82,7 +86,7 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
     let template = member.templates.get_mut(0).expect("chat template");
     template.llm = match w {
         FirstRun { .. } => None,
-        Reference | Solo | World::Bare => Some(model(w)),
+        Reference | Solo | World::Bare | World::WholeStory => Some(model(w)),
     };
     if matches!(w, FirstRun { .. } | Solo | Reference) {
         let chat = member.templates.get(0).expect("chat template").clone();
@@ -215,7 +219,7 @@ fn providers(w: World) -> List<c::ProviderOffer> {
         Solo => &[(17, "anthropic")],
         FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai"), (19, "anthropic")],
         FirstRun { .. } => &[(18, "openai"), (19, "anthropic")],
-        World::Bare => &[(18, "openai")],
+        World::Bare | World::WholeStory => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -286,7 +290,10 @@ fn ask_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false, None, None, false)
+    match w {
+        World::WholeStory => (whole_story::domain("all-home", address), None),
+        Reference | Solo | FirstRun { .. } | World::Bare => world_in_layout(w, address, then, false, None, None, false),
+    }
 }
 /// Approval cards reached through the root's events (client/browser.md, 7.2).
 pub(super) fn approve_world(name: &str) -> Domain {
@@ -1536,7 +1543,7 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
         (Reference, true) => &[3, 2],
         (Solo, false) => &[6, 10],
         (FirstRun { step: 4..=5 }, false) => &[4, 1],
-        (FirstRun { .. } | World::Bare, _) => &[],
+        (FirstRun { .. } | World::Bare | World::WholeStory, _) => &[],
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
     for number in numbers {
@@ -1553,7 +1560,7 @@ fn inbox_document(w: World) -> c::Inbox {
             (c::ObjectKey::Task(10), c::InboxGroup::Replies),
             (c::ObjectKey::Task(6), c::InboxGroup::Replies),
         ],
-        FirstRun { .. } | World::Bare => &[],
+        FirstRun { .. } | World::Bare | World::WholeStory => &[],
     };
     let mut entries = List::with_capacity(u32::try_from(keys.len()).expect("small inbox"));
     for (object, _group) in keys {
@@ -2021,7 +2028,7 @@ fn goal_facts(w: World) -> &'static [GoalFacts] {
                 at: -3680,
             },
         ],
-        FirstRun { .. } | World::Bare => &[],
+        FirstRun { .. } | World::Bare | World::WholeStory => &[],
     }
 }
 fn goal_ended(f: &GoalFacts) -> bool {
@@ -3696,7 +3703,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             })
             .expect("account");
         }
-        FirstRun { .. } | World::Bare => {
+        FirstRun { .. } | World::Bare | World::WholeStory => {
             let mut sources = List::with_capacity(2);
             sources
                 .push(c::AccountSource {
@@ -4498,7 +4505,7 @@ pub(super) fn now(w: World) -> Wall {
             7 | 8 => 19,
             _ => unreachable!("mockup first-run step"),
         },
-        Reference | Solo | World::Bare => 0,
+        Reference | Solo | World::Bare | World::WholeStory => 0,
     };
     offset(w, minutes)
 }
@@ -4509,6 +4516,7 @@ fn offset(w: World, minutes: i64) -> Wall {
         Solo => 1_793_093_400_000_000_000,
         FirstRun { .. } => 1_792_702_800_000_000_000,
         World::Bare => 0,
+        World::WholeStory => whole_story::now("all-home").as_nanos(),
     };
     let delta = minutes.unsigned_abs().checked_mul(60_000_000_000).expect("mockup offset fits");
     Wall::from_nanos(
@@ -4577,6 +4585,9 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("all-home") || name == "night-all-home" || name.starts_with("home-step-") => {
+            whole_story::now(name)
+        }
         "rail-new-change" | "rail-all-projects" | "rail-across" | "work" | "work-pair" | "work-drafts"
         | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
         | "limits-not-owner" | "night-work" | "night-limits" => rail_work::NOW,

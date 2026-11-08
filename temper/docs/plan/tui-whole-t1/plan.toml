@@ -1,0 +1,91 @@
+draft = "tui-whole-t1"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-whole-t1/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+
+# plan.md says what was decided and why; notes/contracts.md binds the tasks.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "views"
+title = "A view in a reply prints in the TUI's chat as lines of its own text: a stop a line with its actor's mark"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 1
+story = "A reply holding a way, a path, a proposal, a charter or a not_drawn prints it in the TUI's chat, a stop a line, code's stops indented and the branch's bar closing its part"
+parts = ["views"]
+walk = false
+
+[[part]]
+id = "needs"
+title = "The view says each need's mark, question, money, sign-off or other, and what the terminal's walk offers for it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "surface"
+title = "The TUI's names for the launchpad as drawn: its own commands' events, the walk's state, the notes, the words, the left-off rows' shape, n, /chats N and the object in focus"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 2
+story = "The view reads each need's mark and prompt, and the TUI holds every name the launchpad as drawn is built on, nothing drawn changing"
+parts = ["needs", "surface"]
+walk = false
+
+[[part]]
+id = "launchpad"
+title = "The launchpad drawn: the brief's sentence and /brief, Where you left off with projects, kinds, times and the newest goal, Needs you's marks, Start, the box and the quiet line"
+mode = "direct"
+needs = ["surface", "needs", "views"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "walk"
+title = "The walk's prompt under the box, the TUI's own commands in the list and /help, and the walk's and opener's notes"
+mode = "direct"
+needs = ["launchpad", "surface", "needs"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "host"
+title = "The host carries /change, /ask, /brief, /needs, /open, /chats N, n and the walk to the root and the opener"
+mode = "direct"
+needs = ["surface"]
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 3
+story = "The launchpad as drawn: the brief, the conversations to go back to, what needs the person marked and walked with n, Start with /change and /ask, and the object in focus opened on the web"
+parts = ["launchpad", "walk", "host"]
+walk = false
+
+[[part]]
+id = "world"
+title = "The joined story: a need the engine asks walked from the launchpad and answered, and /change starting a chat"
+mode = "direct"
+needs = ["host", "walk"]
+design = "temper/docs/design/client/README.md, 10"
+
+[[part]]
+id = "journeys"
+title = "launchpad-chat recorded again and the journey launchpad-drawn, a fake box's chat asking the person and the walk answering it"
+mode = "direct"
+needs = ["launchpad", "walk", "host", "views"]
+design = "temper/docs/design/client/tui/journeys.md, 9"
+
+[[slice]]
+id = 4
+story = "Against the real engine and on a fresh fake box, a need asked is walked from the launchpad and answered, a change asked with /change starts its chat, and the launchpad as drawn is recorded for the user"
+parts = ["world", "journeys"]
+walk = false
