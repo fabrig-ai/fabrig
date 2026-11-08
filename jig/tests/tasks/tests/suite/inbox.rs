@@ -75,6 +75,123 @@ fn a_parked_chat_wakes_on_its_persons_words() {
     assert_eq!(world.contexts[&1].inbox[0].number, 1);
 }
 
+fn notification_goal() -> World {
+    let mut world = World::new(473, LIMITS);
+    let mut goal = task(1, &[]);
+    goal.tracked = Some(1);
+    goal.wake.notices = WakeRule::Immediate;
+    goal.wake.results = jig_domain_tasks::ResultsWake::Each;
+    assert_eq!(world.make(PERSON_PARTY, vec![goal]), Reply::Made(vec![1]));
+    assert_eq!(world.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]), Reply::Made(vec![2, 3]));
+    for target in [2, 3] {
+        let reply_to = world.to();
+        let call = reply_to.into_token().raw();
+        world.send(Event::Subscribe {
+            reply_to: ReplyTo::new(Token::new(call)),
+            task: 1,
+            subscription: Subscription {
+                number: target,
+                kind: SubscriptionKind::Task { target, held: true, result: true },
+            },
+        });
+        assert_eq!(world.replies[&call], Reply::Done);
+    }
+    let reply_to = world.to();
+    world.send(Event::Subscribe {
+        reply_to,
+        task: 1,
+        subscription: Subscription {
+            number: 10,
+            kind: SubscriptionKind::Timer { at: Wall::from_nanos(10_000_000_000), period: None },
+        },
+    });
+    world.claim_task(1);
+    assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
+    world
+}
+
+fn consume_goal_wake(world: &mut World, attempt: u64, cause: u64) {
+    world.claim(1, attempt);
+    assert!(world.records.values().any(|record| matches!(record,
+    jig_domain_tasks::Stored::Activity(line) if line.task == 1
+        && line.line == jig_domain_tasks::Line::RunBegan {
+            attempt, why: jig_domain_tasks::Why::Message { message: cause }, resumed: false,
+        })));
+    let outstanding: Box<[_]> = world.record(1).inbox.iter().map(|word| word.number).collect();
+    let read = outstanding.last().copied();
+    assert!(read.is_some());
+    let reply_to = world.to();
+    let call = reply_to.into_token().raw();
+    world.send(Event::Turn {
+        reply_to: ReplyTo::new(Token::new(call)),
+        task: 1,
+        attempt,
+        turn: 1,
+        read,
+        refused: Box::new([]),
+        offered: read,
+        outstanding,
+        cumulative: 0,
+    });
+    assert_eq!(world.replies[&call], Reply::Turn(Accepted::New));
+    assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
+    assert!(world.record(1).inbox.is_empty());
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
+    assert!(!world.activations.contains(&1));
+}
+
+#[test]
+fn a_handled_wake_does_not_reactivate_a_parked_goal() {
+    let mut world = notification_goal();
+    for target in [2, 3] {
+        world.send(Event::Hold { task: target, why: jig_domain_tasks::Hold::Budget });
+    }
+    let cause = world.record(1).inbox[0].number;
+    assert!(world.record(1).inbox.iter().all(|word| matches!(
+        word.kind,
+        MessageKind::Notice { state: jig_domain_tasks::NoticeState::Held { .. }, .. }
+    )));
+    consume_goal_wake(&mut world, 4, cause);
+    let reply_to = world.to();
+    world.send(Event::Release {
+        reply_to,
+        by: Party::Task(1),
+        operation: jig_domain_tasks::Release { task: 2, again: None, message: None },
+    });
+    let reply_to = world.to();
+    world.send(Event::Cancel {
+        reply_to,
+        by: Party::Task(1),
+        operation: jig_domain_tasks::Cancel { task: 3, reason: Box::new([]), grace: None, message: None },
+    });
+    world.settle(3);
+    let next = world.record(1).inbox[0].number;
+    assert!(next > cause);
+    assert!(
+        world
+            .record(1)
+            .inbox
+            .iter()
+            .any(|word| word.kind == MessageKind::Result(jig_domain_tasks::ResultKind::Cancelled))
+    );
+    consume_goal_wake(&mut world, 5, next);
+    for _ in 0..3 {
+        world.elapse(skein_lib::Duration::from_secs(1));
+        world.restart();
+        assert!(world.record(1).inbox.is_empty());
+        assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
+        assert!(!world.activations.contains(&1));
+    }
+    world.finish_task(2);
+    let result = world.record(1).inbox[0].number;
+    assert!(result > next);
+    assert!(
+        world.record(1).inbox.iter().any(|word| word.kind == MessageKind::Result(jig_domain_tasks::ResultKind::Report))
+    );
+    consume_goal_wake(&mut world, 6, result);
+}
+
 #[test]
 fn a_persons_words_left_unread_wake_the_task_as_its_run_ends() {
     let mut world = refusal_world(94);
