@@ -113,9 +113,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 - **Not yet:** 13.4: charter 5 and template 4 are not in the stock, and
   the rules' and policy 1's delegation names neither charter 5 nor the
   merge job (`temper-service/src/stock.rs`).
-- **Not yet:** 13.9: `docs/examples/reference/project.json` holds the
-  project's kind 7 alone, so the case's project keeps the stock's rule 1
-  over every branch beside the deployment's two rules.
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the
