@@ -26,6 +26,7 @@ pub mod question;
 mod route;
 pub mod sign_in;
 mod sign_in_tab;
+pub mod views;
 pub mod words;
 pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind};
 pub use boundary::{Action, Event, Fact, Request, Tab};

@@ -3,6 +3,7 @@
 pub mod document;
 mod request;
 pub mod sheet;
+mod views;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -12,6 +13,7 @@ use jig_client::{
     thread::{Thread, window::End},
 };
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
+pub use views::Shown;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
     Message,
@@ -77,6 +79,7 @@ pub struct Chat {
     seen_before: u64,
     pub cards: List<super::inbox::Card>,
     card_reads: List<CardRead>,
+    views: views::Views,
     pub delegations: List<delegation::Delegation>,
     departures: List<c::ObjectKey>,
     pub closing: Option<c::Ask>,
@@ -154,6 +157,7 @@ impl Chat {
             seen_before: 0,
             cards: List::with_capacity(limits.client.domain.reads),
             card_reads: List::with_capacity(limits.client.domain.reads),
+            views: views::Views::new(limits.forge),
             delegations: List::with_capacity(delegation::bound(limits)),
             departures: List::with_capacity(limits.client.domain.reads),
             closing: None,
@@ -164,6 +168,7 @@ impl Chat {
         self.asking.fire(now, self.activity, out);
         self.draft_asking.fire(now, self.draft_read, out);
         self.request.fire(now, out);
+        self.views.fire(now, out);
         for read in self.card_reads.iter_mut() {
             read.asking.fire(now, read.handle, out);
         }
@@ -171,6 +176,7 @@ impl Chat {
     pub(crate) fn next_deadline(&self) -> Option<Time> {
         let mut at = super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline());
         at = super::activity::earliest(at, self.request.next_deadline());
+        at = super::activity::earliest(at, self.views.next_deadline());
         for read in &self.card_reads {
             at = super::activity::earliest(at, read.asking.next_deadline());
         }
@@ -185,6 +191,7 @@ impl Chat {
             unwatch(self.goal_read, out);
         }
         self.request.leave(out);
+        self.views.leave(out);
         for (handle, _) in &self.decisions {
             unwatch(*handle, out);
         }
@@ -262,7 +269,13 @@ impl Chat {
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch routes the chat's independent read handles")]
     pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+        if let Told::Page { handle, page } = &told
+            && self.views.page(now, client, *handle, page)
+        {
+            return true;
+        }
         match told {
+            Told::Changed { handle } if handle == crate::forge::ways::handle() => {}
             Told::Changed { handle } if handle == self.document => {
                 if let Some(Latest::Jig(c::Delivery::Task(task))) = latest(client, handle) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(task), out);
@@ -376,6 +389,7 @@ impl Chat {
         self.note_calls(out);
         self.made_cards(client, out);
         self.delegations(client, out);
+        self.sync_views(client, out);
         true
     }
     fn open_draft(&mut self, project: u32, out: &mut Queue<Request>) {
