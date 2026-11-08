@@ -62,3 +62,13 @@ Options, each decided:
 ## Report
 
 The implementer's report: the field and item as written, every constructor given the field, the rows, the document's size before and after, the bite and the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/classes-ways/foreman-1)
+
+resolve the status-file conflict by preserving both completed-gap deletions.
+The merge conflicts only in `temper/docs/design/protocol/configuration.status.md`.
+Task commit `fa22a592fa` deletes the `ui-reaches/classes-ways` Not yet entry.
+Integration commit `af04e2e0dc` deletes the adjacent `ui-reaches/classes-kind` Not yet entry.
+Resolve with both entries absent; retain the `ui-reaches/ways-away` entry and all remaining status text.
+Preserve the automatically merged changes in `Cargo.lock` and `temper/crates/temper-service/src/tests/family.rs`.
+This refusal requires no additional feature change.
