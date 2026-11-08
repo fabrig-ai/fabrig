@@ -1,6 +1,6 @@
 # ui: status
 
-2026-11-07. Where skein's code lags or departs from [ui.md](ui.md).
+2026-11-08. Where skein's code lags or departs from [ui.md](ui.md).
 
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.
@@ -20,8 +20,8 @@ builder charges its bytes, including replacements, against the text
 bounds, and a changed hint travels in an attribute patch.
 
 Sections 3.3, 3.5, 10.1, 11.2, 11.5, 15 and 17 have no known gap in
-the flow's owner, reader, bounds and layout, the scene's own height, or
-the acceptance cases and text golden. Further flow syntax is deferred
+the flow's owner, reader, bounds and layout, the scene's own height and
+its own width, or the acceptance cases and text golden. Further flow syntax is deferred
 in section 18.
 
 - **Not yet:** 3: the builder's assertion against a node inside a named button, tab or menu item (`skein-ui/src/builder.rs`, `close`).

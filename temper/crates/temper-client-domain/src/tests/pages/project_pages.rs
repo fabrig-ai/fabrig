@@ -114,6 +114,8 @@ fn switching_projects_keeps_home_settings_ask_or_chats() {
         (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
         (Address::Ask { project: fixtures::PROJECT }, Some(Address::Ask { project: OTHER })),
+        (Address::Role { project: fixtures::PROJECT, charter: 4 }, Some(Address::Settings { project: OTHER })),
+        (Address::Rule { project: fixtures::PROJECT, kind: 2, number: 1 }, Some(Address::Settings { project: OTHER })),
         (Address::Chats { filter: ChatsFilter::All }, None),
         (Address::NewChat { draft: false }, None),
     ] {
@@ -195,4 +197,121 @@ fn choosing_a_project_keeps_the_builders_tab() {
     event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
     assert_eq!(f.pages.project(), Some(OTHER));
     assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Builders { project: OTHER } }));
+}
+
+fn view_read(out: &mut Queue<Request>) -> Option<(jig_client::Handle, u32, Box<[u8]>)> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut found = None;
+    while let Some(request) = out.pop() {
+        if let Request::Client(jig_client::Event::Read {
+            handle,
+            read: jig_client::Readable::Family { scope, record, .. },
+        }) = request
+        {
+            let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+            if let w::Read::View(view) = reading.read() {
+                assert_eq!(scope, c::Scope::Project(view.project()));
+                assert!(found.is_none(), "only one view read");
+                found = Some((handle, view.project(), view.address().into()));
+            }
+        }
+    }
+    found
+}
+
+#[test]
+fn role_pages_read_the_named_view_once_and_keep_the_answer() {
+    use crate::pages::roles::Read;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    for (address, wanted) in [
+        (Address::Role { project: 3, charter: 4 }, b"charter 4".as_slice()),
+        (Address::Rule { project: 3, kind: 2, number: 1 }, b"rule 2/1".as_slice()),
+    ] {
+        let mut f = fixture();
+        event(&mut f, Event::Went { address: address.clone() });
+        assert!(match f.pages.roles().unwrap().read() {
+            Read::Reading => true,
+            Read::Drawn(_) | Read::Unreadable => false,
+        });
+        let (handle, project, text) = view_read(&mut f.out).expect("view read");
+        assert_eq!(project, 3);
+        assert_eq!(text.as_ref(), wanted);
+        event(&mut f, Event::Went { address: address.clone() });
+        assert_eq!(view_read(&mut f.out), None);
+        let card = w::Card::new(
+            &w::CEILINGS,
+            w::CardParts {
+                name: b"the reviewer".as_slice().into(),
+                who: b"an agent".as_slice().into(),
+                facts: List::with_capacity(0),
+            },
+        )
+        .unwrap();
+        let view = match address {
+            Address::Role { .. } => {
+                w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 4, card }).unwrap())
+            }
+            Address::Rule { .. } => {
+                w::View::Rule(w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card }).unwrap())
+            }
+            Address::AllHome
+            | Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::NewChat { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Home { .. }
+            | Address::Goals { .. }
+            | Address::Changes { .. }
+            | Address::Settings { .. }
+            | Address::Repositories { .. }
+            | Address::Models { .. }
+            | Address::Builders { .. }
+            | Address::Ask { .. }
+            | Address::Adopt { .. } => unreachable!("role or rule row"),
+        };
+        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view.clone() }).unwrap();
+        event(
+            &mut f,
+            Event::Told {
+                told: Told::Page {
+                    handle,
+                    page: jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+                },
+            },
+        );
+        let Read::Drawn(drawn) = f.pages.roles().unwrap().read() else { panic!("drawn view") };
+        assert_eq!(drawn, &view);
+        event(&mut f, Event::Went { address: Address::Settings { project: 3 } });
+        assert!(f.pages.roles().is_none());
+        let mut unwatched = false;
+        for request in &f.out {
+            unwatched |= *request == Request::Client(jig_client::Event::Unwatch { handle });
+        }
+        assert!(unwatched);
+        event(&mut f, Event::Went { address });
+        let (new, _, _) = view_read(&mut f.out).expect("read when reopened");
+        assert_ne!(new, handle);
+        event(
+            &mut f,
+            Event::Told {
+                told: Told::Page {
+                    handle: new,
+                    page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+                },
+            },
+        );
+        assert!(match f.pages.roles().unwrap().read() {
+            Read::Unreadable => true,
+            Read::Drawn(_) | Read::Reading => false,
+        });
+        event(&mut f, Event::Left);
+        assert!(f.pages.roles().is_none());
+        assert_eq!(view_read(&mut f.out), None);
+    }
 }

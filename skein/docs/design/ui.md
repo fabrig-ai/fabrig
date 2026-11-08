@@ -884,6 +884,13 @@ platform. Scenes are step code under the subset.
   as a flow's in a document (11.5), and must draw the same scene whatever
   height it was measured at, so that the box taking that height changes
   nothing. Other scenes are unchanged.
+- **Its own width,** beside its height, for a picture laid out at one
+  width and scaled to its box's, as an illustration is: the scene is drawn
+  at that width and height and scaled to its box's width, keeping its
+  proportions, the box as high as the scaled scene. Its drawing code still
+  takes the box's measured size, to choose what it draws, and draws the
+  same scene whatever height it was measured at. A scene that says no
+  width is its box's width.
 
 ### 11.3 Drawings acted on
 

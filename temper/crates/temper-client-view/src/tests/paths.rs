@@ -111,12 +111,17 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
             let mut print = skein_ui_text::Print::new(&bounds()).unwrap();
             skein_ui_text::render(&tree, b"", None, &mut print);
             let printed = String::from_utf8_lossy(print.text.as_slice());
-            for width in [720, 388] {
-                let across = width == 720;
+            for width in [720, 658, 388] {
+                let across = width >= 560;
                 let mut scene = Scene::new(&bounds());
                 assert!(paths::draw(paths::KIND, data, width, 0, &mut scene));
-                let height =
-                    if across { if pressed.is_some() { 154 } else { 140 } } else { 68 + 40 * (rows.len() - 2) };
+                let down_end = 54 + 40 * (rows.len() - 2);
+                let height = if across {
+                    if pressed.is_some() { if width == 658 { 155 } else { 154 } } else { 140 }
+                } else {
+                    down_end + 14 + if pressed.is_some() { 14 } else { 0 }
+                };
+                assert_eq!(scene.width(), if width == 658 { Some(720) } else { None });
                 assert_eq!(scene.height(), Some(u16::try_from(height).unwrap()));
                 assert_eq!(
                     scene.marks()[0],
@@ -125,7 +130,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     } else {
                         SceneMark::Line {
                             from: Point { x: 192, y: 0 },
-                            to: Point { x: 192, y: u16::try_from(height - 14).unwrap() },
+                            to: Point { x: 192, y: u16::try_from(down_end).unwrap() },
                         }
                     }
                 );
@@ -177,7 +182,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     let along = if across {
                         if end { 71200 } else { 1200 + 64000 * i / (rows.len() - 2) }
                     } else {
-                        if end { (height - 14) * 100 } else { (16 + 40 * i) * 100 }
+                        if end { down_end * 100 } else { (16 + 40 * i) * 100 }
                     };
                     let (x, y) = if across {
                         (along, if upper { 4000 } else { 10600 })
@@ -369,9 +374,11 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                 let carets = styled(&scene, look::WAYS_CARET);
                 assert_eq!(carets.len(), usize::from(pressed.is_some() && across), "caret across alone");
                 if let Some(caret) = carets.first() {
+                    let c = if width == 658 { 7 } else { 6 };
+                    let height = u16::try_from(height).unwrap();
                     assert_eq!(
                         scene.data(*caret),
-                        [open_x - 6, 154, open_x, 148, open_x + 6, 154]
+                        [open_x - c, height, open_x, height - c, open_x + c, height]
                             .into_iter()
                             .flat_map(u16::to_le_bytes)
                             .collect::<Vec<_>>()
@@ -436,16 +443,22 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
     assert!(!scene.refused());
     scene.clear();
     assert!(paths::draw(paths::KIND, data, 1567, 0, &mut scene));
-    assert_eq!(scene.height(), Some(1280));
+    assert_eq!(scene.height(), Some(1294));
     scene.clear();
     for (bytes, expected) in [(&[][..], None), (&[3][..], Some(3)), (&[3, 0][..], None), (&[255][..], Some(255))] {
         assert_eq!(paths::pressed_stop(bytes), expected);
     }
-    for (width, rows, height) in [(559, APPROVE, 388), (560, APPROVE, 140), (607, DRAFT, 508), (608, DRAFT, 140)] {
+    for (width, rows, height, drawn) in [
+        (559, APPROVE, 388, None),
+        (560, APPROVE, 140, Some(720)),
+        (607, DRAFT, 508, None),
+        (608, DRAFT, 140, Some(720)),
+    ] {
         let stops: Vec<_> = rows.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
         let t = tree(&stops, None);
         assert!(paths::draw(paths::KIND, &t.nodes()[0].drawing.as_ref().unwrap().data, width, 0, &mut scene));
         assert_eq!(scene.height(), Some(height));
+        assert_eq!(scene.width(), drawn);
         scene.clear();
     }
     for (stops, expected) in [

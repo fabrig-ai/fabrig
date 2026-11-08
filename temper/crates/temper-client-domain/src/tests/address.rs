@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 28] = [
+    let pages: [(Address, &[u8]); 31] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -29,6 +29,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Builders { project: 0 }, b"/projects/0/settings/builders"),
         (Address::Builders { project: 3 }, b"/projects/3/settings/builders"),
         (Address::Builders { project: u32::MAX }, b"/projects/4294967295/settings/builders"),
+        (Address::Role { project: 3, charter: 4 }, b"/projects/3/settings/roles/4"),
+        (Address::Rule { project: 3, kind: 2, number: 1 }, b"/projects/3/settings/rules/2/1"),
+        (Address::Rule { project: 0, kind: 1, number: 7 }, b"/projects/0/settings/rules/1/7"),
         (Address::Repositories { project: 3 }, b"/projects/3/settings/repositories"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
         (Address::Ask { project: 0 }, b"/projects/0/ask"),
@@ -155,6 +158,16 @@ fn a_path_that_is_no_page_is_missing() {
         b"/projects/+1/ask",
         b"/projects/3/ask/extra",
         b"/projects/3/settings/configure",
+        b"/projects/3/settings/roles/0",
+        b"/projects/3/settings/roles/04",
+        b"/projects/3/settings/roles/4294967296",
+        b"/projects/3/settings/roles/4/extra",
+        b"/projects/3/settings/rules/3/1",
+        b"/projects/3/settings/rules/0/1",
+        b"/projects/3/settings/rules/2/0",
+        b"/projects/3/settings/rules/2/01",
+        b"/projects/3/settings/rules/2",
+        b"/projects/3/settings/rules/2/1/extra",
         b"/projects/1/board",
         b"/projects/3/adopt/x",
         b"//",

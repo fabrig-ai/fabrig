@@ -174,9 +174,9 @@ fn card(who: &str, name: &str, facts: &[(&str, &str)]) -> w::Card {
         .expect("stop card")
 }
 fn agent(who: &str, name: &str, can: &str, asked: &str) -> w::Card {
-    // The derivation reserves both quotation marks inside the fact's 128 bytes.
+    // The derivation keeps the sentence whole within 184 bytes, both quotation marks included.
     let asked =
-        bytes::concat(&["“".as_bytes(), bytes::utf8_prefix(asked.as_bytes(), 128 - "“”".len()), "”".as_bytes()]);
+        bytes::concat(&["“".as_bytes(), bytes::utf8_prefix(asked.as_bytes(), 184 - "“”".len()), "”".as_bytes()]);
     card(
         who,
         name,
@@ -256,13 +256,15 @@ fn stop(step: w::PathStep) -> w::Stop {
             card(
                 "code · holds a change until CI passes",
                 "CI",
-                &[("Checks", "the repository's CI, at the change's head")],
+                &[("Checks", "every check the repository's CI workflows report, at the change's head")],
             ),
         ),
         Review => (
             Agent,
             "review",
-            w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1 }).expect("review gate")),
+            w::Opens::Gate(
+                w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).expect("review gate"),
+            ),
             agent(
                 "an agent · holds a change until it approves",
                 "the reviewer",

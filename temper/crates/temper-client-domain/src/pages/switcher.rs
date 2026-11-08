@@ -92,6 +92,8 @@ impl Switcher {
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }

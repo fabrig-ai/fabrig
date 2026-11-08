@@ -1,12 +1,11 @@
 == One change is on the way to main. == Live
 First:
   [1] temper
-  First:
-    [2] First (pressed)
-    New project:
-      [3] New project: (empty) (enter sends)
-      [4] Create
-    [5] Settings for First
+  [2] First (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] Settings for First
   [6] Home
   [7] Needs you
   [8] Chats
