@@ -912,8 +912,6 @@ read's head explicit.
 - **Not yet:** 3.5, *Team*, *Its reads*: Team reads nothing; `team::facts`
   and `team::people` answer `None` (`temper-client-domain`'s
   `pages/team.rs`).
-- **Not yet:** 3.5, *Team*: the view draws no Team page
-  (`temper-client-view`'s `root.rs`).
 - **Not yet:** 3.5, *Team*, *In the rail*, and 5.3: the rail draws no
   "Team" and the switcher's menu no "Team for PROJECT", and the project's
   document is read on Team alone, so the rail's parts are given no count
