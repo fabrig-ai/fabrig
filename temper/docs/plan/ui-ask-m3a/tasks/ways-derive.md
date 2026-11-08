@@ -91,7 +91,7 @@ Acceptance:
 - **Options, pre-approved:** if `covers_branch` needs a repository the
   inputs lack (none adopted), judge `branch` patterns past four
   placeholder segments as the forge does and skip `forge` patterns, as
-  8.13 says. If the wire lowered `Path`'s stops below 32 (task
+  8.13 says. If the wire lowered `BranchPath`'s stops below 32 (task
   `ways-wire`'s report on the trunk), take its figure for `STOPS`.
 
 ## Steps
