@@ -1436,7 +1436,7 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let base = match sample.name {
         "night-home" => Some("home-begin-ask-left"),
-        "night-ask" => Some("configure"),
+        "night-ask" => Some("ask-first-run"),
         "night-chat-split" => Some("chat-draft-split"),
         _ => None,
     };
@@ -1982,7 +1982,11 @@ fn ask_domain(sample: &Sample) -> Domain {
         }
         return root;
     }
-    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
+    let mut root = if matches!(sample.name, "ask-first-run" | "ask-typing" | "ask-sending" | "ask-refused") {
+        crate::worlds::to_begin_world(sample.world, sample.address.clone(), sample.then)
+    } else {
+        crate::worlds::world(sample.world, sample.address.clone(), sample.then).0
+    };
     if sample.name == "ask-first-run" {
         return root;
     }

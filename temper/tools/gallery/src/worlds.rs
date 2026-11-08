@@ -387,6 +387,10 @@ pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
     )
     .0
 }
+/// First-run Ask leaves only the way of working unfinished (client/browser.md, 7.2).
+pub(super) fn to_begin_world(w: World, address: Address, then: Then) -> Domain {
+    world_in_layout(w, address, then, false, None, Some("ask-first-run"), false).0
+}
 pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, true, None, None, false)
 }
@@ -407,6 +411,7 @@ fn world_in_layout(
     copies: bool,
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
+    let to_begin = settings == Some("ask-first-run");
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
@@ -737,11 +742,39 @@ fn world_in_layout(
                             forge_watch = Some(watch);
                             if settings == Some("repositories-making") {
                                 repositories_making_watched(&mut root, watch, &mut out);
+                            } else if to_begin {
+                                to_begin_forges_watched(&mut root, w, watch, &mut out);
                             } else if copies {
                                 copies_watched(&mut root, watch, &mut out);
                             } else {
                                 forges_watched(&mut root, w, watch, &mut out);
                             }
+                            continue;
+                        }
+                        w::Watch::Dismissed if to_begin => {
+                            let bytes = wire::dismissals(
+                                &w::Dismissals::new(
+                                    &w::CEILINGS,
+                                    w::DismissalsParts { dismissed: List::with_capacity(0) },
+                                )
+                                .expect("unfinished To begin"),
+                            );
+                            step(
+                                &mut root,
+                                Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::FamilyDelivered {
+                                            watch,
+                                            record: jig_client::Family {
+                                                family: wire::FORGE,
+                                                version: wire::CLIENT_VERSION,
+                                                bytes,
+                                            },
+                                        },
+                                    },
+                                },
+                                &mut out,
+                            );
                             continue;
                         }
                         w::Watch::Dismissed if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
@@ -901,6 +934,27 @@ pub(super) fn repositories_making_world() -> Domain {
         false,
     )
     .0
+}
+fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut parts = wire::decode_forges(&forges(world), &w::CEILINGS).expect("Ask forges").into_parts();
+    let row = parts.forges.get_mut(0).expect("Ask forge");
+    let mut forge = row.clone().into_parts();
+    let repository = forge.repositories.get_mut(0).expect("Ask repository");
+    let mut adoption = repository.clone().into_parts();
+    adoption.project = PROJECT;
+    *repository = w::Adoption::new(&w::CEILINGS, adoption).expect("Ask adoption");
+    *row = w::ForgeRow::new(&w::CEILINGS, forge).expect("Ask forge");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, parts).expect("Ask forges")),
+    };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
 }
 fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
