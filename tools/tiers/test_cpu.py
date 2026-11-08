@@ -179,6 +179,33 @@ class OneProcessTests(unittest.TestCase):
                          ('starved', 1, []))
         self.assertFalse(result['suite']['starved_run'])
 
+    def test_forced_kill_keeps_reported_outcomes_without_a_process(self):
+        self.run.update(starved=True, returncode=-9)
+        self.results.update(cancelled='wall-hard', selected=3,
+                            processes=[self.process(['z'])],
+                            unobserved=[dict(binary_id='pkg::suite', test_name='b')])
+        for outcome in ('failed', 'passed', 'starved'):
+            with self.subTest(outcome=outcome):
+                self.results['tests'] = [self.entry('z'),
+                                        self.entry('a', outcome=outcome, process=None)]
+                result = self.summary()
+                self.assertEqual(result['failures'], ['pkg::suite a'] if outcome == 'failed' else [])
+                self.assertEqual(result['unobserved'],
+                                 [dict(binary_id='pkg::suite', test_name='b', attempt=1)])
+                self.assertEqual([test['test_name'] for test in result['tests']], ['a', 'z'])
+                self.assertEqual((result['tests'][0]['before'], result['tests'][0]['alone']),
+                                 ([], None))
+                self.assertEqual(result['tests'][0]['starved'], int(outcome == 'starved'))
+                self.assertEqual((result['suite']['tests'], result['suite']['attempts'],
+                                  result['suite']['starved'], result['suite']['starved_run']),
+                                 (2, 2, int(outcome == 'starved'), True))
+                self.assertEqual(len(result['processes']), 1)
+                self.assertEqual(result['processes'][0]['tests'], ['z'])
+                for field in ('cpu_s', 'user_s', 'system_s'):
+                    self.assertEqual(result['suite'][field], result['processes'][0][field])
+                code, _ = self.execute()
+                self.assertEqual(code, 100 if outcome == 'failed' else 0)
+
     def test_split_binary_retains_both_processes_and_cpu(self):
         self.results['processes'] = [self.process(['z']), self.process(['a'], user_s=2.0)]
         self.results['tests'][1]['process'] = 1
@@ -215,6 +242,11 @@ class OneProcessTests(unittest.TestCase):
             ('kind', ('results', 'processes', 0, 'kind'), 'unknown'),
             ('process index', ('results', 'tests', 0, 'process'), 1),
             ('negative index', ('results', 'tests', 0, 'process'), -1),
+            ('null process without cancellation', ('results', 'tests', 0, 'process'), None),
+            ('crashed without process', ('results', 'tests', 0),
+             self.entry('z', outcome='crashed', process=None)),
+            ('cancelled without process', ('results', 'tests', 0),
+             self.entry('z', outcome='cancelled', process=None)),
             ('alone index', ('results', 'processes', 0, 'kind'), 'alone'),
             ('negative CPU', ('results', 'processes', 0, 'user_s'), -1),
             ('infinite CPU', ('results', 'processes', 0, 'system_s'), float('inf')),
@@ -234,7 +266,7 @@ class OneProcessTests(unittest.TestCase):
                 target[path[-1]] = value
                 if name in ('duplicate coverage', 'unobserved without reason'):
                     self.results['selected'] = 3
-                if name == 'duplicate coverage':
+                if name in ('duplicate coverage', 'crashed without process', 'cancelled without process'):
                     self.results['cancelled'] = 'global-timeout'
                 self.directory.mkdir(exist_ok=True)
                 # Nonfinite JSON is deliberately malformed input, not saved by save.
