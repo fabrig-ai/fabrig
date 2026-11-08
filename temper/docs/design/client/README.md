@@ -2518,7 +2518,11 @@ keeps (`../protocol/configuration.md`, section 2).
     (`../draft/surfaces.md`, section 12): Drafts while a draft is listed,
     Goals while the project holds a goal (`Domain::has_goals`), Changes while
     a change is queued or landed recently, Chats while a chat started work;
-    All always, and the current one always. N is what its list holds:
+    All always, and the current one always. Kind 7's switches Goals and
+    Changes (5.13) hide their filters, as overrides that hide a filter its rule
+    would show and never show one it would hide (`../draft/surfaces.md`,
+    section 12); until kind 7 is read, or with its read refused, neither hides,
+    and what they hide stays under All. N is what its list holds:
     Drafts' cards, the goals' rows read, the changes queued and landed, the
     chats with work. "Chats" goes to `Chats { filter: All }`, the person's
     chats, a page that keeps its own head (*The Chats page*).
@@ -4708,8 +4712,8 @@ navigation named by the open project, in this order:
   templates (`../draft/ask-temper.md`, section 9; the look request
   `ask-temper-place`); a hairline, `div.temper-rail-sep`, named nothing;
   and "How work runs", to `Settings { project }` (3.5, *Settings and
-  Deployment*). Kind 7's switches hide no entry: Work lists what exists
-  (3.5, *Work*). "Work" is current on `Work`, `Goals`, `Changes`, `Chats`,
+  Deployment*). Kind 7's switches hide no entry of the rail: Goals' and
+  Changes' hide Work's filters (3.5, *Work*). "Work" is current on `Work`, `Goals`, `Changes`, `Chats`,
   `NewChat`, a `Chat` but an Ask temper chat's, and a `Task`; "Ask temper"
   on `Ask` and an Ask temper chat; "How work runs" on `Settings`,
   `Repositories` and `Adopt`;
@@ -6268,7 +6272,7 @@ on this tab.
     |---|---|---|---|
     | Chats can write drafts | A chat keeps a document beside it, in docs/design/draft/, that a goal can start from. | On / Off | `drafts` |
     | Goals | Bigger work from a draft: a plan, tasks, landing. | Shown / Hidden | `goals` |
-    | Changes | The landing queue, as a page. | Shown / Hidden | `changes` |
+    | Changes | The landing queue, as Work's filter. | Shown / Hidden | `changes` |
     | Away switch | Lets agents decide within limits while you’re away. | Shown / Hidden | `away` |
 
   - *Ways of working,* live, kind 7's `way`, only while Goals is shown: a row
