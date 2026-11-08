@@ -30,6 +30,7 @@ mod sign_in_wait;
 pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod terminal;
+pub(crate) mod ways;
 pub(crate) mod welcome;
 mod welcome_copy;
 mod welcome_model;
