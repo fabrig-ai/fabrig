@@ -1523,15 +1523,17 @@ Not in the tier, each in the lowest world that shows it:
   Include `home-begin-*`, Home with a need and a chat left out with
   either step left, and their return after the last step or a skip.
   Check Ask temper's restricted rail, its three tabs at 420 with the
-  composer above them, and `night-home`, `night-ask` and `night-chat-split`,
+  composer and model picker wholly above them, the same rail and tabs in
+  `ask-first-run`, `ask-typing`, `ask-sending` and `ask-refused`, and
+  `night-home`, `night-ask` and `night-chat-split`,
   the switch in the
   folded rail open and closed and at a phone's chat bar, and the night's
   shadows against their day values (2.5, *Shadows keep their colour*). Check
   the faint top-right glow without rings and readability on every other
   page; refine the first night palette with the user. Run the history
-  story's night reload row after landing. Default: tokens, focused
-  tables and gallery prints establish no rendered equality or browser
-  runtime result.
+  story's phone Ask row (4.6, 11) and night reload row after landing.
+  Default: tokens, focused tables and gallery prints establish no
+  rendered equality or browser runtime result.
 
 - **Ask temper's repaired bar and first-run gallery** (2.5, 7.2):
   temper/ui compares the `ask-temper-place` tag at 1440 and 1000 px as

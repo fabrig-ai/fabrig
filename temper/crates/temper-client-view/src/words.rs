@@ -1105,6 +1105,8 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
+    /// A model writing its answer, on the shared running line (client/README.md, 6.14).
+    RunningWork,
     ConnectForge,
     ChatTitle,
     PlaygroundModelName,
@@ -1545,7 +1547,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2101;
+const PHRASES: u32 = 2102;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1572,10 +1574,10 @@ const PHRASES: u32 = 2101;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3686;
+const SEGMENTS: u32 = 3687;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51974;
-const ALL: [Word; 1419] = [
+const ENGLISH_BYTES: u32 = 51981;
+const ALL: [Word; 1420] = [
     Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
@@ -2639,6 +2641,7 @@ const ALL: [Word; 1419] = [
     Word::ChatPaused,
     Word::ChatSendResumes,
     Word::ChatWorking,
+    Word::RunningWork,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::PlaygroundModelName,
@@ -4162,6 +4165,7 @@ impl Word {
             Self::ChatPaused => 3870,
             Self::ChatSendResumes => 3871,
             Self::ChatWorking => 3287,
+            Self::RunningWork => 3885,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::PlaygroundModelName => 277,
@@ -6098,6 +6102,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChatWorking => (&[b"Writing"], &[]),
+        Word::RunningWork => (&[b"Working"], &[]),
         Word::ChatPaused => (&[b"Paused"], &[]),
         Word::ChatSendResumes => (&[b"Sending resumes this chat."], &[]),
         Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
