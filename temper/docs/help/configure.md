@@ -75,12 +75,12 @@ Expect: no output; `FILE` holds charter 1's whole value with new instructions
 in `items` (at most 1024, one per setting). If empty, read stderr and retry.
 To remove or reset, replace `set` with `"edit": "removed"` or `"edit": "reset"`.
 
-Keep other fields. This selects charter 2, retaining stock landing requirements:
+Keep other fields. This selects charter 2, keeping project 1's stock landing requirements:
 
 ```json
 {"items":[
- {"setting":{"kind":"landing-rule","number":1},
-  "set":{"pattern":{"segments":["666f726765"],"last":{"open":""}},
+ {"setting":{"kind":"landing-rule","project":1,"number":1},
+  "set":{"pattern":{"segments":["6272616e6368"],"last":{"open":""}},
          "enforce":true,"ci":true,"up_to_date":true,
          "gates":[{"number":1,"blocking":true,"freshness":"clean"}],"approvals":[]}},
  {"setting":{"kind":"forge-charter","number":1},"set":2}

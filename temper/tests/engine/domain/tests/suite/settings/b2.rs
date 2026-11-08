@@ -84,7 +84,7 @@ fn limits() -> engine::Limits {
     limits.tasks.inbox_messages = 8;
     limits.tasks.run_inbox = 8;
     limits.tasks.authority_grants = 16;
-    limits.tasks.executor_kinds = 13;
+    limits.tasks.executor_kinds = 14;
     // The stock's read plus six change grants narrow to eight repository patterns (200 bytes).
     limits.tasks.authority_bytes = 256;
     limits.tasks.authority_segments = 8;
@@ -94,7 +94,7 @@ fn limits() -> engine::Limits {
     limits.authority.requirements = 4;
     limits.authority.facts = 4;
     limits.authority.writes = 2;
-    // The request carrier holds the stock's fourteen grants and thirteen executor kinds.
+    // The request carrier holds the stock's fourteen grants and fourteen executor kinds.
     limits.people.amendment_bytes = 2048;
     limits.people.inbox_tasks = 32;
     limits.people.inbox_recipients = 32;

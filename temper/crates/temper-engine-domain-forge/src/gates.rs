@@ -29,6 +29,13 @@ pub struct Requires {
     pub up_to_date: bool,
 }
 pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
+    let name = match pattern.segments.first() {
+        Some(first) if first.as_ref() == b"branch" => match name.get(4..) {
+            Some(tail) => tail,
+            None => return false,
+        },
+        Some(_) | None => name,
+    };
     if name.get(..pattern.segments.len()) != Some(pattern.segments.as_ref()) {
         return false;
     }
@@ -42,6 +49,17 @@ pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
         },
     }
 }
+/// Whether `pattern` covers `branch` of `repository`: a pattern beginning at
+/// `branch` is judged against the branch's resource path past its
+/// repository's four segments (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+pub fn covers_branch(pattern: &GatePattern, repository: &Repository, branch: &[u8]) -> bool {
+    match crate::domain::branch_resource_name(repository, branch) {
+        Some(name) => covers(pattern, &name),
+        None => false,
+    }
+}
+
 pub(crate) fn selected(
     limits: &Limits,
     repository: &Repository,

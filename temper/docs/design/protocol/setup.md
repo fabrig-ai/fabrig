@@ -2636,14 +2636,15 @@ override.
   `protocol/configuration.md`, section 3), which each project made
   starts from: its owner's grants, the rules' ceiling and its
   projections the owned example's, on the pattern below in place of
-  the org's. The deployment's landing rule, `landing.deployment`,
-  covers every repository of every forge, the pattern `{"segments":
-  ["forge"], "last": "open", "value": ""}`, `enforce`d, with `ci` and
-  `up_to_date`, and no gate or approval: a change lands on green CI
-  with no person in between, in every project, seeded or made
-  (configuration.md, section 8). Each project is made on that policy
+  the org's. Each project's landing rule 1 covers every branch of each
+  of its repositories, the pattern `{"segments": ["branch"], "last":
+  "open", "value": ""}`, `enforce`d, with `ci`, `up_to_date` and gate
+  1, an agent's review, and no approval: a change lands on green CI and
+  an agent's review with no person in between, in every project, seeded
+  or made, until its owners change the rule (configuration.md, 13.2 and
+  13.4). Each project is made on that policy
   by jig's `MakeProject` (8.4, 6.7). The policy and the landing rule are
-  the binary's stock settings, policy 1 and the deployment's rule 1, and
+  the binary's stock settings, policy 1 and every project's rule 1, and
   the document names neither (configuration.md, 13.4); `temper init`
   writes no `engine.policies`, `engine.rules` or `application.landing`.
 - **Its acts:** `engine.acts` (jig's `protocol/configuration.md`,
