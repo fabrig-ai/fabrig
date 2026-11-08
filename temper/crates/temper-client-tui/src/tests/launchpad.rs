@@ -371,7 +371,7 @@ fn the_launchpad_says_each_state() {
             &sorted,
             &ordinary,
             header,
-            &["Where you left off", "Away mode · waiting on you"][..],
+            &["Where you left off", "Away mode · waiting on you", "Older · waiting on you"][..],
             None,
         ),
         ("no live chat", &ended, &ordinary, header, &[][..], None),
@@ -580,4 +580,211 @@ fn the_launchpads_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+}
+
+fn left_off_home() -> Domain {
+    home(
+        None,
+        &[
+            line(OLDER_CHAT, b"Older", 1, false),
+            line(ENDED_CHAT, b"Ended", 5, true),
+            line(8, b"Second", 3, false),
+            line(CHAT, b"Newest", 4, false),
+        ],
+    )
+}
+fn left_off_lines(view: &crate::View) -> List<Box<[u8]>> {
+    let mut lines = List::with_capacity(view.tree().len());
+    for node in view.tree().nodes() {
+        if node.role == Role::Item {
+            lines.push(f::text(view.tree(), node)).unwrap();
+        }
+    }
+    lines
+}
+#[test]
+fn the_left_off_chats_are_ordered_and_bounded() {
+    for (name, chats, expected) in [
+        (
+            "activity and ended",
+            &[
+                line(OLDER_CHAT, b"Older", 1, false),
+                line(ENDED_CHAT, b"Ended", 5, true),
+                line(8, b"Second", 3, false),
+                line(CHAT, b"Newest", 4, false),
+            ][..],
+            &["Newest", "Second", "Older"][..],
+        ),
+        (
+            "tie and bound",
+            &[
+                line(12, b"Fourth", 0, false),
+                line(11, b"Third", 1, false),
+                line(9, b"Higher", 2, false),
+                line(8, b"Lower", 2, false),
+            ][..],
+            &["Lower", "Higher", "Third"][..],
+        ),
+    ] {
+        let root = home(None, chats);
+        let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name} read bound");
+        let view = build(&root, &Tui::new(f::ADDRESS));
+        let lines = left_off_lines(&view);
+        assert_eq!(usize::try_from(lines.len()).unwrap(), expected.len(), "{name}");
+        for (line, title) in lines.iter().zip(expected) {
+            assert_eq!(
+                line.as_ref(),
+                skein_lib::bytes::concat(&[title.as_bytes(), " · waiting on you".as_bytes()]).as_ref(),
+                "{name}"
+            );
+        }
+        assert_eq!(f::count(view.tree(), Role::List), 1, "{name}");
+        for node in view.tree().nodes() {
+            if node.role == Role::List {
+                assert_eq!(node.styles.as_slice(), &[look::LEFT_OFF], "{name}");
+            }
+        }
+    }
+}
+#[test]
+fn the_left_off_keys_follow_the_last_tree() {
+    use crate::{Arrow, Event as E};
+    use skein_ui::Act;
+    let root = left_off_home();
+    let mut tui = Tui::new(f::ADDRESS);
+    let mut view = build(&root, &tui);
+    for (arrow, task) in [
+        (Arrow::Down, CHAT),
+        (Arrow::Down, 8),
+        (Arrow::Down, OLDER_CHAT),
+        (Arrow::Down, OLDER_CHAT),
+        (Arrow::Up, 8),
+        (Arrow::Up, CHAT),
+        (Arrow::Up, CHAT),
+    ] {
+        assert_eq!(crate::arrow(&view, arrow), Some(E::LeftOff { task: Some(task) }));
+        tui.step(Told::LeftOff { task: Some(task) });
+        assert_eq!(crate::arrow(&view, arrow), Some(E::LeftOff { task: Some(task) }), "state changes wait for a build");
+        crate::build(&mut view, &tui, &root, NOW, &mut Queue::uncapped());
+    }
+    for (selected, words, list, first, submit, escape) in [
+        (None, "", false, Some(CHAT), E::Send, None),
+        (
+            Some(CHAT),
+            "",
+            false,
+            Some(8),
+            E::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } },
+            Some(E::LeftOff { task: None }),
+        ),
+        (Some(99), "", false, Some(CHAT), E::Send, None),
+        (Some(CHAT), "words", false, None, E::Send, Some(E::LeftOff { task: None })),
+        (Some(CHAT), "/", false, None, E::Send, Some(E::Dismiss)),
+        (
+            Some(CHAT),
+            "",
+            true,
+            None,
+            E::Act { act: d::pages::Act::Go { address: Address::Chat { task: CHAT } } },
+            Some(E::Dismiss),
+        ),
+    ] {
+        let mut root = left_off_home();
+        f::event(
+            &mut root,
+            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: words.as_bytes().into() }) },
+        );
+        if list {
+            f::event(
+                &mut root,
+                Event::Act {
+                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
+                        command: d::pages::terminal::Command::Chats,
+                    })),
+                },
+            );
+        }
+        tui.step(Told::LeftOff { task: selected });
+        let view = build(&root, &tui);
+        match first {
+            Some(task) => assert_eq!(
+                crate::arrow(&view, Arrow::Down),
+                Some(E::LeftOff { task: Some(task) }),
+                "{selected:?} {words} {list}"
+            ),
+            None => {
+                assert_eq!(crate::arrow(&view, Arrow::Down), None, "{selected:?} {words} {list}");
+                assert_eq!(crate::arrow(&view, Arrow::Up), None);
+            }
+        }
+        if selected.is_none() || selected == Some(99) {
+            assert_eq!(crate::arrow(&view, Arrow::Up), Some(E::LeftOff { task: Some(CHAT) }));
+        }
+        let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+        assert_eq!(crate::event(&view, field.id, Act::Submit), Some(submit), "{selected:?} {words} {list}");
+        assert_eq!(crate::escape(&view), escape, "{selected:?} {words} {list}");
+    }
+    // Reusing a view clears the launchpad's key facts when its next tree has none.
+    let empty = home(None, &[]);
+    crate::build(&mut view, &tui, &empty, NOW, &mut Queue::uncapped());
+    assert_eq!(crate::arrow(&view, Arrow::Down), None);
+    assert_eq!(crate::escape(&view), None);
+    let mut chat = left_off_home();
+    f::event(&mut chat, Event::Went { place: d::Place::Address(Address::Chat { task: CHAT }) });
+    tui.step(Told::LeftOff { task: Some(CHAT) });
+    crate::build(&mut view, &tui, &chat, NOW, &mut Queue::uncapped());
+    assert_eq!(crate::arrow(&view, Arrow::Down), None);
+    assert_eq!(crate::escape(&view), None);
+    tui.step(Told::Went);
+    crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
+    assert_eq!(crate::arrow(&view, Arrow::Up), None);
+    assert_eq!(crate::escape(&view), None);
+}
+#[test]
+fn the_picked_left_off_row_has_its_mark_and_paint() {
+    use skein_ui_screen::{Focus, Frame, Rgb, Size, render};
+    let root = left_off_home();
+    for (selected, background) in
+        [(Some(CHAT), Some(Rgb { red: 20, green: 30, blue: 40 })), (Some(CHAT), None), (None, None), (Some(99), None)]
+    {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::LeftOff { task: selected });
+        let view = build(&root, &tui);
+        let mut picked = 0_usize;
+        for node in view.tree().nodes() {
+            if node.styles.as_slice().contains(&look::PICKED) {
+                assert_eq!(node.role, Role::Item);
+                picked = picked.checked_add(1).unwrap();
+            }
+        }
+        assert_eq!(picked, usize::from(selected == Some(CHAT)));
+        let size = Size { columns: 80, rows: 24 };
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, background), size, &mut Focus::default(), &mut frame);
+        let mut picked_row = None;
+        for row in 0..size.rows {
+            let cells = frame.row(row).unwrap();
+            if cells[3].glyph == 'N' {
+                picked_row = Some(cells);
+                break;
+            }
+        }
+        let row = picked_row.unwrap();
+        let band = match (selected, background) {
+            (Some(CHAT), Some(background)) => Some(crate::theme::band(background)),
+            (Some(_) | None, Some(_) | None) => None,
+        };
+        assert_eq!(row[1].glyph, if selected == Some(CHAT) { '❯' } else { ' ' });
+        assert_eq!(
+            row[3].paint.fore,
+            if selected == Some(CHAT) { Some(Rgb { red: 0xe0, green: 0x8a, blue: 0x68 }) } else { None }
+        );
+        for cell in &row[1..79] {
+            assert_eq!(cell.paint.back, band);
+        }
+        assert_eq!(row[0].paint.back, None);
+        assert_eq!(row[79].paint.back, None);
+        assert_eq!(row[12].paint.fore, Some(Rgb { red: 0x9a, green: 0x93, blue: 0x88 }));
+    }
 }
