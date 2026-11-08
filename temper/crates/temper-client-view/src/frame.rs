@@ -608,6 +608,7 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
 
 /// The rail (temper/docs/design/client/README.md, 5.3).
 #[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
+#[expect(clippy::too_many_lines, reason = "one rail keeps its navigation, foot and browser night switch in order")]
 pub(crate) fn rail(
     b: &mut Builder,
     root: &Domain,
@@ -714,6 +715,16 @@ pub(crate) fn rail(
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
+    if w.shell == Shell::Browser {
+        b.open(Role::Button);
+        b.style(crate::look::NIGHT_SWITCH);
+        b.name(&w.say(Word::NightMode, &[]));
+        if root.pages().look().night {
+            b.state(skein_ui::State::Pressed);
+        }
+        b.bind(bindings.insert(PageAct::Terminal(temper_client_domain::pages::terminal::Act::Night)));
+        b.close();
+    }
     b.close();
 }
 
