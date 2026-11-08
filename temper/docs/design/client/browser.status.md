@@ -16,9 +16,6 @@
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
-- **Not yet:** 8.2: the public pages' top bar offers "Sign in" only
-  where Google's way is given; `look-round-22`'s `public-sign-in`
-  closes it.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
