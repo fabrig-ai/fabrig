@@ -178,3 +178,83 @@ fn a_tools_declaration_is_visible_with_its_host_in_accounts() {
         assert!(text.contains(fact), "missing {fact}: {text}");
     }
 }
+
+#[test]
+fn a_forgotten_declaration_is_declared_again_under_its_name() {
+    let (mut front, mut root) = accounts::tools_fixture(fixtures::SEED);
+    call(
+        &mut front,
+        &mut root,
+        1,
+        &[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-login"],
+        None,
+    );
+    assert_eq!(root.agent().printed(1).expect("first declaration").status, 0);
+    let worker = *front.engine.protocol.sources.last().expect("worker received the program sources");
+    call(&mut front, &mut root, 2, &[b"account", b"list", b"--json"], None);
+    let listed = root.agent().printed(2).expect("account holding the declaration");
+    assert_eq!(listed.status, 0);
+    let text = std::str::from_utf8(&listed.stdout).expect("accounts JSON");
+    assert!(text.contains("\"name\":\"claude-work\",\"kind\":\"program\""), "{text}");
+    let account =
+        text.split("\"number\":").nth(1).expect("party account").split(',').next().expect("number end").to_owned();
+    call(&mut front, &mut root, 3, &[b"account", b"forget", account.as_bytes()], None);
+    assert!(root.agent().printed(3).is_none(), "forget waits for the worker's sign-out answer");
+    accounts::program_signed_out(&mut front, &mut root, b"claude-work");
+    let forgotten = root.agent().printed(3).expect("program signed out and account forgotten");
+    assert_eq!(forgotten.status, 0, "{forgotten:?}");
+    assert!(skein_lib::bytes::find(&forgotten.stdout, b"Signed out on every machine.").is_some());
+    let Event::Call { call: declaration, json, .. } =
+        fixtures::call(&[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-again"])
+    else {
+        unreachable!()
+    };
+    accounts::press_turn(&mut front, &mut root, Event::Call { number: 4, call: declaration, json, value: None });
+    front.engine.settle();
+    let checked = front.engine.delivered.iter().any(|delivery| {
+        matches!(delivery,
+            temper_engine_domain::Delivery::Link { channel, down: jig_domain_host::LinkDown::Check { name } }
+            if *channel == worker && name.as_bytes() == b"claude-work")
+    });
+    accounts::settle(&mut front, &mut root);
+    let revived = root.agent().printed(4).expect("revived declaration");
+    assert_eq!(revived.status, 0, "{revived:?}");
+    assert!(
+        skein_lib::bytes::find(
+            &revived.stdout,
+            b"temper program-login --config CONFIG --data DATA --cache CACHE claude-work"
+        )
+        .is_some()
+    );
+    assert!(checked, "the revival asks the worker to check claude-work's login");
+    call(&mut front, &mut root, 5, &[b"account", b"list", b"--json"], None);
+    let listed = root.agent().printed(5).expect("revived source and hosts");
+    assert_eq!(listed.status, 0);
+    let text = std::str::from_utf8(&listed.stdout).expect("accounts JSON");
+    for fact in [
+        "\"kind\":\"program\",\"state\":{\"kind\":\"granted\"},\"usable\":false",
+        "\"name\":\"claude-work\"",
+        "\"program_hosts\":[{\"name\":\"worker\"",
+        "\"programs\":[{\"name\":\"claude-work\",\"state\":null",
+    ] {
+        assert!(text.contains(fact), "missing {fact}: {text}");
+    }
+    call(
+        &mut front,
+        &mut root,
+        6,
+        &[b"account", b"declare", b"17", b"claude_code", b"claude-work", b"--key", b"declare-taken"],
+        None,
+    );
+    let taken = root.agent().printed(6).expect("live name refused");
+    assert_eq!(taken.status, 2, "{taken:?}");
+    let stderr = std::str::from_utf8(&taken.stderr).expect("refusal text");
+    assert!(
+        stderr.contains(concat!(
+            "account declare: program name claude-work is taken\n",
+            "Declare under another name. If account list shows a source of yours named claude-work, ",
+            "check its login instead: account verify ACCOUNT --source program"
+        )),
+        "{stderr}"
+    );
+}

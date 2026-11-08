@@ -223,13 +223,20 @@ in a record of its own (3.7).
   they never take a program's source.
 - **A program source's name** is 1 to 32 characters of `a-z`, `0-9` and
   `-`, given by its holder as they declare it, unique in the deployment,
-  never changed and never reused once removed. A durable reservation keeps
-  its source number, name and original holder after removal. Declaring an
-  issued name refuses with `ProgramNameReserved`, distinct from an invalid
-  name, an unsupported provider and exhausted capacity, and writes nothing.
-  The client says that forgetting its account keeps the name reserved and
-  asks the holder to choose a never-used name. Both shipped
-  profiles admit 12 lifetime names. Restoring an existing live source reserves
+  never changed, and never another holder's once given. A durable
+  reservation keeps its source number, name and original holder after
+  removal. Its original holder may declare the name again once its
+  source is removed, as a person who signed out signs back in: the
+  declaration makes its account, or joins one, as any declaration does,
+  and moves the reservation to its new source, whose number it takes,
+  so that the name is wanted signed in again and counts no further
+  lifetime name; the old reservation's row is erased in the same
+  decision, and each host checks the login at once, as on its holder's
+  check (section 5). While the old source's sign-out is still under way,
+  the declaration is refused as a check is while another is out. A
+  name a live source holds, or another holder's reservation, is refused
+  *name taken* (section 5). Both shipped profiles admit 12 lifetime
+  names. Restoring an existing live source reserves
   its name before admitting changes; a conflicting reservation is a
   writer's bug, a link that cannot be made, and panics (engine.md,
   section 6).
@@ -712,9 +719,9 @@ among their own (`../client/domain/contract.md`, 7.1).
 | finish a sign-in | the address the sign-in's browser was sent to, which its person pasted, for a browser on another machine than the engine's: carried as a key is, and handed to the sign-in as its redirect (`../protocol/llm.md`, 5.4); only from the party who started that sign-in, while it waits; answered *finishing* once the sign-in takes it, the sign-in then ending as any does; refused, the sign-in still waiting, as another address, another sign-in's state, or *too many* once it has refused a few for their state; refused *not waiting* when no sign-in of the party's under that number waits, whoever's it is, once it has taken a redirect, ended, or the engine restarted, and while another finish of it is out; a sign-in that ends with a finish out answers it *not waiting* before its end |
 | sign out | revokes the record at the LLM provider, or has each worker sign a program's login out, and removes the source; when revocation is not confirmed, the answer says to disconnect the application in the provider's settings (providers.md, 2.3) |
 | add a key, replace it, remove it | adding names the account it joins, a new key's account by default; a person's, or the deployment's by its owners, or added by the deployment's `AddKey` (people.md, 5.3) |
-| declare a program's login | makes the account, or adds the source to one, under the name its holder gives (3.4); each host then reports whether its login is usable, and the answer names the application's command to run there, which hands the terminal to the program's own sign-in (smith's `protocol/programs.md`, section 4) |
+| declare a program's login | makes the account, or adds the source to one, under the name its holder gives (3.4); each host then reports whether its login is usable, and the answer names the application's command to run there, which hands the terminal to the program's own sign-in (smith's `protocol/programs.md`, section 4); the name of the holder's own removed source is declared again (3.4); refused *name taken* for a name a live source holds or another holder's reservation, and *not offered* where the LLM provider offers the holder no program's login |
 | check a program's login | has each host's half check the source's login now (3.4) |
-| order, uses, resume | the holder's: an account's place among theirs and its sources' order, its uses, a limited source resumed |
+| order, uses, resume | the holder's: an account's place among theirs and its sources' order, its uses, a limited source resumed; resuming a source that is not limited is refused *not offered* |
 | remove an account | signs each of its sources out, as sign out does, and erases its keys; its number is never reused, and a task that kept it chooses again (4.3); the deployment's also by the deployment's `RemoveAccount` (people.md, 5.3) |
 | move out | withdraws the account's signed-in source and hands its record to the client that asked, once, never in a committed answer, naming the move; sent once, never kept by the client (`../client/domain/contract.md`, 3.1); refused "not signed in" without a signed-in source holding a record (section 6) |
 | written | the client wrote the moved record: erases the source, and the account with it when no source is left; refused "cancelled" for a move not under way |
