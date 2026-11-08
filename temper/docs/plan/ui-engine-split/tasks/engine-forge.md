@@ -142,3 +142,13 @@ Section 4 assigns shared `Directories`, `Row`, `Argument`, `DIRECTORIES` and com
 Those files are outside engine-forge's authorized scope; taking over their implementation is not pre-approved.
 The next run resumes against the completed shell-crate dependency and implements engine-forge using those shared types.
 Acceptance remains unobserved; this does not accept engine-forge as done.
+
+## Rebase (2026-11-08, step merge, foreman ui-engine-split/engine-forge/foreman-2)
+
+Resolve README.status.md by preserving both adjacent status-entry deletions.
+The merge conflicts only in `temper/docs/design/protocol/README.status.md`.
+Commit `792929dad2` on the integration branch removes the **Not yet** 4.1, 5 entry saying `temper-service` has no `worker` feature.
+Task commit `14bb0cd96e` removes the adjacent **Not yet** 4.1, 5 entry for `temper-engine-shell`, the forge's commands.
+Resolve the conflict with both entries absent; the deployment-binaries introduction should lead directly to the remaining `temper-engine-shell`, serve entry.
+Preserve all other status entries and the task’s `setup.status.md` deletion.
+`Cargo.toml` and `temper/crates/temper/Cargo.toml` auto-merged; the log reports no conflict there.
