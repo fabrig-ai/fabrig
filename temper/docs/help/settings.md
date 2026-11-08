@@ -35,10 +35,11 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
-The stock has charters 1, 2, 4, 6, 9, 10 and 11, and templates 1 for a
-chat, 2 for a goal and 5 for Ask temper. Charter 10 is a model's
-trial and is never offered. Its rules offer six charter executors
-(1, 2, 4, 6, 9 and 11) and procedures 2, 3 and 4.
+The stock has charters 1, 2, 4, 5, 6, 9, 10 and 11, and templates 1 for a
+chat, 2 for a goal, 4 for a draft goal and 5 for Ask temper. Charter 5
+coordinates a draft goal. Charter 10 is a model's trial and is never
+offered. Its rules offer seven charter executors (1, 2, 4, 5, 6, 9 and 11),
+procedures 2, 3 and 4, merge job 3 and roles 0, 1 and 2.
 
 A setting's whole value is JSON, as `settings show` prints it. For members,
 types and bounds, read `temper help settings-fields`.
@@ -182,5 +183,6 @@ For members needing a restart, read `temper help configuration`.
 - Providers, listeners, workers and limits are configured at start;
   changes need a restart. Limits must hold the stock's settings or start
   refuses. Another model or new stock can change the limits needed.
-- Stock floors are seven charters, three templates and nine executor kinds
-  (six charters and three procedures); your settings may need more.
+- Stock floors are eight charters, four templates and fourteen executor kinds
+  (seven charters, three procedures, one job and three roles); your settings
+  may need more.

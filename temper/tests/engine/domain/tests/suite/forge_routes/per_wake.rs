@@ -17,8 +17,6 @@ const QUESTION: &[u8] = b"Should the cut keep the documented behavior? I recomme
 
 fn authority(authority: &mut authority::Authority) {
     authority.budget.spend = BUDGET;
-    authority.delegation.kinds =
-        [authority.delegation.kinds.as_ref(), &[authority::Executor::Charter(CHARTER)]].concat().into();
 }
 
 fn defaults(model: &engine::Model, words: u32) -> settings::Defaults {
@@ -34,10 +32,6 @@ fn defaults(model: &engine::Model, words: u32) -> settings::Defaults {
         first_read: None,
     };
     let mut defaults = temper_service::stock::with_models(Box::new([catalogue]), words);
-    // The initial rules name charter 5 before the owner applies its reference value.
-    let mut coordinator = defaults.charters[0].clone();
-    coordinator.number = CHARTER;
-    defaults.charters = [defaults.charters.as_ref(), &[coordinator]].concat().into();
     defaults.rules.period_spend = BUDGET;
     authority(&mut defaults.rules.ceiling);
     let policy = defaults.policies.get_mut(&1).expect("stock project policy");
