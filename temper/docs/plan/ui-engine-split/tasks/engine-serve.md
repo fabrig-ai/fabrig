@@ -138,3 +138,19 @@ Acceptance:
 
 As the implementer's text says, with the seam's final signatures, the
 helpers copied or moved, and the tests that moved or stayed.
+
+## Rebase (2026-11-08, step merge, foreman ui-engine-split/engine-serve/foreman-1)
+
+Rebase the serve extraction onto the current landing trunk, preserving the forge, client and worker-feature changes.
+The merge refused six paths: `Cargo.lock`, `temper/crates/temper-engine-shell/{Cargo.toml,src/lib.rs}`, `temper/crates/temper/src/{commands.rs,lib.rs}`, and `temper/docs/design/protocol/README.status.md`.
+The landing trunk includes rebased engine-forge commit `e23a06d2df`; the branch carries its earlier version `14bb0cd96e`, causing the engine-shell add/add conflicts.
+Resolve engine-shell `src/lib.rs` by retaining the trunk’s forge/setup exports and helpers plus this branch’s `pub mod serve`.
+Merge the engine-shell manifest dependencies: keep forge dependencies and all additions needed by the moved serve code and tests.
+In `temper/src/commands.rs`, retain the shared forge constants and main’s `temper_shell::rows::{TUI, CTL}` usage from `0f029f6df4` and `2ac587a5f2`; do not restore inline client rows.
+In `temper/src/lib.rs`, preserve `pub mod help` and its name-aware wrapper from main, rather than this branch’s direct `pub use temper_shell::help`.
+Keep the serve extraction, `worker_half`, compatibility wrappers and moved-module re-exports. Preserve the current command parser and client arms.
+Retain worker-feature wiring from `792929dad2`: workspace `temper-service` disables default features; `temper` explicitly enables `worker`; engine-shell leaves it disabled.
+Regenerate `Cargo.lock` from the combined manifests, preserving the new client package/dependencies and serve dependencies.
+In `README.status.md`, preserve main’s client status additions and removal of the obsolete worker-feature entry; remove only the serve `Not yet` entry closed by this task.
+Verify engine-shell independently with `heavy cargo check -p temper-engine-shell`, since a combined build with `temper` enables the worker feature and can conceal engine-only failures.
+Then run the task’s focused checks and required validation, checking selected test counts; compile slow-tier stories without running them.
