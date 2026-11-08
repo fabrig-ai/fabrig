@@ -173,9 +173,19 @@ impl World {
     }
 
     fn settle(&mut self) {
+        // The front wakes for its own work, completions and deadlines; the
+        // engine's turns must not supply a wake the real front would miss.
+        let mut runnable = true;
         for _ in 0..512 {
-            self.sim.reap(self.pid, self.run.completions());
-            self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
+            if runnable
+                || self.sim.ready(self.pid) > 0
+                || self.sim.deferred(self.pid)
+                || self.run.next_deadline().is_some_and(|at| at <= self.now)
+            {
+                self.sim.reap(self.pid, self.run.completions());
+                self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
+                runnable = self.run.work_pending(self.now);
+            }
             for submit in self.run.submissions().iter() {
                 if let Op::Spawn { spawn } = &submit.kind {
                     self.spawns += 1;
@@ -200,7 +210,8 @@ impl World {
                 assert!(self.recording_sync.is_none(), "no recording sync in flight at LEAVE");
             }
             self.bytes.extend(bytes);
-            if self.sim.ready(self.pid) > 0
+            if runnable
+                || self.sim.ready(self.pid) > 0
                 || self.sim.deferred(self.pid)
                 || self.run.work_pending(self.now)
                 || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim))
@@ -1172,6 +1183,49 @@ fn http_response(body: &[u8]) -> Box<[u8]> {
 
 const HANDED_LINK: &[u8] =
     b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+#[test]
+fn a_front_connects_after_early_readiness_or_a_refused_connect() {
+    // Native monotonic time is already past the origin when the front starts.
+    const STARTED_AT: Time = Time::from_nanos(60_000_000_000);
+    // Fault probabilities are in thousandths.
+    const EVERY_COMPLETION: u32 = 1000;
+    for (listening, latency) in [(true, 0), (false, 0), (true, EVERY_COMPLETION)] {
+        let mut world = World::front_options(
+            false,
+            listening,
+            false,
+            Outcome::Success,
+            Recording::None,
+            Some(Scheme::Dark),
+            None,
+            false,
+            None,
+            true,
+        );
+        world.now = STARTED_AT;
+        world.sim.advance_to(world.now);
+        world.sim.set_faults(skein_sim::Faults { latency, latency_max: limits::BACKGROUND, ..skein_sim::Faults::NONE });
+        world.horizon = world.now.saturating_add(limits::BACKGROUND);
+        let pipe = world.lines.expect("front pipe");
+        let ready = b"running serve\n";
+        world.sim.peer_feed(world.pid, pipe, ready);
+        world.settle();
+        if world.engine.is_none() {
+            world.engine = Some(Engine::new(&mut world.sim));
+        }
+        world.horizon = world.now.saturating_add(limits::tui().native.connections.deadline);
+        world.settle();
+        assert!(world.run.signed_in().is_some(), "front signs in: listening={listening}, latency={latency}");
+        assert!(terminal_text(&world.bytes).contains("● Live"));
+        world.draining = true;
+        world.keys(b"\x03");
+        assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+        world.sim.assert_no_open_fds(world.pid);
+        world.sim.assert_quiescent(world.pid);
+        assert_eq!(world.files.open_handles(), 0);
+    }
+}
 
 #[test]
 #[cfg(feature = "record")]
