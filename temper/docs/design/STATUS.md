@@ -61,6 +61,9 @@ Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10).
+`chat-draft` retains the removed stock in its recorded inventory; its
+task numbers changed, so temper/ui renews its walk and recording after
+landing (`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -665,12 +668,6 @@ not-ready line. The accepted distinct watch not-ready refusal and its
 ctl deadline line are absent; wire reasons and the browser membership
 check remain later work (`protocol/README.status.md`, 8.2;
 `client/tools.status.md`, 6.3; `client/tools.md`, section 14).
-
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)

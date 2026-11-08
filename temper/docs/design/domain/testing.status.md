@@ -2,6 +2,16 @@
 
 2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 6.3 and 6.4 have the configuring stories on Ask temper,
+charter 11 from template 5: `see` reads, section-based `document`
+writes and the asking `propose_settings`, through ctl in the joined
+world. The settings family's own tools run the domain world's charter
+12, keeping their pagination, note-source and acceptance checks.
+Section 6.5's golden, stock fixture and judge brief name a real model
+for Ask temper as the box's prerequisite. These scripted stories and
+acceptance assets establish no real-model outcome; section 11 retains
+the after-landing acceptance.
+
 Section 6.3's TUI host runs in the joint world: pasted-link sign-in
 drawing `me`, a restart showing Offline then Live with `me` retained,
 and sign-out elsewhere returning to signing in with the token erased.
