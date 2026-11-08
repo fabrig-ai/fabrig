@@ -3,7 +3,7 @@ id = "tui-foot"
 part = "tui-foot"
 kind = "feature"
 needs = ["tui-surface", "view-lists", "screen-entries"]
-files = ["temper/crates/temper-client-tui/src/view/foot.rs", "temper/crates/temper-client-tui/src/view/foot/**", "temper/crates/temper-client-tui/src/tests/foot.rs", "temper/crates/temper-client-tui/src/tests/golden/foot-*.txt", "temper/crates/temper-client-tui/src/tests/golden/first-*.txt", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/event.rs", "temper/crates/temper-client-tui/src/tests/screens.rs", "temper/docs/design/client/tui/journeys/sign-in-approved/02.*", "temper/docs/design/client/README.status.md"]
+files = ["temper/crates/temper-client-tui/src/view/foot.rs", "temper/crates/temper-client-tui/src/view/foot/**", "temper/crates/temper-client-tui/src/tests/foot.rs", "temper/crates/temper-client-tui/src/tests/golden/foot-*.txt", "temper/crates/temper-client-tui/src/tests/golden/first-*.txt", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/event.rs", "temper/crates/temper-client-tui/src/tests/screens.rs", "temper/docs/design/client/tui/journeys/sign-in-approved/02.*", "temper/docs/design/client/README.status.md", "skein/crates/skein-ui-screen/src/render.rs", "skein/crates/skein-ui-screen/src/render/words.rs", "skein/crates/skein-ui-screen/src/tests/render.rs", "skein/crates/skein-ui-screen/src/tests/fixtures.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -140,3 +140,21 @@ and *The chat's question* (its list) say, every bullet:
 
 As the implementer's text says; each row's failure seen; the golden lines that differ
 from the frames, and why; the prints reprinted or left for `again`.
+
+## Answers
+
+2026-11-08. *A `label: false` submitting field lays " (enter sends)" after its value or
+placeholder: a skein repair, or this task?* This task, widened by those files alone.
+`skein/docs/design/ui-screen.md`, 5.4 already says it: with no label a field lays "its
+value alone after its focus columns, its name still the tree's", so the renderer departs
+from its design and no design or status line changes. In `skein-ui-screen`'s `control`
+(`src/render.rs`), where the look says no label, lay no words after the value: no entry
+word (`words::entry`), no state words (`words::states`, " (enter sends)" with them) and
+no " (disabled)"; the node's states stay the tree's, as its name does. A labelled field
+lays as it does, every existing skein golden byte-for-byte unchanged. First a failing row
+in `src/tests/render.rs` beside `field_labels_follow_the_nearest_token`: a `TextArea` with
+`State::SubmitsOnEnter` and no label, empty with a placeholder and then with a value, its
+row the focus columns and the placeholder or value alone (extend `fixtures::field_look`
+if it takes no states). Then resume from `0329779575`; step 4 adds `heavy cargo nextest
+run -p skein-ui-screen -p skein-ui-screen-terminal` and `skein-ui-screen` to the clippy
+run, and the report names the skein change.
