@@ -381,7 +381,7 @@ fn home_documents_with_status(
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
     member.role = c::HeldRole::Owner;
-    member.templates = template_me.projects.get(0).unwrap().templates.clone();
+    member.templates = f::asking_me(template_me.clone()).projects.get(0).unwrap().templates.clone();
     if status.is_some_and(|fixture| fixture.goals) {
         let mut goal = member.templates.get(0).unwrap().clone();
         goal.number = jig_client::shapes::GOAL;
@@ -853,12 +853,36 @@ fn settle_home(
                     |chats| chats.ended.clone(),
                 ))),
             ),
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) }
+                if chats.is_some() =>
+            {
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(
+                                    chats.map_or(c::Tasks { rows: List::with_capacity(0), more: false }, |chats| {
+                                        chats.live.clone()
+                                    }),
+                                ))),
+                            },
+                        },
+                    },
+                )
+            }
+            jig_client::Down::Close { watch } => drive(
+                root,
+                d::Event::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::Closed } },
+                },
+            ),
             jig_client::Down::Save { .. }
             | jig_client::Down::Erase { .. }
             | jig_client::Down::Send { .. }
             | jig_client::Down::Open { .. }
             | jig_client::Down::Continue { .. }
-            | jig_client::Down::Close { .. }
             | jig_client::Down::Read { .. } => continue,
         };
         while let Some(request) = more.pop() {
@@ -923,7 +947,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
             for chat in [false, true] {
                 let (root, _) =
                     home_root(if repository { forge_rows(true) } else { List::with_capacity(0) }, configured, chat);
-                let left = u8::from(!configured) + u8::from(!repository) + u8::from(!chat);
+                let left = u8::from(!configured) + u8::from(!repository);
                 let headline = if left > 0 { "Shop is ready." } else { "Shop" };
                 for view in [f::page_view(&root), f::browser_page_view(&root)] {
                     main_find(view.tree(), Role::Heading { level: 1 }, headline.as_bytes());
@@ -932,18 +956,14 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                             .iter()
                             .filter(|node| node.styles.as_slice().contains(&crate::look::HOME_DONE))
                             .count(),
-                        if left == 0 { 0 } else { usize::from(3 - left) }
+                        if left == 0 { 0 } else { usize::from(2 - left) }
                     );
-                    for (role, name, done) in
-                        [(Role::Button, b"Start".as_slice(), configured), (Role::Link, b"New chat", chat)]
-                    {
-                        assert_eq!(
-                            main_nodes(view.tree())
-                                .iter()
-                                .any(|node| node.role == role && node.name.as_deref() == Some(name)),
-                            !done
-                        );
-                    }
+                    assert_eq!(
+                        main_nodes(view.tree())
+                            .iter()
+                            .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Start")),
+                        !configured
+                    );
                     let main = f::main_text(view.tree());
                     if left > 0 {
                         assert_eq!(
@@ -954,21 +974,19 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                             .is_some(),
                             !configured
                         );
-                        assert_eq!(
-                            skein_lib::bytes::find(&main, b"Ask about the code or ask for a change.").is_some(),
-                            !chat
-                        );
+                        absent(&main, "Start a chat");
+                        absent(&main, "Ask about the code or ask for a change.");
                         if repository {
                             contains(&main, "work/hello is in Shop");
                             absent(&main, "CI ran on main and passed");
-                            contains(&main, "Chats can change its code now.");
+                            contains(&main, "temper can change its code now.");
                         }
                     }
                 }
                 let terminal = printed(&f::page_view(&root));
                 assert!(terminal.strip_prefix(b"== ").unwrap().starts_with(headline.as_bytes()));
                 absent(&terminal, "Connected");
-                for words in ["To begin", "1. ", "2. ", "3. "] {
+                for words in ["To begin", "1. ", "2. "] {
                     if left > 0 {
                         contains(&terminal, words);
                     } else {
@@ -1084,7 +1102,7 @@ fn home_repository_states_keep_their_words_and_events() {
             absent(&words, "Shop has no repository yet.");
             if state == "adopting" {
                 contains(&words, "Adopting work/hello into Shop");
-                contains(&words, "Chats can change its code once it is in.");
+                contains(&words, "temper can change its code once it is in.");
                 assert!(!main_nodes(view.tree()).iter().any(|node| node.name.as_deref() == Some(b"Adopt")));
             } else if state == "offered" || state == "refused" {
                 contains(&words, "work/hello, made on your Forgejo at set up, is in no project yet.");
@@ -1107,7 +1125,7 @@ fn home_repository_states_keep_their_words_and_events() {
                     if state == "github" {
                         "temper’s App reaches its repositories on octo."
                     } else {
-                        "Until one is in, chats talk and plan but change no code."
+                        "Until one is in, temper talks and plans but changes no code."
                     },
                 );
                 assert_action(
@@ -1123,11 +1141,10 @@ fn home_repository_states_keep_their_words_and_events() {
                 b"Start",
                 d::pages::Act::Go { address: Address::Ask { project: f::PROJECT } },
             );
-            assert_action(
-                &mut view,
-                Role::Link,
-                b"New chat",
-                d::pages::Act::Go { address: Address::NewChat { draft: false } },
+            assert!(
+                !main_nodes(view.tree())
+                    .iter()
+                    .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"New chat"))
             );
         }
         let terminal = printed(&f::page_view(&root));
@@ -1214,8 +1231,8 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
     assert_eq!(begin[2].role, Role::List);
     assert_eq!(begin[2].styles.as_slice(), &[crate::look::HOME_STEPS]);
     let steps = children(subtree(tree, begin[2].id));
-    assert_eq!(steps.len(), 3);
-    for (step, done) in steps.iter().zip([false, true, false]) {
+    assert_eq!(steps.len(), 2);
+    for (step, done) in steps.iter().zip([true, false]) {
         assert_eq!(step.role, Role::Item);
         assert!(step.styles.as_slice().contains(&crate::look::HOME_STEP));
         assert_eq!(step.styles.as_slice().contains(&crate::look::HOME_DONE), done);
@@ -1227,15 +1244,9 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
             assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_ACTS]);
         }
     }
+    assert_eq!(children(subtree(tree, steps[0].id))[0].name.as_deref(), Some(b"work/hello is in Shop".as_slice()));
+    assert_eq!(children(subtree(tree, steps[1].id))[0].name.as_deref(), Some(b"Tell temper how you work".as_slice()));
     assert_action(&mut view, Role::Button, b"Skip", d::pages::Act::SkipToBegin);
-    assert!(
-        main_nodes(view.tree())
-            .iter()
-            .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"New chat"))
-            .unwrap()
-            .styles
-            .is_empty()
-    );
     let mut terminal = f::view();
     let mut sign_in = crate::forge_sign_in::Forges::new();
     sign_in.read("3 forgejo http://forge.example:3000 owned");
@@ -1244,9 +1255,9 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
     let printed = printed(&terminal);
     contains(&printed, "To begin");
     contains(&printed, "Optional Skip\n");
-    contains(&printed, "1. Tell temper how you work");
-    contains(&printed, "2. Done. work/hello is in Shop");
-    contains(&printed, "3. Start a chat");
+    contains(&printed, "2. Tell temper how you work");
+    contains(&printed, "1. Done. work/hello is in Shop");
+    absent(&printed, "3. Start a chat");
     absent(&printed, "Connected");
     absent(&printed, "Change model");
 }
@@ -1278,7 +1289,7 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
     );
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let text = f::main_text(view.tree());
-        absent(&text, "Until one is in, chats talk and plan but change no code.");
+        absent(&text, "Until one is in, temper talks and plans but changes no code.");
         absent(&text, "Shop has no repository yet.");
         absent(&text, "connected as");
     }
@@ -1728,9 +1739,13 @@ fn chat_rows_stop_at_five_without_changing_the_total() {
 )]
 fn empty_sections_are_hidden_only_while_to_begin_shows() {
     for shown in [false, true] {
-        let mut root =
-            home_with_needs(forge_rows(true), true, false, Some(NeedsFixture { objects: &[], cut: false, read: true }))
-                .0;
+        let mut root = home_with_needs(
+            forge_rows(true),
+            false,
+            false,
+            Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        )
+        .0;
         if !shown {
             drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
         }
@@ -1789,15 +1804,12 @@ fn phone_answer_name_holds_the_joined_title_and_words() {
 
 #[test]
 fn home_notes_name_where_the_remaining_steps_stay() {
-    for (configured, repository, chat, note) in [
-        (false, false, false, "Three steps left. Skip them if you like; they stay in Ask temper, Settings and Chats."),
-        (false, true, false, "Two steps left. Skip them if you like; they stay in Ask temper and Chats."),
-        (false, false, true, "Two steps left. Skip them if you like; they stay in Ask temper and Settings."),
-        (false, true, true, "One step left. Skip it if you like; it stays in Ask temper."),
-        (true, false, true, "One step left. Skip it if you like; it stays in Settings."),
-        (true, true, false, "One step left. Skip it if you like; it stays in Chats."),
+    for (configured, repository, note) in [
+        (false, false, "Two steps left. Skip them if you like; they stay in Settings and Ask temper."),
+        (false, true, "One step left. Skip it if you like; it stays in Ask temper."),
+        (true, false, "One step left. Skip it if you like; it stays in Settings."),
     ] {
-        let (root, _) = home_root(forge_rows(repository), configured, chat);
+        let (root, _) = home_root(forge_rows(repository), configured, false);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let node = styled(view.tree(), crate::look::HOME_NOTE);
             assert_eq!(node.role, Role::Paragraph);
@@ -2680,31 +2692,64 @@ fn all_n_links_to_goals() {
 }
 
 #[test]
-fn to_begin_keeps_chats() {
-    let root = home_goals(1, 1, true);
-    assert!(root.has_goals(f::PROJECT));
-    assert!(!root.forge().ways(f::PROJECT).unwrap().goals);
-    for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let nav = styled(view.tree(), crate::look::RAIL_NAV);
-        let mut goals = false;
-        for node in &children(subtree(view.tree(), nav.id)) {
-            goals |= node.name.as_deref() == Some(b"Goals");
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "ordinary tests compare navigation subtrees in both shells"
+)]
+fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
+    for (address, skipped, cut) in [
+        (Address::Home { project: f::PROJECT }, false, true),
+        (Address::Ask { project: f::PROJECT }, false, true),
+        (Address::Home { project: f::PROJECT }, true, false),
+        (Address::Chats { filter: ChatsFilter::All }, false, false),
+        (Address::Chat { task: 9 }, false, false),
+    ] {
+        let mut root = home_goals(1, 1, true);
+        if skipped {
+            drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
         }
-        assert!(goals);
-        main_find(view.tree(), Role::Heading { level: 2 }, b"To begin");
-        main_find(view.tree(), Role::Region, b"Chats");
-        for node in main_nodes(view.tree()) {
-            assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Goals"));
+        let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
+        settle_home(&mut root, &mut out, None, Some(&chat_fixture(0, 0, false, false)), None);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let nav = styled(view.tree(), crate::look::RAIL_NAV);
+            let entries: Vec<_> =
+                children(subtree(view.tree(), nav.id)).iter().map(|node| node.name.as_deref().unwrap()).collect();
+            let expected = if cut {
+                vec![b"Home".as_slice(), b"Ask temper"]
+            } else {
+                vec![b"Home".as_slice(), b"Needs you", b"Goals", b"Chats", b"Ask temper"]
+            };
+            assert_eq!(entries, expected, "{address:?}, skipped={skipped}");
+            assert_eq!(
+                view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::RAIL_NEW)),
+                !cut
+            );
+            let foot = styled(view.tree(), crate::look::RAIL_FOOT);
+            assert!(
+                subtree(view.tree(), foot.id)
+                    .iter()
+                    .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Settings"))
+            );
+        }
+        let view = f::browser_page_view(&root);
+        let tabs = styled(view.tree(), crate::look::TABBAR);
+        let links = children(subtree(view.tree(), tabs.id));
+        let entries: Vec<_> = links.iter().map(|node| node.name.as_deref().unwrap()).collect();
+        assert_eq!(
+            entries,
+            if cut {
+                vec![b"Home".as_slice(), b"Ask temper", b"Settings"]
+            } else {
+                vec![b"Home".as_slice(), b"Needs you", b"Goals", b"Chats", b"Ask temper"]
+            },
+            "{address:?}"
+        );
+        if cut {
+            assert_eq!(f::nodes_text(subtree(view.tree(), links[1].id)).as_ref(), b"Ask");
         }
     }
-    let view = f::browser_page_view(&root);
-    let tabs = styled(view.tree(), crate::look::TABBAR);
-    let expected = [b"Home".as_slice(), b"Needs you", b"Goals", b"Chats"];
-    let mut names = List::with_capacity(u32::try_from(expected.len()).unwrap());
-    for node in &children(subtree(view.tree(), tabs.id)) {
-        names.push(node.name.as_deref().unwrap()).unwrap();
-    }
-    assert_eq!(names.as_slice(), expected);
 }
 
 const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
@@ -2960,12 +3005,12 @@ fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_
         (
             1,
             "acme/widget is in Shop",
-            "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+            "temper can change its code now, on your Forgejo; nothing goes back where it was copied from.",
         ),
         (
             2,
             "acme/widget, acme/other are in Shop",
-            "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+            "temper can change their code now, on your Forgejo; nothing goes back where they were copied from.",
         ),
     ] {
         let (root, _) = home_root(copy_forges(&[None, None][..count], false), false, false);
@@ -2978,7 +3023,7 @@ fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_
             assert_eq!(step.role, Role::Item);
             assert_eq!(step.styles.as_slice(), &[crate::look::HOME_STEP, crate::look::HOME_DONE]);
             if !browser {
-                let heading = skein_lib::bytes::concat(&[b"2. Done. ", title.as_bytes()]);
+                let heading = skein_lib::bytes::concat(&[b"1. Done. ", title.as_bytes()]);
                 assert!(skein_lib::bytes::find(&printed(&view), &heading).is_some());
             }
         }
@@ -3016,7 +3061,7 @@ fn home_add_step_offers_small_make_copy_and_quiet_adoption_in_both_shells() {
         main_find(
             view.tree(),
             Role::Paragraph,
-            b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code.",
+            b"Your Forgejo has none yet. Until one is in, temper talks and plans but changes no code.",
         );
         for (name, start) in [(b"Make an empty one".as_slice(), Start::Empty), (b"Copy a public one", Start::Copies)] {
             assert_action(&mut view, Role::Button, name, d::pages::Act::AddOpen { start });

@@ -227,7 +227,6 @@ pub fn usage<B: Backend>(backend: &mut B, executable: &[u8]) -> ResourcesCheck {
     let Done::Usage(before) = run.call(process, Op::Usage).result.expect("usage succeeds") else {
         unexpected("a Usage result", &"wrong shape")
     };
-    assert_eq!(before.children, skein_io::kernel::Resources::ZERO, "no child was reaped in this process");
     let command = command(executable, root, &[b"exit", b"0"], &[]);
     let (pidfd, _) = spawned(run.call(process, Op::Spawn { spawn: Box::new(command) }));
     run.call(process, Op::Wait { pidfd, reap: false });
@@ -254,7 +253,16 @@ pub struct ResourcesCheck {
 
 impl Check for ResourcesCheck {
     fn check(&self) {
+        assert!(
+            self.after.children.user > self.before.children.user
+                || self.after.children.system > self.before.children.system,
+            "the reaped child's CPU is counted"
+        );
         assert!(self.after.children.peak_rss_bytes > 0, "the reaped child's peak is counted");
+        assert!(
+            self.after.children.peak_rss_bytes >= self.before.children.peak_rss_bytes,
+            "the children's resident peak never falls"
+        );
         assert!(self.after.own.user >= self.before.own.user, "own user CPU never falls");
         assert!(self.after.own.system >= self.before.own.system, "own system CPU never falls");
         assert!(self.after.own.peak_rss_bytes >= self.before.own.peak_rss_bytes, "own resident peak never falls");

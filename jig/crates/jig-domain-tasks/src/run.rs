@@ -79,7 +79,7 @@ pub(crate) struct Claiming {
 }
 
 pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
-    let Claiming { number, attempt, resumed, budget, account, writes, reasons, offered } = claiming;
+    let Claiming { number, attempt, budget, account, ref writes, .. } = claiming;
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
@@ -109,11 +109,16 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
     if !fits {
         return refused(to, Some(number), Refusal::Funding, out);
     }
-    match crate::writers::claim(domain, env, number, attempt, &writes, out) {
+    match crate::writers::claim(domain, env, number, attempt, writes, out) {
         Ok(()) => {}
         Err(Some(resource)) => return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource }),
         Err(None) => return refused(to, Some(number), Refusal::Holds, out),
     }
+    finish_claim(domain, env, to, claiming, out);
+}
+
+fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: Claiming, out: &mut Queue<Request>) {
+    let Claiming { number, attempt, resumed, budget, account, reasons, offered, writes: _ } = claiming;
     let task = task_mut(domain, number).expect("entrance names task");
     task.record.numbers.reserved = task.record.numbers.reserved.checked_add(budget).expect("available budget");
     task.record.run_reserved = budget;
@@ -128,6 +133,7 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
     task.record.run_spent = 0;
     task.record.invalid_result = None;
     task.record.turn = 0;
+    task.read_escalations = Box::new([]);
     task.record.refused = Box::new([]);
     task.record.phase = Phase::Active(Active::Claimed { attempt });
     let why = task.record.due_reason;
@@ -511,8 +517,8 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         match &end {
             End::Parked => crate::EndKind::Parked,
             End::Finished { .. } => crate::EndKind::Finished,
-            End::Exceeded(_) => crate::EndKind::Failed { class: Class::Run },
-            End::Failed(class) => crate::EndKind::Failed { class: *class },
+            End::Exceeded(_) => crate::EndKind::Failed { class: Class::Run, invalid_result: None },
+            End::Failed(class) => crate::EndKind::Failed { class: *class, invalid_result: invalid },
             End::Refused | End::Recheck => crate::EndKind::Refused,
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }

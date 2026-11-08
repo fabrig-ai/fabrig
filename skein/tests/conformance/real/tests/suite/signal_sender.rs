@@ -2,7 +2,7 @@
 #![cfg(target_os = "linux")]
 
 use super::given_listener::deadlines::Patience;
-use skein_world::Expired;
+use skein_world::{Expired, pass_starved, starved_passes};
 
 fn service(sender: &str) {
     for backend in ["ring", "readiness"] {
@@ -21,12 +21,11 @@ fn service(sender: &str) {
 }
 
 fn forward_starved(stderr: &[u8]) {
-    if std::env::var_os("NEXTEST").is_some()
+    if starved_passes()
         && let Some(line) =
             String::from_utf8_lossy(stderr).lines().find(|line| line.starts_with("skein-world: starved:"))
     {
-        eprintln!("{line}");
-        std::process::exit(0);
+        pass_starved(line);
     }
 }
 

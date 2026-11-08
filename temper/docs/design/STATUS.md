@@ -13,12 +13,27 @@ native client-root half and web page at `/terminal` are built, with eleven
 gallery states and joint-client stories. The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
+The local box's private link file, bare command's address discovery,
+automatic sign-in, quiet fallback and bounded rereads are built, with
+the expiry note and joint-world renewal and sign-out stories. The note
+uses a minute's slack: a revocation near expiry or a missing note can
+still renew, so unconditional refusal after sign-out remains a departure
+from the request (`draft/tui.status.md`, 4.1). Terminal-default base
+colours, accent focus and scheme selection from COLORFGBG or a bounded
+OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+That journey uses a runtime directory apart from the box's and no
+COLORFGBG, so it exercises approval and the dark fallback; its pages
+use the theme's stand-ins for terminal-default colours.
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
+The TUI's look requests stack on `tui-requests`, apart from the browser's
+`look-requests`; the same refresh script keeps either checked-out branch
+on `main` with its own lease and push target (`client/tui/journeys.md`,
+10; `client/journeys.md`, 7).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
@@ -57,6 +72,9 @@ Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10).
+`chat-draft` retains the removed stock in its recorded inventory; its
+task numbers changed, so temper/ui renews its walk and recording after
+landing (`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -129,8 +147,17 @@ reload and Back; a Drafts button moving Closed as ways arrive remains a
 separate look decision (`client/browser.md`, 4.6 and 5).
 Fresh projects offer drafts;
 Ask temper chats offer one even with drafts off, and a project holding a
-goal shows Goals in its bar. Home can still show To begin and Chats, so
-the bar supplies the goal's entry. The mock's drafts-off default remains
+goal shows Goals in its bar once To begin is gone. To begin has two
+steps, repository first, and cuts Home and Ask temper's navigation to
+Home, Ask temper and Settings. Home still draws nonempty Needs you and
+Chats under that card, contrary to `to-begin-two-steps`; the required
+suppression remains in `client/README.status.md`, 3.5. The night switch,
+kept browser look, day/night tokens and three night gallery states are
+built, with a day first visit and a separate chat-terminal palette.
+Temper/ui's rendered comparisons and browser reload row follow landing;
+system preference, a night placeholder and palette refinement remain
+later work (`client/browser.md`, sections 2.5 and 5;
+`client/journeys.md`, sections 9 and 10). The mock's drafts-off default remains
 a recorded departure; the fake-model `chat-draft` journey starts with
 drafts on, and the real-box checks follow landing (`client/README.md`,
 `client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
@@ -295,13 +322,15 @@ has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run. Repository links and box-owned sign-in
 are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
-three laptop baseline cases remain unrepeated, and an intermittent busy
-authorization page without a request is unresolved (`protocol/setup.md`,
+three laptop baseline cases remain unrepeated, and the exploratory busy
+authorization page without a request remains untraced (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
-authorization restart story's suite-order failure, red-71, also has no
-cause or fix: `ui-authorize-red` supplies two isolated passes and no code
-change, leaving the request's repair outstanding (`protocol/sign-in.md`,
-9.3). `temper init`'s documents hold
+restart authorization failure is local fetch admission loss: the client
+stopped counting cancelled watch exchanges and cleanup calls before their
+HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
+reply or failure, so authorization waits for room (`protocol/sign-in.md`,
+9.3). Startup readiness beyond that local admission remains separate
+work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -661,11 +690,14 @@ ctl deadline line are absent; wire reasons and the browser membership
 check remain later work (`protocol/README.status.md`, 8.2;
 `client/tools.status.md`, 6.3; `client/tools.md`, section 14).
 
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
+Forgotten program accounts can be declared again under their name, with
+the host login check dispatched. Ctl and the web explain declarations'
+name-taken and not-offered answers and a retry or resume's not-offered
+answer; ConnectModel recovers the person's own live name. The joined
+client-world story uses a fake worker. The request's broader wording
+for key and sign-in refusals remains deferred because their not-offered
+answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
+`client/README.md`, 5.5 and section 11).
 
 Design documents:
 - [`README.md`](README.status.md)

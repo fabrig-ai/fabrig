@@ -2,9 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-Section 13.4 has charter 11 and template 5. The rules and policy 1 hold asking, tools 3,975, and
-delegate to charter 11. `ask.txt` omits Showing and Remembering. The stock
-first-request check holds 16,384 bytes on both request shapes. Existing
+Section 13.4 has stock charters 1, 2, 4, 6, 9, 10 and 11 and templates
+1, 2 and 5; charter 3, template 3 and `configuring.txt` are absent.
+The rules and policy 1 hold asking, tools 3,975, and grant charter
+executors 1, 2, 4, 6, 9 and 11. `ask.txt` omits Showing and Remembering.
+The stock first-request check holds 16,384 bytes on both request shapes. Existing
 project policies remain copies and require an owner's accepted proposal
 to gain the new delegation.
 
@@ -24,6 +26,15 @@ Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
 reports through coordinator handoff to close-out, keeping uncovered items
 unresolved despite empty Left lists or passing CI. The domain story
 checks delivered rules and retained evidence, not real-model compliance.
+Their deliverable-to-evidence mapping includes each requested row's
+measured timing, rejecting suite totals and arithmetic averages as
+substitutes. Missing measurements remain unfinished and go for repair;
+accepted Left, passing CI and status entries cannot waive acceptance.
+The coordinator requires evidence for every requested deliverable before
+close-out; only the person can change the requested scope. The focused
+domain story retains both missing and complete per-row evidence through
+bounded report reads and checks the assigned rules at all three roles;
+it establishes no real-model compliance.
 Charter 5's result part also requires acceptance evidence before finishing,
 recovering an absent CI-selection header from a cut job log with a larger
 read. The engine domain story checks the applied result-wake instructions,
@@ -106,20 +117,6 @@ or in the terminal refusal naming the item and rejected way.
 Section 13.8 has no gap in note-backed settings transport within the call payload ceiling.
 
 ## Gaps and departures
-
-- **Not yet:** 13.9: `docs/examples/reference/project.json` holds the
-  project's kind 7 alone, so the case's project keeps the stock's rule 1
-  over every branch beside the deployment's two rules.
-- **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
-  reference's roles) names the deployment's two landing rules and not
-  the case's project's rule 1, so a box Ask temper configures from the
-  reference's description keeps the stock's rule 1 over its goals'
-  branches until its owner sets the project's.
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

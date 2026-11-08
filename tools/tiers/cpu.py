@@ -1,10 +1,13 @@
 """Opt-in CPU collector and evaluator (tools/tiers/design.md, 7)."""
 
+import contextlib
+import io
 import json
 import math
 import os
 from pathlib import Path
 import re
+import runpy
 import selectors
 import signal
 import subprocess
@@ -22,6 +25,7 @@ GLOBAL_TIMEOUT = re.compile(rb'^\s*Cancelling due to global timeout\b', re.MULTI
 COLOUR = re.compile(rb'\x1b\[[0-9;]*m')
 # Outlast nextest's ten-second grace and the wrapper's settlement (design.md, 7.3).
 GRACE_S = 15.0
+ONE_PROCESS = Path(__file__).with_name('one_process.py')
 
 
 def timed_out(directory):
@@ -281,6 +285,10 @@ def summary(directory, limits=None, pair=None, expected=None):
     pair = pair or profile
     if pair != profile:
         raise ValueError(f"pair {pair} does not match run profile {profile}")
+    if run.get('mode') == 'one-process':
+        return one_process_summary(directory, limits, pair, run)
+    if 'mode' in run:
+        raise ValueError(f"invalid run mode: {run['mode']}")
     if timed_out(directory):
         run = dict(run, starved=True)
     items = records(directory)
@@ -345,6 +353,112 @@ def summary(directory, limits=None, pair=None, expected=None):
         f"{pair} {binary} {name}: attempt {attempt} unobserved, cancelled before its record"
         for _, binary, name, attempt in sorted(unobserved))
     return result
+
+
+def one_process_summary(directory, limits, pair, run):
+    """Read process CPU and test outcomes (tools/tiers/design.md, 10.2 and 11.8)."""
+    limits = (limits or {}).get(pair, {})
+    if 'cpu_test_s' in limits:
+        raise ValueError('one-process runs cannot measure cpu_test_s')
+    data = json.loads((directory / 'results.json').read_text())
+    if data['profile'] != run['profile']:
+        raise ValueError('results profile does not match run')
+    if (type(data['selected']) is not int or data['selected'] < 0
+            or data['no_tests'] not in ('fail', 'warn', 'pass')
+            or data['cancelled'] not in (None, 'global-timeout', 'wall-hard')):
+        raise ValueError('invalid selection or cancellation')
+
+    def figure(value, field):
+        if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+            raise ValueError(f'invalid {field} in one-process results')
+        return value
+
+    def names(value):
+        return isinstance(value, list) and all(isinstance(name, str) and name for name in value)
+
+    def identity(item):
+        key = item['binary_id'], item['test_name']
+        if any(not isinstance(value, str) or not value for value in key):
+            raise ValueError('invalid test identity')
+        return key
+
+    if any(not isinstance(data[key], list) for key in ('processes', 'tests', 'unobserved')):
+        raise ValueError('invalid one-process result lists')
+    processes = []
+    for item in data['processes']:
+        if (not isinstance(item['binary_id'], str) or not item['binary_id']
+                or item['kind'] not in ('tests', 'fresh', 'alone') or not names(item['tests'])
+                or type(item['leaked']) is not bool):
+            raise ValueError('invalid process identity, kind, tests or leaked')
+        for field in ('user_s', 'system_s', 'wall_s', 'start_s'):
+            figure(item[field], field)
+        code, sig = item['exit_code'], item['signal']
+        if ((code is None) == (sig is None)
+                or (code is not None and (type(code) is not int or not 0 <= code <= 255))
+                or (sig is not None and (type(sig) is not int or not 1 <= sig < signal.NSIG))):
+            raise ValueError('invalid process exit status')
+        process = {key: item[key] for key in ('binary_id', 'tests', 'user_s', 'system_s',
+                   'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
+        process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
+        processes.append(process)
+    tests, failures, warnings, seen = [], [], [], set()
+    for item in sorted(data['tests'], key=identity):
+        key = identity(item)
+        if key in seen:
+            raise ValueError('duplicate selected test')
+        seen.add(key)
+        outcome, index = item['outcome'], item['process']
+        if outcome not in ('passed', 'failed', 'crashed', 'starved', 'cancelled'):
+            raise ValueError('invalid test outcome')
+        if index is None:
+            if data['cancelled'] is None or outcome not in ('passed', 'failed', 'starved'):
+                raise ValueError('invalid test process index')
+        elif (type(index) is not int or not 0 <= index < len(processes)
+                or processes[index]['kind'] not in ('tests', 'fresh')
+                or processes[index]['binary_id'] != key[0]):
+            raise ValueError('invalid test process index')
+        if outcome == 'cancelled' and data['cancelled'] is None:
+            raise ValueError('cancelled test without cancellation')
+        if not names(item['before']) or item['alone'] not in (None, 'passed', 'failed'):
+            raise ValueError('invalid test diagnostic')
+        tests.append(dict(binary_id=key[0], test_name=key[1], attempts=1,
+                          cpu_s=None, user_s=None, system_s=None,
+                          wall_s=figure(item['wall_s'], 'test wall_s'),
+                          starved=int(outcome in ('starved', 'cancelled')), leaked=None,
+                          incomplete=None, alone=item['alone'], before=item['before']))
+        if outcome in ('failed', 'crashed'):
+            failures.append(f'{key[0]} {key[1]}')
+            if item['alone'] == 'passed':
+                warnings.append(f'{pair} {key[0]} {key[1]}: may depend on an earlier test: '
+                                f"it passed alone after {len(item['before'])} tests in its process")
+    warnings.extend(f"{pair} {item['binary_id']}: a process left a descendant holding its output"
+                    for item in processes if item['leaked'])
+    unobserved = []
+    for item in sorted(data['unobserved'], key=identity):
+        key = identity(item)
+        if key in seen:
+            raise ValueError('duplicate selected test')
+        seen.add(key)
+        if data['cancelled'] is None:
+            raise ValueError('unobserved test without cancellation')
+        unobserved.append(dict(binary_id=key[0], test_name=key[1], attempt=1))
+        warnings.append(f'{pair} {key[0]} {key[1]}: unobserved, the run was cancelled before it')
+    if len(seen) != data['selected']:
+        raise ValueError('selected count disagrees with test coverage')
+    suite = dict(tests=len(tests), attempts=len(tests), wall_s=run['wall_s'],
+                 test_wall_s=figure(sum(test['wall_s'] for test in tests), 'test_wall_s'),
+                 starved=sum(test['starved'] for test in tests),
+                 starved_run=run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s']),
+                 unobserved=len(unobserved), leaked=None, incomplete=None, cpu_by='process')
+    for field in ('cpu_s', 'user_s', 'system_s'):
+        suite[field] = figure(sum(process[field] for process in processes), field)
+    over = []
+    if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
+        over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
+    verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
+               else 'within budget' if limits else 'no budget set')
+    return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
+                unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
 
 
 def tools_summary(directory, limits, expected):
@@ -412,7 +526,7 @@ def summarize_records(items, pair, limits, run, timeouts, failures):
     warnings = [f"{pair} {name}: auto-reaped descendant CPU may be absent from complete_scope"
                 for name in limits.get('auto_reap', [])] if pair != 'tools' else []
     return dict(pair=pair, tests=tests, warnings=warnings, suite=dict(totals, tests=len(tests), wall_s=run['wall_s'],
-                starved_run=wall_starved, unobserved=0), failures=failures, unobserved=[], over_budget=over,
+                starved_run=wall_starved, unobserved=0, cpu_by='test'), processes=[], failures=failures, unobserved=[], over_budget=over,
                 verdict="over budget" if over else "starved" if wall_starved or timeouts else "within budget" if limits else "no budget set")
 
 
@@ -421,9 +535,15 @@ def print_summary(result, as_json=False):
         print(json.dumps(result, allow_nan=False))
         return
     for test in result['tests']:
-        print(f"{test['binary_id']} {test['test_name']}: CPU {test['cpu_s']:.6f}s "
+        cpu = 'not measured' if test['cpu_s'] is None else f"{test['cpu_s']:.6f}s"
+        print(f"{test['binary_id']} {test['test_name']}: CPU {cpu} "
               f"wall {test['wall_s']:.6f}s attempts {test['attempts']} "
               f"starved {test['starved']} leaked {test['leaked']} incomplete {test['incomplete']}")
+    for process in result['processes']:
+        status = f"exit {process['exit_code']}" if process['signal'] is None else f"signal {process['signal']}"
+        print(f"{process['binary_id']} process {process['kind']}: CPU {process['cpu_s']:.6f}s "
+              f"(user {process['user_s']:.6f}s system {process['system_s']:.6f}s) "
+              f"wall {process['wall_s']:.6f}s tests {len(process['tests'])} {status}")
     suite = result['suite']
     print(f"{result['pair']}: {suite['tests']} tests, {suite['attempts']} attempts; "
           f"CPU {suite['cpu_s']:.6f}s (user {suite['user_s']:.6f}s system {suite['system_s']:.6f}s), "
@@ -434,6 +554,32 @@ def print_summary(result, as_json=False):
         print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
+
+
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):
+    """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
+    if 'cpu_test_s' in limits.get(profile, {}):
+        raise ValueError('one-process runs cannot measure cpu_test_s')
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config)
+    result = summary(directory, limits, profile)
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        print_summary(result)
+    text = output.getvalue()
+    print(text, end='')
+    with (Path(directory) / 'command-output.txt').open('a') as log:
+        log.write(text)
+    if result['over_budget']:
+        return 1
+    if result['failures']:
+        return 100
+    if result['suite']['starved_run'] or result['suite']['starved']:
+        return 0
+    if not result['suite']['tests']:
+        data = json.loads((Path(directory) / 'results.json').read_text())
+        if data['selected'] == 0 and data['no_tests'] == 'fail':
+            return 4
+    return 0
 
 
 def execute(command, env, directory, profile, limits):

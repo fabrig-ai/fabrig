@@ -115,13 +115,28 @@ fn the_address_prefers_given_then_file_then_kept_then_default() {
 
 #[test]
 fn the_link_path_is_the_same_deployments_as_the_box() {
-    let entries =
-        environment(&[("HOME", "/home/test"), ("TEMPER_DATA", "deployment"), ("XDG_RUNTIME_DIR", "/runtime")]);
-    let (directories, _) = crate::directories::resolve(&[], &entries, b"/working").expect("box directories");
-    assert_eq!(
-        tui::link_path(&entries, b"/working"),
-        crate::link_file::path(&directories.data, Some(b"/runtime"), cfg!(target_os = "linux")),
-    );
+    let expected = crate::link_file::path(b"/working/deployment", Some(b"/runtime"), cfg!(target_os = "linux"));
+    for (state, extra) in [
+        ("/state-auto", vec![]),
+        ("/state-retry", vec![]),
+        ("/state-bothenv", vec![("TEMPER_CONFIG", "/box/config"), ("TEMPER_CACHE", "/box/cache")]),
+    ] {
+        let mut entries = vec![
+            ("HOME", "/home/test"),
+            ("TEMPER_DATA", "deployment"),
+            ("XDG_RUNTIME_DIR", "/runtime"),
+            ("XDG_STATE_HOME", state),
+        ];
+        entries.extend(extra);
+        let entries = environment(&entries);
+        let (directories, _) = crate::directories::resolve(&[], &entries, b"/working").expect("box directories");
+        assert_eq!(tui::link_path(&entries, b"/working"), expected, "{state}");
+        assert_eq!(
+            tui::link_path(&entries, b"/working"),
+            crate::link_file::path(&directories.data, Some(b"/runtime"), cfg!(target_os = "linux")),
+        );
+        assert_eq!(tui::directory(&entries).expect("TUI state"), std::path::Path::new(state).join("temper/tui"));
+    }
 }
 
 #[test]

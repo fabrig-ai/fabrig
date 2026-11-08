@@ -385,7 +385,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
-| `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start an Ask temper chat, from its composer or a starter; open temper's own way beside the page |
+| `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below) | start an Ask temper chat, from its composer or a starter; open temper's own way beside the page |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
@@ -875,16 +875,26 @@ keeps (`../protocol/configuration.md`, section 2).
   page's own acts, and nothing new crosses to the engine but the reads named
   below, which other pages make already. The terminal shell (section 6) is
   another thing: it prints these pages as it always has.
-  - *Its look, kept per browser:* `pages::terminal::Look { terminal, theme, font }`
+  - *Its look, kept per browser:* `pages::terminal::Look { terminal, theme, font, night }`
     on `Pages`, the same on every chat the browser opens, so that another chat,
     `/chats`, `/new` and Start over open in it. `theme` is `Dark` or `Light`,
-    `font` `DejaVu` or `Plex`; a browser with no record of its own starts
-    `{ terminal: false, theme: Dark, font: DejaVu }`. The shell reads it at start
-    from the kept store's record `look` (skein's `ui-web.md`, 10), three bytes,
-    one for each field, in that order, `0` or `1`, `1` the terminal, `Light` and
-    `Plex`; a record of any other form is none. A change writes the record, in
+    `font` `DejaVu` or `Plex`; `night` is the night look of every page (5.3, the
+    night switch; `browser.md`, 2.5, *Night*), outside the terminal's own theme.
+    A browser with no record of its own starts
+    `{ terminal: false, theme: Dark, font: DejaVu, night: false }`: a first visit
+    is day, whatever the system's scheme. The shell reads it at start
+    from the kept store's record `look` (skein's `ui-web.md`, 10), four bytes,
+    one for each field, in that order, `0` or `1`, `1` the terminal, `Light`,
+    `Plex` and night; a record of three, the form before `night`, reads with
+    `night` off, and a record of any other form is none. A change writes the record, in
     the step that made it, through a host duty, and a write refused changes
     nothing on the page. Another tab reads it at its own start.
+    `terminal::Act::Night`, the night switch's press on any page, turns
+    `night` and keeps the record as `Theme` does; it asks no full screen. The
+    web shell sets the attribute `data-night` on the document's `html` while
+    `night` is on and removes it otherwise, from the record before the first
+    page is drawn and in the step a press turns it; the terminal shells draw no
+    night.
   - *Entered:* the button ">_", named "Terminal, full screen", in a
     browser's bar after the mode group or "+ Draft" and before "Start goal…" or
     "Start over", on every chat, `NewChat` and `Ask`, on a phone too:
@@ -1908,7 +1918,7 @@ keeps (`../protocol/configuration.md`, section 2).
   watch refused, ended or not delivered yet, nothing is said. It is
   usable meanwhile: its chats start and run, a chat that names no
   repository running with no workspace (`../domain/agent.md`, 4.2).
-  Home says so in its second step (*Home,* below). Its
+  Home says so in its repository step (*Home,* below). Its
   Chats page says so in its band: "No repository yet", and "Adopt a
   repository", a link to the adoption form into this project, `Adopt {
   project }` (4.4), and `NewChat` in its thread's line. The
@@ -1929,8 +1939,9 @@ keeps (`../protocol/configuration.md`, section 2).
     "Try again", while one of the person's trials is failed, whatever the
     intro says (`../domain/trial.md`, 6.3). Running or answered adds no line.
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
-  - *Needs you* and *Chats,* as on any Home, and left out, empty, while
-    To begin shows, since its steps stand for them.
+  - *Needs you* and *Chats* are left out while To begin shows, even with
+    a need or a chat started from another page (the look request
+    `to-begin-two-steps`). Once the card goes, they read as on any Home.
 
   **To begin,** on a project's Home while a step is left and the person
   has not skipped it on that project, a project the welcome made or any
@@ -1955,46 +1966,27 @@ keeps (`../protocol/configuration.md`, section 2).
     `domain/accounts.md`, 4.3).
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
-    "Skip"; under them a line by what is left, each step left staying
-    where it lives, the first in Ask temper, the second in Settings and
-    the third in Chats (the look request `ask-temper-place`): "Three steps
-    left. Skip them if you like; they stay in Ask temper, Settings and
-    Chats."; "Two steps left. Skip them if you like; they stay in Ask
-    temper and Settings." with the first and second left, "Two steps
-    left. Skip them if you like; they stay in Ask temper and Chats." with
-    the first and third, and "Two steps left. Skip them if you like; they
-    stay in Settings and Chats." with the second and third; "One step
-    left. Skip it if you like; it stays in Ask temper." with the first,
-    "One step left. Skip it if you like; it stays in Settings." with the
-    second, and "One step left. Skip it if you like; it stays in Chats."
-    with the third. Then one row
-    a step in this order, a done step keeping its place: its mark, drawn
+    "Skip"; under them a line by what is left: "Two steps left. Skip
+    them if you like; they stay in Settings and Ask temper." with both
+    left, "One step left. Skip it if you like; it stays in Settings."
+    with the repository left, and "One step left. Skip it if you like; it
+    stays in Ask temper." with "Tell temper how you work" left (the look
+    request `to-begin-two-steps`, the user's word of 2026-11-07). Then one
+    row a step in this order, a done step keeping its place: its mark, drawn
     by style, the step's number or a green tick once done (the terminal
     says them in words); its title, a level-3 heading, over one short
     line; its act at the row's right while the step is left. Done, the
-    title is muted and regular (`temper-home-done`).
-    1. "Tell temper how you work", "In your own words: how you plan, review
-       and land work. temper proposes how it will run that, and nothing
-       changes until you accept.", with "Start", filled, the act of
-       *The first chat* (below). Done once an Ask temper chat runs or ran
-       in the project, or a line of the `settings` document follows a
-       change; done, its title alone. An Ask temper chat is a row of the
-       project's chats, as `Chats` reads them, whose chip's executor is
-       the charter of template 5 as `me` lists it
-       (`../protocol/configuration.md`, 13.4): a row names its label,
-       which is a chat's, and no template. With no template 5 in `me`
-       the page it opens starts no chat, and only a setting's change marks
-       the step done. A person who cannot read that document sees no
-       change.
-    2. The repository, in the first state that holds: adopted (a row's
+    title is muted and regular (`temper-home-done`). The steps left are
+    two at most (`Facts::left`), and a chat holds none of them up.
+    1. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
-       "Chats can change its code now.", with no claim that CI passed, since
+       "temper can change its code now.", with no claim that CI passed, since
        the forge rows supply no check result; ORG/NAME the project's first
        adopted (5.3), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
-       Widget", its line "Chats can change its code now, on your Forgejo;
-       nothing goes back where it was copied from.", or "…their code…
-       where they were copied from."; while a row's `makings` holds a copy
+       Widget", its line "temper can change its code now, on your Forgejo;
+       nothing goes back where it was copied from.", or "temper can change
+       their code now, … where they were copied from."; while a row's `makings` holds a copy
        into the project, not done, "Copy" and a line per copy in the order
        asked: "Copying acme/widget from github.com…" for the one running,
        "Waiting to copy" for one after it, "Adopting acme/widget into
@@ -2012,7 +2004,7 @@ keeps (`../protocol/configuration.md`, section 2).
        making row or the forge's repositories holds its org and name; while
        Ready's adoption is
        out, not done, with no act, "Adopting ORG/NAME into PROJECT…",
-       "Chats can change its code once it is in."; with a first
+       "temper can change its code once it is in."; with a first
        repository to adopt, not done, "Adopt a repository", "ORG/NAME,
        made on your Forgejo at set up, is in no project yet.", the
        refusal's words after it (4.7) when Ready's adoption was refused,
@@ -2022,11 +2014,13 @@ keeps (`../protocol/configuration.md`, section 2).
        installation's, with "Adopt", filled, to `Adopt { project }`,
        whose picker is the mock's; with none, on an owned or managed
        Forgejo connected, not done, "Add a repository", "Your Forgejo has
-       none yet. Until one is in, chats talk and plan but change no code.",
+       none yet. Until one is in, temper talks and plans but changes no code.",
        with "Make an empty one" and "Copy a public one", small, and the
        quiet "Adopt another…", to `Adopt { project }`; otherwise, not done, "Adopt a
-       repository", "Until one is in, chats talk and plan but change no
-       code.", with "Adopt", the same. The adoption being out is the
+       repository", "Until one is in, temper talks and plans but changes no
+       code.", with "Adopt", the same. Its lines say "temper", lowercase at a
+       sentence's start as everywhere, since Chats is not in the rail while
+       the card shows (below). The adoption being out is the
        session's fact: after a reload it reads as a first repository to
        adopt until the rows say it is in, and a first "Adopt" names
        Ready's key, so that the engine answers the one adoption.
@@ -2043,10 +2037,29 @@ keeps (`../protocol/configuration.md`, section 2).
        lines above say the rest, with no toast. It is for this state alone:
        `../draft/repository-copies.md`, 9's "Add repositories" stays
        Settings'.
-    3. "Start a chat", "Ask about the code or ask for a change.", with
-       "New chat", to `NewChat`. Done once the project holds a chat
-       other than an Ask temper one, live or ended, as `Chats` reads
-       them; done, its title alone.
+    2. "Tell temper how you work", "In your own words: how you plan, review
+       and land work. temper proposes how it will run that, and nothing
+       changes until you accept.", with "Start", filled, the act of
+       *The first chat* (below). Done once an Ask temper chat runs or ran
+       in the project, or a line of the `settings` document follows a
+       change; done, its title alone. An Ask temper chat is a row of the
+       project's chats, as `Chats` reads them, whose chip's executor is
+       the charter of template 5 as `me` lists it
+       (`../protocol/configuration.md`, 13.4): a row names its label,
+       which is a chat's, and no template. With no template 5 in `me`
+       the page it opens cannot start a chat, and only a setting's change marks
+       the step done. A person who cannot read that document sees no
+       change.
+  - *The rail and the tab bar,* while the card shows: on Home and on Ask
+    temper's page, "Home" and "Ask temper", with "Settings" at the rail's
+    foot, and the phone's tab bar "Home", "Ask" and "Settings", three equal
+    tabs (5.3). So a new project's Home asks for one deliberate choice, Ask
+    temper or Skip. Ask temper's page reads To begin's facts as Home does:
+    `home::facts` reads no state of Home's page but its skip, and the
+    project's chats, the `forges` rows, the `settings` document and the
+    person's dismissals are read on both pages. Once the card goes, by its
+    last step or a skip, the rail and the tab bar are whole again; every
+    other page keeps every row.
   - *"Skip"* sends the FORGE request `Dismiss { to_begin(project) }`
     (4.6), one act, one request (3.6), and the card goes at once, while
     it is out and for as long as the person's dismissals name the
@@ -2054,8 +2067,8 @@ keeps (`../protocol/configuration.md`, section 2).
     Refused, or lost, the card comes back with "temper couldn't keep
     that. Try Skip again." under its line; *unknown,* the subject
     answers it, and nothing is said. A skip is never undone, and nothing
-    is lost by it: the first step's act stays in the rail's "Ask temper",
-    the second's in Settings and the third's in the rail's "+ New chat".
+    is lost by it: the repository's act stays in Settings, and "Tell
+    temper how you work" in Ask temper.
   - *Until it is known:* To begin waits for the facts it reads. Until the
     person's dismissals, the `forges` rows, the project's chats and the
     `settings` document are delivered, it is left out, so that a project
@@ -2163,8 +2176,8 @@ keeps (`../protocol/configuration.md`, section 2).
 
   What Home does not draw: the composer and the full chats' list, which
   stay `Chats`'s, and the composer's picker. With the
-  `forges` watch refused or ended, step 2 is "Adopt a repository" with
-  no ORG/NAME. In the terminal the headline, To begin with its three
+  `forges` watch refused or ended, step 1 is "Adopt a repository" with
+  no ORG/NAME. In the terminal the headline, To begin with its two
   steps, and the sections of Home on any project keep their headings,
   each line one readable run of words; the kicker, the headline and the
   lede read as one run of words, the foot is a paragraph, and a question's
@@ -4439,17 +4452,34 @@ page (5.1): a navigation named by the open project, in this order:
   "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A
-  phone has no foot, and signs out on the `Accounts` tab (3.5).
+  phone has no foot, and signs out on the `Accounts` tab (3.5);
+- the night switch, a browser's, the rail's last child, after its foot and drawn
+  at the foot's right: a button named "Night mode", pressed while the night look
+  is on, a moon by day and a sun by night, drawn by style; on a phone, at the top
+  bar's right. Pressing it turns the look, on every page of that browser, and
+  keeps it (*Its look, kept per browser,* 3.5; `browser.md`, 2.5, *Night*). The
+  terminal has none.
+
+**While To begin shows** (3.5, *To begin*), on `Home` and on `Ask { project }`
+alone: the rail's navigation holds "Home" and "Ask temper", while `me` offers
+template 5, and no other entry; `div.temper-rail-new` is not drawn; the foot is
+as above, "Settings" among it. The tab bar holds "Home", "Ask" and "Settings",
+three equal tabs, Settings whatever Goals' entry would be. Both shells draw the
+rail so, the terminal reading its entries as the browser does. The view asks
+`temper_client_domain::pages::home::beginning(root, project, wall)`, true on
+those two addresses while `facts(..).to_begin()` holds; every other page draws
+every row (the look request `to-begin-two-steps`, the user's word of
+2026-11-07).
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
 rail's navigation: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
-"Needs you", then "Goals", "Chats" and "Ask" while the rail shows Goals,
-"Chats", "Ask" and "Settings" while it doesn't, "Ask" named "Ask temper"
-and shown, and current, as the rail's "Ask temper" is, drawn at phone
-width alone (`browser.md`, 2.5); with Goals shown, Settings is reached by the
-switcher's "Settings for PROJECT". The Away switch is a chip in the top
+"Needs you", then "Goals" and "Chats" while the rail shows Goals, "Chats"
+and "Settings" while it doesn't, with "Ask" after "Chats", named "Ask temper" and shown, and current, as the rail's "Ask temper" is, drawn at phone width alone
+(`browser.md`, 2.5); with Goals shown, Settings is reached by the
+switcher's "Settings for PROJECT". While To begin shows, "Home", "Ask" and
+"Settings" alone (above). The Away switch is a chip in the top
 bar, on the rail's terms. The terminal has no tab bar.
 
 **The banner's navigation,** on a page that is no project's (5.1).
@@ -5464,7 +5494,11 @@ acts on it as its document offers (5.11).
   its chip supplies `run_since`, when the run was placed, in universal
   time. A run's earlier runs are the
   conversation's "Run N began" and "Run N ended": the page has no run
-  groups.
+  groups. An invalid run's end adds ": its result broke its contract
+  (KIND)", naming form, verdict, words, change or followups from its
+  recorded cause. An invalid end without a contract kind adds ": its
+  result couldn't be read" (jig's `protocol/client.md`, section 3).
+  Other failure classes add no invalid-result cause.
 - **The conversation,** from the task's bounded thread (jig-client's
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
@@ -6562,9 +6596,10 @@ draws its heading and its "Task brief".
 The TUI (`../draft/tui.md`) is a person's full-screen terminal client:
 temper's client root, a view of its own and skein's full-screen shell
 (skein's `ui-screen.md`), over the native transport `temper open` uses.
-Its first pass (`../draft/tui.md`, section 4) signs in by the box's
-printed link, pasted, and draws a first screen that proves the
-connection, live (6.14). `temper open` stays the tests' line client
+Its first pass (`../draft/tui.md`, section 4) signs in from the local
+engine's link file, with a pasted link or the browser's approval as
+fallback, and draws a first screen that proves the connection, live
+(6.14 and 7.1). `temper open` stays the tests' line client
 (6.9).
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
@@ -6679,7 +6714,10 @@ connection, live (6.14). `temper open` stays the tests' line client
     (skein-shell's `read_private_file`): absent, unreadable, too large or
     not private reads as none. The binary reads it once at start, for
     bare `temper`'s address (6.11); the run reads it at each duty `local`
-    (6.13), for the sign-in (6.14).
+    (6.13), for the sign-in (6.14). The binary opens a separate root for
+    the link's parent; the run resolves only its filename beneath that
+    root and closes the descriptor on shutdown. A parent that cannot be
+    opened reads as no link, without refusing the TUI's state directory.
   - *A stale file grants nothing.* Its address and its secret come from
     one file, written by the engine that holds the listener. A restart
     forgets links, and a spent link is dead (jig's `protocol/client.md`,
@@ -6761,10 +6799,10 @@ connection, live (6.14). `temper open` stays the tests' line client
   browser to open, once for each approval asked (7.1); and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
-- **The note:** after each report, an expiry the link names
-  (`link().expires`, jig's `client/domain/client.md`, 8.2) that differs
-  from the note's `Until` is a duty to note `Until` it; a sign-in judged
-  ended (6.14) is a duty to note `SignedOut`, once.
+- **The note:** after each report, once the link is live with a party,
+  an expiry it names (`link().expires`, jig's `client/domain/client.md`,
+  8.2) that differs from the note's `Until` is a duty to note `Until`
+  it. A sign-in judged ended (6.14) is a duty to note `SignedOut`, once.
 - **The credential:** after each report the host reads it from
   `jig-client`'s `link()`, through the root. One that differs from the
   one kept is a duty to keep it, before the first screen is drawn on it;
@@ -7897,6 +7935,26 @@ own tests:
 
 ## 11. Open questions
 
+- **The two-step Home and night look after landing** (3.5, 5.3): temper/ui
+  compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
+  main at 1440, 1000 and 420 px, with menus and disclosures open and
+  each state their messages name (`../draft/look-requests.md`, 4).
+  Include both steps left, each alone, done and skipped, Home with a need
+  or chat while the card shows, and the restricted navigation on Home
+  and Ask temper. Check the night switch, reload, the three night pages
+  and readability elsewhere. The night palette is the user's first pass
+  to refine; system preference and the placeholder's night look remain
+  `browser.md`, section 5's choices. Default: focused tables, gallery
+  states and replayed prints establish no rendered equality or browser
+  reload result. The implementation gap remains in `README.status.md`.
+
+- **Other account-act refusal reasons** (5.5): key and sign-in acts can
+  answer not offered for several core causes. Saying why and what to do
+  needs jig's account refusals and client contract to distinguish them
+  (jig's `client/domain/contract.md`, section 11). Default: their generic
+  words; declaration's name taken and not offered, and resume's not
+  offered, have the specific words of 5.5.
+
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The opening keeps the configuring page's starters and reference;
@@ -7910,16 +7968,26 @@ own tests:
   (`../draft/tui.md`, section 3). Default: refine each on the recorded
   frames before designing it; the first pass is sections 4 and 5 of
   that draft.
+- **The TUI's command-line flags** (6.11 and 6.12): choosing another
+  deployment and overriding local sign-in or the scheme wait for the
+  user's command-line design. The environment names the local deployment.
+- **The TUI's design location:** sections 6.11 to 6.16 and 7.1 stay
+  here; moving them under `client/tui/`, as `../README.md`, section 6
+  assigns them, is a later cleanup that must preserve their citations.
 - **Approval between hosts and managing sign-ins** (7.1): a deployment
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
   by a browser signed in by the printed link.
-- **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
-  printed link into the TUI in another terminal and read the first
-  screen, then sign in through the browser's approval and check refusal
-  and asking again (`../draft/tui.execution.md`, M1 and M2). The user
-  takes `sign-in-approved`'s frames and refines the look on them
+- **The TUI after landing** (6.11 to 6.16): on a fresh box, start bare
+  `temper` in another terminal and read the first screen with nothing
+  pasted; check renewal after expiry and refusal to renew after a
+  sign-out noted before the expiry slack. With no usable engine's link
+  file, paste the printed link, then sign in through the browser's
+  approval and check refusal and asking again
+  (`../draft/tui.execution.md`, M1 and M2). Check the terminal's own
+  colours and background answer in emacs vterm, and the runtime on
+  macOS. The user takes `sign-in-approved`'s frames and refines the look on them
   (`tui/journeys.md`, sections 9 and 10). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
@@ -7937,6 +8005,12 @@ own tests:
   (6.14): read as a sign-in ended, so the TUI waits for a person's act
   there. Default: so, the safe side, until a deployment's own name
   tells engines apart.
+- **Expiry and revocation at the same time** (6.14): the engine answers
+  both as signed out. The note's last minute is treated as expiry, so a
+  revocation in that interval can renew automatically; an absent or
+  unreadable note also permits a local try. Distinguishing these ends
+  reliably needs an engine answer that names the reason. Default: the
+  note and its minute's slack, with this limit kept explicit.
 - **The TUI while offline** (6.14): the first screen keeps "Connected to
   HOST:PORT as NAME" while the state says "Offline". Default: so, its
   words refined on the recording.
@@ -8052,7 +8126,7 @@ own tests:
 - **One repository sheet from Home** (3.5, 4.3, 4.4): the
   repository-copies follow-up, owned by temper/ui, unifies Home's own
   empty-or-copy sheet with Add repositories and draws the entry from a
-  project with no repository and To begin's second step. Default: keep
+  project with no repository and To begin's repository step. Default: keep
   the current entries and Settings destination; `connect-flows` leaves
   those paths unmocked (`../draft/repository-copies.md`, 9 and 11).
 
@@ -8175,7 +8249,7 @@ own tests:
   its range as the other rows do. Default: "Later".
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
-  forge list` says them, and Home's second step says a project's while To
+  forge list` says them, and Home's repository step says a project's while To
   begin shows (3.5, *Home*), and Settings' Repositories says each of the
   project's, with a failed one's "Copy again" and "Dismiss" (3.5, *Settings*).
   Default: with To begin skipped, on any other page, no line says a row.
@@ -8237,7 +8311,7 @@ own tests:
   gives a chat's state, not what its delegates landed, so saying it takes
   one read per row. Default: the chat's state as `Chats` words it,
   "closed · 1 h".
-- **How a project lands, on To begin's second step**
+- **How a project lands, on To begin's repository step**
   (`../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
   project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,

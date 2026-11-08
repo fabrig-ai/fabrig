@@ -2,6 +2,23 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
+two-step `project-landing` print and the three `night-*` gallery states.
+The five journeys' prints include the unpressed night switch, with no
+night choice in their recordings. No known implementation gap remains
+in this drawing route; the nonempty Home sections' suppression remains
+`README.status.md`, 3.5's gap. Temper/ui's rendered comparison of all
+three requests remains section 10's after-landing work; replayed prints
+establish no rendered equality. The unrelated retained `chat-draft`
+inventory and redaction gaps below remain.
+
+Section 7 has no known gap in refreshing either request branch:
+`scripts/look-refresh.sh` takes `look-requests` and `tui-requests`, using
+the checked-out branch's remote-tracking lease, requests over
+`origin/main` and push target. It refuses any other branch with a
+message naming both. The existing script test has a row for each
+request branch and checks the refusal on `main` and a detached head.
+
 Section 9 has no known implementation gap in `ask-temper-place`'s
 first-run recordings: `project-landing`, `chat-draft` and
 `welcome-playground` offer Ask temper in their prints. The setup passes
@@ -48,8 +65,14 @@ drafts toggle, and its account names `again chat-draft` and twenty prints.
 That fake-model walk reaches the goal and its Draft link back to the chat;
 a real-box recording remains the person's later work (section 10).
 
+Section 9's stock removal is reflected in `welcome-set-up`,
+`welcome-playground` and `project-landing`; the TUI's `sign-in-approved`
+is current too (`tui/journeys.status.md`). `chat-draft` retains its old
+stock inventory, including template 3 and charter 3: its task numbers
+moved, so temper/ui's answer of 2026-11-08 leaves its new walk and
+recording to section 10's after-landing renewal.
+
 - **Not yet:**
-  - 9: `chat-draft`'s recording still lists template 3 and charter 3, the configuring chat's. Its task numbers moved with the configuring chat's removal, so its walk needs renewal after landing before it is recorded again (8.1), per temper/ui's answer to `ui-ask-drop/journeys` of 2026-11-08.
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.

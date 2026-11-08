@@ -253,10 +253,21 @@ second, which is why it is skein's (testing-strategy.md, 7).
   liveness deadlines.** A liveness deadline's patience is its time less
   the run's start. A referee can return its own starved verdict through
   `Referee::starved() -> Option<Starved>`. The loop drains the forced
-  cleanup before passing that verdict on. `Starved::pass()` prints the
-  `skein-world: starved:` line, naming the wait with `, by <what>`, and
-  exits 0 under nextest; a run elsewhere reports the same green warning
-  under testing-strategy.md, 8.1. Tree starvation also names
+  cleanup before passing that verdict on. `Starved::pass()` writes the
+  `skein-world: starved:` line to stderr, naming the wait with `, by <what>`,
+  and ends the test as a starved pass: in a one-process run
+  (`TIERS_ONE_PROCESS` set, by `tools/tiers/design.md`'s one-process
+  mode) it unwinds with
+  `std::panic::resume_unwind` and the payload `StarvedPass`, so that only
+  its test ends, nothing follows the line, and the process goes on to its
+  next test; under nextest it exits 0; elsewhere it fails with the figures.
+  `Starved::exit()` ends a helper process, one a test starts and whose
+  stderr it reads, with the line and exit 0 wherever a starved wait passes.
+  `starved_passes()` says whether it passes here (`TIERS_ONE_PROCESS` or
+  `NEXTEST` set), and `pass_starved(line)` ends the running test with a line
+  a helper wrote, as `pass` does. Every place that keys on `NEXTEST` for
+  starvation keys on `starved_passes()`, and a test that runs a child to see
+  a deadline fail removes both variables from it. Tree starvation also names
   the tree's wait and accounting source. Conformance's `Backend` gives
   `wait_begins`, `wait_unanswered` and `wait_figures`; the simulator uses
   their defaults.
@@ -461,7 +472,7 @@ of their own, `tests/protocol`. The gate runs formatting, the lints as errors,
 clippy's lints as errors for `wasm32-unknown-unknown` over the portable
 crates (section 10) and the UI example's view and browser shell, since the
 parts' platform halves compile only there (ui-web.md, section 14); then
-the focused suite and the fuzzy suite, with nextest (section 7), and
+the focused suite and the fuzzy suite, with their profiles (section 7), and
 nothing slower. The browser tier, outside the gate, is
 `tools/tiers/run skein browser`: the UI example's
 bundle, made with `skein-ui-bundle` from a module built with the dev
@@ -530,6 +541,11 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 
 ## 9. Open questions
 
+- **One-process adoption and suite costs** (5, 6, 7). Switching a
+  caller's focused and fuzzy steps is that caller's separate change,
+  tree by tree (`tools/tiers/design.md`, 8). Measure suite CPU per
+  process after that switch; per-test CPU in a shared process is not
+  measured. A run that checks outcomes establishes no CPU margin.
 - **Further scenario and product costs** (2, 7). KV's CRC-32C and row
   copying, LLM replay conversion, real TLS and RSA, HTTP byte and chunk
   decoding, protocol generation, conformance pattern generation, GitHub

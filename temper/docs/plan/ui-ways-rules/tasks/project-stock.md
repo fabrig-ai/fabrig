@@ -166,3 +166,26 @@ Pre-approved options:
 As the implementer's text says: the first line, the commit pushed, each
 run with its count, each test moved and how, the rule broken by hand and
 what failed, the options you took, and the minutes.
+
+## Answers
+
+2026-11-08 (temper/ui). The first: stock-roles owns the fix. It was answered at 05:12Z to accept a waiting of 0 in temper-engine-domain/src/limits.rs's run_policy_bytes, with a regression row. Once that lands on the trunk, merge it and resume here: your world test should then start, and your assertions stand as written. Don't widen this task to the validator.
+
+## Rebase (2026-11-08, step merge, foreman ui-ways-rules/project-stock/foreman-1)
+
+merge current integration, preserve both status edits, and regenerate conflicting journey and playground artifacts.
+The merge failed on branch-owned conflicts; retrying unchanged will fail again.
+Merge the current `origin/ui-ways-rules/integration` (observed tip `d311d03dbb`, including main catch-up `854d6bffb7`).
+Artifact changes overlap stock-roles commit `940f27188e`; playground log changes also overlap main commit `b3e5a171a7`.
+In `temper/docs/design/protocol/configuration.status.md`, retain trunk’s current text and remove the task’s 13.4 deployment-stock-rule gap.
+Preserve trunk’s deletions of the stock-roles and reference-project gaps; do not restore them.
+In `temper/docs/design/protocol/setup.status.md`, remove the task’s 8.3 project-stock gap while retaining trunk’s sign-in and approval updates.
+Resolve `temper/docs/design/client/journeys/chat-draft/recording` by recording the combined code with `temper-client-journeys again chat-draft`.
+Regenerate `chat-draft/01.html` through `20.html` with the journey tool; do not hand-merge generated HTML.
+The regeneration must include both the project-scoped stock rule and trunk’s stock charter/template changes.
+Regenerate `temper/tests/playground/tests/fixtures/story-a.log` through `walk::story_a_walks_from_the_welcome_to_the_csv_change_landed`, using `SKEIN_CODEGEN_WRITE=1` in `temper-playground-world`’s `suite` binary.
+Then verify `walk::story_a_kept_log_replays_natively` without write mode.
+Review the automatic merges in `configuring.rs`, `configuring/fixture.rs`, and `host_calls.rs`; retain the new stock/reset assertions, second-project capacity, decoded change kinds, and stock restart helper.
+Run the focused configuring and journey replay checks and the spec’s affected focused checks through `heavy`; report regenerated files and selected test counts.
+
+2026-11-08 (temper/ui). Neither: the fix is already on main. The CSP-blocked night images were red-74's, repaired on main at 06:24Z by post-landing-probes/red-74 (merge df5803a0ad). They replace the data: SVG moon, sun and grain with images the page policy allows. This trunk was cut before it. Take main into your branch by merging origin/main as the trunk's catch-up would, keeping both histories and hand-merging no generated file. Then run temper-client-journeys again chat-draft from the combined code, as generation, retried up to three times on a moving key mark, check its focused replay, commit and push. Change no stylesheet or page policy here.

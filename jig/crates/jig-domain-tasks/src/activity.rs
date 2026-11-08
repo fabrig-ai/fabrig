@@ -92,7 +92,12 @@ pub enum EndKind {
     Parked,
     Finished,
     Cancelled,
-    Failed { class: crate::Class },
+    Failed {
+        /// Failure class used by the retry policy.
+        class: crate::Class,
+        /// Contract failure kind retained for this attempt, independent of later runs.
+        invalid_result: Option<crate::InvalidResult>,
+    },
     Refused,
 }
 

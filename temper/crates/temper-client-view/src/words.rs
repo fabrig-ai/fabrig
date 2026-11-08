@@ -12,6 +12,7 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    NightMode,
     CloseTitle,
     CloseChat,
     KeepIt,
@@ -370,7 +371,6 @@ pub enum Word {
     AskTab,
     AskUnavailable,
     HomeNoteAsk,
-    HomeNoteAskChats,
     AskQuestion,
     AskLede,
     AskSets,
@@ -473,11 +473,8 @@ pub enum Word {
     HomeProjectReady,
     HomeOptional,
     HomeSkip,
-    HomeNoteThree,
     HomeNoteTwo,
-    HomeNoteTwoSettings,
     HomeNoteSettings,
-    HomeNoteChats,
     HomeSkipRefused,
     HomeBegin,
     HomeHow,
@@ -511,9 +508,6 @@ pub enum Word {
     HomeOffer,
     HomeGitHub,
     HomeNone,
-    HomeChat,
-    HomeChatDetail,
-    HomeNewChat,
     HomeAdoptLink,
     HomeLooked,
     HomeLandedOne,
@@ -1060,6 +1054,10 @@ pub enum Word {
     ChatCancelled,
     RunBegan,
     RunEnded,
+    /// A run ended with a result outside its admitted contract.
+    RunEndedInvalid,
+    /// A run ended with a result the adapter could not read.
+    RunEndedUnreadable,
     Message,
     MessagePlaceholder,
     Send,
@@ -1545,7 +1543,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2103;
+const PHRASES: u32 = 2099;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1572,10 +1570,11 @@ const PHRASES: u32 = 2103;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3682;
+const SEGMENTS: u32 = 3684;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52088;
-const ALL: [Word; 1421] = [
+const ENGLISH_BYTES: u32 = 51851;
+const ALL: [Word; 1417] = [
+    Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1926,7 +1925,6 @@ const ALL: [Word; 1421] = [
     Word::AskTab,
     Word::AskUnavailable,
     Word::HomeNoteAsk,
-    Word::HomeNoteAskChats,
     Word::AskQuestion,
     Word::AskLede,
     Word::AskSets,
@@ -2027,11 +2025,8 @@ const ALL: [Word; 1421] = [
     Word::HomeProjectReady,
     Word::HomeOptional,
     Word::HomeSkip,
-    Word::HomeNoteThree,
     Word::HomeNoteTwo,
-    Word::HomeNoteTwoSettings,
     Word::HomeNoteSettings,
-    Word::HomeNoteChats,
     Word::HomeSkipRefused,
     Word::HomeBegin,
     Word::HomeHow,
@@ -2064,9 +2059,6 @@ const ALL: [Word; 1421] = [
     Word::HomeOffer,
     Word::HomeGitHub,
     Word::HomeNone,
-    Word::HomeChat,
-    Word::HomeChatDetail,
-    Word::HomeNewChat,
     Word::HomeAdoptLink,
     Word::HomeLooked,
     Word::HomeLandedOne,
@@ -2596,6 +2588,8 @@ const ALL: [Word; 1421] = [
     Word::ChatCancelled,
     Word::RunBegan,
     Word::RunEnded,
+    Word::RunEndedInvalid,
+    Word::RunEndedUnreadable,
     Word::Message,
     Word::MessagePlaceholder,
     Word::Send,
@@ -3002,6 +2996,7 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::NightMode => 4180,
             Self::ApprovalKind => 4121,
             Self::ApprovalQuestion => 4122,
             Self::ApprovalForgejo => 4123,
@@ -3380,7 +3375,6 @@ impl Word {
             Self::AskTab => 4177,
             Self::AskUnavailable => 4178,
             Self::HomeNoteAsk => 4179,
-            Self::HomeNoteAskChats => 4180,
             Self::AskQuestion => 3190,
             Self::AskLede => 3191,
             Self::AskSets => 3192,
@@ -3482,11 +3476,8 @@ impl Word {
             Self::HomeProjectReady => 3166,
             Self::HomeOptional => 3167,
             Self::HomeSkip => 3168,
-            Self::HomeNoteThree => 3169,
             Self::HomeNoteTwo => 3170,
-            Self::HomeNoteTwoSettings => 3171,
             Self::HomeNoteSettings => 3172,
-            Self::HomeNoteChats => 3173,
             Self::HomeSkipRefused => 3174,
             Self::HomeBegin => 3118,
             Self::HomeHow => 3119,
@@ -3520,9 +3511,6 @@ impl Word {
             Self::HomeOffer => 3126,
             Self::HomeGitHub => 3129,
             Self::HomeNone => 3130,
-            Self::HomeChat => 3131,
-            Self::HomeChatDetail => 3132,
-            Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
             Self::HomeLooked => 3621,
             Self::HomeLandedLast => 3787,
@@ -4127,6 +4115,8 @@ impl Word {
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
             Self::RunEnded => 151,
+            Self::RunEndedInvalid => 4183,
+            Self::RunEndedUnreadable => 4184,
             Self::Message => 146,
             Self::MessagePlaceholder => 1077,
             Self::Send => 147,
@@ -4845,6 +4835,7 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::NightMode => (&[b"Night mode"], &[]),
         Word::ApprovalKind => (&[b"an approval"], &[]),
         Word::ApprovalQuestion => (&[b"Approve ", b" on ", b""], &[Name, Name]),
         Word::ApprovalForgejo => (&[b"Forgejo"], &[]),
@@ -5212,11 +5203,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeProjectReady => (&[b"", b" is ready."], &[Name]),
         Word::HomeOptional => (&[b"Optional"], &[]),
         Word::HomeSkip => (&[b"Skip"], &[]),
-        Word::HomeNoteThree => (&[b"Three steps left. Skip them if you like; they stay in Ask temper, Settings and Chats."], &[]),
-        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in Settings and Chats."], &[]),
-        Word::HomeNoteTwoSettings => (&[b"Two steps left. Skip them if you like; they stay in Ask temper and Settings."], &[]),
+        Word::HomeNoteTwo => (&[b"Two steps left. Skip them if you like; they stay in Settings and Ask temper."], &[]),
         Word::HomeNoteSettings => (&[b"One step left. Skip it if you like; it stays in Settings."], &[]),
-        Word::HomeNoteChats => (&[b"One step left. Skip it if you like; it stays in Chats."], &[]),
         Word::HomeSkipRefused => (&[b"temper couldn't keep that. Try Skip again."], &[]),
         Word::HomeBegin => (&[b"To begin"], &[]),
         Word::HomeHow => (&[b"Tell temper how you work"], &[]),
@@ -5226,13 +5214,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeCopyWaiting => (&[b"Waiting to copy"], &[]),
         Word::HomeCopyIn => (&[b"", b" is in ", b""], &[Name, Name]),
         Word::HomeCopiesIn => (&[b"", b" are in ", b""], &[Name, Name]),
-        Word::HomeCopyInDetail => (&[b"Chats can change its code now, on your Forgejo; nothing goes back where it was copied from."], &[]),
-        Word::HomeCopiesInDetail => (&[b"Chats can change their code now, on your Forgejo; nothing goes back where they were copied from."], &[]),
+        Word::HomeCopyInDetail => (&[b"temper can change its code now, on your Forgejo; nothing goes back where it was copied from."], &[]),
+        Word::HomeCopiesInDetail => (&[b"temper can change their code now, on your Forgejo; nothing goes back where they were copied from."], &[]),
         Word::HomeCopyAgain => (&[b"Copy again"], &[]),
         Word::HomeCopyOffer => (&[b"Copy ", b""], &[Name]),
         Word::HomeCopyAct => (&[b"Copy"], &[]),
         Word::HomeAddTitle => (&[b"Add a repository"], &[]),
-        Word::HomeAddDetail => (&[b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code."], &[]),
+        Word::HomeAddDetail => (&[b"Your Forgejo has none yet. Until one is in, temper talks and plans but changes no code."], &[]),
         Word::HomeAddEmpty => (&[b"Make an empty one"], &[]),
         Word::HomeAddCopy => (&[b"Copy a public one"], &[]),
         Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
@@ -5243,15 +5231,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
         Word::HomeAddRefused => (&[b"Could not add the repository: ", b""], &[Name]),
         Word::HomeIn => (&[b"", b"/", b" is in ", b""], &[Name, Name, Name]),
-        Word::HomeInDetail => (&[b"Chats can change its code now."], &[]),
+        Word::HomeInDetail => (&[b"temper can change its code now."], &[]),
         Word::HomeAdopting => (&[b"Adopting ", b"/", b" into ", b"\xe2\x80\xa6"], &[Name, Name, Name]),
-        Word::HomeAdoptingDetail => (&[b"Chats can change its code once it is in."], &[]),
+        Word::HomeAdoptingDetail => (&[b"temper can change its code once it is in."], &[]),
         Word::HomeOffer => (&[b"", b"/", b", made on your Forgejo at set up, is in no project yet."], &[Name, Name]),
         Word::HomeGitHub => (&[b"temper\xe2\x80\x99s App reaches its repositories on ", b"."], &[Name]),
-        Word::HomeNone => (&[b"Until one is in, chats talk and plan but change no code."], &[]),
-        Word::HomeChat => (&[b"Start a chat"], &[]),
-        Word::HomeChatDetail => (&[b"Ask about the code or ask for a change."], &[]),
-        Word::HomeNewChat => (&[b"New chat"], &[]),
+        Word::HomeNone => (&[b"Until one is in, temper talks and plans but changes no code."], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
         Word::HomeLandedLast => (&[b"The last change landed ", b" ago."], &[Name]),
@@ -5879,6 +5864,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
+        Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
+        Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),
         Word::Message => (&[b"Message"], &[]),
         Word::MessagePlaceholder => (&[b"Reply to T"], &[Number]),
         Word::Send => (&[b"Send"], &[]),
@@ -6038,7 +6025,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AskTab => (&[b"Ask"], &[]),
         Word::AskUnavailable => (&[b"Ask temper isn't set up in this project."], &[]),
         Word::HomeNoteAsk => (&[b"One step left. Skip it if you like; it stays in Ask temper."], &[]),
-        Word::HomeNoteAskChats => (&[b"Two steps left. Skip them if you like; they stay in Ask temper and Chats."], &[]),
         Word::AskQuestion => (&[b"How should temper run ", b"?"], &[Name]),
         Word::AskLede => (&[b"Tell it how you work, in your own words or by pointing at a document."], &[]),
         Word::AskSets => (&[b"What it sets"], &[]),

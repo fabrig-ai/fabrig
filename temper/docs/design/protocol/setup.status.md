@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [setup.md](setup.md).
 
+Section 7.2's sign-in block names the TUI command at the link's origin,
+on stderr in the first block alone. Serve keeps the engine's private
+link file at startup and each new Link and removes it when its loop
+returns (`../client/README.md`, 6.12). No known implementation gap
+remains in those additions; a forced kill can leave a stale file as
+designed.
+
 Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
 given values include its person's login, managed and fake entries give
 none, and local reconcile answers become `Is` or `Gone`. Convert, paste
@@ -97,5 +104,6 @@ section 15's contained-tree work.
 
 Section 8.3's printed link and approval are enabled in both init
 documents and the owned example. The service table checks that the
-approval setting reaches an ask. The TUI's browser flow and its fresh-box
-walk remain later work in section 15 and `../client/README.md`, section 11.
+approval setting reaches an ask. The TUI's browser flow and recorded
+approval journey are present. Its fresh-box terminal check remains
+later work in section 15 and `../client/README.md`, section 11.

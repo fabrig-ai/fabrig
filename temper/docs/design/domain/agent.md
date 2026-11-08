@@ -1471,7 +1471,7 @@ are its second milestone's (section 10).
 | `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows; then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
-| `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the settings it was made against, its state and outcome | the family's proposal read (jig's `domain/engine.md`, 7.3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
+| `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine.md`, 7.3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
 | `help` | the index of temper's pages | the pages `read_docs` reads (`../protocol/documentation.md`, section 5) | `help NAME · help search WORDS` |
 | `help NAME` | the page whole, `NAME: TITLE` first; a name no page has answers so, then the sections holding its words, as `read_docs` does | the same | `help · help search WORDS` |
 | `help search WORDS` | each section holding every word, a line each, `PAGE: HEADING: LINE`; nothing, saying so; more than eight, ending `more sections match; narrow the words` | the same | `help NAME` |
@@ -1776,8 +1776,9 @@ host:
   charter values can name models outside the current offer. Restricting what
   a read exposes while still round-tripping that value, or rejecting a new
   unoffered choice without rejecting an unchanged charter, needs a settings
-  contract. Default: the inventory is filtered and the stock instructions
-  restrict the agent; whole charter reads and configured-model validation stay.
+  contract. Default: the inventory is filtered; whole charter reads and
+  configured-model validation stay. Ask temper's instructions impose no
+  restriction to the current offer (`../draft/ask-temper.md`, section 8).
 
 - **What a delivery keeps, under a deployment's own charter** (6): the stock's
   coding charter and the reference's tell a run its own history isn't kept. A

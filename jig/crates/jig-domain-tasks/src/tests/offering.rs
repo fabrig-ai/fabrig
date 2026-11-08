@@ -5,6 +5,7 @@
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
+    clippy::match_like_matches_macro,
     reason = "step tests script admitted messages and inspect selected outputs"
 )]
 use super::revisions::{Harness, task, to};
@@ -57,21 +58,38 @@ fn arrive(h: &mut Harness, word: Word) -> Vec<Request> {
 }
 
 fn start(h: &mut Harness, offered: R) {
-    let context = h.domain.run_context(TASK).expect("activation context");
-    let attempt = context.previous_attempt.checked_add(1).expect("fixture attempts");
-    h.send(Event::Prepare { reply_to: to(), task: TASK });
-    h.send(Event::Claim {
+    let attempt = h
+        .domain
+        .run_context(TASK)
+        .expect("activation context")
+        .previous_attempt
+        .checked_add(1)
+        .expect("fixture attempts");
+    start_task(h, TASK, attempt, offered);
+}
+
+fn start_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
+    let reasons = h.domain.run_context(number).expect("activation context").reasons;
+    h.send(Event::Prepare { reply_to: to(), task: number });
+    let out = h.send(Event::Claim {
         reply_to: to(),
-        task: TASK,
+        task: number,
         attempt,
         resumed: false,
         budget: RUN_BUDGET,
         account: None,
         writes: Box::new([]),
-        reasons: context.reasons,
+        reasons,
         offered,
     });
-    h.send(Event::Started { task: TASK, attempt });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Done { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    h.send(Event::Started { task: number, attempt });
 }
 
 fn end(h: &mut Harness, end: End) {
@@ -566,4 +584,299 @@ fn runs_hear_and_take_only_what_their_parts_offer() {
         ));
     }
     assert_eq!(results, expected);
+}
+
+// The lead holds the landing's repair decision and asks its person in words.
+const LANDING: u64 = 2;
+const REPAIR: u64 = 9;
+const PERSON_TASK: u64 = 10;
+const ENTRY: u64 = 22;
+const NEXT_REPAIR: u64 = 11;
+
+fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
+    let mut new = task(number, &[]);
+    new.funder = crate::Funder::Task(parent);
+    new.numbers.budget = 20;
+    new.authority.budget.spend = 20;
+    if person {
+        new.executor = crate::Executor::Person(crate::PersonAddress::Person(PERSON));
+    }
+    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(parent), batch: Box::new([new]) });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Made { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+}
+
+fn repair_attempt(h: &mut Harness, attempt: u64) {
+    start_task(h, REPAIR, attempt, R::ALL);
+    let out = h.send(Event::Activation {
+        reply_to: to(),
+        task: REPAIR,
+        attempt,
+        end: End::Finished { result: TaskResult::NoChange { words: Box::new([]) }, cancel_delegates: false },
+        saved: None,
+        cause: crate::Cause::Unpriced,
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Acknowledged { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+}
+
+fn held_repair() -> Harness {
+    let mut h = fixture();
+    delegate(&mut h, TASK, LANDING, false);
+    delegate(&mut h, LANDING, REPAIR, false);
+    for attempt in 1..=3 {
+        repair_attempt(&mut h, attempt);
+        h.env.now = h.env.now.saturating_add(Duration::from_secs(1));
+        h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+        let mut out = Queue::uncapped();
+        crate::fire(&mut h.domain, &h.env, &mut out);
+    }
+    assert!(match h.domain.task(REPAIR).expect("repair").phase {
+        Phase::Held { why: crate::Hold::Failures(crate::Class::Invalid), .. } => true,
+        _ => false,
+    });
+    start_task(&mut h, TASK, 12, R::ALL);
+    let revision = h.domain.task(REPAIR).expect("held repair").revisions.hold;
+    let out =
+        h.send(Event::RoutedEscalation { task: REPAIR, revision, holder: EscalationHolder::Task(TASK), entry: ENTRY });
+    assert!(out.iter().any(|r| match r {
+        Request::Relay { word, .. } if word.number == ENTRY => true,
+        _ => false,
+    }));
+    h
+}
+
+fn commit_read(h: &mut Harness, read: Option<u64>, refused: &[u64], entries: &[u64]) {
+    let row = h.domain.task(TASK).expect("lead");
+    let out = h.send(Event::Turn {
+        reply_to: to(),
+        task: TASK,
+        attempt: row.attempt,
+        turn: row.turn.checked_add(1).expect("fixture turns"),
+        read,
+        refused: refused.into(),
+        offered: entries.last().copied(),
+        outstanding: entries.into(),
+        cumulative: 0,
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::TurnAcknowledged { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+}
+
+fn waiting_stays_parked(h: &mut Harness) {
+    let phase = h.domain.task(REPAIR).expect("repair").phase.clone();
+    let escalation = h.domain.task(REPAIR).expect("repair").escalation.clone();
+    end(h, End::Parked);
+    assert_eq!(
+        h.domain.task(TASK).expect("lead").phase,
+        Phase::Active(Active::Idle),
+        "a read escalation must not reactivate a holder waiting for its person delegate"
+    );
+    for _ in 0_u32..19 {
+        h.env.now = h.env.now.saturating_add(Duration::from_secs(1));
+        h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+        let mut out = Queue::uncapped();
+        crate::fire(&mut h.domain, &h.env, &mut out);
+        assert!(!core::iter::from_fn(|| out.pop()).any(|r| match r {
+            Request::Activate { context } if context.task == TASK => true,
+            _ => false,
+        }));
+        assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle));
+    }
+    assert_eq!(h.domain.task(REPAIR).expect("repair").phase, phase);
+    assert_eq!(h.domain.task(REPAIR).expect("repair").escalation, escalation);
+    assert!(crate::person::pending(h.domain.task(PERSON_TASK).expect("person task")));
+}
+
+fn person_answer_wakes(h: &mut Harness) {
+    let out = h.send(Event::AnswerPerson {
+        reply_to: to(),
+        task: PERSON_TASK,
+        person: PERSON,
+        result: TaskResult::Report { words: Box::new([]) },
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Done { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    h.send(Event::EffectsSettled { task: PERSON_TASK });
+    h.send(Event::Settled { task: PERSON_TASK });
+    let out = h.send(Event::DelegateResult {
+        task: TASK,
+        word: word(ENTRY + 3, M::Result(crate::ResultKind::Report), Party::Task(PERSON_TASK)),
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Activate { context } if context.task == TASK => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    cancel_landing(h);
+}
+
+fn cancel_landing(h: &mut Harness) {
+    start(h, R::ALL);
+    let out = h.send(Event::Cancel {
+        reply_to: to(),
+        by: Party::Task(TASK),
+        operation: crate::Cancel { task: LANDING, reason: Box::new([]), grace: None, message: None },
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Done { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    for number in [REPAIR, LANDING] {
+        h.send(Event::EffectsSettled { task: number });
+        h.send(Event::Settled { task: number });
+        if number == REPAIR {
+            h.send(Event::DelegateResult {
+                task: LANDING,
+                word: word(ENTRY + 4, M::Result(crate::ResultKind::Cancelled), Party::Task(REPAIR)),
+            });
+        }
+        assert!(
+            match h.stored.get(&crate::Key::Ended(number)) {
+                Some(crate::Stored::Ended(row))
+                    if match row.phase {
+                        Phase::Ended(crate::Ending::Cancelled { .. }) => true,
+                        _ => false,
+                    } =>
+                    true,
+                _ => false,
+            },
+            "task {number}: {:?}",
+            h.domain.task(number)
+        );
+    }
+}
+
+#[test]
+fn a_parked_escalation_holder_waits_for_its_person_delegate() {
+    let mut h = held_repair();
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY]);
+    delegate(&mut h, TASK, PERSON_TASK, true);
+    waiting_stays_parked(&mut h);
+    let out = h.send(Event::Message {
+        reply_to: to(),
+        project: 1,
+        operation: crate::Message {
+            task: TASK,
+            word: Word { words: Box::from(&b"Please check"[..]), ..word(ENTRY + 1, M::Words, Party::Person(PERSON)) },
+        },
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Activate { context } if context.task == TASK => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    start(&mut h, R::ALL);
+    commit_read(&mut h, Some(ENTRY + 1), &[], &[ENTRY, ENTRY + 1]);
+    waiting_stays_parked(&mut h);
+    person_answer_wakes(&mut h);
+    new_escalation_wakes();
+    waiting_escalation_stalls();
+    restart_reoffers_the_escalation();
+    for (read, refused) in [(None, vec![]), (Some(ENTRY), vec![ENTRY])] {
+        let mut h = held_repair();
+        commit_read(&mut h, read, &refused, &[ENTRY]);
+        delegate(&mut h, TASK, PERSON_TASK, true);
+        end(&mut h, End::Parked);
+        assert_eq!(
+            h.domain.task(TASK).expect("lead").phase,
+            Phase::Active(Active::Due),
+            "unread and refused escalations still wake their holder"
+        );
+    }
+}
+
+fn new_escalation_wakes() {
+    let mut h = held_repair();
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY]);
+    delegate(&mut h, TASK, PERSON_TASK, true);
+    waiting_stays_parked(&mut h);
+    delegate(&mut h, TASK, NEXT_REPAIR, false);
+    h.send(Event::Hold { task: NEXT_REPAIR, why: crate::Hold::Stopped });
+    let revision = h.domain.task(NEXT_REPAIR).expect("new repair").revisions.hold;
+    let out = h.send(Event::RoutedEscalation {
+        task: NEXT_REPAIR,
+        revision,
+        holder: EscalationHolder::Task(TASK),
+        entry: ENTRY + 1,
+    });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Activate { context } if context.task == TASK => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    start(&mut h, R::ALL);
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY, ENTRY + 1]);
+    end(&mut h, End::Parked);
+    assert_eq!(
+        h.domain.task(TASK).expect("lead").phase,
+        Phase::Active(Active::Due),
+        "the unread new escalation must wake despite the read entry"
+    );
+}
+
+fn waiting_escalation_stalls() {
+    let mut h = held_repair();
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY]);
+    delegate(&mut h, TASK, PERSON_TASK, true);
+    waiting_stays_parked(&mut h);
+    h.env.now = h.env.now.saturating_add(h.env.limits.escalation_stall);
+    h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
+    let mut out = Queue::uncapped();
+    crate::fire(&mut h.domain, &h.env, &mut out);
+    assert!(core::iter::from_fn(|| out.pop()).any(|r| match r {
+        Request::EscalationStalled { task: REPAIR, holder: EscalationHolder::Task(TASK), .. } => true,
+        _ => false,
+    }));
+    h.route(REPAIR, EscalationHolder::Person(PERSON), ENTRY + 1);
+    assert!(match h.domain.task(REPAIR).expect("repair").escalation {
+        crate::Escalation::Waiting { holder: EscalationHolder::Person(PERSON), entry, .. } if entry == ENTRY + 1 =>
+            true,
+        _ => false,
+    });
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle));
+    assert!(crate::person::pending(h.domain.task(PERSON_TASK).expect("person task")));
+}
+
+fn restart_reoffers_the_escalation() {
+    let mut h = held_repair();
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY]);
+    delegate(&mut h, TASK, PERSON_TASK, true);
+    waiting_stays_parked(&mut h);
+    let escalation = h.domain.task(REPAIR).expect("repair").escalation.clone();
+    h.restart();
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Due));
+    assert_eq!(h.domain.task(REPAIR).expect("repair").escalation, escalation);
+    start(&mut h, R::ALL);
+    commit_read(&mut h, Some(ENTRY), &[], &[ENTRY]);
+    waiting_stays_parked(&mut h);
 }

@@ -2,6 +2,25 @@
 
 2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
+Section 5.3's Ask temper start uses `chat start --template 5`, under
+charter 11, in the help and chat-template fixtures. The joined world
+starts it through ctl, reads with `see` and accepts its settings
+proposal. The command still selects any offered chat template; the
+removed stock template 3 has no special command path.
+
+Section 5.5's declaration refusals for name taken and not offered, and
+retry's not offered, have their reason and next step in text and JSON,
+including restored requests. Section 11.2's joined client-world story
+declares, forgets and declares the same name again, observes the worker's
+login-check dispatch, and checks a live name's exit-2 refusal and advice.
+Its worker is fake; it establishes no real login's usability.
+
+- **Departs:** 5.5, from `ui-account-again`'s request for each fixable
+  account-act refusal to say why and what next: the plan limits the new
+  words to those three cases. Key add or replace and sign-in start or
+  finish retain generic not-offered words because the core maps several
+  causes to that refusal. Distinguishing them remains section 14's work.
+
 Section 8.1's sign-in deadline distinguishes the last not-ready refusal
 from busy, names startup or an unanswering core, points to serve's log
 and keeps the link usable until expiry. The CLI's sign-in tests
@@ -16,6 +35,10 @@ The browser boundary check remains later work (section 14).
   `WatchRefusal::NotReady`, and a shut service gate still sends `Busy`,
   so the client can claim all watches are in use. The sign-in's distinct
   line does not cover this path (`../protocol/README.status.md`, 8.2).
+
+Section 6.1's run-ended text and JSON retain the invalid-result cause.
+The renderer tables distinguish each contract kind and unreadable result;
+task help explains both. No known gap remains in this diagnostic.
 
 Section 5.3 has no known implementation gap in settings files, the form,
 apply and show carrying ordered charter parts and a template's later

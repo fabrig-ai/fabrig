@@ -3944,13 +3944,13 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
-- **The TUI's browser sign-in and its walk** (8.3): its host and view
-  ask, open the locally constructed `/terminal?code=...` address or show
-  it with the code when no browser opens, draw each outcome and offer to
-  ask again (`../client/README.md`, 7.1; `../draft/tui.execution.md`, M2).
-  The fresh-box terminal walk follows that flow's landing; recording
-  follows in M3. A public-name deployment and its Google sign-in remain
-  `../draft/tui.md`, section 7's later pass.
+- **The TUI's fresh-box terminal check** (7.2, 8.3): after landing,
+  check local sign-in with nothing pasted, then the pasted-link and
+  browser-approval fallbacks, refusal and asking again
+  (`../client/README.md`, section 11). The recorded approval journey
+  (`../client/tui/journeys.md`, section 9) does not establish a real
+  terminal's result. A public-name deployment and its Google sign-in
+  remain `../draft/tui.md`, section 7's later pass.
 
 - **Links for several members or a pasted App** (5.3, 17.2): several
   members need a family of links and a connecting owner's evidence; a

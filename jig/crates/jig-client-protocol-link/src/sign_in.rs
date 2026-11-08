@@ -105,7 +105,7 @@ impl Link {
                 },
             )
             .expect("checked exchange capacity");
-        out.push(Request::Exchange { exchange, credential, message });
+        self.emit_exchange(exchange, credential, message, out);
     }
     pub(super) fn signing_answer(
         &mut self,

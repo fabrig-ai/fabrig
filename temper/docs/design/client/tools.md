@@ -960,10 +960,10 @@ The table grows area by area, each with its stories (section 11).
    - **`SOURCE` names one of the account's sources** by its kind,
      `sign_in`, `key` or `program`, as `account list` prints it (section
      15).
-   - A declaration refused because NAME was issued says that the name remains
-     reserved after forgetting its account and asks for a never-used name.
-     It exits 2; JSON names `program_name_reserved`. Use a fresh request key
-     for the new declaration, since a key keeps its first answer.
+   - **A declaration after forgetting** may use the same NAME for its
+     original holder (jig's `domain/accounts.md`, 3.4). Use a fresh
+     request key for the new declaration, since a key keeps its first
+     answer.
 
    - **A program's login is never the tools'.** `account declare` makes
      the source; the person, or the harness, runs `temper program-login`
@@ -1425,6 +1425,13 @@ digest: task 7c1e09a2b44f0d13
   milestone's, `phase changed`: the activity names only the position of
   the task's history row that says which phase, and no tool reads that
   history (section 15).
+  An invalid run's end prints `run N ended: its result broke its
+  contract (KIND)`, where KIND is form, verdict, words, change or
+  followups. An invalid end with no recorded contract kind prints
+  `run N ended: its result couldn't be read`. JSON preserves the cause
+  as the failed end's optional `invalid_reason`, with `unreadable result`
+  for the latter. Other failure classes omit the cause. These words do
+  not change the class or the retry counts (jig's `protocol/client.md`, 3).
   A heard `QuestionAnswered` notice prints `POSITION · You answered
   question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
@@ -2135,7 +2142,10 @@ deadline, each meeting `account list --until settled`; a limited
 notice, the next task waiting for its account and `task show TASK`
 saying why, then `account retry` and the run started; `account rank`
 and `account forget`; a program source declared, and `account verify`
-answered as each host reports. Area 6's, over the engine root's forge
+answered as each host reports; a program account forgotten, its name
+declared again by its holder, its host-check dispatch observed, then a
+declaration of that live name refused at exit 2 with its reason and next
+step (5.5). Area 6's, over the engine root's forge
 connector and the setup's host with skein's fake forge
 (`../domain/testing.md`, 2.4): a GitHub connect printing its link,
 never opening it, the browser's steps driven by the world, then `forge
@@ -2434,6 +2444,14 @@ contract's reads, watches and requests, they take:
   `client/domain/client.md`, section 20).
 
 ## 14. Later
+
+- **Other account-act refusal reasons** (5.5, area 5): a key's add or
+  replace and a sign-in's start or finish can answer not offered for
+  several core causes. Giving each its reason and next step needs those
+  causes distinguished in jig's account refusals and client contract
+  (jig's `client/domain/contract.md`, section 11). Default: their generic
+  words; declaration's name taken and not offered, and retry's not
+  offered, have the specific words of 5.5.
 
 - **The core's reason at the client's deadline** (6.3, 8.1): a not-ready
   refusal distinguishes readiness from capacity, but names no start step

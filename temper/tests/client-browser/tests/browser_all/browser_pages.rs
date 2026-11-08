@@ -112,6 +112,14 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     ]);
     stories.begin("project across a reload", &steps);
     steps.extend(reload_chats(&tier));
+    stories.begin("night across a reload", &steps);
+    steps.extend([
+        press(Role::Button, b"Night mode"),
+        pressed(b"Night mode"),
+        Step::Person(PersonStep::Reload),
+        pressed(b"Night mode"),
+        press(Role::Button, b"Night mode"),
+    ]);
     stories.begin("history", &steps);
     steps.extend([
         press(Role::Link, FIRST_CHAT),

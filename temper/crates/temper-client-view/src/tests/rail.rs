@@ -568,7 +568,11 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     children(rail).into_iter().filter(|n| !n.styles.as_slice().contains(&look::RAIL_UNFOLD)).collect();
                 assert_eq!(
                     parts.iter().map(|n| n.role).collect::<Vec<_>>(),
-                    [Role::Link, Role::Disclosure, Role::Slot, Role::Slot, Role::Slot]
+                    if browser {
+                        vec![Role::Link, Role::Disclosure, Role::Slot, Role::Slot, Role::Slot, Role::Button]
+                    } else {
+                        vec![Role::Link, Role::Disclosure, Role::Slot, Role::Slot, Role::Slot]
+                    }
                 );
                 assert_eq!(parts[0].name.as_deref(), Some(b"temper home".as_slice()));
                 assert_eq!(parts[1].styles.as_slice(), [look::PROJECTS]);
@@ -666,6 +670,24 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     }
                 }
                 assert_eq!(f::find(view.tree(), Role::Button, b"Sign out").is_some(), address == Address::Accounts);
+                if browser {
+                    for night in [false, true] {
+                        let mut view = f::browser_page_view(&root);
+                        let parts = children(styled(view.tree(), look::RAIL));
+                        let switch = parts.last().expect("night switch after the foot");
+                        assert_eq!(switch.role, Role::Button);
+                        assert_eq!(switch.styles.as_slice(), [look::NIGHT_SWITCH]);
+                        assert_eq!(switch.name.as_deref(), Some(b"Night mode".as_slice()));
+                        assert_eq!(switch.states.as_slice().contains(&State::Pressed), night);
+                        let id = switch.id;
+                        let action = crate::act(&mut view, id, Act::Press).expect("night switch binding");
+                        assert_eq!(action, d::Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)));
+                        f::root_event(&mut root, Event::Act { action });
+                    }
+                    assert!(!root.pages().look().night, "second press returns to day");
+                } else {
+                    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::NIGHT_SWITCH)));
+                }
             }
         }
     }
@@ -1170,7 +1192,7 @@ fn the_chip_is_the_browsers_alone() {
     let parts = children(styled(browser.tree(), look::RAIL));
     assert_eq!(
         parts.iter().map(|node| node.role).collect::<Vec<_>>(),
-        [Role::Link, Role::Disclosure, Role::Button, Role::Slot, Role::Slot, Role::Slot]
+        [Role::Link, Role::Disclosure, Role::Button, Role::Slot, Role::Slot, Role::Slot, Role::Button]
     );
     assert_eq!(parts[3].styles.as_slice(), [look::RAIL_NAV]);
     assert_eq!(parts[4].styles.as_slice(), [look::RAIL_NEW]);

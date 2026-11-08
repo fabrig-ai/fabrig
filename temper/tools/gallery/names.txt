@@ -188,7 +188,8 @@ home-at-work
 home-away
 home-away-one
 home-away-overturned
-home-begin-one-chats
+home-begin-ask-left
+home-begin-both-left
 home-begin-settings-left
 home-chats-sentence
 home-computed
@@ -208,14 +209,11 @@ home-needs-several
 home-needs-under-begin
 home-no-repository
 home-nothing-needs
-home-one-left
 home-one-need
 home-ready
 home-refused
 home-skip-refused
-home-three-left
 home-try-stopped
-home-two-left
 home-with-goals
 inbox-empty
 inbox-reference
@@ -242,6 +240,9 @@ needs-proposal
 needs-reply-open
 needs-saw-open
 needs-second-answered
+night-ask
+night-chat-split
+night-home
 out-of-date
 playground-resetting
 proposal-accepting
