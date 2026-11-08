@@ -151,3 +151,16 @@ Pre-approved options:
 Follow the implementer's text. Also give the rules you broke and the failures you
 saw; the words and keys added; the style slots taken; each test's CPU time; and,
 under `## Left`, each stale golden and story by file and line.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/work-page/foreman-1)
+
+Resolve words.rs by retaining both Work and Deployment words and combining their vocabulary counts.
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Rebase onto the landing trunk, which includes Deployment commit `bf66c99c4d782ebbdcf7a8bf8d14fbd817dac8ed` through integration merge `14e9a54f83`.
+Both tasks changed the shared vocabulary declarations from the same base; preserve both additions.
+For these two changes combined, set `PHRASES = 2159`, `SEGMENTS = 3818`, `ENGLISH_BYTES = 52660`, and `ALL: [Word; 1477]`.
+Keep all 28 Work variants, their `ALL` entries, IDs and English phrases; retain Deployment’s 39 additions too.
+Preserve C6’s separate keys: Work 4650–4749 and Deployment 4750–4799.
+Keep Work’s `ChangesLede` edit and Deployment’s Settings/Workers wording edits.
+Verify the combined declarations with the repository’s vocabulary checks and run the focused `temper-client-view` tests through heavy.
+The log reports no other conflicting path; retain the automatically merged reader and gallery changes.
