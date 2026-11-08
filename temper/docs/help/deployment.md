@@ -86,7 +86,7 @@ temper ctl settings apply`.
    use **Add a model by name** on **Settings**, **Models**: choose a
    provider and enter the model's name. Prices are estimated until set;
    the first run shows whether the provider serves it.
-3. To set its prices, window or efforts, tell **Configure temper**.
+3. To set its prices, window or efforts, tell **Ask temper**.
    A task keeps the model it has. Adding or changing a model needs no restart.
    `model list` reads the models offered to a project; a charter or policy
    may restrict which it can use (temper help charter; temper help settings).
@@ -132,7 +132,7 @@ A payload of `16386` can instead fail at the model:
 `input-answer: llm.input[endpoint=1]=99876; llm.answer[endpoint=1]=65536`.
 The encoded input must fit the model's answer capacity. Reduce the payload,
 or raise the agent endpoint's output limit in `CONFIG/agent.json` and restart,
-then change the model's `output` through Configure temper; this example needs
+then change the model's `output` through Ask temper; this example needs
 at least 12,485 output tokens (eight answer bytes per token).
 Do not lower a receiving check. Recheck all derived carriers after that
 change. Drain the stop, edit configuration, and restart with the same

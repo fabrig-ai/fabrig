@@ -731,11 +731,11 @@ pub fn beginning(root: &Domain, project: u32, wall: Wall) -> bool {
 #[must_use]
 pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
     let home = if root.pages().address() == &(crate::Address::Home { project }) { root.pages().home() } else { None };
-    let configuring = match root.pages().chats() {
+    let asking = match root.pages().chats() {
         Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
         None => false,
     };
-    let configured = configuring || configured(root.client());
+    let configured = asking || configured(root.client());
     let repository = repository(root, project);
     let delivered = repository != Repository::Unknown
         && match root.forges() {

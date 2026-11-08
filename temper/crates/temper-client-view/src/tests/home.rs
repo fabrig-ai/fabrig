@@ -381,7 +381,7 @@ fn home_documents_with_status(
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
     member.role = c::HeldRole::Owner;
-    member.templates = f::configuring_me(template_me.clone()).projects.get(0).unwrap().templates.clone();
+    member.templates = f::asking_me(template_me.clone()).projects.get(0).unwrap().templates.clone();
     if status.is_some_and(|fixture| fixture.goals) {
         let mut goal = member.templates.get(0).unwrap().clone();
         goal.number = jig_client::shapes::GOAL;
@@ -2083,10 +2083,10 @@ fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
 }
 
 #[test]
-fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells() {
+fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
     let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
     let template = f::chat::messaging_root();
-    let me = f::configuring_me(template.pages().me(template.client()).expect("me").clone());
+    let me = f::asking_me(template.pages().me(template.client()).expect("me").clone());
     f::deliver_me(&mut root, me_watch, me);
     // Leave and return so the test observes the watch that Settings itself owns.
     drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
@@ -2108,7 +2108,7 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
     row.chip.executor = c::ChipExecutor::Agent { charter: 37 };
     let task = row.chip.task;
     let mut rows = List::with_capacity(1);
-    rows.push(row).expect("one configuring chat");
+    rows.push(row).expect("one asking chat");
     deliver(
         &mut root,
         live.expect("Settings watches chats"),

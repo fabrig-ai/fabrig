@@ -1,4 +1,4 @@
-//! The request's configuring page in both shells (temper/docs/design/client/README.md, 3.5).
+//! The request's Ask temper page in both shells (temper/docs/design/client/README.md, 3.5).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -483,7 +483,7 @@ const PLAN: u32 = 17;
 const KEY: u32 = 19;
 const UNKNOWN_ACCOUNT: u32 = 20;
 
-fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain {
+fn ask_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain {
     use skein_lib::List;
     let (sample, _) = super::choice::provider_byline_root(
         Address::NewChat { draft: false },
@@ -491,7 +491,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
         [true, true],
         true,
     );
-    let mut me = f::configuring_me(sample.pages().me(sample.client()).unwrap().clone());
+    let mut me = f::asking_me(sample.pages().me(sample.client()).unwrap().clone());
     let mut document = sample.pages().accounts_document(sample.client()).unwrap().clone();
     let mut key = document.accounts.iter().find(|row| row.number == PLAN).unwrap().clone();
     key.number = KEY;
@@ -559,7 +559,7 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
 }
 
 #[test]
-fn configure_temper_says_its_own_default() {
+fn ask_temper_says_its_own_default() {
     for (offers, held, preview, expected) in [
         (
             vec![(CLAUDE, &[CLAUDE][..]), (PLAN, &[PLAN][..])],
@@ -569,7 +569,7 @@ fn configure_temper_says_its_own_default() {
         ),
         (vec![(PLAN, &[PLAN][..])], vec![PLAN], b"gpt-6-astra", "Astra 6 · high"),
     ] {
-        let root = configure_root(&offers, &held, preview);
+        let root = ask_root(&offers, &held, preview);
         assert!(root.pages().chat().is_none());
         assert!(root.pages().choice().requested.is_none(), "a preview stays out of the draft");
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -582,10 +582,10 @@ fn configure_temper_says_its_own_default() {
 }
 
 #[test]
-fn configure_picker_buttons_edit_the_draft() {
+fn ask_picker_buttons_edit_the_draft() {
     use pages::choice::Act as Choice;
     for browser in [false, true] {
-        let mut root = configure_root(&[(CLAUDE, &[CLAUDE]), (PLAN, &[PLAN])], &[CLAUDE, PLAN], b"claude-opus-5-5");
+        let mut root = ask_root(&[(CLAUDE, &[CLAUDE]), (PLAN, &[PLAN])], &[CLAUDE, PLAN], b"claude-opus-5-5");
         for (label, expected) in
             [(b"Astra 6".as_slice(), Choice::Model { index: 1, account: None }), (b"low", Choice::Effort { index: 0 })]
         {
@@ -624,7 +624,7 @@ fn models_by_role_names_the_first_two_distinct_offered_accounts() {
             "Use OpenAI for reviews and Claude for everything else.",
         ),
     ] {
-        let root = configure_root(&offers, &held, b"gpt-6-astra");
+        let root = ask_root(&offers, &held, b"gpt-6-astra");
         for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
             let button = styled(view.tree(), look::STARTERS)
                 .iter()
@@ -656,7 +656,7 @@ fn models_by_role_needs_two_distinct_offered_accounts() {
         vec![(CLAUDE, &[CLAUDE][..])],
         vec![(CLAUDE, &[CLAUDE][..]), (CLAUDE, &[CLAUDE][..])],
     ] {
-        let root = configure_root(&offers, &[CLAUDE, PLAN], b"claude-opus-5-5");
+        let root = ask_root(&offers, &[CLAUDE, PLAN], b"claude-opus-5-5");
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert!(!String::from_utf8_lossy(&f::main_text(view.tree())).contains("Models by role"));
         }
@@ -664,9 +664,9 @@ fn models_by_role_needs_two_distinct_offered_accounts() {
 }
 
 #[test]
-fn configuring_chat_picker_applies_to_its_next_run() {
+fn asking_chat_picker_applies_to_its_next_run() {
     use pages::choice::Act as Choice;
-    let mut task = super::chat::configuring_task();
+    let mut task = super::chat::asking_task();
     task.llm = Some(c::LlmChoice {
         later: None,
         account: None,
@@ -677,7 +677,7 @@ fn configuring_chat_picker_applies_to_its_next_run() {
     acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None });
     task.acts = skein_lib::List::from_boxed(acts.into_boxed_slice());
     for browser in [false, true] {
-        let mut root = super::chat::configuring_task_root(task.clone(), true, 37);
+        let mut root = super::chat::asking_task_root(task.clone(), true, 37);
         let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
         let byline = named(view.tree(), Role::Disclosure, b"Model");
         assert_eq!(byline.description.as_deref(), Some(b"chosen".as_slice()));

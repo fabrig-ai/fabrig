@@ -13,6 +13,8 @@ use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Rec
 use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::Store, walking};
 
 const SEED: u64 = 9761;
+const SETTINGS_CHARTER: u32 = 12;
+const SETTINGS_TEMPLATE: u32 = 12;
 // Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine.md, 17.7).
 const HISTORY: u32 = 2;
 const PRUNED_HISTORY: u32 = 1;
@@ -284,14 +286,14 @@ fn stock_config() -> engine::Config {
 
 fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // Stock policy 1 holds fourteen grants and thirteen executor kinds.
+    // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
     limits.authority.executors = 13;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
     limits.documents.executors = 13;
     limits.notes.scopes = 32;
-    // Eight slots hold the stock charters.
+    // Room for the stock charters and the world's settings charter.
     limits.tasks.charters = 8;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
@@ -629,20 +631,21 @@ fn a_changes_delegates_read_the_coding_words_without_settings_or_message_tools()
 // document goes back through smith's ctl-shared renderer, over the root's fleet.
 fn settings_agent_config(allowed: bool) -> engine::Config {
     let mut config = walking::config(SEED);
-    let mut configuring = config.core.defaults.charters[0].clone();
-    configuring.number = 3;
-    configuring.policy.tools = jig_domain_tasks::Tools(1536);
-    configuring.policy.modify = false;
-    configuring.policy.agents = false;
-    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), configuring]);
+    let mut settings = config.core.defaults.charters[0].clone();
+    settings.number = SETTINGS_CHARTER;
+    settings.policy.tools = jig_domain_tasks::Tools(1536);
+    settings.policy.instructions = b"Read and propose settings.".as_slice().into();
+    settings.policy.modify = false;
+    settings.policy.agents = false;
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), settings]);
     let mut template = config.core.defaults.templates[0].clone();
-    template.number = 3;
-    template.name = b"configuring".as_slice().into();
-    template.executor = people::TemplateExecutor::Charter(3);
+    template.number = SETTINGS_TEMPLATE;
+    template.name = b"settings".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
     config.core.defaults.templates =
         Box::new([config.core.defaults.templates[0].clone(), config.core.defaults.templates[1].clone(), template]);
     config.core.defaults.rules.ceiling.delegation.kinds =
-        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(3)]);
+        Box::new([authority::Executor::Charter(1), authority::Executor::Charter(SETTINGS_CHARTER)]);
     for project in &mut config.core.seed_projects {
         project.policy.policy.ceiling.delegation.kinds.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         for role in &mut project.policy.policy.roles {
@@ -698,8 +701,8 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
         1,
         b"Read settings",
     );
-    let people::Ask::Create { batch, .. } = &mut ask else { panic!("configuring chat") };
-    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("configuring template") };
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("settings chat") };
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("settings template") };
     batch[0].executor = people::TaskExecutor::Agent { charter };
     driver.send(Event::Party(PartyInput::Ask {
         models: Box::new([]),
@@ -710,7 +713,7 @@ fn settings_agent(allowed: bool) -> (Driver, engine::Assignment) {
     }));
     driver.settle();
     let run = driver.last_assignment();
-    assert_eq!(run.charter, 3);
+    assert_eq!(run.charter, SETTINGS_CHARTER);
     (driver, run)
 }
 

@@ -1104,9 +1104,9 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
 
 /// temper/docs/design/domain/agent.md, 7: startup faults keep their cause and pending words.
 #[test]
-fn a_configuring_chat_answers_after_acceptance_and_failed_resume() {
-    use fixtures::worker_peers::{CONFIGURING_HISTORY_BYTES, ConfiguringChat, ResumeAttempt, configuring_attempt};
-    let mut chat = ConfiguringChat::new();
+fn an_asking_chat_answers_after_acceptance_and_failed_resume() {
+    use fixtures::worker_peers::{ASKING_HISTORY_BYTES, AskingChat, ResumeAttempt, asking_attempt};
+    let mut chat = AskingChat::new();
     let run = chat.chat(20);
     chat.accept(&run);
     assert_eq!(chat.driver.task(run.task).unwrap().settings.run, Some(1), "running work stays");
@@ -1116,40 +1116,40 @@ fn a_configuring_chat_answers_after_acceptance_and_failed_resume() {
     for body in &resumed.transcript {
         history_bytes = history_bytes.checked_add(body.len()).unwrap();
     }
-    assert_eq!(history_bytes, CONFIGURING_HISTORY_BYTES);
-    let up = configuring_attempt(resumed.clone(), ResumeAttempt::Fault);
+    assert_eq!(history_bytes, ASKING_HISTORY_BYTES);
+    let up = asking_attempt(resumed.clone(), ResumeAttempt::Fault);
     assert_startup_fault(&up);
     chat.answer(up);
     let retry = chat.retry();
     assert_eq!(retry.task, run.task);
     assert_eq!(retry.transcript, resumed.transcript, "an unknown fault never discards history");
-    let up = configuring_attempt(retry, ResumeAttempt::Answer);
+    let up = asking_attempt(retry, ResumeAttempt::Answer);
     assert_description(&up);
     chat.answer(up);
     if let tasks::Phase::Held { .. } = chat.driver.task(run.task).unwrap().phase {
         panic!("one passing startup fault never exhausts agent tries");
     }
     assert_pending_question(&resumed);
-    configuring_refusal_and_hold_controls(&mut chat, run.task);
+    asking_refusal_and_hold_controls(&mut chat, run.task);
 }
 
-fn configuring_refusal_and_hold_controls(chat: &mut fixtures::worker_peers::ConfiguringChat, task: u64) {
-    use fixtures::worker_peers::{DESCRIPTION, ResumeAttempt, configuring_attempt};
+fn asking_refusal_and_hold_controls(chat: &mut fixtures::worker_peers::AskingChat, task: u64) {
+    use fixtures::worker_peers::{DESCRIPTION, ResumeAttempt, asking_attempt};
     use jig_domain_people as people;
     chat.ask(30, people::Ask::Say { project: 1, task, words: DESCRIPTION.into() });
     let run = chat.driver.last_assignment();
-    let up = configuring_attempt(run, ResumeAttempt::Transcript);
+    let up = asking_attempt(run, ResumeAttempt::Transcript);
     chat.answer(up);
     let fresh = chat.retry();
     assert!(fresh.transcript.is_empty(), "identified transcript refusal recovers fresh");
     assert_pending_question(&fresh);
-    let up = configuring_attempt(fresh, ResumeAttempt::Answer);
+    let up = asking_attempt(fresh, ResumeAttempt::Answer);
     assert_description(&up);
     chat.answer(up);
     chat.ask(31, people::Ask::Say { project: 1, task, words: DESCRIPTION.into() });
     let mut run = chat.driver.last_assignment();
     for _ in 0..=chat.driver.env.limits.tasks.retries.agent.retries {
-        let up = configuring_attempt(run, ResumeAttempt::Fault);
+        let up = asking_attempt(run, ResumeAttempt::Fault);
         assert_startup_fault(&up);
         chat.answer(up);
         if let tasks::Phase::Held { .. } = chat.driver.task(task).unwrap().phase {
@@ -1165,17 +1165,17 @@ fn configuring_refusal_and_hold_controls(chat: &mut fixtures::worker_peers::Conf
     assert_eq!(hold, 1, "release hold 1 from the walk");
     chat.ask(32, people::Ask::Release { project: 1, task, revision: hold, again: Some(true) });
     let released = chat.driver.last_assignment();
-    let up = configuring_attempt(released, ResumeAttempt::Answer);
+    let up = asking_attempt(released, ResumeAttempt::Answer);
     assert_description(&up);
     chat.answer(up);
     let control = chat.chat(33);
     assert_ne!(control.task, task, "a fresh chat remains a working control");
-    let up = configuring_attempt(control, ResumeAttempt::Answer);
+    let up = asking_attempt(control, ResumeAttempt::Answer);
     assert_description(&up);
     chat.answer(up);
 }
 
-fn assert_startup_fault(up: &fixtures::worker_peers::ConfiguringAnswer) {
+fn assert_startup_fault(up: &fixtures::worker_peers::AskingAnswer) {
     let host::LinkUp::Answer { answer, .. } = &up.terminal else { panic!("startup answer") };
     assert_eq!((answer.turns, answer.read), (0, None), "an unadmitted attempt took no turn or words");
     assert_eq!(
@@ -1188,7 +1188,7 @@ fn assert_startup_fault(up: &fixtures::worker_peers::ConfiguringAnswer) {
     );
 }
 
-fn assert_description(up: &fixtures::worker_peers::ConfiguringAnswer) {
+fn assert_description(up: &fixtures::worker_peers::AskingAnswer) {
     let Some(host::LinkUp::Turn { turn, .. }) = &up.turn else { panic!("description turn") };
     assert!(skein_lib::bytes::find(&turn.body, b"running work stays on its revision").is_some());
     let host::LinkUp::Answer { answer, .. } = &up.terminal else { panic!("description terminal") };

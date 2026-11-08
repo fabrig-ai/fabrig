@@ -347,7 +347,7 @@ agent must name.
 
 | Tool | What it does | jig's | K |
 |---|---|---|---|
-| `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 3 is the configuring chat (`../domain/agent.md`, 8.1); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
+| `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 5 is Ask temper (`../domain/agent.md`, 8.4); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
 | `task message TASK TEXT` | words to a task | `Message` | yes |
 | `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
@@ -1343,18 +1343,18 @@ digest: task 7c1e09a2b44f0d13
   milliseconds as `N ms`:
 
   ```
-  next run: refused, no worker takes it: agent turns too few for charter 3
+  next run: refused, no worker takes it: agent turns too few for charter 11
     no worker can take this: its charter asks 100000 turns, and the largest worker takes 800
   ```
 
   With no bound named, `next run: refused, no worker takes it` and `no
   worker can take this: each falls short of another bound its charter
   asks`. A refused hello with figures keeps its code line and says the
-  same of its worker, `no worker can take this: charter 3 asks 100000
+  same of its worker, `no worker can take this: charter 11 asks 100000
   turns, and the worker refused at 10:42 takes 800` (its UTC clock), in
   place of `its host refused this start: …`; every other refusal keeps
   that line. A shortfall of turns, time or waiting names its charter as
-  checks does, `agent turns too few for charter 3`, and the checks'
+  checks does, `agent turns too few for charter 11`, and the checks'
   pointer is `see temper help settings for held revisions`.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.

@@ -35,17 +35,17 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
-The stock has charters 1, 2, 3, 4, 6, 9 and 10, and templates 1 for a
-chat, 2 for a goal and 3 for the configuring chat. Charter 10 is a model's
+The stock has charters 1, 2, 4, 6, 9, 10 and 11, and templates 1 for a
+chat, 2 for a goal and 5 for Ask temper. Charter 10 is a model's
 trial and is never offered. Its rules offer six charter executors
-(1, 2, 3, 4, 6 and 9) and procedures 2, 3 and 4.
+(1, 2, 4, 6, 9 and 11) and procedures 2, 3 and 4.
 
 A setting's whole value is JSON, as `settings show` prints it. For members,
 types and bounds, read `temper help settings-fields`.
 
-The configuring chat's `settings` pages fit the host answer allowance;
-`next: OFFSET` continues at that byte offset. File replies share this bound;
-`[file truncated]` marks cuts, including those for metadata room.
+Ask temper reads settings with `see settings`. Its answers fit the host
+answer allowance in parts of at most 6,144 body bytes; `more: TOKEN`
+continues with `see more TOKEN`. Its file reads use the same parts.
 
 ## How it changes
 
@@ -100,7 +100,7 @@ its default. A stored change still wins over a changed default.
 
 ## Acting on it
 
-- Tell the configuring agent how you work (`temper help chat`). It reads
+- Tell Ask temper how you work (`temper help chat`). It reads
   settings and proposes what temper enforces and agents follow; an owner decides.
 - `temper ctl`: `settings show` reads the inventory: newest revision,
   settings and their value sources, held revisions and pending proposals.
@@ -118,8 +118,8 @@ its default. A stored change still wins over a changed default.
   `temper ctl help settings apply`.
 - A settings file holds the items: `temper help settings-fields` gives its form.
 - A run needs the settings family in its charter and authority to read settings
-  and propose with `propose_settings`: stock charter 3 reads with `settings`,
-  and charter 11 uses `see` and the asking form of `propose_settings`
+  and propose with `propose_settings`: Ask temper, charter 11, uses `see`
+  and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter` and
   `project-policy`, `project-ways` and `project-questions`, in the settings

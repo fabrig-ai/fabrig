@@ -192,19 +192,19 @@ pub const BACK: Style = Style { owner: owner(), token: 241 };
 pub const TRAIL: Style = Style { owner: owner(), token: 242 };
 /// The session’s account and model line. (client/README.md, 3.5).
 pub const BYLINE: Style = Style { owner: owner(), token: 243 };
-/// The configuring agent’s introduction and starters. (client/README.md, 3.5).
+/// Ask temper’s introduction and starters. (client/README.md, 3.5).
 pub const STARTER: Style = Style { owner: owner(), token: 244 };
-/// The configuring session’s suggested first messages. (client/README.md, 3.5).
+/// Ask temper’s suggested first messages. (client/README.md, 3.5).
 pub const STARTERS: Style = Style { owner: owner(), token: 245 };
-/// The configuring opening’s lede (client/README.md, 3.5).
+/// Ask temper’s opening’s lede (client/README.md, 3.5).
 pub const STARTER_LEDE: Style = Style { owner: owner(), token: 248 };
-/// The configuring opening’s sets (client/README.md, 3.5).
+/// Ask temper’s opening’s sets (client/README.md, 3.5).
 pub const STARTER_SETS: Style = Style { owner: owner(), token: 249 };
-/// The configuring opening’s note (client/README.md, 3.5).
+/// Ask temper’s opening’s note (client/README.md, 3.5).
 pub const STARTER_NOTE: Style = Style { owner: owner(), token: 250 };
-/// The configuring opening’s ways (client/README.md, 3.5).
+/// Ask temper’s opening’s ways (client/README.md, 3.5).
 pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
-/// The configuring opening’s unsure (client/README.md, 3.5).
+/// Ask temper’s opening’s unsure (client/README.md, 3.5).
 pub const STARTER_UNSURE: Style = Style { owner: owner(), token: 252 };
 /// The rail switcher's panel.
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
@@ -1424,7 +1424,7 @@ pub const SEG_SPLIT: Style = Style { owner: owner(), token: 428 };
 /// A chat's document (temper/docs/design/client/README.md, 3.5).
 pub const RAIL_UNFOLD: Style = Style { owner: owner(), token: 429 };
 
-/// A configuring chat’s fresh start (temper/docs/design/client/README.md, 3.5).
+/// An Ask temper chat’s fresh start (temper/docs/design/client/README.md, 3.5).
 pub const START_OVER: Style = Style { owner: owner(), token: 430 };
 
 /// A shown section (temper/docs/design/client/README.md, 3.5).
@@ -1455,7 +1455,7 @@ pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
-/// The configuring page’s own way card (temper/docs/design/client/README.md, 3.5).
+/// Ask temper’s own way card (temper/docs/design/client/README.md, 3.5).
 pub const STARTER_HEAD: Style = Style { owner: owner(), token: 447 };
 pub const STARTER_OWN: Style = Style { owner: owner(), token: 448 };
 pub const STARTER_OWN_TEXT: Style = Style { owner: owner(), token: 449 };
@@ -1463,7 +1463,7 @@ pub const STARTER_OWN_TITLE: Style = Style { owner: owner(), token: 450 };
 pub const STARTER_OWN_STEPS: Style = Style { owner: owner(), token: 451 };
 pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 
-/// The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
+/// The stock reference beside Ask temper (temper/docs/design/client/README.md, 3.5).
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
 pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
 
@@ -1623,7 +1623,7 @@ pub const MODEL_LONG: Style = Style { owner: owner(), token: 577 };
 
 /// Models source line (temper/docs/design/client/README.md, 3.5, The `Models` tab).
 pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 578 };
-/// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+/// Models link to Ask temper (temper/docs/design/client/README.md, 3.5, The `Models` tab).
 pub const MODELS_ASK: Style = Style { owner: owner(), token: 579 };
 /// Add a model by name (temper/docs/design/client/README.md, 3.5).
 pub const MODELS_ADD: Style = Style { owner: owner(), token: 580 };

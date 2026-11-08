@@ -406,12 +406,12 @@ fn review_file(world: &mut ClientWorld, agent: ClientId) -> String {
     change_one_member(setting, &mut rules);
     let rules = value_json(setting, rules);
     let kind =
-        SettingWalk { selector: r#"{"kind":"charter","number":3}"#, name: "charter 3", show: &[b"charter", b"3"] };
+        SettingWalk { selector: r#"{"kind":"charter","number":11}"#, name: "charter 11", show: &[b"charter", b"11"] };
     let (setting, mut instructions) = show_value(world, agent, &kind);
     change_one_member(setting, &mut instructions);
     let instructions = value_json(setting, instructions);
     format!(
-        r#"{{"items":[{{"setting":{{"kind":"charter","number":1}},"set":{charter}}},{{"setting":{{"kind":"rules"}},"set":{rules}}},{{"setting":{{"kind":"charter","number":3}},"set":{instructions}}}]}}"#
+        r#"{{"items":[{{"setting":{{"kind":"charter","number":1}},"set":{charter}}},{{"setting":{{"kind":"rules"}},"set":{rules}}},{{"setting":{{"kind":"charter","number":11}},"set":{instructions}}}]}}"#
     )
 }
 
@@ -432,8 +432,8 @@ fn assert_review_effect(review: &str) {
 
 #[test]
 fn proposal_review_groups_changes_and_explains_running_work() {
-    let mut world = fixtures::configuring_world(fixtures::SEED, false);
-    let agent = fixtures::configuring_agent(&mut world);
+    let mut world = fixtures::asking_world(fixtures::SEED, false);
+    let agent = fixtures::asking_agent(&mut world);
     call(
         &mut world,
         agent,
@@ -443,7 +443,7 @@ fn proposal_review_groups_changes_and_explains_running_work() {
             b"--project",
             b"1",
             b"--template",
-            b"3",
+            b"5",
             b"Wait for my settings review",
             b"--key",
             b"review-chat",
@@ -472,9 +472,9 @@ fn assert_review_groups(review: &str) {
     let (_, enforced) = review.split_once("temper enforces\n").expect("product enforcement group");
     let (enforced, followed) = enforced.split_once("your agents follow\n").expect("product instructions group");
     let followed = followed.split_once("Effect\n").expect("running-work effect").0;
-    assert!(enforced.contains("charter 1") && enforced.contains("rules"), "{review}");
-    assert!(!enforced.contains("charter 3"), "instructions alone are followed: {review}");
-    assert!(followed.contains("charter 1") && followed.contains("charter 3"), "{review}");
+    assert!(enforced.contains("charter 1 ·") && enforced.contains("rules"), "{review}");
+    assert!(!enforced.contains("charter 11 ·"), "instructions alone are followed: {review}");
+    assert!(followed.contains("charter 1 ·") && followed.contains("charter 11 ·"), "{review}");
     assert!(followed.contains("instructions") && !followed.contains("rules"), "{review}");
 }
 
@@ -498,9 +498,9 @@ fn assert_review_json(json: &str) {
     let enforced = json.split_once("\"enforces\":[").expect("enforced array").1;
     let (enforced, followed) = enforced.split_once("\"your_agents_follow\":[").expect("followed array");
     let followed = followed.split_once("\"effect\":").expect("effect object").0;
-    assert!(enforced.contains("\"kind\":\"rules\"") && enforced.contains("\"number\":1"), "{json}");
-    assert!(!enforced.contains("\"number\":3"), "{json}");
-    assert!(followed.contains("\"number\":1") && followed.contains("\"number\":3"), "{json}");
+    assert!(enforced.contains("\"kind\":\"rules\"") && enforced.contains("\"number\":1}"), "{json}");
+    assert!(!enforced.contains("\"number\":11}"), "{json}");
+    assert!(followed.contains("\"number\":1}") && followed.contains("\"number\":11}"), "{json}");
     assert!(!followed.contains("\"kind\":\"rules\""), "{json}");
 }
 

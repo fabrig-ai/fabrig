@@ -1314,10 +1314,8 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
-- **Ask temper's retained configuring stock** (13.4): charter 3 and template 3
-  remain by M1's request; their removal and the switch of scripted acceptance
-  from charter 3 to charter 11 are separate from its new client entry.
-  The small chat's real-model walk follows landing; the request bound covers
+- **Ask temper's real-model walk** (13.4): the small chat's walk follows
+  landing; the request bound covers
   temper's parts, not Claude Code's own MCP-attached overhead.
 
 - **A cut sub-agent answer's rest** (13.8): smith's `domain/run.md`,
@@ -1418,9 +1416,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   change in place (jig's `protocol/configuration.md`, section 9).
 - **A brief past the host part's room** (13.4). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  354,988, is what the host part leaves charter 3 at init's models, a
-  whole spec among it, past the largest fabrig's development has had,
-  200 kB. 1 MB needs a window of about 2.7M tokens or a larger share of
+  354,988, a whole spec among it, fits the room the host part leaves
+  charter 1 at init's models, the least a stock charter keeps: 356,958
+  bytes, less 1,472 for its 64 sections' titles and framing, the rest a
+  margin. It is past the largest fabrig's development has had, 200 kB.
+  1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
   answer yet: smith's room split asked again with measurements (smith's
   `protocol/limits.md`, 13, "A window's halves"), or a larger window
@@ -1735,8 +1735,8 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 | Member today | Becomes | Its default (13.4) |
 |---|---|---|
 | Models in the deployment and agent files, refused under passed defaults | jig's models | temper's stock models, numbered (13.4) |
-| jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), a coding agent's (2) and the configuring agent's (3) |
-| jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), and temper's configuring chat (3) |
+| jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), a coding agent's (2), a reviewer's (4), a foreman's (6), the status agent's (9), a trial's (10) and Ask temper's (11) |
+| jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), and temper's Ask temper (5) |
 | jig's `engine.policies` | jig's policies projects are made from | the stock policy (1) |
 | jig's `engine.rules` | jig's rules | temper's stock rules, the landing's two requirements among them (13.3) |
 | `application.landing` | temper's kinds 1 and 2: the deployment's landing rules, and each project's (13.2) | one deployment rule: CI passed and up to date, everywhere |
@@ -1791,7 +1791,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   codec, read by the client alone (`../client/README.md`, 5.13):
   `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
   offer drafts and whether the rail offers Goals, Changes and the
-  Away switch. A configuring chat offers a draft regardless, and Goals
+  Away switch. An Ask temper chat offers a draft regardless, and Goals
   stays shown for a current Goals or goal page or a project holding a goal
   (`../client/README.md`, 3.5 and 5.3). The `way` is a template's number,
   the way a goal starts by, 0 for the first the project offers with
@@ -1961,13 +1961,11 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 9, the status agent's | the instructions in the `stock` module's `status.txt`: the few lines at the top of a project's Home, from the facts in its task (`../domain/forge.md`, 5.7); charter 1's models and hosts; a run of at most 4 turns and 300 s, a reserve of 1 turn and 60 s; no inspect, modify, shell or agents, and no host family. The forge's procedure delegates it, its authority holding no tools, grants, notes or delegation, and its run no workspace, so what it can do is finish; the constant `STATUS_CHARTER` names it, as `FOREMAN_CHARTER` does, no setting of kind 3. Numbered past the reference's charters 5, 7 and 8 (13.9) |
 | charter 10, a trial's | the instructions in the `stock` module's `trial.txt`, one word and nothing else (`../domain/trial.md`, 2); charter 1's models and hosts, so that it selects as a new chat does; a run of at most 2 turns and 120 s, a reserve of 1 turn and 60 s, so one working turn, jig's check holding a run above its reserve; no resume; no inspect, modify, shell or agents, and no host family. It has no output bound of its own, a charter having none: its words ask for one word, and its contract is a report of at most 64 bytes. The root makes its task, in no project (jig's `domain/authority.md`, 6.1), and no policy's delegation names it; the constant `TRIAL_CHARTER` names it, as `STATUS_CHARTER` does, no setting of kind 3. Numbered past the status agent's |
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
-| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its models the configuring agent's order (below); its `tools` the settings, read, note and recall families, 1,920, so that its runs are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); it names no repository, but the root supplies the project's home repository (`../domain/root.md`, 7.1); its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
-| template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
-| charter 11, Ask temper's | as charter 3, with the `stock` module's `ask.txt` (`../draft/ask-temper.md`, section 8, but its Showing and Remembering parts; `../domain/agent.md`, 8.4), and no inspect: no inspect, modify, shell or agents; its models charter 3's; its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document` and `propose_settings` in its asking form alone, and have no workspace (`../domain/agent.md`, 4.2 and 4.3); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
+| charter 11, Ask temper's | as charter 1, with the `stock` module's `ask.txt` (`../draft/ask-temper.md`, section 8, but its Showing and Remembering parts; `../domain/agent.md`, 8.1 and 8.4), and no inspect, modify, shell or agents; its models Ask temper's order (below); its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document` and `propose_settings` in its asking form alone, and have no workspace (`../domain/agent.md`, 4.2 and 4.3); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (13.9) |
-| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../domain/agent.md`, 8.3), a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6), as an Ask temper chat (template 5) does, reading through the asking family's `see` (`../domain/agent.md`, 8.4); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine.md`, section 10; `../domain/agent.md`, 8.3); a goal has its own scope for its report, while an advisor and a change have none (`../domain/agent.md`, 4.3.2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
-| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 3, 4, 6, 9 and 11 and the change procedure, 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../domain/agent.md`, 8.3), a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6; `../domain/agent.md`, 8.1 and 8.4); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine.md`, section 10; `../domain/agent.md`, 8.3); a goal has its own scope for its report, while an advisor and a change have none (`../domain/agent.md`, 4.3.2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
+| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 6, 9 and 11 and the change procedure, 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
@@ -1991,11 +1989,13 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
   name the read family alone, as
-  its row says; charter 9, the status agent’s, and charter 10, a trial’s, name none; charter 3 names those its row lists (settings and
-  reads, its document's note and recall), not charter 1's with settings added; charter 11 names asking and settings, and is
-  declared its own tools alone (`../domain/agent.md`, 4.3). As numbers, jig's
+  its row says; charter 9, the status agent’s, and charter 10, a trial’s, name none; charter 11, Ask temper's, names asking and settings, and is
+  declared its own tools alone (`../domain/agent.md`, 4.3), so that no stock
+  charter is declared the settings family's `settings` and the configuring
+  form of `propose_settings`, which a charter of a deployment's own naming
+  that family is. As numbers, jig's
   `ToolFamilies` bits: charter 1 1,023, every family but settings and asking;
-  charter 2 514; charter 3 1,920; charters 4 and 6 512; charters 9 and 10 0;
+  charter 2 514; charters 4 and 6 512; charters 9 and 10 0;
   charter 11 3,072, asking 2,048 and settings 1,024.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. At `temper init`'s
@@ -2019,16 +2019,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
   deployment whose work wants another, a coordinator's that wakes on each
   result and paces its news, sets it on the charter as any of its members
   (13.9).
-- **The configuring agent is a setting** like any other: template 3
-  starts it from `chat start --template 3` (`../client/tools.md`, 5.3).
-  An owner may change or remove it as any template. Its runs read and
-  propose settings; they never change one, since jig's `settings` family
-  proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
-  The client offers Ask temper instead (`../client/README.md`, 3.5).
-  Ask temper is a setting alike, beside it: template 5 starts it, from
-  `chat start --template 5` and from its project page, rail and tab bar
-  (`../client/README.md`, 3.5 and 5.3), and charter 11 runs it
-  (`../domain/agent.md`, 8.4).
+- **Ask temper is a setting** like any other: template 5 starts it, from
+  `chat start --template 5` (`../client/tools.md`, 5.3) and from the
+  client's Ask temper, in the rail and the tab bar, which To begin's
+  first step opens (`../client/README.md`, 3.5 and 5.3), charter 11 runs it
+  (`../domain/agent.md`, 8.4), and an owner may change or remove it as
+  any template. Its runs read and propose settings; they never change
+  one, since jig's `settings` family proposes and an owner accepts
+  (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as
   typed values, the instructions held in the binary; `Service` passes
   jig's kinds' defaults, with the three kinds' declarations (number,
@@ -2172,14 +2170,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
   | Charter | First choices, in order | Then |
   |---|---|---|
-  | charter 3, the configuring agent's | `claude-opus-5-5`, `gpt-6-astra`, `gpt-6.1-sol` | the rest |
+  | charter 11, Ask temper's | `claude-opus-5-5`, `gpt-6-astra`, `gpt-6.1-sol` | the rest |
   | every other stock charter | `claude-opus-5-5`, `gpt-6.1-sol` | the rest |
 
   A release whose models differ gives new defaults, which make a revision
   recorded as the release's (jig's `domain/engine.md`, 17.7); a model a
   person changed or turned off stays as they left it.
 - **A model of the catalogue** changes as any setting does: a proposal, which
-  the configuring chat can make, or an owner's act on Settings, Models
+  Ask temper can make, or an owner's act on Settings, Models
   (`../client/README.md`, 3.5). A task keeps the model it has. A model added
   by name takes its provider's dearest stock model's figures, marked estimated
   (jig's `domain/engine.md`, 17.11).
@@ -2248,7 +2246,7 @@ side never waits on the part of jig it does not use:
 1. **jig's four kinds.** The `stock` module passes jig's builder
    charters 1 and 2, templates 1 and 2, policy 1 and the rules as
    `Config`'s defaults (13.4), the rules delegating to charters 1 and 2
-   and the change procedure until charter 3 comes, and the document's
+   and the change procedure until step 3's charter comes, and the document's
    `engine.charters`, `templates`, `policies` and `rules` are refused
    (13.5). The landing rules stay `application.landing` until the
    second step, so policy 1 and the rules keep the requirements 1 to 4
@@ -2296,10 +2294,14 @@ side never waits on the part of jig it does not use:
    with the rules, the forge judging a rule as 13.2 says. Its writers
    (13.5) move with it: their landing rules become stock or a world's
    defaults, or a settings file applied after the start.
-3. **The configuring agent:** charter 3 and template 3 (13.4), with
-   the run's `settings` tools (`../domain/agent.md`, 4.3), and the
-   rules' delegation to charter 3. A deployment made before takes them
-   as new defaults, by a revision recorded as the release's.
+3. **Ask temper:** charter 11 and template 5 (13.4), with the run's
+   asking tools, `see`, `document` and `propose_settings`' asking form
+   (`../domain/agent.md`, 4.3 and 8.4), and the rules' and policy 1's
+   delegation to charter 11. A deployment made before takes them as new
+   defaults, by a revision recorded as the release's; a project made
+   before keeps its own policy, a copy (jig's `domain/engine.md`, 17.2),
+   and gains charter 11 by a proposal its owner accepts, or is made
+   again, as nothing before v0.1.0 is kept compatible.
 
 ### 13.7 A charter's documents
 
@@ -2338,10 +2340,12 @@ next run.
   forge's host as its resources name it, which ctl turns into the
   branch's resource name, `forge F owner name branch` and B's
   segments, and back.
-- **The configuring agent** (`../domain/agent.md`, 8.1) names a
-  document in place of copying its rules into a charter's instructions,
-  when the person points to one in an adopted repository, and says that
-  a change landed there reaches the next run.
+- **Ask temper** (`../domain/agent.md`, 8.1) proposes a charter that
+  names a document, where the person keeps a rule in an adopted
+  repository, in place of copying it into the charter's instructions,
+  the document's repository named `OWNER/NAME` and its forge written by
+  `propose_settings` (`../domain/agent.md`, 8.4.2); a change landed
+  there reaches the next run.
 
 A document section begins `At BRANCH's head COMMIT`, then the selected text
 on the next line. A cut appends `[N bytes cut]`, or `[more than N bytes
@@ -2699,15 +2703,29 @@ that changes the stock changes nothing of them.
   routing the gap for repair before declaring the item built. Missing
   coverage remains an unresolved gap even when Left is empty or CI
   passes; close-out and the goal's landing wait for it to be resolved.
+  Each requested deliverable also carries its requested evidence, from
+  the coordinator's spec through production, results review and close-out.
+  When each scoped-check table row's cost is requested, each row needs
+  its own measured timing; suite wall time and an arithmetic average
+  cannot establish individual row costs. Charter 2 reports missing
+  measurements as unfinished. Charter 5 checks the deliverable-to-evidence
+  mapping and carries it and every missing measurement in the close-out's
+  words; charter 7 checks and retains them in its report. An unmet
+  requested deliverable remains unfinished despite passing CI, a status
+  entry or a proposed accepted Left disposition. It goes for repair;
+  changing the requested scope requires the person's decision. A Later
+  entry or the draft's retirement cannot waive that acceptance.
   The domain world checks the assigned instructions and retained
-  evidence through fake landings and bounded report continuations;
+  evidence through fake landings and bounded report continuations,
+  including aggregate-only and complete per-row timing cases; its
   scripted choices establish no model compliance.
 - **Charter 5's plan done, and its landing's words**
   (`../draft/reference-code-production.md`, section 12;
   `../draft/reference-landing.md`, section 3, step 2), in its
   instructions beside the rest. The plan is done when every change has
-  landed or been cancelled, every Left list is made into a change or
-  accepted as left, and its goal branch's tier is settled: no red of
+  landed or been cancelled, every requested deliverable has its evidence,
+  every Left list is made into a change or accepted as optional follow-up
+  outside requested acceptance, and its goal branch's tier is settled: no red of
   that tier it has heard is left without a repair that landed after it
   or a live repair owning its failing tests. A green run says nothing
   (`../domain/after-landing.md`, section 7), and a red still failing

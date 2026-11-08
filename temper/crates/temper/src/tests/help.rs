@@ -529,7 +529,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "model's name",
         "Prices are estimated until set",
         "first run shows whether the provider serves it",
-        "Configure temper",
+        "Ask temper",
         "prices, window or efforts",
         "A task keeps the model it has",
         "no restart",

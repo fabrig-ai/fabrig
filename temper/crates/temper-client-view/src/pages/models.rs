@@ -280,7 +280,7 @@ fn ask(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32) {
     b.style(look::SETTINGS_FACTS);
     b.style(look::MODELS_ASK);
     b.text(Run::Plain, &w.say(Word::ModelsAsk, &[]));
-    let name = w.say(Word::ModelsConfigure, &[]);
+    let name = w.say(Word::ModelsAskPage, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Ask { project } }));
     b.text(Run::Plain, &name);
     b.close();
