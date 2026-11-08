@@ -23,6 +23,9 @@ Provisional, 2026-10-29. Run one tree's slow tier with its prerequisites.
 - **Disk before each of those commands:** with `TIERS_DISK_BYTES` set
   (section 3), wait for that many bytes available on `/`, checking once per
   minute and printing each wait.
+- **One process per binary:** the focused and fuzzy suites' second mode
+  runs a binary's tests in one process and measures CPU per process
+  (section 11); nextest's path stays as it is.
 - **Visible evidence:** print each step's command; nextest prints its
   summary, and what a wrapper prints stays visible. Prerequisite failures
   name their step.
@@ -700,7 +703,9 @@ change to the build command a caller wraps changes none of them.
   prints `summary`'s result (10.2) as text, or with `--json` as one JSON
   object, and exits 0 for a valid run within its CPU budgets or with none
   set, 1 over a CPU budget, and 2 for invalid input or unverified
-  coverage (7.3).
+  coverage (7.3). A one-process run's directory reads the same way (11).
+- `tools/tiers/one-process [--out DIR] [--budgets PATH] PROFILE [NEXTEST_ARGS...]`
+  (11.9), with `execute_one_process`'s exit statuses.
 
 ### 10.2 `cpu.py`
 
@@ -737,6 +742,17 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'))`:
+  runs the selection of `command`, the caller's nextest command as it would
+  give `execute` without `prepare`'s arguments, a binary's tests in one
+  process (section 11), into `directory`, fresh as `prepare` makes one, which
+  it makes itself. It holds `wall_hard_s` from `limits` as `execute` does,
+  writes 11.8's files, prints the summary as text and returns as `execute`
+  does: 1 over a CPU budget; otherwise 100 when a failure stands; otherwise 0
+  when the run was starved or its only blemishes are starved tests; otherwise
+  the empty selection's status (4 for nextest's default) or 0. A refusal
+  (11.1), an invalid run or summary raises `ValueError`; an interruption stops
+  the lanes (11.7) and is raised again.
 - `summary(directory, limits=None, pair=None, expected=None)`: the verdict
   on a finished run directory, as the dictionary below. A run nextest's
   `global-timeout` cancelled is starved as one past the hard wall is (7.3):
@@ -744,7 +760,9 @@ Relative paths are the caller's working directory's, the checkout root.
   `run.json` itself. `pair` defaults to
   the run's profile and must equal it. `pair='tools'` reads `cpu-run`'s
   suite records instead, and `expected`, the list of suite IDs, is then
-  required (7.5); with any other pair it is refused. Invalid input or
+  required (7.5); with any other pair it is refused. A directory whose
+  `run.json` has `mode` `"one-process"` is read from its `results.json`
+  (11.8), and a `limits` table for its pair with `cpu_test_s` is refused. Invalid input or
   unverified coverage raises `ValueError`; an unreadable or malformed file
   raises `OSError`, `KeyError`, `TypeError` or `xml.etree.ElementTree`'s
   `ParseError`, all of which `cpu-summary` reports as exit 2.
@@ -762,7 +780,26 @@ Relative paths are the caller's working directory's, the checkout root.
 | `warnings` | one line for each `auto_reap` declaration and each unobserved attempt |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
-| `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete` |
+| `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
+| `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`; empty for a nextest run and for tools |
+
+`suite`'s `cpu_by` is `"test"` for a nextest run and for tools, where each
+attempt or suite has its CPU, and `"process"` for a one-process run, where
+only processes have it (section 11). In a one-process run:
+
+- `tests`' `cpu_s`, `user_s`, `system_s`, `leaked` and `incomplete` are null,
+  "not measured", and `attempts` is 1; `suite`'s `cpu_s`, `user_s` and
+  `system_s` are the processes' sums, its `leaked` and `incomplete` null, and
+  `attempts` the tests that ran. A test's `starved` is 1 for a starved or
+  cancelled test (11.6). Each test also has `alone`: `"passed"`, `"failed"`
+  or null, its diagnostic's result where it failed (11.6), and `before`, the
+  tests that ran before it in its process where it failed, else empty;
+- `failures` names each failed and crashed test; `unobserved` each test the
+  run never reached, `attempt` 1; `warnings` holds each `may depend on an
+  earlier test` label, each leaked process and each unobserved test;
+- a process's `kind` is `"tests"`, `"fresh"` (after a crash) or `"alone"`
+  (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
+  process's CPU is in the suite's: every process the run started is.
 
 An unobserved attempt is neither passed nor failed: a caller that reads the
 run's JUnit itself sees it as a `test abort` failure, and maps it to its own
@@ -787,7 +824,11 @@ In a directory `prepare` made, once `execute` has returned:
   limit.
 
 `repository.toml` and `nextest.toml` there are the collector's
-configuration, nextest's inputs, not results. A directory `cpu-run` wrote
+configuration, nextest's inputs, not results. A directory
+`execute_one_process` made holds 11.8's files instead: `run.json` with its
+`mode` and `lanes`, `command-output.txt`, `junit.xml`, `results.json`,
+`plan.json` (the lanes' input, no result) and `starved.json` as above; no
+`records/`. A directory `cpu-run` wrote
 holds one suite record for each ID, `<ID-sanitized>.json` (7.5); a name
 ending `.tmp` is no record.
 
@@ -796,3 +837,290 @@ ending `.tmp` is no record.
 A caller that builds a browser pair's bundle itself reads it from
 `tools/tiers/bundles.toml` and builds it as 2.2 gives: the fields and the
 commands there are kept as they stand.
+
+## 11. One process per binary
+
+The focused and fuzzy suites' second mode of the collector, beside section 7's
+nextest one: each test binary's selected tests run in one process, one at a
+time, and binaries run in parallel (`skein/docs/foundation/testing-strategy.md`,
+8, *A binary is a process*). A process costs some milliseconds before a test
+checks anything, so a run that starts one per binary rather than one per test
+spends its budget on the tests. Nextest still selects the tests and builds
+them; the mode runs what it selected. Nextest's path (sections 7 to 7.5) is
+unchanged, every slow tier stays on it, and `cpu-wrapper.c` stays.
+
+CPU is measured per process only, by the user's word: each process's user
+and system time, its own and its waited-for descendants', from `wait4`'s
+rusage, and a suite's CPU is their sum. No test's CPU is measured: the
+kernel's per-process times tick at 10 ms, and libtest reports a result after
+it has moved on, so an outer runner can't divide a process among its tests.
+A test's record carries its outcome and wall time, and its CPU is null, "not
+measured", never a share or a guess. No `/proc` sampling.
+
+### 11.1 Entry points and refusals
+
+`cpu.py`'s `execute_one_process` (10.2) and `tools/tiers/one-process` (11.9)
+run the mode. Its body is `tools/tiers/one_process.py`, loaded with
+`runpy.run_path` as `cpu.py` is and no importable module:
+`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'))`
+runs one suite into a fresh, private `directory` (mode 0700, refused when it
+holds anything) and writes 11.7's files; `execute_one_process` adds the
+summary and the exit status.
+
+`command` is the caller's nextest command, as it would pass it to `execute`
+without `prepare`'s arguments: its first element whose basename is `cargo`
+splits it into the caller's **prefix**, whatever precedes it, and `nextest
+run ARGS`. Every command the mode runs that builds or runs tests runs under
+that prefix: the listing (11.2), and the lanes (11.4), once for the whole
+run, never once per process. `cargo metadata` builds nothing and runs
+directly, as in section 1.
+
+The mode reads the profile from `config` as nextest does, the profile's
+table over `[profile.default]`'s, and its overrides, then `default`'s. It
+refuses, raising `ValueError` before anything runs, what it cannot hold:
+
+- a setup script for the profile; `test-threads` set in the profile, or `-j`,
+  `--test-threads` or `NEXTEST_TEST_THREADS` given;
+- `retries` other than unset or 0, in the profile, an override, `--retries` or
+  `NEXTEST_RETRIES`; a `slow-timeout` with `terminate-after`; an override with
+  `threads-required`, `run-extra-args` or `platform`; a profile with `inherits`;
+- `--no-run`, stress (`--stress-count`, `--stress-duration`), `--debugger`,
+  `--config-file`, `--tool-config-file`; a `--profile` or `-P` other than
+  `profile`;
+- an override filter outside 11.3's filtersets;
+- a `limits` table for the profile with `cpu_test_s`: no test's CPU is measured.
+
+### 11.2 Selecting
+
+The listing is the prefix, then `cargo nextest list --message-format json
+--profile PROFILE` and the run command's arguments that `list` takes: package
+and target selection, features and build options, filters (`-E`, test-name
+filters, `--ignore-default-filter`), `--run-ignored` and `--partition`. Run-only
+arguments (`--no-fail-fast`, `--fail-fast`, `--max-fail`, `--no-capture`, the
+output and status levels, `--hide-progress-bar`) are dropped, and `--no-tests`
+is the mode's own. The listing builds, as `run` would; its output is forwarded,
+and its JSON read as section 6's listing is, a prefix's lines around it
+allowed. The selection is every `rust-suites` entry with `status` `listed`,
+and in it each test whose `filter-match` has `status` `matches`: the
+profile's filter, ignored handling and partition as nextest applied them.
+Each entry gives the binary's `binary-path`, `cwd`, `binary-id`,
+`package-id`, `kind` and `binary-name`.
+
+An empty selection ends the run as nextest would: `--no-tests=fail`, the
+default, exit 4; `warn`, a warning and 0; `pass`, 0.
+
+Where the caller gives no filter of its own, the mode also evaluates the
+profile's `default-filter` over the listing with 11.3's filtersets, and a test
+where its reading and nextest's `filter-match` disagree (a test nextest
+excluded by its default filter, or matched) refuses the run: the proof that
+its reading of the overrides is nextest's.
+
+### 11.3 Overrides and test groups
+
+The mode evaluates the overrides' filters itself, over the listing's fields,
+in a subset of nextest's filtersets: `all()`, `none()`, `package(M)`,
+`binary(M)`, `binary_id(M)`, `kind(M)`, `test(M)`; `not` and `!`, `and` and
+`&`, `or`, `|` and `+`, `-` (and not), parentheses; matchers `=` (equal), `~`
+(contains), `/…/` (a regular expression, searched) and `#` (glob), with
+nextest's defaults: contains for `test()`, equal for `kind()`, glob for the
+rest. A filter outside the subset is refused, naming it.
+
+For each test, the first override that matches and sets a key gives it, the
+profile's overrides before `default`'s, as nextest's precedence has it. Two
+keys are honoured: `priority` (0 when none sets it) and `test-group`. Every
+other key is either refused (11.1) or has no effect here (`slow-timeout`'s
+period, `leak-timeout`, output and JUnit settings).
+
+**`process-of-its-own`.** A test in the test group of that name runs in a
+process of its own, still under the group's `max-threads`: the place for a
+test that cannot yet leave its process as it found it (testing-strategy.md,
+8). Nextest gives the group no other meaning; it is declared in
+`[test-groups]` with `max-threads = "num-cpus"` only when a test needs it,
+and each such override says why beside it.
+
+### 11.4 Processes and lanes
+
+A process runs one binary's tests:
+`BINARY --exact --nocapture --test-threads=1 --include-ignored --color never --logfile /dev/fd/N NAME...`,
+in the suite's `cwd` with 11.5's environment, its stdin `/dev/null`, its
+stdout and stderr one pipe, and libtest's results in a second pipe whose write
+end is its descriptor `N`, so that no file is written per test or during the
+run. Libtest runs the names in its own order. `--include-ignored` runs a
+selected ignored test; the names already hold the selection. Each process
+leads a process group of its own.
+
+The lanes are `PREFIX python3 -I -B tools/tiers/one_process.py lanes
+DIR/plan.json`, started once in a session and process group of its own as
+`execute` starts a command (7.3), with stdin closed. `plan.json`, written
+before the lanes start, holds every binary to run: its path, `cwd`,
+environment, selected tests in libtest's order (by name) with their
+priorities, groups and kept times, the test groups' `max-threads` and the
+profile's `global-timeout`. The lanes start, read, reap and stop the
+processes, and report each event as one line of their stdout beginning
+`tiers-one-process: ` and a JSON object; any other line is the prefix's own
+and is forwarded. The lanes write no file.
+
+- **As many lanes as CPUs:** `len(os.sched_getaffinity(0))` where the lanes
+  run, which is nextest's default number of test threads.
+- **Longest first.** A binary's estimate is the sum of its tests' kept wall
+  times (11.8); a test with none counts the mean kept time per test of the
+  selection, and with none kept anywhere every test counts 1, so binaries
+  start by test count. Processes start by priority, the highest of their
+  tests', then by estimate, longest first.
+- **A long binary is split.** Where a binary's estimate is more than the
+  total over the lanes (the selection's estimate divided by the lanes), its
+  tests in libtest's order are dealt into `min(lanes, ceil(estimate / share))`
+  contiguous runs of about equal estimate, a process each. A process's names
+  stay within 256 KiB of arguments; more splits it further.
+- **Test groups.** A process counts once against each test group any of its
+  tests is in, and starts only while each such group's processes stay within
+  its `max-threads` (an integer, or `num-cpus`: the lanes). A lane free and the
+  next process held by its group starts the next that can start.
+
+When a process exits, the lanes reap it with `os.wait4`, read its output
+until end of file or 100 ms (nextest's default leak timeout) and then
+`SIGKILL` its process group; a process whose output stayed open past that is
+`leaked`, a warning.
+
+### 11.5 A process's environment
+
+What nextest gives a test today, resolved per binary from the listing and
+`cargo metadata --format-version 1 --no-deps`, over the caller's `env`:
+
+- the caller's `env` with every variable whose name begins `NEXTEST` removed,
+  then cargo's `[env]` configuration as nextest applies it (a set variable
+  kept unless `force`, `relative` paths from their configuration's directory);
+- `CARGO`, the cargo the command names, by path; `CARGO_MANIFEST_DIR`, the
+  package's directory, and `CARGO_MANIFEST_PATH`; `CARGO_PKG_NAME`,
+  `CARGO_PKG_VERSION` with `_MAJOR`, `_MINOR`, `_PATCH` and `_PRE`,
+  `CARGO_PKG_AUTHORS` (joined with `:`), `CARGO_PKG_DESCRIPTION`,
+  `CARGO_PKG_HOMEPAGE`, `CARGO_PKG_REPOSITORY`, `CARGO_PKG_LICENSE`,
+  `CARGO_PKG_LICENSE_FILE`, `CARGO_PKG_RUST_VERSION` and `CARGO_PKG_README`,
+  empty where the package has none;
+- `CARGO_BIN_EXE_<name>` and `NEXTEST_BIN_EXE_<name>` for each of the package's
+  binaries in `rust-build-meta`'s `non-test-binaries` (`skein-scratch` reads
+  them); `OUT_DIR`, the package's build script output directory, where it has
+  one;
+- the dynamic library path (`LD_LIBRARY_PATH` on Linux,
+  `DYLD_FALLBACK_LIBRARY_PATH` on macOS): the target directory's `deps` and
+  base output directories, the listing's `linked-paths` and the host's
+  `libdir`, then the inherited value;
+- `NEXTEST_PROFILE`, the profile, which tests read for a profile's patience;
+  never `NEXTEST` itself, by which a starved pass would exit the process
+  (`skein/docs/design/testing.md`, 5);
+- `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass ends only its
+  test.
+
+### 11.6 A test's outcome
+
+Libtest announces each test on the output pipe (`test NAME ... `) before it
+runs, with one thread, and writes its result to the log pipe as it ends
+(`ok NAME`, `failed NAME`). A test's output is what the process wrote between
+its announcement and its result word; its wall time runs from its
+announcement's arrival to its result's. Its outcome is one of:
+
+- **passed:** `ok`, not starved;
+- **starved:** the last line of its output, the result word aside, begins with
+  `skein-world: starved:`, whatever libtest's result: a starved pass unwound
+  (`skein/docs/design/testing.md`, 5). A warning, never failed and never
+  passed. Output after the line leaves the test as libtest reported it;
+- **failed:** `failed`, not starved;
+- **crashed:** the process ended with no result for the test it had
+  announced. The test fails, with the process's exit status or signal and its
+  output since the announcement, and a **fresh** process starts on the tests
+  of that process not yet announced. A process that ended before announcing any
+  test fails all its tests so, and none starts again: the binary does not run.
+  A process that ends otherwise than libtest ends (0 with every test passed,
+  101 with one failed) after reporting every test fails the last test it ran,
+  with its status. A name libtest never announced in a process that ended as
+  libtest ends fails as not run by its binary;
+- **cancelled:** running when the run was cancelled (11.7): a known timeout
+  termination, starved under testing-strategy.md, 8.1, as nextest's cancelled
+  tests are (7.3).
+
+A test the run never reached is **unobserved**, never passed.
+
+**A failure stays red.** Each failed or crashed test that had others run
+before it in its process runs once more **alone**, in a fresh process, as a
+diagnostic, started before the processes still waiting. Passing alone, it is
+labelled `may depend on an earlier test` in the summary and the output, with
+the tests that ran before it in its process; failing alone, it is a failure
+with no label. Either way it stays failed. A rerun the run's cancellation
+stopped labels nothing. A starved test is not rerun.
+
+### 11.7 Cancellation
+
+The profile's `global-timeout` holds as under nextest, from the first
+process's start: at expiry the lanes start nothing more, send `SIGTERM` to
+each running process's group and, after nextest's 10-second grace, `SIGKILL`.
+Running tests are cancelled, the rest unobserved, and the run is starved. No
+per-test bound is added: one would be a policy, the user's.
+
+`limits`' `wall_hard_s` for the profile holds as `execute` holds it (7.3),
+from the first process's start while a test runs: crossing it prints the
+green `starved` warning, writes `starved.json` and sends `SIGTERM` to the lanes'
+group, which stop their processes as at the global timeout; after a 15-second
+grace, `SIGKILL` goes to every process left in the session. An interruption of
+the process running `run`, or a fault in it, stops the lanes the same way and
+is raised again.
+
+### 11.8 The run directory
+
+In the directory `run` made, once it has returned:
+
+- `run.json`: section 10.3's keys (`profile`, `finished`, `starved`, `wall_s`
+  from the first process's start to the last one's end or the cancellation's,
+  `returncode`, the lanes' exit status, and `cancel_code`, null) and
+  `mode`, `"one-process"`, and `lanes`, their number;
+- `command-output.txt`: the forwarded output: the listing's, then a status line
+  for each test as it ends (`PASS`, `FAIL`, `CRASH`, `STARVED`, `CANCEL`, with
+  its wall time, binary ID and name), each failure's output and its alone
+  diagnostic after its line, and the summary;
+- `junit.xml` in nextest's shape, so that a caller's JUnit reading holds: a
+  `testsuite` for each binary ID, a `testcase` (`name` the test, `classname` the
+  binary ID, `time` its wall) for each test that ran; a failed one has a
+  `failure` of type `test failure`, a crashed one `test failure` with its exit
+  code or `test abort` with `process aborted with signal N (NAME)`, a
+  cancelled one `test abort` with SIGTERM's or SIGKILL's message, as nextest's
+  cancellation gives (7.3); a starved one has none, as nextest gives a starved
+  pass, and every one but a passed one carries its output in `system-out`. An
+  unobserved test has no case;
+- `results.json`, written once after the lanes end: each process (binary ID,
+  kind, its tests in the order they ran, user and system seconds, wall,
+  exit status or signal, leaked) and each test (outcome, wall, its process, the
+  tests before it and its alone result where it failed, its output where it did
+  not pass), the unobserved tests, the selection's count and the cancellation;
+  `summary` reads it;
+- `plan.json`, the lanes' input, no result; `starved.json` as in 10.3.
+
+**Kept times.** After the lanes end, the mode writes each test's wall time into
+`TARGET/tiers-one-process/times.json` (Cargo's target directory, from the
+listing), by profile, binary ID and test, keeping the entries of tests this
+run did not run: the next run's estimates (11.4). It is the only file the mode
+writes outside the run's directory, and nothing reads it as a result.
+
+### 11.9 By hand
+
+`tools/tiers/one-process [--out DIR] [--budgets PATH] PROFILE [NEXTEST_ARGS...]`,
+from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
+--no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a
+package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
+prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
+`tiers-one-process/runs/<UTC time>-<pid>` beneath Cargo metadata's target
+directory, printed first; `PATH`'s limits (`budgets`) apply, none by default.
+It exits as `execute_one_process` returns, 2 for an invalid invocation or
+run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
+
+### 11.10 Offline proof
+
+`python3 -I -B tools/tiers/test_one_process.py`, run directly as 7.4's suite
+is, builds its fixture test binaries from the Rust sources in
+`tools/tiers/fixtures/one-process/` with `rustc --test` into a temporary
+directory, once per suite run, and never reads `target/`; a missing `rustc`
+fails the suite with a clear error. A fake `cargo` among the fixtures answers
+the listing and `cargo metadata` for them, over a fixture checkout's
+`.config/nextest.toml`. Its fixtures cover a crash and the fresh process after
+it, a hang past the global timeout, a starved pass, a failure that passes
+alone, a split binary, test groups and priorities, the environment, the
+refusals and the run directory's files. `test_cpu.py` covers `summary`'s
+reading of a one-process directory and the exit statuses.
