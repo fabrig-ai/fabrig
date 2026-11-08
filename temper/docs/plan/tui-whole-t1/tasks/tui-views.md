@@ -173,3 +173,18 @@ As the implementer's text says, with each row added and the rule broken by
 hand for it (for instance code's stop not indented, or a view block left as
 Markdown), the indentation and blank-row options taken, and how the limits
 row came out.
+
+## Answers
+
+2026-11-08. *The limits row's stops: the wire's 24, or widen the wire to
+`paths::STOPS`' 32?* The wire's 24. A reply's view reaches the TUI only
+through `w::BranchPath`, whose `stops` the schema bounds at `list 24 Stop`
+(`client-wire-v1.schema`, `BranchPath`), so 24 is the most a printed path
+can hold; the wire is not this task's, and widening it would not change
+what the TUI must fit. Build each path at the wire's bound, named once in
+`tests/limits.rs` beside its row with that citation (a `const` of 24, or
+the smaller of it and `paths::STOPS`), keep `paths::WORDS` (64) and
+`Limits::chat_views()` (32), and fit `limits()`; raise the TUI's tree
+limits only if that row still doesn't fit, as acceptance 3 says. Say in the
+report that `paths::STOPS` (32) is above the wire's bound. The parent-stack
+walk in the limits assertion stays. Then finish acceptance 4 and 5.
