@@ -2,6 +2,12 @@
 
 2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
 
+Section 6.1 has no known gap in the one-process runner's shared-process
+memory-scenario requirement. No test is assigned to `process-of-its-own`.
+The suites' outcome proof supplies no new CPU measurement; section 11
+keeps caller adoption and process CPU measurement separate from the
+standing cost departures below.
+
 Sections 6.3 and 6.4 have the configuring stories on Ask temper,
 charter 11 from template 5: `see` reads, section-based `document`
 writes and the asking `propose_settings`, through ctl in the joined

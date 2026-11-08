@@ -11,6 +11,13 @@ allocation layout and the native fork floor.
 Section 6's full-screen renderer and terminal crates, golden frames and
 simulated-terminal world are present.
 
+Section 5's one-process starvation path is present: `Starved::pass` and
+`pass_starved` unwind with `StarvedPass`, helper processes use
+`Starved::exit`, and real-loop cleanup precedes the verdict. The deadline
+and real-loop tests cover the mode and children remove both runner
+variables when checking failure. No implementation gap is known in this
+path. Section 9 leaves caller adoption and suite CPU measurement separate.
+
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
