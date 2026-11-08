@@ -18,7 +18,8 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let message = || Find::exactly_named(Role::TextArea, b"Message");
-    let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });
+    // These chats have no changes, so Work has no Chats filter.
+    let chats = || Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() });
     let mut stories = Stories::of_person(0);
     let mut steps = Vec::new();
     stories.begin("composer", &steps);
@@ -28,7 +29,9 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
         see(tier.states().live),
         temper_client_browser_world::connected(),
         chats(),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }),
+    ]);
+    steps.extend(temper_client_browser_world::start_change(true));
+    steps.extend([
         see(composer()),
         Step::Type { find: composer(), words: Box::from(b"Hello".as_slice()) },
         Step::KeyWithShift(Key::Enter),
@@ -164,14 +167,17 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         temper_client_browser_world::connected(),
         // The rail comes with the page once `me` is read; until then the main is empty and busy
         // (temper/docs/design/client/README.md, 5.1).
-        see(Find::exactly_named(Role::Link, b"New chat")),
+        see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
-        press(Role::Link, b"New chat"),
+    ]);
+    steps.extend(temper_client_browser_world::start_change(true));
+    steps.extend([
         see(Find::exactly_named(Role::TextArea, b"What do you want done?")),
         Step::Focused(Find::exactly_named(Role::TextArea, b"What do you want done?")),
         Step::Address(b"/chats/new".as_slice().into()),
-        press(Role::Link, b"Chats"),
+        // This chat read docs without starting work; its Work filter is empty.
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         press(Role::Button, b"Closed"),
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Reload),
@@ -182,7 +188,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats".as_slice().into()),
         pressed(b"All"),
         Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
-        see(Find::exactly_named(Role::Link, b"New chat")),
+        see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
         Step::Address(b"/".as_slice().into()),
