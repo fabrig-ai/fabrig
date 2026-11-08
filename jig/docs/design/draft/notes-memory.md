@@ -8,7 +8,9 @@ choices and judgement, things that the UI needs to show", "pretty much
 like Claude memories but maybe with some slight organization". The
 user adopted a part of section 5 on 2026-11-05 (its status says what), and
 section 3, narrowed, for temper's Ask temper on 2026-11-07
-(`temper/docs/design/draft/ask-temper.md`, section 7); the rest is not
+(`temper/docs/design/draft/ask-temper.md`, section 7), and section 4 for
+temper's standing roles on 2026-11-08, a standing role's Now
+(`temper/docs/design/draft/standing-roles.md`, section 2); the rest is not
 adopted, and no plan takes it up until the user does. It
 starts from jig's notes as they stand (`../domain/engine.md`, section
 10; `jig-domain-notes`), and its first consumer is temper's chats, whose

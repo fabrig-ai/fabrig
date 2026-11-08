@@ -8,7 +8,10 @@ user's word: "take it as greenfield, doesn't matter what we have now,
 let's design optimizing for the vision". It revises the greenfield
 mock's rail (`../client/greenfield/README.md`), the client's rail, tab
 bar and Settings (`../client/README.md`, 5.3 and 3.5, *Settings*), and
-the terminal's direction (`tui.md`, section 3). It wins where they differ
+the terminal's direction and what it leaves after its first pass
+(`tui.md`, sections 3, 6 and 7): the launchpad as drawn here, the side
+pane, needs from elsewhere and talking with a role become v0.1.0's
+through section 11. It wins where they differ
 until its plans fold it in. temper/ui carries out the web, the phone and
 the drafter's instructions, which are a chat's; temper/tui carries out
 the terminal. Reasons: `whole-story.md` and `notes.md`.
@@ -88,9 +91,16 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **The brief rolls up the owners.** The status agent writes it from
   each area's owner's Now and report (`standing-roles.md`, section 7) and
   what the engine keeps, on the triggers it has today, a look with
-  something new and none over an hour old (`../domain/forge.md`, 5.7). On
-  All projects it writes one brief across the person's projects; a
-  project's Home keeps a project's brief.
+  something new and none over an hour old (`../domain/forge.md`, 5.7). Its
+  instructions and its brief are temper/ui's alone, as the status agent's
+  are.
+- **On All projects,** one brief a project, as today, until a brief per
+  person is designed: the headline is code's, counted across the person's
+  projects; the lede joins each project's brief's first sentence, newest
+  first, at most four; the byline names the newest. One brief across
+  projects, written per person, is section 15's open question: which
+  project's period funds it, which project its task belongs to, and
+  whether it may read other projects' Nows.
 - **Needs you,** at most three cards, oldest first: the project's chip,
   who asks and when; the question; one line of why it reached the person
   (`what-reaches-you.md`, section 5); the recommended choice first, dark,
@@ -127,16 +137,21 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   - *the question,* then its context in a few lines and what each choice
     does;
   - *why it reached you,* on the signal ground: the rule that sent it, in
-    words, with "Keep asking" and a narrower rule offered, "Let goals
-    decide fixes that keep the wire format". The offer opens the proposal
-    of that rule, accepted in place by an owner (`what-reaches-you.md`,
-    section 5);
+    words, with "Keep asking" and "Stop asking", which offers a narrower
+    rule: "Stop asking: let goals decide fixes that keep the wire format".
+    "Stop asking" opens the proposal of that rule, accepted in place by an
+    owner (`what-reaches-you.md`, section 5);
   - *the choices,* the recommended one first; then "Or tell it something
     else", a field whose words go to the asker as its next message; then,
     in the mono line, the terminal's command to talk it through.
 - **Its kinds:** a question, money past a budget, a sign-off a rule by
   path asks, a proposal of settings, a held task: today's cards, each
   with its why.
+- **An approval or a sign-off is the person's review on the forge:** its
+  card leads with "Review on GitHub ↗" or "Sign off on Forgejo ↗", one tap
+  to the forge's review page, as `forge-identity.md`, section 8, has it,
+  and the mockups draw it. Approving in place, temper posting the review
+  as the person, is temper's `../README.md`, section 8's open question.
 - **Only you:** what no one else can do, a sign-in or a login about to
   expire, with its act alone and "Remind me tomorrow"
   (`what-reaches-you.md`, section 8). Work goes on around it.
@@ -227,7 +242,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   off, and when it lands (`what-reaches-you.md`).
 - **What follows a landing:** each follow the project starts
   (`follows.md`), and its tiers on main, each with its who-acts chips:
-  "code starts it", "an agent ports", "code checks".
+  "code hears the landing", "an agent ports", "code checks".
 - **Budgets,** per week: each role's, and what a goal is given when it
   starts.
 - **At its foot:** the project's repositories, today's Repositories tab,
@@ -248,7 +263,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **Members:** who may do what, in the deployment and in each project
   (jig's `domain/people.md`). Ownership of an area is Team's.
 - **Limits:** the deployment's limits, read-only but for an owner
-  (`../client/README.md`, 5.4).
+  (`../protocol/configuration.md`, section 7).
 - **Not drawn:** its pages are today's.
 
 ## 9. Ask temper and Tell temper
@@ -273,9 +288,11 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **Four tabs:** Home, Needs (with its count), Work, Ask. The top bar
   holds the switcher, All projects first, and the Away chip.
 - **One tap:** a need's recommended choice is a full-width button on
-  Home's card and on the need's page; "More" opens the need.
+  Home's card and on the need's page; "More" opens the need. An approval's
+  or a sign-off's is "Review on GitHub ↗" or "Sign off on Forgejo ↗",
+  opening the forge's review page (section 4).
 - **A need, one at a time:** "1 of 2"; the question; its context in a few
-  lines; why it reached you, with "Change this"; the choices stacked,
+  lines; why it reached you, with "Stop asking"; the choices stacked,
   the recommended first; a field for words.
 - **Decided for you** is one row on Home, opening its list.
 - **Tell temper** is the Ask tab's second act.
@@ -325,8 +342,8 @@ stays the web's.
 - **Sittings:** a session is kept, and one opened again resumes from its
   draft and its open points, listed on the launchpad.
 - **`/goal` starts a goal from the draft,** its choices the project's
-  ways (`stock-ways.md`, section 2), as the web's "Start goal…" does
-  (`../client/README.md`, 5.14).
+  ways of working, kind 7's tracked templates, as the web's "Start goal…"
+  offers them (`../client/README.md`, 3.5, *Ways*, and 5.14).
 - **On the web,** the same session reads as a chat with its draft in
   Split (`../client/README.md`, 3.5).
 - **Its mockup:** `design-session.html`.
@@ -361,16 +378,22 @@ What the pages show follows what a project's way and its people use, as
 
 | Step | The rail | Home | Needs you | Work |
 |---|---|---|---|---|
-| Pair | Home, Needs you, Work, Ask temper, How work runs | what landed, what needs you | approvals and questions | chats and their changes |
-| Team | Team, for members | whose turn it is | sign-offs, each its person | changes |
-| Stock | as Pair | the brief | questions alone | changes |
-| At scale | Away | Decided for you | questions and money | drafts and goals first |
-| Standing roles | Team, for roles | the brief from owners' Nows; What follows what | what passes what reaches you | goals, and follows' changes |
+| Pair | Home, Needs you, Work, Ask temper, How work runs | the brief, what landed, what needs you | approvals, each a review on the forge, and questions | chats and their changes |
+| Team | Team, for people; Away | whose turn it is; Decided for you | sign-offs, each its person | changes |
+| Stock | Away, without Team | the brief; Decided for you | questions alone | changes |
+| At scale | as Stock | as Stock | questions and money | drafts and goals first |
+| Standing roles | Team, for standing roles beside people | the brief from owners' Nows; What follows what | what passes what reaches you | goals, and follows' changes |
 
-- **Derived, not switched:** Team shows once a project has a role or a
-  second member; Away while a goal or a role may decide (today's
-  `Domain::away_shown`, `../client/README.md`, 3.5, *Away*); All projects
-  once the person has two. How work runs and Work always show.
+- **Derived, not switched:** Team shows once a project has a second
+  member or a standing role. Decided for you shows once a row exists:
+  You approve leaves agents nothing to decide, so a Pair project has
+  none, and Agents review lets them decide wording and retries
+  (`what-reaches-you.md`, section 2). Away shows once the project's
+  classes hold an "asks you" item Away may decide (`what-reaches-you.md`,
+  section 3): Agents review's implementation choices are such items,
+  You approve has none. This replaces today's `Domain::away_shown`
+  (`../client/README.md`, 3.5, *Away*). All projects shows once the
+  person has two. How work runs and Work always show.
 - **Overrides:** today's "What the project shows" switches
   (`../client/README.md`, 5.13) stay
   as overrides at How work runs' foot.
@@ -424,7 +447,8 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
   path and a follow; Deployment's tabs; the phone's tabs and a need at
   390 pixels wide.
 - **Step tests of the acts:** answering with the recommended choice;
-  "Keep asking" and the narrower rule's proposal; Overturn; filing a
+  "Stop asking" and its narrower rule's proposal, and "Keep asking";
+  an approval's card opening the forge's review page; Overturn; filing a
   finding; handing an area to a role; pausing a role; the rail and tab
   bar under each step of section 12.
 - **The terminal's golden frames** (`../client/tui/journeys.md`): the
@@ -451,3 +475,10 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
   away. Default: kept.
 - **The drafter on the web:** the same session read in a chat's Split,
   or the terminal's alone. Default: both, as a chat is.
+- **One brief across projects,** written per person: which project's
+  period funds it, which project its task belongs to, whether it may read
+  other projects' Nows. Default: section 3's one brief a project, joined
+  on All projects.
+- **Approving in place:** a person's approval or sign-off posted by temper
+  as the person, rather than one tap to the forge's review page
+  (`../README.md`, section 8). Default: the forge's page.

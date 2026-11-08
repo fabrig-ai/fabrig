@@ -2,7 +2,8 @@
 
 Draft, 2026-11-08, from a session with the user that day. A project may
 follow another's branch: each landing there that touches the paths it
-names makes a change here, which a standing role owns, and a check proves
+names makes a change here, which a standing role or a person owns, and a
+check proves
 the two still agree. It is the mechanism the whole story's pilot needs
 (`whole-story.md`, 5.2): vsr's C, ported to Rust line by line, continuously.
 It adds to `../domain/forge.md`, 7.1's topics and 8.1's parameters, and it
@@ -15,13 +16,14 @@ Home, Team and How work runs (`surfaces.md`, sections 3, 6 and 7).
 - **A follow is a project's setting** (section 2): a source, a branch of a
   repository of another project, with the paths that matter; a target, a
   repository and branch of this project; its owner, a standing role
-  (`standing-roles.md`, section 2); and its check.
+  (`standing-roles.md`, section 2) or a person; and its check.
 - **Code follows, the owner ports** (section 3). Code hears each landing on
   the source's branch, keeps those that touch its paths, in order, and makes
   one follow change for each, with the landing's diff, message and link as
   its words. The owner starts it, merges it with the next ones, holds it
-  with a reason, or skips it with one. It asks a person only what
-  `what-reaches-you.md`, section 2 sends to one.
+  with a reason, or skips it with one, keeping the chain whole. It asks
+  a person only what `what-reaches-you.md`, section 2 sends to one, and
+  only in its own project.
 - **Follow changes land in the source's order.** Each waits on the one
   before it, so a held change holds the rest, and the lag says why.
 - **The check proves agreement** (section 4): a gate of the target's, for
@@ -113,9 +115,18 @@ Its owner, at a wake (`standing-roles.md`, section 3):
 - **Skips it** with a reason, for a landing that needs no port: a comment,
   a change to the source's build alone. A skip counts as followed, and the
   follow lists it with its reason.
+- **Keeps the chain whole.** A merge or a skip takes changes out of the
+  chain, and jig holds a change whose dependency is cancelled until an
+  amendment removes it (jig's `domain/tasks.md`, 5.5). So the same decision
+  that merges or skips amends the next follow change's dependency to the
+  change before the ones taken out, or to none, and nothing is held for
+  them.
 - **Asks** what it can't settle, as `what-reaches-you.md`, section 2 sends
-  it: in the pilot, a source construct with no direct form in the target
-  goes to the source's protocol core's owner, a person.
+  it, to its person in this project: the person who handed it the area,
+  else the project's owners (`standing-roles.md`, section 2); a person
+  owning the follow is asked nothing, being the one who'd answer. Never the
+  source's project, which gives nothing (section 6). In the pilot, a source
+  construct with no direct form in the target goes to Porter's person.
 - **Hears its producers' questions first,** as a change's agents' questions
   reach its requester (`../domain/forge.md`, 8.11).
 
@@ -203,7 +214,8 @@ The whole story's pilot (`whole-story.md`, 5.2) is a follow.
 - **The follow:** vsr's main, its paths `src/` and `include/`, into
   vsr-rs's main, owned by Porter, a standing role. Its producer's rules:
   port line by line, keeping C's names, order and comments; a construct
-  with no direct Rust form goes to the protocol core's owner.
+  with no direct Rust form goes to Porter's person in vsr-rs's project, who
+  in the pilot owns vsr's protocol core too.
 - **The check:** vsr's tests at the followed commit, built against vsr-rs
   through the C interface of `include/vsr.h`, which vsr-rs exports.
   vsr-rs's tiers replay vsr's fuzz targets on the Rust build.
@@ -227,6 +239,11 @@ model (`../domain/testing.md`, sections 4 and 5).
     the first held, the lag is 2, with its reason;
   - the owner merges two into one change naming both, and skips one with a
     reason: each counts as followed;
+  - a merge and a skip in the middle of a chain of four: the next change's
+    dependency is amended in the same decision, and none is held for a
+    cancelled dependency;
+  - the owner's question goes to its person in the target's project, and
+    nothing reaches the source's;
   - the check is dispatched with the followed commit; red, the change is
     repaired as any; green, it lands and the lag falls to zero;
   - the engine stopped and started with three in the queue: none lost, none
@@ -236,7 +253,8 @@ model (`../domain/testing.md`, sections 4 and 5).
   with unknown files, the owner's starts, merges, holds and skips, reds at
   the check, and restarts. Always: each landing in the paths is followed or
   skipped once, never twice; follow changes land in the source's order;
-  the lag equals the landings neither followed nor skipped.
+  the lag equals the landings neither followed nor skipped; no follow
+  change is held for a cancelled dependency.
 - **The story for v0.1.0,** written in `../../development/acceptance.md`
   and walked after landing, never by a plan: on a box, two repositories on
   its forge in two projects, and a follow from one to the other owned by a
@@ -254,6 +272,9 @@ model (`../domain/testing.md`, sections 4 and 5).
   interface, so vsr's tests run unchanged against it, is the pilot's way.
   Porting the tests too would test the Rust interface as well, at the cost
   of a second port to keep.
+- **Questions across projects:** whether a follow's owner may ask the
+  source project's area owner directly, a question across projects that
+  no route carries today, rather than its own person.
 - **The other way:** a fault the target finds in the source's logic is a
   finding filed on the source's project, for its owner, rather than a
   follow back.

@@ -302,8 +302,10 @@ TUI's host:
   the first journey's frames.
 - **`temper open`'s line client** stays left out as a person's client
   (`v0.1.0.md`, section 6).
-- **What follows the first pass is not v0.1.0's:** it waits for the
-  user's refinement.
+- **What follows the first pass** is v0.1.0's as far as `surfaces.md`,
+  section 11 takes it (the user, 2026-11-08): the launchpad as drawn,
+  design sessions with the draft beside them, and talking with a
+  standing role. The rest waits for the user's refinement.
 
 ## 7. Later
 
@@ -312,9 +314,9 @@ TUI's host:
   native clients between hosts (`../client/README.md`, section 7). The
   code is typed on the page there, never carried in its address, and
   the page says where the request came from and how long ago.
-- **The direction's parts** (section 3): the launchpad, a chat, the
-  side pane, needs from elsewhere, the hand-offs, the project chosen
-  from a checkout.
+- **The direction's parts** (section 3) that `surfaces.md`, section 11
+  doesn't take into v0.1.0: needs from elsewhere, the hand-offs, the
+  project chosen from a checkout.
 - **The web's list of a person's sign-ins,** each ended from there.
 
 ## 8. Open questions

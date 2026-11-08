@@ -64,11 +64,11 @@ areas to standing roles.
 
 | Step | The person says | What appears |
 |---|---|---|
-| Pair | "nothing reaches main until I've approved it" | a chat makes a change; Needs you holds approvals; Work lists chats and their changes; no Team, no Away |
-| Team | "agents review, one of us signs off; payments/ needs two of us" | sign-offs by path, and whose turn it is, in Needs you; Team lists people by area |
-| Stock | "what do you do by default?" | agents review and land; Needs you holds questions alone; Home gains the brief |
-| At scale | "a draft becomes a goal, landed whole" | drafts and goals in Work; Away and Decided for you |
-| Standing roles | "Prover owns the tests, Porter the port" | roles beside people on Team; follows; the brief rolled up from owners' Nows |
+| Pair | "nothing reaches main until I've approved it" | a chat makes a change; Needs you holds approvals, each one tap from the forge's review; Work lists chats and their changes; Home's brief; no Team, no Away, no Decided for you |
+| Team | "agents review, one of us signs off; payments/ needs two of us" | sign-offs by path, and whose turn it is, in Needs you; Team lists people by area; Decided for you and Away, since agents now decide wording and retries |
+| Stock | "what do you do by default?" | agents review and land; Needs you holds questions alone |
+| At scale | "a draft becomes a goal, landed whole" | drafts and goals in Work |
+| Standing roles | "Prover owns the tests, Porter the port" | standing roles beside people on Team; follows; the brief rolled up from owners' Nows |
 
 - **Each step adds one thing,** and the step before offers it: How work
   runs suggests the next when it is earned, such as "let agents land
@@ -116,8 +116,9 @@ areas to standing roles.
 3. In the terminal, or a chat on the web, they ask for a change. The
    chat delegates it; agents produce it, CI and a reviewer check it,
    and failures are repaired.
-4. On their phone, Needs you asks "Approve and merge?", with the
-   review's line and CI's state. One tap.
+4. On their phone, Needs you shows the change waiting for their
+   approval, with the review's line and CI's state. One tap opens the
+   forge's review, where they approve (`forge-identity.md`, section 8).
 5. Home says what landed; Work lists the chat and its change.
 6. Once enough has landed, How work runs suggests the next step: test
    changes landing on their own. It changes nothing until accepted.
@@ -126,8 +127,10 @@ Drawn as the Pair set (section 9).
 
 ### 5.2 A pilot: vsr, vsr-rs and cowsql
 
-The user's first project that isn't temper, on the same deployment as
-fabrig's own development, one project each:
+The user's first project that isn't temper, on dev.fabrig.ai, where
+fabrig's own goals already run as its development moves in
+(`v0.1.0.md`, section 6 keeps the whole move for after the tag), one
+project each:
 
 - **vsr** (github.com/cowsql/vsr): a C11 library for Viewstamped
   Replication, with a deterministic core that does no I/O and an
@@ -142,7 +145,8 @@ fabrig's own development, one project each:
   continuously. unsafe is fine: its guarantees come from vsr's C tests
   and QA, replayed on the Rust build. A role, Porter, owns it, and it
   follows vsr (`follows.md`, section 8). It will replicate skein-kv, so
-  fabrig comes to depend on it (`follows.md`, section 7).
+  fabrig comes to depend on it, a relation shown where both are
+  projects of one deployment (`follows.md`, section 7).
 - **cowsql:** its raft-based replication replaced by vsr, designed with
   the person in design sessions, then carried out as a goal.
 
@@ -174,8 +178,9 @@ Each thing they do has its place in temper:
 | design sessions with the person | design sessions in the terminal, then Draft first | `surfaces.md`, 11.2 |
 | a deployment's operations, its logins' care | outside temper | section 10 |
 
-The move itself follows `v0.1.0.md`'s path. These drafts make the pages
-and the mechanisms it needs.
+The whole move follows v0.1.0 (`v0.1.0.md`, section 6). These drafts
+make the pages and the mechanisms it needs, and the pilot (5.2) uses
+them first.
 
 ## 6. The web
 
@@ -216,7 +221,7 @@ and the mechanisms it needs.
 | Rules by path, enforced at landing | `what-reaches-you.md`, section 7 | temper/migration |
 | Standing roles: sessions, Now, wakes, budgets per period, areas and routing | `standing-roles.md` | temper/migration; Team's page temper/ui; talking in the terminal temper/tui |
 | Follows, their lag and parity | `follows.md` | temper/migration; lag on the pages temper/ui |
-| Ask temper reading work, and its memory | `ask-temper.md`, M2 and M4 | temper/ui |
+| Ask temper reading work, and its memory | `ask-temper.execution.md`, M2 and M4 | temper/ui |
 | Ways and their paths | `stock-ways.md` | temper/ui |
 | The pilot's projects and workers | section 5.2 | temper/migration, with the deployment's operators |
 
@@ -226,7 +231,7 @@ Drawn with the user on 2026-11-08. They are the design's target where
 they differ from the greenfield mock, as that mock is over
 `../client/mockups/` (`../client/greenfield/README.md`). Names, numbers
 and questions in them are made up. They join the design with the
-execution's M0, since a branch pushed by hand lands Markdown alone.
+execution's M0.
 
 - **At scale, with standing roles:** a Sunday morning on one deployment
   with four projects, vsr, vsr-rs, cowsql and fabrig.
@@ -264,17 +269,36 @@ execution's M0, since a branch pushed by hand lands Markdown alone.
 - **All of it is in v0.1.0** (the user, 2026-11-08): `v0.1.0.md`,
   section 5 lists the part, and each draft's acceptance section says
   its bar.
-- **Rung E, the whole story** (`v0.1.0.md`, 2.1): on a box, through
-  `temper ctl`, the three points' stories: Pair, a change approved from
-  Needs you; Team, a path's two sign-offs; roles, a red routed to its
-  role and repaired, and a follow's change landed with its check.
-- **Rung V, the pilot:** vsr, vsr-rs and cowsql on a real deployment,
-  used by the person (section 5.2).
+- **E and V stand beside the ladder,** as the TUI's first pass does
+  (`v0.1.0.md`, section 5): neither waits for the rung below it.
+- **E, the whole story,** on a box, through `temper ctl`, walked after
+  its milestones land, one story gathering each draft's own
+  (`standing-roles.md`, section 11; `what-reaches-you.md`, section 10;
+  `follows.md`, section 9; `surfaces.md`, section 14):
+  - Pair: a change waiting for the person's approval in Needs you, and
+    landed once approved on the forge;
+  - Team: a change under a path rule waiting for two sign-offs while an
+    unrelated change lands;
+  - what reaches a person: Away deciding an "asks you" item and listing
+    it, and asking with Away off; Stop asking narrowing a rule; a budget
+    overrun waiting; a push for the blocking need alone;
+  - standing roles: a red routed to its area's role, triaged and
+    repaired by a change it makes, its Now written, a later wake
+    starting fresh from it, and a rule added by talking with it;
+  - follows: a source landing making a follow change, landed with its
+    check, and lag shown while one is held.
+- **V, the pilot:** vsr, vsr-rs and cowsql adopted on dev.fabrig.ai,
+  Prover and Porter running, and vsr-rs keeping up with vsr's landings,
+  its check green, through a week of the person's use; its findings are
+  findings like any other (section 5.2).
 - **The pages and frames:** each recorded as a journey and taken by the
   user, as the ladder's pages are (`v0.1.0.md`, section 9).
 
 ## 12. Open questions
 
+- **Approving in place:** an approval or a sign-off given from Needs
+  you and posted on the forge as the person, rather than on the forge's
+  own page (temper's `../README.md`, section 8).
 - **Being told:** Web Push to an installed web app, or mail, as the
   default (`what-reaches-you.md`, section 11).
 - **Goals across projects:** a goal whose changes land in two projects'
