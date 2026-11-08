@@ -1578,6 +1578,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one project switch checks its frame and Work's reads in both shells")]
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
@@ -1627,8 +1628,38 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            // Switching projects reads its kind-7 ways; Goals has no page watch without a template.
-            assert_eq!(out.len(), 1, "only the new project’s ways are read: {out:?}");
+            // Work's changes and chat notes open even without a goal template.
+            assert_eq!(out.len(), 3, "changes, notes and the new project's ways: {out:?}");
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("changes watch")
+            };
+            assert_eq!(
+                Some(subject),
+                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+            );
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read {
+                                what:
+                                    jig_client::Readable::Jig(jig_client::contract::Read::Notes {
+                                        scope,
+                                        description,
+                                        after,
+                                    }),
+                                ..
+                            },
+                    },
+            }) = out.pop()
+            else {
+                panic!("chat notes")
+            };
+            assert_eq!(scope, jig_client::contract::NoteScope::Tasks { project: fixtures::PROJECT });
+            assert_eq!((description, after), (None, None));
             let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

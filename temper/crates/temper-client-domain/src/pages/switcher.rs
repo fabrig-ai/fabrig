@@ -80,7 +80,9 @@ impl Switcher {
     }
     pub(super) fn went(&mut self, address: &Address) {
         match address {
-            Address::Accounts
+            Address::Members
+            | Address::Limits
+            | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
@@ -92,6 +94,7 @@ impl Switcher {
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
             | Address::Chats { .. }

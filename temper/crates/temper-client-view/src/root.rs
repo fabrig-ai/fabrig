@@ -132,6 +132,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
             temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Members
+            | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
             | temper_client_domain::Address::Chats { .. }
             | temper_client_domain::Address::NewChat { .. }
@@ -146,6 +148,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
             | temper_client_domain::Address::Repositories { .. }
+            | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
@@ -162,6 +165,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             }
             temper_client_domain::Address::Welcome { .. }
             | temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Members
+            | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
             | temper_client_domain::Address::Chat { .. }
             | temper_client_domain::Address::Task { .. }
@@ -174,6 +179,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
             | temper_client_domain::Address::Repositories { .. }
+            | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {

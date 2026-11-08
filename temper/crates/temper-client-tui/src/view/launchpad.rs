@@ -53,6 +53,8 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -60,6 +62,7 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Welcome { .. }
         | Address::Task { .. }
         | Address::Chat { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
