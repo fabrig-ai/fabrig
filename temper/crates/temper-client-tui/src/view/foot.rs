@@ -93,7 +93,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         Some(chat) => copy_of(&chat.words),
         None => match root.pages().chats() {
             Some(chats) => copy_of(&chats.words),
-            None => Box::default(),
+            None => copy_of(tui.command_words()),
         },
     };
     let paused = match (task, root.pages().me(root.client())) {

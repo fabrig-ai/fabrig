@@ -7,6 +7,7 @@ use skein_lib::bytes::copy_of;
 pub struct Tui {
     address: Box<[u8]>,
     field: Box<[u8]>,
+    command_words: Box<[u8]>,
     signing: Signing,
     local: Local,
     browser: Option<Browser>,
@@ -50,20 +51,44 @@ pub enum Refusal {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
-    Size { columns: u16 },
+    Size {
+        columns: u16,
+    },
     Went,
     Cleared,
-    Aside { object: Option<jig_client::contract::ObjectKey> },
-    Unknown { words: Option<Box<[u8]>> },
-    Local { local: Local },
-    Typed { value: Box<[u8]> },
-    Refused { refusal: Refusal },
+    Aside {
+        object: Option<jig_client::contract::ObjectKey>,
+    },
+    Unknown {
+        words: Option<Box<[u8]>>,
+    },
+    Local {
+        local: Local,
+    },
+    Typed {
+        value: Box<[u8]>,
+    },
+    /// Replace the no-project composer without changing the sign-in field.
+    CommandWords {
+        value: Box<[u8]>,
+    },
+    Refused {
+        refusal: Refusal,
+    },
     Asked,
     Browse,
-    Opened { opened: bool },
-    Answered { lost: bool },
-    Link { link: jig_client::Link },
-    Kept { written: bool },
+    Opened {
+        opened: bool,
+    },
+    Answered {
+        lost: bool,
+    },
+    Link {
+        link: jig_client::Link,
+    },
+    Kept {
+        written: bool,
+    },
 }
 impl Tui {
     #[must_use]
@@ -71,6 +96,7 @@ impl Tui {
         Tui {
             address: copy_of(address),
             field: copy_of(b""),
+            command_words: Box::default(),
             signing: Signing::Idle,
             local: Local::Idle,
             browser: None,
@@ -95,6 +121,11 @@ impl Tui {
     #[must_use]
     pub fn field(&self) -> &[u8] {
         &self.field
+    }
+    /// Words in the command-only composer while no project is selected.
+    #[must_use]
+    pub fn command_words(&self) -> &[u8] {
+        &self.command_words
     }
     #[must_use]
     pub const fn signing(&self) -> &Signing {
@@ -173,7 +204,54 @@ impl Tui {
         self.local = local;
         changed
     }
-    #[expect(clippy::too_many_lines, reason = "one table applies every TUI fact and advances its revision once")]
+    fn clear_command_words(&mut self) {
+        if !self.command_words.is_empty() {
+            self.command_words = Box::default();
+            self.box_written = self.box_written.saturating_add(1);
+        }
+    }
+    fn set_link(&mut self, link: jig_client::Link) -> bool {
+        match link {
+            jig_client::Link::SignedOut => {
+                if self.linked {
+                    self.clear_command_words();
+                    self.signing = Signing::Idle;
+                    self.browser = None;
+                    self.pasted = false;
+                    self.empty();
+                    self.linked = false;
+                    self.signed_out = true;
+                    self.openings = self.openings.saturating_add(1);
+                    self.focus = self.focus.saturating_add(1);
+                    true
+                } else {
+                    false
+                }
+            }
+            jig_client::Link::Starting
+            | jig_client::Link::Live
+            | jig_client::Link::Offline
+            | jig_client::Link::OutOfDate => {
+                if !self.linked {
+                    self.clear_command_words();
+                    self.focus = self.focus.saturating_add(1);
+                }
+                let changed = self.signing != Signing::Idle
+                    || !self.field.is_empty()
+                    || !self.linked
+                    || self.signed_out
+                    || self.local != Local::Idle;
+                if changed {
+                    self.empty();
+                }
+                self.signing = Signing::Idle;
+                self.local = Local::Idle;
+                self.linked = true;
+                self.signed_out = false;
+                changed
+            }
+        }
+    }
     pub fn step(&mut self, told: Told) {
         let changed = match told {
             Told::Size { columns } => {
@@ -186,10 +264,17 @@ impl Tui {
                 let written = self.box_written.saturating_add(1);
                 let changed = self.focus != focus || self.box_written != written;
                 self.focus = focus;
+                self.command_words = Box::default();
                 self.box_written = written;
                 changed
             }
+            Told::CommandWords { value } => {
+                let changed = self.command_words != value;
+                self.command_words = value;
+                changed
+            }
             Told::Cleared => {
+                self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
                 let changed = self.box_written != written;
                 self.box_written = written;
@@ -256,44 +341,7 @@ impl Tui {
                 }
                 Signing::Idle | Signing::Refused(..) | Signing::Answered { .. } => false,
             },
-            Told::Link { link } => match link {
-                jig_client::Link::SignedOut => {
-                    if self.linked {
-                        self.signing = Signing::Idle;
-                        self.browser = None;
-                        self.pasted = false;
-                        self.empty();
-                        self.linked = false;
-                        self.signed_out = true;
-                        self.openings = self.openings.saturating_add(1);
-                        self.focus = self.focus.saturating_add(1);
-                        true
-                    } else {
-                        false
-                    }
-                }
-                jig_client::Link::Starting
-                | jig_client::Link::Live
-                | jig_client::Link::Offline
-                | jig_client::Link::OutOfDate => {
-                    if !self.linked {
-                        self.focus = self.focus.saturating_add(1);
-                    }
-                    let changed = self.signing != Signing::Idle
-                        || !self.field.is_empty()
-                        || !self.linked
-                        || self.signed_out
-                        || self.local != Local::Idle;
-                    if changed {
-                        self.empty();
-                    }
-                    self.signing = Signing::Idle;
-                    self.local = Local::Idle;
-                    self.linked = true;
-                    self.signed_out = false;
-                    changed
-                }
-            },
+            Told::Link { link } => self.set_link(link),
             Told::Kept { written } => {
                 let changed = self.unkept == written;
                 self.unkept = !written;

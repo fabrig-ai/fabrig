@@ -10,9 +10,9 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     let page = help::answer(&configured(&["help", "tui"])).expect("TUI page");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`q` closes the signed-in screen and keeps the sign-in",
-        "Ctrl+C also closes",
-        "on the sign-in screen, `q` types a character",
+        "`/exit` or Ctrl+C closes the TUI and keeps the sign-in",
+        "On the sign-in screen, use Ctrl+C",
+        "`q` types a character on every screen",
         "The TUI has no sign-out action",
         "Close the TUI",
         "`temper open DIR http://HOST:PORT`",
@@ -27,6 +27,9 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     }
     let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
     assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
+    let commands = help::answer(&configured(&["help", "commands"])).expect("command reference");
+    assert!(commands.contains("`/exit` or Ctrl+C closes it without signing out"));
+    assert!(commands.contains("`q` types a character on every screen"));
 }
 
 #[test]
