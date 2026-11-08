@@ -1,6 +1,6 @@
 # The TUI's journeys
 
-Provisional, 2026-11-07. A TUI journey is a walk through the TUI
+Provisional, 2026-11-08. A TUI journey is a walk through the TUI
 (`../README.md`, 6.11 to 6.16; `../../draft/tui.md`, section 5) recorded
 at its host's seam on a fresh `temper box --fake-backends`, replayed
 natively through the shipped host, and printed as its frames: each as
@@ -80,6 +80,12 @@ the look, 11 what is open.
   approval given in the browser; Alt+Shift+S saves the recording as it
   is then, closed by an end mark of the frame as drawn. A mark is kept
   in a turn of its own (3.2); a save keeps nothing.
+- **Each key in two forms:** Alt+m is the mark key too, and Alt+s the
+  save key, for a terminal that drops the Shift from a Meta key it
+  doesn't bind, as emacs' vterm does: it sends Alt+Shift+M as Alt+m.
+  Only a recording takes them: a run without one, as the shipped
+  `temper`'s always is (section 2), gives Alt+m and Alt+s to the host as
+  any other key.
 - **A save** writes the file whole, `recording` in the TUI's directory
   (`../README.md`, 6.12), `0o600`, a synced temporary replacing it,
   through skein-io's file layer on the run's own io. The recorder goes
@@ -166,8 +172,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Typing marks nothing:** a key whose event is `Typed` marks no
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
-- **The mark and save keys** never reach the host, and are kept as their
-  mark alone (3.1).
+- **The mark and save keys,** in either form, never reach the host, and
+  are kept as their mark alone (3.1).
 
 ### 3.4 Marks
 
@@ -390,9 +396,9 @@ recording's (3.2).
 | `walk` | `1`, the format's version | the first line |
 | `see` | text | waits until the TUI's frame shows the text: a save, replayed natively to its end (section 4), gives the frame |
 | `key` | a key, as 3.2 writes it | gives it to the TUI through its terminal, as a person types it |
-| `mark` | none | the mark key, Alt+Shift+M |
+| `mark` | none | the mark key in its Shift form, Alt+Shift+M (3.1) |
 | `approve` | none | the browser opens the address of the latest save's last `browse` and presses its button "Approve", found by role and name as skein's fake person finds it |
-| `end` | none | last, once: the save key, Alt+Shift+S, whose save is the new recording |
+| `end` | none | last, once: the save key in its Shift form, Alt+Shift+S (3.1), whose save is the new recording |
 
 - **Its bounds:** a `see` not shown within 30 seconds, or an `approve`
   whose page shows no "Approve" within 30 seconds, stops `again`,
