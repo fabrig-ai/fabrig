@@ -816,7 +816,7 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
     let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
     world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
-    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n";
+    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways, project-questions and project-classes take project and no number.\nend\n";
     let see_refusal = "see settings charter 999: not read: no such setting. This says nothing about the settings: see settings lists them.";
     for (run, completion, tool, input, expected) in [
         (&run, 1, b"settings".as_slice(), json!({"setting":{"kind":"project-ways","project":999}}), settings_refusal),

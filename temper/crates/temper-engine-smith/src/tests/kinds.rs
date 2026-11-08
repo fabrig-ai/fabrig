@@ -32,7 +32,7 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 7] {
+fn values() -> [(u32, settings::Value); 8] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
@@ -45,6 +45,12 @@ fn values() -> [(u32, settings::Value); 7] {
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
+        (
+            8,
+            settings::Value::Classes(temper_protocol_reaches::Classes::stock(
+                temper_protocol_reaches::Way::AgentsReview,
+            )),
+        ),
         (
             7,
             settings::Value::Ways(settings::ProjectWays {

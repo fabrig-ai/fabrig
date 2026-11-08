@@ -284,35 +284,39 @@ mod tests {
     #[test]
     fn a_clients_project_ways_reaches_the_root_typed() {
         use temper_engine_domain_forge::settings::{ProjectWays, Value};
-        let value = Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 });
-        let bytes = temper_engine_smith::kinds::encode(&value);
-        let size = u32::try_from(bytes.len()).expect("ways encoding");
-        let event = core::Event::ChangeSettings {
-            reply_to: ReplyTo::new(Token::new(1)),
-            sign_in: 2,
-            key: [3; 16],
-            digest: [4; 32],
-            change: Box::new(core::settings::Change {
-                against: 5,
-                running: core::settings::Running::Stays,
-                items: Box::new([core::settings::Item {
-                    setting: core::settings::Setting::Application { kind: 7, scope: 1, number: 1 },
-                    edit: core::settings::Edit::Set(core::settings::Value::Application(bytes)),
-                }]),
-            }),
-        };
-        let root::PartyInput::ChangeSettings { kinds, .. } = to_root(event).expect("client ways") else {
-            panic!("settings change")
-        };
-        assert_eq!(
-            kinds.as_ref(),
-            &[root::KindValue {
-                kind: 7,
-                scope: 1,
-                number: 1,
-                value: temper_engine_domain_forge::settings::SizedValue { value, size }
-            }]
-        );
+        for (kind, value) in [
+            (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 })),
+            (8, Value::Classes(temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview))),
+        ] {
+            let bytes = temper_engine_smith::kinds::encode(&value);
+            let size = u32::try_from(bytes.len()).expect("ways encoding");
+            let event = core::Event::ChangeSettings {
+                reply_to: ReplyTo::new(Token::new(1)),
+                sign_in: 2,
+                key: [3; 16],
+                digest: [4; 32],
+                change: Box::new(core::settings::Change {
+                    against: 5,
+                    running: core::settings::Running::Stays,
+                    items: Box::new([core::settings::Item {
+                        setting: core::settings::Setting::Application { kind, scope: 1, number: 1 },
+                        edit: core::settings::Edit::Set(core::settings::Value::Application(bytes)),
+                    }]),
+                }),
+            };
+            let root::PartyInput::ChangeSettings { kinds, .. } = to_root(event).expect("client ways") else {
+                panic!("settings change")
+            };
+            assert_eq!(
+                kinds.as_ref(),
+                &[root::KindValue {
+                    kind,
+                    scope: 1,
+                    number: 1,
+                    value: temper_engine_domain_forge::settings::SizedValue { value, size }
+                }]
+            );
+        }
     }
 
     #[test]

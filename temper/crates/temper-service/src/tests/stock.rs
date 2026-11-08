@@ -344,6 +344,10 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.policy.tools = jig_domain_tasks::Tools(3072);
     assert_eq!(*charter, expected);
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert!(words.contains(temper_engine_smith::ADDRESSES));
+    assert!(
+        words.contains("project-classes: what agents decide for a person and what asks them, by kind and by path set.")
+    );
     ask_design_first_rules(words);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
     for heading in [
@@ -1317,6 +1321,8 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
 #[test]
 fn kinds_are_declared_with_their_bounds() {
     const CONNECTOR: u16 = 5;
+    // Two list lengths, twenty 127-byte items and six 553-byte path sets.
+    const CLASSES_BYTES: u32 = 8 + 20 * 127 + 6 * 553;
     use jig_domain_core::settings::{Kind, KindScope};
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
@@ -1391,6 +1397,14 @@ fn kinds_are_declared_with_their_bounds() {
                 scope: KindScope::Project,
                 connector: CONNECTOR,
                 value_bytes: 8,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 8,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: CLASSES_BYTES,
                 per_scope: 1,
                 charters: 0
             },
