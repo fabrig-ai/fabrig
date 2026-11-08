@@ -812,6 +812,12 @@ replay says the same clocks (`README.md`, 5.12).
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
+  The drawing's rules (the path's and the legend's) and the tabs', line's,
+  card's and act's hold under How work runs' frame as under Ask temper's
+  page (`README.md`, 5.13), each selector naming both. With a fourth tab,
+  "Yours", at 760 px and under the tabs stand two by two, as the whole
+  story's `whole-story.css` has them, so that "Agents review" keeps its
+  words whole on a phone.
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the

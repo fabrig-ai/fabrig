@@ -4172,10 +4172,14 @@ the person to check existence and grant the repository to the App.
   at most 24, in order, each a `Stop`:
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
   - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
-    `check`, `review`, `repair`, `approve`, `update`, `resolve`, `merge`,
-    `prepare`, `prove`, `turn`, `verify` or `branch`;
+    `check`, `review`, `repair`, `approve`, `conflict`, `resolve`, `merge`,
+    `catch_up`, `prepare`, `prove`, `turn`, `verify` or `branch`;
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
+  - `needed`, whether the stop is made only when needed, drawn outlined;
+    `over`, at most 16 bytes, the small words over its own ("tests,
+    review", "into goal"), empty for none (`../domain/forge.md`, 8.13,
+    *Drawn apart*);
   - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
     `scope`, `number`), `gate` (`number`, and `charter`, its reviews'
     charter, the role its card opens), `tier` (`name`), `queue` or
@@ -6648,7 +6652,9 @@ terminal draw the same path.
     request's fade, since a scene carries no gradient (skein's `ui.md`,
     11.2).
   - *down the page,* narrower, in a column 360 pixels wide centred in the
-    box: the dotted line down its middle at 178; a person's and an
+    box, or, in a box under 360, a scene 360 wide that says its width and
+    is scaled to the box, keeping its proportions, as the look request's
+    narrow picture is: the dotted line down its middle at 178; a person's and an
     agent's marks at its right, at 206, their words after them; code's
     at its left, at 150, its words before them; a stop every 40 pixels
     from 16, the landing branch's bar across the line's foot 38 under the
@@ -6660,8 +6666,9 @@ terminal draw the same path.
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
   the open stop has a pale ring of 15 behind its mark and its words in
   ink, bold, and the scene grows at its foot by what is 14 pixels in the
-  box (14 × `A` / `W` across, rounded to a whole pixel of the scene; 14
-  down the page), so that the card, following the drawing with no gap of
+  box (14 × `A` / `W` across, and 14 × 360 / `W` down the page in a box
+  under 360, rounded to a whole pixel of the scene; 14 down the page
+  otherwise), so that the card, following the drawing with no gap of
   its own (3.5), stands 14 pixels under it as the request's does: across,
   that room holds the card's caret, a point under the open stop 6 pixels
   of the box high and 12 wide, its base on the scene's foot, where the

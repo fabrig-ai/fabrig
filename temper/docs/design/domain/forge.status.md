@@ -26,6 +26,14 @@ workflows report, and the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
 stand. The workflows by name are section 20's.
 
+- **Not yet:** 8.13 (`path-stops`, `look-round-25`): the derivation
+  draws "update" as a stop of its own before "resolve", with no
+  "conflict" and no "catch up"; no stop says whether
+  it is made only when needed or carries the small words over its own;
+  the conflict's, the catch-up's and the goal's merges' cards are not
+  derived; *What an agent can* says "never merge or update" and "finish
+  alone".
+
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
 connector's change steps and landings use its separate sequence range.

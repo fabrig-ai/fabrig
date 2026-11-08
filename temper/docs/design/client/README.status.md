@@ -54,6 +54,15 @@ document's top-level `view` blocks are split out, read through `View` and
 redrawn at a newer revision, drawn as temper's path drawing kind with a
 stop a line as the terminal's fallback.
 
+- **Not yet:**
+  - 4.6 (`path-stops`, `look-round-25`): `PathStep` holds `update` and
+    neither `conflict` nor `catch_up`; `Stop` has no `needed` or `over`.
+  - 5.16 (`ways-misses`, `look-round-25`): down the page in a box under
+    360 the column is drawn 360 wide and not scaled, so that an open
+    card stands lower than the look request's on a phone; the path's
+    drawing and legend are Ask temper's page's own, not shared with How
+    work runs.
+
 Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
 have no known gap in Ask temper's opening, by the look request
 `ask-temper-ways` (its account `473ce6d2fe`): no heading, the lede, the
