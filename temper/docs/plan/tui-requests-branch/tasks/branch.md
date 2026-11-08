@@ -136,3 +136,7 @@ Follow the implementer's text. Also give:
 - each break of Steps, 3 and the failure it gave;
 - `the_requests_follow_main`'s time with its two rows, from nextest's output;
 - every file you changed outside `files`, and why (none is expected).
+
+## Answers
+
+2026-11-08. *ShellCheck is missing on the builder: provision it, or waive the check?* Neither: it has been run. ShellCheck builds nothing, and the answer call ran it where it is installed, on the pushed commit `25f5e87dbf`'s `temper/scripts/look-refresh.sh`: `shellcheck -s sh -S warning` exits 0, and at the default severity its only notes are the two SC2016 infos `main`'s script has too. Steps, 4's ShellCheck check is met. Don't run it again and don't install it; if the branch still holds that commit's script, report Done with the rest of your validation as it stands.
