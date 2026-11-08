@@ -37,7 +37,7 @@ Acceptance:
   (package `temper-one-process-world`, binary `memory`). First run
   `story_a_is_walked_from_the_welcome_to_the_csv_change_landed` alone
   (`heavy cargo nextest run -p temper-one-process-world --test suite
-  --run-ignored only -E 'test(=story_a_is_walked_from_the_welcome_to_the_csv_change_landed)'`,
+  --run-ignored only -E 'test(=story_a::story_a_is_walked_from_the_welcome_to_the_csv_change_landed)'`,
   a focused test, count 1).
   - If it fails (the expected case, `temper/docs/design/playground.status.md`,
     9), the memory test keeps its `#[ignore]`, and its reason becomes
@@ -61,7 +61,8 @@ Acceptance:
   - each landing's requests are counted. The second change's landing
     (52) sends no more requests than the first's (51).
   Run it once alone with `--run-ignored only --no-capture` before
-  editing, to read what it prints. Use the figures it shows, and say in
+  editing, to read what it prints (`-E
+  'test(=forge_routes::hints::two_change_hint_request_profile)'`). Use the figures it shows, and say in
   the report what each assertion holds. If a printed line holds nothing
   stable to assert, the test says so in a comment above it and asserts
   the smallest thing it can: a count's upper bound, never a print.

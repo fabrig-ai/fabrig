@@ -115,7 +115,7 @@ Acceptance:
    `rung-b0-offline` branch. Commit.
 2. Write `the_offline_rung_runs_its_proofs_in_the_process_profile`. Run
    it alone (`heavy cargo nextest run -p temper --test suite -E
-   'test(=the_offline_rung_runs_its_proofs_in_the_process_profile)'`,
+   'test(=forge_land::the_offline_rung_runs_its_proofs_in_the_process_profile)'`,
    count 1), break it once as above, restore.
 3. Change the five `#[ignore]` reasons and the status bullet.
 4. `heavy cargo check -p temper --tests`; the three lists of the

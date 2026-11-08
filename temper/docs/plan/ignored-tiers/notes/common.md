@@ -34,7 +34,8 @@
   lines for your tests in the report. The after-landing run proves the
   test, and a red it raises comes back as a repair.
 - **A focused test that drops its `#[ignore]` runs,** alone first
-  (`heavy cargo nextest run -p PKG --test BIN -E 'test(=NAME)'`, count 1),
+  (`heavy cargo nextest run -p PKG --test BIN -E 'test(=PATH)'`, count 1,
+  `PATH` the test's full name with its modules, as `nextest list` shows it),
   then with its package. Report its time from nextest. A test over its
   guide (`skein/docs/foundation/testing-strategy.md`, 8: 1 s for a
   focused world test) is examined for its cause (8.1, question 2) and
