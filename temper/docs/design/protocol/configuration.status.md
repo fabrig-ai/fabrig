@@ -20,6 +20,10 @@ established here. Continuation remains deferred in section 11.
 Section 13.9 has the reference's charter 5 as shared instructions and
 four ordered parts, including the cut's no-design rule, and template 4
 at Opus 5.5 xhigh first and high later with the same sub-agents.
+Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
+reports through coordinator handoff to close-out, keeping uncovered items
+unresolved despite empty Left lists or passing CI. The domain story
+checks delivered rules and retained evidence, not real-model compliance.
 Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.

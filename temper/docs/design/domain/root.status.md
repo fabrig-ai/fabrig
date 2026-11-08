@@ -58,3 +58,4 @@ kind remains shape.
   `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
   panic at a link it cannot make (the user, 10-28). Which holds is the
   user's, unanswered (that document's section 16).
+

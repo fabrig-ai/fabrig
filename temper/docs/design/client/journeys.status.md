@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9 has no known implementation gap in `ask-temper-place`'s
+first-run recordings: `project-landing`, `chat-draft` and
+`welcome-playground` offer Ask temper in their prints. The setup passes
+through the ChatGPT sign-in's new tab; `welcome-playground`'s link is
+redacted. The rendered comparison remains section 10's after-landing
+work; the real-box and `welcome-set-up` redaction gaps below remain.
+
 Section 3.6 has no known gap in the TUI's three kinds of original,
 `Kind::Approval`, `Kind::Credential` and `Kind::Bearer`, or the shared
 `Originals::new`, `redact_field` and separate original and shape scans.
@@ -27,8 +34,7 @@ render comparison remains temper/ui's later work (section 10).
 
 Unlisted sections have no known gap. Section 9's `connect-flows` pages
 remain hand-made request pages, with the shipped states in the gallery;
-no request CSS or script is part of a journey. The `project-landing`
-recording is refreshed at `37e4a1aa55`. Render comparison remains
+no request CSS or script is part of a journey. Render comparison remains
 temper/ui's after-landing work (section 10).
 
 Section 9 has no known gap in the flow's drawing route. The gallery
