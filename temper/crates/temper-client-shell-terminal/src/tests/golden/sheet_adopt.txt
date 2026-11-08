@@ -5,18 +5,18 @@ First:
   New project:
     [3] New project: (empty) (enter sends)
     [4] Create
-  [5] Settings for First
-  [6] Home
-  [7] Needs you
-  [8] Chats
-  [9] + New chat
-  More ways to start work:
-    [10] Chat
-      Ask about the code or ask for a change.
-    [11] Goal
-      Agents plan a larger change and land it.
-    [12] All ways to start work
-  [13] Settings (current)
+  [5] How work runs for First
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work
+  [10] How work runs (current)
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
+  [13] Deployment
   * Pat
 First · how work runs
 The repositories chats and goals in First read and change.

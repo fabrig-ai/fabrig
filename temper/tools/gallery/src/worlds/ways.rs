@@ -17,8 +17,8 @@ const REFUSED: &str =
 
 pub(super) fn world(name: &str) -> Domain {
     world_in_layout(
-        FirstRun { step: 7 },
-        Address::Ask { project: PROJECT },
+        if name == "how-draft" { super::Reference } else { FirstRun { step: 7 } },
+        if is_how(name) { Address::Settings { project: PROJECT } } else { Address::Ask { project: PROJECT } },
         Then::Shown,
         false,
         None,
@@ -28,16 +28,40 @@ pub(super) fn world(name: &str) -> Domain {
     .0
 }
 
+pub(super) fn is_how(name: &str) -> bool {
+    name == "how" || name.starts_with("how-")
+}
+
+pub(super) fn frame(me: &mut c::Me, name: &str) {
+    if name == "how-draft" {
+        let project = me.projects.get_mut(0).expect("How project");
+        let template = project.templates.iter_mut().find(|template| template.number == 4).expect("draft goal template");
+        template.budget = c::TemplateBudget::Amount(80);
+    }
+}
+
+pub(super) fn setting(name: &str) -> Box<[u8]> {
+    let draft = name == "how-draft";
+    let ways = w::ProjectWays::new(
+        &w::CEILINGS,
+        w::ProjectWaysParts { skein_bools: [draft, draft, false, false], way: if draft { 4 } else { 0 } },
+    )
+    .expect("How project ways");
+    let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
+    ways.encode(&mut writer).expect("measured ways");
+    writer.finish()
+}
+
 pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Option<&str>, out: &mut Queue<Request>) {
     let mut ways = List::with_capacity(3);
-    for (index, (name, line)) in NAMES.into_iter().zip(LINES).enumerate() {
+    for (index, (way_name, line)) in NAMES.into_iter().zip(LINES).enumerate() {
         ways.push(
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
-                    name: name.as_bytes().into(),
+                    name: way_name.as_bytes().into(),
                     line: line.as_bytes().into(),
-                    path: path(index),
+                    path: delivered_path(index, name),
                     items: items(project, index),
                     delegation: false,
                 },
@@ -46,14 +70,19 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
         )
         .expect("three ways");
     }
-    let yours = name == Some("ask-ways-yours");
+    let yours = matches!(name, Some("ask-ways-yours" | "how-yours"));
+    let current = match name {
+        Some("how-approve") => 0,
+        Some("how-draft") => 2,
+        _ => 1,
+    };
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
             project,
             ways,
-            current: if yours { None } else { Some(1) },
-            own: if yours { own() } else { path(1) },
+            current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },
+            own: if yours { own() } else { delivered_path(current, name) },
             may_change: name != Some("ask-ways-member"),
         },
     )
@@ -84,7 +113,7 @@ pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Qu
         act(root, Act::WayTab { project: PROJECT, tab: 2 }, out);
     }
     let stop = match name {
-        "ask-ways-card" => Some(w::PathStep::Review),
+        "ask-ways-card" | "how-card" => Some(w::PathStep::Review),
         "ask-ways-card-person" => Some(w::PathStep::Approve),
         _ => None,
     };
@@ -370,6 +399,24 @@ fn path(index: usize) -> w::BranchPath {
 fn own() -> w::BranchPath {
     use w::PathStep::{Ask, Branch, Merge, Produce};
     branch(vec![stop(Ask), stop(Produce), stop(Merge), stop(Branch)])
+}
+
+fn delivered_path(index: usize, name: Option<&str>) -> w::BranchPath {
+    let path = path(index);
+    let Some(name) = name.filter(|name| is_how(name)) else { return path };
+    let mut parts = path.into_parts();
+    let mut stops = parts.stops.into_boxed().into_vec();
+    if name == "how-approve" {
+        stops.retain(|stop| {
+            !matches!(stop.step(), w::PathStep::Check | w::PathStep::Verify)
+                && (index != 0 || *stop.step() != w::PathStep::Repair)
+        });
+    } else if index != 2 {
+        let main = stops.len().checked_sub(1).expect("main bar");
+        stops.insert(main, stop(w::PathStep::Verify));
+    }
+    parts.stops = List::from_boxed(stops.into_boxed_slice());
+    w::BranchPath::new(&w::CEILINGS, parts).expect("How path")
 }
 
 fn items(project: u32, index: usize) -> List<w::ProposalItem> {

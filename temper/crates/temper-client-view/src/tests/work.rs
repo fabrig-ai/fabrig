@@ -73,7 +73,7 @@ struct Fixture {
 impl Fixture {
     fn new(ways: Option<Ways>, refused: bool) -> Self {
         let (mut root, me, ..) = f::root_at_with_values(
-            Address::Settings { project: f::PROJECT },
+            Address::Models { project: f::PROJECT },
             &limits(),
             b"Shop",
             None,

@@ -137,6 +137,13 @@ caps, as for any machine stacked on a stream (io.md, 2).
   are parsed as integers, and coordinates as whole CSS pixels with their
   fractions dropped, so no float enters the kit. A screenshot's base64
   is decoded into its PNG's bytes.
+- **A message is indexed once.** Validating it indexes the span of every
+  value and of every object member's key, in document order, each value
+  knowing where its subtree ends: a first walk validates and counts the
+  entries, so that the index is allocated at its size (section 8), and a
+  second fills them. A field, an array's element or a value's bytes are
+  looked up in that index, so no lookup walks a subtree again, and a key
+  without escapes is compared as its bytes.
 - **The domains used:** `Browser` and `Target` (contexts, pages,
   sessions); `Page` (navigation and its lifecycle, screenshots);
   `Emulation` (a viewport set in CSS pixels); `Accessibility` and `DOM` (finding
@@ -468,7 +475,9 @@ value, a snapshot, a screenshot, a `Trouble`'s text and
 stderr's tail.
 They also set the poll interval and the answer deadline. Commands are
 sized before they are written, and replies are kept only as their
-decoders' fields. `valid` checks usable command and message sizes,
+decoders' fields. A message's index (section 4) is counted while it is
+validated and allocated once, at its size, and lives only while its
+message is handled. `valid` checks usable command and message sizes,
 representable framed read and output room, and positive poll and answer
 deadlines. The memory test drives the kit to its limits against the
 fake browser and checks the counting allocator's high water under a

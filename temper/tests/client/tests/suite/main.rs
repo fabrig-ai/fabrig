@@ -46,6 +46,7 @@ mod watch_room;
 mod welcome;
 mod fuzzy {
     mod client;
+    mod how;
     mod public_address;
     mod rail_and_work;
 }
