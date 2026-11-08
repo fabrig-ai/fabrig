@@ -105,7 +105,9 @@ fn a_worker_shutting_down_still_says_its_slots() {
     let mut h = Harness::new();
     h.step(Event::Shutdown);
     let rows = h.step(Event::Ready);
-    let [Request::Hello(hello)] = &*rows else { panic!("one hello: {rows:?}") };
+    let [Request::Hello(hello), Request::Link(host::LinkUp::Draining)] = &*rows else {
+        panic!("hello and draining: {rows:?}");
+    };
     assert_eq!(hello.slots, 2);
 }
 
@@ -120,7 +122,7 @@ fn the_hello_states_the_configured_stop_bound_whole() {
 #[test]
 fn a_worker_told_to_shut_down_with_nothing_left_says_stop_once() {
     let mut h = Harness::new();
-    assert_eq!(&*h.step(Event::Shutdown), [Request::Stop]);
+    assert_eq!(&*h.step(Event::Shutdown), [Request::Link(host::LinkUp::Draining), Request::Stop]);
     assert!(h.step(Event::Lost).is_empty());
 }
 

@@ -447,7 +447,8 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             Address::Rule { .. } => {
                 w::View::Rule(w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card }).unwrap())
             }
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }

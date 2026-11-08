@@ -151,11 +151,51 @@ pub(super) fn told(
 }
 
 fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out: &mut Queue<Request>) {
-    if root.pages.overturn_busy() || root.pages.address != (Address::Home { project }) {
+    if root.pages.overturn_busy() {
         return;
     }
-    let Some(form) = super::home::facts(root, project, env.wall).away else { return };
-    for row in form.rows {
+    let mut rows = List::with_capacity(7);
+    match root.pages.address() {
+        Address::Home { project: opened } if *opened == project => {
+            if let Some(form) = super::home::facts(root, project, env.wall).away {
+                for row in form.rows {
+                    rows.push(row).expect("seven decisions");
+                }
+            }
+        }
+        Address::AllHome | Address::Inbox { .. } => {
+            for row in super::all_home::decided(root, env.wall) {
+                if row.project == project {
+                    rows.push(row.line).expect("seven decisions");
+                }
+            }
+        }
+        Address::Home { .. }
+        | Address::Team { .. }
+        | Address::Ask { .. }
+        | Address::NewChat { .. }
+        | Address::Chats { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Repositories { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Goals { .. }
+        | Address::Adopt { .. } => return,
+    }
+    for row in &rows {
         if row.number != number || row.overturned || row.state != super::home::DecisionTask::Live {
             continue;
         }

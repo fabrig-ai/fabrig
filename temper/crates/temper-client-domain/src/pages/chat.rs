@@ -1212,6 +1212,7 @@ impl Chat {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the exhaustive conversation act routing stays in one match")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -1285,6 +1286,8 @@ impl Chat {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }

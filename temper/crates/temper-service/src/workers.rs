@@ -196,6 +196,7 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
             host::Ending::Refused(_) => (None, None),
         },
         host::LinkUp::ListRead { .. }
+        | host::LinkUp::Draining
         | host::LinkUp::Logins { .. }
         | host::LinkUp::SignedOut { .. }
         | host::LinkUp::Piece { .. }

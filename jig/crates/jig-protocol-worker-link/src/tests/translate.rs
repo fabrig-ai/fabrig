@@ -533,3 +533,13 @@ fn list_answers_encode_rows_and_every_failure() {
         assert_eq!(frame.bytes().get(8..).expect("body"), bytes.as_ref());
     }
 }
+
+#[test]
+fn a_hubs_draining_notice_becomes_the_empty_draining_record() {
+    let limits = fixtures::codec();
+    let frame = translate::up(host::LinkUp::Draining, &[], &limits).expect("draining frame");
+    assert_eq!(frame.kind(), wire::Kind::Draining.number());
+    let mut body = body(&frame);
+    assert!(body.is_empty());
+    wire::Draining::decode(&limits, &mut body).expect("draining record");
+}

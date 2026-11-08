@@ -2,10 +2,103 @@ use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
+use temper_client_domain::{
+    Action, Address, Event,
+    pages::{Act, all_home, home, needs, parts},
+};
 use temper_client_world::fixtures;
 
 const QUESTION: &[u8] = b"Export widget's table as CSV? Go ahead?";
 const ANSWER: &[u8] = b"Go ahead.";
+const PROJECT: u32 = 1;
+const OTHER_PROJECT: u32 = 2;
+
+#[test]
+fn all_home_answers_one_projects_card_and_keeps_the_other_open() {
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = fixtures::across_people(fixtures::domain_limits());
+    let first = fixtures::project_question(world.front(), PROJECT, b"Keep the first project's fallback?");
+    let second = fixtures::project_question(world.front(), OTHER_PROJECT, QUESTION);
+    let asker = world.front().engine.task(second).expect("second chat").delegates[0];
+    let question = world.front().engine.task(asker).expect("second delegate").questions[0].number;
+    let person = world.client(fixtures::PARTY, fixtures::inbox());
+    let until = world.now().saturating_add(fixtures::WITHIN);
+    assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
+    assert!(
+        world.root(person).person().pages().inbox().expect("inbox page").known(),
+        "inbox reads: {:?}",
+        world.root(person).person().pages().inbox()
+    );
+    let cards = |world: &jig_client_kit::harness::World<
+        temper_client_world::app::Temper,
+        temper_client_world::front::Joint,
+    >| {
+        let root = world.root(person).person();
+        root.pages()
+            .needs()
+            .open(root.pages().inbox().expect("unfiltered inbox"))
+            .iter()
+            .map(|card| (card.project, card.object))
+            .collect::<Vec<_>>()
+    };
+    let open = cards(&world);
+    assert_eq!(open.len(), 2);
+    assert_eq!(open.iter().map(|(project, _)| *project).collect::<Vec<_>>(), [Some(PROJECT), Some(OTHER_PROJECT)]);
+    assert_eq!(parts::needs_facts(world.root(person).person(), fixtures::NOW).open, 2);
+    let object = open[1].1;
+    assert_eq!(object, jig_client::contract::ObjectKey::Question { task: second, message: question });
+    world.go(person, Address::AllHome);
+    let until = world.now().saturating_add(fixtures::WITHIN);
+    assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
+    assert_eq!(
+        all_home::facts(world.root(person).person(), fixtures::NOW).needs,
+        home::Needs::Count { count: 2, cut: false }
+    );
+    world.event(
+        person,
+        Event::Act { action: Action::Pages(Act::Needs(needs::Act::Choose { object, words: ANSWER.into() })) }.into(),
+    );
+    assert_eq!(cards(&world), [open[0]]);
+    assert_eq!(parts::needs_facts(world.root(person).person(), fixtures::NOW).open, 1);
+    assert!(
+        !world
+            .front()
+            .engine
+            .task(asker)
+            .expect("asking delegate")
+            .inbox
+            .iter()
+            .any(|message| message.kind == jig_domain_tasks::MessageKind::Answer { question }),
+        "the answer stays held before five seconds"
+    );
+    let held_until = world.now().saturating_add(needs::HOLD).saturating_add(fixtures::WITHIN);
+    assert_eq!(world.run(Until::Time(held_until)).verdict, Verdict::Passed);
+    assert!(world.front().engine.task(asker).expect("answered delegate").inbox.iter().any(|message| {
+        message.from == jig_domain_tasks::Party::Task(second)
+            && message.kind == jig_domain_tasks::MessageKind::Answer { question }
+            && message.words.as_ref() == ANSWER
+    }));
+    assert!(
+        world
+            .front()
+            .engine
+            .task(first)
+            .expect("first chat")
+            .inbox
+            .iter()
+            .any(|message| message.kind == jig_domain_tasks::MessageKind::Question)
+    );
+    world.go(person, fixtures::inbox());
+    world.person(
+        person,
+        vec![Step::See { find: Find::text(b"Keep the first project's fallback?"), within: fixtures::WITHIN }],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    assert_eq!(cards(&world), [open[0]]);
+    let facts = parts::needs_facts(world.root(person).person(), fixtures::NOW);
+    assert!(facts.known);
+    assert_eq!(facts.open, 1);
+}
 
 #[test]
 fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
