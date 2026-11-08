@@ -1,0 +1,6 @@
+draft = "ignored-misc"
+repo = "fabrig"
+sources = ["temper/docs/plan/ignored-misc/inputs/request.md", "temper/tests/one-process/tests/suite/story_a.rs", "temper/tests/one-process/tests/memory.rs", "temper/docs/design/playground.status.md", "temper/docs/design/protocol/sign-in.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
