@@ -23,5 +23,3 @@
 - **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
   (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
   where temper cannot fast-forward main, because GitHub's turn is not built.
-- **Not yet:** 13.1: no branch's path reads the project's `by`, gates or
-  tiers (`forge.md`, 8.13).
