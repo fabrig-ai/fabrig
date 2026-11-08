@@ -155,7 +155,7 @@ const PERMISSION_SPEC: Spec = Spec {
 const SEE: Spec = Spec {
     name: b"see",
     description: b"Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.",
-    schema: br#"{"type":"object","additionalProperties":false,"required":["address"],"properties":{"address":{"type":"string","description":"One line, as your instructions list addresses: settings charter 3, help, more TOKEN."}}}"#,
+    schema: br#"{"type":"object","additionalProperties":false,"required":["address"],"properties":{"address":{"type":"string","description":"One line, as your instructions list addresses: settings charter 1, help, more TOKEN."}}}"#,
     effect: run::HostEffect::Read,
 };
 
