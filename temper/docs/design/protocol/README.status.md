@@ -48,6 +48,12 @@ This is simulated proof; the live no-survivor proof above remains
 separate. A worker stopped apart from its engine retains section 15.7's
 deferred failure accounting.
 
+- **Not yet:** 15.3: no loss line: the engine prints nothing for a lost
+  worker channel or an opening that ends, the worker nothing for a lost
+  link (`temper-service/src/workers.rs`, `route`; `worker.rs`, `link`),
+  and a failed workers' listener prints only once the service has ended
+  (`temper-engine-shell/src/serve/host.rs`, `Stop::Listener`).
+
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
   jig's fleet removes a draining worker from placement before its runs
   end. No reference-case story runs in this tier; the task-per-worker,

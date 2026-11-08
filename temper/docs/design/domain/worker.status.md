@@ -17,6 +17,13 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`forge.md`, section 20).
 
+- **Not yet:** 3.1: the link is read, and its deadlines fired, only once
+  its last output is taken (`temper-service/src/system.rs`,
+  `route_events`; `worker.rs`, `link_taken` and `iterate`), and the held
+  entrance holds 192 records (`HELD_ENTRANCE`) whatever the engine's cap:
+  new work waiting at the watermark fills it, the worker stops reading
+  and pinging, and the engine loses a healthy link at its silence
+  deadline.
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires
