@@ -51,6 +51,17 @@ after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
 the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
+`temper box` in a terminal runs the TUI in front, by the look request
+`tui-box-front`: signed in by a link the box hands it, the welcome
+following the browser's steps, "Signed in as the owner" from the forges
+document's `linked`, the playground's header and quiet line, a quit that
+asks while work runs and stops the box, and the box's state and `/log`,
+with goldens, joint-world stories and a focused box story on a
+pseudo-terminal; `--no-tui` and a box off a terminal run as before
+(`client/README.md`, 6.17; `protocol/setup.md`, 7.6). Its journey waits
+for `again` to start the box in the pseudo-terminal
+(`client/tui/journeys.status.md`, 8.3), and its real-terminal check
+follows landing (`client/README.md`, section 11).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames and `launchpad-chat`'s four frames
@@ -120,7 +131,17 @@ in one drawing laid out by its width, the line's two tones, the scene's
 caret and stops with no ARIA; temper/ui's rendered comparison follows
 landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
 13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
-`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+`client/README.status.md`; `draft/stock-ways.status.md`). Its render
+check's eight misses are repaired by `look-round-24`: a path's marks
+take no outline, under 720 it is the request's picture scaled, an open
+card stands 14 px under it, the gallery prints it down the page at 420,
+a card's "Asked to" is its charter's first sentence whole, CI's card
+names the required checks, every card's link opens a role's or a rule's
+page in Settings, and the terminal prints "Ways of working:" and "The
+way a change goes:" once each. No gallery state draws those two pages,
+and the repairs' render check follows landing (`client/README.status.md`,
+3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`

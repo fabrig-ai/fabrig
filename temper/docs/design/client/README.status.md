@@ -76,15 +76,35 @@ rendered comparison and walk remain section 11's after-landing work.
   - the line in two tones, the signal's faint one above the dotted line
     and the line's below, where the request fades it, since a scene
     carries no gradient;
-  - the card's caret drawn by the scene under the open stop, the card
-    following with no gap, where the request places a `::before` by a
-    percentage, the card 14 px under the path;
+  - the card's caret drawn by the scene under the open stop, in a room
+    of 14 of the box's pixels at the scene's foot that the card follows
+    with no gap, where the request places a `::before` by a percentage
+    and sets the card 14 px under the path by a margin, which a rule of
+    the viewport can't tie to the layout the box chose;
   - a stop a group with no ARIA, the fallback's buttons taking the
     keyboard and carrying Expanded, where the request's stop has
     `role="button"`, `tabindex` and `aria-expanded`, and its
     `:focus-visible` rules;
   - only the shown way's panel and an open card in the tree, where the
     request's page hides the others.
+
+Sections 3.5, 4.6 and 5.16 have no known gap in `look-round-24`'s
+repairs of `ask-temper-ways`: across in a box under 720 the path is the
+request's picture, 720 by 140, its scene saying its width and scaled to
+the box; an open stop grows the scene by 14 of the box's pixels at its
+foot, holding the caret across and none down the page; the wire's
+`Fact.value` holds 184 bytes, `OpensGate` its reviews' `charter` and
+`View` a `rule`; and every card's link opens its charter's role, its
+gate's reviews' charter's role or its rule's page. `Role { project,
+charter }` and `Rule { project, kind, number }` are pages in Settings'
+frame, How work runs current, drawn from the forge's `View` of
+`charter N` or `rule K/N` with the card a reply's view draws, in both
+shells; the client world follows "Open the reviewer ›" to the engine's
+charter view and back to "Keep it", and the terminal's tables hold
+"Ways of working:" and "The way a change goes:" once each. No gallery
+state draws the two pages (`browser.status.md`, 7.3). The repairs'
+render check and the pages' walk remain section 11's after-landing
+work.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -156,6 +176,27 @@ with its address as the place and lacks its opening question until
 finding-465's repair (`tui/journeys.status.md`, 9). The real-terminal look
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
+
+Sections 4.6 and 6.17 have no known implementation gap in the TUI in
+front of a box, by the look request `tui-box-front` (its account
+`0030c4f597`): the forges document's `linked`, set at jig's
+`LinkSignedIn` and false after a restart, and `welcome::signed_in`; the
+handed link on descriptor 3 and the box's lines on descriptor 4,
+`BoxLine` read and printed back; `Start.front` and `Report::Front`; the
+welcome before and after the sign-in, its steps read-only at
+`welcome::decision`'s step, with the forge under way; the playground's
+header, banner and quiet line; the quit question by `work_runs`, a give
+up's note and `/log`, offered in front alone; and the place "box" or
+"box:PORT" by `place(address, true)`. Goldens at 80 by 24, the state,
+view, theme, host, run and domain rows, and the joint world's TUI stories
+(`temper/tests/client/tests/suite/tui.rs`) hold them; the theme's rows
+map the new tokens in both schemes, which establishes no rendered look.
+The quiet line names a step as the box names it ("forgejo-3
+restarting"), where the request's frame 05 has "forge restarting", and
+`/log` shows the box's own lines, as 6.17 has them
+(`../draft/tui.status.md`). The journey `box-welcome` waits for
+`again` (`tui/journeys.status.md`, 8.3), and the real terminal's check,
+Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

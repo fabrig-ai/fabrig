@@ -11,7 +11,12 @@ section 10's question.
 
 Section 6.3 has no known gap in requested hangup handling, preserving a
 hangup ignored at startup, or `Kept::on_abort` restoring the terminal
-before a panic's report. The macOS build and runtime gaps in section 9
+before a panic's report. *The terminal's foreground* has none either:
+`open_terminal` and `take_foreground` are `posix`'s, the end-to-end
+world's `a_child_takes_the_terminal_and_gives_it_back` holds a child
+taking a pseudo-terminal and its parent taking it back, and the unit
+test `the_foreground_is_refused_off_a_terminal` a pipe refused with the
+signal mask restored. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).

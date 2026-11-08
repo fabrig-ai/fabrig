@@ -68,6 +68,11 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **Settings splits.** The rail's "Settings" goes: its How work runs and
   Repositories tabs become How work runs (section 7), and its Forges,
   Accounts, Models and Builders tabs become Deployment (section 8).
+- **While To begin shows** (`../client/README.md`, 3.5): "Home", "Ask
+  temper", a hairline and "How work runs", with "Deployment", the
+  person's menu and the night switch at the foot, today's "Settings"
+  being those two. A new project's Home asks for one deliberate choice,
+  as today. Its mockup: `pair/first-run.html`.
 - **"+ New draft or change"** takes `div.temper-rail-new`'s place: a
   dashed box whose menu offers "Draft", "A design session that ends in a
   goal", best had in the terminal; "Change", "Ask for one change"; and
@@ -191,15 +196,17 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 6. Team
 
 - **A project's areas and their owners.** The intro: "Who owns what on
-  PROJECT", and a lede saying that a finding, a red or a question goes to
-  its area's owner, who asks the person as How work runs says.
-- **The areas,** a table: the area's name; its paths, repositories and
-  paths in them, and finding labels; its owner, the person, a member or a
-  standing role, as a chip in who-acts colours; the owner's Now in a
-  line; this week's spend of the owner's budget. Findings with no area
-  have an owner too, the project's triager (`../domain/findings.md`,
-  section 6). "+ Hand an area to a role" at the head's right proposes a
-  role, from the stock or written with Ask temper.
+  PROJECT", and a lede saying that the project's triager hands a finding or
+  a red to its area's owner, who asks the person as How work runs says.
+- **The areas,** a table: the area's name; what it covers, in words; its
+  owner, the person, a member or a standing role, as a chip in who-acts
+  colours; the owner's Now in a line; this week's spend of the owner's
+  budget. What fits no area has an owner too, the project's triager
+  (`../domain/findings.md`, section 6). "+ Hand an area to a role" at the
+  head's right proposes a role, from the stock or written with Ask temper.
+- **Who routes,** under the table: the project's triager, as a chip, which
+  reads what comes in against the areas' words (`standing-roles.md`,
+  section 4), changed by proposal.
 - **A person's line** is what waits on them: "Two questions wait on
   you." A person writes no Now.
 - **A role's card,** opened from its row (`standing-roles.md`, section 2):
@@ -230,18 +237,22 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   "Draft first, with the protocol core asking you"; a lede; "Ask temper
   to change this", opening Ask temper on the project; "History · N
   changes", the settings' revisions.
-- **The path of a change,** drawn by who acts: three lanes, You, Agents
-  and Code; a column a step, the stops of the project's derived path
-  (`stock-ways.md`, section 4) each in its actor's lane, each opening its
-  card (`stock-ways.md`, section 5); and the authority line between
-  agents and code, "authority: no merge tool above this line", as
-  fabrig.ai draws it. The ways stay its tabs, with "Use this" and "Keep
-  it" as `stock-ways.md`, section 5, has them.
+- **The path of a change,** the one drawing Ask temper's ways use
+  (`../client/README.md`, 5.16): a column a step, the stops of the
+  project's derived path (`stock-ways.md`, section 4), a person's and an
+  agent's above the authority line and code's below it, each by its mark,
+  each opening its card (`stock-ways.md`, section 5); the line "no merge
+  tool above", as fabrig.ai draws it. The ways stay its tabs, over the
+  drawing, with "Use this" and "Keep it" as `stock-ways.md`, section 5,
+  has them, and "Yours", current, for a project that runs no stock way, as
+  a project with rules by path does. What each stop does in full is its
+  card's. A stop of a rule by path says so in its words, as "you, if
+  core" does (`what-reaches-you.md`, section 7).
 - **What reaches you:** three columns, "Agents decide, then tell you",
   "Asks you" and "Always waits for you", each item in words, with what
   Away changes (`what-reaches-you.md`, sections 2 and 3).
-- **Rules by path:** a row a rule, its paths, who reviews, who signs
-  off, and when it lands (`what-reaches-you.md`).
+- **Rules by path:** a row a rule, its paths, who reviews where the
+  rule asks it, who signs off, and when it lands (`what-reaches-you.md`).
 - **What follows a landing:** each follow the project starts
   (`follows.md`), and its tiers on main, each with its who-acts chips:
   "code hears the landing", "an agent ports", "code checks".
@@ -456,12 +467,12 @@ them, shows exactly its parts, and moving along it never flips a page.
     `temper/docs/design/client/web/whole-story/`: `index.html`, the
     shape; `home.html`; `needs.html`; `work.html`; `team.html`;
     `how.html`; `phone-home.html`; `phone-need.html`; `phone-tell.html`;
-    `whole-story.css`; and their README; and in
+    `whole-story.css`; `whole-story.js`; and their README; and in
     `temper/docs/design/client/tui/whole-story/`: `launchpad.html`,
     `design-session.html`, `role.html` and their README;
   - Pair, one person approving every change, in `pair/` beside each:
-    `home.html`, `needs.html`, `work.html`, `how.html` and
-    `phone-home.html` on the web, `launchpad.html` in the terminal;
+    `first-run.html`, `home.html`, `needs.html`, `work.html`, `how.html`
+    and `phone-home.html` on the web, `launchpad.html` in the terminal;
   - Team, three people with sign-offs by path, in `team/` beside each:
     `home.html`, `needs.html`, `work.html`, `team.html`, `how.html` and
     `phone-home.html` on the web, `launchpad.html` in the terminal.
@@ -477,9 +488,13 @@ them, shows exactly its parts, and moving along it never flips a page.
   on a deployment of their own. Their words,
   parts, order and look bind; their figures don't.
 - **Their look is the greenfield mock's,** paper and ink with one signal
-  colour, plus colours for who acts: a person orange, an agent blue, code
-  slate, in How work runs, Team and the shape. The terminal's frames are
-  the dark theme's, 110 columns wide.
+  colour, and night as the client has it (`../client/README.md`, 5.3). Who
+  acts is a mark, those of the client's path (`../client/README.md`,
+  5.16), on its stops and on the chips: a person an orange ring, an agent
+  an ink star, code a grey square. Orange is the person's alone, so
+  How work runs' milestone, P3, turns the client's agent star, and the
+  line's rise to it, from the signal colour to ink, in Ask temper's ways
+  too. The terminal's frames are the dark theme's, 110 columns wide.
 - **Refined after they're built,** on their journeys, by look requests
   (`look-requests.md`).
 

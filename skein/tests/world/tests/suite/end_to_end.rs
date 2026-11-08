@@ -1270,6 +1270,29 @@ fn terminal_fixture() -> Command {
 }
 
 #[test]
+fn a_child_takes_the_terminal_and_gives_it_back() {
+    let mut command = terminal_fixture();
+    command.arguments.push("foreground".into());
+    let outcome = run(
+        command,
+        Mode::Terminal,
+        &[
+            Act::AwaitStderr(b"foreground\n"),
+            Act::Write(0, b"a"),
+            Act::AwaitStderr(b"child key a\n"),
+            Act::AwaitStderr(b"back\n"),
+            Act::Write(0, b"q"),
+            Act::Read(0),
+            Act::Read(0),
+        ],
+        false,
+    );
+    let (child, _) = observations(&outcome);
+    assert_eq!(child.exit_status(), Some(Exit::Code(0)));
+    assert_eq!(child.stderr(), b"foreground\nchild key a\nback\nready\nkey q\n");
+}
+
+#[test]
 fn input_is_read_a_key_at_a_time() {
     let outcome = run(
         terminal_fixture(),

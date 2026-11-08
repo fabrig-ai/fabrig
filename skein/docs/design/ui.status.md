@@ -20,8 +20,8 @@ builder charges its bytes, including replacements, against the text
 bounds, and a changed hint travels in an attribute patch.
 
 Sections 3.3, 3.5, 10.1, 11.2, 11.5, 15 and 17 have no known gap in
-the flow's owner, reader, bounds and layout, the scene's own height, or
-the acceptance cases and text golden. Further flow syntax is deferred
+the flow's owner, reader, bounds and layout, the scene's own height and
+its own width, or the acceptance cases and text golden. Further flow syntax is deferred
 in section 18.
 
 - **Not yet:** 3: the builder's assertion against a node inside a named button, tab or menu item (`skein-ui/src/builder.rs`, `close`).

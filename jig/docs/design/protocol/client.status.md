@@ -42,7 +42,12 @@ local link's secret drawing no printed link. The engine-clients world
 holds both links signing in once in either order and crossing a
 reservation, a dead local link never printing, a restart forgetting
 both, and no printed link ever a local one's; the closing unit table
-holds close and abort drawing none.
+holds close and abort drawing none. Section 8's first local link given,
+`local_secret`, and `LinkSignedIn` (4.2) have no known gap either: the
+engine-clients world's sign-in suite holds a given local secret signing
+in as the first local link with no `LocalLink` said, and `LinkSignedIn`
+said once for a printed link's sign-in made or kept, never for a used
+link's refusal, a `Mint` or the local link.
 
 - **Design departs:** 8, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: after a restart or eviction

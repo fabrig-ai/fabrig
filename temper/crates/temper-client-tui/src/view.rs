@@ -13,7 +13,11 @@ use temper_client_view::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
 pub(crate) mod foot;
+pub(crate) mod front;
 pub(crate) mod launchpad;
+pub(crate) mod welcome;
+pub(crate) mod work;
+pub use work::work_runs;
 
 /// The box's binding, beside the look's BOX region.
 pub(crate) const BOX: Token = Token::new(3);
@@ -30,6 +34,7 @@ impl Binds {
 }
 #[derive(Debug)]
 pub(crate) enum Body {
+    Welcome(welcome::Welcome),
     Launchpad(launchpad::Launchpad),
     Chat(chat::Chat),
 }
@@ -271,30 +276,34 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.close();
         view.render.finish(b, view.shown, out);
     } else {
-        let body = match root.pages().address() {
-            temper_client_domain::Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
-            temper_client_domain::Address::Home { .. }
-            | temper_client_domain::Address::Inbox { .. }
-            | temper_client_domain::Address::Chats { .. }
-            | temper_client_domain::Address::NewChat { .. }
-            | temper_client_domain::Address::Ask { .. }
-            | temper_client_domain::Address::Accounts
-            | temper_client_domain::Address::Forges
-            | temper_client_domain::Address::ConnectForge { .. }
-            | temper_client_domain::Address::ConnectModel { .. }
-            | temper_client_domain::Address::Welcome { .. }
-            | temper_client_domain::Address::Task { .. }
-            | temper_client_domain::Address::Goals { .. }
-            | temper_client_domain::Address::Changes { .. }
-            | temper_client_domain::Address::Settings { .. }
-            | temper_client_domain::Address::Models { .. }
-            | temper_client_domain::Address::Builders { .. }
-            | temper_client_domain::Address::Team { .. }
-            | temper_client_domain::Address::Role { .. }
-            | temper_client_domain::Address::Rule { .. }
-            | temper_client_domain::Address::Repositories { .. }
-            | temper_client_domain::Address::Adopt { .. } => {
-                Body::Launchpad(launchpad::read(root, tui, &view.words, wall))
+        let body = if welcome::shown(root, tui) {
+            Body::Welcome(welcome::read(root, tui, &view.words, wall))
+        } else {
+            match root.pages().address() {
+                temper_client_domain::Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
+                temper_client_domain::Address::Home { .. }
+                | temper_client_domain::Address::Inbox { .. }
+                | temper_client_domain::Address::Chats { .. }
+                | temper_client_domain::Address::NewChat { .. }
+                | temper_client_domain::Address::Ask { .. }
+                | temper_client_domain::Address::Accounts
+                | temper_client_domain::Address::Forges
+                | temper_client_domain::Address::ConnectForge { .. }
+                | temper_client_domain::Address::ConnectModel { .. }
+                | temper_client_domain::Address::Welcome { .. }
+                | temper_client_domain::Address::Task { .. }
+                | temper_client_domain::Address::Goals { .. }
+                | temper_client_domain::Address::Changes { .. }
+                | temper_client_domain::Address::Settings { .. }
+                | temper_client_domain::Address::Models { .. }
+                | temper_client_domain::Address::Builders { .. }
+                | temper_client_domain::Address::Team { .. }
+                | temper_client_domain::Address::Role { .. }
+                | temper_client_domain::Address::Rule { .. }
+                | temper_client_domain::Address::Repositories { .. }
+                | temper_client_domain::Address::Adopt { .. } => {
+                    Body::Launchpad(launchpad::read(root, tui, &view.words, wall))
+                }
             }
         };
         let data = Signed { body, foot: foot::read(root, tui, &view.words, wall) };
@@ -307,7 +316,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
     view.tick = match &signed.body {
         Body::Launchpad(part) => part.tick,
-        Body::Chat(_) => None,
+        Body::Chat(_) | Body::Welcome(_) => None,
     };
     view.left_off.clear();
     view.selected = None;
@@ -320,7 +329,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
                 }
             }
         }
-        Body::Chat(_) => {}
+        Body::Chat(_) | Body::Welcome(_) => {}
     }
     view.box_empty = match &signed.foot.composer {
         Some(composer) => composer.value.is_empty(),
@@ -331,6 +340,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     let mut b = view.render.builder();
     b.open(Role::Page);
     match &signed.body {
+        Body::Welcome(part) => welcome::draw(&mut b, part, &view.words),
         Body::Launchpad(part) => launchpad::draw(&mut b, part, &view.words, &mut view.binds),
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }

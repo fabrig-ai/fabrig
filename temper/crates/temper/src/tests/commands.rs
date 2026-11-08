@@ -21,6 +21,7 @@ fn command_words(command: &Command) -> Vec<&str> {
         Command::Agent { .. } => vec!["internal", "agent"],
         Command::AgentList { .. } => vec!["internal", "agent-list"],
         Command::Tui { .. } => vec![],
+        Command::TuiFront { .. } => vec!["internal", "tui"],
         Command::Open { .. } => vec!["open"],
         Command::Ctl { .. } => vec!["ctl"],
         Command::Help { .. } => vec!["help"],
@@ -45,8 +46,8 @@ fn every_row_parses_from_an_example() {
         (&["help"], &["help"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
-        (&["box"], &["box", "--echo", "steps"]),
-        (&["box"], &["box", "--fake-backends", "--bundle", "/bundle"]),
+        (&["box"], &["box", "--echo", "steps", "--no-tui"]),
+        (&["box"], &["box", "--fake-backends", "--bundle", "/bundle", "--no-tui"]),
         (&["program-login"], &["program-login", "source"]),
         (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "fetch"], &["forge", "fetch", "1"]),
@@ -65,6 +66,7 @@ fn every_row_parses_from_an_example() {
         (&["internal", "agent-list"], &["internal", "agent-list", "agent.json"]),
         (&["internal", "serve"], &["internal", "serve", "--box"]),
         (&["internal", "forge-child"], &["internal", "forge-child", "--parent", "1", "--signal", "kill", "--", "p"]),
+        (&["internal", "tui"], &["internal", "tui", "--box", "http://127.0.0.1:8367"]),
         (&["fake", "llm"], &["fake", "llm"]),
         (&["fake", "llm"], &["fake", "llm", "--document", "llm.json"]),
         (&["fake", "forge"], &["fake", "forge", "1"]),
@@ -87,9 +89,21 @@ fn every_row_parses_from_an_example() {
             row.words
         );
     }
+    for words in [vec!["internal", "tui"], vec!["internal", "tui", "--box"]] {
+        assert!(configured(&words).is_err(), "the front requires --box ADDRESS");
+    }
     assert!(matches!(configured(&["init"]).expect("bare init"), Command::Init { boxed: false, .. }));
     assert!(matches!(configured(&["init", "--box"]).expect("boxed init"), Command::Init { boxed: true, .. }));
-    assert!(matches!(configured(&["box", "--fake-backends"]).expect("fake box"), Command::BoxFakeBackends { .. }));
+    assert!(matches!(configured(&["box", "--no-tui"]).expect("no TUI"), Command::Box { no_tui: true, .. }));
+    assert!(matches!(
+        configured(&["box", "--fake-backends", "--no-tui"]).expect("fake no TUI"),
+        Command::BoxFakeBackends { no_tui: true, .. }
+    ));
+    assert!(matches!(configured(&["box"]).expect("bare box"), Command::Box { no_tui: false, .. }));
+    assert!(matches!(
+        configured(&["box", "--fake-backends"]).expect("fake box"),
+        Command::BoxFakeBackends { no_tui: false, .. }
+    ));
 }
 
 #[test]
