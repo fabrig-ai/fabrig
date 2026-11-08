@@ -1,19 +1,24 @@
 //! Reading's histories and anchoring steps (temper/docs/design/client/browser.md, 4.3 and 4.6, item 14).
 use skein_fake_person_browser::Step;
 
+/// Eight replies span three windows; the long story reads them by their place.
 pub const LONG_MESSAGES: u32 = 8;
+/// The second-last reply anchors the position story's read above it to the first.
 pub const POSITION_MESSAGES: u32 = 3;
+/// Two `PageUp` keys leave the log's foot and show Latest, while the chat opens whole.
 pub const LATEST_MESSAGES: u32 = 6;
 pub const SHORT_START: &str = "A short conversation";
 pub const SHORT_END: &str = "The whole answer.";
 
-// The tier's bundle holds an eighth of a person's window, with the same mechanism.
-// A person's bundle keeps the whole bound; a long chat at that size is read by hand
-// (temper/docs/design/client/browser.md, 4.3).
+// The shell's small-window bundle holds its long_text: a thirty-second of a person's
+// document_bytes, using the same window mechanism (temper/docs/design/client/browser.md, 4.3).
 #[cfg(test)]
-const READING_WINDOW_BYTES: usize = 131_072;
-const LONG_CODE_WORDS: usize = 9_600;
-const POSITION_CODE_WORDS: usize = 7_000;
+const READING_WINDOW_BYTES: usize = 32_768;
+// One code line carries each reply's bytes: eight span just past three windows,
+// with about two and a half replies held at once, apart from their paragraph height.
+const LONG_CODE_WORDS: usize = 2_020;
+// Three position replies fit one window, leaving room for its lines and their parts.
+const POSITION_CODE_WORDS: usize = 1_520;
 
 /// "Reading paragraph 01."
 #[must_use]
@@ -38,9 +43,12 @@ pub fn latest_words(number: u32) -> Box<[u8]> {
 /// Each history's disjoint cues and replies for `Tier::reading`.
 #[must_use]
 pub fn replies() -> Vec<(String, String)> {
-    // The last reply makes opening read the preceding one. An evicting window needs room at both read margins.
+    // The last long reply and the last two position replies have the height the
+    // story's PageUps cross; the shorter last long reply makes opening read its predecessor.
     const POSITION_PARAGRAPHS: u32 = 30;
+    // The first position reply is short enough for the read above the anchor to reach it.
     const MIDDLE_PARAGRAPHS: u32 = 10;
+    // Full long replies give the PageUp and PageDown counts height to cross at both read margins.
     const WINDOW_PARAGRAPHS: u32 = 40;
     let mut replies: Vec<_> = (1..=LONG_MESSAGES)
         .map(|number| {

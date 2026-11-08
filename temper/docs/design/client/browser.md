@@ -1336,13 +1336,22 @@ real key in that restored form.
   test loads the compressed module under temper's policy.
 - **The tier's window:** the tier's bundle also turns on
   `temper-client-shell-web`'s `small-window`, which names a conversation's
-  window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
-  `document_bytes`, through the same window mechanism. The long reading
+  window of 32,768 bytes, a thirty-second of a person's `document_bytes`,
+  through the same window mechanism (`README.md`, 5.15). A window holds no
+  less than `long_text`, so the feature sets the bundle's `long_text` and
+  `turn_text` to the same 32,768: the largest page `read_docs` answers
+  (`temper-docs`' `PAGE_BYTES`), so that a tier story's line holding one
+  stays whole. The long reading
   story (4.6, 14) passes that bound by at least two windows' worth and
   evicts and recovers lines at both ends. The unanchored position story
   stays within one window; it checks the words holding across a read above,
   and a window dropping lines would change what that proves, so it never
   reads the long story's chat.
+  Reading's replies are sized to the window: a reply's bytes ride on one
+  horizontally scrollable code line, its height on its paragraphs. So the
+  code lines scale with the window, and each history's bytes keep their
+  share of it, while the replies' counts and paragraphs stay: the keys
+  each step presses and the reply each step reads rest on them.
   The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
 - **A chat's history:** what a reading story reads is made through
