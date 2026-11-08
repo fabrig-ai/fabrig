@@ -1836,8 +1836,11 @@ temper ctl help [GROUP [VERB]]
   - *not ready* and *busy* pass: the call sends the same link again,
     with the same token, after 100 ms, doubling to 2 s, within its
     deadline (8.2); past it, after busy, `temper ctl: temper is busy;
-    this link stays usable until it expires`, and after not ready, the
-    deadline's own line.
+    this link stays usable until it expires`, and after not ready,
+    `temper ctl: temper is not ready: it is starting, or its core is not
+    answering, and temper serve's log says why; this link stays usable
+    until it expires` (`../protocol/README.md`, 8.2). A sign-in never
+    answered keeps the deadline's own line.
 
   `sign-out`
   ends the sign-in, and jig's native shell, keeping none, leaves `token`
