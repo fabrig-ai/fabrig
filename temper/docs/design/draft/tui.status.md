@@ -2,7 +2,7 @@
 
 2026-11-08. Where the design lags or departs from [tui.md](tui.md).
 
-- **Design lags:** 3 and 7: of the direction, the side pane and
+- **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags. 3 and 7: of the direction, the side pane and
   drafting, needs from elsewhere, the hand-offs and the project chosen
   from a checkout; approval between hosts and managing sign-ins; all
   await the user's refinement, and `../client/README.md`, section 11
@@ -104,4 +104,4 @@
     (`../client/tui/journeys.status.md`, 9). The render check and the
     walk follow landing (`../client/README.md`, section 11).
 - **Open:**
-  - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.
+  - 3: needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.

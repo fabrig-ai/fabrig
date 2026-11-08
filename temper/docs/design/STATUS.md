@@ -827,3 +827,8 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/follows.md`](draft/follows.status.md)
+- [`draft/standing-roles.md`](draft/standing-roles.status.md)
+- [`draft/surfaces.md`](draft/surfaces.status.md)
+- [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
+- [`draft/whole-story.md`](draft/whole-story.status.md)

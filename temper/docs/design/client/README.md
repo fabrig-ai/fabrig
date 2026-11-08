@@ -1442,8 +1442,9 @@ keeps (`../protocol/configuration.md`, section 2).
     where the document shows it.
   - *Its frame* is the top bar (5.1; the look request `outside-pages`):
     temper's mark, a link to `/` (named "temper"), temper box's line and
-    the steps alone: no person's name or "Sign
-    out", no project, navigation or link state, and no accounts' banner
+    the steps, then the top bar's right as on any other page outside a
+    project: the link region, and, signed in, the person's name and "Sign
+    out" (5.1). No project, navigation or switcher, and no accounts' banner
     (5.1); the playground's line while the playground is leaving, as on
     every page but `Chats` and `NewChat` (4.8, 5.1, 5.6). temper box's line says what this
     temper is for, in fixed words: "**temper box** · on this machine,
@@ -1452,7 +1453,8 @@ keeps (`../protocol/configuration.md`, section 2).
     (`temper/docs/help/server.md`), the welcome being a quick way to
     try temper, not a deployment's wizard (the user, 2026-11-04). Each
     step's heading is the page's level-1 heading.
-  - *Its steps,* at the frame's end, are a list named Steps of four links,
+  - *Its steps,* after temper box's line, before the top bar's right, are
+    a list named Steps of four links,
     each to its own step in every state: Welcome to `/welcome?at=welcome`,
     Forge, Model and Ready to their `?at=`, with no choice or way. They
     are the welcome's own, not the flows' list (5.2, A flow's parts), which
@@ -4319,9 +4321,16 @@ client removes no account and closes no chat of its own.
     prints it (6.4); the browser shows the region only while it says
     "Offline", so no "Signed out", "Connecting" or "Live" shows there.
     Until `me` is read, the top bar shows its mark alone, so that no
-    other frame shows before the first page. On `Welcome`, temper's mark alone until the
-    deployment's read answers, then temper box's line and the welcome's
-    steps after it (3.5, The welcome);
+    other frame shows before the first page. On `Welcome`, temper box's
+    line and the welcome's steps follow the mark once the deployment's
+    read answers; its right is as on every other page, before that read
+    too (3.5, The welcome);
+  - *while `me` is read,* the top bar alone, at every address but the
+    sign-in page, the `Authorize` and approval places and the pages not
+    about the work (below), which draw without `me`: no banner, an empty
+    main marked busy and no tab bar, and the browser's terminal look waits
+    too, so that no page's body shows before `me` says which project is open
+    (the look request `outside-pages`);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project
