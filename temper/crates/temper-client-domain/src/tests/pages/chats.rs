@@ -8,9 +8,9 @@ const OUTPUTS: u32 = 16;
 const CURSOR_BYTES: u32 = 8;
 const SERIAL: u64 = 13;
 const PRESSES: u32 = 2;
-const CONFIGURING: u32 = 3;
-// The stock chat and configuring chat supply two templates and two charters.
-const TEMPLATES: u32 = 2;
+const CONFIGURING: u32 = 5;
+// The stock chat, engine configuring chat and Ask have separate templates and charters.
+const TEMPLATES: u32 = 3;
 // The model tests offer one selectable alternative to the template's models.
 const MODELS: u32 = 1;
 // Each chat start creates one task.
@@ -79,11 +79,16 @@ fn configuring_me() -> Me {
     configuring.number = CONFIGURING;
     configuring.executor = TemplateExecutor::Charter(CONFIGURING);
     project.templates = List::with_capacity(TEMPLATES);
+    let mut former = stock.clone();
+    former.number = 3;
+    former.executor = TemplateExecutor::Charter(3);
     project.templates.push(stock).unwrap();
+    project.templates.push(former).unwrap();
     project.templates.push(configuring).unwrap();
     let charters = &mut project.creating.as_mut().expect("creating").within.charters;
     *charters = List::with_capacity(TEMPLATES);
     charters.push(1).unwrap();
+    charters.push(3).unwrap();
     charters.push(CONFIGURING).unwrap();
     me
 }
@@ -92,8 +97,7 @@ fn configuring_me() -> Me {
 fn configure_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
     for (me, charter, address) in [
-        (configuring_me(), CONFIGURING, Address::Configure { project: fixtures::PROJECT }),
-        (fixtures::chats::me(), 1, Address::Configure { project: fixtures::PROJECT }),
+        (configuring_me(), CONFIGURING, Address::Ask { project: fixtures::PROJECT }),
         (configuring_me(), 1, Address::NewChat { draft: false }),
     ] {
         let mut page = Page::new(me, address);
@@ -129,6 +133,10 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
         assert!(page.out.is_empty());
         assert!(page.pages.chats().expect("chats").start.is_none());
     }
+    let mut page = Page::new(fixtures::chats::me(), Address::Ask { project: fixtures::PROJECT });
+    page.words(b"My workflow");
+    page.act(Act::StartChat);
+    assert!(fixtures::acts::sent(&mut page.out).is_empty(), "Ask has no ordinary-chat fallback");
 }
 
 fn answer_start(page: &mut Page) {
@@ -152,8 +160,8 @@ fn a_chat_started_by_sending_opens_asking_for_its_composer() {
     for (address, act) in [
         (Address::NewChat { draft: false }, Some(Act::StartChat)),
         (Address::NewChat { draft: true }, Some(Act::StartChat)),
-        (Address::Configure { project: fixtures::PROJECT }, Some(Act::StartChat)),
-        (Address::Configure { project: fixtures::PROJECT }, Some(Act::Starter { words: b"Hello".as_slice().into() })),
+        (Address::Ask { project: fixtures::PROJECT }, Some(Act::StartChat)),
+        (Address::Ask { project: fixtures::PROJECT }, Some(Act::Starter { words: b"Hello".as_slice().into() })),
         (Address::NewChat { draft: false }, None),
     ] {
         let mut page = Page::new(configuring_me(), address.clone());
@@ -186,18 +194,18 @@ fn a_chat_opened_otherwise_asks_for_nothing() {
 #[test]
 fn a_starter_starts_once_with_its_words() {
     use crate::{Address, pages::Act};
-    for (me, charter) in [(configuring_me(), CONFIGURING), (fixtures::chats::me(), 1)] {
-        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
-        page.words(b"Unsent draft");
-        page.act(Act::Starter { words: b"My starter".as_slice().into() });
-        page.act(Act::Starter { words: b"Another starter".as_slice().into() });
-        page.act(Act::StartChat);
-        let task = page.task();
-        assert_eq!(task.executor, Executor::Agent { charter });
-        assert_eq!(task.spec.words.bytes(), b"My starter");
-        assert_eq!(page.pages.chats().expect("chats").words.as_ref(), b"My starter");
-        assert!(page.pages.chats().expect("chats").start.is_some());
-    }
+    let me = configuring_me();
+    let charter = CONFIGURING;
+    let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
+    page.words(b"Unsent draft");
+    page.act(Act::Starter { words: b"My starter".as_slice().into() });
+    page.act(Act::Starter { words: b"Another starter".as_slice().into() });
+    page.act(Act::StartChat);
+    let task = page.task();
+    assert_eq!(task.executor, Executor::Agent { charter });
+    assert_eq!(task.spec.words.bytes(), b"My starter");
+    assert_eq!(page.pages.chats().expect("chats").words.as_ref(), b"My starter");
+    assert!(page.pages.chats().expect("chats").start.is_some());
 }
 
 #[test]
@@ -225,7 +233,7 @@ fn a_refused_start_keeps_the_words() {
     for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
         let mut me = configuring_me();
         me.projects.get_mut(0).expect("project").creating = None;
-        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
+        let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
         page.words(b"My workflow");
         page.act(act.clone());
         let chats = page.pages.chats().expect("chats");
@@ -234,7 +242,7 @@ fn a_refused_start_keeps_the_words() {
         assert!(chats.start.is_none());
         assert!(page.out.is_empty());
 
-        let mut page = Page::new(configuring_me(), Address::Configure { project: fixtures::PROJECT });
+        let mut page = Page::new(configuring_me(), Address::Ask { project: fixtures::PROJECT });
         page.words(b"My workflow");
         page.act(act);
         let key = page.pages.chats().expect("chats").start.expect("start");
@@ -264,51 +272,51 @@ fn llm(model: &[u8]) -> LlmChoice {
 #[test]
 fn a_start_from_configure_keeps_its_templates_models() {
     use crate::{Address, pages::Act};
-    for (mut me, expected) in [(fixtures::chats::me(), llm(b"stock")), (configuring_me(), llm(b"configuring"))] {
-        for row in me.projects.get_mut(0).expect("project").templates.iter_mut() {
-            row.llm = Some(llm(if row.number == CONFIGURING { b"configuring" } else { b"stock" }));
-        }
-        let mut models = List::with_capacity(MODELS);
-        models
-            .push(MeModel {
-                new_until: None,
-                number: 1,
-                source: ModelSource::Stock,
-                estimated: false,
-                effort: None,
-                shown: None,
-                accounts: List::with_capacity(0),
-                picker: true,
-                prices: ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
-                description: None,
-                name: fixtures::acts::text(b"other"),
-                provider: Some(17),
-                window: 1024,
-                output: 128,
-                efforts: List::with_capacity(0),
-            })
-            .unwrap();
-        me.projects.get_mut(0).expect("project").models = models;
-        for (edited, requested, valid) in [
-            (false, Some(expected.clone()), true),
-            (true, Some(llm(b"other")), true),
-            (true, None, true),
-            (true, Some(llm(b"unoffered")), false),
-        ] {
-            for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
-                let mut page = Page::new(me.clone(), Address::Configure { project: fixtures::PROJECT });
-                page.words(b"My workflow");
-                assert_eq!(page.pages.choice.requested, Some(expected.clone()));
-                if edited {
-                    page.pages.choice.requested = requested.clone();
-                }
-                assert_eq!(page.pages.choice.valid(&me), valid);
-                page.act(act);
-                if valid {
-                    assert_eq!(page.task().llm, requested);
-                } else {
-                    assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
-                }
+    let mut me = configuring_me();
+    let expected = llm(b"configuring");
+    for row in me.projects.get_mut(0).expect("project").templates.iter_mut() {
+        row.llm = Some(llm(if row.number == CONFIGURING { b"configuring" } else { b"stock" }));
+    }
+    let mut models = List::with_capacity(MODELS);
+    models
+        .push(MeModel {
+            new_until: None,
+            number: 1,
+            source: ModelSource::Stock,
+            estimated: false,
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
+            prices: ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
+            description: None,
+            name: fixtures::acts::text(b"other"),
+            provider: Some(17),
+            window: 1024,
+            output: 128,
+            efforts: List::with_capacity(0),
+        })
+        .unwrap();
+    me.projects.get_mut(0).expect("project").models = models;
+    for (edited, requested, valid) in [
+        (false, Some(expected.clone()), true),
+        (true, Some(llm(b"other")), true),
+        (true, None, true),
+        (true, Some(llm(b"unoffered")), false),
+    ] {
+        for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
+            let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
+            page.words(b"My workflow");
+            assert_eq!(page.pages.choice.requested, Some(expected.clone()));
+            if edited {
+                page.pages.choice.requested = requested.clone();
+            }
+            assert_eq!(page.pages.choice.valid(&me), valid);
+            page.act(act);
+            if valid {
+                assert_eq!(page.task().llm, requested);
+            } else {
+                assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
             }
         }
     }
@@ -434,7 +442,7 @@ fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
     limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
-    let me = fixtures::chats::me();
+    let me = configuring_me();
     for suggested in [false, true] {
         for length in [bound, bound + 1] {
             let mut words = skein_lib::bytes::zeroed(length);
@@ -453,7 +461,7 @@ fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
                     &mut out,
                 );
             } else {
-                chats.configure_chat(
+                chats.ask_chat(
                     &fixtures::env(&limits),
                     Some(&me),
                     Some(fixtures::PROJECT),
@@ -467,7 +475,14 @@ fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
             assert_eq!(sent.len(), usize::from(length == bound), "suggested={suggested}, length={length}");
             if length == bound {
                 let words = Text::new(words, temper_client_protocol_wire::CUE_BYTES).unwrap();
-                assert_eq!(sent.as_ref(), [jig_client::shapes::chat(&me, fixtures::PROJECT, words).unwrap()]);
+                assert_eq!(
+                    sent.as_ref(),
+                    [if suggested {
+                        jig_client::shapes::chat(&me, fixtures::PROJECT, words).unwrap()
+                    } else {
+                        jig_client::shapes::chat_from(&me, fixtures::PROJECT, CONFIGURING, words).unwrap()
+                    }]
+                );
             }
         }
     }
@@ -675,6 +690,15 @@ fn open_chat_rows(
     let mut root = crate::unlinked(&limits, fixtures::SEED);
     let me = fixtures::start(&mut root, List::with_capacity(0));
     let mut out = Queue::uncapped();
+    let first_load_project = if let crate::Address::Models { project } = address { Some(project) } else { None };
+    if let Some(project) = first_load_project {
+        crate::step(
+            &mut root,
+            &env,
+            crate::Event::Went { place: Place::Address(crate::Address::Models { project }) },
+            &mut out,
+        );
+    }
     crate::step(
         &mut root,
         &env,
@@ -685,7 +709,9 @@ fn open_chat_rows(
         },
         &mut out,
     );
-    crate::step(&mut root, &env, crate::Event::Went { place: Place::Address(address) }, &mut out);
+    if first_load_project.is_none() {
+        crate::step(&mut root, &env, crate::Event::Went { place: Place::Address(address) }, &mut out);
+    }
     let mut watch = None;
     let mut read = None;
     let mut facts = None;
@@ -838,7 +864,7 @@ fn a_suggestion_replaces_new_chat_with_its_conversation() {
 }
 
 #[test]
-fn settings_selects_the_newest_open_configuring_chat() {
+fn settings_selects_the_newest_open_asking_chat() {
     const OTHER_PROJECT: u32 = 91;
     const NEWER: u64 = 42;
     let mut open = chat_line();
@@ -850,6 +876,8 @@ fn settings_selects_the_newest_open_configuring_chat() {
     open.last_activity = skein_lib::Wall::from_nanos(1);
     let mut ordinary = open.clone();
     ordinary.chip.executor = ChipExecutor::Agent { charter: 1 };
+    let mut former = open.clone();
+    former.chip.executor = ChipExecutor::Agent { charter: 3 };
     let mut other = newer.clone();
     other.project = OTHER_PROJECT;
     let mut closed = newer.clone();
@@ -869,6 +897,7 @@ fn settings_selects_the_newest_open_configuring_chat() {
     for (me, lines, expected) in [
         (configuring_me(), [].as_slice(), None),
         (configuring_me(), core::slice::from_ref(&ordinary), None),
+        (configuring_me(), core::slice::from_ref(&former), None),
         (configuring_me(), core::slice::from_ref(&other), None),
         (configuring_me(), ended_rows.as_slice(), None),
         (configuring_me(), core::slice::from_ref(&open), Some(open.chip.task)),
@@ -877,11 +906,18 @@ fn settings_selects_the_newest_open_configuring_chat() {
         (configuring_me(), mixed.as_slice(), Some(NEWER)),
         (fixtures::chats::me(), core::slice::from_ref(&newer), None),
     ] {
-        for from_watch in [true, false] {
-            let (mut root, watch, read, _) =
-                open_chat_rows(me.clone(), crate::Address::Settings { project: fixtures::PROJECT });
+        for (from_watch, rail) in [(true, false), (false, false), (true, true)] {
+            if rail && jig_client::shapes::template(&me, fixtures::PROJECT, 5).is_none() {
+                continue;
+            }
+            let address = if rail {
+                crate::Address::Models { project: fixtures::PROJECT }
+            } else {
+                crate::Address::Settings { project: fixtures::PROJECT }
+            };
+            let (mut root, watch, read, _) = open_chat_rows(me.clone(), address);
             let select = |root: &crate::Domain, project| {
-                root.pages().chats().expect("Settings holds chats").open_configuring(
+                root.pages().chats().expect("Settings holds chats").open_asking(
                     root.client(),
                     root.pages().me(root.client()),
                     project,
@@ -915,8 +951,8 @@ fn settings_selects_the_newest_open_configuring_chat() {
             );
             assert_eq!(select(&root, fixtures::PROJECT), expected, "watch: {from_watch}, rows: {lines:?}");
             assert_eq!(select(&root, OTHER_PROJECT), None, "query belongs to this project");
-            assert_eq!(root.pages().chats().unwrap().open_configuring(root.client(), None, fixtures::PROJECT), None);
-            assert_eq!(Chats::new(FIRST).open_configuring(root.client(), Some(&me), fixtures::PROJECT), None);
+            assert_eq!(root.pages().chats().unwrap().open_asking(root.client(), None, fixtures::PROJECT), None);
+            assert_eq!(Chats::new(FIRST).open_asking(root.client(), Some(&me), fixtures::PROJECT), None);
         }
     }
 }
@@ -1226,7 +1262,7 @@ fn reference_opens_only_at_configure_without_a_request() {
         pages::{Act, chat::document::Mode},
     };
     for address in [
-        Address::Configure { project: fixtures::PROJECT },
+        Address::Ask { project: fixtures::PROJECT },
         Address::NewChat { draft: false },
         Address::Chats { filter: ChatsFilter::All },
         Address::Home { project: fixtures::PROJECT },
@@ -1239,14 +1275,14 @@ fn reference_opens_only_at_configure_without_a_request() {
         };
         assert_eq!(reference, None);
         let before = format!("{:?}", (page.pages.chats(), page.pages.chat(), page.pages.task()));
-        if let Address::Configure { .. } = address {
+        if let Address::Ask { .. } = address {
             page.act(Act::Mode { mode: Mode::Draft });
             assert_eq!(page.pages.chats().unwrap().reference, None);
             assert!(page.out.is_empty());
         }
         page.act(Act::ShowReference);
         assert!(page.out.is_empty(), "{address:?}");
-        if let Address::Configure { .. } = address {
+        if let Address::Ask { .. } = address {
             assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));
             page.act(Act::ShowReference);
             assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));

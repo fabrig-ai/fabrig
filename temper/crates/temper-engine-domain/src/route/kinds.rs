@@ -158,6 +158,26 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
 
 // temper/docs/design/domain/forge.md, 8.9: eligibility joins the forge's rule with the core's people.
 fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
+    approval_for_projects(domain, asked, domain.core.projects.as_slice())
+}
+
+/// Acceptance's approval refusal, judged for one project at the call
+/// (temper/docs/design/domain/agent.md, 8.4.2; forge.md, 8.9).
+pub(super) fn call_approval_refusal(domain: &Domain, project: u32, kinds: &[crate::KindValue]) -> Option<Box<[u8]>> {
+    for value in kinds {
+        let asked = settings::Asked {
+            kind: value.kind,
+            scope: value.scope,
+            number: value.number,
+            edit: settings::Edit::Set(value.value.clone()),
+        };
+        if let Some(why) = approval_for_projects(domain, &asked, core::slice::from_ref(&project)) {
+            return Some(why);
+        }
+    }
+    None
+}
+fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u32]) -> Option<Box<[u8]>> {
     let value = match &asked.edit {
         settings::Edit::Set(value) => &value.value,
         settings::Edit::Remove | settings::Edit::Reset => return None,
@@ -169,7 +189,7 @@ fn approval_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]
     if !rule.enforce || rule.approvals.is_empty() {
         return None;
     }
-    for &project in &domain.core.projects {
+    for &project in projects {
         if asked.scope != 0 && asked.scope != project {
             continue;
         }

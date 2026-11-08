@@ -325,11 +325,11 @@ impl Protocol {
                             Ok(vec![rendered(to, name)])
                         }
                     }
-                    other @ (engine::HostDelivery::Settings { .. } | engine::HostDelivery::Answer { .. }) => {
-                        Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(
-                            Box::new(other),
-                        )))))
-                    }
+                    other @ (engine::HostDelivery::Settings { .. }
+                    | engine::HostDelivery::See { .. }
+                    | engine::HostDelivery::Answer { .. }) => Err(Box::new(engine::Request::Worker(
+                        engine::WorkerRequest::Deliver(engine::Delivery::Host(Box::new(other))),
+                    ))),
                 }
             }
             engine::Request::Worker(engine::WorkerRequest::ReadResult { payload, outcome }) => {

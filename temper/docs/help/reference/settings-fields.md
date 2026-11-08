@@ -48,7 +48,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `shell`: true or false. Whether the run's agent may run commands in its workspace.
 - `agents`: true or false. Whether the run's agent may open sub-agents, each with no more tools than its own.
 - `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.
-- `tools`: integer. The host families its runs are offered, a bit each as an authority's `tools` has them; a family it or its task's authority leaves out is not offered, and temper offers by it the settings family's tools (1024) alone; 1023, every family but settings, when left out.
+- `tools`: integer. Host families offered where both charter and task allow them. Asking (2048) alone or with settings (1024) declares only see, document and, with settings, propose_settings; other charters get settings tools by 1024. Default 1023: every family but settings and asking.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
 - `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
@@ -358,7 +358,7 @@ One kind whose grant grants another.
 What a task, a role or a ceiling may do: its tools, models, grants, delegation, spend and deadline.
 
 - `models`: `models`. The models its runs may use.
-- `tools`: integer. The engine's tool families its runs may call, a bit each: 1 delegate, 2 message, 4 amend, cancel and release, 8 decide and withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 the forge's reads, 1024 settings.
+- `tools`: integer. The engine's tool families its runs may call, a bit each: 1 delegate, 2 message, 4 amend, cancel and release, 8 decide and withdraw, 16 propose, 32 subscribe, 64 effect, 128 note, 256 recall, 512 the forge's reads, 1024 settings, 2048 asking.
 - `grants`: list of at most 1,048,576, each `grant`. The effects and reads it may make, each a connector's kind on some resources.
 - `delegation`: `delegation`. The delegates it may make.
 - `spend`: integer. The most its tree may spend.

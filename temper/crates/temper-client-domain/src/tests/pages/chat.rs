@@ -1308,10 +1308,13 @@ pub(super) fn draft_note(number: u64, revision: u64, body: &[u8]) -> c::Note {
     }
 }
 fn note_call(f: &mut f::Fixture, number: u64, position: u64) {
+    document_call(f, number, position, b"note", "Note 12 revision 1 written · 64 lines");
+}
+fn document_call(f: &mut f::Fixture, number: u64, position: u64, tool: &[u8], outcome: &str) {
     let mut call = f::delegate_call(number);
-    call.tool = fixtures::acts::text(b"note");
+    call.tool = fixtures::acts::text(tool);
     call.objects = skein_lib::List::with_capacity(0);
-    call.outcome = Some(c::Text::new("Note 12 revision 1 written · 64 lines".as_bytes().into(), 64).unwrap());
+    call.outcome = Some(c::Text::new(outcome.as_bytes().into(), 256).unwrap());
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks.push(c::Block::Call(call)).unwrap();
     f::activity_blocks(f, c::Speaker::Assistant, blocks, position);
@@ -1517,7 +1520,7 @@ fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).unwrap();
     let mut configuring = project.templates.get(0).unwrap().clone();
-    configuring.number = 3;
+    configuring.number = 5;
     let mut templates = skein_lib::List::with_capacity(2);
     templates.push(project.templates.get(0).unwrap().clone()).unwrap();
     templates.push(configuring).unwrap();
@@ -1597,7 +1600,7 @@ fn a_done_start_over_shows_configure() {
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);
     let mut out = answer_start_over(&mut pages, &client, seen_answer());
-    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Configure { project: fixtures::PROJECT } }));
+    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Ask { project: fixtures::PROJECT } }));
     assert!(out.is_empty());
     assert!(pages.confirmation().is_none());
     assert!(pages.chat().unwrap().closing.is_none());
@@ -2933,4 +2936,23 @@ fn a_terminal_chat_reads_the_question_it_waits_on() {
             assert!(f::handles(&mut out).contains(&entries));
         }
     }
+}
+
+#[test]
+fn a_new_document_call_reads_again() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    draft_answer(&mut f, notes_page(&[]));
+    document_call(
+        &mut f,
+        11,
+        f::POSITION,
+        b"document",
+        "Note 12 revision 1 written · 64 lines\ndocument: \"Title\" written, 64 lines.",
+    );
+    assert_eq!(take_draft_reads(&mut f), 1);
+    assert_eq!(
+        f.chat.newest_write(),
+        crate::pages::chat::document::note_write("Note 12 revision 1 written · 64 lines".as_bytes())
+    );
 }

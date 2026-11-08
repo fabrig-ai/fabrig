@@ -56,3 +56,25 @@ fn malformed_settings_reads_name_the_invalid_field() {
         assert_eq!(problem, expected);
     }
 }
+
+#[test]
+fn proposal_reads_decode_through_the_settings_tool() {
+    use jig_domain_people::Proposer;
+    for (input, proposer) in [
+        (br#"{"kind":"proposal","task":3,"number":7}"#.as_slice(), Proposer::Task(3)),
+        (br#"{"kind":"proposal","party":3,"number":7}"#.as_slice(), Proposer::Party(3)),
+    ] {
+        let Decoded::Action(NamedAction::ReadProposal { proposer: decoded, number }) =
+            crate::decode(b"settings", input, &super::fixtures::LIMITS)
+        else {
+            panic!("proposal read: {input:?}")
+        };
+        assert_eq!((decoded, number), (proposer, 7));
+    }
+    let Decoded::Problem(problem) =
+        crate::decode(b"settings", br#"{"kind":"proposal","task":3,"party":3,"number":7}"#, &super::fixtures::LIMITS)
+    else {
+        panic!("a proposal names one proposer")
+    };
+    assert_eq!(problem, Problem { field: b"party", why: Why::Range });
+}

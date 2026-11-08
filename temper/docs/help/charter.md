@@ -19,8 +19,10 @@ whose `on` meets why it runs. A charter holds:
   of their own;
 - its models: `model`, the default, then `alternatives`, in order;
 - its `tools`: the host tool families it names; temper uses this list
-  to offer the settings family alone, and offers the other host tools
-  by the task's authority;
+  to offer the settings family, and offers the other host tools by the
+  task's authority. A charter naming only asking and optionally settings
+  is declared `see`, `document` and `propose_settings` alone, as its
+  families and authority permit;
 - its tools in the workspace: to inspect, to modify (write, edit and remove
   files), to run a shell, to open sub-agents; a run modifies files only
   where it can deliver them, a change's run: a chat's, a goal's or an

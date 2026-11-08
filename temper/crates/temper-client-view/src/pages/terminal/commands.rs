@@ -17,7 +17,7 @@ pub(super) fn description(command: Command) -> &'static [u8] {
         Command::Draft => b"Show or hide the draft",
         Command::Pause => b"Pause this chat; a message resumes it",
         Command::Close => b"Close this chat; it stays in Chats",
-        Command::StartOver => b"Start a new configuring chat",
+        Command::StartOver => b"Start a new Ask temper chat",
         Command::Goal => b"Start a goal from the draft",
         Command::New => b"Start a new chat",
         Command::Chats => b"Open another chat",
@@ -62,7 +62,7 @@ fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
                             }
                     }
                     Address::Chat { .. }
-                    | Address::Configure { .. }
+                    | Address::Ask { .. }
                     | Address::Inbox { .. }
                     | Address::Chats { .. }
                     | Address::Accounts
@@ -197,7 +197,7 @@ pub(super) fn under(
         }
         let restarting = root.pages().chat().expect("confirming chat").restarting;
         let head: &[u8] = if restarting {
-            b"Start over? A new configuring chat starts. This one stays in Chats."
+            b"Start over? A new Ask temper chat starts. This one stays in Chats."
         } else {
             b"Close this chat? It stays in Chats."
         };

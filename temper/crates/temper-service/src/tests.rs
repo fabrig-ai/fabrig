@@ -52,6 +52,7 @@ mod sign_in_configuration;
 
 mod provider;
 
+mod ask_bound;
 mod stock;
 
 mod room;

@@ -46,7 +46,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. } => {}
         }
     } else if pointing {

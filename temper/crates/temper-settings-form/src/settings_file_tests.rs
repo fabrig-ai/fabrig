@@ -606,3 +606,56 @@ fn the_settings_form_round_trips_a_model() {
         items
     );
 }
+
+#[test]
+fn inline_proposals_resolve_only_the_projects_repository_identities() {
+    let repositories = [
+        file::Repository { host: b"forge.example:3847", owner: b"ORG", name: b"Repo" },
+        file::Repository { host: b"forge.example:3847", owner: b"ORG", name: b"Docs" },
+    ];
+    let prefix = PREFIX.strip_suffix(br#","documents":[]"#).unwrap();
+    for (forge, repository, identities, expected) in [
+        ("", "org/repo", Some(repositories.as_slice()), Ok(("forge.example:3847", "ORG", "Repo"))),
+        (
+            "",
+            "org/other",
+            Some(repositories.as_slice()),
+            Err(
+                "settings file item 1: charter.documents[0].repository: no repository org/other in this project; its repositories: ORG/Repo · ORG/Docs",
+            ),
+        ),
+        (
+            "",
+            "org/other",
+            Some([].as_slice()),
+            Err(
+                "settings file item 1: charter.documents[0].repository: no repository org/other in this project; it has none",
+            ),
+        ),
+        (r#""forge":"given:1234","#, "org/repo", Some(repositories.as_slice()), Ok(("given:1234", "org", "repo"))),
+        ("", "org/repo", None, Err("settings file item 1: charter.documents[0].forge: missing member")),
+    ] {
+        let bytes = joined(&[
+            prefix,
+            br#","documents":[{"#,
+            forge.as_bytes(),
+            br#""repository":""#,
+            repository.as_bytes(),
+            br#"","branch":"main","path":"README.md"}]"#,
+            SUFFIX,
+        ]);
+        let result = file::proposal_items_in(&bytes, &Limits::standard(), identities);
+        match expected {
+            Ok((host, owner, name)) => {
+                let items = result.expect("repository resolved");
+                let c::SettingEdit::Set(set) = &items.get(0).unwrap().edit else { panic!("set") };
+                let c::SettingValue::Charter(charter) = &set.value else { panic!("charter") };
+                let document = charter.documents.get(0).unwrap();
+                assert_eq!(document.name.get(1).unwrap().as_ref(), host.as_bytes());
+                assert_eq!(document.name.get(2).unwrap().as_ref(), owner.as_bytes());
+                assert_eq!(document.name.get(3).unwrap().as_ref(), name.as_bytes());
+            }
+            Err(why) => assert_eq!(result.unwrap_err().as_ref(), why.as_bytes()),
+        }
+    }
+}

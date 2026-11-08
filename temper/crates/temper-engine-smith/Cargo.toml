@@ -26,6 +26,7 @@ jig-domain-people.workspace = true
 skein-forge-client.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
@@ -34,6 +35,7 @@ smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 
 [dev-dependencies]
+temper-engine-domain-forge-landing.workspace = true
 smith-agent-world.workspace = true
 temper-client-tools.workspace = true
 jig-client.workspace = true

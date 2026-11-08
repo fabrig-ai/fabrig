@@ -227,6 +227,12 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
             below,
         );
     }
+    backend.from_io(
+        &env(0),
+        BelowEvent::File { event: file::Event::Made { owner: backend.token(Owner::Files) }, descriptor: None },
+        up,
+        below,
+    );
     let first = launch_from_listener(&mut backend, 0, up, below);
     let id = backend.startup.running_session().expect("window ID");
     assert!(first.args.windows(2).any(|pair| pair[0].as_ref() == b"--resume" && pair[1].as_ref() == session::uuid(id)));

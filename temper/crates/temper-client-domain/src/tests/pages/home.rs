@@ -500,7 +500,7 @@ fn home_counts_live_and_ended_chats_as_asked() {
 #[test]
 fn another_persons_project_cannot_start_a_configuring_chat() {
     let mut f = fixture();
-    event(&mut f.root, Event::Went { place: Place::Address(Address::Configure { project: OTHER_PROJECT }) });
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Ask { project: OTHER_PROJECT }) });
     let out = event(
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Starter { words: b"My change".as_slice().into() }) },
@@ -709,7 +709,7 @@ fn home_hears_its_chats_and_its_inbox_alike() {
     }
 }
 
-const CONFIGURING: u32 = 3;
+const CONFIGURING: u32 = 5;
 const TWO_TEMPLATES: u32 = 2;
 const FACTS: u32 = 5;
 // Live watch, read page's live rows, read page's ended rows.
@@ -828,7 +828,7 @@ fn a_stock_chat_marks_the_third_step_alone() {
     }
     let mut chosen = configuring_me();
     chosen.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap().executor = c::TemplateExecutor::Chosen;
-    assert!(!pages::chats::configuring(&chosen, f::PROJECT, &c::ChipExecutor::Agent { charter: CONFIGURING }));
+    assert!(!pages::chats::asking(&chosen, f::PROJECT, &c::ChipExecutor::Agent { charter: CONFIGURING }));
     for source in 0..CHAT_SOURCES {
         let mut f = fixture_with_me(configuring_me());
         if source == 0 {

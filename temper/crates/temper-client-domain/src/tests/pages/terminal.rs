@@ -167,7 +167,7 @@ fn the_look_moves_by_its_acts() {
     for (address, expected) in [
         (Address::Chat { task: 9 }, true),
         (Address::NewChat { draft: false }, true),
-        (Address::Configure { project: 1 }, true),
+        (Address::Ask { project: 1 }, true),
         (Address::Chats { filter: ChatsFilter::All }, false),
         (Address::Home { project: 1 }, false),
     ] {
@@ -450,7 +450,7 @@ fn a_command_runs_the_pages_own_act() {
     );
     assert_eq!(opening.pop(), Some(Request::Replace { address: Address::NewChat { draft: true } }));
     assert_eq!(fresh.address(), &Address::NewChat { draft: false }, "navigation follows the same Go as + Draft");
-    for address in [Address::NewChat { draft: false }, Address::Configure { project: fixtures::PROJECT }] {
+    for address in [Address::NewChat { draft: false }, Address::Ask { project: fixtures::PROJECT }] {
         let mut pages = Pages::new();
         let mut out = Queue::uncapped();
         for event in [
@@ -505,7 +505,7 @@ fn loaded_pages(ended: bool, configuring: bool) -> (Pages, fixtures::chat::Fixtu
     fixtures::chat::deliver(&mut fixture.client, fixture.watch, task);
     let mut me = fixtures::chats::me();
     if configuring {
-        me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().number = 3;
+        me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().number = 5;
     }
     for event in [
         jig_client::Event::Watch { handle: pages::me_handle(), subject: jig_client::Watchable::Jig(c::Subject::Me) },

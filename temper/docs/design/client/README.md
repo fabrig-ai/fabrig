@@ -381,11 +381,12 @@ keeps (`../protocol/configuration.md`, section 2).
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
 | `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
-| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
+| `Settings { project }` | the greenfield mock's `settings.html` | How work runs, the first tab of a project's settings: Configure temper, Ask temper, what the project shows, its ways of working, its status, what needs the person, while the person is away and telling them (*Settings,* below; 5.13) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
+| `Ask { project }` | none: the configuring chat's page, as *Ask temper's page* (below) changes it | Ask temper before its first words, under `Settings`, in the project's frame (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start an Ask temper chat, from its composer |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
@@ -767,7 +768,10 @@ keeps (`../protocol/configuration.md`, section 2).
   working notes has no document. Its description is its title, its body Markdown,
   its name the mock's `slug` of the title, 28 characters, plus `.md`:
   `away-mode.md`. There are no file drafts: a document
-  is always a chat's.
+  is always a chat's. Ask temper's agent writes it with `document`
+  (`../domain/agent.md`, 8.4.3), whose answer's first line is a `note` answer's:
+  wherever this part names a `note` call, a `document` call is read alike, by
+  that line.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (5.13), true in the stock. It gates the Drafts filter, the Chats
     lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is
@@ -2812,6 +2816,25 @@ keeps (`../protocol/configuration.md`, section 2).
   and the words stay; "See how it works" starts nothing, and stays enabled;
   made, the chat's page opens; refused, jig's words stay under the
   composer, the words kept. The chat names no repository.
+- **Ask temper's page** (`../draft/ask-temper.md`, section 9): `Ask {
+  project }`, at `/projects/<project>/settings/ask`, under `Settings`, is
+  the configuring chat's page with these differences, the rest as it is
+  there: its path PROJECT / Settings / Ask temper, and its title and
+  level-1 heading "Ask temper"; its opening the level-2 heading "What
+  would you like to know?", drawn as the configuring page's, and the lede
+  "Ask how temper works, how PROJECT is set up, or how a piece of work
+  ran. It changes nothing; where you want temper to work differently, it
+  proposes settings for you to accept.", with no list, no note, no "Ways
+  to begin" and no card of temper's own way; its composer a form named
+  "Ask temper", its text area "Ask about temper or this project", that
+  its placeholder too; its picker, with no chat yet, what template 5's
+  `resolved_default` in `me` gives. "Send" starts the chat from template 5
+  (`../protocol/configuration.md`, 13.4), its words the first message, as
+  the configuring page's does, while `me` lists template 5 among the
+  project's templates; with none, "Send" stays disabled and the composer
+  says "Ask temper isn't set up in this project." The chat names no
+  repository. Made, the chat's page opens: it is a chat like any other
+  there.
 - **temper's own way, beside the page** (`../draft/own-way.md`, 2 and 3):
   "See how it works" opens the reference, "How temper builds temper", in
   the pane of *A chat's document* (below), in Split, the rail folded, the
@@ -5889,6 +5912,14 @@ section 5.
     (3.5). To begin's step keeps its words, "Tell temper how you work". The
     configuring page is a page of its own, its path PROJECT / Settings /
     Configure temper; it is not folded into this tab or docked beside it.
+  - *Ask temper,* under Configure temper in the same section, with no title:
+    "Ask how temper works, how it's set up here, or how your work ran. It
+    changes nothing; it may propose settings for you to accept."; "Start",
+    primary, to `Ask { project }` (3.5, *Ask temper's page*); or "Go on",
+    to the person's newest Ask temper chat open in the project, a chat whose
+    executor is template 5's configured charter, found as Configure's is for
+    template 3's. While `me` lists no template 5 among the project's
+    templates, the row is not drawn.
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
 

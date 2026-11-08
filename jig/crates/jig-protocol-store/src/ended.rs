@@ -26,6 +26,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::Link(_)
         | Now::EffectAnswer { .. }
         | Now::TaskRead { .. }
+        | Now::ProposalRead { .. }
         | Now::SettingsAnswer { .. }
         | Now::SettledCallRefused { .. }
         | Now::Call { .. }
@@ -100,6 +101,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::Link(_)
         | Now::EffectAnswer { .. }
         | Now::TaskRead { .. }
+        | Now::ProposalRead { .. }
         | Now::SettingsAnswer { .. }
         | Now::SettledCallRefused { .. }
         | Now::Call { .. }

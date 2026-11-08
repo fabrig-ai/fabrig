@@ -18,6 +18,8 @@ A chat is a conversation between a party and an agent in a project: an untracked
   what agents must follow stays in their instructions or in documents
   their charters name. An owner decides the proposal; the agent changes
   nothing itself (temper help settings).
+- **Ask temper,** template 5 under charter 11 in the stock, explains temper
+  and this project's settings, proposing changes for an owner to accept.
 - **Its conversation** is what `chat show` reads: each turn's words, from
   the party and from the agent, the brief supplied to each run, and each
   run's start and end.

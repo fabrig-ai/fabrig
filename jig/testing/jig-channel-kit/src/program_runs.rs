@@ -176,7 +176,24 @@ fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             .iter()
             .any(|entry| entry.starts_with(b"ANTHROPIC_") || entry.starts_with(b"CLAUDE_CODE_OAUTH_TOKEN="))
     );
-    Proc::Auth(Box::new((smith_fake_claude::hosted(b"/private/programs/claude").make)(spawn, inherited)))
+    let launch = claude_launch(spawn);
+    Proc::Auth(Box::new((smith_fake_claude::hosted(b"/private/programs/claude").make)(&launch, inherited)))
+}
+
+// The hosted fake sees the fixture's absolute path for its descriptor-relative cwd.
+fn claude_launch(spawn: &kernel::Spawn) -> kernel::Spawn {
+    kernel::Spawn {
+        program: spawn.program.clone(),
+        args: spawn.args.clone(),
+        env: spawn.env.clone(),
+        root: spawn.root,
+        dir: if spawn.dir.is_empty() {
+            b"/private/programs".as_slice().into()
+        } else {
+            [b"/private/programs/", spawn.dir.as_ref()].concat().into()
+        },
+        pipes: spawn.pipes.clone(),
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -569,7 +586,10 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     let fake = smith_fake_claude::hosted(b"/private/programs/claude");
     world.host_startup(
         HostedProgram { program: fake.program, make: claude, instances: 2, operations: fake.operations },
-        |spawn| smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect(),
+        |spawn| {
+            let launch = claude_launch(spawn);
+            smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
+        },
         |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
     );
     world.host(HostedProgram {

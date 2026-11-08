@@ -64,7 +64,7 @@ pub(crate) fn main(
     b.style(look::HOME);
     intro(b, root, w, bindings, accounts, name, &facts, times);
     if facts.to_begin() {
-        to_begin(b, w, bindings, project, name, &facts);
+        to_begin(b, root, w, bindings, project, name, &facts);
     }
     if let Some(away) = &facts.away {
         decided(b, w, bindings, project, away, root.pages().overturn_busy(), times);
@@ -789,7 +789,15 @@ fn begin_head(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
     b.close();
     b.close();
 }
-fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, name: &[u8], facts: &Facts) {
+fn to_begin(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    name: &[u8],
+    facts: &Facts,
+) {
     let heading = w.say(Word::HomeBegin, &[]);
     b.open(Role::Region);
     b.style(look::HOME_BEGIN);
@@ -797,7 +805,9 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
     begin_head(b, w, bindings);
     let note = match facts.left() {
         0 | 1 => {
-            if facts.chat_asked {
+            if !facts.configured {
+                Word::HomeNoteAsk
+            } else if facts.chat_asked {
                 Word::HomeNoteSettings
             } else {
                 Word::HomeNoteChats
@@ -806,6 +816,8 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
         2 => {
             if facts.chat_asked {
                 Word::HomeNoteTwoSettings
+            } else if !facts.configured {
+                Word::HomeNoteAskChats
             } else {
                 Word::HomeNoteTwo
             }
@@ -832,7 +844,7 @@ fn to_begin(b: &mut Builder, w: &Words, bindings: &mut Bindings, project: u32, n
             b,
             bindings,
             &w.say(Word::HomeStart, &[]),
-            Act::Go { address: Address::Configure { project } },
+            Act::Go { address: crate::frame::ask_address(root, project) },
             look::HOME_PRIMARY,
             false,
         );

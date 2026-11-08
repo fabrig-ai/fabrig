@@ -146,12 +146,27 @@ pub(crate) fn working(child: Id<Conversation>) -> Child {
 /// The child yielded `text` for `stop`: it is done, and its answer is kept,
 /// at most `answer_bytes` of it. The child to close, if it is not closing
 /// already.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "The run locates the answer cap's character boundary rather than validating protocol input"
+)]
 pub(crate) fn yielded(call: &mut Child, text: &[u8], stop: Stop, limits: &Limits) -> Option<Id<Conversation>> {
     let state = mem::replace(call, Child::Closed);
     let (next, close) = match state {
         Child::Working { child } => {
             let max = usize::try_from(limits.answer_bytes).expect("a u32 fits in a usize");
-            let kept = text.get(..max).unwrap_or(text);
+            let head = text.get(..max).unwrap_or(text);
+            let kept = if text.len() > max {
+                match core::str::from_utf8(head) {
+                    Ok(_) => head,
+                    Err(error) => match error.error_len() {
+                        None => head.get(..error.valid_up_to()).expect("the valid prefix is within the head"),
+                        Some(_) => head,
+                    },
+                }
+            } else {
+                head
+            };
             let cut = skein_lib::len_u64(text.len().saturating_sub(kept.len()));
             (Child::Answering { child, text: copy_of(kept), cut, stop }, Some(child))
         }
