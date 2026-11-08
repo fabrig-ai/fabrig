@@ -165,7 +165,7 @@ fn priority_moving_ahead_marks_the_waiting_panel() {
     watch(&mut driver, sign_in, 1, 52, 905);
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(905) }));
     driver.delivered.clear();
-    driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row: queued(53, 0, 53) })));
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Priority { task: 53, priority: 0 })));
     driver.settle();
     let saved_priority = driver.store.rows.values().find_map(|record| {
         if let engine::Record::Forge { row } = record
@@ -177,11 +177,7 @@ fn priority_moving_ahead_marks_the_waiting_panel() {
             None
         }
     });
-    assert_eq!(
-        saved_priority,
-        Some(0),
-        "setup: the existing Change event must save the new priority before testing its marks"
-    );
+    assert_eq!(saved_priority, Some(0), "setup: Priority must save the new priority before testing its marks");
     let persisted = driver
         .store
         .rows
@@ -428,9 +424,11 @@ fn queue_exit_and_reentry_refresh_the_panel_behind() {
     watch(&mut driver, sign_in, 1, 53, 914);
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(914) }));
     driver.delivered.clear();
-    let mut row = queued(52, 1, 52);
-    row.change.state = temper_engine_domain_forge_change::State::Checking { head: [4; 32] };
-    driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row })));
+    driver.send(engine::Event::Forge(Box::new(forge::Event::RelayRefused {
+        task: 52,
+        questions: queued(52, 1, 52).questions,
+        words: b"Relay refused".as_slice().into(),
+    })));
     driver.settle();
     let panel = driver
         .delivered
@@ -452,7 +450,7 @@ fn queue_exit_and_reentry_refresh_the_panel_behind() {
     );
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(914) }));
     driver.delivered.clear();
-    driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row: queued(52, 1, 52) })));
+    driver.send(engine::Event::Forge(Box::new(forge::Event::ReleaseChange { task: 52 })));
     driver.settle();
     let panel = driver
         .delivered
@@ -498,21 +496,25 @@ fn own_record_change_refreshes_a_watched_panel() {
     watch(&mut driver, sign_in, 1, 51, 919);
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(919) }));
     driver.delivered.clear();
-    let mut row = queued(51, 1, 51);
-    row.change.repairs = 1;
-    driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row })));
+    let mut questions = queued(51, 1, 51).questions;
+    questions.taken += 1;
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Relayed { task: 51, questions: questions.clone() })));
     driver.settle();
-    let saved_repairs = driver.store.rows.values().find_map(|record| {
+    let saved_questions = driver.store.rows.values().find_map(|record| {
         if let engine::Record::Forge { row } = record
             && let forge::Stored::Change(row) = row.as_ref()
             && row.task == 51
         {
-            Some(row.change.repairs)
+            Some(row.questions.clone())
         } else {
             None
         }
     });
-    assert_eq!(saved_repairs, Some(1), "setup: the Change event must save the new record before testing its own mark");
+    assert_eq!(
+        saved_questions,
+        Some(questions.clone()),
+        "setup: Relayed must save the new questions before testing its own mark"
+    );
     let panel = driver
         .delivered
         .iter()
@@ -526,7 +528,7 @@ fn own_record_change_refreshes_a_watched_panel() {
             }
         })
         .expect("design domain/forge.md 8.8: saving the change's own record must mark its watched panel");
-    assert_eq!(panel.repairs.used, 1, "the delivery must be the whole new panel");
+    assert_eq!(panel.questions.taken.used, questions.taken, "the delivery must be the whole new panel");
 }
 
 // client/forge.md, 9.2: the watch's window is unused, and never slices a whole panel.
