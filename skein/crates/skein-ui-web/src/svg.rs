@@ -14,6 +14,7 @@ pub fn draw(scene: &Scene, names: &[Names<'_>], width: u16, height: u16) -> Elem
     if scene.refused() {
         return Element::new("");
     }
+    let width = scene.width().unwrap_or(width);
     let height = scene.height().unwrap_or(height);
     let mut svg = Element::new("svg");
     svg.set("aria-hidden", "true");
