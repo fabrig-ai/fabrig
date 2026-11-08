@@ -49,6 +49,11 @@ those provenance lines, beyond its shortened specification preview.
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
 
+The rail lists Home, Needs you, Work, Ask temper and How work runs,
+with the New draft or change menu below and Deployment at its foot.
+On a phone, Chats and the goal page have Home, Needs you, Work and Ask
+in the tab bar; the chat layout hides the rail and tab bar.
+
 The chat's bar offers Chat, Split, Draft and ">_" ("Terminal, full screen"),
 with "Start goal…" once the draft has a section (`../../README.md`, 3.5,
 *A chat's terminal*).
