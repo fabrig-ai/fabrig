@@ -1,6 +1,6 @@
 use skein_ui::{
     Style,
-    scene::{Anchor, Command, Point, Scene},
+    scene::{Anchor, Command, FadeStop, Point, Scene},
 };
 
 use super::fixtures::{LIMITS, NAMES, OWNER};
@@ -15,6 +15,11 @@ fn a_scene_draws_as_its_golden_svg() {
     assert!(scene.line(p, q, &[Style { owner: OWNER, token: 0 }]));
     assert!(scene.hint(b"Line & hint"));
     assert!(scene.act(&[0, 255]));
+    assert!(scene.fade(
+        p,
+        q,
+        &[FadeStop { offset: 0, styles: &[Style { owner: OWNER, token: 0 }] }, FadeStop { offset: 1000, styles: &[] },]
+    ));
     assert!(scene.polyline(&[p, q], &[]));
     assert!(scene.path(
         &[Command::Move(p), Command::Line(q), Command::Quadratic(p, q), Command::Cubic(p, q, p), Command::Close],
@@ -23,7 +28,10 @@ fn a_scene_draws_as_its_golden_svg() {
     assert!(scene.rect(p, q, 2, &[]));
     assert!(scene.circle(q, 3, &[]));
     assert!(scene.text(p, Anchor::Middle, b"Words", &[]));
-    assert_eq!(dom::print(&svg::draw(&scene, NAMES, 100, 50)), include_str!("golden/scene.svg").trim_end());
+    assert_eq!(
+        dom::print(&svg::draw(&scene, NAMES, 100, 50, "test-fade")),
+        include_str!("golden/scene.svg").trim_end()
+    );
 }
 
 #[test]
@@ -34,7 +42,7 @@ fn a_scene_uses_its_own_size_or_its_boxs() {
             scene.set_width(width);
         }
         scene.set_height(height);
-        let printed = dom::print(&svg::draw(&scene, NAMES, 100, 50));
+        let printed = dom::print(&svg::draw(&scene, NAMES, 100, 50, "test-fade"));
         let width = width.unwrap_or(100);
         assert_eq!(
             printed,
@@ -51,7 +59,7 @@ fn a_refused_scene_draws_nothing() {
     limits.scene_marks = 0;
     let mut scene = Scene::new(&limits);
     scene.circle(Point { x: 0, y: 0 }, 1, &[]);
-    assert_eq!(dom::print(&svg::draw(&scene, NAMES, 100, 50)), "");
+    assert_eq!(dom::print(&svg::draw(&scene, NAMES, 100, 50, "test-fade")), "");
 }
 
 #[test]
@@ -59,7 +67,7 @@ fn a_marks_text_is_escaped_never_markup() {
     let mut scene = Scene::new(&LIMITS);
     scene.text(Point { x: 0, y: 0 }, Anchor::Start, b"<b>", &[]);
     assert_eq!(
-        dom::print(&svg::draw(&scene, NAMES, 10, 20)),
+        dom::print(&svg::draw(&scene, NAMES, 10, 20, "test-fade")),
         "<svg aria-hidden=\"true\" width=\"10\" height=\"20\" viewBox=\"0 0 10 20\"><text x=\"0\" y=\"0\" text-anchor=\"start\">&lt;b&gt;</text></svg>"
     );
 }
@@ -123,7 +131,10 @@ fn a_flows_scene_prints_its_case_byte_for_byte() {
                 "width {width}, height {height}"
             );
             if let Some(expected) = expected {
-                assert_eq!(dom::print(&svg::draw(&scene, &[flow::NAMES], width, height)), expected.trim_end());
+                assert_eq!(
+                    dom::print(&svg::draw(&scene, &[flow::NAMES], width, height, "test-flow")),
+                    expected.trim_end()
+                );
             }
         }
     }

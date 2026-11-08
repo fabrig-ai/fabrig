@@ -157,6 +157,7 @@ fn built_root(
 pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     page_with(sample, digest, ViewInputs::new())
 }
+#[expect(clippy::too_many_lines, reason = "This print keeps the page and its narrow scenes together.")]
 fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInputs) -> String {
     let root = samples::domain(sample);
     let night = if root.pages().look().night { " data-night" } else { "" };
@@ -212,7 +213,13 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
         if let Some(start) = html.find(&attribute)
             && let Some(end) = html[start..].find("</svg>")
         {
-            let mut svg = skein_ui_web::svg::draw(&scene, &[temper_client_view::look::NAMES], NARROW, 0);
+            let mut svg = skein_ui_web::svg::draw(
+                &scene,
+                &[temper_client_view::look::NAMES],
+                NARROW,
+                0,
+                &format!("temper-gallery-narrow-{}", node.id.0),
+            );
             svg.set("data-gallery-narrow", "");
             html.insert_str(start + end + "</svg>".len(), &skein_ui_web::dom::print(&svg));
             has_narrow = true;
