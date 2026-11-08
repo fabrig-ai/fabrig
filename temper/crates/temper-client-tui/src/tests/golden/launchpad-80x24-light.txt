@@ -1,17 +1,17 @@
-╭─ temper · Hello project ──────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 3 changes landed overnight. csv-export is two of three tasks in; one waits   │
-│ on you.                                                                      │
-│                                            written by the status agent 07:42 │
+╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
+│ 3 changes landed overnight.                                                  │
+│                                   written by the status agent 07:42 · /brief │
 ╰──────────────────────────────────────────────────────────────────────────────╯
  Where you left off
-   Away mode · waiting on you
+   Hello   Away mode, a chat · 08:12 · waiting on you                  /chats 1
+   Hello   csv-export, a goal · 07:42 · Working
 
  Needs you
-   ? csv-export: comma or semicolon?
+   ? Hello   csv-export: comma or semicolon?                       n walks them
 
-
-
-
+ Start
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
 
 
 
@@ -19,24 +19,24 @@
 
 
 ────────────────────────────────────────────────────────────────────────────────
-❯ Ask temper
+❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
+ Hello · Claude Opus 5.5 · high · ● Live                1 needs you · n to walk
 --
-aaabbbbbbaaacccccccccccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
+aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
 a..............................................................................a
-a..............................................................................a
-a............................................ddddddddddddddddddddddddddddddddd.a
+a...................................dddddddddddddddddddddddddddddddddddddddddd.a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 .cccccccccccccccccc.............................................................
-............ddddddddddddddddd...................................................
+...cccccccc.........ddddddddddddddddddddddddddddddddd..................dddddddd.
+...cccccccc..........dddddddddddddddddddddddddd.................................
 ................................................................................
 .ccccccccc......................................................................
-...e............................................................................
+...e.cccccccc......................................................dddddddddddd.
 ................................................................................
-................................................................................
-................................................................................
-................................................................................
+.ccccc..........................................................................
+...ccccccccccddddddddddddddddddddddddddddddddddd................................
+...ccccccccccdddddddddd.........................................................
 ................................................................................
 ................................................................................
 ................................................................................
@@ -44,9 +44,9 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-eeaaaaaaaaaa....................................................................
+eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..............................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.dddddddddddddddddeeeeeeeeeee...................dddddddddddddddddddddddddffffff.
+.dddddaaaddddddddddddddddddddddaaaffffff................eeeeeeeeeeeaaaddddddddd.
 --
 a: fore #B5AEA3
 b: fore #B8664E bold

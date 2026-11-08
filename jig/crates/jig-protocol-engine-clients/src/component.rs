@@ -458,14 +458,16 @@ impl Component {
                 }
             }
             crate::FromTransport::PublicRead { exchange, read } => self.public_read(env, exchange, read, out),
-            crate::FromTransport::StreamGone { stream } => {
-                self.public.gone(stream);
-                self.connections.remove(&stream);
-                if let Some(value) = self.streams.get_mut(&stream) {
-                    value.phase = crate::stream::Phase::Closing;
-                    value.closed_connection = true;
-                }
-            }
+            crate::FromTransport::StreamGone { stream } => self.gone(stream),
+            crate::FromTransport::ExchangeGone { exchange } => self.gone(exchange),
+        }
+    }
+    fn gone(&mut self, owner: Token) {
+        self.public.gone(owner);
+        self.connections.remove(&owner);
+        if let Some(value) = self.streams.get_mut(&owner) {
+            value.phase = crate::stream::Phase::Closing;
+            value.closed_connection = true;
         }
     }
     fn receive(

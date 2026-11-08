@@ -97,8 +97,28 @@ pub enum Word {
     LogEmpty,
     ExitFront,
     KeyCloseFront,
+    KindChat,
+    KindGoal,
+    ChatNumber,
+    WalksThem,
+    MoneyNeed,
+    SignOffNeed,
+    StartHead,
+    ChangeStart,
+    ChangeCommand,
+    BriefCommand,
+    NeedsCommand,
+    OpenCommand,
+    BriefMore,
+    BoxStart,
+    ToWalk,
+    Next,
+    OpenOnWeb,
+    WalkDone,
+    OpenAt,
+    KeyWalk,
 }
-pub(crate) const ALL: [Word; 87] = [
+pub(crate) const ALL: [Word; 107] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -186,6 +206,26 @@ pub(crate) const ALL: [Word; 87] = [
     Word::LogEmpty,
     Word::ExitFront,
     Word::KeyCloseFront,
+    Word::KindChat,
+    Word::KindGoal,
+    Word::ChatNumber,
+    Word::WalksThem,
+    Word::MoneyNeed,
+    Word::SignOffNeed,
+    Word::StartHead,
+    Word::ChangeStart,
+    Word::ChangeCommand,
+    Word::BriefCommand,
+    Word::NeedsCommand,
+    Word::OpenCommand,
+    Word::BriefMore,
+    Word::BoxStart,
+    Word::ToWalk,
+    Word::Next,
+    Word::OpenOnWeb,
+    Word::WalkDone,
+    Word::OpenAt,
+    Word::KeyWalk,
 ];
 
 #[derive(Clone, Copy)]
@@ -194,6 +234,7 @@ enum Slot {
     State,
     Code,
     ApprovalAddress,
+    PageAddress,
     Port,
     Span,
     Number,
@@ -212,6 +253,7 @@ impl Slot {
             | Self::State
             | Self::Code
             | Self::ApprovalAddress
+            | Self::PageAddress
             | Self::Port
             | Self::Span
             | Self::Clock
@@ -227,6 +269,8 @@ impl Slot {
             Self::Address => 64,
             Self::Code => 9,
             Self::ApprovalAddress => 95,
+            // http://, the bounded authority, /tasks/ and twenty task digits.
+            Self::PageAddress => 98,
             Self::Port => 5,
             Self::Span | Self::Label => 32,
             Self::Number => 20,
@@ -236,6 +280,7 @@ impl Slot {
     }
 }
 impl Word {
+    #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps each phrase number stable")]
     const fn number(self) -> u16 {
         match self {
             Self::Title => 0,
@@ -325,13 +370,54 @@ impl Word {
             Self::LogEmpty => 87,
             Self::ExitFront => 88,
             Self::KeyCloseFront => 89,
+            Self::KindChat => 90,
+            Self::KindGoal => 91,
+            Self::ChatNumber => 92,
+            Self::WalksThem => 93,
+            Self::MoneyNeed => 94,
+            Self::SignOffNeed => 95,
+            Self::StartHead => 96,
+            Self::ChangeStart => 97,
+            Self::ChangeCommand => 98,
+            Self::BriefCommand => 99,
+            Self::NeedsCommand => 100,
+            Self::OpenCommand => 101,
+            Self::BriefMore => 102,
+            Self::BoxStart => 103,
+            Self::ToWalk => 104,
+            Self::Next => 105,
+            Self::OpenOnWeb => 106,
+            Self::WalkDone => 107,
+            Self::OpenAt => 108,
+            Self::KeyWalk => 109,
         }
     }
     const fn id(self) -> PhraseId {
         PhraseId { owner: look::OWNER, number: self.number() }
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::KindChat => (&[b", a chat"], &[]),
+            Self::KindGoal => (&[b", a goal"], &[]),
+            Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
+            Self::WalksThem => (&[b"n walks them"], &[]),
+            Self::MoneyNeed => (&[b"$"], &[]),
+            Self::SignOffNeed => (&[b"\xe2\x9c\x93"], &[]),
+            Self::StartHead => (&[b"Start"], &[]),
+            Self::ChangeStart => (&[b"one change, run as ", b"'s way says"], &[Slot::Title]),
+            Self::ChangeCommand => (&[b"One change, run as the project's way says"], &[]),
+            Self::BriefCommand => (&[b"The brief, whole"], &[]),
+            Self::NeedsCommand => (&[b"Walk what needs you"], &[]),
+            Self::OpenCommand => (&[b"Open this on the web"], &[]),
+            Self::BriefMore => (&[b" \xc2\xb7 /brief"], &[]),
+            Self::BoxStart => (&[b"Ask for a change, or ask temper.  / for commands"], &[]),
+            Self::ToWalk => (&[b"n to walk"], &[]),
+            Self::Next => (&[b"Next"], &[]),
+            Self::OpenOnWeb => (&[b"Open it on the web"], &[]),
+            Self::WalkDone => (&[b"Nothing else needs you."], &[]),
+            Self::OpenAt => (&[b"Open ", b" in your browser."], &[Slot::PageAddress]),
+            Self::KeyWalk => (&[b"n walks what needs you"], &[]),
             Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
@@ -517,7 +603,7 @@ impl Words {
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,
-            hole_bytes: domain.client.domain.text.max(95),
+            hole_bytes: domain.client.domain.text.max(98),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
         Ok(Words { book, view })
