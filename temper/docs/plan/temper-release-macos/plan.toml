@@ -1,0 +1,30 @@
+draft = "temper-release-macos"
+repo = "fabrig"
+sources = ["temper/docs/plan/temper-release-macos/inputs/request.md", "AGENTS.md", "DESIGN.md", ".github/workflows/macos.yml"]
+# Plan options, written by fab call cut --set; keep them
+owner = "ops"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "release-macos"
+title = "A dispatch-only GitHub workflow builds temper for release on macos-26, checks it and uploads it with its commit as temper-Darwin-arm64"
+mode = "direct"
+needs = []
+design = "temper/docs/design/release.md, 5.1"
+
+[[slice]]
+id = 1
+story = "A dispatch of release-macos.yml on macos-26 builds temper with its browser bundle embedded, checks it is an arm64 Mach-O that prints its usage, and leaves temper and commit in the artifact temper-Darwin-arm64 for 7 days"
+parts = ["release-macos"]
+walk = false
+
+[[question]]
+id = "release-macos-timeout"
+text = "The new workflow's job needs a timeout, which is the user's; the request names none. A cold release build of temper with its browser bundle embedded, on the 3-core runner with no target cache, is unmeasured. Options: (a, recommended, what the task writes) `timeout-minutes: 120`, macos.yml's own for the same runner; (b) GitHub's default of 360, by leaving the key out; (c) another figure. A change after landing is one line of `.github/workflows/release-macos.yml`."
+parts = ["release-macos"]
+answer = "(a) timeout-minutes: 120, as macos.yml. ops, owner, 11-08: a free runner costs nothing either way; raise it in one line if the first cold build runs out."

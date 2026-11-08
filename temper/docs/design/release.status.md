@@ -1,6 +1,6 @@
 # release: status
 
-2026-11-04. Where temper's code lags or departs from [release.md](release.md).
+2026-11-08. Where temper's code lags or departs from [release.md](release.md).
 
 - **Not yet:** 2: the release's file, its symbol check and checksum. 3:
   `temper --version` and `temper version`, and the build script that sets
