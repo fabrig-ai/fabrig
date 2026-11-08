@@ -228,6 +228,25 @@ open is section 9.
   configuration and its outcome's schema, are private files (skein's
   `io.md`, 5.3) in a directory of the run's own outside its workspace,
   removed when the run ends.
+- **Each program's files are its own.** Main's program, its summary
+  session's and each child's (5.10) keep their files in a directory of
+  their own, under the programs directory's `.runs`, and open, write and
+  remove them one operation at a time. Each operation's answer goes to
+  the program that asked for it, never a child's to main, main's to a
+  child or one child's to another, in whatever order the agent's file
+  component answers a burst of children and main. The agent tells an
+  answer's program by the owner its operation named, one of that
+  program's own file owners, never by a token of its process's pipes,
+  its check's or its server's: those are the io component's, of the
+  same form as the owners of the run's own tools, so a tool's file
+  answer whose owner equals one goes to the tool, never to a program.
+- **An answer not asked for** fails its program's run, never the agent:
+  a file answer that reaches a program with none of its operations
+  outstanding fails that program's run as a start that fails does
+  (5.6), with the detail `smith: a private file answer the program did
+  not ask for`; a child's fails its call alone (5.10), and main goes on.
+  One that comes once the program is ending is dropped, its run having
+  its terminal already.
 - **Its version moves on its own:** the agent learns what the program
   offers from `system/init`'s `capabilities`, never from a version
   string.

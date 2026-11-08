@@ -53,8 +53,14 @@ fn program_close_reaches_io_with_pending_file_terminals() {
 }
 
 fn child_service() -> Service {
+    program_service(2)
+}
+
+fn program_service(conversations: u32) -> Service {
     let mut config = validity_tests::configuration();
-    config.limits.domain.run.conversations = 2;
+    config.limits.domain.run.conversations = conversations;
+    config.limits.domain.session.sessions = conversations;
+    config.limits.domain.session.tools.kits = conversations;
     let mut service = Service::new(config, 1).expect("bounded child service");
     service.adopt_program_root(kernel::Fd::new(19)).expect("programs root");
     let program = service.stages.program.as_mut().unwrap();
@@ -151,4 +157,133 @@ fn a_child_on_another_account_keeps_the_direct_backend() {
     };
     assert_eq!(owner, Token::new(103));
     assert_eq!(failure, domain::llm::Failure::Invalid);
+}
+
+fn main_request(service: &Service, owner: Token) -> llm::FromDomain {
+    let mut request = child_request(service, owner, 0);
+    let llm::FromDomain::Complete { prompt, .. } = &mut request else { unreachable!("completion request") };
+    prompt.asker = domain::llm::Asker::Main;
+    request
+}
+
+fn check_pipe(ordinal: u32) -> Token {
+    let slot = u64::from(ordinal).checked_mul(3).unwrap().checked_add(10).unwrap();
+    Token::new((slot << 32) | 1)
+}
+
+fn spawn_check(service: &mut Service, ordinal: u32) {
+    let program = service.stages.program.as_ref().unwrap();
+    let backend = if ordinal == 0 {
+        &program.backend
+    } else {
+        &program.children.get(ordinal.checked_sub(1).unwrap()).unwrap().as_ref().unwrap().backend
+    };
+    let mut owner = None;
+    for request in &program.below {
+        let backend::Below::Io(request) = request else { continue };
+        let (io::Request::Spawn { owner: candidate, .. } | io::Request::SpawnAlone { owner: candidate, .. }) = request
+        else {
+            continue;
+        };
+        if backend.owns(*candidate) {
+            assert!(owner.replace(*candidate).is_none(), "one check spawn per program");
+        }
+    }
+    let owner = owner.expect("each program reaches its status-check spawn");
+    let output = check_pipe(ordinal);
+    io_event(
+        &mut service.stages,
+        io::Event::Spawned {
+            owner,
+            child: Token::new(output.raw().checked_add(2 * (1 << 32)).unwrap()),
+            pipes: Box::new([output, Token::new(output.raw().checked_add(1 << 32).unwrap())]),
+        },
+    );
+}
+
+fn open_child_directory(service: &mut Service, index: u32) {
+    let owner =
+        service.stages.program.as_ref().unwrap().children.get(index).unwrap().as_ref().unwrap().directory_owner();
+    let descriptor = kernel::Fd::new(i32::try_from(index).unwrap().checked_add(20).unwrap());
+    let file = service.stages.files.adopt_root(descriptor).expect("child directory root");
+    assert!(file_event(&mut service.stages, file::Event::Opened { owner, file, len: 0 }).is_none());
+    spawn_check(service, index.checked_add(1).unwrap());
+}
+
+#[test]
+fn a_tools_file_answer_never_reaches_a_program() {
+    enum Answer {
+        Closed,
+        Stored,
+        Opened,
+        Failed,
+        Removed,
+        Loaded,
+    }
+
+    for (children, pipe_ordinal, answered, answer) in [
+        (2_u32, 0_u32, 2_u32, Answer::Closed),
+        (2, 1, 2, Answer::Stored),
+        (3, 2, 3, Answer::Opened),
+        (3, 0, 0, Answer::Failed),
+        (5, 5, 5, Answer::Removed),
+        (5, 1, 1, Answer::Closed),
+        (5, 0, 3, Answer::Loaded),
+    ] {
+        let mut service = program_service(children.checked_add(1).unwrap());
+        let request = main_request(&service, Token::new(100));
+        complete(&mut service.stages, request);
+        spawn_check(&mut service, 0);
+        for index in 0..children {
+            let request = child_request(&service, Token::new(u64::from(index).checked_add(101).unwrap()), 0);
+            complete(&mut service.stages, request);
+        }
+        for index in 0..answered {
+            open_child_directory(&mut service, index);
+        }
+        let owner = check_pipe(pipe_ordinal);
+        let backend = if pipe_ordinal == 0 {
+            &service.stages.program.as_ref().unwrap().backend
+        } else {
+            &service
+                .stages
+                .program
+                .as_ref()
+                .unwrap()
+                .children
+                .get(pipe_ordinal.checked_sub(1).unwrap())
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .backend
+        };
+        assert!(backend.owns(owner), "the tool owner collides with a live check pipe");
+        let file = service.stages.files.adopt_root(kernel::Fd::new(30)).expect("tool root");
+        let make_answer = || match answer {
+            Answer::Closed => file::Event::Closed { owner },
+            Answer::Stored => file::Event::Stored { owner, digest: io::digest::digest(b"tool answer") },
+            Answer::Opened => file::Event::Opened { owner, file, len: 0 },
+            Answer::Failed => {
+                file::Event::Failed { owner, error: kernel::Error::NotFound, committed: false, residue: None }
+            }
+            Answer::Removed => file::Event::Removed { owner },
+            Answer::Loaded => file::Event::Loaded { owner, bytes: b"tool answer".as_slice().into() },
+        };
+        let event = make_answer();
+        let expected = make_answer();
+        assert_eq!(file_event(&mut service.stages, event), Some(expected), "the machine keeps its file answer");
+        for index in answered..children {
+            open_child_directory(&mut service, index);
+        }
+        for event in &service.stages.llm_events {
+            match event {
+                llm::ToDomain::Failed { .. } => panic!("no program completion fails"),
+                llm::ToDomain::BuiltinResult { .. }
+                | llm::ToDomain::Completed { .. }
+                | llm::ToDomain::Cancelled { .. }
+                | llm::ToDomain::Text { .. }
+                | llm::ToDomain::ReadVersion { .. } => {}
+            }
+        }
+    }
 }

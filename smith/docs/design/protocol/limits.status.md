@@ -38,10 +38,6 @@ runtime outcome is supplied here.
 
 - **Not yet:** 2.4: a host's answer stops at 65,536 rather than 262,144
   bytes (`smith-domain-run/src/host.rs`, `HostAnswer::CAPACITY`).
-- **Not yet:** 6: the reported deployment abort on five or six
-  `sub_agent` calls has no identified panicking bound or production
-  fix. The scripted admission rows above do not reproduce it
-  (domain/run.status.md, 5.3; plan `subagent-burst`).
 - **Departs:** 2.4: a host's input admits up to 1,048,576 rather than
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
