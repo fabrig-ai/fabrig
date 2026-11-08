@@ -1,0 +1,6 @@
+draft = "limits-raise"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-raise/inputs/request.md", "tools/tiers/budgets.toml", "tools/tiers/design.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
