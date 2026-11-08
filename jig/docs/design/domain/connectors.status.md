@@ -1,6 +1,6 @@
 # connectors: status
 
-2026-11-07. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-08. Where jig's code lags or departs from [connectors.md](connectors.md).
 
 Section 11's procedure beside its requester's own writing run is present
 in temper's forge connector. Its held-branch step tests and engine domain
@@ -16,3 +16,10 @@ entry still stop the procedure. The exception grants no second writer.
   ignored, as every restore story is (`engine.status.md`, its 17.10),
   its reason a project-scoped default of `jig-test-connector`'s that
   survives the project's deletion.
+
+- **Not yet:** 17: naming, at each start, the defaults a connector
+  stored that the application no longer gives: neither
+  `jig-test-connector` (`src/settings.rs`, `defaults`) nor temper's forge
+  names them, and `jig-domain-core`'s
+  `effects::connector::Event::SettingsDefaults` has no place for them
+  (`engine.status.md`, its 17.5).

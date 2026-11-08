@@ -4,3 +4,61 @@ sources = ["temper/docs/plan/ignored-misc/inputs/request.md", "temper/tests/one-
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "restore-kept"
+title = "Each connector names the defaults it dropped at a start, so jig keeps a reset's state across a restart and both restore stories run"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.5"
+
+[[slice]]
+id = 1
+story = "A restore that resets a deployment rule with no stock, and one that resets a project's rule 1 to the every-project default, keep their state through the teardown's cold restart, with no release revision"
+parts = ["restore-kept"]
+walk = false
+
+[[part]]
+id = "story-a-walks"
+title = "The one-process world lays story A's handovers as the playground world does, story A walks there, and its native high water is bound"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 2
+story = "In the one-process world the terminal client walks story A from the welcome to the CSV change landed, and the memory test holds each process's peak within a quarter of its recorded figure"
+parts = ["story-a-walks"]
+walk = false
+
+[[part]]
+id = "sign-in-dns"
+title = "An LLM provider's sign-in host that does not resolve at start is held at 127.0.0.1:0 instead of refusing the start"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 2"
+
+[[slice]]
+id = 3
+story = "A default box with ChatGPT's sign-in registration starts on a machine without DNS and reaches serve's listening"
+parts = ["sign-in-dns"]
+walk = false
+
+[[part]]
+id = "drain-placement"
+title = "A shutting worker says it drains before its runs end, and jig's fleet places nothing more on its channel"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 8"
+
+[[slice]]
+id = 4
+story = "ws stops while the director's run waits on it; the retry goes to s1 or s2 with no attempt refused on ws's still-linked channel"
+parts = ["drain-placement"]
+walk = false

@@ -240,9 +240,7 @@ the fake's own process story.
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
   (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.4: B2's twin
-  (`../../development/acceptance.md`, section 8). 2.6:
-  `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
-  a start without DNS fails while the sign-in's endpoints resolve at start.
+  (`../../development/acceptance.md`, section 8).
   2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
   stopping worker's still-linked channel is journaled as an extra refused
   attempt, until jig takes a draining worker out of placement. 2.6: the
@@ -363,3 +361,8 @@ the fake's own process story.
   took its sitting: the plan `ignored-tiers` compiled and listed it,
   and the next after-landing run and the owner's next dry run prove
   them (11).
+
+- **Not yet:** 2.6:
+  `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
+  a start without DNS fails while the sign-in's endpoints resolve at start
+  (`../protocol/configuration.status.md`, 2).
