@@ -14,9 +14,10 @@
   on record. How work runs' six states, `how` to `night-how`, add to it,
   with no CPU figure on record either.
 
-- **Not yet:** 2.5, *How work runs' look*, *Roles*, and 7.2's
-  `how-draft` (`roles-page`, `look-round-25`): no Roles' rules, tokens or
-  rows.
+- **Departs:** 2.5: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;

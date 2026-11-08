@@ -24,6 +24,9 @@ pub enum Word {
     HowAmount,
     HowUpTo,
     HowPath,
+    HowRoles,
+    HowRolesLine,
+    HowRoleInstructions,
     WaysTitle,
     WaysNow,
     WaysAxis,
@@ -1608,7 +1611,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
 // The needed agent adds one literal phrase (client/README.md, 5.16).
-const PHRASES: u32 = 2160;
+const PHRASES: u32 = 2163;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1636,10 +1639,10 @@ const PHRASES: u32 = 2160;
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 // The needed agent adds one literal segment (client/README.md, 5.16).
-const SEGMENTS: u32 = 3841;
+const SEGMENTS: u32 = 3846;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52638;
-const ALL: [Word; 1478] = [
+const ENGLISH_BYTES: u32 = 52685;
+const ALL: [Word; 1481] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -1652,6 +1655,9 @@ const ALL: [Word; 1478] = [
     Word::HowAmount,
     Word::HowUpTo,
     Word::HowPath,
+    Word::HowRoles,
+    Word::HowRolesLine,
+    Word::HowRoleInstructions,
     Word::WaysTitle,
     Word::WaysNow,
     Word::WaysAxis,
@@ -3245,6 +3251,9 @@ impl Word {
             Self::HowBudgetLine => 4911,
             Self::HowAmount => 4912,
             Self::HowUpTo => 4913,
+            Self::HowRoles => 5120,
+            Self::HowRolesLine => 5121,
+            Self::HowRoleInstructions => 5122,
             Self::HowPath => 4929,
             Self::WaysTitle => 4303,
             Self::WaysNow => 4304,
@@ -5161,6 +5170,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowBudgetLine => (&[b"each given its own when it starts"], &[]),
         Word::HowAmount => (&[b"", b""], &[Number]),
         Word::HowUpTo => (&[b"up to ", b""], &[Number]),
+        Word::HowRoles => (&[b"Roles"], &[]),
+        Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
+        Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
         Word::HowPath => (&[b"The path of a change"], &[]),
         Word::WaysTitle => (&[b"Ways of working"], &[]),
         Word::WaysNow => (match shell { Shell::Browser => &[b"now"], Shell::Terminal => &[b", now"] }, &[]),

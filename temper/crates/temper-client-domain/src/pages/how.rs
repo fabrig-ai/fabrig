@@ -1,5 +1,6 @@
 //! How work runs' parts (temper/docs/design/client/README.md, 5.13).
 use jig_client::contract as c;
+use temper_client_protocol_wire::v1 as w;
 
 /// The project's `ways` read, as the page sees it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +21,8 @@ pub struct Facts {
     pub read: Read,
     /// Kind 7 read, with Goals shown.
     pub goals: bool,
+    /// The page has read at least one project role.
+    pub roles: bool,
     /// The default goal template's budget, none with no template or kind 7 unread.
     pub budget: Option<c::TemplateBudget>,
 }
@@ -54,6 +57,7 @@ pub struct Parts {
     /// "Ask temper to change this".
     pub ask: bool,
     pub path: Path,
+    pub roles: bool,
     /// A goal's amount or cap, while Goals is shown.
     pub budget: Option<Budget>,
 }
@@ -75,10 +79,10 @@ pub fn parts(facts: &Facts) -> Parts {
     } else {
         None
     };
-    Parts { head, ask: facts.asking, path, budget }
+    Parts { head, ask: facts.asking, path, roles: facts.roles, budget }
 }
 
-/// Gather from `me`, the forge's kind 7 and the ways held for the address.
+/// Gather from `me`, the forge's kind 7, ways and roles held for the address.
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Facts {
     use crate::{Address, forge::stock_ways::State};
@@ -109,5 +113,25 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
             budget = Some(template.budget);
         }
     }
-    Facts { asking, read, goals, budget }
+    let roles = if pages.address() == &(Address::Settings { project }) {
+        match pages.roles() {
+            Some(roles) => match roles.read() {
+                super::roles::Read::Drawn(w::View::Roles(view)) => !view.roles().is_empty(),
+                super::roles::Read::Reading
+                | super::roles::Read::Unreadable
+                | super::roles::Read::Drawn(
+                    w::View::Charter(_)
+                    | w::View::Rule(_)
+                    | w::View::NotDrawn(_)
+                    | w::View::Way(_)
+                    | w::View::Path(_)
+                    | w::View::Proposal(_),
+                ) => false,
+            },
+            None => false,
+        }
+    } else {
+        false
+    };
+    Facts { asking, read, goals, roles, budget }
 }

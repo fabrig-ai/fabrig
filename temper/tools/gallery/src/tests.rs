@@ -484,6 +484,13 @@ static HOLDS: [Holds; samples::N] = [
                 name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
             },
             Part::NoRole { role: Role::Table },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Roles" },
+            Part::Named { role: Role::Disclosure, name: "Chat" },
+            Part::Named { role: Role::Disclosure, name: "Ask temper" },
+            Part::Named { role: Role::Disclosure, name: "Coordinator" },
+            Part::Named { role: Role::Disclosure, name: "Coding agent" },
+            Part::Named { role: Role::Disclosure, name: "Foreman" },
+            Part::Named { role: Role::Disclosure, name: "Status agent" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
             Part::StyledText {
                 style: temper_client_view::look::HOW_ROW,

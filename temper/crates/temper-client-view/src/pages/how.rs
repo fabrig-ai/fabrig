@@ -1,4 +1,4 @@
-//! How work runs' heading, path and budget (temper/docs/design/client/README.md, 5.13).
+//! How work runs' heading, path, roles and budget (temper/docs/design/client/README.md, 5.13).
 use crate::{
     frame::Bindings,
     look,
@@ -14,6 +14,7 @@ use temper_client_domain::{
         how::{self, Budget, Head, Path},
     },
 };
+use temper_client_protocol_wire::v1 as wire;
 
 pub(crate) fn head(root: &Domain, w: &Words, project: u32) -> (Box<[u8]>, Box<[u8]>) {
     let change = w.say(Word::HowChange, &[]);
@@ -97,6 +98,38 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         super::ways::refused(b, ways, w);
         b.close();
     }
+    b.close();
+}
+pub(crate) fn roles(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+    if !how::parts(&how::facts(root, project)).roles {
+        return;
+    }
+    let Some(page) = root.pages().roles() else { return };
+    let temper_client_domain::pages::roles::Read::Drawn(wire::View::Roles(view)) = page.read() else {
+        return;
+    };
+    super::settings::section_head(b, &w.say(Word::HowRoles, &[]));
+    text(b, Role::Text, &w.say(Word::HowRolesLine, &[Hole::Name(project_name(root, w, project))]), look::HOW_WAY);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::HOW_ROLES);
+    for role in view.roles() {
+        let card = role.card();
+        b.open(Role::Disclosure);
+        b.style(look::HOW_ROLE);
+        b.name(card.name());
+        b.description(card.who());
+        crate::views::facts(b, card);
+        b.open(Role::Paragraph);
+        b.style(look::HOW_ROLE_MORE);
+        let name = w.say(Word::HowRoleInstructions, &[]);
+        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Role { project, charter: role.charter() } }));
+        b.text(Run::Plain, &name);
+        b.close();
+        b.close();
+        b.close();
+    }
+    b.close();
     b.close();
 }
 pub(crate) fn budgets(b: &mut Builder, root: &Domain, w: &Words, project: u32) {

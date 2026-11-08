@@ -1396,9 +1396,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-675",
         b"temper-how-wide",
         b"temper-how-way",
-        b"temper-reserved-678",
-        b"temper-reserved-679",
-        b"temper-reserved-680",
+        b"temper-how-roles",
+        b"temper-how-role",
+        b"temper-how-role-more",
         b"temper-reserved-681",
         b"temper-reserved-682",
         b"temper-reserved-683",
@@ -1832,6 +1832,9 @@ pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 /// How work runs (temper/docs/design/client/browser.md, 2.5).
 pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
 pub const HOW_WAY: Style = Style { owner: owner(), token: 677 };
+pub const HOW_ROLES: Style = Style { owner: owner(), token: 678 };
+pub const HOW_ROLE: Style = Style { owner: owner(), token: 679 };
+pub const HOW_ROLE_MORE: Style = Style { owner: owner(), token: 680 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
 
 /// Path marks and fades (temper/docs/design/client/README.md, 5.16).
