@@ -57,7 +57,7 @@ pub mod forge;
 mod forge_sign_in;
 pub mod github_logs;
 mod google_runtime;
-pub use temper_shell::help;
+pub mod help;
 mod host;
 mod init;
 pub use temper_shell::link_file;

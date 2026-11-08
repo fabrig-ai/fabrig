@@ -16,7 +16,7 @@ use skein_lib::{Env, List, Queue, Time, Token};
 use smith_host_domain as smith;
 
 use crate::boundary::{Encodable, Encoded, Request};
-use crate::hand_out::{Finish, Pending, StartRefusal};
+use crate::hand_out::{Finish, Pending, StartClass, StartRefusal};
 use crate::{Domain, Limits, route, smith_delivery, translate, workspace};
 
 /// An agent smith started for a hosted run, by the run's token.
@@ -328,13 +328,13 @@ fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, enco
         Encoded::Turn(_) | Encoded::CallName(_) => unreachable!("a hand-out comes back as it went"),
     };
     let event = match finish {
-        Finish::Refused(cause) => {
+        Finish::Refused(class) => {
             let why = match body {
                 Some(body) => body,
                 None => Box::from(&b"refusal"[..]),
             };
             let bound = domain.agents.get_mut(&owner).expect("a refused agent waits for its hand-outs");
-            bound.refused = Some(StartRefusal { cause, why });
+            bound.refused = Some(StartRefusal { class, why });
             return;
         }
         Finish::Ended | Finish::Parked | Finish::Failed(_) => match body {
@@ -399,7 +399,7 @@ fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
 }
 
 /// The agent of the run `owner` has gone, as smith ended it: a start smith
-/// refused before any process ran is refused as invalid; any other end waits
+/// refused before any process ran keeps its refusal class; any other end waits
 /// behind the run's hand-outs.
 fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, detail: Box<[u8]>) {
     let started = domain.agents.contains_key(&owner);
@@ -410,15 +410,14 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     assert!(started || unstarted, "an agent that ran started first");
     if let Some(why) = translate::unstarted(end) {
         domain.agents.remove(&owner);
-        let cause = match end {
-            smith::End::Invalid(smith::Invalid::Transcript) => host::StartCause::Transcript,
-            smith::End::Busy
-            | smith::End::Invalid(_)
-            | smith::End::Unspawned
-            | smith::End::Exited { .. }
-            | smith::End::Settled => host::StartCause::Other,
+        let class = match end {
+            smith::End::Busy => StartClass::Busy,
+            smith::End::Invalid(smith::Invalid::Transcript) => StartClass::Invalid(host::StartCause::Transcript),
+            smith::End::Invalid(_) | smith::End::Unspawned | smith::End::Exited { .. } | smith::End::Settled => {
+                StartClass::Invalid(host::StartCause::Other)
+            }
         };
-        let refused = host::FromAgent::StartRefused { owner, cause, why: Box::from(why) };
+        let refused = class.event(owner, Box::from(why));
         route::host_step(domain, env, host::Event::Agent(refused));
     } else if hand_out_pending(domain, owner) {
         let old = domain.gone.insert(owner, detail).expect("room for every agent's end");
@@ -439,11 +438,10 @@ fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>)
         && hosting.phase != Phase::Answered
     {
         let event = match refused {
-            Some(StartRefusal { cause, why }) => host::FromAgent::StartRefused {
-                owner,
-                cause,
-                why: diagnostic(&why, &detail, env.limits.host.detail_bytes),
-            },
+            Some(StartRefusal { class, why }) => {
+                let why = diagnostic(&why, &detail, env.limits.host.detail_bytes);
+                class.event(owner, why)
+            }
             None => host::FromAgent::Gone { owner, detail },
         };
         route::host_step(domain, env, host::Event::Agent(event));

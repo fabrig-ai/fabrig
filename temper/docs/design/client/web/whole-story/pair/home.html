@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pair, Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">pocket <small>GitHub</small></span>
+    <div class="nav">
+      <a class="on" href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">3</span></a>
+      <a href="work.html">Work</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Tuesday 19:14 · pocket · you approve every change</p>
+        <h1 class="headline">Two changes wait for your approval. One landed today.</h1>
+        <p class="lede">Monthly totals by category and dark mode are both checked by CI and reviewed by an agent; nothing reaches main until you approve. The budget alerts change asks whether alerts go by email. The CSV import fix you approved this afternoon landed at 16:20.</p>
+        <p class="byline">Written by the status agent at 19:12</p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Needs you · 3</h2><a href="needs.html">All needs</a></div>
+        <div class="card need">
+          <p class="from"><span class="chip">approval</span> Monthly totals by category · from your chat at 18:40</p>
+          <p class="q">Approve "Monthly totals by category" on GitHub?</p>
+          <div class="chips"><span class="chip good">CI green</span><span class="chip good">reviewed: no findings</span><span class="chip">+142 -18 in 4 files</span></div>
+          <div class="choices">
+            <a class="choice rec" href="#">Review on GitHub ↗</a>
+            <a class="choice" href="needs.html">See the change</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">approval</span> Dark mode for the dashboard · from your chat on Monday</p>
+          <p class="q">Approve "Dark mode for the dashboard" on GitHub?</p>
+          <div class="chips"><span class="chip good">CI green</span><span class="chip">reviewed: one note, repaired</span><span class="chip">+96 -31 in 6 files</span></div>
+          <div class="choices">
+            <a class="choice rec" href="#">Review on GitHub ↗</a>
+            <a class="choice" href="needs.html">See the change</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">question</span> Budget alerts · asked by the change 20 min ago</p>
+          <p class="q">Send budget alerts by email, or only show them in the app?</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Only in the app <small>recommended</small></a>
+            <a class="choice" href="#">By email too</a>
+            <a class="choice quiet" href="needs.html">Tell it something else</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Landed this week · 2</h2><a href="work.html">All work</a></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">today 16:20</span>
+            <div><p class="took">CSV import keeps the last row</p><p class="small muted">From your chat at 15:02. You approved it at 16:18; merged at the head CI checked.</p></div>
+            <a class="r" href="#">On GitHub</a>
+          </div>
+          <div class="row">
+            <span class="mono">Mon 11:02</span>
+            <div><p class="took">Accounts page loads in one request</p><p class="small muted">From your chat on Monday. One repair after the review asked for a test.</p></div>
+            <a class="r" href="#">On GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="ask"><span>Ask for a change, or ask temper: what did the review say about dark mode?</span><span class="mono">Enter</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

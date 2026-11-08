@@ -279,7 +279,10 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
 - **Refused** at the entrance: busy, or invalid, saying what is beyond
   the limits or which item the workspace cannot take. Once prepared, a
   start smith refuses, or whose charter, transcript, call names or
-  delivery evidence do not decode or agree, is refused as invalid too.
+  delivery evidence do not decode or agree, is refused as invalid too,
+  which the engine counts as permanent (jig's `domain/tasks.md`, 5.5). A
+  start smith refuses as busy, an agent or a run it has no room for, is
+  refused busy, as at the entrance (jig's `domain/hosts.md`, section 8).
 - **An answer past the agent's reply bound** (`Limits::reply_bytes`,
   smith's `host_reply_bytes`) is given to smith as its `TooLarge`,
   never as a body its host codec would refuse: such a send would

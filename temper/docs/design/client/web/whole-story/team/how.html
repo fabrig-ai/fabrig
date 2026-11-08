@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team profile, How work runs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">shop <small>1 project</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a class="on" href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">You</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col wide">
+      <header class="intro">
+        <p class="kicker">shop · How work runs</p>
+        <h1 class="headline">Agents review everything, then one of you signs off</h1>
+        <p class="lede">shop runs the stock way Agents review, with two rules of yours: every change needs one of you, and anything under payments/ needs two of you. Ask temper to change any of it; an owner accepts the proposal.</p>
+        <div class="choices"><a class="btn dark" href="#">Ask temper to change this</a><a class="btn" href="#">History · 3 changes</a></div>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>The path of a change</h2><span>the way: Agents review</span></div>
+        <div class="scroll">
+          <div class="path">
+            <div class="h"></div><div class="h">Ask</div><div class="h">Produce</div><div class="h">Check</div><div class="h">Review</div><div class="h">Repair</div><div class="h">Sign-off</div><div class="h">Merge</div><div class="h">After landing</div>
+            <div class="lane">You</div><div><span class="step p">one of you, in a chat</span></div><div></div><div></div><div></div><div></div><div><span class="step p">one of you; payments/: two of you</span></div><div></div><div></div>
+            <div class="lane">Agents</div><div><span class="step a">the chat's agent</span></div><div><span class="step a">a coding agent</span></div><div></div><div><span class="step a">a reviewer</span></div><div><span class="step a">the coding agent</span></div><div></div><div></div><div><span class="step a">a red goes to its area's owners</span></div>
+            <div class="line">authority: no merge tool above this line</div>
+            <div class="lane last">Code</div><div class="last"></div><div class="last"></div><div class="last"><span class="step c">CI: tests, lint, build</span></div><div class="last"></div><div class="last"></div><div class="last"><span class="step c">counts the sign-offs at this head</span></div><div class="last"><span class="step c">at the signed head</span></div><div class="last"><span class="step c">tests on main</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>What reaches you</h2><span>on shop</span></div>
+        <div class="grid3">
+          <div class="box">
+            <span class="who a">Agents decide, then tell you</span>
+            <ul class="small">
+              <li>retrying a failed check once</li>
+              <li>wording inside a change</li>
+            </ul>
+            <p class="small muted">Listed in Decided for you for 24 hours, to overturn.</p>
+          </div>
+          <div class="box">
+            <span class="who p">Asks one of you</span>
+            <ul class="small">
+              <li>a sign-off on every change, by its area's owners</li>
+              <li>a question a change's agent can't settle</li>
+            </ul>
+            <p class="small muted">Shown to each owner, with whose turn it is.</p>
+          </div>
+          <div class="box">
+            <span class="who p">Always waits for you</span>
+            <ul class="small">
+              <li>money past the project's budget</li>
+              <li>what can't be undone</li>
+              <li>changes to this page</li>
+            </ul>
+            <p class="small muted">You are shop's owner, so these are yours alone.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Rules by path</h2><a href="#">+ A rule</a></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Paths</th><th>Review</th><th>Sign-off</th><th>Lands</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">payments/</td><td>an agent</td><td><span class="who p">two of: you, Sam</span></td><td>once both have signed this head</td></tr>
+              <tr><td class="mono">storefront/ · templates/</td><td>an agent</td><td><span class="who p">Kit</span></td><td>once signed</td></tr>
+              <tr><td class="mono">everything else</td><td>an agent</td><td><span class="who p">one of you</span></td><td>once signed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">A sign-off is for one head. A change pushed after it needs signing again; a repair that only updates from main keeps it.</p>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Budget</h2><span>per week, reset Mondays</span></div>
+        <div class="rows">
+          <div class="row" style="grid-template-columns: 200px minmax(0, 1fr) auto"><span>shop</span><span class="small muted">every chat and change, shared by the three of you</span><span>$120</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

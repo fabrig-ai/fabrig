@@ -765,38 +765,50 @@ fn pending_start(h: &mut Harness, run: u64) -> (Token, Token) {
 }
 
 #[test]
-fn a_refused_start_answers_invalid_with_its_words_and_frees_its_slot() {
-    let mut h = Harness::new();
-    let (owner, workspace) = pending_start(&mut h, 1);
-    let _other = h.assign(2);
-    let requests = h.step(Event::Agent(crate::FromAgent::StartRefused {
-        cause: crate::StartCause::Grants,
-        owner,
-        why: b"budget".as_slice().into(),
-    }));
-    assert_eq!(
-        requests.as_ref(),
-        &[
-            Request::Release { workspace },
-            Request::Up(LinkUp::Answer {
-                run: Token::new(1),
-                attempt: Token::new(1001),
-                answer: crate::RunAnswer {
-                    turns: 0,
-                    spent: 0,
-                    read: None,
-                    refused: Box::new([]),
-                    ending: crate::Ending::Refused(Refusal::Invalid(Invalid::Start {
-                        cause: crate::StartCause::Grants,
-                        why: b"budget".as_slice().into(),
-                    })),
-                },
-            }),
-        ]
-    );
-    assert_eq!(h.domain.kept_answers(), 0);
-    h.domain.reclaim();
-    let _replacement = h.assign(3);
+fn a_refused_start_answers_invalid_or_busy_and_frees_its_slot() {
+    for busy in [false, true] {
+        let mut h = Harness::new();
+        let (owner, workspace) = pending_start(&mut h, 1);
+        let _other = h.assign(2);
+        let name = Token::new(42);
+        assert!(
+            h.step(fixtures::inbound(Token::new(1), Token::new(1001), name, Box::from(&b"question"[..]))).is_empty()
+        );
+        let event = if busy {
+            crate::FromAgent::StartBusy { owner }
+        } else {
+            crate::FromAgent::StartRefused { cause: crate::StartCause::Grants, owner, why: b"budget".as_slice().into() }
+        };
+        let requests = h.step(Event::Agent(event));
+        assert_eq!(
+            requests.as_ref(),
+            &[
+                Request::Release { workspace },
+                Request::Up(LinkUp::Answer {
+                    run: Token::new(1),
+                    attempt: Token::new(1001),
+                    answer: crate::RunAnswer {
+                        turns: 0,
+                        spent: 0,
+                        read: None,
+                        refused: Box::new([Refused { name, reason: MessageRefusal::Ending }]),
+                        ending: crate::Ending::Refused(if busy {
+                            Refusal::Busy
+                        } else {
+                            Refusal::Invalid(Invalid::Start {
+                                cause: crate::StartCause::Grants,
+                                why: b"budget".as_slice().into(),
+                            })
+                        }),
+                    },
+                }),
+            ]
+        );
+        assert_eq!(h.domain.kept_answers(), 0);
+        assert!(h.domain.hosting(owner).is_none());
+        h.domain.reclaim();
+        let _replacement = h.assign(3);
+    }
 }
 
 #[test]
@@ -850,25 +862,28 @@ fn gone_while_starting_still_answers_an_unstarted_agent_failure() {
 
 #[test]
 fn a_start_refusal_after_cancel_keeps_the_cancellations_answer() {
-    let mut h = Harness::new();
-    let (owner, _) = pending_start(&mut h, 1);
-    assert!(h.step(Event::Down(LinkDown::Cancel { run: Token::new(1), attempt: Token::new(1001) })).is_empty());
-    let requests = h.step(Event::Agent(crate::FromAgent::StartRefused {
-        cause: crate::StartCause::Other,
-        owner,
-        why: b"budget".as_slice().into(),
-    }));
-    let [Request::Release { .. }, Request::Up(LinkUp::Answer { answer, .. })] = &*requests else {
-        panic!("expected cancellation: {requests:?}")
-    };
-    assert_eq!(
-        answer.ending,
-        crate::Ending::Failed {
-            failure: Failure::Cancelled(Reason::Engine),
-            detail: b"budget".as_slice().into(),
-            work: Work { left: None, saved: None },
-        }
-    );
+    for busy in [false, true] {
+        let mut h = Harness::new();
+        let (owner, _) = pending_start(&mut h, 1);
+        assert!(h.step(Event::Down(LinkDown::Cancel { run: Token::new(1), attempt: Token::new(1001) })).is_empty());
+        let event = if busy {
+            crate::FromAgent::StartBusy { owner }
+        } else {
+            crate::FromAgent::StartRefused { cause: crate::StartCause::Other, owner, why: b"budget".as_slice().into() }
+        };
+        let requests = h.step(Event::Agent(event));
+        let [Request::Release { .. }, Request::Up(LinkUp::Answer { answer, .. })] = &*requests else {
+            panic!("expected cancellation: {requests:?}")
+        };
+        assert_eq!(
+            answer.ending,
+            crate::Ending::Failed {
+                failure: Failure::Cancelled(Reason::Engine),
+                detail: if busy { Box::new([]) } else { b"budget".as_slice().into() },
+                work: Work { left: None, saved: None },
+            }
+        );
+    }
 }
 
 #[test]

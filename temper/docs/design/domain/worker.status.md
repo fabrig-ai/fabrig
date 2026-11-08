@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-07. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-08. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location

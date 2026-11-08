@@ -28,8 +28,8 @@ and saved work remain, no try or backoff is charged by the interruption,
 and the task is due again. Jobs retain their claims for restart recovery.
 
 Sections 7.1, 7.2, 7.4 and 9 have no known gap in selecting a charter's
-parts from a run's reasons, retaining the prepared offering through a
-claim, or taking only offered messages at a turn's fence. Later runs
+parts from a run's reasons or taking only offered messages at a turn's
+fence, beyond the **Not yet** entries below. Later runs
 take `later`, reselecting the kept account when its provider changes;
 charter documents still reach every run. The core-world per-wake table
 covers first and later instructions and choices, a kept question,

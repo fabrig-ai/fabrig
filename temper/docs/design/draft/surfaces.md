@@ -374,6 +374,22 @@ stays the web's.
   whole; `/needs`, walking what needs the person, as `n`; `/tell`, Tell
   temper; `/open`, the object in focus on the web (`tui.md`, section 7).
 
+### 11.5 Views in the terminal
+
+- **Printed, not drawn** (the user, 2026-11-08): a view in a reply or a
+  chat's document (`../client/README.md`, 5.16) prints in the
+  conversation as lines of the terminal's own text. No picture for
+  v0.1.0.
+- **A path:** a stop a line, in the derivation's order: the mark the web
+  draws for its actor, a ring for a person, a four-point star for an
+  agent, a small square for code, then its words. Code's stops are
+  indented, as they stand below the line on the web. A branch's bar
+  closes its part, with the branch's name.
+- **The other views:** a way prints its name and line over its path; a
+  proposal its two paths, under "Before" and "After"; a charter its
+  `who`, `name` and `facts`, as terms; a `not_drawn` its words.
+- **Nothing to press:** a stop's card stays the web's.
+
 ## 12. Density
 
 What the pages show follows what a project's settings say and what

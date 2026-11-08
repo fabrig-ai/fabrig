@@ -1,12 +1,17 @@
-//! Shared binary shells (temper/docs/design/protocol/README.md, 4.1).
+//! What every binary of temper's starts from (temper/docs/design/protocol/README.md, section 5).
+#![forbid(unsafe_code)]
+
+use std::{os::unix::ffi::OsStrExt, path::Path};
+
 pub mod commands;
 pub mod directories;
 pub mod help;
 pub mod link_file;
+pub mod rows;
+
+fn path(bytes: &[u8]) -> &Path {
+    Path::new(std::ffi::OsStr::from_bytes(bytes))
+}
+
 #[cfg(test)]
 mod tests;
-
-fn path(bytes: &[u8]) -> &std::path::Path {
-    use std::os::unix::ffi::OsStrExt;
-    std::path::Path::new(std::ffi::OsStr::from_bytes(bytes))
-}

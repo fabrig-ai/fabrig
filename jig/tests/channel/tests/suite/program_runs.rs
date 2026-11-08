@@ -41,6 +41,47 @@ fn a_program_run_answers_through_claude() {
     assert_eq!(run.grants, vec![(1, 1, 2, b"alice".to_vec())]);
     finished(&run);
 }
+#[test]
+fn a_program_finish_with_live_delegates_parks_without_a_try() {
+    let mut turn = finish();
+    turn.steps = vec![Step::Call {
+        tool: "delegate".into(),
+        input: json!({"batch":[{
+            "executor":{"kind":"agent","charter":1},
+            "spec":{"words":"Wait for work"},
+            "contract":{"kind":"report","words":32},
+            "authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},
+                "budget":{"spend":20},"notes":0}
+        }]}),
+    }];
+    let run = program_runs::run(Case::Delegated, &story(vec![turn]));
+    for turn in &run.turns {
+        for message in transcript(turn).messages() {
+            for block in message.blocks() {
+                if let smith_transcript::Block::Result(result) = block
+                    && let smith_transcript::Returned::Said(said) = result.returned()
+                {
+                    assert!(!said.error(), "{}", String::from_utf8_lossy(said.text()));
+                }
+            }
+        }
+    }
+    assert!(
+        run.seen.iter().any(|seen| matches!(seen, Seen::Called { tool, error: false } if tool == "delegate")),
+        "delegation succeeds: {:?}",
+        run.seen
+    );
+    assert_eq!(run.terminals.len(), 1);
+    assert_eq!(run.terminals[0].end, jig_domain_tasks::End::Parked);
+    let task = run.task.as_ref().expect("parent remains live");
+    assert_eq!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle));
+    assert_eq!(task.tries, jig_domain_tasks::Tries::NONE);
+    assert_eq!(task.delegates.as_ref(), [2]);
+    assert_eq!(run.delegates.len(), 1);
+    assert_eq!(run.delegates[0].number, 2);
+    assert!(run.results.is_empty(), "the finish's report is not taken");
+    assert!(!run.turns.is_empty(), "the program's turns commit before its terminal");
+}
 fn limited(reset: Option<u64>) -> Run {
     let run = program_runs::run(
         Case::Limited,
