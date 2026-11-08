@@ -87,3 +87,21 @@ each stock charter's words*):
 
 As the implementer's text says, and: the nine lines as the test reads them; each
 reader whose expectation changed.
+
+## Answers
+
+2026-11-08. *May the engine world's shared fixture raise `tasks.charters`
+from 4 to 12, or keep 4 and give its own forge defaults without kind 9?*
+Raise it to 12. Kind 9's number runs 1 to `tasks.charters`
+(`temper/docs/design/protocol/configuration.md`, 13.4's table), so a world
+that starts on the whole stock holds at least the stock's highest charter,
+12; a fixture that drops kind 9 would test a stock no deployment runs. Set
+`limits.tasks.charters = 12` in `temper/tests/engine/domain/src/kinds.rs` and
+say why in its comment (the stock's charter lines, kind 9, up to charter 12).
+Any other engine-world fixture whose bound refuses the stock's twelve
+defaults at a start (`configuring/fixture.rs`'s `CHARTERS`, `settings.rs`,
+`ways.rs` and the like) takes the same raise to 12 alone, keeping what each
+test checks; a test that sets a small bound to bite on a count gives itself
+forge defaults without kind 9 instead, only where raising would blunt its
+bite. Name each fixture changed in the report. The stock and its kinds stay
+as they are.
