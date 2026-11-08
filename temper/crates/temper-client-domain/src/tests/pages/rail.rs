@@ -6,7 +6,7 @@ use super::{
 use crate::{
     Address, Domain, Event, Place, Request,
     address::Filter,
-    pages::rail::{self, Facts, New, Parts},
+    pages::rail::{self, Facts, New, Parts, Tabs},
 };
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{List, Writer};
@@ -40,32 +40,55 @@ const ORDINARY: Parts = Parts {
     away: false,
     new: New::Change,
 };
+const ORDINARY_TABS: Tabs = Tabs { needs: true, count: 0, cut: false, work: true, ask: false, deployment: false };
 
 #[test]
 fn parts_follow_each_rails_rule_and_to_begin_cut() {
-    for (name, facts, expected) in [
-        ("no facts", BASE, ORDINARY),
-        ("one project", Facts { projects: 1, ..BASE }, ORDINARY),
-        ("two projects", Facts { projects: PROJECTS, ..BASE }, Parts { all_projects: true, ..ORDINARY }),
-        ("needs count", Facts { needs: NEEDS, ..BASE }, Parts { count: NEEDS, ..ORDINARY }),
-        ("zero cut", Facts { needs_cut: true, ..BASE }, Parts { cut: true, ..ORDINARY }),
-        ("count floor", Facts { needs: NEEDS, needs_cut: true, ..BASE }, Parts { count: NEEDS, cut: true, ..ORDINARY }),
-        ("no members or roles", Facts { members: Some(0), standing_roles: Some(0), ..BASE }, ORDINARY),
-        ("one member", Facts { members: Some(1), ..BASE }, ORDINARY),
-        ("second member", Facts { members: Some(2), ..BASE }, Parts { team: true, ..ORDINARY }),
-        ("standing role", Facts { standing_roles: Some(1), ..BASE }, Parts { team: true, ..ORDINARY }),
+    for (name, facts, expected, expected_tabs) in [
+        ("no facts", BASE, ORDINARY, ORDINARY_TABS),
+        ("one project", Facts { projects: 1, ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("two projects", Facts { projects: PROJECTS, ..BASE }, Parts { all_projects: true, ..ORDINARY }, ORDINARY_TABS),
+        (
+            "needs count",
+            Facts { needs: NEEDS, ..BASE },
+            Parts { count: NEEDS, ..ORDINARY },
+            Tabs { count: NEEDS, ..ORDINARY_TABS },
+        ),
+        (
+            "zero cut",
+            Facts { needs_cut: true, ..BASE },
+            Parts { cut: true, ..ORDINARY },
+            Tabs { cut: true, ..ORDINARY_TABS },
+        ),
+        (
+            "count floor",
+            Facts { needs: NEEDS, needs_cut: true, ..BASE },
+            Parts { count: NEEDS, cut: true, ..ORDINARY },
+            Tabs { count: NEEDS, cut: true, ..ORDINARY_TABS },
+        ),
+        ("no members or roles", Facts { members: Some(0), standing_roles: Some(0), ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("one member", Facts { members: Some(1), ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("second member", Facts { members: Some(2), ..BASE }, Parts { team: true, ..ORDINARY }, ORDINARY_TABS),
+        ("standing role", Facts { standing_roles: Some(1), ..BASE }, Parts { team: true, ..ORDINARY }, ORDINARY_TABS),
         (
             "both team facts",
             Facts { members: Some(2), standing_roles: Some(1), ..BASE },
             Parts { team: true, ..ORDINARY },
+            ORDINARY_TABS,
         ),
-        ("asking", Facts { asking: true, ..BASE }, Parts { ask: true, ..ORDINARY }),
-        ("away", Facts { away: true, ..BASE }, Parts { away: true, ..ORDINARY }),
-        ("drafts", Facts { drafts: true, ..BASE }, Parts { new: New::DraftOrChange, ..ORDINARY }),
+        (
+            "asking",
+            Facts { asking: true, ..BASE },
+            Parts { ask: true, ..ORDINARY },
+            Tabs { ask: true, ..ORDINARY_TABS },
+        ),
+        ("away", Facts { away: true, ..BASE }, Parts { away: true, ..ORDINARY }, ORDINARY_TABS),
+        ("drafts", Facts { drafts: true, ..BASE }, Parts { new: New::DraftOrChange, ..ORDINARY }, ORDINARY_TABS),
         (
             "to begin",
             Facts { beginning: true, ..BASE },
             Parts { needs_you: false, work: false, how: false, new: New::Hidden, ..ORDINARY },
+            Tabs { needs: false, work: false, deployment: true, ..ORDINARY_TABS },
         ),
         (
             "to begin with every fact",
@@ -92,9 +115,12 @@ fn parts_follow_each_rails_rule_and_to_begin_cut() {
                 away: true,
                 new: New::Hidden,
             },
+            Tabs { needs: false, count: NEEDS, cut: true, work: false, ask: true, deployment: true },
         ),
     ] {
-        assert_eq!(rail::parts(&facts), expected, "{name}");
+        let parts = rail::parts(&facts);
+        assert_eq!(parts, expected, "{name}");
+        assert_eq!(rail::tabs(&parts), expected_tabs, "{name}: phone tabs");
     }
 }
 
