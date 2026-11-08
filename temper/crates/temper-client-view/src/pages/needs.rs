@@ -10,8 +10,9 @@ use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{
-        Act,
+        Act, all_home,
         needs::{self, ANSWERED_ON_NEEDS},
+        parts,
     },
 };
 
@@ -27,20 +28,18 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::NEEDS);
-    let Some(inbox) = root.pages().inbox() else {
-        b.close();
-        return;
-    };
-    let mut have_page = inbox.known();
-    for card in &inbox.cards {
-        have_page |= card.page.is_some();
-    }
-    if !have_page {
-        b.close();
-        return;
-    }
+    let facts = parts::needs_facts(root, times.now);
+    let parts = parts::needs(&facts);
+    let inbox = root.pages().inbox();
     let session = root.pages().needs();
-    let lines = session.answered(times.now, ANSWERED_ON_NEEDS, inbox.filter.project);
+    let lines = session.answered(
+        times.now,
+        ANSWERED_ON_NEEDS,
+        match inbox {
+            Some(inbox) => inbox.filter.project,
+            None => None,
+        },
+    );
     if let Some(line) = lines.first() {
         times.next = [
             times.next,
@@ -50,9 +49,12 @@ pub(crate) fn main(
         .flatten()
         .min();
     }
-    if let Some(need) = session.shown(inbox, root.forge().approvals()) {
+    if parts.list
+        && let Some(inbox) = inbox
+        && let Some(need) = session.shown(inbox, root.forge().approvals())
+    {
         flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
-    } else {
+    } else if parts.done {
         b.open(Role::Slot);
         b.style(look::NEEDS_INTRO);
         ask::text(b, Role::Paragraph, &w.say(Word::NeedsYou, &[]), look::HOME_KICKER);
@@ -60,7 +62,13 @@ pub(crate) fn main(
         ask::text(b, Role::Paragraph, &w.say(Word::NeedsDone, &[]), look::HOME_LEDE);
         b.close();
         ask::answered_lines(b, root, &lines, w, bindings);
-        let project = home_project(root, inbox.filter.project);
+        let project = home_project(
+            root,
+            match inbox {
+                Some(inbox) => inbox.filter.project,
+                None => None,
+            },
+        );
         if let Some(project) = project {
             b.open(Role::Paragraph);
             crate::link(
@@ -82,10 +90,46 @@ pub(crate) fn main(
             b.close();
         }
     }
+    if parts.decided {
+        decided(b, root, w, bindings, times);
+    }
     crate::confirm::main(b, root, w, bindings, rows);
     b.close();
 }
 
+pub(crate) fn decided(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times) {
+    let facts = parts::needs_facts(root, times.now);
+    if !parts::needs(&facts).decided {
+        return;
+    }
+    let showing = facts.showing;
+    b.open(Role::Region);
+    b.name(&w.say(Word::AllHomeDecidedTitle, &[]));
+    b.open(Role::Slot);
+    b.style(look::DECIDED_HEAD);
+    ask::text(
+        b,
+        Role::Heading { level: 2 },
+        &w.say(Word::HomeDecidedCount, &[Hole::Number(u64::from(showing))]),
+        look::HOME_HEAD,
+    );
+    ask::text(b, Role::Text, &w.say(Word::NeedsDecidedLifetime, &[]), look::DECISION_WHY);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::DECIDED);
+    for mut row in all_home::decided(root, times.now) {
+        let name = match super::project_name(root.pages().me(root.client()), row.project) {
+            Some(name) => name,
+            None => w.say(Word::Project, &[Hole::Number(u64::from(row.project))]),
+        };
+        row.line.why = crate::accounts::words::join(&[&w.say(Word::NeedsAllowed, &[]), &row.line.why]);
+        super::home::decision(b, w, bindings, row.project, &row.line, root.pages().overturn_busy(), times, Some(&name));
+        let expires = skein_lib::Wall::from_nanos(row.line.at.as_nanos().saturating_add(86_400_000_000_000));
+        times.next = [times.next, Some(expires)].into_iter().flatten().min();
+    }
+    b.close();
+    b.close();
+}
 fn home_project(root: &Domain, filter: Option<u32>) -> Option<u32> {
     if let Some(project) = filter.or(root.pages().project()) {
         return Some(project);
@@ -121,7 +165,7 @@ fn flow(
             Hole::Number(u64::try_from(total).expect("bounded count")),
         ],
     );
-    intro(b, root, w, open.len());
+    intro(b, root, w, open.len(), times.now);
     b.open(Role::Slot);
     b.style(look::FLOW_HEAD);
     b.open(Role::Figure);
@@ -391,7 +435,7 @@ fn approval(
     b.close();
 }
 
-fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize) {
+fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib::Wall) {
     let inbox = root.pages().inbox().expect("intro inbox");
     let kicker = match inbox.filter.project {
         Some(project) => {
@@ -404,28 +448,25 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize) {
         None => w.say(Word::NeedsAcross, &[]),
     };
     let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0;
-    let sentence = match count {
-        0 => w.say(Word::HomeNeedsNone, &[]),
-        1 if !cut => w.say(Word::HomeNeedsOne, &[]),
-        1.. if cut => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::try_from(count).expect("bounded count"))]),
-        1.. => {
-            let word = [
-                Word::HomeTwo,
-                Word::HomeThree,
-                Word::HomeFour,
-                Word::HomeFive,
-                Word::HomeSix,
-                Word::HomeSeven,
-                Word::HomeEight,
-                Word::HomeNine,
-            ]
-            .get(count.saturating_sub(2));
-            let number = match word {
-                Some(word) => w.say(*word, &[]),
-                None => skein_lib::Decimal::of(u64::try_from(count).expect("bounded count")).as_bytes().into(),
+    let sentence = super::home::needs_sentence(
+        w,
+        temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },
+        b"",
+    );
+    let showing = parts::needs_facts(root, now).showing;
+    let sentence = if showing > 0 {
+        let decided = if showing == 1 {
+            w.say(Word::NeedsDecidedOne, &[])
+        } else {
+            let number = match super::home::number_word(showing) {
+                Some(word) => w.say(word, &[]),
+                None => skein_lib::Decimal::of(u64::from(showing)).as_bytes().into(),
             };
-            w.say(Word::HomeNeedsMany, &[Hole::Name(number)])
-        }
+            w.say(Word::NeedsDecidedMany, &[Hole::Name(number)])
+        };
+        crate::accounts::words::join(&[&sentence, b" ", &decided])
+    } else {
+        sentence
     };
     b.open(Role::Slot);
     b.style(look::NEEDS_INTRO);
@@ -451,6 +492,10 @@ pub(crate) fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindin
                 b.style(look::RECOMMENDED);
             }
             if choice.recommended {
+                if w.shell == crate::words::Shell::Terminal {
+                    b.text(Run::Plain, &choice.words);
+                    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
+                }
                 ask::text(b, Role::Text, &w.say(Word::NeedsRecommended, &[]), look::REC);
             }
             b.close();

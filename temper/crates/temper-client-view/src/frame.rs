@@ -121,6 +121,8 @@ impl Bindings {
                         PageAct::Choice(temper_client_domain::pages::choice::Act::Find { .. }),
                         skein_ui::Act::Input { value },
                     ) => PageAct::Choice(temper_client_domain::pages::choice::Act::Find { words: value }),
+                    (PageAct::AskLine { .. }, skein_ui::Act::Input { value }) => PageAct::AskLine { words: value },
+                    (PageAct::AskLine { words }, skein_ui::Act::Submit) => PageAct::AskWith { words: words.clone() },
                     (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }

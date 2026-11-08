@@ -80,6 +80,12 @@ fn page(
     if parts.projects {
         projects(b, facts, w, bindings);
     }
+    if parts.ask
+        && !facts.projects.is_empty()
+        && let Some(root) = root
+    {
+        super::home_cards::ask_line(b, root, w, bindings);
+    }
     if let Some(root) = root {
         crate::confirm::main(b, root, w, bindings, rows);
     }
