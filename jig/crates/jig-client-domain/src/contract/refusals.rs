@@ -260,7 +260,7 @@ pub enum Refusal {
     },
     /// No visible object with that name.
     Unknown,
-    /// Another project holds this name.
+    /// Another project holds this name, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
     NameTaken,
     /// The deployment does not offer this act.
     NotOffered,

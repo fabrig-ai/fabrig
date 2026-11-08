@@ -31,7 +31,3 @@ fallbacks. Restored attempt times govern the next daily read.
   5: the first use of a plan as a fact the application
   shows; a retained sign-in answer naming a visit address that died with
   a restart.
-- **Not yet:** 3.4, 5: a removed program source's name is refused to its
-  original holder as to anyone, and a declaration of a taken name is
-  refused *not offered*, not *name taken*; the request `ui-account-again`
-  of 2026-11-08 asks for both.

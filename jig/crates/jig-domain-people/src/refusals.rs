@@ -40,7 +40,7 @@ pub enum Refusal {
         tasks: Box<[u64]>,
         more: u32,
     },
-    /// Another project holds this name under simple case folding.
+    /// Another project holds this name under simple case folding, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
     NameTaken,
     /// A holder's account move could not proceed (domain/accounts.md, section 6).
     AccountMove {

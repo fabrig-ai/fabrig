@@ -79,6 +79,3 @@ both proposers with and without a running-work choice.
 Section 2's browser-approved sign-in is present on the client wire and
 in the clients' component. Only a take with the secret makes the ordinary
 sign-in of the browser's party; a bearer's decision is refused.
-- **Not yet:** 4: a declaration of a program source's name that a live
-  source or another holder's reservation holds is refused *not offered*,
-  not *name taken* (the request `ui-account-again` of 2026-11-08).

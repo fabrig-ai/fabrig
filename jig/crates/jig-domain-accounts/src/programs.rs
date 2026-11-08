@@ -4,7 +4,7 @@ use crate::{Domain, Holder, Kind, Limits, Refusal, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue};
 
-/// A reservation outlives its source: an old directory keeps its original holder.
+/// A reservation outlives its source and moves to its original holder's revived declaration.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Issued {
     pub(crate) holder: Holder,
@@ -17,7 +17,7 @@ pub(crate) struct Issued {
 pub enum DeclarationRefusal {
     Account(Refusal),
     Name,
-    Issued,
+    Taken,
     Names,
 }
 
@@ -25,7 +25,7 @@ pub enum DeclarationRefusal {
 /// The caller validates a joined account's existing payers against its new plan terms.
 ///
 /// # Errors
-/// An invalid or issued name, the lifetime-name bound, or account/provider admission.
+/// An invalid or taken name, the lifetime-name bound, or account/provider admission.
 pub fn declare(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -39,12 +39,19 @@ pub fn declare(
         return Err(DeclarationRefusal::Account(Refusal::Closing));
     }
     let Some(admitted) = crate::SourceName::new(&name) else { return Err(DeclarationRefusal::Name) };
-    for (_, issued) in &domain.issued {
+    let mut revived = None;
+    for (number, issued) in &domain.issued {
         if issued.name.as_bytes() == name.as_ref() {
-            return Err(DeclarationRefusal::Issued);
+            if issued.holder != holder || domain.sources.contains_key(number) {
+                return Err(DeclarationRefusal::Taken);
+            }
+            if domain.programs.contains_key(number) {
+                return Err(DeclarationRefusal::Account(Refusal::Limit { bound: crate::Bound::Sources }));
+            }
+            revived = Some(*number);
         }
     }
-    if domain.issued.len() >= env.limits.program_names.min(domain.issued.capacity()) {
+    if revived.is_none() && domain.issued.len() >= env.limits.program_names.min(domain.issued.capacity()) {
         return Err(DeclarationRefusal::Names);
     }
     match domain.providers.get(provider) {
@@ -94,6 +101,10 @@ pub fn declare(
     let entry = domain.accounts.get_mut(&account).expect("admitted account remains kept");
     assert!(entry.sources.insert(place, number) == Ok(None), "admitted source at the last place");
     entry.plan = true;
+    if let Some(old) = revived {
+        assert!(domain.issued.remove(&old).is_some(), "revived reservation remains kept");
+        out.push(Request::Erase { key: crate::Key::Issued { number: old } });
+    }
     let issued = Issued { holder, name: admitted, signed_out: false };
     assert!(domain.issued.insert(number, issued).is_ok(), "admitted lifetime name");
     out.push(Request::Save { record: Stored::Issued { number, holder, name: name.clone(), signed_out: false } });
@@ -103,6 +114,9 @@ pub fn declare(
     domain.counted(out);
     publish(domain, out);
     crate::domain::changed(domain, env, number, None, out);
+    if revived.is_some() {
+        out.push(Request::CheckProgram { name: admitted });
+    }
     Ok(number)
 }
 
