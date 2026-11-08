@@ -2677,7 +2677,14 @@ that changes the stock changes nothing of them.
   dead end, a trap in the code) with jig's `note`, in the goal's or the
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or
-  not.
+  not. Before finishing on that result, it checks every requested
+  acceptance item and collects its evidence, including full or docs for
+  each main pull when CI selection is requested. A `[log bytes cut]`
+  marker with a required header absent means evidence is missing: it
+  retries `read_job` with a larger `max_bytes` to recover it. It reports
+  an unresolved gap only after available reads cannot supply the evidence,
+  and does not claim completion for an unmet item; an avoidably short read
+  does not satisfy acceptance.
 - **Acceptance evidence, from production to close-out.** Charter 2 maps
   each acceptance item to a named assertion at the lowest tier that
   shows it, adding or extending tests where existing assertions do not
