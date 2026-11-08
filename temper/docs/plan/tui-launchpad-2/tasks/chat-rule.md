@@ -118,3 +118,21 @@ rule above the box*; 6.15):
 
 As the implementer's text says; say how `04.txt` compares with the
 request's frame.
+
+## Rebase (2026-11-08, step merge, foreman tui-launchpad-2/chat-rule/foreman-1)
+
+Rebase onto integration and regenerate the conflicting frames with both title placement and terminal-band changes.
+The merge conflicts with `786303e38f` (“Refresh TUI frames for terminal bands and launchpad effort”), now in `origin/tui-launchpad-2/integration`.
+Conflicting paths:
+- `temper/crates/temper-client-tui/src/tests/golden/chat-80x24-dark.txt`
+- `temper/crates/temper-client-tui/src/tests/golden/chat-question-80x24-dark.txt`
+- `temper/crates/temper-client-tui/src/tests/golden/foot-question-80x24-dark.txt`
+- `temper/docs/design/client/tui/journeys/launchpad-chat/04.html`
+
+Preserve integration’s renderer repair `90ba818a6b` and band colour `#2D2C2A`, together with this task’s removed chat header and title in the composer rule.
+Check the automatically merged `tests/chat.rs::the_chats_are_their_goldens`: retain integration’s added `chat-80x24-dark-no-band` row, band flag and conditional background, while retaining this branch’s `draw(data(entries.into_boxed()), list, size.columns)` call.
+Regenerate that newly added no-band golden too: integration’s version still contains the old chat header.
+Use the rendered `Frame::print` diagnostics from `tests::chat::the_chats_are_their_goldens` and `tests::foot::the_foots_are_their_goldens`; review changed frames against client design 6.14–6.15 before updating goldens.
+Reprint journeys with `heavy cargo run -p temper-client-journeys`; resolve `04.html` from generated output.
+Its conversation must start on row one, retain integration’s unbanded request paint, and put `Hello / What can you tell… T2 on 127.0.0.1:40691` in the composer rule.
+Run the focused golden tests and journey replay checks through heavy; report how `04.txt` compares with the requested frame.
