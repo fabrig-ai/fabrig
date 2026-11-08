@@ -189,6 +189,16 @@ pub enum Act {
     },
     /// "See how it works": the stock reference beside Ask temper (client/README.md, 3.5).
     ShowReference,
+    /// Show a tab of Ask temper's ways in place (client/README.md, 3.5).
+    WayTab {
+        project: u32,
+        tab: u32,
+    },
+    /// Open, move or close a stop's card under the shown path.
+    WayStop {
+        project: u32,
+        stop: u32,
+    },
     UseWay {
         project: u32,
         way: u32,
@@ -703,6 +713,20 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 }
             }
         }
+        Event::Act { act: Act::WayTab { project, tab } } => {
+            if pages.address == (Address::Ask { project })
+                && let Some(page) = &mut pages.stock_ways
+            {
+                page.show_tab(project, tab);
+            }
+        }
+        Event::Act { act: Act::WayStop { project, stop } } => {
+            if pages.address == (Address::Ask { project })
+                && let Some(page) = &mut pages.stock_ways
+            {
+                page.show_stop(project, stop);
+            }
+        }
         Event::Act { act: Act::UseWay { project, way } } => {
             if let Some(page) = &mut pages.stock_ways {
                 page.send_act(
@@ -1095,6 +1119,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     if let Some(page) = &mut pages.stock_ways
         && page.told(&told, client, env.limits.forge, &mut pages.serial, out)
     {
+        if let Some(toasted) = page.toasted() {
+            pages.needs.say(toasted, env.now);
+        }
         return true;
     }
     if let Some(changes) = &mut pages.changes
@@ -1920,6 +1947,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::WayTab { .. }
+        | Act::WayStop { .. }
         | Act::UseWay { .. }
         | Act::KeepWay { .. }
         | Act::ShowReference

@@ -161,6 +161,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::Latest
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::WayTab { .. }
+        | Act::WayStop { .. }
         | Act::UseWay { .. }
         | Act::KeepWay { .. }
         | Act::ShowReference

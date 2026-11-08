@@ -184,6 +184,8 @@ pub enum Word {
     GoalHint,
     Pause,
     Resume,
+    ToastWayUsed,
+    ToastWayKept,
     ToastPaused,
     ToastResumed,
     ToastProposed,
@@ -1553,7 +1555,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2108;
+const PHRASES: u32 = 2110;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1580,10 +1582,10 @@ const PHRASES: u32 = 2108;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3703;
+const SEGMENTS: u32 = 3713;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51979;
-const ALL: [Word; 1426] = [
+const ENGLISH_BYTES: u32 = 52061;
+const ALL: [Word; 1428] = [
     Word::ViewAsking,
     Word::ViewFailed,
     Word::ViewNow,
@@ -1752,6 +1754,8 @@ const ALL: [Word; 1426] = [
     Word::GoalHint,
     Word::Pause,
     Word::Resume,
+    Word::ToastWayUsed,
+    Word::ToastWayKept,
     Word::ToastPaused,
     Word::ToastResumed,
     Word::ToastProposed,
@@ -3125,6 +3129,8 @@ impl Word {
             Self::GoalHint => 3541,
             Self::Pause => 3532,
             Self::Resume => 3533,
+            Self::ToastWayUsed => 4300,
+            Self::ToastWayKept => 4301,
             Self::ToastPaused => 3534,
             Self::ToastResumed => 3535,
             Self::ToastProposed => 3538,
@@ -4512,6 +4518,9 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if word == Word::ViewPath || word == Word::ViewRepositoryPath {
         return Ok(if last && word == Word::ViewRepositoryPath { 2048 } else { 1024 });
     }
+    if word == Word::ToastWayUsed || word == Word::ToastWayKept {
+        return Ok(temper_client_protocol_wire::v1::CEILINGS.stock_way_name);
+    }
     if word == Word::SettingsProposalTitle {
         return Ok(SETTINGS_PROJECT_NAMES_BYTES);
     }
@@ -4986,6 +4995,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
+        Word::ToastWayUsed => (&[b"", b" is this project's way now, as revision ", b"."], &[Name, Number]),
+        Word::ToastWayKept => (&[b"", b" is now this project's own, as revision ", b"."], &[Name, Number]),
         Word::ToastPaused => (&[b"Paused: running tasks stop, nothing new starts."], &[]),
         Word::ToastResumed => (&[b"Resumed."], &[]),
         Word::ToastProposed => (&[b"Proposed to "], &[]),
