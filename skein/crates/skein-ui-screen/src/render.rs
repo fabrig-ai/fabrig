@@ -18,6 +18,7 @@ struct Info {
     title: bool,
     align: Align,
     band: Option<Paint>,
+    label: bool,
 }
 
 fn look(node: &Node, theme: &crate::Theme) -> Option<RegionLook> {
@@ -57,16 +58,17 @@ fn information(tree: &Tree, theme: &crate::Theme) -> List<Info> {
         tokens = styles(node, theme).over(tokens);
         let parent = parents.last().copied();
         let paint = tokens.over(region);
-        let (mut align, mut band) = match parent {
+        let (mut align, mut band, mut label) = match parent {
             Some(parent) => {
                 let data = out.get(parent).expect("parent information exists");
-                (data.align, data.band)
+                (data.align, data.band, data.label)
             }
-            None => (Align::Start, None),
+            None => (Align::Start, None, true),
         };
         for token in &node.styles {
             for look in &theme.styles {
                 if *token == look.style {
+                    label = look.label;
                     if look.align == Align::End {
                         align = Align::End;
                     }
@@ -76,7 +78,7 @@ fn information(tree: &Tree, theme: &crate::Theme) -> List<Info> {
                 }
             }
         }
-        out.push(Info { parent, paint, look: placed, title: false, align, band }).expect("one entry per node");
+        out.push(Info { parent, paint, look: placed, title: false, align, band, label }).expect("one entry per node");
         parents.push(at).expect("ancestors fit nodes");
     }
     for at in 0..tree.len() {
@@ -589,9 +591,14 @@ fn control(
     out.clip_line(n.role == Role::TextField);
     out.control(focused, theme.glyphs.focus, paint, frame);
     words::mark(n, paint, out, frame);
-    content(tree, at, info, theme, focused, out, frame);
+    let labelled = !n.role.is_text_field() || info.get(at).expect("control information exists").label;
+    if labelled {
+        content(tree, at, info, theme, focused, out, frame);
+    }
     if n.role.is_text_field() {
-        out.safe(b": ", paint, focused, frame);
+        if labelled {
+            out.safe(b": ", paint, focused, frame);
+        }
         out.field(n, focus, theme, paint, frame);
         words::entry(n, paint, out, frame);
     }

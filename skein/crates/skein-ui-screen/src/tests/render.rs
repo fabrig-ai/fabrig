@@ -514,6 +514,102 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "a string collects every field row's mismatch before failing")]
+#[expect(clippy::use_debug, reason = "failed rows report the field cells and cursor")]
+fn field_labels_follow_the_nearest_token() {
+    use core::fmt::Write;
+    let theme = fixtures::theme();
+    let mut failures = String::new();
+    for (name, role, value, entry, caret, nearer_label, expected, cursor) in [
+        (
+            "value and caret",
+            Role::TextField,
+            b"ab".as_slice(),
+            EntryKind::Text,
+            2,
+            false,
+            "> ab\nTail\n\n\n",
+            Position { row: 0, column: 4 },
+        ),
+        (
+            "placeholder paint",
+            Role::TextField,
+            b"".as_slice(),
+            EntryKind::Text,
+            0,
+            false,
+            "> Ask temp\nTail\n\n\n",
+            Position { row: 0, column: 2 },
+        ),
+        (
+            "area wraps at focus columns",
+            Role::TextArea,
+            b"one two three".as_slice(),
+            EntryKind::Text,
+            13,
+            false,
+            "> one two\n  three\nTail\n\n",
+            Position { row: 1, column: 7 },
+        ),
+        (
+            "secret masks characters",
+            Role::TextField,
+            "a\u{301}界".as_bytes(),
+            EntryKind::Secret,
+            6,
+            false,
+            "> ●●●\nTail\n\n\n",
+            Position { row: 0, column: 5 },
+        ),
+        (
+            "nearer token restores label",
+            Role::TextField,
+            b"ab".as_slice(),
+            EntryKind::Text,
+            2,
+            true,
+            "> F: ab\nTail\n\n\n",
+            Position { row: 0, column: 7 },
+        ),
+        (
+            "value scrolls to caret",
+            Role::TextField,
+            b"abcdefghij".as_slice(),
+            EntryKind::Text,
+            10,
+            false,
+            "> defghij\nTail\n\n\n",
+            Position { row: 0, column: 9 },
+        ),
+    ] {
+        let tree = fixtures::field_look(role, value, entry, nearer_label);
+        let field = fixtures::id(&tree, b"F");
+        let mut focus = Focus { node: Some(field), caret, ..Focus::default() };
+        let mut frame = Frame::new(FIELD_EDGE);
+        render(&tree, &theme, FIELD_EDGE, &mut focus, &mut frame);
+        let text = frame.text();
+        if text.as_ref() != expected.as_bytes() || frame.cursor() != Some(cursor) {
+            writeln!(
+                &mut failures,
+                "{name}: text {text:?}, cursor {:?}; expected {expected:?}, {cursor:?}",
+                frame.cursor()
+            )
+            .expect("writing to a string succeeds");
+        }
+        if value.is_empty() {
+            let paint = theme.focus.over(theme.placeholder.over(theme.base));
+            for cell in frame.row(0).expect("field row exists").iter().skip(2) {
+                if cell.paint != paint {
+                    writeln!(&mut failures, "{name}: placeholder cell {cell:?}, expected {paint:?}")
+                        .expect("writing to a string succeeds");
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
+}
+
+#[test]
 #[expect(clippy::disallowed_types, reason = "the diagnostic collects every failed table row")]
 fn rendering_lays_end_alignment_bands_and_title_parts() {
     use core::fmt::Write;
