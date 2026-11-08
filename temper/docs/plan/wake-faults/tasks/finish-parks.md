@@ -113,3 +113,14 @@ Acceptance:
 6. Commit and push.
 
 ## Report
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/finish-parks/foreman-1)
+
+rebase and combine both tasks’ status-gap deletions
+The merge conflicts are in `jig/docs/design/domain/engine.status.md` and `jig/docs/design/domain/tasks.status.md`.
+Integration contains `f15f70e6d7` (`Keep covered undecided entries parked until a change`), which deletes adjacent clauses in the same paragraphs.
+Resolve both conflicts by preserving that commit’s deletions alongside finish-parks’ deletions:
+- In `engine.status.md`, remove both 7.4 gaps: the live-delegate finish failure and the covered undecided entry wake. Retain the remaining 7.1 and 8 gaps.
+- In `tasks.status.md`, remove finish-parks’ 5.6 gap and covered-entries’ 8.1/8.3/8.6/9 covered-entry gap. Retain 5.5, the separate 8.6 preparation-to-claim message gap, and later entries.
+`jig/crates/jig-domain-tasks/src/run.rs` auto-merged; preserve covered-entries’ claim reset change and finish-parks’ terminal admission change.
+Keep the repair limited to resolving these overlaps; do not restore either task’s removed status entries.
