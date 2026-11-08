@@ -811,10 +811,8 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
   and refused versions and scratches need no binary and run in the focused
   suite; those that need one are ignored unless the caller names it. The
   tool itself runs outside both suites.
-- **Budgets:** the focused suite's 30 seconds (15 seconds before the user's
-  doubling of 10-22, provisional) and the fuzzy suite's two minutes (suite's
-  minute before the user's doubling of 10-22, provisional) (testing.md,
-  section 7) bind these tests.
+- **Budgets:** the focused suite's 40 CPU seconds and the fuzzy suite's
+  120 (testing.md, section 7) bind these tests.
 
 ## 9. Open questions
 

@@ -383,11 +383,12 @@ with the same three keys and no `auto_reap`. It is no pair: no tier reads
 it, and whatever measures that share reads its verdict there, recording
 a run that goes over rather than refusing it.
 Smith's and Skein's `default` and `fuzzy` entries use `cpu_suite_s` alone,
-at 30 and 120 CPU seconds respectively. Jig's and Temper's `fuzzy` entries
-use `cpu_suite_s` alone at 120 CPU seconds; neither has a `default` entry.
-These figures are the strategy's section 8 figures
-(`skein/docs/foundation/testing-strategy.md`), by the user's word of 11-07,
-recorded beside their entries. Temper's entry follows Jig's, as does its
+Smith's at 30 and 120 CPU seconds and Skein's at 40 and 120. Jig's and
+Temper's `fuzzy` entries use `cpu_suite_s` alone at 120 CPU seconds;
+neither has a `default` entry. These figures are the strategy's section 8
+figures (`skein/docs/foundation/testing-strategy.md`), by the user's word
+of 11-07, but for Skein's `default`, 40 by the user's word of 11-08; each
+is recorded beside its entry. Temper's entry follows Jig's, as does its
 comment, and sets no `wall_hard_s`.
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
