@@ -10,7 +10,7 @@ use skein_lib::{
     List, Wall,
     bytes::{concat, copy_of},
 };
-use skein_ui::{Builder, Role, Style, phrases::Hole};
+use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{chats, home},
@@ -25,13 +25,15 @@ pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub address: Box<[u8]>,
     pub lines: List<Line>,
-    pub left_off: Option<LeftOff>,
+    pub left_off: List<LeftOff>,
+    pub selected: Option<u64>,
     pub needs: Box<[NeedLine]>,
     pub notes: foot::Notes,
     pub tick: Option<Wall>,
 }
 #[derive(Debug)]
 pub(crate) struct LeftOff {
+    pub task: u64,
     pub title: Box<[u8]>,
     pub state: Box<[u8]>,
 }
@@ -78,26 +80,49 @@ fn name(me: &c::Me, number: u32) -> Option<Box<[u8]>> {
     }
     None
 }
-fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words) -> Option<LeftOff> {
-    let tasks = root.pages().chats()?.live(root.client())?;
-    let mut newest: Option<&c::TaskLine> = None;
-    for line in &tasks.rows {
-        if line.project != project || chats::ended(&line.chip) {
-            continue;
-        }
-        let later = match newest {
-            Some(held) => {
-                line.last_activity > held.last_activity
-                    || (line.last_activity == held.last_activity && line.chip.task < held.chip.task)
+fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words) -> List<LeftOff> {
+    let mut lines = List::with_capacity(3);
+    let tasks = match root.pages().chats() {
+        Some(chats) => chats.live(root.client()),
+        None => None,
+    };
+    let Some(tasks) = tasks else { return lines };
+    // Three passes keep only the next line, without copying or sorting Home's rows.
+    let mut previous: Option<&c::TaskLine> = None;
+    for _line in 0_u32..3 {
+        let mut newest: Option<&c::TaskLine> = None;
+        for line in &tasks.rows {
+            if line.project != project || chats::ended(&line.chip) {
+                continue;
             }
-            None => true,
-        };
-        if later {
-            newest = Some(line);
+            if let Some(previous) = previous
+                && !before(previous, line)
+            {
+                continue;
+            }
+            let later = match newest {
+                Some(held) => before(line, held),
+                None => true,
+            };
+            if later {
+                newest = Some(line);
+            }
         }
+        let Some(line) = newest else { break };
+        lines
+            .push(LeftOff {
+                task: line.chip.task,
+                title: copy_of(line.chip.title.bytes()),
+                state: shared::chat_state(line, me, words.view()),
+            })
+            .expect("at most three left-off chats");
+        previous = Some(line);
     }
-    let line = newest?;
-    Some(LeftOff { title: copy_of(line.chip.title.bytes()), state: shared::chat_state(line, me, words.view()) })
+    lines
+}
+fn before(line: &c::TaskLine, other: &c::TaskLine) -> bool {
+    line.last_activity > other.last_activity
+        || (line.last_activity == other.last_activity && line.chip.task < other.chip.task)
 }
 fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall) {
     if root.pages().address() != &(Address::Home { project }) {
@@ -152,7 +177,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         project,
         address: copy_of(tui.address()),
         lines: List::with_capacity(3),
-        left_off: None,
+        left_off: List::with_capacity(3),
+        selected: tui.left_off(),
         needs: Box::default(),
         notes: foot::read_notes(root, tui, words),
         tick: None,
@@ -188,15 +214,26 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     b.region(look::SECTIONS);
     b.open(Role::Group);
     b.style(look::SPACED);
-    if let Some(left) = &part.left_off {
+    if !part.left_off.is_empty() {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::LeftOff, &[]), Some(look::HEAD));
-        b.open(Role::Description);
-        b.open(Role::Paragraph);
-        text(b, Role::Text, &left.title, None);
-        text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::HINT));
-        text(b, Role::Text, &left.state, Some(look::HINT));
-        b.close();
+        b.open(Role::List);
+        b.style(look::LEFT_OFF);
+        for left in &part.left_off {
+            b.open(Role::Item);
+            if part.selected == Some(left.task) {
+                b.style(look::PICKED);
+            }
+            b.open(Role::Paragraph);
+            b.text(Run::Plain, &left.title);
+            b.open(Role::Text);
+            b.style(look::HINT);
+            b.run(Run::Plain, &words.say(Word::Separator, &[]));
+            b.run(Run::Plain, &left.state);
+            b.close();
+            b.close();
+            b.close();
+        }
         b.close();
         b.close();
     }
