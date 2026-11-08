@@ -95,8 +95,9 @@ root; `F` is `temper/crates/temper-engine-domain-forge/src`, `R` is
   `expect`, which the stock's test holds.
 - **Charter 5:** number 5; the stock's models in `FIRST_CHOICES` order
   and `rest: true`; hosts `Workers`; the run of charter 2 (`WORK_TURNS`,
-  `WORK_TIME`, reserve 1 turn and 60 s); `resume: false`; `waiting` 10 s,
-  as every stock charter; `inspect`, `modify` and `agents` true, `shell`
+  `WORK_TIME`, reserve 1 turn and 60 s); `resume: false`; `waiting` 0
+  (every other stock charter waits 10 s); `inspect`, `modify` and `agents`
+  true, `shell`
   false; `tools` charter 1's, `CHAT_CHARTER_TOOLS` (1,023); no documents;
   `spend` the stock's run, as every stock charter's; `wake`:
 
