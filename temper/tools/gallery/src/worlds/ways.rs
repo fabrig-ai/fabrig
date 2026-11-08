@@ -3,6 +3,7 @@ use super::{Address, Domain, Event, FirstRun, List, Queue, Request, Then, c, doc
 use skein_lib::{RequestEnvelope, Token, Writer, bytes};
 use temper_client_domain::{Action, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Classes, Way, classes_record};
 
 const PROJECT: u32 = 1;
 const REVISION: u32 = 1;
@@ -372,8 +373,9 @@ fn own() -> w::BranchPath {
     branch(vec![stop(Ask), stop(Produce), stop(Merge), stop(Branch)])
 }
 
+#[expect(clippy::too_many_lines, reason = "the fixture encodes each stock way's rules, visibility and classes")]
 fn items(project: u32, index: usize) -> List<w::ProposalItem> {
-    let mut items = List::with_capacity(5);
+    let mut items = List::with_capacity(6);
     for number in 1..=4 {
         let edit = if number == 1 || (index == 2 && number == 2) {
             let goal = number == 2;
@@ -463,5 +465,31 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
             )
             .expect("fifth item");
     }
+    let way = match index {
+        0 => Way::YouApprove,
+        1 => Way::AgentsReview,
+        2 => Way::DraftFirst,
+        _ => unreachable!("three stock ways"),
+    };
+    let classes = classes_record(&Classes::stock(way)).expect("stock classes fit the record");
+    let mut writer = Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
+    classes.encode(&mut writer).expect("measured classes");
+    items
+        .push(
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts {
+                    kind: 8,
+                    scope: project,
+                    number: 1,
+                    edit: w::SettingEdit::Set(
+                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: writer.finish() })
+                            .expect("classes value"),
+                    ),
+                },
+            )
+            .expect("classes item"),
+        )
+        .expect("six stock items at most");
     items
 }

@@ -5025,6 +5025,7 @@ dependencies = [
  "temper-client-shell-terminal",
  "temper-client-view",
  "temper-fixtures",
+ "temper-protocol-reaches",
 ]
 
 [[package]]
@@ -5435,6 +5436,7 @@ dependencies = [
  "skein-lib",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

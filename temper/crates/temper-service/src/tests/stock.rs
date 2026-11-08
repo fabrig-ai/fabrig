@@ -1462,6 +1462,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
         settings::{LandingRule, RuleApproval, RuleGate, Value},
     };
     use temper_engine_domain_ways::Laid;
+    use temper_protocol_reaches::{Classes, Way};
     let all = forge::GatePattern {
         segments: Box::new([b"branch".as_slice().into()]),
         last: forge::GateLast::Open(Box::default()),
@@ -1490,6 +1491,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 },
             )],
             None,
+            Some(Classes::stock(Way::YouApprove)),
             false,
         ),
         (
@@ -1497,6 +1499,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
             b"An agent makes each change, another reviews it, and code lands it.".as_slice(),
             vec![(1, review)],
             None,
+            Some(Classes::stock(Way::AgentsReview)),
             false,
         ),
         (
@@ -1533,16 +1536,18 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 ),
             ],
             Some(Laid { drafts: true, goals: true, way: 4 }),
+            Some(Classes::stock(Way::DraftFirst)),
             true,
         ),
     ];
     let stock = crate::stock::ways();
     assert_eq!(stock.len(), rows.len());
-    for (way, (name, line, rules, ways, delegation)) in stock.iter().zip(rows) {
+    for (way, (name, line, rules, ways, classes, delegation)) in stock.iter().zip(rows) {
         assert_eq!(way.name.as_ref(), name);
         assert_eq!(way.line.as_ref(), line, "{name:?}");
         assert_eq!(way.rules.as_ref(), rules.as_slice(), "{name:?}");
         assert_eq!(way.ways, ways, "{name:?}");
+        assert_eq!(way.classes, classes, "{name:?}");
         assert_eq!(way.delegation, delegation, "{name:?}");
     }
     let engine = fixtures::engine();
