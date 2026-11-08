@@ -310,13 +310,23 @@ impl Run {
                     size,
                     scheme,
                     address: address.clone(),
+                    local: false,
+                    note: None,
                     kept: kept.clone(),
                     credential: credential.clone(),
                 });
                 recorder.turn(self.env.now, self.env.wall);
                 recording.recorder = Some(recorder);
             }
-            self.report(host::Report::Start(host::Start { size, scheme, address, kept, credential }));
+            self.report(host::Report::Start(host::Start {
+                size,
+                scheme,
+                address,
+                local: false,
+                kept,
+                credential,
+                note: None,
+            }));
             reported = true;
         }
         if self.size.is_some() {

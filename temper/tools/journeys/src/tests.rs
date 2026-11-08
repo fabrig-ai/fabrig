@@ -632,6 +632,8 @@ impl TuiWorld {
             size: Size { rows: 16, columns: 100 },
             scheme: temper_client_tui::Scheme::Dark,
             address: address.into(),
+            local: false,
+            note: None,
             kept: Vec::new(),
             credential: None,
         };
