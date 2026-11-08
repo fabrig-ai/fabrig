@@ -2,6 +2,10 @@
 
 2026-11-08. Where temper's code lags or departs from [root.md](root.md).
 
+Section 7.1 has no known gap in assigning an asking charter no home,
+explicit, saved-work or context repository. Its run therefore has no
+workspace; the other charters keep their repository selection.
+
 Section 9.1's owner handoff is present: after both domains load, the root
 hands the forge `people.sole_owner()` before its restore decision. The
 connector's retained-link scope gap remains in `forge.status.md`, 4.6.
@@ -16,6 +20,13 @@ The charter's stored-policy size refusal carries supplied bytes and the
 `root.journal.run_bytes` maximum from jig through ctl, a run's settings
 tool and JSON. The policy's parts count toward that size; the refusal
 kind remains shape.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
   counted its `read_task` calls since the room landed, where the request

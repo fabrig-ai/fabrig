@@ -1450,8 +1450,9 @@ itself: how to set it up for the way they work, how temper works, and, from its
 second milestone, where their work stands and how a piece of it ran
 (`../draft/ask-temper.md`, sections 1 and 2). It changes nothing: its one act is a
 proposal of settings an owner accepts, as the configuring agent's is (8.1),
-which stays beside it, as it is, until the user, having tried both, says
-otherwise.
+whose charter 3 and template 3 remain in the stock as the M1 request
+requires. The client offers Ask temper in their place (`../client/README.md`,
+3.5 and 5.3); removal of the configuring stock is later work (section 10).
 
 - **Its charter, 11:** its instructions `ask.txt` in the `stock` module (below);
   charter 3's models and its run; its `tools` the asking and settings families,
@@ -1477,7 +1478,8 @@ otherwise.
   `protocol/programs.md`, section 9), is a recorded figure: about 1.1 KB with no
   MCP server, on 2.1.312 on 2026-11-07, its prompt replaced (smith's
   `protocol/programs.md`, 5.1).
-- **Started** from Settings' Ask temper (`../client/README.md`, 3.5 and 5.13), and
+- **Started** from the project's Ask temper page, rail or tab bar
+  (`../client/README.md`, 3.5 and 5.3), and
   from `chat start --project PROJECT --template 5 TEXT` (`../client/tools.md`,
   5.3).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
@@ -1761,6 +1763,13 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **Ask temper after M1** (8.4): M2 supplies the remaining reads and
+  person-scoped access; M3 supplies views and sketches; M4 supplies preferences
+  (`../draft/ask-temper.execution.md`, section 3). Removal of charter 3,
+  template 3 and their scripted acceptance remains separate work, because
+  M1's request retains that stock. The ChatGPT and Claude Code walk and the
+  user's judgement of `ask.txt` follow landing.
 
 - **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
   landing story requires the chat's own successful `change`, rather than
