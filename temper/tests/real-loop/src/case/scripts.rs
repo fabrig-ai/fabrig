@@ -845,8 +845,6 @@ pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
 
 /// B's hold can wake the director before the person sends the new direction.
 /// Follow delivered input so notices cannot consume the amendment or report.
-/// A's subtree also installs its current-head CI topics; those wakes must wait
-/// for the amendment instead of advancing its counted cancellation script.
 #[must_use]
 pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
     use super::{
@@ -875,7 +873,6 @@ pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
         (DIRECTION_BRIEF, 2),
         (&format!("{DELEGATED}{STORY_CHANGE}"), 6),
         (&format!("{DELEGATED}{X3}"), 1),
-        ("forge ci ", 1),
         (BEGIN, 0),
         ("", 1),
     ]
@@ -1450,7 +1447,6 @@ pub fn step_6_8_rules() -> Box<[Box<[Rule]>]> {
         table(&[
             (SUBOWNER_REPORT, 2),
             (CROSSED, 2),
-            ("forge ci ", 3),
             (M1_REPORT, 1),
             (&format!("{DELEGATED}{A2}"), 4),
             (DELEGATED, 3),
@@ -1523,7 +1519,7 @@ mod tests {
 
     fn check_finish_feedback(scripts: &[Script], rules: &[Box<[Rule]>], agent: Agent, report: &str) {
         let crossed = format!("{CROSSED} Read them before finishing.\n2: forge landing 910a2dec -> 6e73e372");
-        for (fresh, finishes) in [("2: forge ci passed at 975835de", false), (crossed.as_str(), true)] {
+        for (fresh, finishes) in [("2: forge landing 910a2dec -> 975835de", false), (crossed.as_str(), true)] {
             let reply = answer(scripts.into(), rules.into(), agent, fresh);
             assert_eq!(reply.finish, Finish::ToolCalls);
             let calls: Vec<_> = reply
@@ -1541,14 +1537,14 @@ mod tests {
                 assert_eq!(name, b"finish", "new feedback must complete the final report");
                 assert_eq!(arguments, json!({"form":"report","text":report,"fields":{}}));
             } else {
-                assert_eq!(name, b"wait", "ordinary fresh CI must not replay an older crossed finish");
+                assert_eq!(name, b"wait", "ordinary fresh landing must not replay an older crossed finish");
                 assert_eq!(arguments, json!({}));
             }
         }
     }
 
     #[test]
-    fn case_5_4_owner_finishes_after_crossed_report_and_waits_on_fresh_ci() {
+    fn case_5_4_owner_finishes_after_crossed_report_and_waits_on_fresh_landing() {
         check_finish_feedback(
             &step_5_4(([127, 0, 0, 1], 3000).into()),
             &step_5_4_rules(),
@@ -1558,7 +1554,7 @@ mod tests {
     }
 
     #[test]
-    fn case_6_4_director_finishes_after_crossed_report_and_waits_on_fresh_ci() {
+    fn case_6_4_director_finishes_after_crossed_report_and_waits_on_fresh_landing() {
         check_finish_feedback(
             &step_6_4(([127, 0, 0, 1], 3000).into()),
             &step_6_4_rules(),

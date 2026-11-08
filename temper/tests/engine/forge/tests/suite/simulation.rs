@@ -1164,7 +1164,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
-                | top::Request::GoalTopic { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::News { .. }
@@ -2379,8 +2378,6 @@ fn goals_classify_landings_from_their_subtree_heads_and_planned_paths_after_rest
         });
     }
     world.run_for(3);
-    assert!(!world.seen().iter().any(|request| matches!(request, top::Request::GoalTopic { .. })),
-        "a goal needs no CI topics for its changes");
     world.restart();
     world.run_for(3);
     world.take_seen();
@@ -2450,10 +2447,14 @@ fn a_restart_drops_goal_ci_topics_and_keeps_tasks_own_ci_subscriptions() {
     }
     world.take_seen();
     world.restart();
-    let dropped: Vec<_> = world.seen().iter().filter_map(|request| match request {
-        top::Request::GoalUntopic { goal, topic: dropped } => Some((*goal, dropped.clone())),
-        _ => None,
-    }).collect();
+    let dropped: Vec<_> = world
+        .seen()
+        .iter()
+        .filter_map(|request| match request {
+            top::Request::GoalUntopic { goal, topic: dropped } => Some((*goal, dropped.clone())),
+            _ => None,
+        })
+        .collect();
     assert_eq!(dropped, [(42, topic)], "drop the goal's core CI topic alone, keeping the task's own interest");
 }
 

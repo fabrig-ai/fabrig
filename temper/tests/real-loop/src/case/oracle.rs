@@ -2623,7 +2623,7 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
         .collect();
     let attempts =
         |rows: &[&Value]| rows.iter().filter_map(|row| number(row, "/line/run_began/attempt")).collect::<Vec<_>>();
-    // CI news can put the held snapshot's first attempt on an earlier page.
+    // The held snapshot's first attempt can be on an earlier page.
     // The complete ended journal retains that history; its prefix at Stop
     // must agree with every row visible in the held snapshot.
     let held_rows: Vec<_> = after
