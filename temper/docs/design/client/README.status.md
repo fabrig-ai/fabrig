@@ -62,6 +62,8 @@ stop a line as the terminal's fallback.
     card stands lower than the look request's on a phone; the path's
     drawing and legend are Ask temper's page's own, not shared with How
     work runs.
+  - 4.6 and 5.16 (`roles-view`, `look-round-25`): `View` has no `roles`,
+    and no address reads one.
 
 Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
 have no known gap in Ask temper's opening, by the look request

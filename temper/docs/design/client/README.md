@@ -4219,7 +4219,9 @@ the person to check existence and grant the repository to the App.
   a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
   `CharterView`, `charter` and its `card`; `rule`, a `RuleView`, `kind`,
-  `number` and its `card`; or `not_drawn`, `words`, at
+  `number` and its `card`; `roles`, a `RolesView`, `roles`, at most 16,
+  each a `CharterView` (`../domain/forge.md`, 8.13, *The project's
+  roles*); or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
@@ -6609,7 +6611,9 @@ terminal draw the same path.
   left out; `proposal tN/K`, a waiting proposal's path before and after
   over the project's home repository's landing branch; `charter N`, a
   role; `rule K/N`, a landing rule, K 1 for the deployment's and 2 for
-  the chat's project's, N its number. A path or a charter takes
+  the chat's project's, N its number; `roles`, every agent the project's
+  work runs, each its charter's role card (`../domain/forge.md`, 8.13,
+  *The project's roles*). A path or a charter takes
   `@revision N`, drawn when N is the newest revision; an older one is not
   drawn yet, and says so.
 - **Read when shown:** the chat page reads each address it shows once,
@@ -6627,7 +6631,7 @@ terminal draw the same path.
   ring, code's a small square, and its words. A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
   charter or a rule its card, `who`, `name` and `facts`, as a list of
-  terms; a `not_drawn` its words. The drawing's fallback, which the terminal
+  terms; `roles` each role's card so, in its order; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
   an agent").
 - **Its layout,** of the box's width `W` alone:

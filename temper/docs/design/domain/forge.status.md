@@ -33,6 +33,8 @@ stand. The workflows by name are section 20's.
   the conflict's, the catch-up's and the goal's merges' cards are not
   derived; *What an agent can* says "never merge or update" and "finish
   alone".
+- **Not yet:** 8.13, *The project's roles* (`roles-view`,
+  `look-round-25`): no view lists the agents a project's work runs.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
