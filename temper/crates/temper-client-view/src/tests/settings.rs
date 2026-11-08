@@ -1030,7 +1030,7 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
         assert!(
             styled(browser.tree(), look::RAIL)
                 .iter()
-                .any(|n| n.name.as_deref() == Some(b"Settings") && n.states.as_slice().contains(&State::Current))
+                .any(|n| n.name.as_deref() == Some(b"Deployment") && n.states.as_slice().contains(&State::Current))
         );
     }
 }

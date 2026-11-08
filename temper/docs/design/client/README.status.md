@@ -700,12 +700,6 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
-- **Not yet:** 5.3, *The rail*, *The rail's parts* and *Projects in the rail*:
-  the rail draws Goals, Chats and Changes by kind 7, "+ New chat" with its
-  menu and "Settings" at its foot; the switcher has no "All projects" and says
-  "Settings for PROJECT"; the tab bar is Home, Needs you, Goals or Chats, Ask
-  and Settings (`temper-client-view`'s `frame.rs`); `temper-client-domain`
-  has no `pages::rail`.
 - **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
   rail a project's members (jig's `Read::Project` is the Members tab's) or a
   standing role (`../draft/standing-roles.md`), and Team has no page
