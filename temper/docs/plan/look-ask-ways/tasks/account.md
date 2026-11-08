@@ -3,7 +3,7 @@ id = "account"
 part = "account"
 kind = "docs"
 needs = ["opening-state", "path-look", "opening", "starters-out", "opening-gallery", "opening-stories"]
-files = ["temper/docs/design/client/README.status.md", "temper/docs/design/client/browser.status.md", "temper/docs/design/client/mockups/STATUS.md", "temper/docs/design/client/journeys.status.md", "temper/docs/design/STATUS.md"]
+files = ["temper/crates/temper-client-view/src/tests/ask.rs", "temper/docs/design/client/README.status.md", "temper/docs/design/client/browser.status.md", "temper/docs/design/client/mockups/STATUS.md", "temper/docs/design/client/journeys.status.md", "temper/docs/design/STATUS.md"]
 effort = "high"
 minutes = 90
 +++
@@ -96,3 +96,28 @@ Acceptance:
 ## Report
 
 As the implementer's text says; the table's counts by result.
+
+## Answers
+
+2026-11-08. Q: the row "a stop's card of each kind" has no named test or
+gallery state drawing a code stop's card; add code-card rows to the view
+test, or a gallery state? A: the view test, in this task. Its acceptance
+cannot hold without it, and a few lines land it, so this task now also owns
+`temper/crates/temper-client-view/src/tests/ask.rs`, for this alone:
+- In `fixture`, give each code stop (merge, check, prove, update, verify) a
+  code card as the `ways` read builds it
+  (`temper/crates/temper-engine-domain-ways/src/tests/derivation.rs`,
+  `cards_open_the_setting_and_stay_within_the_bounds`, for its who, facts
+  and whether it links), agent and person stops keeping theirs.
+- In `stop_presses_open_move_close_and_tabs_close_cards`, press a code stop
+  of the current tab (check where the tab has CI, and merge) in both shells,
+  and assert its heading, who, each fact as `Term`/`Description`, and its
+  link or its absence. Rows of the existing test, no new test; no gallery
+  state, no change to `ask_page.rs` (if the view cannot draw a code card,
+  stop with a `Question:` naming it).
+- Run that test alone, through heavy:
+  `heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::ask::stop_presses_open_move_close_and_tabs_close_cards)'`
+  (check the count is one).
+- Commit it first, its own commit, with the trailer
+  `Look-request: ask-temper-ways`; the account stays the landing's last
+  commit, its row "a stop's card of each kind" naming this test.
