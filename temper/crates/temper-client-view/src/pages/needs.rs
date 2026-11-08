@@ -5,12 +5,14 @@ use crate::{
     look,
     words::{Times, Word, Words},
 };
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use alloc::boxed::Box;
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{
         Act,
         needs::{self, ANSWERED_ON_NEEDS},
+        stop_asking,
     },
 };
 
@@ -199,9 +201,7 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
-    if let Some(why) = crate::shared::why(root, w, needs::Need::Card(card)) {
-        ask::text(b, Role::Paragraph, &why, look::WHY);
-    }
+    why_line(b, root, w, bindings, needs::Need::Card(card));
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     if let Some(outcome) = session.refused(card.object) {
@@ -304,4 +304,100 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
         ask::Kind::Question | ask::Kind::PersonTask => {}
     }
     b.close();
+}
+
+/// The reason and its offers share one drawing on Home, Needs you and the terminal.
+pub(crate) fn why_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, need: needs::Need<'_>) {
+    let Some(why) = crate::shared::why(root, w, need) else { return };
+    let offers = stop_asking::offered(root, need, bindings.model_times.now);
+    let open = match root.pages().stop_asking() {
+        Some(open) if open.object() == need.object() => Some(open),
+        Some(_) | None => None,
+    };
+    let numbered = w.shell == crate::words::Shell::Terminal && offers.is_some();
+    b.open(if numbered { Role::Slot } else { Role::Paragraph });
+    b.style(look::WHY);
+    if numbered {
+        ask::text(b, Role::Paragraph, &why, look::WHY);
+    } else {
+        b.name(&why);
+        b.text(Run::Plain, &why);
+    }
+    if offers.is_some() {
+        b.open(Role::Button);
+        b.name(&w.say(Word::StopAsking, &[]));
+        b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Open { object: need.object() })));
+        if let Some(open) = open {
+            b.state(State::Expanded);
+            if open.busy() {
+                b.state(State::Disabled);
+            }
+        }
+        b.close();
+    }
+    b.close();
+    let (Some(open), Some(offers)) = (open, offers) else { return };
+    let (project, reach) = match needs::why(root, need) {
+        Some(needs::Why::Reach { project, reach }) => (project, reach),
+        Some(needs::Why::Direct | needs::Why::Proposal | needs::Why::Held | needs::Why::Funds) | None => return,
+    };
+    if let Some(classes) = root.forge().classes(project) {
+        b.open(Role::Slot);
+        b.style(look::WHY_OFFERS);
+        for offer in &offers {
+            match offer {
+                temper_protocol_reaches::Offer::Words(_) => {
+                    b.open(Role::TextField);
+                    b.name(&w.say(Word::StopAskingWhich, &[]));
+                    b.placeholder(&w.say(Word::StopAskingPlaceholder, &[]));
+                    b.value(open.words(), temper_client_domain::pages::shown(root.pages()));
+                    b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Words { words: Box::default() })));
+                    if open.busy() {
+                        b.state(State::Disabled);
+                    }
+                    b.close();
+                }
+                temper_protocol_reaches::Offer::Decide(_) | temper_protocol_reaches::Offer::Split(_) => {}
+            }
+            b.open(Role::Slot);
+            ask::text(b, Role::Paragraph, &crate::shared::offer(w, classes, &reach, *offer), look::WHY);
+            let owner = stop_asking::owner(root, project);
+            b.open(Role::Button);
+            b.name(&w.say(if owner { Word::StopAskingApply } else { Word::StopAskingPropose }, &[]));
+            b.bind(bindings.insert(Act::StopAsking(if owner {
+                stop_asking::Act::Apply { offer: *offer }
+            } else {
+                stop_asking::Act::Propose { offer: *offer }
+            })));
+            let words_ready = match offer {
+                temper_protocol_reaches::Offer::Words(_) => {
+                    !open.words().is_empty() && open.words().len() <= temper_protocol_reaches::WORDS_BYTES
+                }
+                temper_protocol_reaches::Offer::Decide(_) | temper_protocol_reaches::Offer::Split(_) => true,
+            };
+            if open.busy()
+                || !words_ready
+                || root.forge().settings_newest().is_none()
+                || root.forge().classes_busy(project)
+            {
+                b.state(State::Disabled);
+            }
+            b.close();
+            b.close();
+        }
+        b.open(Role::Button);
+        b.style(look::ASK_QUIET);
+        b.name(&w.say(Word::KeepAsking, &[]));
+        b.bind(bindings.insert(Act::StopAsking(stop_asking::Act::Keep)));
+        if open.busy() {
+            b.state(State::Disabled);
+        }
+        b.close();
+        if let Some(refused) = open.refused() {
+            b.open(Role::Alert);
+            crate::cards::refusal(b, w, refused);
+            b.close();
+        }
+        b.close();
+    }
 }

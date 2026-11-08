@@ -50,6 +50,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
+            Action::Pages(crate::pages::Act::StopAsking(act)) => crate::pages::stop_asking::act(root, env, act, out),
             Action::Pages(crate::pages::Act::Away(act)) => crate::pages::away::act(root, env, act, out),
             Action::Pages(act) => pages(root, env, crate::pages::Event::Act { act }, out),
             Action::Forge(act) => forge(root, env, forge::Event::Act { act }, out),
@@ -315,6 +316,9 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
     crate::sign_in_tab::told(root, &told, out);
+    if crate::pages::stop_asking::told(root, env, &told) {
+        return;
+    }
     let asker = match &told {
         Told::Link { link } => {
             pages(root, env, crate::pages::Event::Link { link: *link }, out);
@@ -568,6 +572,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
 fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
     let consumed = forge::ways::told(&mut root.forge, env.now, &root.client, told, env.limits.forge, &mut child);
+    crate::pages::stop_asking::applied(root, env, told);
     route_forge(root, env, &mut child, out);
     if consumed
         && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told

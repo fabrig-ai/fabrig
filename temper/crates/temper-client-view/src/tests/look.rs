@@ -11,6 +11,7 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
+        (WHY_OFFERS, b"temper-why-offers".as_slice()),
         (TOP, b"temper-top".as_slice()),
         (TOP_END, b"temper-top-end".as_slice()),
         (OUTSIDE, b"temper-outside".as_slice()),

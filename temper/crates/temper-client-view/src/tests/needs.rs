@@ -17,6 +17,8 @@ const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it alive
 fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.reads = 8;
+    limits.client.domain.text = 512;
+    limits.client.domain.turn_text = 512;
     limits.client.domain.long_text = 4096;
     limits
 }
@@ -51,7 +53,6 @@ fn fixture_watched(
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
     fixture_classes(words, cut, count, more, filter, title, None)
 }
-#[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
 fn fixture_classes(
     words: &str,
     cut: bool,
@@ -61,7 +62,21 @@ fn fixture_classes(
     title: Option<&[u8]>,
     classes: Option<&temper_protocol_reaches::Classes>,
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
-    let (mut root, _, _, _, _, _, _, standing, _) = f::root_at_with_classes(
+    fixture_classes_role(words, cut, count, more, filter, title, classes, false)
+}
+#[expect(clippy::too_many_arguments, reason = "the card fixture carries independent document and role rows")]
+#[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
+fn fixture_classes_role(
+    words: &str,
+    cut: bool,
+    count: u32,
+    more: bool,
+    filter: d::address::Filter,
+    title: Option<&[u8]>,
+    classes: Option<&temper_protocol_reaches::Classes>,
+    owner: bool,
+) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    let (mut root, me_watch, _, _, _, _, _, standing, _) = f::root_at_with_classes(
         Address::Settings { project: f::PROJECT },
         &limits(),
         b"Shop",
@@ -74,6 +89,22 @@ fn fixture_classes(
         true,
         classes,
     );
+    if owner {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.projects.get_mut(0).unwrap().role = c::HeldRole::Owner;
+        event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: me_watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                    },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+    }
     let standing = standing.unwrap();
     let watch = standing;
     let mut opening = Queue::uncapped();
@@ -425,6 +456,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
 #[test]
 fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_rec() {
     use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
+    stop_parts();
     for (words, primary, rec) in [
         ("Where?\nChoice: First\nChoice: Second", b"First".as_slice(), false),
         ("Where?\nChoice: First\nChoice: Second (recommended)", b"Second".as_slice(), true),
@@ -1767,4 +1799,143 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
                 .as_slice()
         )
     );
+}
+
+pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
+    let classes = Classes {
+        items: Box::new([Item {
+            subject: if set { Subject::Set(1) } else { Subject::Kind(Kind::Implementation) },
+            words: Box::default(),
+            class: Class::AskAway,
+        }]),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: b"the protocol core".as_slice().into(),
+            patterns: Box::new([b"src/**".as_slice().into(), b"wire/**".as_slice().into()]),
+        }]),
+    };
+    let (mut root, _, watch) = fixture_classes_role(
+        QUESTION,
+        false,
+        1,
+        false,
+        d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL },
+        None,
+        Some(&classes),
+        owner,
+    );
+    deliver_asked(
+        &mut root,
+        watch,
+        Some(Reach {
+            kind: Kind::Implementation,
+            class: Class::AskAway,
+            reason: if set { Reason::Set(1) } else { Reason::Kind },
+            under: 0,
+            sets: u8::from(set),
+            matched: u8::from(set),
+            away: false,
+        }),
+    );
+    root
+}
+fn stop_parts() {
+    use d::pages::stop_asking::Act as Stop;
+    use temper_protocol_reaches::{Kind, Offer, Subject};
+    for owner in [true, false] {
+        for set in [false, true] {
+            let mut root = stop_root(owner, set);
+            let mut view = f::browser_page_view(&root);
+            assert_eq!(
+                press(&mut view, b"Stop asking"),
+                d::Action::Pages(pages::Act::StopAsking(Stop::Open { object: object(1) }))
+            );
+            page_act(&mut root, pages::Act::StopAsking(Stop::Open { object: object(1) }), &mut Queue::uncapped());
+            let mut view = f::browser_page_view(&root);
+            let link = f::find(view.tree(), Role::Button, b"Stop asking").unwrap();
+            assert!(view.tree().find(link).unwrap().states.as_slice().contains(&skein_ui::State::Expanded));
+            let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
+            let controls: Vec<_> = offers.iter().filter(|n| n.role == Role::Button).map(|n| n.id).collect();
+            let expected = if set {
+                Vec::from([
+                    (Offer::Words(1), "Let agents decide changes to the protocol core that are:", true),
+                    (
+                        Offer::Split(1),
+                        "Let agents decide changes to src/**, apart from the rest of the protocol core.",
+                        false,
+                    ),
+                ])
+            } else {
+                Vec::from([(
+                    Offer::Decide(Subject::Kind(Kind::Implementation)),
+                    "Let agents decide implementation choices, then tell you.",
+                    false,
+                )])
+            };
+            assert_eq!(controls.len(), expected.len().checked_add(1).unwrap());
+            for (id, (offer, words, disabled)) in controls.iter().zip(expected) {
+                assert!(has(&view, words.as_bytes()));
+                let node = view.tree().find(*id).unwrap();
+                assert_eq!(node.name.as_deref(), Some(if owner { b"Apply".as_slice() } else { b"Propose" }));
+                assert_eq!(node.states.as_slice().contains(&skein_ui::State::Disabled), disabled);
+                if !disabled {
+                    assert_eq!(
+                        crate::act(&mut view, *id, Act::Press),
+                        Some(d::Action::Pages(pages::Act::StopAsking(if owner {
+                            Stop::Apply { offer }
+                        } else {
+                            Stop::Propose { offer }
+                        })))
+                    );
+                }
+            }
+            assert_eq!(press(&mut view, b"Keep asking"), d::Action::Pages(pages::Act::StopAsking(Stop::Keep)));
+            if set {
+                let field = f::find(view.tree(), Role::TextField, b"Which changes").unwrap();
+                assert_eq!(
+                    view.tree().find(field).unwrap().placeholder.as_deref(),
+                    Some(b"fixes that keep the wire format".as_slice())
+                );
+                for words in [b"fixes".as_slice(), &[b'x'; 120], &[b'x'; 121], b""] {
+                    let action = crate::act(&mut view, field, Act::Input { value: words.into() }).unwrap();
+                    assert_eq!(action, d::Action::Pages(pages::Act::StopAsking(Stop::Words { words: words.into() })));
+                    event(&mut root, Event::Act { action }, &mut Queue::uncapped());
+                    f::build(&mut view, &root);
+                    let offers =
+                        super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
+                    let words_act = offers.iter().find(|n| n.role == Role::Button).unwrap();
+                    assert_eq!(
+                        words_act.states.as_slice().contains(&skein_ui::State::Disabled),
+                        words.is_empty() || words.len() > 120
+                    );
+                }
+            }
+            if set {
+                page_act(
+                    &mut root,
+                    pages::Act::StopAsking(if owner {
+                        Stop::Apply { offer: Offer::Words(1) }
+                    } else {
+                        Stop::Propose { offer: Offer::Words(1) }
+                    }),
+                    &mut Queue::uncapped(),
+                );
+                let view = f::browser_page_view(&root);
+                let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
+                assert!(offers.iter().any(|n| n.role == Role::Alert), "a narrowed refusal stays under the offers");
+            }
+            let offer = if set { Offer::Split(1) } else { Offer::Decide(Subject::Kind(Kind::Implementation)) };
+            page_act(
+                &mut root,
+                pages::Act::StopAsking(if owner { Stop::Apply { offer } } else { Stop::Propose { offer } }),
+                &mut Queue::uncapped(),
+            );
+            let view = f::browser_page_view(&root);
+            let offers = super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::WHY_OFFERS));
+            for control in offers.iter().filter(|n| n.role == Role::Button || n.role == Role::TextField) {
+                assert!(control.states.as_slice().contains(&skein_ui::State::Disabled));
+            }
+        }
+    }
 }

@@ -249,10 +249,6 @@ fn project_filter(b: &mut Builder, root: &Domain, filter: Filter, words: &Words,
         b.close();
     }
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "each inbox entry keeps its metadata, words, reason and controls in reading order"
-)]
 fn entry(
     b: &mut Builder,
     root: &Domain,
@@ -324,17 +320,13 @@ fn entry(
             return;
         }
         if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
-            if let Some(why) = crate::shared::why(root, words, temper_client_domain::pages::needs::Need::Card(card)) {
-                super::ask::text(b, Role::Paragraph, &why, look::WHY);
-            }
+            super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
             b.close();
             return;
         }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
-        if let Some(why) = crate::shared::why(root, words, temper_client_domain::pages::needs::Need::Card(card)) {
-            super::ask::text(b, Role::Paragraph, &why, look::WHY);
-        }
+        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
         if has_facts(page) {
             let proposal = crate::cards::proposal_has_rows(page);
             if !proposal {
@@ -354,9 +346,7 @@ fn entry(
             control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task } });
         }
     } else if !update {
-        if let Some(why) = crate::shared::why(root, words, temper_client_domain::pages::needs::Need::Card(card)) {
-            super::ask::text(b, Role::Paragraph, &why, look::WHY);
-        }
+        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
         b.style(look::TITLE);

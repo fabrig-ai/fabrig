@@ -462,6 +462,7 @@ impl Task {
             | Act::Away(_)
             | Act::Terminal(_)
             | Act::Models(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
@@ -598,6 +599,7 @@ impl Task {
             | Act::Away(_)
             | Act::Terminal(_)
             | Act::Models(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut

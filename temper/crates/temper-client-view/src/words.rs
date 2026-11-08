@@ -12,6 +12,20 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    StopAsking,
+    StopAskingDecide,
+    StopAskingWords,
+    StopAskingSplit,
+    StopAskingPatterns,
+    StopAskingWhich,
+    StopAskingPlaceholder,
+    StopAskingApply,
+    StopAskingPropose,
+    KeepAsking,
+    StopAskingApplied,
+    StopAskingProposed,
+    KeepAskingKept,
+    KeepAskingFailed,
     WhyReach,
     WhyWording,
     WhyRetry,
@@ -1665,7 +1679,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2217;
+const PHRASES: u32 = 2231;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1692,10 +1706,24 @@ const PHRASES: u32 = 2217;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3930;
+const SEGMENTS: u32 = 3956;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 53852;
-const ALL: [Word; 1535] = [
+const ENGLISH_BYTES: u32 = 54309;
+const ALL: [Word; 1549] = [
+    Word::StopAsking,
+    Word::StopAskingDecide,
+    Word::StopAskingWords,
+    Word::StopAskingSplit,
+    Word::StopAskingPatterns,
+    Word::StopAskingWhich,
+    Word::StopAskingPlaceholder,
+    Word::StopAskingApply,
+    Word::StopAskingPropose,
+    Word::KeepAsking,
+    Word::StopAskingApplied,
+    Word::StopAskingProposed,
+    Word::KeepAskingKept,
+    Word::KeepAskingFailed,
     Word::WhyReach,
     Word::WhyWording,
     Word::WhyRetry,
@@ -3409,6 +3437,21 @@ impl Word {
             Self::ReachSet => 4331,
             Self::ReachPathSet => 4332,
             Self::ReachUnder => 4333,
+            Self::StopAsking => 4400,
+            Self::StopAskingDecide => 4401,
+            Self::StopAskingWords => 4402,
+            Self::StopAskingSplit => 4403,
+            Self::StopAskingPatterns => 4404,
+            Self::StopAskingWhich => 4405,
+            Self::StopAskingPlaceholder => 4406,
+            Self::StopAskingApply => 4407,
+            Self::StopAskingPropose => 4408,
+            Self::KeepAsking => 4409,
+            Self::StopAskingApplied => 4410,
+            Self::StopAskingProposed => 4411,
+            Self::KeepAskingKept => 4412,
+            Self::KeepAskingFailed => 4413,
+
             Self::WhyReach => 4334,
             Self::WhyWording => 4335,
             Self::WhyRetry => 4336,
@@ -6328,6 +6371,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WhyFunds => (&[b"Reached you because money past a budget always waits for you."], &[]),
         Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
+        Word::StopAsking => (&[b"Stop asking"], &[]),
+        Word::StopAskingDecide => (&[b"Let agents decide ", b", then tell you."], &[Name]),
+        Word::StopAskingWords => (&[b"Let agents decide changes to ", b" that are:"], &[Name]),
+        Word::StopAskingSplit => (&[b"Let agents decide changes to ", b", apart from the rest of ", b"."], &[Name, Name]),
+        Word::StopAskingPatterns => (&[b"", b", ", b""], &[Name, Name]),
+        Word::StopAskingWhich => (&[b"Which changes"], &[]),
+        Word::StopAskingPlaceholder => (&[b"fixes that keep the wire format"], &[]),
+        Word::StopAskingApply => (&[b"Apply"], &[]),
+        Word::StopAskingPropose => (&[b"Propose"], &[]),
+        Word::KeepAsking => (&[b"Keep asking"], &[]),
+        Word::StopAskingApplied => (&[b"Applied: the next one is decided and listed. This one still waits for you."], &[]),
+        Word::StopAskingProposed => (&[b"Proposed: it applies once an owner accepts it. This one still waits for you."], &[]),
+        Word::KeepAskingKept => (&[b"It keeps asking. Stop asking comes back in 7 days."], &[]),
+        Word::KeepAskingFailed => (&[b"temper couldn't keep that. Try Keep asking again."], &[]),
         Word::ReachUnder => (&[b"", b" under \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name, Name]),
         Word::HomeDecidedCount => (&[b"Decided for you \xc2\xb7 ", b""], &[Number]),
         Word::HomeDecidedMany => (&[b"", b" things were decided for you."], &[Name]),

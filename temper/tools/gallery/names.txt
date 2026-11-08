@@ -261,6 +261,8 @@ needs-proposal
 needs-reply-open
 needs-saw-open
 needs-second-answered
+needs-stop-asking
+needs-stop-asking-set
 needs-why
 night-ask
 night-chat-split
