@@ -1,0 +1,6 @@
+draft = "tui-record-keys"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-record-keys/inputs/request.md", "temper/docs/design/client/tui/journeys.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
