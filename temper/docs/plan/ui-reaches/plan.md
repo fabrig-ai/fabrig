@@ -11,8 +11,8 @@ Released:
 | `kit` | `tasks/reach-kit.md` | | the crate `temper-protocol-reaches`: kinds, classes, a project's table, patterns, `judge`, Stop asking's offers; their tables and the fuzz test | 120 |
 | `wire` | `tasks/reach-wire.md` | | `ProjectClasses` and `Reach` on the client wire, `ProjectClasses` and `SettingValue::classes` in the store | 60 |
 | `classes` | `tasks/classes-value.md` | `reach-kit`, `reach-wire` | the kit's record conversions; the forge's `Value::Classes`, kind 8's number, stock, judgement and erasure; the store's codec | 90 |
-| `classes` | `tasks/classes-kind.md` | `classes-value` | kind 8 declared to jig, taken at the wire's entrances and in a project's reads; `project-classes` for a run's `settings`, `see` and `propose_settings`, Ask temper's charter | 120 |
-| `classes` | `tasks/classes-tools.md` | `classes-kind` | `temper ctl settings show project-classes`, settings files, the help pages | 105 |
+| `classes` | `tasks/classes-kind.md` | `classes-value` | kind 8 declared to jig, taken at the wire's entrances and in a project's reads; `project-classes` for a run's `settings`, `see` and `propose_settings`, Ask temper's charter; the settings form's SETTING and VALUE | 160 |
+| `classes` | `tasks/classes-tools.md` | `classes-kind` | `temper ctl settings show project-classes`, the help pages | 75 |
 | `classes` | `tasks/classes-ways.md` | `classes-kind` | the stock ways lay kind 8's tables | 60 |
 | `decide` | `tasks/decide-forge.md` | `classes-value` | Away without kinds at every layer; `decided` judged by the classes, a row for every call, decided or asked, kept 7 days under `forge.decided_per_project`; the document's `rows`, `asked` and `cut`; the client's controls of kinds removed | 180 |
 | `decide` | `tasks/decide-root.md` | `decide-forge`, `classes-kind` | the caller's person for any task, `Asks: always` judged; the tool's ten kinds, `paths` and `under`; its words naming the reach; the charters; the engine world's table of who decides and what reaches | 150 |
