@@ -129,6 +129,16 @@ fn status(b: &mut Builder, said: &[u8], style: Option<Style>) {
     b.close();
 }
 
+/// `me` is being read where the page needs it: the page draws the top bar alone
+/// (temper/docs/design/client/README.md, 5.1).
+pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, ways: &crate::sign_in::Ways) -> bool {
+    crate::frame::unavailable(root).is_none()
+        && root.authorization().is_none()
+        && root.approval().is_none()
+        && !crate::sign_in::offered(root, words, ways)
+        && root.pages().me(root.client()).is_none()
+}
+
 /// The deployment has answered and the person has no project (client/README.md, 3.5).
 pub(crate) fn no_project(root: &temper_client_domain::Domain) -> bool {
     if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {

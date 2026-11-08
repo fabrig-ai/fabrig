@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.1, *while `me` is read*: a page draws its banners and
-  main under the top bar before `me` is read (Chats' "Project · chats",
-  its filters and "+ New chat"; `NewChat`'s composer);
-  `look-round-22`'s `me-first` closes it.
-
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
