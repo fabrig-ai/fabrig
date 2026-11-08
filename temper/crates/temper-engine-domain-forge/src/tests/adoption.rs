@@ -67,6 +67,7 @@ fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
             };
             assert_eq!(value.collaborators.as_ref(), core::slice::from_ref(&human), "adoption {key}");
             assert_eq!(&value.repository, &writer);
+            fixtures::workflows_absent(&mut d);
         }
         let outcome = if permission == api::Permission::Write {
             people::Outcome::Refused(people::Refusal::Unknown)

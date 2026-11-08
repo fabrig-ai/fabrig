@@ -58,6 +58,7 @@ fn fixture() -> (Domain, Env<crate::Limits>) {
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
+        workflows: Box::default(),
         project: PROJECT,
         home,
         provider: skein_forge::api::Repository { forge: 1, repository: number },
