@@ -4,3 +4,35 @@ sources = ["temper/docs/plan/ui-reaches/inputs/request.md", "temper/docs/design/
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "kit"
+title = "What reaches a person as one pure judgement: kinds, classes, a project's table, path sets, Stop asking's offers"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 5.10"
+
+[[part]]
+id = "wire"
+title = "The records of a project's classes and of a reach, on the client wire and in the store"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 1
+story = "The judgement, fuzzed over kinds, classes, Away, its marks and paths: an always-waits kind never decided, the strictest class wins, Away decides only what it may, You approve decides nothing"
+parts = ["kit"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A project's classes and a reach encode and decode at every bound, on the wire and in the store"
+parts = ["wire"]
+walk = false

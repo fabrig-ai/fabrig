@@ -1276,6 +1276,113 @@ or wake.
   and held tasks and proposals always wait, away or not: nothing here
   answers for anyone.
 
+### 5.10 What reaches a person
+
+What an agent may decide for a person, and what reaches them, is one
+setting of a project's, its classes (`../protocol/configuration.md`,
+13.2, kind 8), judged by one pure function that the forge's `decided`
+(5.9) and the client (`../client/README.md`, 3.5) both call: the crate
+`temper-protocol-reaches`, a step crate on `skein-lib` and the client
+wire's records alone (`../draft/what-reaches-you.md`, sections 2 to 5).
+
+- **The kinds,** `Kind`, named in the asker's call as the draft's table
+  names them: `wording`, `retry`, `implementation`, `tests`, `dependency`
+  and `departure`, which a project's classes may move; `money`,
+  `irreversible`, `rules` and `other`, *fixed*, which always wait. The
+  draft's `paths` is no call's kind: a call names its own kind and the
+  paths it would touch, and each path set those touch is an item of its
+  own beside the kind.
+- **The classes,** `Class`, strictest last: `Decide`, agents decide, then
+  tell you; `Ask`, asks you, and Away may decide (5.8); `AskAway`, asks
+  you, even when away; `Wait`, always waits for you, the fixed kinds'
+  alone.
+- **The table,** `Classes { items, sets }`:
+  - `items`, at most 20, each `Item { subject, words, class }`: `subject`
+    a movable kind or a path set's number (`Subject::Kind`,
+    `Subject::Set`); `words` empty for the subject's own item, or at most
+    120 bytes of a rule in words that narrows it ("fixes that keep the
+    wire format"), for agents to follow and no code to check, so that a
+    decision taken under them is listed as any other; `class` one of the
+    first three. An item is numbered by its place, from 1. A subject has
+    at most one item without words; a subject with none is `AskAway`.
+  - `sets`, at most 6, each `PathSet { number, name, patterns }`:
+    `number` 1 to 6, unique in the table; `name`, 1 to 40 bytes, as the
+    person reads it ("vsr's protocol core"); `patterns`, 1 to 6, each 1 to
+    80 bytes, over the paths of any repository of the project.
+  - `Classes::check` refuses, naming the first fault by item or set: more
+    items or sets than the bounds; an item of a fixed kind, of `Wait`, of
+    words past 120 bytes, naming a set the table lacks, or a second item
+    without words of its subject; a set numbered twice or outside 1 to 6,
+    a name or a pattern empty or past its bound, no pattern or more than
+    6, a pattern not well formed (below).
+- **A pattern** is segments joined by `/`, matched against a path's own:
+  a segment `**` matches no segment or any run of them; `*` inside a
+  segment matches any run of bytes but `/`; every other byte matches
+  itself. Well formed: no empty segment, no leading or trailing `/`, and
+  `**` only as a whole segment. So `include/vsr.h`, `src/protocol.*` and
+  `docs/protocol/**`. A call's path is relative to its repository's root,
+  1 to 256 bytes, with no leading `/`; a call names at most 16.
+- **The stock tables,** `Classes::stock(Way)`, the draft's defaults
+  (`../draft/what-reaches-you.md`, section 2): *You approve*, no item, so
+  every movable kind asks even when away; *Agents review* and *Draft
+  first*, `wording`, `retry` and `tests` at `Decide`, then
+  `implementation`, `dependency` and `departure` at `Ask`, in that order;
+  no set in any. A project whose kind 8 holds no value has Agents
+  review's, the stock way of kind 2's stock rule 1
+  (`../protocol/configuration.md`, 13.4).
+- **The judgement,** `judge(classes, ask) -> Reach`, of an
+  `Ask { kind, paths, under, away, always }`: the call's kind, its
+  paths, `under` the number of an item with words it says its choice
+  falls under (0 for none), whether the person's Away is on at the
+  decision's wall (5.8), and whether the asker's words hold `Asks:
+  always`:
+  - *its subjects:* the kind, and each set one of whose patterns matches
+    one of the paths;
+  - *each subject's class:* a fixed kind's `Wait`; otherwise its own
+    item's, or `AskAway` with none, but where `under` names an item with
+    words of that subject, which gives its class instead. An `under`
+    naming anything else is not used;
+  - *`Asks: always`* lifts every class below `AskAway` to `AskAway`, as
+    the goal's own choice (`../client/README.md`, 5.14);
+  - *the strictest class wins;* its reason the kind where the kind's
+    class is the strictest, otherwise the lowest-numbered set at it, or
+    `Always` where only the lift made it;
+  - *decided* where that class is `Decide`, or `Ask` with Away on;
+    otherwise ask.
+
+  Its answer, `Reach { kind, class, reason, under, sets, matched, away
+  }`: `reason` `Reason::Kind`, `Reason::Set(number)` or `Reason::Always`;
+  `under` the item used, 0 for none; `sets` the touched sets, bit
+  `number − 1` each; `matched` the reason set's patterns a path matched,
+  bit `i` for its pattern `i`, 0 for any other reason; `away` whether Away
+  was on. `Reach::decided` says which. On the wire and in the store a
+  reach is the record `Reach`, and a table `ProjectClasses`
+  (`../protocol/configuration.md`, 13.2).
+- **Away may decide** while the table holds an item of `Ask`
+  (`Classes::away_may_decide`): what the client's switch is shown by
+  (`../client/README.md`, 3.5).
+- **Stop asking,** `offers(classes, reach)` and `narrowed(classes, reach,
+  offer, words)`: the narrowest changes that would have decided a reach
+  that asked, each a whole table the person proposes or an owner applies
+  (`../client/README.md`, 3.5; `../draft/what-reaches-you.md`, section
+  5):
+  - `Offer::Decide(subject)`, for a reason `Kind` of a movable kind: the
+    item `under` named moved to `Decide`, or with none the kind's own
+    item, added at the end where it has none;
+  - `Offer::Words(set)`, for a reason `Set`: an item of that set with the
+    person's words, 1 to 120 bytes, at `Decide`, added at the end;
+  - `Offer::Split(set)`, for a reason `Set` whose set holds two patterns
+    or more of which `matched` is some but not all: the matched patterns
+    leave it for a new set at the lowest free number, named the set's
+    name and ", in part", cut at a character to 40 bytes, with an item
+    at `Decide`; the set keeps its number, its other patterns and its
+    items.
+
+  None for a fixed kind, for `Always`, or for a reach decided; an offer
+  the table has no room for is left out. Where a second subject asked as
+  strictly, the narrowed table still asks, and the need it raises next
+  names that one.
+
 ## 6. Effects
 
 Every effect is committed into the outbox and made by `client`, in
