@@ -140,3 +140,14 @@ both unchanged in body. `lib.rs` drops its two and takes `unread` with one
 that line and the removal are pre-approved under "it moves into the shell".
 `Error` then leaves `lib.rs`'s `use skein_io::kernel::{…}` line, also
 pre-approved. Say so in the report. Continue from `2a2bfe657d`.
+
+2026-11-08. *May `errno` be `pub` in `temper-shell` and imported beside
+`unread` in `temper`, or must `temper` keep a private copy?* Make it `pub`:
+`pub fn errno(why: skein_io::kernel::Error) -> i32` (its signature as it
+stands) beside `unread` in the shell's `directories`, body unchanged, and
+`lib.rs` takes both with one `use temper_shell::directories::{errno,
+unread};` line, so `crate::errno` in `host.rs`, 159 and `init.rs`, 170
+resolves unchanged. One mapping, no copy; the earlier answer's "private"
+was wrong, and `notes/contracts.md`, 4 now lists `unread` and `errno`
+among the shell's `pub` names. `temper::directories`' glob re-export then
+carries both too; that is fine. Continue from `577589467c`.
