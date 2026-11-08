@@ -2097,7 +2097,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
 fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
     let me = pages.me(client);
     if let Some(chats) = &mut pages.chats {
-        if let Address::Ask { project } = pages.address {
+        if let Address::Ask { project } | Address::Home { project } = pages.address {
             chats.ask_chat(env, me, Some(project), chats.words.clone(), &pages.choice, &mut pages.serial, out);
         } else {
             let draft = pages.address == (Address::NewChat { draft: true });

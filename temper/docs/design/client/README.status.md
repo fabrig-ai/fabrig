@@ -95,9 +95,6 @@ its 320 px, as the user accepted in `look-round-17`.
   heading, the commands' words and offers, the notes, the terminal's
   phrases), are not built: `see` reads "see ×N".
 
-- **Not yet:** 3.5, *Home*, *In the TUI*: Home's composer asks no one:
-  its `StartChat` starts no Ask temper chat, its choice is not template
-  5's, and its command words are not the terminal's.
 
 - **Not yet:** 6.14, *The commands* and *The chat's question*, *Its
   words*: the shared surface's lists, the models, the efforts, the

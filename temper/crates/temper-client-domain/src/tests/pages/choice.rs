@@ -72,6 +72,34 @@ fn an_absent_template_choice_keeps_the_engine_default() {
     assert_eq!(tasks.get(0).unwrap().llm, None);
 }
 #[test]
+fn home_chooses_the_ask_template_and_new_chat_keeps_its_own() {
+    use crate::Address;
+    const ASK: u32 = 5;
+    let mut me = super::chats::configuring_me();
+    let project = me.projects.get_mut(0).expect("project");
+    project.defaults = List::from_boxed(Box::new([
+        c::MeDefault { template: ASK, choice: choice(b"asking") },
+        c::MeDefault { template: jig_client::shapes::CHAT, choice: choice(b"ordinary") },
+    ]));
+    for (address, template, model) in [
+        (Address::Home { project: PROJECT }, ASK, b"asking".as_slice()),
+        (Address::NewChat { draft: false }, jig_client::shapes::CHAT, b"ordinary".as_slice()),
+    ] {
+        let page = super::chats::Page::new(me.clone(), address);
+        let draft = page.pages.choice();
+        assert_eq!(
+            draft.context,
+            Some(Context::Template {
+                project: PROJECT,
+                template,
+                executor: c::TemplateExecutor::Charter(template),
+                model_index: None,
+            })
+        );
+        assert_eq!(draft.chosen(&me), Some(&choice(model)));
+    }
+}
+#[test]
 fn a_main_model_edit_preserves_the_remaining_choice() {
     let mut draft = draft();
     let mut original = choice(b"first");
