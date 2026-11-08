@@ -1,6 +1,6 @@
 # channel: status
 
-2026-11-07. Where jig's code lags or departs from [channel.md](channel.md).
+2026-11-08. Where jig's code lags or departs from [channel.md](channel.md).
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.
@@ -21,3 +21,7 @@ grant while its read is under way. The hub hears the grant's name alone.
   value or one held by a killed host. The plan chooses this limit because
   those grants arrive through the same `Assignment` and `Granted` frames as
   the covered stories; extending coverage remains section 14's question.
+
+- **Not yet:** 5.1, 5.3: the `draining` notice:
+  `jig-protocol-worker-wire`'s schema has no kind for it, and neither
+  side's translation carries one (`../domain/hosts.status.md`, 6.7).

@@ -64,3 +64,9 @@ Section 12 defers the general message-rendering allowance.
   the request keeps behaviour unchanged; `inbox_sender` starts from
   `Party::sender` (the code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+
+- **Not yet:** 6.7: a worker's hub saying it drains as its shutdown
+  begins: `jig-domain-host`'s `LinkUp` has no such notice, nor the worker
+  wire a kind for it (`../protocol/channel.status.md`, 5.1), and
+  `CancelAll` with `Reason::Shutdown` (`src/domain.rs`) closes admission
+  on the worker alone (`engine.status.md`, its 8).

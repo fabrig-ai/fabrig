@@ -97,6 +97,15 @@ and catalogue-number reuse remain section 16's open questions.
   reason. The offer remains available as this section requires.
 
 
+- **Not yet:** 8: a draining worker leaving placement: no worker says
+  it drains, and `jig-domain-fleet`'s channel `draining`, set by a
+  refusal as busy, lifts as a slot leaves the channel
+  (`src/attempt.rs`, `follow`), so a retry can be placed on a shutting
+  worker's still-linked channel, be refused busy and then journaled as a
+  further attempt refused by its recheck (`hosts.status.md`, 6.7).
+  temper's cluster story of a restarted workstation stays ignored for it
+  (`temper/docs/design/domain/testing.status.md`).
+
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
@@ -143,12 +152,11 @@ and catalogue-number reuse remain section 16's open questions.
   connector does not report keeps its slot only until the next start:
   `jig-domain-core/src/settings/application.rs`, `prepare_start`, erases
   every default-following state the connectors' defaults leave out, with
-  a removal in the release's revision, where 17.7 makes that revision of
-  defaults that differ alone and 17.5 keeps a reset's slot. The stored
-  state does not tell such a reset from an empty default a release
-  dropped, whose removal must make the release's revision, so telling
-  them apart takes a stored-format or connector-contract change. Two of
-  temper's restore stories stay ignored for it
+  a removal in the release's revision, where 17.5 erases only those
+  following a default a connector names as no longer given, and keeps a
+  reset's slot. `effects::connector::Event::SettingsDefaults` carries no
+  such names (`connectors.status.md`, 17). Two of temper's restore
+  stories stay ignored for it
   (`temper/docs/design/protocol/configuration.status.md`); no jig test
   holds it.
 
