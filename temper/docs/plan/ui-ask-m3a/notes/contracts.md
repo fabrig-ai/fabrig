@@ -145,7 +145,7 @@ pub fn can(inspect: bool, modify: bool, shell: bool, agents: bool) -> &'static [
 pub fn first_sentence(instructions: &[u8]) -> &[u8];   // to the first ". " or ".\n", trimmed, at most VALUE bytes at a char's end
 
 /// The watched subject of a project's ways: outside every other subject's bits.
-pub const fn subject(project: u32) -> u64 { (1 << 62) | (1 << 38) | project as u64 }  // written without `as` in the code
+pub fn subject(project: u32) -> u64 { (1 << 62) | (1 << 38) | u64::from(project) }  // a plain fn, as `changes_subject` is
 
 pub struct WayEntry { pub name: Box<[u8]>, pub line: Box<[u8]>, pub path: Path, pub items: Box<[Item]>, pub delegation: bool }
 pub struct WaysDocument { pub project: u32, pub ways: Box<[WayEntry]>, pub current: Option<u32>, pub own: Path, pub may_change: bool }

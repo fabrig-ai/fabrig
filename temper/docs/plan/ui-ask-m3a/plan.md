@@ -15,32 +15,57 @@ The cut wrote the design first: `temper/docs/design/domain/forge.md`,
 instructions); `temper/docs/design/domain/landing.md`, 13.1; each with
 its status, and the drafts' statuses.
 
-## Parts and tasks (first batch)
+## Parts and tasks
 
-- **paths:** `ways-surface`, high, about 90 minutes, no needs: the crate
+- **paths:** `ways-surface`, high, 90 minutes, no needs: the crate
   `temper-engine-domain-ways` with every shape of `notes/contracts.md`,
-  section 1, its small functions whole and `derive` a stub, and the
-  root's boundary (contracts, section 4).
-- **wire:** `ways-wire`, high, about 110 minutes, no needs: the records
-  of contracts, section 3, regenerated, with their goldens.
-- **instructions:** `ask-words`, medium, about 50 minutes, needs
-  `ways-surface` (one writer per crate): `ask.txt`'s M3a Showing part and
-  `ways` on its `see` line, `see ways` answering not yet.
-- **drawing:** `path-draw`, high, about 130 minutes, no needs: temper's
-  own drawing kind for a path, its fallback and its look.
+  section 1, its small functions whole and `derive` a stub, and the root's
+  boundary (contracts, section 4). `ways-derive`, high, 180, needs
+  `ways-surface`: the derivation of `forge.md`, 8.13, its focused table of
+  the look request's three paths (with CI and both tiers, with neither, by
+  turn) and its fuzzy test (never an agent's update, merge or turn).
+- **wire:** `ways-wire`, high, 110, no needs: the records of contracts,
+  section 3, regenerated, with their goldens.
+- **instructions:** `ask-words`, medium, 50, needs `ways-surface` (one
+  writer per crate): `ask.txt`'s M3a Showing part and `ways` on its `see`
+  line, `see ways` answering not yet.
+- **drawing:** `path-draw`, high, 130, no needs: temper's own drawing kind
+  for a path, its fallback a stop a line, and its look.
+- **stock:** `stock-ways`, medium, 70, needs `ways-surface` and
+  `ask-words` (both write `temper-service`'s stock tests): the three ways
+  as data, given to the root at each start.
+- **read:** `ways-read`, high, 260, needs `ways-surface` and `ask-words`:
+  the root gathers a path's inputs, makes the `ways` document for its
+  subject, marks it, and answers `see ways`. `ways-view`, high, 180, needs
+  `ways-read` and `ways-derive`: the root's `View` read, way, path,
+  proposal and charter. `ways-family`, high, 100, needs `ways-surface`,
+  `ways-wire` and `stock-ways`: the service's mapping and encoding of both.
+- **views:** `client-views`, high, 150, needs `ways-wire`: the view blocks'
+  splitter and the chat page's view reads. `views-draw`, high, 180, needs
+  `client-views` and `path-draw`: their drawing in a turn and the chat's
+  document, and three gallery samples.
+- **acts:** `client-ways`, high, 180, needs `ways-wire` and `client-views`
+  (one writer of `temper-client-domain`): the Ask page's `ways` watch,
+  `tabs`, "Use this", "Keep it" and "Yours". `ways-delegation`, medium,
+  90, needs `client-ways`: the project policy's item where a way's
+  delegation is lacking.
+- **stories:** `ways-stories`, high, 150, needs `ways-derive`,
+  `stock-ways`, `ways-view`, `ways-family`, `client-ways` and
+  `ways-delegation`: the paths with CI and both tiers and with neither,
+  current and "Yours", "Use this" refused for too few approvers, "Keep it"
+  marking To begin's step done; the last **Not yet** entries closed.
 
-Later batches: the derivation (`ways-derive`), the stock's ways
-(`stock-ways`), the root's `ways` document, subject and `see ways`
-(`ways-read`), the root's `View` read (`ways-view`), the family's
-encoding (`ways-family`), the client's view blocks (`client-views`), their
-drawing in a chat (`views-draw`), Ask temper's page's way acts
-(`client-ways`), the policy's delegation item (`ways-delegation`), and
-the joined stories (`ways-stories`).
+Slice 1 holds paths, wire, instructions and drawing; slice 2 stock and
+read; slice 3 views, acts and stories. No walk: the look request's plan,
+`look-ask-ways`, draws Ask temper's opening from the `ways` read and its
+acts, and its walk follows.
 
-## Critical path, as it stands
+## Critical path
 
-`ways-surface` (90), then the root's `ways-read` and `ways-view`, then the
-joined stories.
+`ways-surface` (90), `ask-words` (50), `ways-read` (260), `ways-view`
+(180), `ways-stories` (150): about 730 implementer-minutes. The client's
+chain, `ways-wire` (110), `client-views` (150), `client-ways` (180),
+`ways-delegation` (90), meets it at `ways-stories` with time to spare.
 
 ## Who hears first
 
@@ -64,8 +89,13 @@ For the TUI's owner, who draws views in the TUI (M3b):
 For the owner of coding runs: `temper-engine-domain` gains the crate
 `temper-engine-domain-ways` as a dependency, `Config::ways_stock`,
 `ForgeRead::View`, `Delivery::Ways` and `SeeAnswer::Ways` (task
-`ways-surface`); its later tasks add a `route/ways` module. No change to
-`forge_route.rs` is planned.
+`ways-surface`); `ways-read` and `ways-view` add a `route/ways` module and
+mark the `ways` subject where the root commits temper's kinds
+(`route/kinds.rs`). `ways-read` may add one line marking it where the root
+routes an adoption's or a removal's outcome, if that is
+`route/forge_route.rs`, and a public read of the forge's given
+every-project rules (`temper-engine-domain-forge/src/kinds.rs`); its report
+names both.
 
 ## What was decided
 
@@ -96,7 +126,14 @@ For the owner of coding runs: `temper-engine-domain` gains the crate
 - **Charters have no names:** a card names an agent by its place on the
   path, "the coding agent", "the reviewer", "the coordinator".
 
-## Overlaps with drafts beside this one
+## Overlaps
+
+Within the plan, two first-wave tasks write compiler-forced arms in one
+file: `ways-surface` (`forge_read`'s `View` answer) and `ways-wire`
+(`forge_settings_query`'s `View` read) in `temper-service/src/family.rs`,
+in different functions; every other crate has one writer a wave.
+
+With drafts beside this one:
 
 - `look-round-20/tabs-and-switch` and `night-shadows` change
   `temper.css`: `path-draw`'s rules go under the chats marker.

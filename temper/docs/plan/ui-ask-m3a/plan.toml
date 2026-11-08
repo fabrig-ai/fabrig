@@ -44,3 +44,50 @@ id = 1
 story = "A path's shapes, its wire and its drawing exist, and Ask temper's instructions name ways and the views"
 parts = ["paths", "wire", "instructions", "drawing"]
 walk = false
+
+[[part]]
+id = "stock"
+title = "The stock module holds the three ways, You approve, Agents review and Draft first, and gives them to the engine at each start"
+mode = "direct"
+needs = ["paths"]
+design = "temper/docs/design/protocol/configuration.md, 13.10"
+
+[[part]]
+id = "read"
+title = "The root makes a project's ways document, watched and marked, answers see ways and the View read, and the service carries both to the client"
+mode = "direct"
+needs = ["paths", "wire", "stock", "instructions"]
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 2
+story = "A project's ways are derived engine-side, each with its words, path and items and the way the project runs, read by Ask temper's see ways and served to clients with each view"
+parts = ["stock", "read"]
+walk = false
+
+[[part]]
+id = "views"
+title = "A reply's and a chat document's view blocks are read and drawn: a way, a path, a proposal before and after, a charter's card"
+mode = "direct"
+needs = ["wire", "drawing"]
+design = "temper/docs/design/client/README.md, 5.16"
+
+[[part]]
+id = "acts"
+title = "Ask temper's page watches its project's ways and sends Use this and Keep it as one ChangeSettings of the read's items, with Yours where none runs"
+mode = "direct"
+needs = ["wire"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "stories"
+title = "The ways' paths over projects with CI and both tiers and with neither, the current way and Yours, Use this refused, and Keep it marking To begin's step done"
+mode = "direct"
+needs = ["paths", "stock", "read", "acts"]
+design = "temper/docs/design/draft/stock-ways.md, 8"
+
+[[slice]]
+id = 3
+story = "Ask temper draws the ways and paths it names in its replies, and the page's acts set a way, refused in words where too few people can approve"
+parts = ["views", "acts", "stories"]
+walk = false

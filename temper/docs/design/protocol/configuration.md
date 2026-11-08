@@ -3039,7 +3039,8 @@ defaults (13.4), so that a test world gives its own or none.
   derivation over the project's settings with the way's items laid over
   them. The way the project runs is the first whose path equals the
   project's own, stop for stop; none, where none does.
-- **The forge's `ways` read** (`../client/forge.md`, 9.3) gives each way
+- **The forge's `ways` read** (`../client/README.md`, 4.6;
+  `../client/forge.md`, section 9) gives each way
   with its words, its path and its items, the way the project runs or
   none, the project's own path, and whether the reader may change the
   project's settings: an owner of the project, as jig's `ChangeSettings`
