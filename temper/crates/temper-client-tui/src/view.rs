@@ -15,6 +15,7 @@ pub(crate) mod chat;
 pub(crate) mod foot;
 pub(crate) mod front;
 pub(crate) mod launchpad;
+pub(crate) mod printed;
 pub(crate) mod welcome;
 pub(crate) mod work;
 pub use work::work_runs;
