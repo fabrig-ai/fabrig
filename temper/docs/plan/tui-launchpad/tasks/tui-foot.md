@@ -173,3 +173,13 @@ fallback" row in `src/tests/foot.rs` is the failing row; see it pass, then repri
 `heavy cargo run -p temper-client-journeys` and check `01.txt` and `01.html` carry the
 Link field's focus mark and cursor again, as on main. Then step 4 as before, the whole
 focused run on the final head.
+
+## Rebase (2026-11-08, step merge, foreman tui-launchpad/tui-foot/foreman-3)
+
+Resolve the status-file conflict by preserving both adjacent gap removals.
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Branch commit `b032c00fad` removes the 6.14 “The foot” and “The commands” Not yet entry.
+Integration commit `6ff83cf774` removes the adjacent 6.13 “Its pages”, “The look”, “The TUI's events” and 6.16 “Closing” entry.
+Resolve with both entries absent; neither should be restored.
+Preserve integration's other status updates and all remaining gaps, including “The launchpad” and “A chat”.
+No implementation change is needed for this refusal.
