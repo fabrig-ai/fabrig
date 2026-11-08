@@ -12,19 +12,17 @@ tasks, the stock's words and Ask temper's sentence.
 `ask-words` adds to `temper/crates/temper-service/src/stock/ask.txt`'s
 *Configuring*, right after "...and what the change does to running work.":
 
-> Write the words the pages show with what you propose, in their terms: for each
-> charter, its charter-words, a line on what it does; where the change gives the
-> project a way of its own, its project-words, a headline naming the way and its
-> chief departure, and a lede of a sentence or two on who does what.
+> With it, write in their terms what the pages show: charter-words for each
+> charter, what it does; project-words for the project's own way, a headline and
+> a short lede.
 
-and, so that it can read and name them: `charter-words N | project-words` in
-*Finding out*'s `settings [...]` addresses, and in *temper, as you explain it*,
-"; and the words saved with them (a charter's line, a project's headline and lede
-on How work runs)" closing the settings' list (`notes/contracts.md`, section 9).
+That sentence alone: Ask temper's instructions are held to 8,192 bytes, they are
+7,885 now and ui-reaches adds 112, so this plan has under 200 bytes. The two
+kinds' names reach Ask temper through its tools' declarations and `see settings`
+(`words-kind`), not through *Finding out*'s list of addresses
+(`notes/contracts.md`, section 9).
 
 ## Parts and tasks
-
-Released:
 
 | Part | Task | Needs | What it makes run | Minutes |
 |---|---|---|---|---|
@@ -34,21 +32,16 @@ Released:
 | `stock` | `tasks/way-headlines.md` | `words-wire` | each stock way's headline, in the ways and the read | 75 |
 | `words` | `tasks/words-kind.md` | `words-value` | kinds 9 and 10 declared to jig, at the wire's entrances, `charter-words` and `project-words` in a run's `settings`, `see` and `propose_settings`, the settings form; an owner's change read back | 150 |
 | `how` | `tasks/how-words.md` | `way-headlines` | How work runs' heading and lede from a stock way's headline and the project's words; a proposal card's names for kinds 9 and 10 | 100 |
-
-To come, in the next batches (their parts join `plan.toml` as they are released):
-
-| Part | Task | Needs | What it makes run | Minutes |
-|---|---|---|---|---|
-| `words` | `words-tools` | `words-kind` | `temper ctl settings show charter-words` and `project-words`, the help | 60 |
-| `stock` | `charter-lines` | `words-kind` | kind 9's stock words for charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 | 60 |
-| `how` | `project-words-read` | `way-headlines`, `words-kind` | the `ways` read carries the project's words, kind 10; the engine world reads them back after an owner's change | 75 |
-| `ask` | `ask-words` | `words-kind` | Ask temper's sentence; a configuring story whose proposal carries a charter's and the project's words, accepted and read back | 60 |
+| `words` | `tasks/words-tools.md` | `words-kind` | `temper ctl settings show charter-words` and `project-words`, ctl's names of kinds 9 and 10, the help | 60 |
+| `stock` | `tasks/charter-lines.md` | `words-kind` | kind 9's stock words for charters 1, 2, 4, 5, 6, 9, 10, 11 and 12, each stock charter held to having one | 60 |
+| `how` | `tasks/project-words-read.md` | `way-headlines`, `words-kind` | the `ways` read carries the project's words, kind 10; an owner's change reaches the document How work runs reads | 75 |
+| `ask` | `tasks/ask-words.md` | `words-kind` | Ask temper's sentence; a configuring story whose proposal carries a charter's and the project's words, accepted and read back | 60 |
 
 About 830 implementer-minutes in all.
 
-**Critical path, as it stands:** `words-wire` (60) → `words-value` (90) →
-`words-kind` (150) → `project-words-read`, `ask-words`, `charter-lines` or
-`words-tools` (60 to 75), about six and a half hours. `tier-words` runs beside it
+**Critical path:** `words-wire` (60) → `words-value` (90) → `words-kind` (150)
+→ `project-words-read`, `ask-words`, `charter-lines` or `words-tools` (60 to 75),
+about six and a half hours of implementer time; those four run side by side. `tier-words` runs beside it
 from the first push; `way-headlines` and then `how-words` from `words-wire`'s
 merge.
 
@@ -71,6 +64,14 @@ How work runs drawing them (`how-words`' rows, `tier-words`' card).
   10 a project's, number 1, its headline and lede together. Bounds: a line and a
   headline 120 bytes, a lede 480, a tier's description 120, so that each fits a
   card's fact or the heading whole and nothing is cut.
+- **Kind 9's numbers are bounded as kind 3's values are,** 1 to jig's
+  `tasks.charters`, the forge's existing reading of that limit
+  (`configuration.md`, 13.2), though jig counts charters by it rather than
+  bounding their numbers; its `per_scope` is the same count. On a box (16) every
+  stock charter's number fits; in a test world sized to the stock's count (9) the
+  stock's lines for charters 10 to 12 still hold, since the forge judges no
+  stock default, and only an owner's change past the figure is refused, as kind
+  3's would be. Reading the limit as a count everywhere is no part of P3e.
 - **A stock way's headline** is the stock's data, carried by the `ways` read
   beside its name and line; its lede is "PROJECT runs the stock way NAME." and the
   way's existing line, so the read grows by three headlines alone. The project's

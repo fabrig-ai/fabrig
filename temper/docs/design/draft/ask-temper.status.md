@@ -33,8 +33,8 @@ Ask temper's page draws the ways from the same read, by the look request
 - **Design departs:** 5.2 and 8: `../domain/agent.md`, 8.4.2, has a
   proposal carry the words the pages say its settings by, a charter's and
   the project's (`../protocol/configuration.md`, 13.2, kinds 9 and 10), and
-  `ask.txt`'s *Finding out* and *Configuring* name `charter-words` and
-  `project-words` and ask for them, which section 8's text lacks; decided
+  `ask.txt`'s *Configuring* asks for them as `charter-words` and
+  `project-words`, which section 8's text lacks; decided
   by the `ui-p3e-words` cut on the user's request of 2026-11-08, its
   sentence the user's to review before landing.
 - **Open:** 12.
