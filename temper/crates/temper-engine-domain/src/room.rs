@@ -19,6 +19,10 @@ pub struct HostPart {
     pub declared: u64,
     /// Settings tools, paid where the charter names their family.
     pub settings: u64,
+    /// The asking family's see and document declarations.
+    pub asking: u64,
+    /// The asking form of `propose_settings`, paid with the settings family.
+    pub asking_settings: u64,
     /// Smith's families, paid where the policy turns them on.
     pub inspect: u64,
     pub modify: u64,
@@ -39,14 +43,18 @@ impl HostPart {
     /// Fixed parts, declarations and policy text, with each enabled family.
     #[must_use]
     pub fn non_brief(&self, policy: &RunPolicy) -> u64 {
-        let mut bytes = self.fixed.saturating_add(self.declared);
+        let asking = crate::asking(policy.tools);
+        let mut bytes = self.fixed.saturating_add(if asking { self.asking } else { self.declared });
         if !policy.instructions.is_empty() {
             bytes = bytes.saturating_add(skein_lib::len_u64(policy.instructions.len()));
             // Smith ends literal instructions with a blank line.
             bytes = bytes.saturating_add(if policy.instructions.ends_with(b"\n") { 1 } else { 2 });
         }
         for (enabled, cost) in [
-            (policy.tools.0 & ToolFamilies::JIG.settings != 0, self.settings),
+            (
+                policy.tools.0 & ToolFamilies::JIG.settings != 0,
+                if asking { self.asking_settings } else { self.settings },
+            ),
             (policy.inspect, self.inspect),
             (policy.modify, self.modify),
             (policy.shell, self.shell),

@@ -507,6 +507,41 @@ pub(crate) fn row_owner(row: &Row) -> Option<&tasks::TaskRecord> {
     }
 }
 
+pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: Option<u32>) -> bool {
+    if let Some(project) = run_project {
+        return proposal_row_visible(project, row);
+    }
+    if let Some(owner) = row_owner(row)
+        && !core.open_project(owner.project)
+    {
+        return false;
+    }
+    row_visible(core, party, row)
+}
+
+// A run reads settings proposals in its project without a party's visibility (engine.md, 7.3).
+pub(super) fn proposal_row_visible(project: u32, row: &Row) -> bool {
+    match &row.value {
+        Record::Tasks(tasks::Stored::History(history)) => {
+            let Some(owner) = row_owner(row) else { return false };
+            let Some(proposal) = &history.proposal else { return false };
+            owner.project == project
+                && match proposal.action {
+                    tasks::ProposalAction::Settings { .. } => true,
+                    tasks::ProposalAction::Batch(_)
+                    | tasks::ProposalAction::Effect { .. }
+                    | tasks::ProposalAction::ProcedureEffect { .. }
+                    | tasks::ProposalAction::Amend { .. }
+                    | tasks::ProposalAction::Widen { .. }
+                    | tasks::ProposalAction::Release { .. }
+                    | tasks::ProposalAction::ReleasePlaced { .. } => false,
+                }
+        }
+        Record::Tasks(tasks::Stored::DecidedProposal(proposal)) => proposal.action.is_settings(),
+        Record::Tasks(_) | Record::Core(_) | Record::People(_) | Record::Notes(_) | Record::Accounts(_) => false,
+    }
+}
+
 pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
     match &row.value {
         Record::Tasks(tasks::Stored::PersonProposal(proposal) | tasks::Stored::DecidedProposal(proposal)) => {

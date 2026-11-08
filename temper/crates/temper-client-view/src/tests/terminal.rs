@@ -40,7 +40,7 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
         Address::Chat { task: f::chat::TASK },
         Address::NewChat { draft: false },
         Address::NewChat { draft: true },
-        Address::Configure { project: f::PROJECT },
+        Address::Ask { project: f::PROJECT },
         Address::Chats { filter: d::ChatsFilter::All },
         Address::Home { project: f::PROJECT },
     ] {
@@ -235,6 +235,9 @@ fn the_terminal_says_where_it_is_and_what_runs() {
 }
 
 fn command_root(state: u8) -> d::Domain {
+    command_root_with_watch(state).0
+}
+fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token>) {
     let source = state_root(state);
     let mut me = source.pages().me(source.client()).unwrap().clone();
     let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
@@ -259,7 +262,38 @@ fn command_root(state: u8) -> d::Domain {
         task.acts = acts;
     }
     let (mut root, me_watch, task_watch) = f::root_at(Address::Chat { task: f::chat::TASK }, &f::domain_limits());
-    f::deliver_me(&mut root, me_watch, me);
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+        &mut out,
+    );
+    let mut chats_watch = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
+                },
+        } = request
+            && query.requester.is_some()
+            && query.tracked.is_none()
+        {
+            chats_watch = Some(watch);
+        }
+    }
     f::root_event(
         &mut root,
         Event::Client {
@@ -271,8 +305,9 @@ fn command_root(state: u8) -> d::Domain {
             },
         },
     );
-    root
+    (root, chats_watch)
 }
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "the offered commands, choice lists and notes are rows of one view table")]
 fn the_commands_list_what_the_page_offers() {
@@ -309,7 +344,7 @@ fn the_commands_list_what_the_page_offers() {
                     C::Draft => b"Show or hide the draft",
                     C::Pause => b"Pause this chat; a message resumes it",
                     C::Close => b"Close this chat; it stays in Chats",
-                    C::StartOver => b"Start a new configuring chat",
+                    C::StartOver => b"Start a new Ask temper chat",
                     C::Goal => b"Start a goal from the draft",
                     C::New => b"Start a new chat",
                     C::Chats => b"Open another chat",
@@ -361,7 +396,7 @@ fn the_commands_list_what_the_page_offers() {
         (C::Effort, "Effort. A change applies from the next turn."),
         (C::Chats, "Chats"),
         (C::Close, "Close this chat? It stays in Chats."),
-        (C::StartOver, "Start over? A new configuring chat starts. This one stays in Chats."),
+        (C::StartOver, "Start over? A new Ask temper chat starts. This one stays in Chats."),
     ] {
         let mut root = if command == C::StartOver {
             document_root(Some(b"# Draft\nBody"), Mode::Chat, &[], ProposalState::NotProposed)
@@ -417,7 +452,7 @@ fn the_commands_list_what_the_page_offers() {
             assert!(f::find(waiting.tree(), Role::Button, b"Close the list").is_none());
         }
     }
-    let mut root = command_root(0);
+    let (mut root, retained_watch) = command_root_with_watch(0);
     act(&mut root, Act::Terminal(T::Enter));
     let mut out = skein_lib::Queue::uncapped();
     d::step(
@@ -426,7 +461,7 @@ fn the_commands_list_what_the_page_offers() {
         Event::Act { action: Action::Pages(Act::Terminal(T::Run { command: C::Chats })) },
         &mut out,
     );
-    let mut watch = None;
+    let mut watch = retained_watch;
     while let Some(r) = out.pop() {
         if let d::Request::Unlinked {
             request:
@@ -474,11 +509,9 @@ fn the_commands_list_what_the_page_offers() {
             Some(Action::Pages(Act::Go { address: Address::Chat { task } }))
         );
     }
-    for address in [
-        Address::Chat { task: f::chat::TASK },
-        Address::NewChat { draft: false },
-        Address::Configure { project: f::PROJECT },
-    ] {
+    for address in
+        [Address::Chat { task: f::chat::TASK }, Address::NewChat { draft: false }, Address::Ask { project: f::PROJECT }]
+    {
         let (mut root, task_watch) =
             super::choice::provider_byline_root(address.clone(), [c::Readiness::Unavailable; 2], [false; 2], false);
         if let Some(watch) = task_watch {

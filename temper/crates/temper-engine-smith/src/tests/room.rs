@@ -45,7 +45,8 @@ fn the_table_is_smiths_measure() {
     for limits in [smith_agent_world::LIMITS.run, measured_limits()] {
         let table = host_part(&limits);
         for families in 0_u8..16 {
-            for tools in [engine::RunPolicy::EVERY_FAMILY, tasks::Tools(512)] {
+            for tools in [engine::RunPolicy::EVERY_FAMILY, tasks::Tools(512), tasks::Tools(3_072), tasks::Tools(2_048)]
+            {
                 let texts: [Box<[u8]>; 2] = [Box::new([]), Box::new([b'x'; 3_000])];
                 for instructions in texts {
                     let mut assignment = largest();

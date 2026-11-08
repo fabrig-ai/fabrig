@@ -955,7 +955,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                             !configured
                         );
                         assert_eq!(
-                            skein_lib::bytes::find(&main, b"Ask a question or ask for a change.").is_some(),
+                            skein_lib::bytes::find(&main, b"Ask about the code or ask for a change.").is_some(),
                             !chat
                         );
                         if repository {
@@ -1121,7 +1121,7 @@ fn home_repository_states_keep_their_words_and_events() {
                 &mut view,
                 Role::Button,
                 b"Start",
-                d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
+                d::pages::Act::Go { address: Address::Ask { project: f::PROJECT } },
             );
             assert_action(
                 &mut view,
@@ -1790,10 +1790,10 @@ fn phone_answer_name_holds_the_joined_title_and_words() {
 #[test]
 fn home_notes_name_where_the_remaining_steps_stay() {
     for (configured, repository, chat, note) in [
-        (false, false, false, "Three steps left. Skip them if you like; they stay in Settings and Chats."),
-        (false, true, false, "Two steps left. Skip them if you like; they stay in Settings and Chats."),
-        (false, false, true, "Two steps left. Skip them if you like; they stay in Settings."),
-        (false, true, true, "One step left. Skip it if you like; it stays in Settings."),
+        (false, false, false, "Three steps left. Skip them if you like; they stay in Ask temper, Settings and Chats."),
+        (false, true, false, "Two steps left. Skip them if you like; they stay in Ask temper and Chats."),
+        (false, false, true, "Two steps left. Skip them if you like; they stay in Ask temper and Settings."),
+        (false, true, true, "One step left. Skip it if you like; it stays in Ask temper."),
         (true, false, true, "One step left. Skip it if you like; it stays in Settings."),
         (true, true, false, "One step left. Skip it if you like; it stays in Chats."),
     ] {
@@ -2103,7 +2103,7 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let link = main_find(view.tree(), Role::Link, b"Go on");
+        let link = f::find(view.tree(), Role::Link, b"Ask temper").unwrap();
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/9".as_slice()));
         assert_eq!(
             crate::act(&mut view, link, Act::Press),

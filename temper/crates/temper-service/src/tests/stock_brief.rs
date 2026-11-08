@@ -47,7 +47,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
             .ceiling
             .tools
             .0,
-        1 | 2 | 4 | 128 | 256 | 512 | 1024
+        1 | 2 | 4 | 128 | 256 | 512 | 1024 | 2048
     );
     assignment.run.ended_by =
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
@@ -109,13 +109,17 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (6, false, 33_894, 366_241),
         (9, false, 31_337, 368_798),
         (10, false, 31_052, 369_083),
+        (11, true, 9_767, 390_368),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace =
-            if number == 9 || number == 10 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
+        let workspace = if number == 9 || number == 10 || number == 11 {
+            None
+        } else {
+            Some(workspace(number != 4 && number != 6 && !open))
+        };
         let room = run::brief_room(&charter, workspace.as_ref(), &limits).expect("stock declarations fit");
         eprintln!(
             "host-part row: ({number}, {open}, {}, {room}),",
@@ -182,7 +186,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
     for (number, open) in
-        [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false), (9, false), (10, false)]
+        [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false), (9, false), (10, false), (11, true)]
     {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
@@ -192,8 +196,11 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted =
-            if number == 9 || number == 10 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
+        let mounted = if number == 9 || number == 10 || number == 11 {
+            None
+        } else {
+            Some(workspace(number != 4 && number != 6 && !open))
+        };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         let rendered = run::brief_bytes(&charter.brief).unwrap();
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));

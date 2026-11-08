@@ -10,7 +10,8 @@ use temper_client_domain::{Address, Domain, pages::Act};
 /// Where the session's path leads.
 pub(crate) enum Path {
     Chats,
-    Settings,
+    Ask,
+    Home,
 }
 /// A chat retains its numbered name while the browser shows its title.
 pub(crate) enum Heading<'a> {
@@ -42,12 +43,14 @@ pub(crate) fn top(
     b.style(look::CRUMBS);
     let address = match path {
         Path::Chats => Address::Chats { filter: temper_client_domain::ChatsFilter::All },
-        Path::Settings => Address::Settings { project: project.expect("Settings has a project") },
+        Path::Ask => Address::Ask { project: project.expect("Ask has a project") },
+        Path::Home => Address::Home { project: project.expect("a new Ask has a project") },
     };
     let label = w.say(
         match path {
             Path::Chats => Word::Chats,
-            Path::Settings => Word::RailSettings,
+            Path::Ask => Word::ConfigureTitle,
+            Path::Home => Word::RailHome,
         },
         &[],
     );
@@ -61,7 +64,10 @@ pub(crate) fn top(
         };
         link(b, bindings, &name, Address::Home { project }, None);
     }
-    link(b, bindings, &label, address, None);
+    match path {
+        Path::Chats | Path::Ask => link(b, bindings, &label, address, None),
+        Path::Home => {}
+    }
     b.close();
     match heading {
         Heading::Words(words) => text(b, Role::Heading { level: 1 }, words, None),

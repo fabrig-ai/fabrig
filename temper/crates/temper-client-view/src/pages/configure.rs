@@ -59,7 +59,7 @@ pub(crate) fn main(
             w,
             bindings,
             Some(project),
-            super::session::Path::Settings,
+            super::session::Path::Home,
             super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
         );
         super::session::right(b);
@@ -304,6 +304,12 @@ fn account_name(
 fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool, text_limit: u32) {
     let Some(chats) = root.pages().chats() else { return };
     let terminal = super::terminal::shown(root, w);
+    let available = match (root.pages().me(root.client()), root.pages().project()) {
+        (Some(me), Some(project)) => {
+            jig_client::shapes::template(me, project, temper_client_domain::pages::chats::ASKING_TEMPLATE).is_some()
+        }
+        (Some(_), None) | (None, Some(_) | None) => false,
+    };
     super::session::foot(b, &w.say(Word::ConfigureTitle, &[]));
     if terminal {
         super::terminal::prompt(b, w);
@@ -312,11 +318,14 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     let name = w.say(Word::ConfigureWords, &[]);
     b.name(&name);
     b.placeholder(&name);
+    if !available {
+        b.state(State::Disabled);
+    }
     b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
     if root.pages().switcher().renaming().is_none() {
         b.focus(if terminal { temper_client_domain::pages::shown(root.pages()) } else { 0 });
     }
-    if pending && (!terminal || !super::terminal::commands::typing(root)) {
+    if !available || pending && (!terminal || !super::terminal::commands::typing(root)) {
         bindings.block_submissions();
     } else {
         b.state(State::SubmitsOnEnter);
@@ -326,7 +335,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     if !terminal {
         b.open(Role::Button);
         b.name(&w.say(Word::Send, &[]));
-        if pending || chats.words.is_empty() {
+        if !available || pending || chats.words.is_empty() {
             b.state(State::Disabled);
         }
         b.bind(bindings.insert(Act::StartChat));
@@ -344,6 +353,9 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
             bindings,
             if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint },
         );
+    }
+    if !available {
+        paragraph(b, &w.say(Word::AskUnavailable, &[]), look::STARTER_NOTE);
     }
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);

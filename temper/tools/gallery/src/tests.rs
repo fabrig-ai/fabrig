@@ -201,6 +201,14 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Button, name: "Try again" }],
     },
     Holds {
+        name: "ask",
+        heading: "Ask temper",
+        parts: &[
+            Part::Named { role: Role::Form, name: "Ask temper" },
+            Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
+        ],
+    },
+    Holds {
         name: "chat-terminal-question",
         heading: "T1 · Make tally sum stream its input",
         parts: &[
@@ -486,7 +494,11 @@ const HOLDS: [Holds; samples::N] = [
         heading: "tally",
         parts: &[
             Part::Named { role: Role::Menu, name: "More ways to start work" },
-            Part::Described { role: Role::MenuItem, name: "Chat", description: "Ask a question or ask for a change." },
+            Part::Described {
+                role: Role::MenuItem,
+                name: "Chat",
+                description: "Ask about the code or ask for a change.",
+            },
             Part::Described {
                 role: Role::MenuItem,
                 name: "Goal",
@@ -713,7 +725,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text { text: "gpt-6.1-terra · medium" },
             Part::Text { text: "gpt-6-luna · medium" },
             Part::Text { text: "Off" },
-            Part::Named { role: Role::Link, name: "Configure temper." },
+            Part::Named { role: Role::Link, name: "ask temper." },
         ],
     },
     Holds {
@@ -1359,7 +1371,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Paragraph,
-                name: "Two steps left. Skip them if you like; they stay in Settings.",
+                name: "Two steps left. Skip them if you like; they stay in Ask temper and Settings.",
             },
             Part::Named { role: Role::Button, name: "Start" },
             Part::Named { role: Role::Button, name: "Adopt" },
@@ -2085,15 +2097,15 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
-            Part::Value { role: Role::TextArea, name: "Describe how you work, or what to change", value: "" },
+            Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
     Holds {
         name: "configure-reference",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
             Part::Pressed { name: "Split" },
@@ -2105,7 +2117,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-reference-draft",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
             Part::Pressed { name: "Draft" },
@@ -2117,43 +2129,43 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-typing",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
-                name: "Describe how you work, or what to change",
+                name: "Ask temper, or tell it how you work",
                 value: "I work alone on small changes.",
             },
         ],
     },
     Holds {
         name: "configure-sending",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
-                name: "Describe how you work, or what to change",
+                name: "Ask temper, or tell it how you work",
                 value: "I work alone on small changes.",
             },
         ],
     },
     Holds {
         name: "configure-refused",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
             Part::Value {
                 role: Role::TextArea,
-                name: "Describe how you work, or what to change",
+                name: "Ask temper, or tell it how you work",
                 value: "I work alone on small changes.",
             },
         ],
     },
     Holds {
         name: "configure-chat-document",
-        heading: "T10 · Configure temper",
+        heading: "T10 · Ask temper",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "T10" },
             Part::Named { role: Role::Button, name: "Start over" },
@@ -2165,7 +2177,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-chat-document-split",
-        heading: "T10 · Configure temper",
+        heading: "T10 · Ask temper",
         parts: &[
             Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
@@ -2337,7 +2349,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "configure-chats-tag",
         heading: "Talk to an agent",
-        parts: &[Part::Text { text: "Configuring" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
+        parts: &[Part::Text { text: "Ask temper" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
     },
     Holds {
         name: "chat-new",
@@ -2468,10 +2480,9 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
             Part::Named { role: Role::Check, name: "Away switch" },
             Part::Named { role: Role::Link, name: "Builders" },
-            Part::Named { role: Role::Text, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
-            Part::Named { role: Role::Link, name: "Start" },
+            Part::Absent { role: Role::Link, name: "Start" },
             Part::Named { role: Role::Navigation, name: "Settings" },
         ],
     },
@@ -2520,7 +2531,8 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
             Part::Named { role: Role::Check, name: "Chats can write drafts" },
-            Part::Named { role: Role::Link, name: "Go on" },
+            Part::Named { role: Role::Link, name: "Ask temper" },
+            Part::Absent { role: Role::Link, name: "Go on" },
             Part::Absent { role: Role::Link, name: "Start" },
         ],
     },
@@ -2705,7 +2717,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "configure-model-open",
-        heading: "Configure temper",
+        heading: "Ask temper",
         parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
     Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
@@ -3619,7 +3631,7 @@ fn configuring_gallery_states_list_the_template_and_send_readiness() {
                 .templates
                 .as_slice()
                 .iter()
-                .any(|t| t.number == 3)
+                .any(|t| t.number == 5)
         );
         let chats = root.pages().chats().expect("configure");
         assert_eq!(chats.start.is_some(), sending, "{name}");
@@ -3788,7 +3800,7 @@ fn the_rail_menu_sample_opens_the_menu() {
     assert!(html.contains("aria-expanded=\"true\""));
     let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
     assert!(!menu.contains("hidden"), "{menu}");
-    assert!(html.contains("Ask a question or ask for a change."));
+    assert!(html.contains("Ask about the code or ask for a change."));
     assert!(html.contains("Agents plan a larger change and land it."));
 }
 

@@ -74,7 +74,7 @@ pub struct Frame {
     pub hold_connect: bool,
     pub quiet: Vec<&'static [u8]>,
     store: Option<Box<[u8]>>,
-    offers: Option<()>,
+    offers: Option<recovery::Offers>,
     answer_kept: Option<()>,
     answer_new: Option<()>,
     acts: Vec<[u8; 16]>,
@@ -756,7 +756,7 @@ impl Frame {
                     }
                 }
             }
-            b"/jig/v1/read" => self.read_task(fd),
+            b"/jig/v1/read" => self.read_setup_or_task(fd),
             b"/jig/v1/sign-out" => {
                 self.hold_stores = Some(());
                 self.reply(fd, &encode!(w::SignOutAnswer::SignedOut));
@@ -766,11 +766,13 @@ impl Frame {
         }
     }
     fn deliver_me(&mut self) {
-        let value = w::DeliveryValue::Me(if self.offers.is_some() || self.move_mode {
-            recovery::chat_me()
-        } else {
-            jig_client_test_records::frame_record()
-        });
+        let me = match self.offers {
+            Some(recovery::Offers::Chat) => recovery::chat_me(),
+            Some(recovery::Offers::Projects(count)) => recovery::project_me(count),
+            None if self.move_mode => recovery::chat_me(),
+            None => jig_client_test_records::frame_record(),
+        };
+        let value = w::DeliveryValue::Me(me);
         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("delivery size"));
         value.encode(&mut writer).expect("delivery fits");
         let document = w::Owned::new(

@@ -258,7 +258,7 @@ pub(crate) fn row(
     // A slot keeps the number's command available in the terminal (client/README.md, 3.5).
     b.open(Role::Slot);
     let configuring = match root.pages().me(root.client()) {
-        Some(me) => temper_client_domain::pages::chats::configuring(me, line.project, &line.chip.executor),
+        Some(me) => temper_client_domain::pages::chats::asking(me, line.project, &line.chip.executor),
         None => false,
     };
     let number = words.say(Word::Chat, &[Hole::Number(line.chip.task)]);

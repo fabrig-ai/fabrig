@@ -204,11 +204,7 @@ pub(super) fn provider_byline_root(
         project
             .defaults
             .push(c::MeDefault {
-                template: if let Address::Configure { .. } = root.pages().address() {
-                    3
-                } else {
-                    jig_client::shapes::CHAT
-                },
+                template: if let Address::Ask { .. } = root.pages().address() { 5 } else { jig_client::shapes::CHAT },
                 choice: c::LlmChoice {
                     later: None,
                     account: None,
@@ -225,7 +221,7 @@ pub(super) fn provider_byline_root(
 
 #[test]
 fn the_picker_closed_line_names_no_account() {
-    for address in [Address::NewChat { draft: false }, Address::Configure { project: fixtures::PROJECT }] {
+    for address in [Address::NewChat { draft: false }, Address::Ask { project: fixtures::PROJECT }] {
         let (root, _) = provider_byline_root(address, [c::Readiness::Usable, c::Readiness::Usable], [true, true], true);
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let node = view
@@ -1001,7 +997,7 @@ fn task_lines_take_their_own_templates_preview_and_offered_effort() {
     use super::chat::{model_choice, model_line_root};
     for (own, preview, charter, using, closed) in [
         (None, Some(1), 1, "GPT-6 Astra · high", "GPT-6 Astra · high"),
-        (None, Some(3), 37, "GPT-6 Astra · high", "GPT-6 Astra · high"),
+        (None, Some(5), 37, "GPT-6 Astra · high", "GPT-6 Astra · high"),
         (Some(model_choice("gpt-6-astra", None)), None, 1, "GPT-6 Astra · high", "GPT-6 Astra · high"),
         (Some(model_choice("gpt-6-astra", Some("low"))), None, 1, "GPT-6 Astra · low", "GPT-6 Astra · low"),
         (None, None, 37, "Using the default model", "the default model"),

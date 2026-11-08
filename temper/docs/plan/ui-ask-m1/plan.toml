@@ -1,0 +1,152 @@
+draft = "ui-ask-m1"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-ask-m1/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/ask-temper.execution.md", "temper/docs/design/draft/ask-temper.status.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "smith-start"
+title = "smith starts a run with no workspace small: Claude Code's prompt replaced, no tools, no slash commands, an empty directory; no checkout in its mechanics"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.1"
+
+[[slice]]
+id = 1
+story = "On the fake program, a run with no workspace starts Claude Code with --system-prompt-file, --tools \"\" and --disable-slash-commands in an empty directory, and its system text names no checkout; a run with a workspace starts as before"
+parts = ["smith-start"]
+walk = false
+
+[[part]]
+id = "family"
+title = "jig's twelfth engine tool family, asking, bit 2,048, decides a ToolKind::Ask call"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/authority.md, 3"
+
+[[slice]]
+id = 2
+story = "A run whose authority holds the asking family has an asking call admitted; one without it is answered beyond authority"
+parts = ["family"]
+walk = false
+
+[[part]]
+id = "client"
+title = "Settings' How work runs offers Ask temper beside Configure temper, and its page starts a chat from template 5"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 3
+story = "A person on Settings presses Ask temper's Start, writes a question on its page, and a chat from template 5 opens; Go on returns to it"
+parts = ["client"]
+walk = false
+
+[[part]]
+id = "declare"
+title = "An asking charter is declared see, document and propose_settings alone, decided by the asking family, and its runs have no workspace"
+mode = "direct"
+needs = ["family"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[slice]]
+id = 4
+story = "In the engine's domain world, a chat under a charter of asking and settings is declared see, document and propose_settings alone, gets no repository, and its see call is decided by the asking family"
+parts = ["declare"]
+walk = false
+
+[[part]]
+id = "stock"
+title = "Charter 11 and template 5 in the stock, the rules and policy 1 holding asking and delegating to charter 11, and its first request held to 16 KB"
+mode = "direct"
+needs = ["declare", "smith-start"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 5
+story = "A fresh deployment offers template 5, Ask temper, run by charter 11 with ask.txt, and what temper gives its first request is within 16,384 bytes on ChatGPT's shape and Claude Code's"
+parts = ["stock"]
+walk = false
+
+[[part]]
+id = "document"
+title = "Ask temper writes its document by section: write, append, replace, the root splicing jig's note"
+mode = "direct"
+needs = ["declare"]
+design = "temper/docs/design/domain/agent.md, 8.4.3"
+
+[[slice]]
+id = 6
+story = "An Ask temper run writes \"How this project works\" whole, appends a section and replaces one by its heading; the stored note is the chat's document, its answer's first line the note's, and a refused call changes nothing"
+parts = ["document"]
+walk = false
+
+[[part]]
+id = "proposal-read"
+title = "A run reads one proposal of settings, waiting or decided"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.3"
+
+[[slice]]
+id = 7
+story = "A run with the settings family reads a task's proposal of settings waiting and then rejected, as an owner's proposal read shows it"
+parts = ["proposal-read"]
+walk = false
+
+[[part]]
+id = "see"
+title = "see reads the settings, the history, temper's pages and a repository's file by address"
+mode = "direct"
+needs = ["declare", "stock", "document"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 8
+story = "An Ask temper chat reads settings charter 3, revision 2 and help settings with see, each in parts of at most 6,144 bytes ending with what to read next; me answers not yet"
+parts = ["see"]
+walk = false
+
+[[part]]
+id = "propose"
+title = "propose_settings does what charter 3's instructions teach: OWNER/NAME, a large set in parts, approvals at the call, an answer saying where the card waits"
+mode = "direct"
+needs = ["declare", "see"]
+design = "temper/docs/design/domain/agent.md, 8.4.2"
+
+[[slice]]
+id = 9
+story = "An Ask temper run proposes a charter document named OWNER/NAME and gets its forge's host written, gives a large set in parts that become one proposal, is refused an unsatisfiable approval at the call, and is told where the card waits and who decides; charter 3's proposals work as before"
+parts = ["propose"]
+walk = false
+
+[[part]]
+id = "see-proposal"
+title = "see reads a proposal of settings, waiting or decided"
+mode = "direct"
+needs = ["see", "proposal-read"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 10
+story = "An Ask temper chat reads a configuring chat's proposal of settings waiting with its review, then rejected with its reason, then another accepted as revision 2"
+parts = ["see-proposal"]
+walk = false
+
+[[part]]
+id = "close"
+title = "M1's state in the execution file, once every task has merged, and no status entry the plan closed left behind"
+mode = "direct"
+needs = ["smith-start", "family", "client", "declare", "stock", "document", "proposal-read", "see", "see-proposal", "propose"]
+design = "temper/docs/design/draft/ask-temper.execution.md, 3"
+
+[[slice]]
+id = 11
+story = "The execution file says M1 is built, its walk following landing, and the status files hold no Not yet of M1's"
+parts = ["close"]
+walk = false

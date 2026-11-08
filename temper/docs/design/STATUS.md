@@ -41,7 +41,10 @@ follows landing (`domain/testing.md`, 2.7 and 11).
 The standard brief follows the declarations at 354,988 bytes;
 the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
-milestone stands in the code (`README.md`). Markdown flows draw in chats
+milestone stands in the code (`README.md`). Ask temper's first milestone
+stands in the code beside the configuring chat
+(`draft/ask-temper.execution.md`, M1), its walk following landing.
+Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
 reference keeps its numbered words without figures (`client/README.md`,

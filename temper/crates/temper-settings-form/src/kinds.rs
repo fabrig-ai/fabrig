@@ -7,13 +7,13 @@ use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
 
-fn hex(d: &Decoder, at: u32, most: u32, name: &[u8]) -> Result<Box<[u8]>, Error> {
+fn hex(d: &Decoder<'_>, at: u32, most: u32, name: &[u8]) -> Result<Box<[u8]>, Error> {
     match d.hex(at, most, name) {
         Ok(value) => Ok(value),
         Err(why) => Err(why.named(name)),
     }
 }
-fn number(d: &Decoder, fields: &Fields, name: &[u8]) -> Result<u32, Error> {
+fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8]) -> Result<u32, Error> {
     let at = field(fields, name)?;
     let value = match d.number(at) {
         Ok(value) => value,
@@ -21,21 +21,21 @@ fn number(d: &Decoder, fields: &Fields, name: &[u8]) -> Result<u32, Error> {
     };
     u32::try_from(value).or(Err(error(name, b"u32 bound")))
 }
-fn boolean(d: &Decoder, fields: &Fields, name: &[u8]) -> Result<bool, Error> {
+fn boolean(d: &Decoder<'_>, fields: &Fields, name: &[u8]) -> Result<bool, Error> {
     let at = field(fields, name)?;
     match d.boolean(at) {
         Ok(value) => Ok(value),
         Err(why) => Err(why.at(name)),
     }
 }
-pub(super) fn setting(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
     let value = setting_value(d, fields, kind);
     match value {
         Ok(value) => Ok(value),
         Err(why) => Err(why.at(kind)),
     }
 }
-fn setting_value(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
+fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
     if kind == b"project-ways" || kind == b"project-questions" {
         if optional(fields, b"number").is_some() {
             return Err(error(b"number", b"project setting has no number"));
@@ -72,7 +72,7 @@ fn setting_value(d: &Decoder, fields: &Fields, kind: &[u8]) -> Result<c::Setting
     };
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
-pub(super) fn value(d: &Decoder, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
     if kind == 6 {
         let word = match d.string(at) {
             Ok(word) => word,
@@ -118,7 +118,7 @@ pub(super) fn value(d: &Decoder, at: u32, kind: u32) -> Result<Box<[u8]>, Error>
     record.encode(&mut out).expect("measured record");
     Ok(out.finish())
 }
-fn ways(d: &Decoder, at: u32) -> Result<w::ProjectWays, Error> {
+fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
     let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"away", b"way"])?;
     w::ProjectWays::new(
         &d.kinds,
@@ -134,7 +134,7 @@ fn ways(d: &Decoder, at: u32) -> Result<w::ProjectWays, Error> {
     )
     .or(Err(error(b"", b"wire value bound")))
 }
-fn rule(d: &Decoder, at: u32) -> Result<w::LandingRule, Error> {
+fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
     let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals"])?;
     let pattern = match pattern(d, field(&fields, b"pattern")?) {
         Ok(value) => value,
@@ -176,7 +176,7 @@ fn rule(d: &Decoder, at: u32) -> Result<w::LandingRule, Error> {
     )
     .or(Err(error(b"", b"wire value bound")))
 }
-fn pattern(d: &Decoder, at: u32) -> Result<w::LandingPattern, Error> {
+fn pattern(d: &Decoder<'_>, at: u32) -> Result<w::LandingPattern, Error> {
     let fields = d.object(at, &[b"segments", b"last"])?;
     let most =
         d.limits.pattern_segments.min(d.kinds.landing_pattern_segments).min(w::CEILINGS.landing_pattern_segments);
@@ -201,7 +201,7 @@ fn pattern(d: &Decoder, at: u32) -> Result<w::LandingPattern, Error> {
     w::LandingPattern::new(&d.kinds, w::LandingPatternParts { segments, last })
         .or(Err(error(b"", b"wire pattern bound")))
 }
-fn last(d: &Decoder, at: u32) -> Result<w::LandingLast, Error> {
+fn last(d: &Decoder<'_>, at: u32) -> Result<w::LandingLast, Error> {
     let fields = d.object(at, &[b"exact", b"open"])?;
     if fields.len() != 1 {
         return Err(error(b"", b"one variant required"));
@@ -227,7 +227,7 @@ fn last(d: &Decoder, at: u32) -> Result<w::LandingLast, Error> {
         w::LandingOpen::new(&d.kinds, w::LandingOpenParts { value }).or(Err(error(b"open", b"wire value bound")))?;
     Ok(w::LandingLast::Open(record))
 }
-fn freshness(d: &Decoder, fields: &Fields) -> Result<w::RuleFreshness, Error> {
+fn freshness(d: &Decoder<'_>, fields: &Fields) -> Result<w::RuleFreshness, Error> {
     let at = field(fields, b"freshness")?;
     let word = match d.string(at) {
         Ok(word) => word,
@@ -239,7 +239,7 @@ fn freshness(d: &Decoder, fields: &Fields) -> Result<w::RuleFreshness, Error> {
         _ => Err(error(b"freshness", b"exact or clean required")),
     }
 }
-fn gate(d: &Decoder, at: u32) -> Result<w::RuleGate, Error> {
+fn gate(d: &Decoder<'_>, at: u32) -> Result<w::RuleGate, Error> {
     let fields = d.object(at, &[b"number", b"blocking", b"freshness"])?;
     w::RuleGate::new(
         &d.kinds,
@@ -251,7 +251,7 @@ fn gate(d: &Decoder, at: u32) -> Result<w::RuleGate, Error> {
     )
     .or(Err(error(b"", b"wire value bound")))
 }
-fn approval(d: &Decoder, at: u32) -> Result<w::RuleApproval, Error> {
+fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     let fields = d.object(at, &[b"role", b"people", b"freshness"])?;
     w::RuleApproval::new(
         &d.kinds,

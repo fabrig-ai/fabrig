@@ -144,7 +144,9 @@ on.
 
 ## 5. `read_docs`, for agents
 
-- **Declared in every charter** by `temper-engine-smith`, beside the
+- **Declared in every charter but one naming the asking family,** whose
+  runs read the same pages through `see help` (`../domain/agent.md`, 4.3
+  and 8.4), by `temper-engine-smith`, beside the
   forge's reads (`../domain/agent.md`, 4.3): `read_docs` with either
   `{"topic": NAME, "from": OFFSET}`, `from` 0 when absent, or
   `{"search": "WORDS"}`, never both. A topic is a page.

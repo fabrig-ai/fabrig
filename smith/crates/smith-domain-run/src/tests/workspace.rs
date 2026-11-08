@@ -187,7 +187,20 @@ fn absent_workspace_suppresses_workspace_families_and_preserves_main_services() 
     assert!(!opening.deliver);
     assert_eq!(opening.host_tools.len(), 1);
     assert_eq!(opening.host_tools[0].name.as_ref(), b"host_action");
-    assert!(skein_lib::bytes::find(&opening.system, b"There is no checkout.").is_some());
+    for heading in [b"## Tools".as_slice(), b"## Checkout"] {
+        assert!(skein_lib::bytes::find(&opening.system, heading).is_none());
+    }
+    let requests = harness.start_workspace(53, charter(), Some(workspace()));
+    let [Request::Admitted { .. }, Request::Read { owner, .. }] = requests.as_ref() else {
+        panic!("workspace start discovers its guide: {requests:?}");
+    };
+    let requests = harness.step(Event::Read { owner: *owner, read: Read::Missing });
+    let [Request::Open { opening, .. }] = requests.as_ref() else {
+        panic!("workspace start opens main: {requests:?}");
+    };
+    for heading in [b"## Tools".as_slice(), b"## Checkout"] {
+        assert!(skein_lib::bytes::find(&opening.system, heading).is_some());
+    }
 }
 
 #[test]

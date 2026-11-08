@@ -151,7 +151,7 @@ fn configuring_proposal(world: &mut World, role: u32, key: u8) -> engine::Assign
         s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(Box::new(charter))) },
     ]);
     let event = world.protocol.call(Token::new(7), run.task, run.attempt, u64::from(key), engine::Call {
-        completion: 1, position: 1, tool: engine::Tool::ProposeSettings {
+        completion: 1, position: 1, tool: engine::Tool::ProposeSettings { more: false,
             against: kinds::revision(&world.store.rows), kinds: kinds::decoded(&items), items,
             reason: b"Review changes\ntemper enforces: agent review and one person's approval\nyour agents follow: keep reports short".as_slice().into(),
         },

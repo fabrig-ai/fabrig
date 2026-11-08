@@ -239,6 +239,11 @@ fn immediate(engine: &mut Engine, now: core::Now) {
                 engine.events.push(event);
             }
         }
+        core::Now::ProposalRead { to, key, answer } => {
+            if let Some(event) = engine.tools.proposal_read(to, key, &answer) {
+                engine.events.push(event);
+            }
+        }
         core::Now::EffectAnswer { to, key, part } => {
             if let Some(event) = engine.tools.render(to, key, &part, false) {
                 engine.events.push(event);

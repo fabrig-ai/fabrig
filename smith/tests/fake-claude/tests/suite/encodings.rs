@@ -22,8 +22,18 @@ fn a_story_reads_back_as_written() {
 #[test]
 fn observations_read_back_as_written() {
     let expected = [
-        Observation { arguments: vec!["auth".into(), "status".into()], environment: vec!["HOME".into()] },
-        Observation { arguments: vec!["quote\"\n".into()], environment: vec!["CLAUDE_CONFIG_DIR".into()] },
+        Observation {
+            directory: "/work".into(),
+            directory_has_entries: false,
+            arguments: vec!["auth".into(), "status".into()],
+            environment: vec!["HOME".into()],
+        },
+        Observation {
+            directory: "/repo".into(),
+            directory_has_entries: true,
+            arguments: vec!["quote\"\n".into()],
+            environment: vec!["CLAUDE_CONFIG_DIR".into()],
+        },
     ];
     let mut bytes = Vec::new();
     for record in &expected {

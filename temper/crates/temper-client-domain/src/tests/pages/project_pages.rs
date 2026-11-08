@@ -63,7 +63,7 @@ fn project_addresses_wait_until_me_lists_their_project() {
         Address::Home { project: OTHER },
         Address::Settings { project: OTHER },
         Address::Repositories { project: OTHER },
-        Address::Configure { project: OTHER },
+        Address::Ask { project: OTHER },
     ] {
         let mut f = fixture();
         event(&mut f, Event::Went { address });
@@ -81,7 +81,7 @@ fn going_to_project_pages_opens_the_named_project() {
         Address::Home { project: OTHER },
         Address::Settings { project: OTHER },
         Address::Repositories { project: OTHER },
-        Address::Configure { project: OTHER },
+        Address::Ask { project: OTHER },
     ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
@@ -96,7 +96,7 @@ fn unlisted_project_addresses_keep_the_open_project() {
         Address::Home { project: UNKNOWN },
         Address::Settings { project: UNKNOWN },
         Address::Repositories { project: UNKNOWN },
-        Address::Configure { project: UNKNOWN },
+        Address::Ask { project: UNKNOWN },
     ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
@@ -113,7 +113,7 @@ fn switching_projects_keeps_home_settings_configure_or_chats() {
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
         (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
-        (Address::Configure { project: fixtures::PROJECT }, Some(Address::Configure { project: OTHER })),
+        (Address::Ask { project: fixtures::PROJECT }, Some(Address::Ask { project: OTHER })),
         (Address::Chats { filter: ChatsFilter::All }, None),
         (Address::NewChat { draft: false }, None),
     ] {
@@ -146,7 +146,7 @@ fn project_pages_keep_the_switchers_rename_form() {
         Address::Changes { project: fixtures::PROJECT },
         Address::Settings { project: fixtures::PROJECT },
         Address::Repositories { project: fixtures::PROJECT },
-        Address::Configure { project: fixtures::PROJECT },
+        Address::Ask { project: fixtures::PROJECT },
     ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
@@ -185,6 +185,7 @@ fn choosing_a_project_stays_on_forges_and_accounts() {
         assert!(f.out.is_empty());
     }
 }
+
 #[test]
 fn choosing_a_project_keeps_the_builders_tab() {
     let mut f = fixture();

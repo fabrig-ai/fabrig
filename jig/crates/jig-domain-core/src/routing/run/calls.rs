@@ -433,6 +433,9 @@ pub(crate) fn named_action(
     if let NamedAction::Settings(read) = action {
         return crate::reads::settings::run(core, env, to, key, read);
     }
+    if let NamedAction::ReadProposal { proposer, number } = action {
+        return crate::reads::settings::run_proposal(core, env, to, key, proposer, number);
+    }
     if let Some(part) = core.call_parts.get(&key) {
         let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
@@ -450,7 +453,9 @@ pub(crate) fn named_action(
     let mut out = Queue::uncapped();
     match action {
         NamedAction::ReadTask { .. } => unreachable!("task reads use the unrecorded path"),
-        NamedAction::Settings(_) => unreachable!("settings reads use the unrecorded path"),
+        NamedAction::ReadProposal { .. } | NamedAction::Settings(_) => {
+            unreachable!("settings reads use the unrecorded path")
+        }
         NamedAction::ProposeSettings { against, items, reason } => {
             return crate::routing::settings::dispatch::propose_run(
                 core,
@@ -735,7 +740,9 @@ pub(crate) fn named_action(
 pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
     match action {
         NamedAction::ReadTask { .. } => ToolKind::Read,
-        NamedAction::Settings(_) | NamedAction::ProposeSettings { .. } => ToolKind::Settings,
+        NamedAction::Settings(_) | NamedAction::ReadProposal { .. } | NamedAction::ProposeSettings { .. } => {
+            ToolKind::Settings
+        }
         NamedAction::Message { target, .. } => ToolKind::Message { target: *target },
         NamedAction::Introduce { left, .. } => ToolKind::Message { target: *left },
         NamedAction::Subscribe { .. } | NamedAction::Unsubscribe { .. } => ToolKind::Subscribe,
