@@ -41,6 +41,14 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (9, d::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from([b'h'; 120].as_slice()),
+                lede: Box::from([b'l'; 480].as_slice()),
+            }),
+        ),
     ] {
         for slot in [
             d::SettingSlot::Default,
@@ -155,6 +163,30 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
         row.encode(&mut writer).unwrap();
         assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable));
+    }
+    for (kind, value) in [
+        (9, d::Value::CharterWords(Box::from(b"".as_slice()))),
+        (9, d::Value::CharterWords(Box::from(b"line\n".as_slice()))),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from(b"".as_slice()),
+                lede: Box::from(b"lede".as_slice()),
+            }),
+        ),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from(b"headline".as_slice()),
+                lede: Box::from(b"lede\t".as_slice()),
+            }),
+        ),
+    ] {
+        let row = forge::Stored::Setting(d::SettingRow {
+            key: d::SettingKey { kind, scope: 0, number: 1, slot: d::SettingSlot::Default },
+            edit: d::Edit::Set(d::SizedValue { value, size: 1 }),
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(Undecodable), "invalid words for kind {kind}");
     }
     let mut bytes = records::encode(&row(d::Edit::Remove));
     bytes[15] = 4; // Version, Value tag, kind, scope and number precede the slot.

@@ -89,6 +89,18 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
             record.encode(&mut writer).expect("measured room");
             writer.finish()
         }
+        settings::Value::CharterWords(line) => {
+            let record = wire_charter_words(line);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::ProjectWords(words) => {
+            let record = wire_project_words(words);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
     }
 }
 
@@ -100,6 +112,8 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),
         settings::Value::Ways(ways) => wire_ways(*ways).measure(),
+        settings::Value::CharterWords(line) => wire_charter_words(line).measure(),
+        settings::Value::ProjectWords(words) => wire_project_words(words).measure(),
     }
 }
 
@@ -231,4 +245,17 @@ fn wire_ways(ways: settings::ProjectWays) -> v1::ProjectWays {
         v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
     )
     .expect("fixed ways fields")
+}
+
+fn wire_charter_words(line: &[u8]) -> v1::CharterWords {
+    v1::CharterWords::new(&v1::CEILINGS, v1::CharterWordsParts { line: Box::from(line) })
+        .expect("line within schema ceiling")
+}
+
+fn wire_project_words(words: &settings::ProjectWords) -> v1::ProjectWords {
+    v1::ProjectWords::new(
+        &v1::CEILINGS,
+        v1::ProjectWordsParts { headline: words.headline.clone(), lede: words.lede.clone() },
+    )
+    .expect("words within schema ceilings")
 }

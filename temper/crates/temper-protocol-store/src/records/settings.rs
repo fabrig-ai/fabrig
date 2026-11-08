@@ -161,6 +161,16 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::CharterWords(line) => w::SettingValue::Line(
+                    w::CharterWords::new(&w::CEILINGS, w::CharterWordsParts { line: line.clone() }).expect(FITS),
+                ),
+                d::Value::ProjectWords(words) => w::SettingValue::Words(
+                    w::ProjectWords::new(
+                        &w::CEILINGS,
+                        w::ProjectWordsParts { headline: words.headline.clone(), lede: words.lede.clone() },
+                    )
+                    .expect(FITS),
+                ),
                 d::Value::Charter(number) => w::SettingValue::Charter(
                     w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: *number }).expect(FITS),
                 ),
@@ -199,8 +209,20 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
-                // words-value replaces these undecodable stand-ins with the forge's values.
-                w::SettingValue::Line(_) | w::SettingValue::Words(_) => return Err(Undecodable),
+                w::SettingValue::Line(value) => {
+                    let line = value.into_parts().line;
+                    if !d::words_fit(&line, d::LINE_BYTES) {
+                        return Err(Undecodable);
+                    }
+                    d::Value::CharterWords(line)
+                }
+                w::SettingValue::Words(value) => {
+                    let w::ProjectWordsParts { headline, lede } = value.into_parts();
+                    if !d::words_fit(&headline, d::HEADLINE_BYTES) || !d::words_fit(&lede, d::LEDE_BYTES) {
+                        return Err(Undecodable);
+                    }
+                    d::Value::ProjectWords(d::ProjectWords { headline, lede })
+                }
             };
             d::Edit::Set(d::SizedValue { value, size })
         }

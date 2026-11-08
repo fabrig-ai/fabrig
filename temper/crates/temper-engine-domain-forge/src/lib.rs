@@ -433,6 +433,12 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
                     )
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
+                Some(bytes(line))
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectWords(words), .. }) => {
+                bytes(&words.headline).checked_add(bytes(&words.lede))
+            }
             settings::Edit::Set(settings::SizedValue {
                 value: settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_),
                 ..
