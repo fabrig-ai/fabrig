@@ -32,6 +32,7 @@ pub struct Service {
     held_listeners: List<Token>,
     listeners_closing: u32,
     links: Queue<Box<[u8]>>,
+    local_links: Queue<Box<[u8]>>,
 }
 /// A refused adoption leaves both pipe descriptors with the caller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -297,6 +298,7 @@ impl Service {
             listeners_closing: 0,
             // The binary-facing channel holds one admitted pending sign-in population.
             links: Queue::with_capacity(own.sign_in.pending),
+            local_links: Queue::with_capacity(own.sign_in.pending),
         })
     }
     // The stock small profile's Prepared::room:
@@ -336,6 +338,7 @@ impl Service {
             held_listeners: List::with_capacity(io_limits.sockets),
             listeners_closing: 0,
             links: Queue::with_capacity(queue),
+            local_links: Queue::with_capacity(queue),
         })
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
@@ -570,6 +573,10 @@ impl Service {
     /// Printed sign-in links, taken by the binary.
     pub const fn links(&mut self) -> &mut Queue<Box<[u8]>> {
         &mut self.links
+    }
+    /// Local sign-in links, taken by the binary to keep in the engine's link file, never printed.
+    pub const fn local_links(&mut self) -> &mut Queue<Box<[u8]>> {
+        &mut self.local_links
     }
     /// Bound listeners, taken by the binary before other diagnostics.
     pub fn listening(&mut self) -> &mut Queue<crate::Note> {
@@ -875,6 +882,13 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                     }
                     let link = engine.clients.links.pop().expect("printed sign-in links");
                     service.links.push(link);
+                }
+                for _ in 0..engine.clients.local_links.len() {
+                    if service.local_links.room() == 0 {
+                        break;
+                    }
+                    let link = engine.clients.local_links.pop().expect("local sign-in links");
+                    service.local_links.push(link);
                 }
             }
             service.kernel.publish(&mut service.raw_submissions, &mut service.submissions);

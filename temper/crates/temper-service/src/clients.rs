@@ -1,5 +1,6 @@
 //! The clients child and secret-free root handoffs (client/README.md, 2 and 8; jig's
 //! protocol/service.md, 3).
+//! Local links stay apart from printed links (client/README.md, 6.12).
 use crate::settings::Seeds;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -68,10 +69,12 @@ pub struct Clients {
     stopping: Option<()>,
 
     secret: Option<skein_lib::Secret>,
+    local_secret: Option<skein_lib::Secret>,
     pub(crate) env: Env<kit::Limits>,
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
     pub(crate) links: Queue<Box<[u8]>>,
+    pub(crate) local_links: Queue<Box<[u8]>>,
     pub(crate) secrets: Queue<kit::SecretsRequest>,
     pub(crate) closed: bool,
     pending: bool,
@@ -273,10 +276,12 @@ impl Clients {
             stopping: None,
 
             secret: None,
+            local_secret: None,
             env,
             out,
             io: Queue::uncapped(),
             links: Queue::uncapped(),
+            local_links: Queue::uncapped(),
             secrets: Queue::uncapped(),
             closed: false,
             pending: true,
@@ -305,6 +310,11 @@ impl Clients {
             && let Some(secret) = self.secret.take()
         {
             self.links.push(printed::link_public(listener, self.public.as_ref(), &secret));
+        }
+        if let Some(listener) = self.server.listening()
+            && let Some(secret) = self.local_secret.take()
+        {
+            self.local_links.push(printed::link_public(listener, self.public.as_ref(), &secret));
         }
     }
     #[must_use]
@@ -521,7 +531,10 @@ impl Clients {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
-                kit::Request::LocalLink { .. } => {}
+                kit::Request::LocalLink { secret } => {
+                    self.local_secret = Some(secret);
+                    self.print_link();
+                }
                 kit::Request::Link { secret } => {
                     self.secret = Some(secret);
                     self.print_link();
