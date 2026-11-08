@@ -319,6 +319,7 @@ pub(crate) struct Wire {
     pub(crate) channel: Option<kernel::Fd>,
     pub(crate) adopting_hellos: u32,
     pub(crate) hellos: u32,
+    pub(crate) admitted_hellos: u32,
     pub(crate) start_messages: u32,
     pub(crate) waited: bool,
     pub(crate) closed: bool,
@@ -401,6 +402,10 @@ impl Wire {
                 secrets(&mut self.grants, read.grant());
             }
             if header.kind == 0x0188 {
+                // The fleet sends sources after admitting a hello (domain/engine.md, 8).
+                if !worker {
+                    self.admitted_hellos += 1;
+                }
                 let sources = jig_protocol_worker_wire::Sources::decode(
                     &jig_protocol_worker_wire::CEILINGS,
                     &mut skein_lib::Reader::new(&stream[8..end]),

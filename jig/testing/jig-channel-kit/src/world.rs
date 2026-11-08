@@ -52,6 +52,7 @@ pub struct Outcome {
     pub reset_injected: bool,
     pub adopting_hellos: u32,
     pub hellos: u32,
+    pub admitted_hellos: u32,
     pub cuts: u32,
     pub agent_starts: u32,
     pub activity_seen: bool,
@@ -235,6 +236,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         reset_injected,
         cuts,
         hellos: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.wire.hellos) } else { None }).unwrap_or(0),
+        admitted_hellos: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.wire.admitted_hellos) } else { None }).unwrap_or(0),
         adopting_hellos: worker.map_or(0, |wire| wire.adopting_hellos),
         agent_starts: u32::try_from(killed + procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count()).expect("agent count"),
         messages_ended: u32::try_from(views.messages_ended).expect("bounded messages"),
@@ -512,6 +514,7 @@ fn make_referee(
 ) -> crate::referee::Referee {
     crate::referee::Referee {
         calibrating_held_turn,
+        redial_ceiling: fixtures::worker_redial_ceiling(),
         store,
         cut_ready: Rc::new(std::cell::Cell::new(0)),
         accounts: crate::account_setup::Setup::default(),

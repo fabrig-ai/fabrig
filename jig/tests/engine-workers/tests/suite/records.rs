@@ -51,6 +51,7 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Ended { .. }
             | Request::Closed => panic!("an up record"),
         }
     }

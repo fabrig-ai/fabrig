@@ -296,7 +296,8 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
             load(worker, 0);
             peer.turn(worker);
             assert!(
-                !peer.records.iter().any(|record| *record == fixtures::worker_peers::LinkRecord::Lost),
+                !peer.records.iter().any(|record| matches!(record,
+                    fixtures::worker_peers::LinkRecord::Lost | fixtures::worker_peers::LinkRecord::Ended)),
                 "the engine lost a healthy worker at {seconds}s while its records waited"
             );
             assert!(worker.notes().is_empty(), "the worker's linked link gives no loss fact");

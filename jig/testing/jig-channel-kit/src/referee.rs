@@ -47,6 +47,7 @@ impl RootChecks {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent party, injection and settlement controls")]
 pub struct Referee {
+    pub(crate) redial_ceiling: skein_lib::Duration,
     pub(crate) cut_ready: Rc<std::cell::Cell<u32>>,
     pub(crate) accounts: crate::account_setup::Setup,
     /// Owned outside every engine process, so restart cannot drop durable rows.
@@ -266,11 +267,11 @@ impl skein_world::Referee<Proc> for Referee {
         {
             Some(Time::from_nanos(1_000_000_000))
         } else {
-            Some(Time::from_nanos(300_000_000_000))
+            Some(self.horizon())
         }
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (!self.passed && now >= Time::from_nanos(300_000_000_000)).then(|| {
+        (!self.passed && now >= self.horizon()).then(|| {
             format!(
                 "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}",
                 self.story,
@@ -705,12 +706,23 @@ impl Referee {
 }
 
 impl Referee {
+    fn horizon(&self) -> Time {
+        let base = 300_000_000_000_u64;
+        let extra = match self.story {
+            crate::stories::Story::Cuts { times } => {
+                self.redial_ceiling.as_nanos().checked_mul(u64::from(times)).expect("story cuts fit the clock")
+            }
+            _ => 0,
+        };
+        Time::from_nanos(base.checked_add(extra).expect("story horizon fits the clock"))
+    }
+
     fn observe_probe(&mut self, procs: &[Proc]) -> bool {
         if let crate::stories::Story::Cuts { times } = self.story {
             let engine =
                 procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e) } else { None }).expect("engine");
-            self.cut_ready.set(engine.wire.hellos);
-            self.passed = engine.wire.hellos == times + 1;
+            self.cut_ready.set(engine.wire.admitted_hellos);
+            self.passed = engine.wire.admitted_hellos == times.checked_add(1).expect("cut count fits");
             assert!(engine.wire.placements.is_empty(), "cuts host no run");
             return true;
         }
@@ -801,7 +813,7 @@ impl Referee {
 
 impl Referee {
     fn observe_engine(&mut self, now: Time, engine: &crate::processes::ServiceHost) {
-        if now >= Time::from_nanos(300_000_000_000) {
+        if now >= self.horizon() {
             self.formatted = format!(
                 "engine frames {:?}; roots {:?}",
                 engine.wire.frames.iter().map(|(_, kind, _)| *kind).collect::<Vec<_>>(),

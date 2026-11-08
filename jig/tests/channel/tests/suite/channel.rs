@@ -324,5 +324,6 @@ fn a_worker_cut_fifty_times_is_taken_back_each_time() {
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert_eq!(outcome.cuts, 50);
     assert_eq!(outcome.hellos, 51);
+    assert_eq!(outcome.admitted_hellos, 51);
     assert_eq!(outcome.agent_starts, 0);
 }

@@ -18,6 +18,7 @@ const LINK_RECORDS: u32 = 6;
 pub(crate) enum LinkRecord {
     Hello,
     Lost,
+    Ended,
     Turn(u32),
     Answer(u32),
 }
@@ -167,8 +168,13 @@ impl LinkPeer {
                     }
                     return Some(request);
                 }
-                engine_link::Request::Lost { .. } => {
+                request @ engine_link::Request::Lost { .. } => {
                     self.records.push(LinkRecord::Lost).expect("bounded link records");
+                    return Some(request);
+                }
+                request @ engine_link::Request::Ended { .. } => {
+                    self.records.push(LinkRecord::Ended).expect("bounded link records");
+                    return Some(request);
                 }
                 engine_link::Request::Close { .. } | engine_link::Request::Abort { .. } => {}
                 other @ (engine_link::Request::TurnAway { .. }

@@ -12,14 +12,6 @@ Sections 5.1, 5.2 and 8 have no known implementation gap in `read list`
 and `list read`, their bounded rows and failures, or retaining a key
 grant while its read is under way. The hub hears the grant's name alone.
 
-- **Not yet:** 9, 10.2: no connection's end says why: the engine's
-  component reports a lost channel without its reason and nothing for a
-  refused or turned-away connection (`jig-protocol-engine-workers/src/boundary.rs`,
-  `Request::Lost`). 10.2: a connection lost by a deadline holds no
-  deadline while it closes (`jig-protocol-engine-workers/src/component.rs`,
-  `fire`), so one whose channel never ends keeps its room and the
-  workers' part's close. 12: the engine's fifty-loss and closing rows, and
-  the protocol world's fifty-cut story.
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
 - **Departs:** 12: the `jig-world-cost` request says no story loses what it
   checks. Root checks at every step cover the six drawn fuzzy stories and
