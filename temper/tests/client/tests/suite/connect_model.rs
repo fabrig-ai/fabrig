@@ -336,9 +336,25 @@ fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: 
     }));
     accounts::settle(front, root);
 }
+fn usable_sign_in_account(root: &Root, source: u32) -> u32 {
+    let document = d::pages::accounts::document(root.person().client()).expect("engine account facts");
+    assert!(document.usable, "the sign-in left a usable model");
+    let [account] = document.accounts.as_slice() else { panic!("the sign-in made one account") };
+    assert_eq!(account.provider, Some(accounts::PROVIDER));
+    assert!(account.plan);
+    let [sign_in] = account.sources.as_slice() else { panic!("the account has one sign-in source") };
+    assert_eq!(sign_in.number, source);
+    assert_eq!(sign_in.kind, jig_client::contract::AccountKind::SignIn);
+    assert!(sign_in.usable, "the sign-in's source is usable");
+    account.number
+}
 fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
+    let document = d::pages::accounts::document(root.person().client()).expect("engine account facts before sign-in");
+    assert!(!document.usable, "no model is usable before sign-in");
+    assert!(document.accounts.iter().all(|account| account.sources.iter().all(|source| !source.usable)));
     let shown = front.shows.len();
     welcome_signed_in(front, root, source, false);
+    let account = usable_sign_in_account(root, source);
     let ready = Address::Welcome { step: d::Step::Ready };
     assert_eq!(root.person().pages().address(), &ready);
     assert_eq!(&front.shows[shown..], &[(ready, true)]);
@@ -354,6 +370,8 @@ fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
     accounts::settle(front, root);
     assert_eq!(front.shows.len(), shown + 1);
     assert!(front.leaves.is_empty());
+    accounts::reopen(front, root, Address::Accounts);
+    assert_eq!(usable_sign_in_account(root, source), account);
 }
 #[test]
 fn a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
