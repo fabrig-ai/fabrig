@@ -652,6 +652,10 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
 }
 
 fn twin_peer() -> super::super::llm::Listening {
+    super::super::sign_in::plan_document(&serde_json::to_vec(&twin_document()).expect("adapted twin JSON"))
+}
+
+fn twin_document() -> Value {
     let mut document: Value = serde_json::from_slice(include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/real-loop/tests/fixtures/b0/llm.json"
@@ -672,6 +676,11 @@ fn twin_peer() -> super::super::llm::Listening {
         }}],
         "finish":"tool_calls","tokens":20
     }]);
+    for script in scripts.iter_mut() {
+        if script["cue"] == "You are a goal: the work your person asked for" {
+            goal_inputs(script);
+        }
+    }
     // All other call arguments stay recorded. Identity-bearing prose in
     // words/text/content is deliberately untouched and is not an oracle.
     for (task, script) in scripts.iter().enumerate() {
@@ -687,7 +696,24 @@ fn twin_peer() -> super::super::llm::Listening {
             }
         }
     }
-    super::super::sign_in::plan_document(&serde_json::to_vec(&document).expect("adapted twin JSON"))
+    document
+}
+
+// A forge notification may wake the goal before its child returns. Select
+// the recorded turns from fresh inputs so the child's result releases the report.
+fn goal_inputs(script: &mut Value) {
+    script["inputs"] = json!([
+        {"cue":"Landed: pull request #", "turn":7},
+        {"cue":ANSWER, "turn":5},
+        {"cue":"The repository contains a minimal Rust binary:", "turn":3},
+        {"cue":"this work is to be agreed", "turn":1},
+        {"cue":"Delegated tasks:", "turn":6},
+        {"cue":"Message ", "turn":6},
+        {"cue":"asks (question", "turn":6},
+        {"cue":"forge landing", "turn":6},
+        {"cue":"A new activation starts", "turn":6},
+        {"cue":"", "turn":0}
+    ]);
 }
 
 /// Create only a synthetic account, using native connect and export. Its
@@ -854,11 +880,29 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     let me = driver.ctl(&["me"], None)?;
     let project = super::super::first_repository::project_number(&me, "widget")?.to_string();
     driver.project.clone_from(&project);
-    driver.ctl(&["project", "fund", &project, "1005888", "--key", "rung-project-funds"], None)?;
-    driver.ctl(&["project", "fund", &project, "928512", "--role", "0", "--key", "rung-role-funds"], None)?;
+    fund_project(driver, &project)?;
     let charter = driver.ctl(&["settings", "show", "charter", "1"], None)?;
     require(charter["value"]["model"]["name"] == "gpt-6.1-sol", "QA charter uses sol")?;
     Ok(())
+}
+
+fn fund_project(driver: &mut Driver, project: &str) -> Result<(), String> {
+    let current = driver.ctl(&["project", "show", project], None)?;
+    let period = current["policy"]["period_spend"].as_u64().ok_or("project period spend")?.max(1_005_888);
+    let owner = owner_role(&current)?["period_spend"].as_u64().ok_or("owner period spend")?.max(928_512);
+    // Funding raises run project first, then pool (client/tools.md, 5.3).
+    // Keep the current policy when it already funds the rung's work.
+    driver.ctl(&["project", "fund", project, &period.to_string(), "--key", "rung-project-funds"], None)?;
+    driver.ctl(&["project", "fund", project, &owner.to_string(), "--role", "0", "--key", "rung-role-funds"], None)?;
+    Ok(())
+}
+
+fn owner_role(project: &Value) -> Result<&Value, String> {
+    require(project["cut"] == false && project["policy"]["cut"] == false, "whole project policy read")?;
+    project["policy"]["roles"]
+        .as_array()
+        .and_then(|roles| roles.iter().find(|role| role["number"] == 0))
+        .ok_or_else(|| "project owner role missing".into())
 }
 
 /// Change the stock row after startup, through the signed-in owner's settings act.
@@ -902,7 +946,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, St
     require(log.lines().any(|line| line.contains("Forgejo: person ")), "Forgejo step logged the person's login")?;
     driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
-        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=18570240 period=1005888 role authority=232128 period=928512",
+        "SETUP sol high output=32000; engine memory=derived-before-start; project and owner funding keep the current policy above the rung's minimum",
     );
     let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
@@ -953,23 +997,7 @@ pub fn offline_setup(root: &Path) {
             require(accounts["accounts"]["party"] == json!([]), "no account imported by the offline setup")?;
             let project = driver.project.clone();
             let project = driver.ctl(&["project", "show", &project], None)?;
-            require(
-                project["policy"]["period_spend"] == 1_005_888
-                    && project["current_period"]["numbers"]["budget"] == 1_005_888,
-                "project policy and open period funded",
-            )?;
-            require(
-                project["policy"]["roles"].as_array().is_some_and(|roles| {
-                    roles.iter().any(|role| {
-                        role["number"] == 0
-                            && role["period_spend"] == 928_512
-                            && role["authority"]["authority"]["spend"] == 232_128
-                            && role["authority"]["cut"] == false
-                    })
-                }),
-                "role 0 authority and pool funded",
-            )?;
-            require(project["cut"] == false && project["configured_pools_cut"] == false, "whole project funding read")?;
+            check_funding(&project)?;
             Ok(())
         },
         boxed::CtlLlm { expected_exits: Vec::new(), peer, on_link: Box::new(|| {}) },
@@ -984,6 +1012,28 @@ pub fn offline_setup(root: &Path) {
     outcome.checked.expect("pre-import checkpoint").expect("all pre-import setup passed");
     assert!(outcome.model.expect("fake model observations").requests.is_empty(), "no model call before import");
     eprintln!("OFFLINE B0 setup passed through account-import boundary, zero model requests; box drained");
+}
+
+fn check_funding(project: &Value) -> Result<(), String> {
+    require(
+        project["policy"]["period_spend"].as_u64().is_some_and(|spend| spend >= 1_005_888)
+            && project["current_period"]["numbers"]["budget"] == project["policy"]["period_spend"],
+        "project policy and open period funded",
+    )?;
+    let owner = owner_role(project)?;
+    require(
+        owner["period_spend"].as_u64().is_some_and(|spend| spend >= 928_512)
+            && owner["authority"]["authority"]["spend"].as_u64().is_some_and(|spend| spend >= 232_128)
+            && owner["authority"]["cut"] == false
+            && project["pools"].as_array().is_some_and(|pools| {
+                pools.iter().all(|pool| {
+                    pool["source"]["pool"]["person"] != 1 || pool["numbers"]["budget"] == owner["period_spend"]
+                })
+            }),
+        "role 0 authority and pool funded",
+    )?;
+    require(project["cut"] == false && project["configured_pools_cut"] == false, "whole project funding read")?;
+    Ok(())
 }
 
 fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool) -> Result<(), String> {
@@ -1260,5 +1310,69 @@ pub mod tests {
         assert_eq!(driver.until, answer);
         driver.phase("person's answer sent");
         assert_eq!(driver.until, answer);
+    }
+}
+
+#[cfg(test)]
+mod twin_tests {
+    use super::*;
+    use skein_fake_llm_domain::{self as llm, api};
+    use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
+
+    #[test]
+    fn the_twin_waits_for_the_childs_result_after_a_forge_notification() {
+        for (fresh, prior, expected) in [
+            ("Initial work", 0, "goal"),
+            ("this work is to be agreed", 1, "goal"),
+            ("Delegated tasks: 3", 2, "wait"),
+            ("The repository contains a minimal Rust binary:", 3, "message"),
+            (ANSWER, 5, "change"),
+            ("2: forge landing before the child's result", 7, "wait"),
+            ("4: Result from task 4: Landed: pull request #2", 8, "finish"),
+        ] {
+            assert_eq!(answer(fresh, prior), expected, "fresh input: {fresh}");
+        }
+    }
+
+    fn answer(fresh: &str, prior: usize) -> String {
+        let document = serde_json::to_vec(&twin_document()).expect("twin JSON");
+        let document = temper_fake::llm::Document::decode(&document).expect("twin document");
+        let mut domain = document.domain(17);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: document.limits() };
+        let query = query(fresh, prior);
+        let call = Token::new(1);
+        let mut out = Queue::uncapped();
+        llm::step(&mut domain, &env, llm::Event::Call { reply_to: ReplyTo::new(call), call, query }, &mut out);
+        llm::fire(&mut domain, &env, &mut out);
+        let Some(llm::Request::Reply { result: Ok(reply), .. }) = out.pop() else { panic!("twin answered") };
+        let Some(api::Part::ToolCall { name, .. }) = reply.parts.first() else { panic!("twin called a tool") };
+        String::from_utf8(name.to_vec()).expect("tool name")
+    }
+    fn query(fresh: &str, prior: usize) -> api::Query {
+        let mut messages = Vec::new();
+        for _ in 0..prior {
+            messages.push(api::Message {
+                role: api::Role::User,
+                parts: Box::new([api::Part::Text { text: b"earlier".as_slice().into() }]),
+            });
+            messages.push(api::Message {
+                role: api::Role::Assistant,
+                parts: Box::new([api::Part::Text { text: b"earlier".as_slice().into() }]),
+            });
+        }
+        messages.push(api::Message {
+            role: api::Role::User,
+            parts: Box::new([api::Part::Text { text: fresh.as_bytes().into() }]),
+        });
+        api::Query {
+            credential: None,
+            caching: api::Caching::Unscoped,
+            model: b"fake".as_slice().into(),
+            system: b"You are a goal: the work your person asked for".as_slice().into(),
+            tools: Box::new([]),
+            messages: messages.into_boxed_slice(),
+            max_tokens: 1000,
+            choice: api::ToolChoice::Auto,
+        }
     }
 }
