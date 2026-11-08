@@ -1314,14 +1314,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
-- **Choosing a project's stock way on its page** (13.10;
-  `../draft/stock-ways.md`, section 7's step 4): Ask temper's opening
-  drawing the ways as tabs with their acts and a stop's card is the look
-  request `ask-temper-ways`, which follows the owned-forge person link,
-  since "Use this" on You approve is refused with no eligible owner on a
-  box until then. Default: the read, its acts and the views as 13.10 has
-  them, a project's existing policy gaining Draft first's delegation by
-  that way's act or by its owner's accepted proposal.
 - **A landing branch with another name than `main`** (13.10;
   `../draft/stock-ways.md`, section 2): Draft first's rule 1 names
   `main`, so over a repository whose landing branch is named otherwise

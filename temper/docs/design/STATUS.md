@@ -107,11 +107,13 @@ reply are built, with "Use this", "Keep it" and "Yours" in the client's
 domain and drawn on Ask temper's opening, with its lede, tabs, axis,
 path, stop's card, legend and acts from the `ways` read. The old starters,
 own way's card and reference pane are gone; responsive paths share their
-look with replies. Temper/ui's rendered comparison follows landing
-(`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and 13.2 to 13.10;
-`client/README.md`, 5.13, 5.16 and 11;
-`draft/stock-ways.status.md`). Ask temper's first milestone
-stands in the code, with its own project page, rail entry and phone tab
+look with replies. The design departs from the request `ask-temper-ways`
+in one drawing laid out by its width, the line's two tones, the scene's
+caret and stops with no ARIA; temper/ui's rendered comparison follows
+landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
+13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
+`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
 and Settings' offer are gone by plan `ui-ask-drop`. Its walks follow
@@ -599,17 +601,14 @@ and on `ConnectModel`, where a paste finishing also keeps the note's waiting wor
 `ui-owner-menu` in a press outside that took the focus, which keeps it, "Sign out"
 with no project, which is the top bar's, and the tab's whole row leaving
 over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
-composer and a send leaves the focus there, but a starter's press asks the same on a phone,
+composer and a send leaves the focus there, but a suggested request's press asks the same on a phone,
 and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
 moves the focus while a heading drawn after its page waits (`client/browser.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). temper's own way stands on
-Configure, departing from the request `configure-temper-own-way` in its reference's
-words and look (`client/README.md`), but no journey records its acts and no
-render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+takes the browser's margins (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
 mark is a glyph that does not blink (`client/README.md`). The long-message
 read's decoder and retry chain is repaired and covered through the real engine;
