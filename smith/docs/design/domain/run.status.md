@@ -15,14 +15,15 @@ feedback table checks every stop, zero and maximum cut counts, and the
 usage suffix. Retaining a cut answer's rest for a continuation remains
 section 15's open question; the run keeps no rest beyond the cap.
 
-Section 5.3's room has eight scripted program-world rows: two, four,
-five and six calls at a room of five, with program and credential
+Section 5.3's room has ten scripted program-world rows: two to six
+calls at a room of five, with program and credential
 children. They send all MCP requests before reading replies, mix an
 immediate child with children that read then answer, and put credential
 children on another provider. Each checks the admitted children's
 answers and closure, each excess call's `refused reason=too-many`, main's
-accepted answer and removal of private directories. These rows did not
-reproduce the reported deployment abort; no production bound changed.
+accepted answer and removal of private directories. The reported
+deployment abort on such a burst was no bound's but a file answer's
+routing (protocol/programs.status.md, 5.1); no production bound changed.
 
 Section 5.2 has no known gap in a busy or unanswered host call's retry
 backoff: it doubles from `host_backoff` to 64 times that first wait,

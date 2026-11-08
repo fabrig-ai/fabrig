@@ -7,11 +7,11 @@ Sections 2.1, 2.2, 3.9 and 4 have no known gap in endpoint limits,
 against the endpoint rather than a model declaration.
 
 Section 6's `sub_agent` row is covered at a declared room of five by
-eight program-world rows, asking two, four, five and six calls with
-program and credential children. Requests enter together; admitted
-children answer and excess calls return `refused reason=too-many`.
-The reported deployment abort was not reproduced, so its cause remains
-the gap below; no production limit changed.
+ten program-world rows, asking two to six calls with program and
+credential children. Requests enter together; admitted children answer
+and excess calls return `refused reason=too-many`. The reported
+deployment abort on such a burst was no limit's but a file answer's
+routing (programs.status.md, 5.1); no production limit changed.
 
 Sections 3.4, 3.10, 4 and 6 have no known gap in a sub-agent's answer
 allowance: `answer_bytes` equals `outcome_bytes`, the larger of 4,096 and

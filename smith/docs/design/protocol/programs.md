@@ -870,6 +870,11 @@ the next turn of that same cued script (decided 2026-11-02).
   Where the program keeps a session is its own, and undocumented.
   Default: it is left to the program's own clean-up, and never resumed
   (5.8).
+- **An unasked answer's open file** (5.1): an `Opened` that reaches a
+  program with none of its operations outstanding is dropped with the
+  run's failure, and nothing closes the file it opened before the agent
+  ends. Default: left so, since each answer goes to the program that
+  asked it and none arrives unasked but by a fault.
 - **Logins out of the run's reach:** a contained tree that keeps the
   configuration directories from the run's commands while the program
   reads its own, which would lift section 7's one-person rule.
