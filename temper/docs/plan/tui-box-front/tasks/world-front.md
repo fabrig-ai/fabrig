@@ -61,3 +61,13 @@ Options, each decided:
 ## Report
 
 As the implementer's text says, with each story and the rule broken by hand for it (for instance `linked` never set, or the playground's read again dropped), how the browser and the playground were driven, and anything under `## Left`.
+
+## Rebase (2026-11-08, step merge, foreman tui-box-front/world-front/foreman-1)
+
+Resolve the status-file conflict by retaining both tasks’ bullet deletions.
+The conflict is in `temper/docs/design/client/README.status.md`.
+Integration commit `62e3bf868f` (`front-command`), merged by `d1efa97711`, deletes the **Not yet** bullet for descriptor 3 and `temper internal tui --box`.
+This branch’s `1a173ce387` deletes the adjacent **Not yet** bullet naming `world-front`.
+Rebase onto the updated integration tip and resolve the hunk with both bullets absent.
+Keep the following **Not yet** bullet for 6.17, *The place*, unchanged.
+No Rust changes are needed for this merge refusal.
