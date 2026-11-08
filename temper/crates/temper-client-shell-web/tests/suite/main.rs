@@ -22,10 +22,6 @@ fn stylesheet_assets_follow_the_same_origin_policy() {
                 reference.split_once(')').expect("asset URL ends")
             };
             css = rest;
-            if url.starts_with("data:image/svg+xml,") {
-                assert!(!url.contains("href=") && !url.contains("url(http"), "inline image is self-contained: {url}");
-                continue;
-            }
             assert!(url.starts_with("files/") && !url.contains(".."), "asset must be served from self: {url}");
             assert!(root.join(url).is_file(), "stylesheet asset exists: {url}");
         }
