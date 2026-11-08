@@ -104,7 +104,6 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, false, 43_177, 356_958),
         (1, true, 41_087, 359_048),
         (2, false, 36_104, 364_031),
-        (3, false, 43_674, 356_461),
         (4, false, 32_670, 367_465),
         (6, false, 33_894, 366_241),
         (9, false, 31_337, 368_798),
@@ -112,7 +111,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (11, true, 9_960, 390_175),
     ] {
         let assignment = assignment(number, open, 14_592);
-        let mut charter = temper_engine_smith::charter(&assignment);
+        let charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
         let workspace = if number == 9 || number == 10 || number == 11 {
@@ -133,9 +132,6 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
             run::brief_bytes(&charter.brief).unwrap(),
             i64::from(room).checked_sub(i64::try_from(run::brief_bytes(&charter.brief).unwrap()).unwrap()).unwrap()
         );
-        if number == 3 {
-            temper_engine_smith::fit_brief(&mut charter, workspace.as_ref(), &limits);
-        }
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
@@ -172,21 +168,21 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    // Eight model declarations leave this margin beyond the framed brief.
-    const MARGIN: u32 = 1;
+    // Charter 1's room leaves this margin beyond the framed brief.
+    const MARGIN: u32 = 498;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     assert!(brief.parts >= TASK_PARTS);
-    let largest = temper_engine_smith::charter(&assignment(3, false, 0));
+    let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 356_461);
+    assert_eq!(room, 356_958);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
     for (number, open) in
-        [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false), (9, false), (10, false), (11, true)]
+        [(1, false), (1, true), (2, false), (4, false), (6, false), (9, false), (10, false), (11, true)]
     {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
@@ -334,7 +330,7 @@ fn stock_small_heap_through_construction_admission_and_first_turn() {
     eprintln!("heap agent Service::new held={} peak={}", measured.held(), measured.peak());
     drop(service);
     measure_worker();
-    for number in [1, 2, 3, 4, 6] {
+    for number in [1, 2, 4, 6] {
         measure_turn(number);
     }
 }
@@ -420,11 +416,8 @@ fn measure_turn(number: u32) {
     let meter = Meter::new();
     meter.start();
     let mut domain = smith_domain::Domain::new(&limits, config.service.domain, 7);
-    let mut charter = temper_engine_smith::charter(&assignment);
+    let charter = temper_engine_smith::charter(&assignment);
     let workspace = workspace(number != 4 && number != 6);
-    if number == 3 {
-        temper_engine_smith::fit_brief(&mut charter, Some(&workspace), &limits.run);
-    }
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {

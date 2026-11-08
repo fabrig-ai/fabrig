@@ -190,14 +190,3 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   `model_document`), because its scripts are static, so on `temper box
   --fake-backends` a fresh box's first chat's goal alone writes a report: a
   later goal is refused its note and ends with none.
-- **Not yet:** 4.3, 8.1: the stock still holds charter 3, whose runs are
-  declared the settings family's `settings` and `propose_settings`'
-  configuring form, and template 3 (`../protocol/configuration.status.md`,
-  13.4), with `stock/configuring.txt` and its phrase tests, the
-  `configuring_txt_*` tests of `temper-service/src/tests/stock.rs`, where
-  4.3 declares those tools to no stock charter and 8.1 has configuring
-  Ask temper's alone.
-- **Not yet:** 4.3: `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds`
-  (`temper-service/src/tests/stock_brief.rs`) takes charter 3's non-brief
-  host part, 43,674 bytes, as the largest stock charter's, where 4.3 has
-  charter 1's with a Change contract, 43,177 bytes.

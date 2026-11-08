@@ -280,57 +280,41 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
 }
 
 #[test]
-fn the_configuring_agent_is_charter_3_and_template_3() {
+fn ask_temper_is_charter_11_and_template_5() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 3, 4, 6, 9, 10, 11]
+        [1, 2, 4, 6, 9, 10, 11]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512, 0, 0, 3072]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 512, 0, 0, 3072]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
-    for (number, tools, inspect, bytes, headings, absent) in [
-        (3, 1920, true, 7043, &[][..], &[][..]),
-        (
-            11,
-            3072,
-            false,
-            7335,
-            &["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"][..],
-            &["## Showing", "## Remembering"][..],
-        ),
-    ] {
-        let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock charter");
-        let mut expected = defaults.charters[0].clone();
-        expected.number = number;
-        expected.policy.instructions = charter.policy.instructions.clone();
-        expected.policy.inspect = inspect;
-        expected.policy.modify = false;
-        expected.policy.agents = false;
-        expected.policy.tools = jig_domain_tasks::Tools(tools);
-        assert_eq!(*charter, expected);
-        let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
-        assert_eq!(words.len(), bytes, "charter {number}");
-        assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
-        for heading in headings {
-            assert!(words.contains(heading), "charter {number}: missing {heading}");
-        }
-        for heading in absent {
-            assert!(!words.contains(heading), "charter {number}: excluded {heading}");
-        }
+    let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
+    let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
+    expected.number = 11;
+    expected.policy.instructions = include_bytes!("../stock/ask.txt").as_slice().into();
+    expected.policy.inspect = false;
+    expected.policy.modify = false;
+    expected.policy.agents = false;
+    expected.policy.tools = jig_domain_tasks::Tools(3072);
+    assert_eq!(*charter, expected);
+    let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert_eq!(words.len(), 7335);
+    assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
+    for heading in ["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"]
+    {
+        assert!(words.contains(heading), "missing {heading}");
     }
-    assert_eq!(defaults.charters[2].policy.instructions.as_ref(), include_bytes!("../stock/configuring.txt"));
-    assert!(!defaults.charters[2].policy.modify);
-    assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 5]);
-    for (number, name, charter) in [(3, b"configuring".as_slice(), 3), (5, b"ask".as_slice(), 11)] {
-        let mut expected = defaults.templates[0].clone();
-        expected.number = number;
-        expected.name = name.into();
-        expected.executor = jig_domain_people::TemplateExecutor::Charter(charter);
-        assert_eq!(*defaults.templates.iter().find(|template| template.number == number).unwrap(), expected);
+    for heading in ["## Showing", "## Remembering"] {
+        assert!(!words.contains(heading), "excluded {heading}");
     }
+    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 5]);
+    let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
+    expected.number = 5;
+    expected.name = b"ask".as_slice().into();
+    expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
+    assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
 }
 
 #[test]
@@ -372,19 +356,19 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5854, Setting::Policy(1), "the stock's policy 1 needs 5854 bytes"),
+        (b"core.policy_bytes", 5822, Setting::Policy(1), "the stock's policy 1 needs 5822 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 13, Setting::Rules, "the stock's rules need 13 executors"),
+        (b"authority.executors", 12, Setting::Rules, "the stock's rules need 12 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 8, Setting::Charter(1), "the stock offers 8 charters"),
-        (b"core.templates", 4, Setting::Template(1), "the stock offers 4 templates"),
-        (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
+        (b"tasks.charters", 7, Setting::Charter(1), "the stock offers 7 charters"),
+        (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
+        (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
-        (b"core.settings.alternatives", 2, Setting::Charter(3), "the stock's charter 3 needs 2 alternatives"),
+        (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
     // Every positive scalar bound reached by jig's whole-set check is at its
@@ -497,7 +481,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5854 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5822 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -713,7 +697,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
         })
         .collect();
     unnamed.llm.models.reverse();
-    for (llm, ordinary, configuring) in [
+    for (llm, ordinary, asking) in [
         (single_engine().llm, vec!["gpt-6.1-sol"], vec!["gpt-6.1-sol"]),
         (
             engine(&generated()).llm,
@@ -767,9 +751,9 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
     ] {
         let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
         for charter in &defaults.charters {
-            let names = if charter.number == 3 || charter.number == 11 { &configuring } else { &ordinary };
+            let names = if charter.number == 11 { &asking } else { &ordinary };
             assert!(charter.rest);
-            let first_choices: &[&[u8]] = if charter.number == 3 || charter.number == 11 {
+            let first_choices: &[&[u8]] = if charter.number == 11 {
                 &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"]
             } else {
                 &[b"claude-opus-5-5", b"gpt-6.1-sol"]
@@ -886,10 +870,10 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 3, 4, 6, 9, 10, 11]
+        [1, 2, 4, 6, 9, 10, 11]
     );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let mut expected = defaults.charters[3].clone();
+    let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
     expected.number = 6;
     expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
     assert_eq!(*foreman, expected);
@@ -987,9 +971,8 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, turns, seconds) in
-            [(&stock.charters[0], 64, 3600), (&stock.charters[1], 800, 28_800), (&stock.charters[5], 4, 300)]
-        {
+        for (number, turns, seconds) in [(1, 64, 3600), (2, 800, 28_800), (9, 4, 300)] {
+            let charter = stock.charters.iter().find(|charter| charter.number == number).unwrap();
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
@@ -1074,13 +1057,13 @@ fn startup_refuses_stock_budget_overflow_before_constructing_defaults() {
 fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let engine = engine(&generated());
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let mut expected = defaults.charters[1].clone();
+    let mut expected = defaults.charters.iter().find(|charter| charter.number == 2).unwrap().clone();
     expected.number = 4;
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
     expected.policy.modify = false;
     expected.policy.agents = false;
     expected.policy.tools = jig_domain_tasks::Tools(512);
-    assert_eq!(defaults.charters[3], expected);
+    assert_eq!(*defaults.charters.iter().find(|charter| charter.number == 4).unwrap(), expected);
     for authority in [
         &defaults.rules.ceiling,
         &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
@@ -1108,7 +1091,6 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
             [
                 Executor::Charter(1),
                 Executor::Charter(2),
-                Executor::Charter(3),
                 Executor::Charter(4),
                 Executor::Charter(6),
                 Executor::Charter(9),
@@ -1416,149 +1398,18 @@ fn chat_txt_tells_a_chat_to_keep_one_document() {
 }
 
 #[test]
-fn configuring_txt_says_nothing_has_changed_in_one_place() {
-    let words = include_str!("../stock/configuring.txt");
-    assert_eq!(words.matches("nothing has changed").count(), 1);
-    assert!(words.contains("only when you first tell them of a proposal"));
-    assert!(words.contains("Never before a proposal; never to close a reply."));
-    assert!(words.contains("Say in one sentence what changed in it"));
-}
-
-#[test]
-fn configuring_txt_says_a_proposal_waits_for_an_accept_without_its_key() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("waits in this chat for their Accept"));
-    assert!(words.contains("without its key"));
-    assert!(!words.contains("Give its number"));
-    assert!(!words.contains("awaits an owner"));
-}
-
-#[test]
-fn configuring_txt_names_a_repository_by_its_name() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("name a repository by its name, never by an address or port"));
-    assert!(words.contains("ports too"));
-}
-
-#[test]
 fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
-    for words in [include_str!("../stock/configuring.txt"), include_str!("../stock/chat.txt")] {
+    for words in [
+        include_str!("../stock/ask.txt"),
+        include_str!("../stock/chat.txt"),
+        include_str!("../stock/coding.txt"),
+        include_str!("../stock/review.txt"),
+        include_str!("../stock/foreman.txt"),
+        include_str!("../stock/status.txt"),
+        include_str!("../stock/trial.txt"),
+    ] {
         assert!(!words.contains("PROJECT"));
         assert!(!words.contains("DATE"));
-    }
-    assert!(include_str!("../stock/configuring.txt").contains("titled \"How this project works\""));
-}
-
-#[test]
-fn configuring_txt_says_who_does_what_in_the_persons_words() {
-    let words = include_str!("../stock/configuring.txt");
-    assert_eq!(words.matches("operator").count(), 1, "only the word it must not say");
-    assert!(words.contains("Not \"stock settings\" or \"operator\""));
-    let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
-    for phrase in [
-        "No inventory account there? Approve or join, before/after acceptance",
-        "say who does each",
-        "Write isn't enough",
-        "Person: adopt again, reread inventory and propose afresh against the newest revision: Settings, Repositories, Adopt a repository",
-    ] {
-        assert!(approvers.contains(phrase), "missing: {phrase}");
-    }
-}
-
-#[test]
-fn configuring_txt_says_how_a_pending_proposal_goes() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(
-        words.contains("Revise pending: propose whole at newest revision; replaces yours; card says so. No Needs you.")
-    );
-    assert!(words.contains("Refused: it stays; say so."));
-}
-
-#[test]
-fn configuring_txt_points_an_unavailable_model_to_accounts() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains(
-        "none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."
-    ));
-}
-
-#[test]
-fn configuring_txt_tells_it_how_project_works() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("Once you understand the person's way of working"));
-    assert!(words.contains("one document titled \"How this project works\", current as the conversation changes it"));
-    assert!(words.contains("Use note:"));
-    assert!(words.contains("Change nothing yourself."));
-    assert_document_rule(words);
-}
-
-#[test]
-fn configuring_txt_names_complete_approval_adoption_steps() {
-    let words = include_str!("../stock/configuring.txt");
-    let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
-    for phrase in [
-        "Inventory account on repository's forge (as on a box)? Nothing to add",
-        "propose own role, owner (0) on a project they made; no more of forge identity",
-        "A login alone is no eligibility",
-        "a repository admin adds a human collaborator at mapped permission",
-        "on Forgejo, grants temper's forge user repository admin",
-        "Person: adopt again",
-        "reread inventory and propose afresh against the newest revision",
-    ] {
-        assert!(approvers.contains(phrase), "missing approval adoption instruction: {phrase}");
-    }
-    assert!(!approvers.contains("operator"));
-    assert!(words.contains("Never send them to a terminal, temper ctl or a command"));
-}
-
-#[test]
-fn configuring_txt_starts_from_temper_own_way() {
-    let words = include_str!("../stock/configuring.txt");
-    assert_eq!(
-        words.rsplit("\n\n").nth(1).expect("the penultimate paragraph gives temper's own way"),
-        concat!(
-            "To set a project up as temper builds itself, first read_docs, topic how-temper-builds-temper. ",
-            "Size settings for this deployment's worker slots and account models. ",
-            "Say what it cannot do yet and leave it out. ",
-            "In your document, keep temper's own values in a column beside the project's, each difference a sentence the person can change.",
-        )
-    );
-    assert!(temper_docs::find(b"how-temper-builds-temper").is_some());
-}
-
-#[test]
-fn configuring_txt_says_what_a_public_project_shows() {
-    let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("Making the project public is no setting: never propose it"));
-    assert!(words.contains("Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too."));
-}
-
-#[test]
-fn configuring_txt_speaks_the_persons_terms() {
-    let words = include_str!("../stock/configuring.txt");
-    for phrase in [
-        "Speak the person's terms",
-        "only in a proposal or its outcome, or when asked",
-        "answer from your document",
-        "Never send them to a terminal, temper ctl or a command",
-        "the owner's acceptance checks",
-        "requester is the project party",
-        "configured owned-forge account is separate",
-        "existing verified project role",
-        "read the current project-policy permission mapping",
-        "admin seeds maintainer (1), never owner (0)",
-        "Never promise admin fixes a role-0 proposal",
-        "reread inventory and propose afresh against the newest revision",
-        "read_permission names a forge user's login",
-        "An unknown forge identity cannot count for approvals",
-        "only when approvals are what's being asked about or proposed",
-        "never report it as a setting",
-        "each read with project and no number",
-    ] {
-        assert!(words.contains(phrase), "missing: {phrase}");
-    }
-    for phrase in ["(kind 7)", "(kind 6)", "establish eligible people first", "naming pages"] {
-        assert!(!words.contains(phrase), "still says: {phrase}");
     }
 }
 
@@ -1785,24 +1636,4 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
             .as_bytes()
         );
     }
-}
-
-#[test]
-fn configuring_txt_teaches_model_changes_within_the_offer() {
-    let words = include_str!("../stock/configuring.txt");
-    for phrase in [
-        "A model is a setting like the others",
-        "window/output",
-        "efforts and default effort",
-        "prices, shown name",
-        "whether it is on the picker",
-        "removal (withdrawn)",
-        "A role's default is its charter's model order",
-        "Settings, Models",
-        "A task keeps the model it has",
-        "The offer still bounds every model you mention or propose",
-    ] {
-        assert!(words.contains(phrase), "missing model instruction: {phrase}");
-    }
-    assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
 }

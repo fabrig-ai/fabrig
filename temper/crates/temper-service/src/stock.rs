@@ -208,7 +208,7 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
 
 const FORGE: u16 = 1;
 const FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6.1-sol"];
-const CONFIGURING_FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"];
+const ASK_FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"];
 
 /// Each project's funding span, from its first period (protocol/configuration.md, 13.4).
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
@@ -216,14 +216,13 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 /// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
 /// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent.md, 4.3.1),
 /// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent.md, 8.3),
-/// Read (the forge's reads), and Settings (the configuring chat reads settings and
-/// proposes), and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
+/// Read (the forge's reads), Settings (Ask temper proposes)
+/// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration.md, 13.4.
 const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
-const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1920);
 const ASK_TOOLS: jig_domain_tasks::Tools =
     jig_domain_tasks::Tools(ToolFamilies::JIG.ask.0 | ToolFamilies::JIG.settings);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
@@ -351,7 +350,6 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     let mut charters = Box::new([
         charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
         charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
-        configuring_charter(&models),
         reviewer(&models),
         foreman(&models),
         status(&models),
@@ -376,7 +374,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes), ask(result_bytes)]);
+    let templates = Box::new([chat(result_bytes), goal(result_bytes), ask(result_bytes)]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
@@ -452,9 +450,9 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
     }
 }
 
-// Chat and configuring charter rows (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat and Ask temper charter rows (temper/docs/design/protocol/configuration.md, 13.4).
 const CHAT_TURNS: u32 = 64;
-// Chat and configuring charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat and Ask temper charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
 const CHAT_TIME: Duration = Duration::from_secs(3_600);
 // Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration.md, 13.4).
 const WORK_TURNS: u32 = 800;
@@ -518,7 +516,6 @@ fn charter(
             tools: match number {
                 1 => CHAT_CHARTER_TOOLS,
                 2 => CODING_TOOLS,
-                3 => CONFIGURING_TOOLS,
                 4 => REVIEWING_TOOLS,
                 6 => FOREMAN_TOOLS,
                 9 => STATUS_TOOLS,
@@ -529,16 +526,8 @@ fn charter(
         },
     }
 }
-fn configuring_charter(models: &[CatalogueModel]) -> Charter {
-    let mut value =
-        charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), models, CONFIGURING_FIRST_CHOICES);
-    value.policy.modify = false;
-    value.policy.agents = false;
-    value
-}
 fn ask_charter(models: &[CatalogueModel]) -> Charter {
-    let mut value =
-        charter(11, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/ask.txt"), models, CONFIGURING_FIRST_CHOICES);
+    let mut value = charter(11, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/ask.txt"), models, ASK_FIRST_CHOICES);
     value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.shell = false;
@@ -598,7 +587,6 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
             kinds: Box::new([
                 authority::Executor::Charter(1),
                 authority::Executor::Charter(2),
-                authority::Executor::Charter(3),
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
@@ -633,14 +621,6 @@ fn chat(result_bytes: u32) -> Template {
         label: 1,
         grace: Some(Duration::from_millis(5000)),
         llm: None,
-    }
-}
-fn configuring(result_bytes: u32) -> Template {
-    Template {
-        number: 3,
-        name: bytes::copy_of(b"configuring"),
-        executor: TemplateExecutor::Charter(3),
-        ..chat(result_bytes)
     }
 }
 fn ask(result_bytes: u32) -> Template {
