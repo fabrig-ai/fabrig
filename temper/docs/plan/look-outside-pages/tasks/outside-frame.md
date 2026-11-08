@@ -167,3 +167,14 @@ rows: the top bar (01 to 08: mark, person, Sign out; Offline, Behind; no menu, s
 navigation, Signed out, Connecting, Live), the top bar while `me` is read, the welcome's
 top bar, 08.html (No project yet, the form), no project with the welcome, the terminal's
 first line.
+
+## Rebase (2026-11-08, step merge, foreman look-outside-pages/outside-frame/foreman-1)
+
+combine both phrasebook additions and recalculate the shared counts in words.rs
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+The integration-side change is `8830d3eb284fec466a9394660942f0537e262b8f` (“Draw terminal approval states in the outside column”), merged by `ccdedccddb`.
+Rebase onto the landing’s integration tip, preserving its `ApproveSignedOutGoogle` enum variant, `ALL` entry, ID 4185 and English phrase.
+Preserve this task’s `ProjectName` (2198), `NoProjectSetUp` (2199), and revised `NoProjectLine`, as required by `temper/docs/plan/look-outside-pages/notes/contracts.md`, section 5.
+Resolve the shared count hunks by combining both deltas: `PHRASES = 2103`, `SEGMENTS = 3688`, `ENGLISH_BYTES = 52052`, and `ALL: [Word; 1421]` for the inspected integration tip.
+Do not select either side’s counts wholesale; each omits the other task’s additions.
+Keep the automatically merged changes, then run the task’s required focused checks through heavy.
