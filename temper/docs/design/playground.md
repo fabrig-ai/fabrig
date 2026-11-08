@@ -369,3 +369,9 @@ running (decided 2026-11-03).
 - **The client's placeholder on its page,** in place of the frame's line
   (section 7; `client/browser.md`, 2.5): story A's to take, once its wait
   asks for more than a line.
+- **What the start's heap grew by before its bound** (9):
+  `../development/playground-memory.md` keeps two measured tables, and
+  the bound holds the later; the service's peaks and the fake disk at
+  start grew past a quarter between them, and nothing has profiled why.
+  Default: the later figures stand as the bound; whether the growth
+  stands is the user's, with the memory bar (11).
