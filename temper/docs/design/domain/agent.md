@@ -594,6 +594,19 @@ delegate from what it knows:
   `domain/tasks.md`, section 4): all of them or none, the call's answer
   naming each change's task in the call's order. A call names either
   `words` or `changes`, never both; `changes` holds at least one.
+  A batch's change takes every member from its own object alone, the
+  members below `changes` and those to come too, and nothing from the
+  call's: a call with `changes` names no other member. One that does is
+  refused as it is decoded, before any change is made, naming the first
+  such member in the declaration's order (`repository`, `name`,
+  `landing`, `branch`, `merge`, `after`, `producer`, `llm`, `repairs`,
+  `questions`) and saying it belongs in each change: "host call member
+  belongs in each change, not beside changes: landing". A landing, a
+  producer, a route for questions or an LLM choice given once for a
+  whole batch is never dropped unheard, and the run gives it again in
+  each change's object. A member's own value is the change's, as in the
+  single form; `words` beside `changes` is refused naming `changes`, as
+  above.
 - **`producer`:** the number of the charter the change's producing
   task, its repairs, its resolutions and its checks' gates run under
   (forge.md, 8.1); left out, the forge's change charter, kind 3's number
