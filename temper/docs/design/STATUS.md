@@ -545,8 +545,8 @@ built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
 answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
-and scans before it writes, but no real box's recording has been through it, the
-two welcome journeys keep their fake boxes' link secrets until next added, nothing
+and scans before it writes, but no real box's recording has been through it,
+`welcome-set-up` keeps its fake box's link secret until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
 directories, not every path; no run on record has `again` walk `project-landing`'s
 setup through a sign-in's new tab, and its words still say the page returns

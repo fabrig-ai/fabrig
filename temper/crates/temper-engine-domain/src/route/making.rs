@@ -188,7 +188,9 @@ fn refusal_words(why: people::Refusal) -> Box<[u8]> {
         people::Refusal::Provider => b"adopt provider is not allowed",
         people::Refusal::NoEscalationHolder => b"adopt has no escalation holder",
         people::Refusal::Llm { .. } => b"adopt model is not allowed",
-        people::Refusal::Account { .. } | people::Refusal::AccountMove { .. } => b"adopt account is not allowed",
+        people::Refusal::Account { .. }
+        | people::Refusal::AccountMove { .. }
+        | people::Refusal::ProgramNameReserved => b"adopt account is not allowed",
         people::Refusal::SignInRedirect { .. } => b"adopt sign-in redirect was refused",
         people::Refusal::Circle { .. } => b"adopt has a dependency circle",
         people::Refusal::Dependency { .. } => b"adopt prerequisite failed",

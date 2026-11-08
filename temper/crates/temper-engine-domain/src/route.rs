@@ -680,6 +680,10 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     let mut out = Queue::uncapped();
+    if let forge::Event::PersonOf { .. } = &event {
+        let party = domain.core.people.sole_owner();
+        forge::step(&mut domain.forge, &environment_forge(env), forge::Event::Owner { party }, &mut out);
+    }
     forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
     if refuse_forge_fit(domain) {
         return;

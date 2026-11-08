@@ -541,3 +541,14 @@ fn visibility_set_answers_as_its_document_outcome() {
         assert!(exchange.out.is_empty());
     }
 }
+
+#[test]
+fn a_reserved_program_name_reaches_the_client() {
+    use jig_client_domain::contract as c;
+    let reply = p::Reply::Outcome(p::Outcome::Refused(p::Refusal::ProgramNameReserved));
+    let record = crate::translate::answers::answer(&reply, &[], &f::wire()).expect("reservation answer");
+    assert_eq!(
+        jig_client_protocol_link::translate::answers::answer(record, &f::client_limits()),
+        Ok(c::Answer::Refused { at: None, refusal: c::Refusal::ProgramNameReserved })
+    );
+}

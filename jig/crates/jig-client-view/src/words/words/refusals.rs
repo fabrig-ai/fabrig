@@ -18,31 +18,9 @@ impl Words {
                 self.text(b, JigPhrase::SettingsForgotten, &[Hole::Number(u64::from(*oldest))]);
             }
             Refusal::Stale(value) => self.text(b, JigPhrase::SettingsStale, &[Hole::Number(u64::from(value.newest))]),
-            Refusal::Full(value) => {
-                self.text(b, JigPhrase::SettingsFull, &[Hole::Number(u64::from(value.revision))]);
-                for task in &value.tasks {
-                    self.text(b, JigPhrase::SettingsFullTask, &[Hole::Number(*task)]);
-                }
-                self.text(b, JigPhrase::SettingsFullMore, &[Hole::Number(u64::from(value.more))]);
-            }
-            Refusal::Circle { tasks, cut } => {
-                self.text(b, JigPhrase::CircleRefused, &[]);
-                for task in tasks {
-                    self.text(b, JigPhrase::CircleWaitsFor, &[Hole::Number(*task)]);
-                }
-                if *cut {
-                    self.text(b, JigPhrase::TaskListsCut, &[]);
-                }
-            }
-            Refusal::Dependency { dependency, how } => self.text(
-                b,
-                match how {
-                    jig_client::contract::TaskStatus::Done => JigPhrase::DependencyDone,
-                    jig_client::contract::TaskStatus::Failed => JigPhrase::DependencyFailed,
-                    jig_client::contract::TaskStatus::Cancelled => JigPhrase::DependencyCancelled,
-                },
-                &[Hole::Number(*dependency)],
-            ),
+            Refusal::Full(value) => self.full_refusal(b, value),
+            Refusal::Circle { tasks, cut } => self.circle_refusal(b, tasks, *cut),
+            Refusal::Dependency { dependency, how } => self.dependency_refusal(b, *dependency, *how),
             Refusal::Kept { pending } => {
                 self.text(b, JigPhrase::KeptAnswer, &[]);
                 for task in pending {
@@ -67,45 +45,68 @@ impl Words {
                 }
             }
             Refusal::Limit { which } => self.limit(b, *which),
-            Refusal::Moved { now, what } => {
-                let phrase = match what {
-                    Moved::Hold { .. } | Moved::PlacedHold { .. } => JigPhrase::MovedHold,
-                    Moved::Spec => JigPhrase::MovedSpec,
-                    Moved::PersonTask => JigPhrase::MovedPerson,
-                    Moved::Note => JigPhrase::MovedNote,
-                    Moved::Waiting => JigPhrase::MovedWaiting,
-                };
-                self.text(b, phrase, &[]);
-                self.text(b, JigPhrase::Revision, &[Hole::Number(now.value)]);
-                match what {
-                    Moved::Hold { reason } => {
-                        if let Some(reason) = reason {
-                            match reason {
-                                CurrentHold::Document(reason) => self.hold_fact(b, reason, text_limit),
-                                CurrentHold::Reason(reason) => self.hold_category(b, *reason),
-                            }
-                        }
-                    }
-                    Moved::PlacedHold { .. } | Moved::Spec | Moved::PersonTask | Moved::Note | Moved::Waiting => {}
-                }
-            }
+            Refusal::Moved { now, what } => self.moved_refusal(b, *now, what, text_limit),
             Refusal::Ended { how } => self.ending(b, how),
             Refusal::Account { account, .. } => {
                 self.text(b, JigPhrase::Word(Word::refusal(refusal)), &[Hole::Number(u64::from(*account))]);
             }
-            Refusal::SignInRedirect { .. } | Refusal::AccountMove { .. } => {
-                self.text(b, JigPhrase::Word(Word::refusal(refusal)), &[]);
-            }
-            Refusal::Provider => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::Provider)), &[]),
-            Refusal::Unknown => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::Unknown)), &[]),
-            Refusal::NoEscalationHolder => {
-                self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NoEscalationHolder)), &[]);
-            }
-            Refusal::NotOffered => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NotOffered)), &[]),
-            Refusal::KeyConflict => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::KeyConflict)), &[]),
+            Refusal::SignInRedirect { .. }
+            | Refusal::AccountMove { .. }
+            | Refusal::Provider
+            | Refusal::Unknown
+            | Refusal::NoEscalationHolder
+            | Refusal::ProgramNameReserved
+            | Refusal::NotOffered
+            | Refusal::KeyConflict => self.text(b, JigPhrase::Word(Word::refusal(refusal)), &[]),
             Refusal::Llm { model, .. } => {
                 self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::Llm)), &[super::name(model.bytes())]);
             }
+        }
+    }
+    fn dependency_refusal(&self, b: &mut Builder, dependency: u64, how: jig_client::contract::TaskStatus) {
+        let phrase = match how {
+            jig_client::contract::TaskStatus::Done => JigPhrase::DependencyDone,
+            jig_client::contract::TaskStatus::Failed => JigPhrase::DependencyFailed,
+            jig_client::contract::TaskStatus::Cancelled => JigPhrase::DependencyCancelled,
+        };
+        self.text(b, phrase, &[Hole::Number(dependency)]);
+    }
+    fn full_refusal(&self, b: &mut Builder, value: &jig_client::contract::RefusalFull) {
+        self.text(b, JigPhrase::SettingsFull, &[Hole::Number(u64::from(value.revision))]);
+        for task in &value.tasks {
+            self.text(b, JigPhrase::SettingsFullTask, &[Hole::Number(*task)]);
+        }
+        self.text(b, JigPhrase::SettingsFullMore, &[Hole::Number(u64::from(value.more))]);
+    }
+    fn circle_refusal(&self, b: &mut Builder, tasks: &skein_lib::List<u64>, cut: bool) {
+        self.text(b, JigPhrase::CircleRefused, &[]);
+        for task in tasks {
+            self.text(b, JigPhrase::CircleWaitsFor, &[Hole::Number(*task)]);
+        }
+        if cut {
+            self.text(b, JigPhrase::TaskListsCut, &[]);
+        }
+    }
+    fn moved_refusal(&self, b: &mut Builder, now: jig_client::contract::Revision, what: &Moved, text_limit: u32) {
+        let phrase = match what {
+            Moved::Hold { .. } | Moved::PlacedHold { .. } => JigPhrase::MovedHold,
+            Moved::Spec => JigPhrase::MovedSpec,
+            Moved::PersonTask => JigPhrase::MovedPerson,
+            Moved::Note => JigPhrase::MovedNote,
+            Moved::Waiting => JigPhrase::MovedWaiting,
+        };
+        self.text(b, phrase, &[]);
+        self.text(b, JigPhrase::Revision, &[Hole::Number(now.value)]);
+        match what {
+            Moved::Hold { reason } => {
+                if let Some(reason) = reason {
+                    match reason {
+                        CurrentHold::Document(reason) => self.hold_fact(b, reason, text_limit),
+                        CurrentHold::Reason(reason) => self.hold_category(b, *reason),
+                    }
+                }
+            }
+            Moved::PlacedHold { .. } | Moved::Spec | Moved::PersonTask | Moved::Note | Moved::Waiting => {}
         }
     }
     fn malformed(&self, b: &mut Builder, at: u32, why: Malformed) {

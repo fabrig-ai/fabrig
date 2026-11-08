@@ -355,3 +355,32 @@ fn a_refresh_marks_the_accounts_documents_only_when_facts_change() {
         }
     }
 }
+
+#[test]
+fn a_reserved_program_name_reaches_the_party() {
+    let (mut core, env) = signing_core();
+    let mut providers = core.settings.llm_providers.clone();
+    providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
+    core.accounts = accounts::Domain::new(&env.limits.accounts, providers);
+    drop(step(
+        &mut core,
+        &env,
+        Event::Account(accounts::Event::Restore {
+            record: accounts::Stored::Issued {
+                number: 21,
+                holder: PARTY,
+                name: b"claude-6".as_slice().into(),
+                signed_out: true,
+            },
+        }),
+    ));
+    drop(step(&mut core, &env, Event::Account(accounts::Event::Want)));
+    let declaration = people::Ask::AccountChange {
+        holder: people::AccountHolder::Own,
+        change: people::AccountChange::DeclareProgram { provider: 3, join: None, name: b"claude-6".as_slice().into() },
+    };
+    assert_eq!(
+        stepped(&mut core, &env, ask(7, declaration)),
+        (None, Some(people::Outcome::Refused(people::Refusal::ProgramNameReserved)))
+    );
+}

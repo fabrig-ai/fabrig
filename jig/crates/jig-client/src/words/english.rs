@@ -119,6 +119,9 @@ impl Word {
             Self::Refusal(RefusalWord::Ended) => (40, b"The object ended", &[]),
             Self::Refusal(RefusalWord::Unknown) => (41, b"No visible object with that name", &[]),
             Self::Refusal(RefusalWord::NameTaken) => (106, b"Another project has that name", &[]),
+            Self::Refusal(RefusalWord::ProgramNameReserved) => {
+                (129, b"This program name remains reserved after forgetting its account; choose a never-used name", &[])
+            }
             Self::Refusal(RefusalWord::NotOffered) => (42, b"This act is not offered", &[]),
             Self::Refusal(RefusalWord::KeyConflict) => (43, b"The request key names another act", &[]),
             Self::Refusal(RefusalWord::AccountMoveNotSignedIn) => (107, b"not signed in", &[]),
