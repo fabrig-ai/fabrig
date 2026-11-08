@@ -1943,7 +1943,6 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
 }
 
 #[test]
-#[ignore = "backlog: a start without DNS fails while sign-in endpoints resolve at start (director 554)"]
 fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     use std::{ffi::OsString, fs, os::unix::fs::PermissionsExt};
     let scratch = support::Scratch::new("first-run-no-dns");
@@ -2024,10 +2023,7 @@ exec "$@"
         listening || diagnostic.contains("failed to lookup address information"),
         "unexpected startup refusal: {diagnostic}"
     );
-    assert!(
-        listening,
-        "no-DNS start must reach serve's listening; the current sign-in endpoint resolution refuses it: {diagnostic}"
-    );
+    assert!(listening, "no-DNS start must reach serve's listening: {diagnostic}");
     assert_eq!(ended.exit, Some(Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
 }

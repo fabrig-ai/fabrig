@@ -225,8 +225,3 @@ Sections 3 and 10 have `engine.clients.approval` enabled beside `link`
 in both init templates and the owned example, with the listener's member
 line naming approvals. The service table checks an ask enabled, disabled
 and absent; standalone's loopback admission remains in force.
-
-- **Not yet:** 2: a sign-in's host that does not resolve at start refuses
-  the start, where section 2 holds its address at `127.0.0.1:0`:
-  `temper-engine-shell/src/serve/accounts_runtime.rs`, `endpoint_for_origin`,
-  returns the lookup's failure (`../domain/testing.status.md`, 2.6).
