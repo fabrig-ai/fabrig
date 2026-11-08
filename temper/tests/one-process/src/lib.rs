@@ -12,6 +12,7 @@ pub mod world;
 
 pub mod copy;
 mod ctl;
+pub mod ready_copies;
 
 pub mod lower;
 

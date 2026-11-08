@@ -431,6 +431,12 @@ pub(crate) struct Person {
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
+    /// Drive welcome forms before the first project exists.
+    pub(crate) fn welcome(root: Fd, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
+        let mut person = Self::pages(root, steps);
+        person.project_selected = true;
+        person
+    }
     pub(crate) fn pages(root: Fd, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
         let mut person = Self::new(root, Story::Chat { words: b"" });
         person.actor = skein_fake_person::Person::new(steps);
