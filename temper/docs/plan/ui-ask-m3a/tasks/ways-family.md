@@ -138,3 +138,15 @@ Preserve both removals, leaving:
   drawn.
 ```
 Keep the rest of the status file unchanged. Preserve the automatic merge of `temper/crates/temper-client-domain/src/tests/forge_stock_ways.rs`.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-m3a/ways-family/foreman-3)
+
+resolve README.status.md by preserving both completed-gap removals
+Rebase onto the current integration tip.
+The conflict is in `temper/docs/design/client/README.status.md`’s final **Not yet** bullet.
+The branch removes the completed 4.6 wire/service gap.
+Integration commit `9812fa35f3` removes the completed 5.16 view-rendering gap.
+Preserve both removals: delete the entire final **Not yet** bullet.
+The file should end with “terminal checks remain section 11's after-landing work.”
+Preserve integration’s other status updates and all automatic merges.
+This supersedes the earlier Rebase instruction to retain the 5.16 gap.
