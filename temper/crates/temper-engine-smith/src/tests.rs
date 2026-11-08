@@ -2150,20 +2150,114 @@ fn change_refuses_a_producer_or_llm_out_of_range() {
 }
 
 #[test]
+fn change_batch_refuses_outer_options() {
+    let members = r#"{"name":"lexer","words":"lex"},{"name":"parser","words":"parse"},{"name":"checks","words":"check"},{"name":"docs","words":"document"}"#;
+    let options = r#""landing":"goal","producer":2,"questions":"foreman","llm":{"producer":{"main":{"model":"sol","effort":"high"}}}"#;
+    let input = format!(r#"{{"changes":[{members}],{options}}}"#);
+    assert_eq!(
+        configured_change(input.as_bytes()),
+        Err(Problem::Beside(b"landing")),
+        "combined recorded option placement must fail before returning an engine call"
+    );
+    let cases: &[(&str, &str)] = &[
+        ("repository", r#""owner/name""#),
+        ("name", r#""batch""#),
+        ("landing", r#""goal""#),
+        ("branch", r#""run""#),
+        ("merge", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
+        ("after", "[1]"),
+        ("producer", "2"),
+        ("llm", r#"{"producer":{"main":{"model":"sol","effort":"high"}}}"#),
+        ("questions", r#""foreman""#),
+        ("repairs", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
+    ];
+    for (field, value) in cases {
+        for value in [*value, "null"] {
+            let input = format!(r#"{{"changes":[{members}],"{field}":{value}}}"#);
+            assert_eq!(configured_change(input.as_bytes()), Err(Problem::Beside(field.as_bytes())), "{input}");
+        }
+    }
+    let input = format!(r#"{{"changes":[{members}],"words":"outer"}}"#);
+    assert_eq!(configured_change(input.as_bytes()), Err(Problem::Range(b"changes")));
+    change_batch_keeps_member_options(options);
+}
+
+#[expect(clippy::disallowed_methods, reason = "the test joins four change members into one JSON batch")]
+fn change_batch_keeps_member_options(options: &str) {
+    let mut members = skein_lib::List::with_capacity(4);
+    let mut expected = skein_lib::List::with_capacity(4);
+    for (name, words) in [("lexer", "lex"), ("parser", "parse"), ("checks", "check"), ("docs", "document")] {
+        let member = format!(r#"{{"name":"{name}","words":"{words}",{options}}}"#);
+        let engine::Tool::Change { changes } = configured_change(member.as_bytes()).expect("single change").tool else {
+            panic!("change")
+        };
+        let change = &changes[0];
+        assert_eq!(change.name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(change.words.as_ref(), words.as_bytes());
+        assert_eq!(change.landing, Some(engine::ChangeLanding::Goal));
+        assert_eq!(change.producer, Some(2));
+        assert_eq!(change.questions, Some(engine::ChangeQuestions::Foreman));
+        assert_eq!(
+            change.llm.producer.as_ref().expect("producer choice").main,
+            tasks::ModelEffort { model: 0, effort: Some(1) }
+        );
+        expected.push(change.clone()).expect("four expected changes");
+        members.push(member).expect("four batch members");
+    }
+    let input = format!(r#"{{"changes":[{}]}}"#, members.into_boxed().join(","));
+    let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("member options").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.as_ref(), expected.into_boxed().as_ref(), "all four members keep options and call order");
+}
+
+#[test]
+fn change_batch_declares_each_member() {
+    let mut found = false;
+    for tool in tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() != b"change" {
+            continue;
+        }
+        found = true;
+        let schema = crate::json::parse(&tool.schema).expect("plan schema");
+        let properties = schema.required(b"properties").unwrap();
+        let batch = properties.required(b"changes").unwrap();
+        assert_eq!(batch.required(b"minItems").unwrap().number(b"minItems"), Ok(1));
+        let item = batch.required(b"items").unwrap();
+        assert_eq!(
+            item.required(b"required").unwrap().array(b"required").unwrap(),
+            &[crate::json::Value::String(b"words".as_slice().into())]
+        );
+        let member = item.required(b"properties").unwrap();
+        for field in [
+            b"words".as_slice(),
+            b"repository",
+            b"name",
+            b"landing",
+            b"branch",
+            b"merge",
+            b"after",
+            b"producer",
+            b"llm",
+            b"questions",
+            b"repairs",
+        ] {
+            assert_eq!(member.required(field), properties.required(field), "{field:?}");
+            assert!(member.field(field).unwrap().is_some(), "member declares {field:?}");
+        }
+        assert!(member.field(b"changes").unwrap().is_none(), "batches do not nest");
+        let words = member.required(b"words").unwrap();
+        assert_eq!(words.required(b"minLength").unwrap().number(b"minLength"), Ok(1));
+    }
+    assert!(found, "change offered");
+}
+
+#[test]
 fn change_refuses_words_with_changes_and_empty_members() {
     let cases: &[(&[u8], Problem)] = &[
-        (br#"{"repository":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repository")),
-        (br#"{"name":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"name")),
-        (br#"{"landing":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"landing")),
-        (br#"{"branch":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"branch")),
-        (br#"{"merge":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"merge")),
-        (br#"{"after":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"after")),
-        (br#"{"producer":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"producer")),
-        (br#"{"llm":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"llm")),
-        (br#"{"repairs":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repairs")),
-        (br#"{"questions":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"questions")),
-        (br#"{"landing":"goal","producer":2,"questions":"foreman","llm":{"producer":{"main":{"model":"m","effort":"high"}}},"changes":[{"name":"a","words":"a"},{"name":"b","words":"b"},{"name":"c","words":"c"},{"name":"d","words":"d"}]}"#, Problem::Beside(b"landing")),
         (br#"{"questions":"up","producer":2,"changes":[{"words":"a"}]}"#, Problem::Beside(b"producer")),
+        (br#"{"questions":"up","repairs":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repairs")),
+        (br#"{"landing":"goal","changes":[{}]}"#, Problem::Beside(b"landing")),
         (br#"{"words":"a","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
         (br#"{"words":"a","landing":"goal","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
         (br#"{"changes":[]}"#, Problem::Range(b"changes")),
@@ -2199,7 +2293,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; run: your own run branch, what you delivered, landed as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

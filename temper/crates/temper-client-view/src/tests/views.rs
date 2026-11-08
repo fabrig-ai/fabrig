@@ -401,6 +401,8 @@ fn assert_view(tree: &Tree, row: &Row, limits: &skein_ui::Limits) {
         assert_eq!(node.name.as_deref(), Some(*label));
         let mut encoded = skein_lib::Reader::new(&drawing.data);
         assert_eq!(encoded.u8(), Some(4));
+        assert_eq!(encoded.u8(), Some(0));
+        assert_eq!(encoded.u8(), Some(255));
         for (mark, words) in [(0, b"you ask".as_slice()), (1, b"produce"), (2, b"merge"), (3, b"main")] {
             assert_eq!(encoded.u8(), Some(mark));
             let len = u32::from(encoded.u8().unwrap());
