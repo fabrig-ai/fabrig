@@ -3,6 +3,7 @@ mod credentials;
 mod program_check;
 mod program_children;
 mod program_commands;
+mod program_lifetime;
 mod program_rechecks;
 mod program_runs;
 mod relay;
