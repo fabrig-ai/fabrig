@@ -400,7 +400,8 @@ work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/root.md`); how the engine is to learn its workers' reply bound is the
+design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -765,6 +766,17 @@ client-world story uses a fake worker. The request's broader wording
 for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
 `client/README.md`, 5.5 and section 11).
+
+The deployment's client, `temper-client`, is built (M1 of
+`draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
+and `ctl`, run by the box's code from the shells both binaries link, its
+help, refusals and `--version`, on `temper-shell`, which the box's `temper`
+prints its table from. Its ctl story runs the box's `temper serve` as the
+engine until `temper-engine` is built, and runs after landing. It links jig's
+accounts protocol and engine-side crates through an unused line of ctl's
+manifest, and no test yet holds its closure: the boundary test is M5's
+(`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
+page names no command's binary (`draft/deployment-binaries.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

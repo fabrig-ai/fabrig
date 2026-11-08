@@ -90,6 +90,34 @@ pub fn question_from(world: &mut World, child: (u64, u64), requester: u64) -> ta
         .clone()
 }
 
+/// A delegate finishes with a report for its requester.
+#[must_use]
+pub fn result_from(world: &mut World, child: (u64, u64)) -> tasks::Word {
+    let requester = fixtures::live_row(world, child.0).requester;
+    let tasks::Party::Task(requester) = requester else { panic!("delegate's requester") };
+    world.send(root::Event::Answer {
+        channel: Token::new(7),
+        task: child.0,
+        attempt: child.1,
+        cumulative: 0,
+        end: tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Delegate finished".as_slice().into() },
+            cancel_delegates: false,
+        },
+        read: None,
+        refused: Box::new([]),
+    });
+    fixtures::live_row(world, requester)
+        .inbox
+        .iter()
+        .find(|word| {
+            word.from == tasks::Party::Task(child.0)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
+        })
+        .expect("requester's result")
+        .clone()
+}
+
 /// A held delegate raises a decision entry at its nearest covering requester.
 #[must_use]
 pub fn escalation(world: &mut World, requester: (u64, u64)) -> u64 {
@@ -104,6 +132,22 @@ pub fn escalation(world: &mut World, requester: (u64, u64)) -> u64 {
         refused: Box::new([]),
     });
     child.0
+}
+
+/// Release the same held child and let its next attempt exceed its bound again.
+pub fn rehold(world: &mut World, child: u64) {
+    let revision = fixtures::live_row(world, child).revisions.hold;
+    fixtures::ask(world, 86, jig_domain_people::Ask::Release { project: 1, task: child, revision, again: None });
+    let attempt = fixtures::live_row(world, child).attempt;
+    world.send(root::Event::Answer {
+        channel: Token::new(7),
+        task: child,
+        attempt,
+        cumulative: 0,
+        end: tasks::End::Exceeded(tasks::Exceeded { bound: tasks::Bound::Reasoning, value: 2048 }),
+        read: None,
+        refused: Box::new([]),
+    });
 }
 
 /// Park the named attempt, independently of the last child assigned to the worker.

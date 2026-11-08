@@ -8,6 +8,7 @@
   - 3 and 4: `../client/README.md`, 4.6, prints `temper program-login … NAME` for a deployment whose workers are elsewhere. With the set, that's `temper-worker program-login`.
   - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets. Its section 3's `--version` is the engine's, the worker's and the agent's too; the client's is `../protocol/README.md`, section 4's.
   - 3: `../../help/server.md` builds and copies one binary, runs `temper serve`, and copies the example documents from a checkout.
+  - 3: `../protocol/documentation.md`, section 8: the `commands` page is the box's table alone and names no command's binary, and `temper-client help commands` prints that page.
   - 4: `../protocol/README.md`, section 15, calls the cluster "no deployment's", and 15.1 gives `serve` "no command of its own" per shape, while `temper-engine serve` and `temper-worker serve` are each a binary's.
   - 6: `../protocol/README.md`, section 9: `CLIENT_VERSION`'s row has `temper open` "from the same binary" as the engine.
   - 6 and 8: `../release.md`, section 5: the release script publishes nothing, and a tag's files go among its releases. Here the site's job publishes each build's set under `v{MAJOR}`.

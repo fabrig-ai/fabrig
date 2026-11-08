@@ -720,7 +720,7 @@ fn chat_request(limits: &core::Limits, words: &[u8]) -> jig_domain_people::Ask {
 }
 
 #[test]
-fn either_start_refusal_cause_assembles_an_invalid_end() {
+fn either_start_refusal_cause_assembles_a_permanent_end() {
     for cause in [host::StartCause::Grants, host::StartCause::Other] {
         let (mut domain, _env) = fixture();
         let run = Token::new(1);
@@ -753,7 +753,7 @@ fn either_start_refusal_cause_assembles_an_invalid_end() {
             panic!("one assembled answer")
         };
         assert_eq!((answered_run, answered_attempt, answered_payload), (run, attempt, payload));
-        assert_eq!(end, jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Invalid));
+        assert_eq!(end, jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Permanent));
         assert!(work.is_empty());
     }
 }

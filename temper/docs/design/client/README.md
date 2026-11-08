@@ -6593,7 +6593,7 @@ terminal draw the same path.
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
-  `task N timeline`, and the TUI's drawing of views, temper/tui's.
+  `task N timeline`. The TUI prints views: `../draft/surfaces.md`, 11.5.
 
 ## 6. The terminal shells
 

@@ -116,6 +116,11 @@ pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"finish_requested",
 ];
 
+/// Whether the run read instructions for this entry's kind (domain/tasks.md, 8.6).
+pub(crate) fn covered(word: &Word, offered: Reasons) -> bool {
+    offered.meets(Reasons::of(&word.kind))
+}
+
 /// Whether `word` goes to a run offered `offered`: always-offered kinds, entries and
 /// a person's words always; other kinds when their bit meets the offering
 /// (jig/docs/design/domain/tasks.md, 8.6).

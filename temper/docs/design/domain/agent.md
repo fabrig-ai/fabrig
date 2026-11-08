@@ -1824,7 +1824,17 @@ host:
 - **A task read where the process has no local agent.** The engine does not
   know its remote agents' reply bound, so a run there reads a task's words in
   pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
-  worker's reply bound at the engine. Default: the documents' window.
+  worker's reply bound at the engine, by one of two ways: each worker names
+  its agents' host reply bound in its hello on jig's worker link, a byte
+  count jig carries without naming smith, and the engine sizes each read by
+  the worker running the attempt, as a local agent's is (a change of jig's
+  link); or the engine's document names each worker's bound in
+  `hosts.workers` (a configuration change, unchecked against the worker's
+  own). temper/migration's answer of 2026-11-08 to the request
+  `goal-call-faults` names the first as the way to a page as large as the
+  reply allows and leaves the choice to the design owner, a protocol
+  decision a plan of its own follows. Default: the documents' window, which
+  a deployment raises by its own `documents.text_bytes`.
 - **The person's forge identity in a chat's brief,** rather than in the
   settings inventory (8.1), which Ask temper reads first.
   A brief section would spend every chat's room for what one charter
