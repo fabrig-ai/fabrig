@@ -37,6 +37,9 @@ those words and 1,024. The outcome still holds all fields and framing
 together; a field's bound alone does not promise that the whole fits.
 Section 12 defers the general message-rendering allowance.
 
+- **Not yet:** 6.6: a loss is told without why on either side, and a
+  worker's return after many losses has no story; the code's side is
+  `../protocol/channel.status.md`, 9, 10.1 and 10.2.
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts

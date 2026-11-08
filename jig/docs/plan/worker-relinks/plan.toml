@@ -1,0 +1,51 @@
+draft = "worker-relinks"
+repo = "fabrig"
+sources = ["jig/docs/plan/worker-relinks/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "engine-link"
+title = "The engine never keeps a lost worker's connection, and says why each one ended"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 10.2"
+
+[[part]]
+id = "worker-link"
+title = "The worker keeps a healthy link however busy, its silence counting bytes, and says why each loss happened"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 9"
+
+[[part]]
+id = "restart-loads"
+title = "Tasks due together wait for a load slot instead of failing their briefs on room"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/root.md, 8"
+
+[[slice]]
+id = 1
+story = "A worker lost fifty times, each way a link is lost, is taken back each time, and the engine's workers' part closes within the stall deadline of a stop"
+parts = ["engine-link"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A link busy both ways for minutes, or receiving a frame in pieces, is never lost, and each loss names its cause"
+parts = ["worker-link"]
+walk = false
+
+[[slice]]
+id = 3
+story = "After a restart, tasks due past the two load slots each load their window and resume, none failing its brief or spending a try"
+parts = ["restart-loads"]
+walk = false
