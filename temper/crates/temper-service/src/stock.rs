@@ -749,12 +749,62 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (2, 1, settings::Value::Rule(review_rule())),
         (3, 1, settings::Value::Charter(2)),
         (3, 2, settings::Value::Charter(4)),
+        // Each stock charter's words (temper/docs/design/protocol/configuration.md, 13.4).
+        (9, 1, settings::Value::CharterWords(bytes::copy_of(b"talks with you and asks for the changes"))),
+        (
+            9,
+            2,
+            settings::Value::CharterWords(bytes::copy_of(b"makes each change, repairs it and resolves its conflicts")),
+        ),
+        (
+            9,
+            4,
+            settings::Value::CharterWords(bytes::copy_of(
+                b"reviews each change at its head, and holds it until it approves",
+            )),
+        ),
+        (
+            9,
+            5,
+            settings::Value::CharterWords(bytes::copy_of(b"cuts a goal's draft into changes and lands the goal whole")),
+        ),
+        (
+            9,
+            6,
+            settings::Value::CharterWords(bytes::copy_of(
+                b"answers a coding agent's question from the goal's design, or passes it up",
+            )),
+        ),
+        (
+            9,
+            9,
+            settings::Value::CharterWords(bytes::copy_of(
+                b"writes the few lines at the top of Home, from what landed and what waits",
+            )),
+        ),
+        (
+            9,
+            10,
+            settings::Value::CharterWords(bytes::copy_of(b"answers one word, so that a new model is known to run")),
+        ),
+        (
+            9,
+            11,
+            settings::Value::CharterWords(bytes::copy_of(b"explains how work runs here, and proposes changes to it")),
+        ),
+        (
+            9,
+            12,
+            settings::Value::CharterWords(bytes::copy_of(
+                b"writes a draft with you, one question at a time, and starts nothing",
+            )),
+        ),
     ];
-    let mut stock = List::with_capacity(3);
+    let mut stock = List::with_capacity(12);
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule and two forge charters");
+            .expect("one landing rule, two forge charters and nine charter lines");
     }
     stock.into_boxed()
 }
