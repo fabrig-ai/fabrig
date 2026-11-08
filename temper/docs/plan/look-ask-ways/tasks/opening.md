@@ -136,3 +136,22 @@ Acceptance:
 As the implementer's text says; list the CSS rules as landed, translated
 or dropped, every word and token removed or kept with why, and every
 gallery file removed or regenerated.
+
+## Rebase (2026-11-08, step merge, foreman look-ask-ways/opening/foreman-1)
+
+Rebase opening onto the updated integration, combining vocabulary and gallery counts.
+The merge refused two paths: `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+Main’s outside-page changes (`07c74cb6a0`, `47f97c0bb5`) reached this plan through `3420ae87e8`; retain them alongside opening commit `996ccaed81`.
+
+In `words.rs`, keep the opening’s `Ways*` additions and old Ask-word removals, plus the incoming outside-page words and revised text.
+Against integration `e1ae15c0d3`, the combined declarations should be `PHRASES = 2095`, `SEGMENTS = 3686`, `ENGLISH_BYTES = 51485`, and `ALL: [Word; 1413]`.
+Preserve `ToastWayUsed` and `ToastWayKept` from opening-state.
+
+In `samples.rs`, retain incoming `approve-signed-out-google` and `no-project` samples and their domain routing.
+Keep the opening’s removal of `ask-reference`, `ask-reference-draft`, and the obsolete `ask_domain` reference branch.
+Set `N = 336`: incoming 338 samples minus the two removed reference states.
+Preserve corresponding incoming assertions in `src/tests.rs` alongside the reference-state removals.
+
+Regenerate any gallery names, prints or goldens made stale by the combined code with their own tooling; keep `names.txt` sorted.
+Verify the combined vocabulary counts and run the task’s focused view, gallery and shell checks through heavy, with `TEMPER_BUNDLE=none`.
+Keep the `Look-request: ask-temper-ways` trailer on the repair commit.
