@@ -9,6 +9,7 @@ use skein_lib::{
 use skein_ui_screen_terminal::Key;
 use std::collections::BTreeMap;
 use temper_client_shell_web::journey::redact_field;
+use temper_client_tui::BoxLine;
 
 pub struct Redacted {
     pub recording: Box<[u8]>,
@@ -73,9 +74,10 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
             fields
         }
         Line::Found(bytes) => bytes.iter_mut().map(|bytes| (bytes, Text)).collect(),
-        Line::Address(bytes) | Line::Signed(bytes) | Line::Browse(bytes) => vec![(bytes, Text)],
+        Line::BoxLine(bytes) | Line::Address(bytes) | Line::Signed(bytes) | Line::Browse(bytes) => vec![(bytes, Text)],
         Line::Mark(print) | Line::End(print) => print.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Journey { .. }
+        | Line::Front
         | Line::Local
         | Line::Noted(_)
         | Line::Note(_)
@@ -138,13 +140,16 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             }
             Line::Stream(Some(bytes)) => candidates.push((Kind::Bearer, bytes.clone())),
             Line::Found(Some(bytes)) => {
-                let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
-                if let Ok(link) = jig_client_protocol_http::printed(&mapping, bytes) {
-                    candidates.push((Kind::Link, link.secret.into_exposed()));
+                candidates.extend(link_original(bytes));
+            }
+            Line::BoxLine(bytes) => {
+                if let Some(BoxLine::Link { url }) = BoxLine::read(bytes) {
+                    candidates.extend(link_original(url.expose()));
                 }
             }
             Line::Found(None)
             | Line::Journey { .. }
+            | Line::Front
             | Line::Local
             | Line::Noted(_)
             | Line::Note(_)
@@ -185,6 +190,11 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
     Originals::new(candidates, given)
 }
 
+fn link_original(url: &[u8]) -> Option<(Kind, Box<[u8]>)> {
+    let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
+    jig_client_protocol_http::printed(&mapping, url).ok().map(|link| (Kind::Link, link.secret.into_exposed()))
+}
+
 /// Replace every original's forms and digests in every field, then write the lines.
 pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unreadable> {
     let mut lines = super::lines(recording)?;
@@ -202,7 +212,7 @@ pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unreada
     Ok(Redacted { recording: recording.into(), originals, places })
 }
 
-/// The paste's canonical URL-base64 and its Typed event's decimal byte elements.
+/// A link's canonical URL-base64 and its Typed event's decimal byte elements.
 pub(super) struct LinkForm {
     bytes: Box<[u8]>,
     hidden: Box<[u8]>,

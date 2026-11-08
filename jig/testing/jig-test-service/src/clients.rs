@@ -95,7 +95,7 @@ pub(super) fn to_root(request: kit::Request) -> Routed {
         kit::Request::Transport(message) => Routed::Transport(message),
         kit::Request::Link { secret } => Routed::Link(secret),
         // The reference service keeps no local link (protocol/service.md, 7).
-        kit::Request::LocalLink { .. } => Routed::LocalLink,
+        kit::Request::LocalLink { .. } | kit::Request::LinkSignedIn => Routed::LocalLink,
         kit::Request::Minted { .. }
         | kit::Request::MintRefused { .. }
         | kit::Request::Redeemed { .. }

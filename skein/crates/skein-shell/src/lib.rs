@@ -96,4 +96,7 @@ pub use startup::{
 };
 
 #[cfg(unix)]
-pub use terminal::{Input, Kept, Keys, Modes, Watch, open_signals, raw_input, resize_terminal, terminal_modes};
+pub use terminal::{
+    Input, Kept, Keys, Modes, Watch, open_signals, open_terminal, raw_input, resize_terminal, take_foreground,
+    terminal_modes,
+};

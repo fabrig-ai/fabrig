@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <style>body{margin:0;background:#f7f7f5}</style>
 <link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
 </head>
 <body>
 <div class="app">
@@ -26,6 +27,7 @@
       <a href="#">Deployment</a>
       <a href="#">Owner</a>
     </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
   </nav>
 
   <main class="main">
@@ -33,7 +35,7 @@
       <header class="intro">
         <p class="kicker">Needs you · pocket</p>
         <h1 class="headline">Two approvals and one question.</h1>
-        <p class="lede">On pocket every change waits for you before it reaches main. Agents make it, CI checks it, an agent reviews it and repairs what the review finds; you approve, and temper merges the exact head that was checked.</p>
+        <p class="lede">On pocket every change waits for you before it reaches main. An agent makes it, CI checks it, and the agent repairs what CI finds; you approve, and temper merges the exact head that was checked.</p>
         <p class="small"><a href="how.html">How work runs on pocket</a></p>
       </header>
 
@@ -54,8 +56,8 @@
               </tbody>
             </table>
           </div>
-          <div class="chips"><span class="chip good">CI green at 5e2a91c</span><span class="chip">reviewed by an agent</span></div>
-          <p class="small muted">The review asked for the chart colours to pass contrast in both themes; the agent repaired it in one push, and the review passed at the head you'd merge.</p>
+          <div class="chips"><span class="chip good">CI green at 5e2a91c</span><span class="chip">repaired once</span></div>
+          <p class="small muted">CI's contrast check failed on the chart colours in the dark theme; the agent repaired it in one push, and CI passed at the head you'd merge.</p>
           <div class="choices">
             <a class="choice rec" href="#">Review on GitHub ↗</a>
             <a class="choice" href="#">Ask for changes</a>
@@ -66,7 +68,7 @@
           <p class="from"><span class="chip">approval</span> Monthly totals by category · pull request 43 · waiting since 18:58</p>
           <p class="q">Approve "Monthly totals by category" on GitHub?</p>
           <p>A totals table under the month's chart, one row per category, with last month's figure beside it. The query groups in the database rather than in the page.</p>
-          <div class="chips"><span class="chip good">CI green at 9c04d7e</span><span class="chip good">reviewed: no findings</span><span class="chip">+142 -18 in 4 files</span></div>
+          <div class="chips"><span class="chip good">CI green at 9c04d7e</span><span class="chip">+142 -18 in 4 files</span></div>
           <div class="choices">
             <a class="choice rec" href="#">Review on GitHub ↗</a>
             <a class="choice" href="#">Ask for changes</a>

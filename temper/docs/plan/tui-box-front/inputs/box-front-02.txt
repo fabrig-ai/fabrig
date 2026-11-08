@@ -1,0 +1,24 @@
+╭─ temper ─────────────────────────────────────────────────────────────── box ─╮
+│ temper box · on this machine, to try it                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ Setting temper up in your browser
+   ✓ Signed in as the owner
+   ✓ 1 Welcome
+   ▸ 2 Forge · connecting GitHub…
+   · 3 Model
+   · 4 Ready
+
+ The steps are the browser's; this screen follows them.
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ / for commands
+────────────────────────────────────────────────────────────────────────────────
+ / for commands                                                          ● Live
