@@ -1,0 +1,6 @@
+draft = "ui-ways-rules"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-ways-rules/inputs/request.md", "temper/docs/plan/ui-ways-rules/inputs/charter5.md", "temper/docs/design/draft/stock-ways.md", "temper/crates/temper-service/src/stock.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
