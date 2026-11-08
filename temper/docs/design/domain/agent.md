@@ -266,9 +266,10 @@ Code, smith's `protocol/programs.md`, 5.1).
   charges the prepared workspace against `run_bytes`, including resolved
   host paths and conflict paths. Smith supplies that remaining allowance
   through `charter_room`; temper keeps the incoming charter allowance too.
-  `temper-engine-smith` owns
-  the fitter; its typed start takes explicit receiving limits and fits
-  the brief too. A brief already within each entrance's room is kept
+  `temper-protocol-brief` owns
+  the fitter, which the engine's translation, `temper-engine-smith`, and
+  the worker service each link; the translation's typed start takes
+  explicit receiving limits and fits the brief too. A brief already within each entrance's room is kept
   whole. Otherwise, fitting cuts bodies from the last
   section in the core's order, at UTF-8 boundaries, keeping each cut
   section's title and ending its body with its own line:
