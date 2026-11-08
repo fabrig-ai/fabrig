@@ -183,3 +183,13 @@ Options, each decided:
 As the implementer's text says: each test added or extended, the rule
 broken by hand for it and the failure seen; the runs' counts; the routing
 function and any call site routed in place.
+
+## Rebase (2026-11-08, step merge, foreman tui-box-front/front-lines/foreman-1)
+
+resolve setup.status.md by preserving both tasks’ completed-gap deletions
+The merge conflicts only in `temper/docs/design/protocol/setup.status.md`.
+Commit `339553f3b7` removes the `front-lines` **Not yet** bullet.
+Commit `18292a4f93`, merged into integration by `5bae47e5e9`, removes the adjacent `binary-front` bullet.
+Rebase onto the landing’s current integration tip and resolve this hunk with both bullets absent.
+Keep the `box-help` bullet and all other status text unchanged.
+The refusal identifies no code or test failure; no implementation change is needed for this conflict.
