@@ -168,3 +168,13 @@ Options, each decided:
 As the implementer's text says: each test added, the rule broken by hand
 for it and the failure seen, the runs' counts, and either option taken
 otherwise than its default.
+
+## Rebase (2026-11-08, step merge, foreman tui-box-front/box-lines/foreman-1)
+
+rebase preserving the updated status bullets and deleting only the box-lines gap
+The merge conflicts in `temper/docs/design/protocol/setup.status.md`.
+Task commit `c7bb848a08` deletes the two-line **Not yet** bullet naming `box-lines`, as acceptance 8 requires.
+Integration commit `19cd913df0` edits the adjacent `box-front` and `front-lines` bullets and adds the `box-help` gap.
+Resolve using the destination’s current status text, then remove only the bullet beginning “7.6, *The box’s lines*: their words, bytes, bound and cut” and its `temper_box::front` continuation.
+Preserve the revised host and terminal wording, the failed-front reporting gap, the help gap, and all other destination changes.
+Keep the task’s Rust changes intact; this refusal requires no code change.
