@@ -56,7 +56,7 @@ pub(crate) fn turn(
     turned: Turned,
     out: &mut Queue<Request>,
 ) {
-    let Turned { number, attempt, turn, read, refusals, offered, outstanding, cumulative } = turned;
+    let Turned { number, attempt, turn, read, ref refusals, offered, ref outstanding, cumulative } = turned;
     if !domain.ready() {
         return refused(to, Some(number), Refusal::NotReady, out);
     }
@@ -80,8 +80,8 @@ pub(crate) fn turn(
     };
     if beyond_offer
         || outstanding.len() > skein_lib::length::usize_of(environment.limits.run_inbox)
-        || !crate::inbox::readable(domain, number, read, &outstanding)
-        || !crate::inbox::valid_refusals(domain, number, offered, &refusals)
+        || !crate::inbox::readable(domain, number, read, outstanding)
+        || !crate::inbox::valid_refusals(domain, number, offered, refusals)
     {
         return refused(to, Some(number), Refusal::Read, out);
     }
@@ -92,7 +92,20 @@ pub(crate) fn turn(
     if old.last_reply == u64::MAX {
         return refused(to, Some(number), Refusal::Turn, out);
     }
+    finish_turn(domain, environment, to, turned, spent, out);
+}
+
+fn finish_turn(
+    domain: &mut Domain,
+    environment: &Env<Limits>,
+    to: ReplyTo,
+    turned: Turned,
+    spent: u64,
+    out: &mut Queue<Request>,
+) {
+    let Turned { number, attempt, turn, read, refusals, outstanding, cumulative, offered: _ } = turned;
     crate::inbox::keep_refusals(domain, number, &refusals);
+    crate::wake::read_escalations(domain, number, read, &outstanding);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
     task.turn = turn;

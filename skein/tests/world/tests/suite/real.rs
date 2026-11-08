@@ -171,30 +171,61 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
 #[test]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
     // Zero patience meets the runnable-wait threshold. Exercise its failure
-    // diagnostic outside nextest so a successful process exit cannot skip it.
+    // diagnostic outside the runners so a starved pass cannot skip it.
     const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
     if std::env::var_os(CHILD).is_none() {
-        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
-            .args(["--exact", "real::a_zero_patience_deadline_reports_the_failing_iteration", "--nocapture"])
-            .env(CHILD, "1")
-            .env_remove("NEXTEST")
-            .output()
-            .expect("run the isolated zero-patience diagnostic check");
-        assert!(
-            output.status.success(),
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
-        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+        for one_process in [false, true] {
+            if one_process && !cfg!(target_os = "linux") {
+                continue;
+            }
+            let mut command = std::process::Command::new(std::env::current_exe().expect("test binary"));
+            command
+                .args([
+                    "--exact",
+                    "real::a_zero_patience_deadline_reports_the_failing_iteration",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .env_remove("NEXTEST")
+                .env_remove("TIERS_ONE_PROCESS");
+            if one_process {
+                command.env("TIERS_ONE_PROCESS", "1");
+            }
+            let output = command.output().expect("run the isolated zero-patience diagnostic check");
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+            if one_process {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                assert!(
+                    stderr.lines().last().is_some_and(|line| line.starts_with("skein-world: starved: waited ")
+                        && line.ends_with(", by the real loop")),
+                    "{stderr}"
+                );
+                assert!(!stderr.contains("panicked at"), "{stderr}");
+            }
+        }
         return;
     }
+    std::thread::sleep(core::time::Duration::from_millis(1));
     let failure = std::panic::catch_unwind(|| {
         let mut world = real::World::new(Judge);
         world.spawn(|| Script::new(&[]));
         world.run(&Clock::new(), Duration::ZERO)
     })
     .expect_err("zero patience fails before the first script iteration");
+    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
+        assert!(
+            failure.downcast_ref::<skein_world::StarvedPass>().is_some(),
+            "the real deadline unwinds with StarvedPass"
+        );
+        return;
+    }
     let text = failure.downcast_ref::<String>().expect("the deadline fails with its diagnostic");
     let accounting = text
         .lines()
@@ -218,6 +249,7 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
 
 #[test]
 #[cfg(target_os = "linux")]
+#[expect(clippy::too_many_lines, reason = "the child checks host drop order for both failure and starved unwind")]
 fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     use skein_io::kernel::{Complete, Submit};
     use skein_lib::{Queue, Time, Wall};
@@ -238,6 +270,7 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     impl Drop for DroppedHost {
         fn drop(&mut self) {
             DROPPED.store(true, Ordering::SeqCst);
+            eprintln!("the starved referee's host was dropped");
         }
     }
     impl Host for DroppedHost {
@@ -284,25 +317,55 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     }
 
     if std::env::var_os(CHILD).is_none() {
-        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
-            .args(["--exact", "real::a_starved_referee_drops_hosts_before_reporting_its_figures", "--nocapture"])
-            .env(CHILD, "1")
-            .env_remove("NEXTEST")
-            .output()
-            .expect("run the isolated starved-referee check");
-        assert!(
-            output.status.success(),
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
-        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+        for one_process in [false, true] {
+            let mut command = std::process::Command::new(std::env::current_exe().expect("test binary"));
+            command
+                .args([
+                    "--exact",
+                    "real::a_starved_referee_drops_hosts_before_reporting_its_figures",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .env_remove("NEXTEST")
+                .env_remove("TIERS_ONE_PROCESS");
+            if one_process {
+                command.env("TIERS_ONE_PROCESS", "1");
+            }
+            let output = command.output().expect("run the isolated starved-referee check");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if one_process {
+                assert_eq!(output.status.code(), Some(101), "{stdout}{stderr}");
+                assert!(stdout.contains("1 failed"), "libtest caught the starved unwind: {stdout}");
+                let mut lines = stderr.lines();
+                assert_eq!(lines.next(), Some("the starved referee's host was dropped"), "{stderr}");
+                let line = lines.next().expect("the starved line follows the host's drop");
+                assert!(line.starts_with("skein-world: starved: waited "), "{stderr}");
+                assert!(line.ends_with(", by the referee's own answer"), "{stderr}");
+                assert_eq!(lines.next(), None, "the starved line is last: {stderr}");
+            } else {
+                assert!(
+                    output.status.success(),
+                    "{}{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr),
+                );
+                assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+            }
+        }
         return;
     }
 
     // Linux publishes a new thread's runtime at a context switch; zero
     // runtime makes scheduler accounting unavailable to Deadline.
     std::thread::sleep(core::time::Duration::from_millis(1));
+    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
+        let mut world = real::World::new(StarvedJudge(None));
+        world.spawn(|| DroppedHost { completions: Queue::uncapped(), submissions: Queue::uncapped() });
+        let _outcome = world.run(&Clock::new(), Duration::from_secs(2));
+        panic!("the starved referee must unwind");
+    }
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {
         // Sample before unwinding could drop the world's hosts.
@@ -314,7 +377,7 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
         world.run(&Clock::new(), Duration::from_secs(2))
     });
     std::panic::set_hook(hook);
-    let failure = failure.expect_err("the referee's starved verdict fails outside nextest");
+    let failure = failure.expect_err("the referee's starved verdict fails outside the runners");
     let text = failure.downcast_ref::<String>().expect("the referee's figures");
     assert_eq!(Some(text), EXPECTED.get(), "the referee's observed figures: {text}");
     assert!(DROPPED_AT_FAILURE.load(Ordering::SeqCst), "the host was dropped before failure reporting");

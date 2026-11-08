@@ -82,11 +82,13 @@ Where the client does otherwise:
   with a step left and no skip, Home says "PROJECT is ready." above
   To begin, a card headed "To begin" beside "Optional", with "Skip"
   at the right. Its note counts the steps left and says whether their
-  acts stay in Settings, Chats, or both. Its three rows keep their
-  order: "Tell temper how you work", the repository, and "Start a
-  chat", with each act at the right while left. Done, a number becomes
-  a green tick and the act goes; the first and third keep their title
-  alone, the repository keeps its merge-queue line. An adoption out
+  acts stay in Settings, Ask temper, or both. Its two rows keep their
+  order: the repository, then "Tell temper how you work", with each act
+  at the right while left. Done, a number becomes a green tick and the
+  act goes; "Tell temper how you work" keeps its title alone, the
+  repository its line. While it shows, the rail holds Home and Ask temper,
+  with Settings at its foot, and a phone's tab bar Home, Ask and Settings
+  (the look request `to-begin-two-steps`). An adoption out
   names the repository and project with no act; refused, its words
   precede "Adopt" again. The terminal keeps the heading and says the
   numbers and "Done.". Connected is absent on every Home; rename stays
@@ -115,10 +117,10 @@ Where the client does otherwise:
   any project*). Context, choices,
   "recommended", "Later", the answer's green line and "Undo" are the
   greenfield mock's (`../README.md`, 3.5). A chat's "landed" waits on
-  `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line says chats can change its code,
+  `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line says temper can change its code,
   without claiming a creation age or first CI result
   (`../README.md`, 11). Landing-by-turn wording waits on that
-  section's *How a project lands, on To begin's second step*: the
+  section's *How a project lands, on To begin's repository step*: the
   client has no project's `by`, so no project's line names how it
   lands. The switcher shows
   repository names and counts, the first listed standing in for the home; "3 repositories"

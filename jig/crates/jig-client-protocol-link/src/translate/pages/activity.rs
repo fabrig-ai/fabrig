@@ -120,12 +120,29 @@ pub(crate) fn run_why_fields(value: &w::RunWhy) -> c::RunWhy {
     }
 }
 
+fn invalid_reason(value: &w::InvalidReason) -> c::InvalidReason {
+    match value {
+        w::InvalidReason::Form => c::InvalidReason::Form,
+        w::InvalidReason::Verdict => c::InvalidReason::Verdict,
+        w::InvalidReason::Words => c::InvalidReason::Words,
+        w::InvalidReason::Change => c::InvalidReason::Change,
+        w::InvalidReason::Followups => c::InvalidReason::Followups,
+        w::InvalidReason::UnreadableResult => c::InvalidReason::UnreadableResult,
+    }
+}
+
 pub(crate) fn run_end_fields(value: &w::RunEnd) -> c::RunEnd {
     match value {
         w::RunEnd::Parked => c::RunEnd::Parked,
         w::RunEnd::Finished => c::RunEnd::Finished,
         w::RunEnd::Cancelled => c::RunEnd::Cancelled,
-        w::RunEnd::Failed(row) => c::RunEnd::Failed { class: crate::translate::answers::hold_failure(row.class()) },
+        w::RunEnd::Failed(row) => c::RunEnd::Failed {
+            class: crate::translate::answers::hold_failure(row.class()),
+            invalid_reason: match row.invalid_reason() {
+                Some(reason) => Some(invalid_reason(reason)),
+                None => None,
+            },
+        },
         w::RunEnd::Refused => c::RunEnd::Refused,
     }
 }

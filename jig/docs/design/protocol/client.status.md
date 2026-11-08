@@ -1,7 +1,26 @@
 # client: status
 
-2026-11-07. Where jig's code lags or departs from [client.md](client.md).
+2026-11-08. Where jig's code lags or departs from [client.md](client.md).
 Unlisted sections have no known gap.
+
+Sections 13 and 14's transport accounting is present: emitted exchanges
+keep credit through `Reply` or `Lost`, including cancelled watch calls.
+The stream table holds authorization behind a full fetch table, then
+releases it after successful or failed HTTP terminals, with no duplicate
+watch ending.
+
+- **Departs:** 18: `authorize_reply` in
+  `jig/crates/jig-protocol-engine-clients/src/provider.rs` maps people's
+  `Again`, including `NotReady` during restoration, to `NotReady`;
+  the design gives that refusal while stopping alone. The
+  `ui-authorize-busy` repair fixes client transport admission, not this
+  readiness path. No bounded provider wait is implemented; section 15
+  keeps the readiness policy for separate work.
+
+Section 3's invalid run ends carry their immutable contract kind or
+unreadable-result cause through wire 19 and the client link. The protocol
+world drives contract-invalid and adapter-invalid endings; no gap is known
+in this diagnostic.
 
 Section 3's v19 run-wait records carry hello figures, bounds refusals
 and the turns, time and waiting shortfalls' charters in both directions.

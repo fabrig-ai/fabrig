@@ -8,9 +8,21 @@ use skein_lib::Duration;
 
 static REAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Scratch fixtures select process-specific addresses for their real peers.
-pub fn real_loopback() {
-    REAL.store(true, std::sync::atomic::Ordering::Relaxed);
+/// A scratch scope restores its peers' previous loopback mode when it ends.
+pub struct RealLoopback {
+    previous: bool,
+}
+
+impl Drop for RealLoopback {
+    fn drop(&mut self) {
+        REAL.store(self.previous, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Select process-specific peer addresses until the scratch scope ends.
+#[must_use]
+pub fn real_loopback() -> RealLoopback {
+    RealLoopback { previous: REAL.swap(true, std::sync::atomic::Ordering::Relaxed) }
 }
 
 /// A Linux process id maps to one distinct address within 127/8.

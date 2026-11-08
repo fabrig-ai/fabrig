@@ -206,7 +206,8 @@ record ResultMessage { kind: ResultKind }
 record MetMessage { dependency: u64 removed: bool }
 enum MessageKind { escalation: EscalationMessage, proposal: ProposalMessage, person_stalled: StalledMessage, proposal_decision: DecisionMessage, words, effect_not_made: EffectMessage, amendment: AmendmentMessage, question, answer: AnswerMessage, notice: NoticeMessage, timer: TimerMessage, news: NewsMessage, result: ResultMessage, met: MetMessage, finish_requested: AmendmentMessage, settings_decision: SettingsDecisionMessage, question_ended: AnswerMessage, question_answered: AnswerMessage, question_owed, nothing_awaited }
 record Word { number: u64 from: Party kind: MessageKind words: bytes 524288 at: u64 hits: u32 eligible: bool }
-record FailedEnd { class: Class }
+enum InvalidResult { form, verdict, words, change, followups }
+record FailedEnd { class: Class invalid_result: option InvalidResult }
 enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused }
 record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
 record HeardMessage { word: Word }
@@ -221,7 +222,6 @@ record KeptLine { attempt: u64 pending: list 64 Number question: option u64 }
 enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine }
 record ActivityLine { task: u64 position: u64 at: u64 line: Line }
 enum Status { done, failed, cancelled }
-enum InvalidResult { form, verdict, words, change, followups }
 record Stub { task: u64 phase: Status result: u64 }
 record ReplyHint { number: u64 activity: u64 attempt: u64 turn: u32 at: u64 }
 record EscalationTask { task: u64 }

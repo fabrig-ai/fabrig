@@ -1,10 +1,10 @@
 //! The small store’s client records and the kept look (temper/docs/design/client/README.md, 7 and 3.5).
 use temper_client_domain::pages::terminal::{Font, Look, Theme};
 
-/// The kept store’s look record (client/README.md, 3.5): three bytes, `0` or `1`.
+/// The kept store’s look record (client/README.md, 3.5): four bytes, `0` or `1`.
 pub const LOOK_KEY: &[u8] = b"look";
 #[must_use]
-pub fn encode_look(look: Look) -> [u8; 3] {
+pub fn encode_look(look: Look) -> [u8; 4] {
     [
         if look.terminal { b'1' } else { b'0' },
         match look.theme {
@@ -15,12 +15,18 @@ pub fn encode_look(look: Look) -> [u8; 3] {
             Font::DejaVu => b'0',
             Font::Plex => b'1',
         },
+        if look.night { b'1' } else { b'0' },
     ]
 }
 #[must_use]
 pub fn decode_look(value: &[u8]) -> Option<Look> {
-    let [terminal, theme, font] = value else { return None };
+    let [terminal, theme, font, night @ ..] = value else { return None };
     Some(Look {
+        night: match night {
+            [] | [b'0'] => false,
+            [b'1'] => true,
+            _ => return None,
+        },
         terminal: match terminal {
             b'0' => false,
             b'1' => true,

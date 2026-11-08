@@ -156,3 +156,43 @@ fn supplied_system_words_print_in_text_and_json() {
         }
     }
 }
+
+#[test]
+fn invalid_run_ends_print_their_reason() {
+    use jig_client::contract as c;
+    for (reason, expected) in [
+        (c::InvalidReason::Form, b"run 3 ended: its result broke its contract (form)".as_slice()),
+        (c::InvalidReason::Verdict, b"run 3 ended: its result broke its contract (verdict)"),
+        (c::InvalidReason::Words, b"run 3 ended: its result broke its contract (words)"),
+        (c::InvalidReason::Change, b"run 3 ended: its result broke its contract (change)"),
+        (c::InvalidReason::Followups, b"run 3 ended: its result broke its contract (followups)"),
+        (c::InvalidReason::UnreadableResult, b"run 3 ended: its result couldn't be read"),
+    ] {
+        let mut rows = skein_lib::List::with_capacity(1);
+        rows.push(c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: 41,
+                position: 1,
+                at: skein_lib::Wall::from_nanos(0),
+                line: c::Activity::RunEnded {
+                    attempt: 3,
+                    end: c::RunEnd::Failed { class: c::HoldFailure::Invalid, invalid_reason: Some(reason) },
+                    spent: 0,
+                },
+            }),
+            decoded: None,
+        })
+        .expect("one run end");
+        let page = ReadResult::Value(ReadValue::Activity(Box::new(c::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        })));
+        let printed = fixtures::read_answer(fixtures::ACTIVITY_CALL, page.clone());
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "{reason:?}: {:?}", printed.stdout);
+        let json = fixtures::read_answer(&["task", "activity", "41", "--json"], page);
+        assert!(skein_lib::bytes::find(&json.stdout, b"invalid_reason").is_some(), "{reason:?}: {:?}", json.stdout);
+    }
+}

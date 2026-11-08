@@ -1526,6 +1526,12 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
             at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
         }
     }
+    if let Some(node) = nodes.get(at)
+        && node.styles.as_slice().contains(&crate::look::NIGHT_SWITCH)
+    {
+        assert_eq!(node.role, Role::Button);
+        at = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+    }
     assert_eq!(at, rail.checked_add(usize::try_from(nodes[rail].size).unwrap()).unwrap());
 }
 
