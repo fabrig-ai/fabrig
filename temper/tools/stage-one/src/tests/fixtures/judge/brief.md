@@ -304,7 +304,7 @@ prerequisites:
 
 - claude-opus-5-5 on Claude Code among the document's models, for the coordinator and designers
 - gpt-6.1-sol on smith's direct backend, with an OpenAI account's key, for producers, foremen and the triage
-- a real model for the configuring chat, the configuring charter's
+- a real model for Ask temper, charter 11's
 - the project, its repository adopted
 - `docs/examples/reference/limits.json`'s overrides in the box's document
 - `forge.change_policy.questions` at 4
