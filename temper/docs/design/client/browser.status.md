@@ -14,10 +14,6 @@ the night reload row, compiled but not run; it adds no test function.
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
-- **Not yet:** 2.5, *The project's frame* and *Day and night*, *The switch*:
-  Ask temper's page on a phone hides the three tabs while To begin shows;
-  the switch has no box on a phone's chat layout or in the rail folded
-  beside a Split (`look-round-20`'s `tabs-and-switch`).
 
 Sections 2.5 and 7.2 have no known implementation gap in the
 `ask-temper-place` repairs: the bar's tag is visible, its separator is
