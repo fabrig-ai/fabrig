@@ -43,7 +43,7 @@ pub(crate) fn offered(root: &temper_client_domain::Domain, words: &Words, ways: 
 fn kept(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte)
 }
-fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
+pub(crate) fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
     const PREFIX: &[u8] = b"/sign-in/google?then=";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut size = origin.len().checked_add(PREFIX.len()).expect("bounded URL");

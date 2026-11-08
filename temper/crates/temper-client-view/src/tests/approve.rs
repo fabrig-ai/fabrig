@@ -1,13 +1,14 @@
-//! The approval card and frame (temper/docs/design/client/README.md, 3.5, 5.1 and 5.12).
+//! The approval column and frame (temper/docs/design/client/README.md, 3.5, 5.1 and 5.12).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     reason = "ordinary view tests inspect semantic trees and compare collected words"
 )]
 use super::fixtures as f;
+use crate::{look, sign_in::Ways};
 use jig_client::{Approval, ApprovalCode, ApprovalState as Read, Decided};
 use skein_lib::{Queue, Wall};
-use skein_ui::{Role, Tree};
+use skein_ui::{Role, Style, Tree};
 use temper_client_domain::{
     Action, Domain, Event, Place,
     approve::{Act, State},
@@ -82,8 +83,27 @@ fn reached(state: State) -> Domain {
 fn named(tree: &Tree, role: Role, name: &str) -> skein_ui::NodeId {
     f::find(tree, role, name.as_bytes()).unwrap_or_else(|| panic!("missing {role:?} {name}"))
 }
+fn parent(tree: &Tree, id: skein_ui::NodeId) -> &skein_ui::Node {
+    let at = tree.nodes().iter().position(|n| n.id == id).expect("child index");
+    tree.nodes()[..at]
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(index, n)| index.checked_add(usize::try_from(n.size).expect("subtree size")).expect("subtree end") > at)
+        .map(|(_, n)| n)
+        .expect("node parent")
+}
 fn build(root: &Domain) -> crate::View {
-    let mut view = f::view_of(f::browser_words());
+    build_with_ways(root, Ways::NONE)
+}
+fn build_with_ways(root: &Domain, ways: Ways) -> crate::View {
+    let mut view = crate::View::with_sign_in(
+        &crate::Limits { tree: f::tree_limits() },
+        &f::domain_limits(),
+        f::browser_words(),
+        f::FORGE,
+        ways,
+    );
     crate::build(&mut view, root, TWO_MINUTES, &mut Queue::uncapped());
     view
 }
@@ -91,41 +111,51 @@ fn build(root: &Domain) -> crate::View {
 #[expect(
     clippy::too_many_lines,
     clippy::type_complexity,
-    reason = "one state table holds the approval card words, controls and clock wake"
+    reason = "one state table holds the approval column words, shapes, controls, return links and clock wake"
 )]
-fn each_state_draws_its_card() {
+fn each_state_draws_its_column() {
     let asked = Wall::EPOCH;
-    let rows: &[(State, &str, &[&str], &[(Role, &str)])] = &[
+    let rows: &[(State, &str, &[&str], &[(Role, &str, &[Style], Role)])] = &[
         (
             State::Typing { unread: false },
             ASK,
             &["Type the code your terminal shows."],
-            &[(Role::TextField, "Code"), (Role::Button, "Check")],
+            &[
+                (Role::TextField, "Code", &[look::APPROVE_FIELD], Role::Form),
+                (Role::Button, "Check", &[look::OUTSIDE_PRIMARY], Role::Form),
+            ],
         ),
         (
             State::Typing { unread: true },
             ASK,
             &["Type the code your terminal shows.", UNREAD],
-            &[(Role::TextField, "Code"), (Role::Button, "Check"), (Role::Alert, UNREAD)],
+            &[
+                (Role::TextField, "Code", &[look::APPROVE_FIELD], Role::Form),
+                (Role::Button, "Check", &[look::OUTSIDE_PRIMARY], Role::Form),
+                (Role::Alert, UNREAD, &[], Role::Form),
+            ],
         ),
         (State::Reading, ASK, &["Reading WDJB-MJHT…"], &[]),
         (
             State::Asking { asked },
             ASK,
             &["WDJB-MJHT", "Asked 2 min ago", WARNING],
-            &[(Role::Button, "Approve"), (Role::Button, "Refuse")],
+            &[
+                (Role::Button, "Approve", &[look::OUTSIDE_PRIMARY], Role::Slot),
+                (Role::Button, "Refuse", &[look::OUTSIDE_SECONDARY], Role::Slot),
+            ],
         ),
         (
             State::Deciding { approve: true, asked },
             ASK,
             &["WDJB-MJHT", "Asked 2 min ago", WARNING, "Approving…"],
-            &[(Role::Status, "Approving…")],
+            &[(Role::Status, "Approving…", &[], Role::Slot)],
         ),
         (
             State::Deciding { approve: false, asked },
             ASK,
             &["WDJB-MJHT", "Asked 2 min ago", WARNING, "Refusing…"],
-            &[(Role::Status, "Refusing…")],
+            &[(Role::Status, "Refusing…", &[], Role::Slot)],
         ),
         (State::Approved, "Approved", &["WDJB-MJHT", "Waiting for your terminal to sign in…"], &[]),
         (State::SignedIn, "Terminal signed in", &["Signed in. You can close this tab."], &[]),
@@ -141,7 +171,7 @@ fn each_state_draws_its_card() {
             State::Unknown,
             "Unknown code",
             &["temper doesn’t know this code. Check the code your terminal shows, or ask again there."],
-            &[(Role::Button, "Type a code")],
+            &[(Role::Button, "Type a code", &[look::OUTSIDE_PRIMARY], Role::Main)],
         ),
         (
             State::SignedOut,
@@ -155,7 +185,7 @@ fn each_state_draws_its_card() {
             State::Busy,
             "temper couldn’t answer just now",
             &["It is starting or stopping, busy, or out of reach. Try again in a moment."],
-            &[(Role::Button, "Try again")],
+            &[(Role::Button, "Try again", &[look::OUTSIDE_PRIMARY], Role::Main)],
         ),
     ];
     for (state, heading, sentences, acts) in rows {
@@ -167,20 +197,43 @@ fn each_state_draws_its_card() {
         for sentence in *sentences {
             assert!(text.contains(sentence), "{state:?}: missing {sentence}: {text}");
         }
-        for (role, name) in *acts {
-            named(tree, *role, name);
+        for (role, name, styles, parent_role) in *acts {
+            let id = named(tree, *role, name);
+            let node = tree.find(id).expect("named control");
+            assert_eq!(node.styles.as_slice(), *styles, "{state:?}: {name}");
+            let parent = parent(tree, id);
+            assert_eq!(parent.role, *parent_role, "{state:?}: {name} parent");
+            if *parent_role == Role::Slot {
+                assert_eq!(parent.styles.as_slice(), &[look::OUTSIDE_ACTS]);
+            }
         }
         let main = tree.nodes().iter().position(|n| n.role == Role::Main).expect("main");
+        assert_eq!(tree.nodes()[main].styles.as_slice(), &[look::OUTSIDE, look::APPROVE]);
         let end = main + usize::try_from(tree.nodes()[main].size).expect("main size");
+        for node in &tree.nodes()[main..end] {
+            for old in [look::MAIN, look::SIGN_IN, look::CARD, look::BRAND, look::APPROVE_ACTS, look::APPROVE_PRIMARY] {
+                assert!(!node.styles.as_slice().contains(&old), "{state:?}: absent {old:?}");
+            }
+        }
         let buttons: Vec<_> = tree.nodes()[main..end]
             .iter()
             .filter(|n| n.role == Role::Button)
             .map(|n| n.name.as_deref().expect("button name"))
             .collect();
         let expected: Vec<_> =
-            acts.iter().filter(|(r, _)| *r == Role::Button).map(|(_, name)| name.as_bytes()).collect();
+            acts.iter().filter(|(r, ..)| *r == Role::Button).map(|(_, name, ..)| name.as_bytes()).collect();
         assert_eq!(buttons, expected, "{state:?}: only this state's acts");
         if let State::Typing { unread } = state {
+            let form = tree.find(named(tree, Role::Form, "Code")).expect("form");
+            let at = tree.nodes().iter().position(|n| n.id == form.id).expect("form index");
+            let end = at + usize::try_from(form.size).expect("form subtree");
+            let roles: Vec<_> = tree.nodes()[at..end].iter().filter(|n| n.role != Role::Text).map(|n| n.role).collect();
+            let expected: &[Role] = if *unread {
+                &[Role::Form, Role::TextField, Role::Button, Role::Alert]
+            } else {
+                &[Role::Form, Role::TextField, Role::Button]
+            };
+            assert_eq!(roles, expected, "the alert follows Check inside the form");
             let field = tree.find(named(tree, Role::TextField, "Code")).expect("field");
             assert_eq!(
                 field.value.as_ref().expect("value").text.as_ref(),
@@ -198,7 +251,44 @@ fn each_state_draws_its_card() {
             );
         }
     }
+    let printed = "This browser isn’t signed in to temper. Open the sign-in link temper printed first, then open this page’s address again: your terminal shows it.";
+    let google = "This browser isn’t signed in to temper. Sign in, and this page comes back with your terminal’s code.";
+    let origin = b"https://temper.example".as_slice();
+    for (ways, code, body, target) in [
+        (Ways::NONE, Some(code()), printed, None),
+        (Ways { google: false, origin: Some(origin.into()) }, Some(code()), printed, None),
+        (Ways { google: true, origin: None }, Some(code()), printed, None),
+        (
+            Ways::parse("google", origin),
+            Some(code()),
+            google,
+            Some("https://temper.example/sign-in/google?then=/terminal%3Fcode%3DWDJB-MJHT"),
+        ),
+        (Ways::parse("google", origin), None, google, Some("https://temper.example/sign-in/google?then=/terminal")),
+    ] {
+        let mut root = reached(State::SignedOut);
+        f::root_event(&mut root, Event::Went { place: Place::Approve { code } });
+        let view = build_with_ways(&root, ways);
+        let tree = view.tree();
+        named(tree, Role::Heading { level: 1 }, "Sign in first");
+        assert_eq!(
+            f::main_text(tree).as_ref(),
+            ["Sign in first", body, if target.is_some() { "Continue with Google" } else { "" }].concat().as_bytes()
+        );
+        let links: Vec<_> = tree
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Continue with Google"))
+            .collect();
+        let targets: Vec<_> = links.iter().map(|n| n.external.as_deref().expect("Google destination")).collect();
+        assert_eq!(targets, target.into_iter().map(str::as_bytes).collect::<Vec<_>>());
+        for link in links {
+            assert_eq!(link.styles.as_slice(), &[look::OUTSIDE_PRIMARY]);
+            assert_eq!(parent(tree, link.id).role, Role::Main);
+        }
+    }
 }
+
 #[test]
 fn each_act_decodes_to_its_action() {
     for (state, role, name, event, expected) in [
@@ -261,9 +351,9 @@ fn the_approval_place_draws_the_banner_alone() {
     );
     for mut root in [Box::new(accounts), Box::new(playground)] {
         let before = build(&root);
-        assert!(before.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::RAIL)));
+        assert!(before.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::RAIL)));
         assert!(
-            before.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::ACCOUNTS)),
+            before.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::ACCOUNTS)),
             "fixture offers a banner"
         );
         f::root_event(&mut root, Event::Went { place: Place::Approve { code: None } });
@@ -274,7 +364,7 @@ fn the_approval_place_draws_the_banner_alone() {
             let view = build(&root);
             let tree = view.tree();
             assert!(tree.nodes().iter().any(|n| n.role == Role::Banner));
-            for style in [crate::look::RAIL, crate::look::TABBAR, crate::look::ACCOUNTS, crate::look::UNAVAILABLE] {
+            for style in [look::RAIL, look::TABBAR, look::ACCOUNTS, look::UNAVAILABLE] {
                 assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&style)), "absent {style:?}");
             }
             assert!(f::find(tree, Role::Region, b"Playground").is_none());
