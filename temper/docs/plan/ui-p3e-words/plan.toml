@@ -62,3 +62,16 @@ id = 4
 story = "How work runs heads the page with the headline of the stock way the project runs, or with the project's own words, kind 10, where it runs none"
 parts = ["how"]
 walk = false
+
+[[part]]
+id = "ask"
+title = "Ask temper writes the words with what it proposes: a charter's words and the project's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.4.2"
+
+[[slice]]
+id = 5
+story = "An owner's Ask temper chat proposes a charter with its words and the project's words; accepted, both read back"
+parts = ["ask"]
+walk = false

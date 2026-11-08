@@ -188,24 +188,17 @@ suites"`; `goal`, `"description": "the gate without its slowest suites"`.
 
 ## 9. Ask temper's instructions (`ask-words`, `temper/crates/temper-service/src/stock/ask.txt`)
 
-For the user's review before landing (`plan.md`). Three edits, nothing else of the
-file moves:
+For the user's review before landing (`plan.md`). One edit, nothing else of the
+file moves: in *Configuring*, right after the sentence that ends "and what the
+change does to running work.", a space and the sentence
 
-1. *Finding out,* the `see` addresses' line: `settings [KIND N | rules |
-   landing-rule N [project] | landing | gates OWNER/NAME | project-ways |
-   project-questions]` becomes `settings [KIND N | rules | landing-rule N
-   [project] | landing | gates OWNER/NAME | project-ways | project-questions |
-   charter-words N | project-words]`.
-2. *temper, as you explain it,* the paragraph that starts "Settings define how
-   work runs:": its "; and project ways and questions (what its pages offer and
-   where change questions go)." becomes "; project ways and questions (what its
-   pages offer and where change questions go); and the words saved with them (a
-   charter's line, a project's headline and lede on How work runs)."
-3. *Configuring,* right after the sentence that ends "and what the change does to
-   running work.", the sentence:
+> With it, write in their terms what the pages show: charter-words for each
+> charter, what it does; project-words for the project's own way, a headline and
+> a short lede.
 
-   > Write the words the pages show with what you propose, in their terms: for
-   > each charter, its charter-words, a line on what it does; where the change
-   > gives the project a way of its own, its project-words, a headline naming the
-   > way and its chief departure, and a lede of a sentence or two on who does
-   > what.
+on the same line, 167 bytes with its space, so that the file is 8,052 bytes.
+`tests/stock.rs` holds Ask temper's instructions to their receiving bound, 8,192
+bytes; ui-reaches' `classes-kind` adds 112 bytes to the same file, leaving 28
+once both have landed. So the kinds' names reach Ask temper by its tools'
+declarations and `see settings`' follow-ups (`words-kind`), not by its *Finding
+out* list.
