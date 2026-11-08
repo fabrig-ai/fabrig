@@ -233,7 +233,7 @@ pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
             || (delegates > 0 && (task.waits_on == c::WaitsOn::Delegates || task.waits_on == c::WaitsOn::News))
             || account)
     {
-        let (_, words) = super::chats::status_words(
+        let (token, words) = super::chats::status_words(
             &task.chip,
             (&task.waits_on, Some(delegates), task.run_wait.as_ref()),
             (task.project, task.requester),
@@ -241,7 +241,10 @@ pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
             me,
             w,
         );
-        Some(words)
+        let writing =
+            jig_client::facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me)
+                == jig_client::facts::ChatStatus::Writing;
+        Some(if token == look::STATUS_ACTIVE && writing { w.say(Word::RunningWork, &[]) } else { words })
     } else {
         None
     }

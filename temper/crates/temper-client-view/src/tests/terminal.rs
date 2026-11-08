@@ -98,84 +98,27 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
     }
 }
 fn writing_root(reply: &[u8]) -> d::Domain {
-    let source = state_root(1);
-    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
-    task.activity = 0;
-    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: f::chat::ATTEMPT });
-    task.chip.phase = task.chip.details.phase.compact();
-    let limits = f::domain_limits();
-    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits };
-    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &limits);
-    f::deliver_me(&mut root, me_watch, source.pages().me(source.client()).unwrap().clone());
-    let mut out = skein_lib::Queue::uncapped();
-    d::step(&mut root, &env, Event::Went { place: d::Place::Address(Address::Chat { task: f::chat::TASK }) }, &mut out);
-    while let Some(request) = out.pop() {
-        let up = match request {
-            d::Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { .. }) },
-                    },
-            } => Some(jig_client::Up::Watched {
-                watch,
-                event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
-            }),
-            d::Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Run { .. }) },
-                    },
-            } => Some(jig_client::Up::Watched {
-                watch,
-                event: c::WatchEvent::Delivered(c::Delivery::RunState(Box::new(c::RunState {
-                    task: f::chat::TASK,
-                    attempt: Some(f::chat::ATTEMPT),
-                    committed_turn: 0,
-                    writing: Some(c::RunText {
-                        writing: None,
-                        attempt: f::chat::ATTEMPT,
-                        began: Some(f::NOW),
-                        turn: c::ProvisionalTurnName { attempt: f::chat::ATTEMPT, number: f::chat::TURN, retry: 0 },
-                        from: 0,
-                        through: u32::try_from(reply.len()).unwrap(),
-                        text: c::Text::new(reply.into(), f::chat::TEXT).unwrap(),
-                        cut: false,
-                        call: None,
-                    }),
-                    call: None,
-                }))),
-            }),
-            d::Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
-                    },
-            } => Some(jig_client::Up::ReadDone {
-                read,
-                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
-                    c::ActivityPage { rows: skein_lib::List::with_capacity(0), before: None, after: None, cut: false },
-                )))),
-            }),
-            d::Request::Screen { .. }
-            | d::Request::KeepLook { .. }
-            | d::Request::KeepSignIn { .. }
-            | d::Request::Tab { .. }
-            | d::Request::Copy { .. }
-            | d::Request::Client { .. }
-            | d::Request::Unlinked { .. }
-            | d::Request::Show { .. }
-            | d::Request::Leave { .. }
-            | d::Request::SignOut
-            | d::Request::Dropped { .. }
-            | d::Request::Fact { .. } => None,
-        };
-        if let Some(up) = up {
-            d::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
-        }
-    }
+    let (mut root, _, run_watch) = observed_writing_root();
+    let mut run = writing_state();
+    run.writing = Some(reply_text(reply));
+    watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run)));
     root
+}
+fn writing_state() -> c::RunState {
+    c::RunState { task: f::chat::TASK, attempt: Some(f::chat::ATTEMPT), committed_turn: 0, writing: None, call: None }
+}
+fn reply_text(reply: &[u8]) -> c::RunText {
+    c::RunText {
+        writing: None,
+        attempt: f::chat::ATTEMPT,
+        began: Some(f::NOW),
+        turn: c::ProvisionalTurnName { attempt: f::chat::ATTEMPT, number: f::chat::TURN, retry: f::chat::RETRY },
+        from: 0,
+        through: u32::try_from(reply.len()).unwrap(),
+        text: c::Text::new(reply.into(), f::chat::TEXT).unwrap(),
+        cut: false,
+        call: None,
+    }
 }
 
 fn state_root(state: u8) -> d::Domain {
@@ -316,6 +259,144 @@ fn the_terminal_says_where_it_is_and_what_runs() {
 }
 
 #[test]
+fn a_writing_run_says_working_before_the_first_answer() {
+    let (mut root, task_watch, run_watch) = observed_writing_root();
+    let mut run = writing_state();
+    watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run.clone())));
+    assert!(root.pages().chat().unwrap().thread.lines().is_empty());
+    let browser = view(&root, Shell::Browser);
+    assert!(f::find(browser.tree(), Role::Status, b"Writing").is_some(), "the chat bar keeps Writing");
+    act(&mut root, Act::Terminal(terminal::Act::Enter));
+    assert_working_line(&root, Some(b"Working"));
+    run.writing = Some(reply_text(b"Hello"));
+    watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run.clone())));
+    assert!(skein_lib::bytes::find(&f::text(view(&root, Shell::Browser).tree()), b"Hello").is_some());
+    assert_working_line(&root, Some(b"Working"));
+    run.writing = None;
+    run.attempt = None;
+    run.committed_turn = f::chat::TURN;
+    watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run)));
+    commit_reply(&mut root, task_watch);
+    assert!(skein_lib::bytes::find(&f::text(view(&root, Shell::Browser).tree()), b"Hello").is_some());
+    assert_working_line(&root, None);
+}
+
+fn assert_working_line(root: &d::Domain, expected: Option<&[u8]>) {
+    assert_eq!(crate::shared::running(root, &f::browser_words()).as_deref(), expected);
+    let terminal = view(root, Shell::Browser);
+    let running = terminal.tree().nodes().iter().find(|node| node.styles.as_slice().contains(&look::TERMINAL_RUN));
+    assert_eq!(running.and_then(|node| node.name.as_deref()), expected);
+}
+
+fn commit_reply(root: &mut d::Domain, task_watch: skein_lib::Token) {
+    let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
+    task.activity = u64::from(f::chat::TURN);
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+    task.chip.details.details.observation = None;
+    task.waits_on = c::WaitsOn::News;
+    let mut out = watch_delivery(root, task_watch, c::Delivery::Task(Box::new(task)));
+    let mut reply = f::first_run::turn(
+        u64::from(f::chat::TURN),
+        f::chat::ATTEMPT,
+        f::chat::TURN,
+        &[f::first_run::message(c::Speaker::Assistant, &[c::Block::Text(f::first_run::text(b"Hello"))])],
+        f::chat::TEXT,
+    );
+    reply.source.task = f::chat::TASK;
+    reply.decoded.as_mut().unwrap().task = f::chat::TASK;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
+                },
+        } = request
+        {
+            f::root_event(
+                root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
+                                c::ActivityPage {
+                                    rows: skein_lib::List::from_boxed(Box::new([reply])),
+                                    before: None,
+                                    after: None,
+                                    cut: false,
+                                },
+                            )))),
+                        },
+                    },
+                },
+            );
+            assert_eq!(
+                root.pages().chat().unwrap().thread.committed_turn,
+                Some(c::TurnName { attempt: f::chat::ATTEMPT, number: f::chat::TURN })
+            );
+            return;
+        }
+    }
+    panic!("the completed task asks for its committed reply");
+}
+
+fn watch_delivery(
+    root: &mut d::Domain,
+    watch: skein_lib::Token,
+    delivery: c::Delivery,
+) -> skein_lib::Queue<d::Request> {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
+            },
+        },
+        &mut out,
+    );
+    out
+}
+
+fn observed_writing_root() -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    let source = state_root(1);
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.chip.executor = c::ChipExecutor::Agent { charter: 37 };
+    task.activity = 0;
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: f::chat::ATTEMPT });
+    task.chip.details.details.observation = Some(c::ChipObservation {
+        channel: skein_lib::Token::new(1),
+        work: c::ChipWork::Writing,
+        since: f::NOW,
+        reported_at: f::NOW,
+        started: None,
+    });
+    let (mut root, me_watch, task_watch, _, _) = f::root_at_with_activity(
+        Address::Chat { task: f::chat::TASK },
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        Some(c::ActivityPage { rows: skein_lib::List::with_capacity(0), before: None, after: None, cut: false }),
+        None,
+    );
+    f::deliver_me(&mut root, me_watch, source.pages().me(source.client()).unwrap().clone());
+    let mut out = watch_delivery(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Run { .. }) },
+                },
+        } = request
+        {
+            return (root, task_watch.unwrap(), watch);
+        }
+    }
+    panic!("a running chat opens its run watch");
+}
+
+#[test]
 fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
     const REPLY: &[u8] = b"The checks are running";
     let mut root = writing_root(REPLY);
@@ -327,14 +408,6 @@ fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
     assert_eq!(*text, REPLY);
     let browser = view(&root, Shell::Browser);
     assert!(!styled(browser.tree(), look::TYPING), "reply words replace the browser's dots");
-    let status = browser
-        .tree()
-        .nodes()
-        .iter()
-        .find(|node| node.role == Role::Status && node.styles.as_slice().contains(&look::STATUS_ACTIVE))
-        .expect("the bar's active status")
-        .name
-        .clone();
     act(&mut root, Act::Terminal(terminal::Act::Enter));
     let terminal = view(&root, Shell::Browser);
     let running = terminal
@@ -343,8 +416,8 @@ fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
         .iter()
         .find(|node| node.styles.as_slice().contains(&look::TERMINAL_RUN))
         .expect("the running line stands while reply words stream");
-    assert_eq!(running.name, status, "the running line keeps the bar's status words");
-    assert_eq!(crate::shared::running(&root, &f::browser_words()), status);
+    assert_eq!(running.name.as_deref(), Some(b"Working".as_slice()));
+    assert_eq!(crate::shared::running(&root, &f::browser_words()).as_deref(), Some(b"Working".as_slice()));
     assert!(!styled(terminal.tree(), look::TYPING));
 }
 
