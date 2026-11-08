@@ -500,7 +500,7 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
         if flow {
             skein_ui::markdown::read(CASE, 1, &mut builder);
         } else {
-            paths::path(&mut builder, b"The way a change goes", &stops).expect("bounded path");
+            paths::path(&mut builder, b"The way a change goes", &stops, None).expect("bounded path");
         }
         builder.close();
         builder.close();
@@ -518,8 +518,8 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
         for width in [640, 240, 640] {
             page.resized(drawing, width, 0, &mut ops);
             let html = page.html();
-            assert_eq!(html.contains("<svg"), width == 640, "flow {flow}, width {width}");
-            assert_eq!(html.contains("data-drawn="), width == 640);
+            assert_eq!(html.contains("<svg"), !flow || width == 640, "flow {flow}, width {width}");
+            assert_eq!(html.contains("data-drawn="), !flow || width == 640);
             if flow {
                 if width == 640 {
                     assert!(html.contains(SVG.strip_suffix('\n').expect("case's final newline")), "{html}");
@@ -533,7 +533,7 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
                     assert!(html.contains(words), "path fallback at width {width}: {html}");
                 }
                 if width == 640 {
-                    for name in ["base", "auth", "person", "agent", "code", "bar", "words"] {
+                    for name in ["main", "rise"] {
                         assert!(html.contains(&format!("class=\"temper-ways-{name}\"")), "{html}");
                     }
                 }

@@ -1566,14 +1566,26 @@ a.temper-repository-link:hover { text-decoration: underline; }
 @media (max-width: 480px) {
   .temper-view-card > [role="group"] > div { grid-template-columns: 1fr; gap: .25rem; }
 }
-/* Paths: judgement above the dotted authority boundary, code below. */
-#app .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
-#app .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; opacity: .6; }
-#app .temper-ways-person { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
-#app .temper-ways-agent { fill: var(--gf-signal); }
-#app .temper-ways-code { fill: var(--gf-line-2); }
-#app .temper-ways-bar { fill: var(--gf-ink); }
-#app .temper-ways-words { fill: var(--gf-muted); font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; }
+/* ask-temper-ways: judgement above the dotted authority boundary, code below. */
+#app > .temper-session .temper-ways-path { margin: 0; }
+#app > .temper-session .temper-ways-path > svg { display: block; width: 100%; height: auto; overflow: visible; }
+#app > .temper-session .temper-ways-path text { font: 400 11.5px var(--gf-mono); fill: var(--gf-ink-2); }
+#app > .temper-session .temper-ways-path .temper-ways-end { fill: var(--gf-muted); }
+#app > .temper-session .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
+#app > .temper-session .temper-ways-rise { fill: none; stroke: var(--gf-signal); stroke-opacity: .28; stroke-width: 1.5; }
+#app > .temper-session .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
+#app > .temper-session .temper-ways-main { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-landing > .temper-ways-main { fill: var(--gf-muted); }
+#app > .temper-session .temper-ways-agent { fill: var(--gf-signal); }
+#app > .temper-session .temper-ways-person { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
+#app > .temper-session .temper-ways-code { fill: var(--gf-ink-2); }
+#app > .temper-session .temper-ways-hit { fill: transparent; }
+#app > .temper-session .temper-ways-halo { fill: var(--gf-signal-pale); stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-stop { cursor: pointer; outline: none; }
+#app > .temper-session .temper-ways-stop:is(:hover, :focus-visible) text { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-stop:focus-visible .temper-ways-hit { stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-path .temper-ways-open { fill: var(--gf-ink); font-weight: 600; }
+#app > .temper-session .temper-ways-caret { fill: var(--gf-surface); stroke: var(--gf-line-2); stroke-width: 1; }
 
 /* model-picker: the model and effort sit at the composer, on every chat. */
 #app > :is(.temper-session, .temper-agent-page) .temper-session-foot { position: relative; z-index: 5; overflow: visible; }
