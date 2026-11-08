@@ -1584,9 +1584,13 @@ Step tests, in skein-lib and skein-codec, and the story in
   same refusal, and the next fitting record reuses their room. Step
   tests check both stacks with nested and written values, zero and
   tiny capacities, a larger next pass, and reuse after refusal;
-  capacities and backing allocations show that reuse neither grows
-  nor copies a table. The price includes growth's peak within a
-  sixteenth of the run's tables.
+  capacities, and the allocations the counting allocator's span counts
+  around each reused pass (testing.md, 5), show that reuse neither
+  grows nor copies a table; no test reads a table's address. A stack's
+  room is a list's cap, its buffer growing as the walk deepens
+  (lib.md, 5), so a pass reuses its stacks once a pass as deep has
+  run. The price includes growth's peak within a sixteenth of the
+  run's tables.
 
 ## 12. The command and its check
 

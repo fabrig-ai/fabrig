@@ -899,9 +899,42 @@ component instead (6.1).
 - **A mark's tokens are classes,** by their names; its hint, never
   needed to decide, is a `<title>` in it, shown on hover. Colours,
   widths and fonts are the stylesheets' (section 12): a scene says none.
+- **A fade is a gradient of its SVG's own** (ui.md, 11.2). Where a mark
+  has one, the SVG's first child is a `<defs>` holding a
+  `<linearGradient>` for each faded mark, in the marks' order:
+  `gradientUnits="userSpaceOnUse"`, its `x1`, `y1`, `x2`, `y2` the fade's
+  two points, so that a group's offset moves it with its mark. Each stop
+  is a `<stop>`: its `offset` its place as a fraction with three places
+  (`0.000`, `0.500`, `1.000`), and its tokens classes by their names, as
+  a mark's are. The mark has `stroke="url(#ID)"` and `data-fade`. No
+  colour is in the SVG: an owner's stylesheet sets `stop-color` and
+  `stop-opacity` by the stops' classes. A `<defs>`, a gradient and a stop
+  are none of the marks' elements, so a press finds its marks as before
+  (*Acted on*, below). A scene with no fade has no `<defs>`, and no mark
+  of it a `stroke` attribute or `data-fade`.
+- **A fade's id is unique in the document:** a stem, a hyphen and its
+  mark's place in the scene's preorder, from 0. `svg::draw` takes the
+  stem (`ids`); the page part's is `skein-ui-fade-<node id>`, unique as
+  its node is, and a program that prints a drawing again into one
+  document, as temper's gallery prints a path at a second width, gives
+  that print a stem of its own. Each SVG holds the gradients its marks
+  name: an id two SVGs shared would send the second's marks to the
+  first's gradient, which a stylesheet may hide, as the gallery hides its
+  other width, and an id names one element of a document.
+- **A fade's paint and the stylesheets:** the strict policy admits no
+  `style` attribute (4.4), and no stylesheet can name the id each drawing
+  makes, so the paint is the mark's `stroke` attribute, which any
+  stylesheet rule setting `stroke` on the mark outweighs. So
+  `skein-ui.css`'s default stroke (section 12) skips a mark with
+  `data-fade`, at the weight it has, and an owner's stylesheet sets no
+  `stroke` on a faded mark: a rule of its tokens' that could match one is
+  written under `:not([data-fade])`, or `:where(:not([data-fade]))` to
+  keep its weight. Its `stroke-opacity` would multiply the stops' and is
+  kept off a faded mark likewise. The stroke's width, caps and joins stay
+  the owner's, by the mark's tokens.
 - **Refused, never cut:** a scene past skein-ui's limits (marks and
-  bytes per scene, a node's tokens per mark: ui.md, section 15) draws as
-  its fallback.
+  bytes per scene, a node's tokens per mark: ui.md, section 15), or with
+  a fade its rules refuse (ui.md, 11.2), draws as its fallback.
 - **No cost for no drawing:** the page part makes its one scene, whose
   storage is all reserved at once, the first time it draws, so a page with
   no drawing reserves none of it.
@@ -1117,7 +1150,10 @@ share sheet, a clipboard write, a file picked).
   - hides a completed item's word (`skein-ui-state-`) from sight only,
     in the same way (section 6);
   - gives every mark of a scene a default, strokes in the text's colour
-    and no fill, and acting marks (`data-act`) `pointer-events: all`;
+    and no fill, and acting marks (`data-act`) `pointer-events: all`; a
+    faded mark (`data-fade`) keeps its stroke, its fade's (section 8):
+    the default's stroke skips it, at the weight the default has, so that
+    a flow's rules still outweigh it;
   - gives a flow's tokens (ui.md, 11.5) a plain default, each rule under
     `[data-drawn] > svg` so that it outweighs the marks' own: boxes outlined
     in the text's colour on no fill, names at the body's size, captions
@@ -1151,7 +1187,8 @@ share sheet, a clipboard write, a file picked).
 
 - **skein-ui's:** a tree's nodes, a diff's patches, a scene's marks and
   bytes, a drawing's bytes (ui.md, section 15); a drawing's SVG has at
-  most a scene's marks.
+  most a scene's marks, and a gradient for each faded one, with a stop
+  for each of its stops.
 - **The application's:** an answer's body, a piece of the stream,
   exchanges in flight, the small store's own bound (section 10).
 - **The platform's:** session storage's quota, past which a write fails.

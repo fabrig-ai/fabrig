@@ -9,6 +9,59 @@ pub struct Point {
     pub x: u16,
     pub y: u16,
 }
+/// A fade's stop: its place in thousandths of the way, 0 to 1000, and its tokens (ui.md, 11.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct FadeStop<'a> {
+    pub offset: u16,
+    pub styles: &'a [Style],
+}
+/// A mark's fade as its scene holds it (ui.md, 11.2).
+#[derive(Clone, Copy, Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "The points are public; stored stops are read by their iterator (ui.md, 11.2)."
+)]
+pub struct Fade<'a> {
+    pub from: Point,
+    pub to: Point,
+    stops: &'a [u8],
+    styles: &'a [Style],
+}
+impl<'a> Fade<'a> {
+    /// Its stops in order, as they were given.
+    #[must_use]
+    pub fn stops(&self) -> FadeStops<'a> {
+        FadeStops { bytes: skein_lib::Reader::new(self.stops), styles: self.styles }
+    }
+}
+/// The stops read from a scene's fade (ui.md, 11.2).
+#[derive(Debug)]
+pub struct FadeStops<'a> {
+    bytes: skein_lib::Reader<'a>,
+    styles: &'a [Style],
+}
+impl<'a> Iterator for FadeStops<'a> {
+    type Item = FadeStop<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bytes.is_empty() {
+            return None;
+        }
+        let offset = read_coordinate(&mut self.bytes);
+        let count = read_coordinate(&mut self.bytes);
+        let (styles, rest) = self.styles.split_at_checked(usize::from(count)).expect("stored stop token count");
+        self.styles = rest;
+        Some(FadeStop { offset, styles })
+    }
+}
+/// The scene's bytes a fade of `stops` stops takes: 8 and 4 for each stop (ui.md, 15).
+#[must_use]
+pub const fn fade_bytes(stops: u32) -> Option<u32> {
+    let Some(bytes) = stops.checked_mul(4) else {
+        return None;
+    };
+    bytes.checked_add(8)
+}
 /// Where a text mark's point is.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Anchor {
@@ -47,6 +100,7 @@ pub(crate) struct Properties {
     styles: Span,
     hint: Option<Span>,
     act: Option<Span>,
+    fade: Option<Span>,
 }
 /// A scene reserves all storage at construction; refusal removes every mark.
 #[derive(Debug)]
@@ -143,6 +197,85 @@ impl Scene {
         let span = self.properties.get(index)?.act?;
         Some(self.slice(span))
     }
+    /// The mark's fade, if it has one.
+    #[must_use]
+    pub fn mark_fade(&self, index: u32) -> Option<Fade<'_>> {
+        let properties = self.properties.get(index)?;
+        let span = properties.fade?;
+        let mut reader = skein_lib::Reader::new(self.slice(span));
+        let from = Point { x: read_coordinate(&mut reader), y: read_coordinate(&mut reader) };
+        let to = Point { x: read_coordinate(&mut reader), y: read_coordinate(&mut reader) };
+        let stops = reader.bytes(reader.remaining()).expect("stored fade stops");
+        let styles = self.styles.as_slice().get(usize_of(properties.styles.end)..).expect("fade follows mark tokens");
+        Some(Fade { from, to, stops, styles })
+    }
+    /// Paint the last mark's stroke, a line's, a polyline's or a path's, with a linear fade (ui.md, 11.2).
+    pub fn fade(&mut self, from: Point, to: Point, stops: &[FadeStop<'_>]) -> bool {
+        if self.refused {
+            return false;
+        }
+        let Some(index) = self.marks.len().checked_sub(1) else {
+            return self.refuse();
+        };
+        match self.marks.get(index).expect("last mark") {
+            Mark::Line { .. } | Mark::Polyline { .. } | Mark::Path { .. } => {}
+            Mark::Group { .. } | Mark::Rectangle { .. } | Mark::Circle { .. } | Mark::Text { .. } => {
+                return self.refuse();
+            }
+        }
+        let properties = self.properties.get(index).expect("last mark's properties");
+        if properties.fade.is_some() || stops.is_empty() {
+            return self.refuse();
+        }
+        let mut previous = 0;
+        for stop in stops {
+            if stop.offset > 1000 || stop.offset < previous {
+                return self.refuse();
+            }
+            previous = stop.offset;
+        }
+        let mut tokens = properties.styles.end.checked_sub(properties.styles.start).expect("ordered token span");
+        for stop in stops {
+            let Ok(count) = u32::try_from(stop.styles.len()) else {
+                return self.refuse();
+            };
+            let Some(total) = tokens.checked_add(count) else {
+                return self.refuse();
+            };
+            if total > self.styles_per_mark {
+                return self.refuse();
+            }
+            tokens = total;
+        }
+        for stop in stops {
+            if u16::try_from(stop.styles.len()).is_err() {
+                return self.refuse();
+            }
+        }
+        let Ok(count) = u32::try_from(stops.len()) else {
+            return self.refuse();
+        };
+        let Some(bytes) = fade_bytes(count) else {
+            return self.refuse();
+        };
+        if bytes > self.bytes.room() {
+            return self.refuse();
+        }
+        let start = self.bytes.len();
+        self.write_point(from);
+        self.write_point(to);
+        for stop in stops {
+            self.write(&stop.offset.to_le_bytes());
+            let count = u16::try_from(stop.styles.len()).expect("checked stop token count");
+            self.write(&count.to_le_bytes());
+            for style in stop.styles {
+                self.styles.push(*style).expect("reserved token capacity");
+            }
+        }
+        self.properties.get_mut(index).expect("last mark's properties").fade =
+            Some(Span { start, end: self.bytes.len() });
+        true
+    }
     fn slice(&self, span: Span) -> &[u8] {
         self.bytes.as_slice().get(usize_of(span.start)..usize_of(span.end)).expect("stored byte span")
     }
@@ -172,7 +305,7 @@ impl Scene {
         }
         self.marks.push(mark).expect("checked mark capacity");
         self.properties
-            .push(Properties { data, styles: tokens, hint: None, act: None })
+            .push(Properties { data, styles: tokens, hint: None, act: None, fade: None })
             .expect("one property per mark");
         true
     }
@@ -429,6 +562,19 @@ impl core::fmt::Display for Scene {
                 f.write_str(" act=")?;
                 for byte in act {
                     f.write_fmt(format_args!("{byte:02X}"))?;
+                }
+            }
+            if let Some(fade) = self.mark_fade(index) {
+                f.write_fmt(format_args!(" fade {},{} {},{}", fade.from.x, fade.from.y, fade.to.x, fade.to.y))?;
+                for stop in fade.stops() {
+                    f.write_fmt(format_args!(" {}[", stop.offset))?;
+                    for (position, style) in stop.styles.iter().enumerate() {
+                        if position != 0 {
+                            f.write_str(" ")?;
+                        }
+                        f.write_fmt(format_args!("{}:{}", style.owner.number, style.token))?;
+                    }
+                    f.write_str("]")?;
                 }
             }
             f.write_str("\n")?;

@@ -479,7 +479,7 @@ fn the_chat_draws_each_entry() {
                 (look::SAID, "What landed overnight?"),
                 (
                     look::AGENT,
-                    "Under You approve:You approveAn agent makes each change; nothing reaches main until you approve it.○ you ask✦ produce▪ check✦ repair▪ check○ you approve▪ update✦ resolve▪ merge┃ mainNothing lands without you.",
+                    "Under You approve:You approveAn agent makes each change; nothing reaches main until you approve it.○ you ask✦ produce▪ check✦ repair▪ check○ you approve✦ resolve▪ merge┃ mainNothing lands without you.",
                 ),
             ],
         ),

@@ -25,7 +25,7 @@ impl Walk {
         match self.stage {
             0 => true,
             1 => caller.answers.len() == 6,
-            2 => caller.answers.len() == 7 && self.landed(),
+            2 => caller.answers.len() == 7 && self.landing_complete(),
             _ => self.calls.iter().all(|id| visitor.answers.contains_key(id)),
         }
     }
@@ -41,6 +41,19 @@ impl Walk {
         let landed = store.rows.range(Key::Forge(Landed([0; 32]))..=Key::Forge(Landed([u8::MAX; 32]))).next().is_some();
         self.landing.set(Some((store.applied, landed)));
         landed
+    }
+    fn landing_complete(&self) -> bool {
+        self.landed()
+            && (!super::TRACKED.with(Cell::get)
+                || self.store.borrow().rows.values().any(|record| {
+                    if let temper_engine_domain::Record::Forge { row } = record
+                        && let temper_engine_domain_forge::Stored::Landing(row) = row.as_ref()
+                    {
+                        row.landing.phase == temper_engine_domain_forge::LandingPhase::Landed
+                    } else {
+                        false
+                    }
+                }))
     }
     pub fn diagnostic(&self) -> String {
         let tasks: Vec<_> = self
@@ -165,7 +178,7 @@ impl Walk {
                         String::from_utf8_lossy(&answer.error)
                     );
                 }
-                if !self.landed() {
+                if !self.landing_complete() {
                     return false;
                 }
                 self.calls.push(visitor.send(
