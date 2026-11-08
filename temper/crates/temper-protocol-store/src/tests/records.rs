@@ -387,6 +387,7 @@ fn each_change_delegate_round_trips_unchanged() {
         Delegate::Repair(Repair::Gate(1)),
         Delegate::Repair(Repair::Semantic),
         Delegate::Repair(Repair::Landing { gate: 3 }),
+        Delegate::Repair(Repair::Review { head: [7; 32] }),
         Delegate::Resolve { base: [2; 32] },
         Delegate::Gate { number: 3, head: [4; 32] },
     ] {

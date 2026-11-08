@@ -698,6 +698,7 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
             repairing(w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 9 }).unwrap())),
         ),
         (forge::PanelStep::Repairing(change::Repair::Semantic), repairing(w::Reason::Semantic)),
+        (forge::PanelStep::Repairing(change::Repair::Review { head: [7; 32] }), repairing(w::Reason::Review)),
         (forge::PanelStep::Landing, w::Step::Landing),
         (
             forge::PanelStep::Landed { merge: [8; 32] },

@@ -1019,7 +1019,7 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     change.owns_turn = false;
     match why {
         Repair::Semantic => {}
-        Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } => change.clean = Box::new([]),
+        Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
     }
     change.state = State::Repairing { requested: true, why };
     change.since = now;
@@ -1103,7 +1103,7 @@ fn repairing(
 fn ci_reason(why: Repair) -> bool {
     match why {
         Repair::Ci | Repair::Semantic => true,
-        Repair::Gate(_) | Repair::Landing { .. } => false,
+        Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => false,
     }
 }
 
