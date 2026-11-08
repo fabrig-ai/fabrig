@@ -178,6 +178,22 @@ fn a_read_ending_in_escape_delivers_it_immediately() {
     }
 }
 #[test]
+fn escape_is_held_only_until_the_background_wait_ends() {
+    for (first, expected) in [(b"\x1b".as_slice(), &[][..]), (b"x\x1b", &[Key::Char('x')][..])] {
+        let mut decoder = Decoder::new(0);
+        decoder.answers();
+        let mut keys = Queue::with_capacity(KEY_ROOM);
+        decoder.read(first, &mut keys);
+        check(&mut keys, expected, first, 0);
+        decoder.end_background_wait(&mut keys);
+        check(&mut keys, &[Key::Escape], first, 0);
+        decoder.read(b"\x1b", &mut keys);
+        check(&mut keys, &[Key::Escape], first, 0);
+        decoder.read(b"\x1b]11;rgb:f/a/0\x07", &mut keys);
+        check(&mut keys, &[], first, 0);
+    }
+}
+#[test]
 fn unknown_and_overlong_sequences_are_dropped_whole() {
     for sequence in [b"\x1b[99~".as_slice(), b"\x1b[12345678901234~", b"\x1bOQ"] {
         for split in 2..=sequence.len() {
