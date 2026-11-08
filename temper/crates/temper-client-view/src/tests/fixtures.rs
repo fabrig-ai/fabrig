@@ -73,8 +73,8 @@ pub fn tree_limits() -> skein_ui::Limits {
         // The largest goal plan and its frame, including Changes' link and text,
         // and five nodes for the rail menu wrapper, menu and three items.
         // The default draft entry adds a goal link and its text.
-        // Seven decided rows each add their Allowed sentence.
-        nodes: 208,
+        // Seven decided rows each add their Allowed sentence; Work and Deployment add their frame nodes.
+        nodes: 224,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -480,6 +480,8 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
+        | temper_client_domain::Address::Members
+        | temper_client_domain::Address::Limits
         | temper_client_domain::Address::Accounts
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
@@ -490,6 +492,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Role { .. }
         | temper_client_domain::Address::Rule { .. }
         | temper_client_domain::Address::Repositories { .. }
+        | temper_client_domain::Address::Work { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Ask { .. }
         | temper_client_domain::Address::Adopt { .. }

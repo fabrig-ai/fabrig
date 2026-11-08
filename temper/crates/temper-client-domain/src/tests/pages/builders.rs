@@ -15,12 +15,15 @@ fn frame(role: Option<c::HeldRole>) -> c::WatchEvent {
     me.deployment_role = role;
     c::WatchEvent::Delivered(c::Delivery::Me(me))
 }
-fn opened(role: Option<c::HeldRole>) -> (Domain, Token, Queue<Request>) {
+fn opened_at(role: Option<c::HeldRole>, address: Address) -> (Domain, Token, Queue<Request>) {
     let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
     let me = fixtures::start(&mut root, List::with_capacity(0));
     deliver(&mut root, me, frame(role));
-    let out = event(&mut root, Event::Went { place: Place::Address(Address::Builders { project: fixtures::PROJECT }) });
+    let out = event(&mut root, Event::Went { place: Place::Address(address) });
     (root, me, out)
+}
+fn opened(role: Option<c::HeldRole>) -> (Domain, Token, Queue<Request>) {
+    opened_at(role, Address::Builders { project: fixtures::PROJECT })
 }
 fn deployment_watch(out: &Queue<Request>) -> Option<Token> {
     out.iter().find_map(|r| match r {
@@ -63,8 +66,11 @@ fn document() -> c::Deployment {
 
 #[test]
 fn the_watch_opens_for_a_role_and_closes_on_leaving() {
-    for role in [c::HeldRole::Owner, c::HeldRole::Policy { role: 1 }] {
-        let (mut root, _, out) = opened(Some(role));
+    for (role, address) in [
+        (c::HeldRole::Owner, Address::Builders { project: fixtures::PROJECT }),
+        (c::HeldRole::Policy { role: 1 }, Address::Limits),
+    ] {
+        let (mut root, _, out) = opened_at(Some(role), address.clone());
         let watch = deployment_watch(&out).expect("role opens deployment");
         assert!(match root.pages().builders().unwrap().read(root.client()) {
             Read::Unknown => true,
@@ -79,8 +85,7 @@ fn the_watch_opens_for_a_role_and_closes_on_leaving() {
             Read::Unknown | Read::NoRole => false,
         });
         // Re-entering the same tab neither restarts nor duplicates its read.
-        let out =
-            event(&mut root, Event::Went { place: Place::Address(Address::Builders { project: fixtures::PROJECT }) });
+        let out = event(&mut root, Event::Went { place: Place::Address(address) });
         assert!(deployment_watch(&out).is_none());
         assert!(!closes(&out, watch));
         let out =
@@ -91,12 +96,14 @@ fn the_watch_opens_for_a_role_and_closes_on_leaving() {
 }
 #[test]
 fn no_role_watches_nothing_and_reads_no_role() {
-    let (root, _, out) = opened(None);
-    assert!(deployment_watch(&out).is_none());
-    assert!(match root.pages().builders().unwrap().read(root.client()) {
-        Read::NoRole => true,
-        Read::Unknown | Read::Hosts(_) => false,
-    });
+    for address in [Address::Builders { project: fixtures::PROJECT }, Address::Limits] {
+        let (root, _, out) = opened_at(None, address);
+        assert!(deployment_watch(&out).is_none());
+        assert!(match root.pages().builders().unwrap().read(root.client()) {
+            Read::NoRole => true,
+            Read::Unknown | Read::Hosts(_) => false,
+        });
+    }
 }
 #[test]
 fn losing_the_role_closes_it() {

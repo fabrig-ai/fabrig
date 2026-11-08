@@ -73,12 +73,15 @@ pub fn draws(address: &crate::Address) -> bool {
         Address::Chat { .. } | Address::NewChat { .. } | Address::Ask { .. } => true,
         Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Task { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Home { .. }
         | Address::Changes { .. }

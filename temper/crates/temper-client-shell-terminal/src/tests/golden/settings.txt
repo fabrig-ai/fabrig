@@ -5,64 +5,60 @@ demo:
   New project:
     [3] New project: (empty) (enter sends)
     [4] Create
-  [5] Settings for demo
-  [6] Home
-  [7] Needs you
-  [8] Chats
-  [9] + New chat
-  More ways to start work:
-    [10] Chat
-      Ask about the code or ask for a change.
-    [11] Goal
-      Agents plan a larger change and land it.
-    [12] All ways to start work
-  [13] Set up temper
-  [14] Away
-  [15] Settings (current)
+  [5] How work runs for demo
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work
+  [10] How work runs (current)
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
+  [13] Away
+  [14] Set up temper
+  [15] Deployment
   * Pat
-demo · settings
+demo · how work runs
 Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
-Settings:
+How work runs:
   [16] How work runs (current)
   [17] Repositories
-  [18] Forges
-  [19] Accounts
-  [20] Models
-  [21] Builders
 ## The path of a change
 ## What needs you
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [22] ( ) Answered by the goal, kept in its decisions
-  [23] ( ) Asked of me too
-  [24] (*) Not asked: each agent decides alone
+  [18] ( ) Answered by the goal, kept in its decisions
+  [19] ( ) Asked of me too
+  [20] (*) Not asked: each agent decides alone
 ## While you’re away, agents may decide
 Agents decide, then tell you: wording choices, retries and splits, test-only changes.
 What asks you
 Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away.
-[25] [x] Implementation choices
-[26] [x] New dependencies
-[27] [x] Departures from a landed design
+[21] [x] Implementation choices
+[22] [x] New dependencies
+[23] [x] Departures from a landed design
 [-] [ ] Money past a budget, what can’t be undone, and changes to these rules: always wait (disabled)
 Away until
 When it isn’t turned off by hand.
 Away until:
-  [28] (*) 08:00, the end of quiet hours
-  [29] ( ) I turn it off
+  [24] (*) 08:00, the end of quiet hours
+  [25] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[30] [x] Chats can write drafts
+[26] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[31] [ ] Goals
+[27] [ ] Goals
 Changes
-The landing queue, as a page.
+The landing queue, as Work's filter.
 Hidden
-[32] [ ] Changes
+[28] [ ] Changes
 Away switch
 Lets agents decide within limits while you’re away.
 Hidden
-[33] [ ] Away switch
+[29] [ ] Away switch

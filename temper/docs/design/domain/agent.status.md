@@ -2,6 +2,15 @@
 
 2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 4.3.1 has no known implementation gap in whole-goal child isolation:
+words-only calls and batch members use the nearest held goal branch,
+including callers in its subtree; an explicit destination outside it is
+refused before delegation. The engine-domain world's stock draft-goal
+story decodes a reconstructed words-only call through smith, answers two
+scope questions, releases the change hold and observes the fake forge's
+child merge before the separate whole-goal landing. It establishes no
+real-model or browser outcome.
+
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,

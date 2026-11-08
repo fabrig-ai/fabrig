@@ -2,6 +2,15 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
+Section 11.1 has no known implementation gap in whole-goal child isolation:
+words-only calls and batch members use the nearest held goal branch,
+including callers in its subtree; an explicit destination outside it is
+refused before delegation. The engine-domain world's stock draft-goal
+story decodes a reconstructed words-only call through smith, answers two
+scope questions, releases the change hold and observes the fake forge's
+child merge before the separate whole-goal landing. It establishes no
+real-model or browser outcome.
+
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
 branch-relative project patterns. The root checks their approval

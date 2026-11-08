@@ -493,13 +493,32 @@ pub fn read(
 pub fn project() -> temper_client_domain::Address {
     temper_client_domain::Address::Home { project: 1 }
 }
+/// Start a change from the rail's new box (temper/docs/design/client/README.md, 5.3).
+#[must_use]
+pub fn start_change(drafts: bool) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    if drafts {
+        vec![
+            Step::See { find: Find::exactly_named(Role::Menu, b"New draft or change"), within: WITHIN },
+            // The terminal exposes menu items in the printed tree.
+            Step::See { find: Find::exactly_named(Role::MenuItem, b"Change"), within: WITHIN },
+            Step::Press { find: Find::exactly_named(Role::MenuItem, b"Change") },
+        ]
+    } else {
+        vec![
+            Step::See { find: Find::exactly_named(Role::Link, b"New change"), within: WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New change") },
+        ]
+    }
+}
 #[must_use]
 pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
     let mut steps = vec![
-        Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
-        Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"How work runs for Project 1"), within: WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"How work runs for Project 1") },
         Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Add repositories"), within: WITHIN },
@@ -978,15 +997,19 @@ fn fail_delegate(driver: &mut Driver, held: u64) {
 pub fn amend_tasks(front: &mut Joint) -> (u64, u64) {
     const DEPENDENCY_KEY: [u8; 16] = [42; 16];
     const ROOT_BUDGET: u64 = 1; // walking's minimum run spend, leaving funding for both roots.
-    let goal = make_goal_named(front, false, Some(0), GOAL_KEY, Some(ROOT_BUDGET));
-    let dependency = make_goal_named(front, false, Some(0), DEPENDENCY_KEY, Some(ROOT_BUDGET));
+    let goal = make_goal_named(front, false, Some(0), GOAL_KEY, Some(ROOT_BUDGET), true);
+    let dependency = make_goal_named(front, false, Some(0), DEPENDENCY_KEY, Some(ROOT_BUDGET), true);
     (goal, dependency)
+}
+/// A listed goal for settings' Work filter, with no spend reserved.
+pub fn settings_goal(front: &mut Joint) -> u64 {
+    make_goal_named(front, false, None, GOAL_KEY, Some(0), false)
 }
 fn make_goal(front: &mut Joint, procedure: bool) -> u64 {
     make_goal_with_delegation(front, procedure, None)
 }
 fn make_goal_with_delegation(front: &mut Joint, procedure: bool, delegates: Option<u32>) -> u64 {
-    make_goal_named(front, procedure, delegates, GOAL_KEY, None)
+    make_goal_named(front, procedure, delegates, GOAL_KEY, None, true)
 }
 fn make_goal_named(
     front: &mut Joint,
@@ -994,10 +1017,13 @@ fn make_goal_named(
     delegates: Option<u32>,
     key: [u8; 16],
     budget: Option<u64>,
+    sign_in: bool,
 ) -> u64 {
     let driver = &mut front.engine;
-    driver.sign_in();
-    driver.settle();
+    if sign_in {
+        driver.sign_in();
+        driver.settle();
+    }
     if procedure {
         adopt_goal_repository(driver);
     }
@@ -1031,10 +1057,31 @@ fn make_goal_named(
         batch[0].contract =
             jig_domain_people::Contract::Change { connector: FORGE_CONNECTOR, kind: FORGE_CHANGE, words: REPORT_BYTES };
     }
+    let session = if sign_in {
+        driver.session()
+    } else {
+        driver
+            .store
+            .rows
+            .values()
+            .find_map(|record| {
+                if let engine::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::SignIn {
+                    number,
+                    person,
+                    ..
+                })) = record
+                {
+                    (*person == PARTY).then_some(*number)
+                } else {
+                    None
+                }
+            })
+            .expect("goal owner's sign-in")
+    };
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(GOAL_REPLY),
-        sign_in: driver.session(),
+        sign_in: session,
         key,
         ask: jig_domain_people::Ask::Create { project: GOAL_PROJECT, batch },
     }));
