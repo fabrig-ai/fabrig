@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [setup.md](setup.md).
 
-- **Not yet:** 8.3: each project's landing rule 1 is not the binary's
-  stock: the stock module gives the forge the deployment's rule 1 over
-  every branch of every forge (`temper-service/src/stock.rs`, `forge`).
-
 Section 7.2's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
 link file at startup and each new Link and removes it when its loop

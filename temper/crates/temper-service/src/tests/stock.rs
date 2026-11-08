@@ -1386,19 +1386,19 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: one deployment rule and both forge charters.
+    // configuration.md, 13.4: every project's rule 1 and both forge charters.
     const ITEMS: usize = 3;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     assert_eq!(stock.len(), ITEMS);
-    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (1, 0, 1));
+    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (2, 0, 1));
     assert_eq!(
         stock[0].value.value,
         settings::Value::Rule(settings::LandingRule {
             pattern: forge::GatePattern {
-                segments: Box::new([b"forge".as_slice().into()]),
+                segments: Box::new([b"branch".as_slice().into()]),
                 last: forge::GateLast::Open(Box::default()),
             },
             enforce: true,
@@ -1418,6 +1418,10 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
     }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+        assert_eq!(
+            usize::try_from(item.value.size).unwrap(),
+            temper_engine_smith::kinds::encode(&item.value.value).len()
+        );
     }
 }
 

@@ -118,9 +118,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
-- **Not yet:** 13.4: the stock module gives the forge kind 1's rule 1 over
-  every branch of every forge, and no project's rule 1
-  (`temper-service/src/stock.rs`, `forge`).
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the
