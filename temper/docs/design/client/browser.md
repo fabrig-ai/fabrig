@@ -594,7 +594,15 @@ replay says the same clocks (`README.md`, 5.12).
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
   hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
-  under, temper box's line takes its own row under them. The main is
+  under, temper box's line takes its own row under them. After the
+  steps, the top bar's end as on every page outside a project, signed
+  in the person's name and "Sign out". The bar packs its rows to their
+  end (`justify-content: flex-end`) and the steps take the free space at
+  their left (`margin-left: auto`, where temper box's line took it at its
+  right), so that the steps and the end keep to the right, temper box's
+  line beside the brand, and an end the row cannot hold wraps to the
+  right of the next; an end straight after the brand, before the
+  deployment's read answers, takes the free space at its own left. The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on

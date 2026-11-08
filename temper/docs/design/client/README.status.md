@@ -2,6 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, The welcome, *Its frame* and *Its steps*, and 5.1,
+  *the top bar*: the welcome's top bar ends at its steps, with no link
+  region, person's name or "Sign out"; `look-round-22`'s `welcome-end`
+  closes it.
+
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
