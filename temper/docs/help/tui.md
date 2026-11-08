@@ -17,8 +17,8 @@ and engine.
 
 ## What temper guarantees
 
-`q` closes the signed-in screen and keeps the sign-in. Ctrl+C also closes
-on either screen; on the sign-in screen, `q` types a character.
+`/exit` or Ctrl+C closes the TUI and keeps the sign-in. On the sign-in
+screen, use Ctrl+C. `q` types a character on every screen.
 
 ## Acting on it
 
