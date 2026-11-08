@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 330;
+pub const N: usize = 333;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,14 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "night-home", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample { name: "night-ask", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
+        Sample {
+            name: "night-chat-split",
+            world: Solo,
+            address: Address::Chat { task: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
+        },
         Sample { name: "approve-typing", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-unread", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-asking", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
@@ -1435,6 +1443,17 @@ fn start_domain(sample: &Sample) -> Domain {
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     use temper_client_domain::pages::terminal::{Act as T, Command};
+    let base = match sample.name {
+        "night-home" => Some("home-begin-ask-left"),
+        "night-ask" => Some("configure"),
+        "night-chat-split" => Some("chat-draft-split"),
+        _ => None,
+    };
+    if let Some(name) = base {
+        let mut root = domain(&Sample { name, ..sample.clone() });
+        step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Night)) }, &mut Queue::uncapped());
+        return root;
+    }
     if sample.name.starts_with("approve-") {
         return crate::worlds::approve_world(sample.name);
     }

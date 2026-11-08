@@ -1407,7 +1407,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* The link's state shows only when it is not live. */
 #app > .temper-rail > .temper-rail-foot > [data-region=temper-link]:has(> .temper-live) { display: none; }
 /* A moon by day and a sun by night, at the rail’s foot. */
-#app > .temper-rail > .temper-night-switch { position: absolute; right: 16px; bottom: 24px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
+#app > .temper-rail > .temper-night-switch { position: absolute; right: 16px; bottom: 24px; width: 30px; height: 30px; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
 #app > .temper-rail > .temper-night-switch::before { content: ''; position: absolute; inset: 7px; background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
