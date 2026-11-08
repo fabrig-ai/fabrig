@@ -710,6 +710,14 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
     let band_size = Size { columns: 8, rows: 4 };
     let band_paint = Paint { back: fixtures::BAND_PAINT.back, ..fixtures::RED_PAINT };
     let edge_paint = Paint { back: fixtures::REGION_PAINT.back, ..fixtures::RED_PAINT };
+    let border_paint = Paint { bold: true, ..fixtures::REGION_PAINT };
+    let end_title = b"Hello / Ask T2 on box";
+    // The 21-cell end part needs six more inner columns; a box adds two sides.
+    let rule_fit = Size { columns: 27, rows: 2 };
+    let rule_narrow = Size { columns: 26, rows: 2 };
+    let box_fit = Size { columns: 29, rows: 2 };
+    let box_narrow = Size { columns: 28, rows: 2 };
+    let title_size = Size { columns: 40, rows: 2 };
     for (name, tree, size, expected, cells) in [
         (
             "spaced options menu",
@@ -797,6 +805,71 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
             Size { columns: 12, rows: 2 },
             "+- Title --+\n+----------+\n",
             &[][..],
+        ),
+        (
+            "rule title at the end",
+            fixtures::title_parts(fixtures::TITLED_RULES, b"", end_title),
+            title_size,
+            "─────────────── Hello / Ask T2 on box ──\n────────────────────────────────────────\n",
+            &[
+                (Position { row: 0, column: 1 }, Cell { glyph: '─', paint: border_paint }),
+                (Position { row: 0, column: 16 }, Cell { glyph: 'H', paint: edge_paint }),
+            ][..],
+        ),
+        (
+            "box title at the end only",
+            fixtures::title_parts(fixtures::LOOKS_TOP, b"", end_title),
+            title_size,
+            "╭────────────── Hello / Ask T2 on box ─╮\n╰──────────────────────────────────────╯\n",
+            &[
+                (Position { row: 0, column: 2 }, Cell { glyph: '─', paint: border_paint }),
+                (Position { row: 0, column: 16 }, Cell { glyph: 'H', paint: edge_paint }),
+            ][..],
+        ),
+        (
+            "rule title start and end",
+            fixtures::title_parts(fixtures::TITLED_RULES, b"Title", b"long end"),
+            title_size,
+            "─ Title ──────────────────── long end ──\n────────────────────────────────────────\n",
+            &[
+                (Position { row: 0, column: 2 }, Cell { glyph: 'T', paint: edge_paint }),
+                (Position { row: 0, column: 29 }, Cell { glyph: 'l', paint: edge_paint }),
+            ][..],
+        ),
+        (
+            "rule title too narrow",
+            fixtures::title_parts(fixtures::TITLED_RULES, b"", end_title),
+            rule_narrow,
+            "──────────────────────────\n──────────────────────────\n",
+            &[(Position { row: 0, column: 1 }, Cell { glyph: '─', paint: border_paint })][..],
+        ),
+        (
+            "rule end title fits exactly",
+            fixtures::title_parts(fixtures::TITLED_RULES, b"", end_title),
+            rule_fit,
+            "── Hello / Ask T2 on box ──\n───────────────────────────\n",
+            &[(Position { row: 0, column: 3 }, Cell { glyph: 'H', paint: edge_paint })][..],
+        ),
+        (
+            "box end title fits exactly",
+            fixtures::title_parts(fixtures::LOOKS_TOP, b"", end_title),
+            box_fit,
+            "╭─── Hello / Ask T2 on box ─╮\n╰───────────────────────────╯\n",
+            &[(Position { row: 0, column: 5 }, Cell { glyph: 'H', paint: edge_paint })][..],
+        ),
+        (
+            "box end title too narrow",
+            fixtures::title_parts(fixtures::LOOKS_TOP, b"", end_title),
+            box_narrow,
+            "╭──────────────────────────╮\n╰──────────────────────────╯\n",
+            &[(Position { row: 0, column: 2 }, Cell { glyph: '─', paint: border_paint })][..],
+        ),
+        (
+            "rule title at the start only",
+            fixtures::title_parts(fixtures::TITLED_RULES, b"Title", b""),
+            Size { columns: 12, rows: 2 },
+            "─ Title ────\n────────────\n",
+            &[(Position { row: 0, column: 2 }, Cell { glyph: 'T', paint: edge_paint })][..],
         ),
     ] {
         let mut frame = Frame::new(size);
