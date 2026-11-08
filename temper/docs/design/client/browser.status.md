@@ -8,6 +8,9 @@
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
+- **Not yet:** 4.3: `small-window` names 131,072 bytes, an eighth of
+  `document_bytes`, and leaves the bundle's `long_text` and `turn_text` at
+  131,072; reading's replies are sized to that window.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;

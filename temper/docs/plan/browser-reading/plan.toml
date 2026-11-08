@@ -4,3 +4,29 @@ sources = ["temper/docs/plan/browser-reading/inputs/request.md", "temper/tests/c
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "reading-window"
+title = "The tier's window and long_text at 32,768 bytes, reading's code lines a quarter, its counts, paragraphs and steps unchanged"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[part]]
+id = "decode-index"
+title = "skein-browser's decoder indexes a CDP message's values and keys once, and looks fields up in the index"
+mode = "direct"
+needs = []
+design = "skein/docs/design/browser.md, 4"
+
+[[slice]]
+id = 1
+story = "browser_pages::a_chat_opens_at_its_end_and_reads_back_keeping_its_place reads a 32,768-byte window's histories through a decoder that parses each reply once, every step and assertion as before"
+parts = ["reading-window", "decode-index"]
+walk = false
