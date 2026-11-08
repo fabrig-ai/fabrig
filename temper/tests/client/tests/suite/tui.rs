@@ -153,7 +153,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     tui.press(&mut world, vec![Key::Escape]);
     tui.run(&mut world, STEP);
     let text = tui.text();
-    assert!(text.contains("❯ Ask temper"), "Esc clears the box: {text}");
+    assert!(text.contains("❯ Ask for a change, or ask temper.  / for commands"), "Esc clears the box: {text}");
     assert!(!text.contains("/exit"), "Esc closes the commands: {text}");
     assert!(text.contains(PROJECTS), "{text}");
 
@@ -184,7 +184,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     let text = tui.text();
     assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
     assert!(!text.contains("✦ Working"), "the run has ended: {text}");
-    assert!(text.contains(PROJECTS), "{text}");
+    assert!(tui.status().starts_with("Project 1 · "), "{text}");
     assert!(text.contains("● Live"), "{text}");
     assert!(!world.front().release_reply(), "no reply remains held after commit");
 
@@ -275,7 +275,7 @@ fn a_playground_the_browser_starts_shows_in_the_tuis_header_and_quiet_line() {
     assert!(header.contains("playground · 127.0.0.1:8367"), "the playground precedes the place");
     let words = text.lines().map(|line| line.trim_matches(['│', ' '])).collect::<Vec<_>>().join(" ");
     assert!(words.contains("This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it."));
-    assert!(tui.status().contains("/ for commands · playground"));
+    assert!(tui.status().ends_with("playground"));
     assert!(!text.contains("Nothing needs you."), "the playground leaves out Home's headline");
 }
 

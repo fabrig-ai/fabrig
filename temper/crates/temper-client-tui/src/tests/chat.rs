@@ -327,6 +327,7 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
     let root = f::live(Some(f::me(&[b"Hello"]))).0;
     let mut foot = foot::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW);
     foot.columns = columns;
+    foot.launchpad = false;
     foot.rule = Some(foot::Rule {
         project: b"Hello".as_slice().into(),
         title: chat::cut(&shared::heading(request), &f::words()),

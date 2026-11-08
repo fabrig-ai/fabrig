@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ / for commands
 ────────────────────────────────────────────────────────────────────────────────
- / for commands                                                          ● Live
+ ● Live
 --
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a..............................................................................a
@@ -46,11 +46,10 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ccaaaaaaaaaaaaaa................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.dddddddddddddd..........................................................eeeeee.
+.dddddd.........................................................................
 --
 a: fore #6A655C
 b: fore #E08A68 bold
 c: fore #E08A68
-d: fore #9A9388
-e: fore #8FC28F
+d: fore #8FC28F
 cursor 21 2
