@@ -9,11 +9,11 @@ pub use kinds::kinds;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
-    Charter, ConfiguredPolicy, Model, RunPolicy, Template, ToolFamilies,
+    Charter, CharterPart, ConfiguredPolicy, Model, RunPolicy, Template, ToolFamilies,
     settings::{CatalogueModel, Defaults, ModelSource, Setting},
 };
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
-use jig_domain_tasks::{Contract, EndedBy, Flags, Retention};
+use jig_domain_tasks::{Contract, EndedBy, Flags, Reasons, ResultsWake, Retention, WakePolicy, WakeRule};
 use skein_lib::{Duration, List, Map, bytes};
 
 /// Settings defaults supplied at a start (protocol/configuration.md, 13.4).
@@ -264,7 +264,7 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
     )?;
     for charter in &defaults.charters {
         let setting = Setting::Charter(charter.number);
-        let needed = jig_domain_core::policy_owned_bytes(&charter.policy).expect("bounded stock run policy");
+        let needed = jig_domain_core::charter_owned_bytes(charter).expect("bounded stock charter");
         floor(b"core.run_bytes", u64::from(core.run_bytes), needed, setting)?;
         floor(
             b"core.settings.alternatives",
@@ -351,6 +351,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
         charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
         reviewer(&models),
+        coordinator(&models),
         foreman(&models),
         status(&models),
         trial(&models),
@@ -374,7 +375,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(result_bytes), goal(result_bytes), ask(result_bytes)]);
+    let templates = Box::new([chat(result_bytes), goal(result_bytes), draft_goal(result_bytes), ask(result_bytes)]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
@@ -493,7 +494,7 @@ fn charter(
     Charter {
         parts: Box::new([]),
         rest: true,
-        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        wake: WakePolicy::DEFAULT,
         documents: Box::new([]),
         number,
         hosts: jig_domain_fleet::Kinds::Workers,
@@ -514,7 +515,7 @@ fn charter(
             agents: true,
             call_timeout: Duration::from_millis(10_000),
             tools: match number {
-                1 => CHAT_CHARTER_TOOLS,
+                1 | 5 => CHAT_CHARTER_TOOLS,
                 2 => CODING_TOOLS,
                 4 => REVIEWING_TOOLS,
                 6 => FOREMAN_TOOLS,
@@ -540,6 +541,48 @@ fn reviewer(models: &[CatalogueModel]) -> Charter {
     value.policy.agents = false;
     value
 }
+// temper/docs/design/protocol/configuration.md, 13.4; jig/docs/design/domain/tasks.md, 8.6.
+const COORDINATOR_WAKE: WakePolicy = WakePolicy {
+    words: WakeRule::Immediate,
+    notices: WakeRule::Immediate,
+    news: WakeRule::Paced { span: Duration::from_secs(1_800) },
+    results: ResultsWake::Each,
+    questions: true,
+    answers: true,
+    timers: true,
+};
+
+fn coordinator(models: &[CatalogueModel]) -> Charter {
+    let (shared, parts) = sections(include_bytes!("stock/coordinator.md"));
+    let mut value = charter(5, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
+    value.parts = parts;
+    value.policy.resume = false;
+    value.policy.shell = false;
+    value.wake = COORDINATOR_WAKE;
+    value
+}
+
+#[expect(clippy::disallowed_methods, reason = "compiled stock headings and UTF-8 are held by the parts test")]
+fn sections(text: &'static [u8]) -> (Box<[u8]>, Box<[CharterPart]>) {
+    let text = core::str::from_utf8(text).expect("stock coordinator is UTF-8");
+    let mut sections = text.strip_prefix("## ").expect("stock section heading").split("\n## ");
+    let (heading, shared) = sections.next().expect("stock shared section").split_once('\n').expect("heading line");
+    assert_eq!(heading, "shared", "stock shared heading");
+    let mut parts = List::with_capacity(4);
+    for section in sections {
+        let (heading, instructions) = section.split_once('\n').expect("stock part heading line");
+        let names = heading.strip_prefix("part, on: ").expect("stock part heading");
+        let mut on = Reasons::EMPTY;
+        for name in names.split(", ") {
+            on = on.union(Reasons::named(name.as_bytes()).expect("known stock part reason"));
+        }
+        parts
+            .push(CharterPart { on, instructions: bytes::copy_of(instructions.trim_matches('\n').as_bytes()) })
+            .expect("four stock coordinator parts");
+    }
+    (bytes::copy_of(shared.trim_matches('\n').as_bytes()), parts.into_boxed())
+}
+
 fn foreman(models: &[CatalogueModel]) -> Charter {
     let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), models, FIRST_CHOICES);
     value.policy.modify = false;
@@ -588,12 +631,14 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(1),
                 authority::Executor::Charter(2),
                 authority::Executor::Charter(4),
+                authority::Executor::Charter(5),
                 authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
                 authority::Executor::Charter(11),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
+                authority::Executor::Job(3),
                 authority::Executor::Role(0),
                 authority::Executor::Role(1),
                 authority::Executor::Role(2),
@@ -625,6 +670,15 @@ fn chat(result_bytes: u32) -> Template {
 }
 fn ask(result_bytes: u32) -> Template {
     Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
+}
+fn draft_goal(result_bytes: u32) -> Template {
+    Template {
+        number: 4,
+        name: bytes::copy_of(b"goal for a draft"),
+        executor: TemplateExecutor::Charter(5),
+        resources: Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]),
+        ..goal(result_bytes)
+    }
 }
 fn goal(result_bytes: u32) -> Template {
     Template {
