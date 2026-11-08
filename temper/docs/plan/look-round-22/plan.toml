@@ -32,6 +32,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/browser.md, 2.5"
 
+[[part]]
+id = "welcome"
+title = "The welcome's top bar ends with the person's name and Sign out, its steps and end at its right"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
 [[slice]]
 id = 1
 story = "Every Google sign-in ending says didn’t, can’t, isn’t, hasn’t and couldn’t with the client's typographic apostrophe"
@@ -48,4 +55,10 @@ walk = false
 id = 3
 story = "Code and Project name read 14 px on a 22.4 px line, and the night welcome at 420 by 900 shows no day paper under its ground"
 parts = ["ground"]
+walk = false
+
+[[slice]]
+id = 4
+story = "Signed in, the welcome's top bar shows the person's name and Sign out at its right, after its steps, at every width"
+parts = ["welcome"]
 walk = false

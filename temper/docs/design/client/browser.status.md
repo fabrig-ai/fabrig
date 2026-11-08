@@ -20,6 +20,11 @@
   where Google's way is given; `look-round-22`'s `public-sign-in`
   closes it.
 
+- **Not yet:** 2.5, *The welcome's look*: the welcome's top bar spreads
+  its row (`justify-content: space-between`, temper box's line taking
+  the free space) and draws no end; `look-round-22`'s `welcome-end`
+  closes it.
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
