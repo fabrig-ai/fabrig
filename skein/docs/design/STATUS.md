@@ -22,7 +22,7 @@ by its path (`forge-setup.md`), nor a comparison's `removed` (`forge.md`); the f
 at a refused copy, asks a delete the wrong scope and answers a read by
 path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`fake-forge.md`).
-No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`shell.md`). A panic's report does not yet close with its message after the backtrace (`shell.md`). json, tls and http's collector have no fuzz target
+No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
