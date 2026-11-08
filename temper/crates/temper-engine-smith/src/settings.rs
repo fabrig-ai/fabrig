@@ -524,6 +524,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         | Refusal::NotWaiting
         | Refusal::NoFurther
         | Refusal::Unknown
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::Provider
         | Refusal::KeyConflict

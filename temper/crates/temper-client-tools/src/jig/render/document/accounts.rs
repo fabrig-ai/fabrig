@@ -434,6 +434,7 @@ fn end(value: c::AccountEnd, out: &mut Encoder) {
                 R::Moving => b"moving",
                 R::NotLimited => b"not_limited",
                 R::Uses => b"uses",
+                R::ProgramNameReserved => b"program_name_reserved",
                 R::NotKept { .. } => b"not_kept",
                 R::Limit { .. } => b"limit",
                 R::Held { .. } => b"held",
@@ -477,6 +478,7 @@ fn end(value: c::AccountEnd, out: &mut Encoder) {
                 | R::Cancelled
                 | R::Moving
                 | R::NotLimited
+                | R::ProgramNameReserved
                 | R::Uses
                 | R::Subject
                 | R::Unknown

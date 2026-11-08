@@ -29,6 +29,8 @@ pub enum Refusal {
     Moving,
     NotLimited,
     Uses,
+    /// The program source name remains reserved after its account is forgotten.
+    ProgramNameReserved,
     NotKept {
         why: crate::KeyFailure,
     },

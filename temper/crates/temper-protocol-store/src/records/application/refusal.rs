@@ -478,6 +478,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         p::Refusal::NoFurther => w::Refusal::NoFurther,
         p::Refusal::Unknown => w::Refusal::Unknown,
         p::Refusal::NotOffered => w::Refusal::NotOffered,
+        p::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::KeyConflict => w::Refusal::KeyConflict,
         p::Refusal::Llm { model, why } => {
@@ -577,6 +578,7 @@ pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
         w::Refusal::NoFurther => p::Refusal::NoFurther,
         w::Refusal::Unknown => p::Refusal::Unknown,
         w::Refusal::NotOffered => p::Refusal::NotOffered,
+        w::Refusal::ProgramNameReserved => p::Refusal::ProgramNameReserved,
         w::Refusal::Provider => p::Refusal::Provider,
         w::Refusal::KeyConflict => p::Refusal::KeyConflict,
         w::Refusal::Llm(value) => {
