@@ -49,3 +49,16 @@ id = 3
 story = "Team's parts hold section 12's rules under random members and moves; its gallery states print; two people read each other's waits in the joint world"
 parts = ["proof"]
 walk = false
+
+[[part]]
+id = "rail"
+title = "Team in the rail and the switcher's menu, once the project has two people: ui-p1-rail's Team row given its count"
+mode = "direct"
+needs = ["model", "page", "proof"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 4
+story = "A project with a second person shows Team in the rail and in the switcher's menu, and both open the project's Team"
+parts = ["rail"]
+walk = false
