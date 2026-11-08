@@ -790,6 +790,12 @@ read's head explicit.
   `temper-client-domain`'s `pages/away.rs`, `act`, then sends nothing and says
   nothing, so a press does nothing. Seen by reading; no test holds it and no
   reason is recorded.
+- **Not yet:** 3.5, *Away*, *On All projects*, and 5.3's table: on All
+  projects the switch and the chip are the rail's open project's, its
+  words, its `Toggle` and its toasts, and no `pages::away_all` exists
+  (`temper-client-view`'s `frame.rs`, `away`; `temper-client-domain`'s
+  `pages/rail.rs`, `facts`); `browser.md`, 7.2, has no `all-home-away` or
+  `all-home-away-on`. `ui-away-all/away-all`.
 - **Not yet:** 10: the renders the request `ui-away` of 2026-11-05 asks,
   `home.html`'s away state beside the client's at 1440, 1000 and 420 wide, the
   switch on and off at each and toasts open. They are saved on a builder, outside
