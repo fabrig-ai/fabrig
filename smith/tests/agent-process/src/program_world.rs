@@ -162,6 +162,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         relay: b"/programs/smith-agent".as_slice().into(),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     let mut variables = vec![
         smith_protocol_machine::Variable {

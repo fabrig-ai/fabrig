@@ -93,16 +93,12 @@ impl Backend {
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
         }
+        let mut arguments = arguments.into_boxed();
+        let program = self.executable(&mut arguments);
         let mut requests = Queue::uncapped();
         let check = Command::new(
             self.token(Owner::Status),
-            Launch {
-                program: self.settings.program.claude.clone(),
-                arguments: arguments.into_boxed(),
-                environment,
-                root: root.descriptor,
-                directory: Box::default(),
-            },
+            Launch { program, arguments, environment, root: root.descriptor, directory: Box::default() },
             env.now.saturating_add(self.settings.startup),
             self.settings.receiving.max_failure_bytes,
             &mut requests,
@@ -253,6 +249,27 @@ impl Backend {
         }
     }
 
+    fn executable(&self, arguments: &mut Box<[Box<[u8]>]>) -> Box<[u8]> {
+        match self.settings.parent {
+            None => self.settings.program.claude.clone(),
+            Some(parent) => {
+                let capacity = u32::try_from(arguments.len())
+                    .expect("bounded program argv")
+                    .checked_add(3)
+                    .expect("wrapper argv fits");
+                let mut wrapped = List::with_capacity(capacity);
+                wrapped.push(Box::from(crate::PROGRAM_CHILD_FLAG.as_bytes())).expect("wrapper flag");
+                wrapped.push(Box::from(Decimal::of(u64::from(parent)).as_bytes())).expect("wrapper parent");
+                wrapped.push(self.settings.program.claude.clone()).expect("wrapper program");
+                for argument in core::mem::replace(arguments, Box::new([])) {
+                    wrapped.push(argument).expect("direct argv fits wrapper");
+                }
+                *arguments = wrapped.into_boxed();
+                self.settings.relay.clone()
+            }
+        }
+    }
+
     pub(super) fn launch_spec(&mut self) -> Option<kernel::Spawn> {
         let prompt = &self.current.request()?.prompt;
         let outcome = &self.current.request()?.outcome;
@@ -312,8 +329,9 @@ impl Backend {
             self.outgoing = super::stream::user_message(prompt, self.settings.input_bytes);
         }
         self.outgoing.as_ref()?;
+        let program = self.executable(&mut arguments);
         Some(kernel::Spawn {
-            program: self.settings.program.claude.clone(),
+            program,
             args: arguments,
             env: super::replies::environment(&self.settings.environment, &configuration, self.run_time)?,
             root: root.descriptor,
