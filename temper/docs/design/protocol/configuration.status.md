@@ -6,9 +6,6 @@
   session: the stock holds neither, and the rules' and policy 1's
   delegation don't name charter 12 (`temper-service/src/stock.rs`).
 
-- **Not yet:** 13.9: the reference's widening
-  (`docs/examples/reference/README.md`) keeps every executor it reads, so
-  it would keep charter 12 once the stock names it.
 
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
