@@ -129,3 +129,103 @@ In `temper/crates/temper-protocol-store/schema/store-v11.schema`, beside its `Pr
 The wire's `settings_kind` (`temper/crates/temper-client-protocol-wire/src/lib.rs`) takes 8 with `classes-kind`, whose readers then decode it; until then it stays as it is.
 
 A variant holds one record or nothing (skein's `docs/design/codec.md`, its enumerations), hence `ReachKindOf` and `ReachSet`.
+
+## 3. The kit's records, and kind 8's value (`classes-value`)
+
+The kit gains `temper-client-protocol-wire` as its second dependency and a module of conversions, `pub` at its root:
+
+```rust
+use temper_client_protocol_wire::v1;
+/// Every record decodes to a table; `Classes::check` judges it.
+pub fn classes_from(record: &v1::ProjectClasses) -> Classes;
+/// None where the table passes a record's bound.
+pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses>;
+/// None for a reason `set` numbered 0 or past SETS.
+pub fn reach_from(record: &v1::Reach) -> Option<Reach>;
+pub fn reach_record(reach: &Reach) -> v1::Reach;
+/// The subject on the wire, as an item's and a person's fact (section 5) carry it.
+pub fn subject_from(record: &v1::ClassSubject) -> Subject;
+pub fn subject_record(subject: Subject) -> v1::ClassSubject;
+/// A table full at every bound, every byte at its largest: kind 8's `value_bytes` is its encoding's measure.
+pub fn largest() -> Classes;
+```
+
+The forge (`temper-engine-domain-forge`, `settings.rs` and `kinds.rs`):
+
+```rust
+// settings.rs
+pub enum Kind { DeploymentRules, ProjectRules, Charters, ProjectQuestions, ProjectWays, ProjectClasses } // ProjectClasses <-> 8
+pub enum Value { Rule(LandingRule), Charter(u32), Questions(Route), Ways(ProjectWays), Classes(temper_protocol_reaches::Classes) }
+pub fn project_stock(kind: u32) -> Option<SizedValue>; // 8: Classes::stock(Way::AgentsReview), measured as its record
+// kinds.rs, beside project_questions
+impl Domain { pub fn project_classes(&self, project: u32) -> temper_protocol_reaches::Classes; } // kind 8 number 1 held, else the stock
+```
+
+The store's codec (`temper-protocol-store/src/records/settings.rs`) encodes and decodes `Value::Classes` as `SettingValue::Classes`, refusing a record whose table `check` refuses.
+
+## 4. Away and `decided`, the forge's and the root's (`decide-forge`)
+
+The client wire, replacing these records whole:
+
+```
+record SetAway { project: u32 on: bool until: option u64 }
+record AwayRow { project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
+record Decision { number: u32 task: u64 at: u64 question: bytes 400 took: bytes 120 why: bytes 400 overturned: bool reach: Reach }
+record Asked { number: u32 task: u64 at: u64 reach: Reach }
+versioned record Decisions { project: u32 rows: list 128 Decision asked: list 128 Asked cut: bool }
+```
+
+The store, replacing or adding:
+
+```
+record Away { party: u64 project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
+enum ReachReason { kind, set: ReachSet, always }
+record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
+record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question: bytes 400 options: list 6 bytes 120 took: option u8 why: bytes 400 overturned: bool reach: Reach }
+record CallDecided { took: option bytes 120 reach: option Reach }
+```
+
+The forge:
+
+```rust
+pub struct Away { pub party: u64, pub project: u32, pub since: Wall, pub until: Option<Wall>, pub landed: u64, pub off: Option<Wall> }
+// Event::SetAway { request, token, party, project, on, until }   (no kinds)
+pub struct DecidedCall {
+    pub question: Box<[u8]>, pub options: Box<[Box<[u8]>]>, pub took: u8, pub why: Box<[u8]>,
+    pub kind: temper_protocol_reaches::Kind,
+    pub paths: Box<[Box<[u8]>]>,   // 0 to PATHS, each 1 to PATH_BYTES
+    pub under: u8,                 // 0 for none
+}
+// Event::Decided { to, key, party, project, task, always: bool, call: DecidedCall }
+pub struct Decided {
+    pub project: u32, pub number: u32, pub party: u64, pub task: u64, pub at: Wall,
+    pub question: Box<[u8]>, pub options: Box<[Box<[u8]>]>, pub took: Option<u8>, pub why: Box<[u8]>,
+    pub overturned: bool, pub reach: temper_protocol_reaches::Reach,
+}
+// Request::Decided { to, key, took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> }  // reach none for a took past the options
+// CallPayload::Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> }
+pub struct DecisionView { pub number: u32, pub task: u64, pub at: Wall, pub question: Box<[u8]>, pub took: Box<[u8]>, pub why: Box<[u8]>, pub overturned: bool, pub reach: Reach }
+pub struct AskedView { pub number: u32, pub task: u64, pub at: Wall, pub reach: Reach }
+pub struct DecisionsView { pub project: u32, pub rows: Box<[DecisionView]>, pub asked: Box<[AskedView]>, pub cut: bool }
+pub const DECIDED_DAY_NS: u64 = 86_400_000_000_000;      // a row's day
+pub const DECIDED_KEPT_NS: u64 = 7 * DECIDED_DAY_NS;     // a row's keeping
+pub const DECISIONS_SHOWN: usize = 128;                  // each list of the document
+// Limits::decided_per_project: u32, `forge.decided_per_project`, 1,024 in both profiles
+```
+
+`DecisionKind` goes; every caller names `temper_protocol_reaches::Kind` in its place.
+
+The root (`temper-engine-domain`): `Application::SetAway { project, on, until }`; `CallAnswer::Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> }`, `reach` none where the root answered ask with nothing asked of the forge.
+
+## 5. Keep asking, a person's fact (`keep-asking`)
+
+```
+record KeepAsking { project: u32 subject: ClassSubject at: u64 }
+enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
+```
+
+on the client wire, and the same records in the store's (`ClassSubject` is there from section 2), its `Dismissed { party, what }` taking the new variant. The forge's `PersonFact::KeepAsking { project: u32, subject: temper_protocol_reaches::Subject, at: u64 }`, `at` the client's clock as `GoalFrom`'s; a `Dismiss` of one replaces the party's earlier `KeepAsking` of that project and subject, erasing one row and saving one. Since `PersonFact` derives `PartialOrd` and `Ord` (it keys the forge's map), `keep-asking` adds `PartialOrd, Ord` to the kit's `Kind` and `Subject` derives, a compatible addition.
+
+## 6. The tool, `decided` (`decide-root`)
+
+Its input, as the agent writes it: `{ question, options, took, why, kind, paths?, under? }`, `kind` one of `Kind::name`'s ten, `paths` 0 to 16 strings of 1 to 256 bytes with no leading `/`, `under` 1 to 20. Decoded into section 4's `DecidedCall` (`paths` empty and `under` 0 where absent). `always` is the root's: the caller's words hold a line `Asks: always`.

@@ -1141,7 +1141,10 @@ keeps (`../protocol/configuration.md`, section 2).
   and grants with priority, and its funding once. Template and charter
   names are not supplied, so their existing numbered words remain. Its
   acts are "Accept", "Reject with reason" and "Open TN ↗"; a chat's card
-  keeps "Open in inbox ↗".
+  keeps "Open in inbox ↗". Under its words, its reason line, with Stop
+  asking and its offers numbered as any control (*Needs you,* *Why it
+  reached you*, below); its project's `decided` document is one *Decided
+  for you* watches, the unfiltered inbox watching `me`'s first projects.
 - **An update's card** has its heading as the link that opens it and marks
   a result seen. It repeats no project line or task-number link. The heading
   says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
@@ -2163,6 +2166,9 @@ keeps (`../protocol/configuration.md`, section 2).
       agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
+  - *Decided for you,* the first region after the intro while a row of the
+    project's shows, whether or not the person was away (**Decided for
+    you,** below, which also gives the intro's form for an Away spell).
   - *Needs you,* a region named "Needs you": what needs the person in
     this project, the groups of `Inbox` but its updates, read as `Inbox`
     reads them filtered by the project, with the project's changes waiting
@@ -2270,6 +2276,9 @@ keeps (`../protocol/configuration.md`, section 2).
       `HoldReason::Budget`;
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
       phone;
+    - `temper-why`, the reason line (*Why it reached you,* below), 14px,
+      `--gf-ink-2`, 8px nearer the question than the card's gap, with
+      "Stop asking" at its end and its offers under it when open;
     - `.ctx`, `--gf-ink-2`, if it has a context;
     - a disclosure "What the agent saw", if the agent said: its summary
       width fit-content, 14px muted, its paragraph margin-top 6; closed
@@ -2348,14 +2357,112 @@ keeps (`../protocol/configuration.md`, section 2).
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
+  - *Decided for you,* after them, while a row shows (**Decided for you,**
+    below): the page's filter's project's rows, or, unfiltered, every
+    watched project's.
   - *Done,* with none open, `.col.narrow` with no head: the kicker "Needs
     you", the level-1 heading "Nothing needs you.", the lede "Every
     question is answered. Work carries on; Home tells you what changed.",
-    the `.answered` lines, and a plain button-link "Home" (to the open
-    project's `Home`, else the first project's).
+    the `.answered` lines, *Decided for you* while a row shows, and a plain
+    button-link "Home" (to the open project's `Home`, else the first
+    project's).
   - *Its acts.* A choice answers and moves to the next card. "Send reply"
     answers in words. "Later" marks it and moves on, the toast saying
     "Later: it stays in Needs you, after the others."
+  - *Why it reached you* (`../draft/what-reaches-you.md`, section 5): one
+    line under a card's question, in `temper-why`, from one domain function
+    every shell calls (`pages::needs::why`), its words the view's shared ones
+    (`temper_client_view::shared::why`), so that the TUI's launchpad can say
+    it too. By the card's kind:
+    - *A question,* by `message` or a person task in words. Its asking task
+      is a question's sender where that is a task (`from`,
+      `Requester::Task`), else the question's own task, and a person task's
+      requester where that is a task. Its row is the newest `asked` row
+      (4.6) of that task in the card's project's `decided` document whose
+      `at` is at or before the card's `since` (a person task with none
+      takes the newest). The row's reach says why: "Reached you because
+      CLAUSE, which CLASS." CLASS is "asks you unless you’re away" for
+      `ask`, "asks you, even when away" for `ask_away` and "always waits
+      for you" for `wait`. CLAUSE names the reason's subject: for a reason
+      `kind`, "it is a wording choice", "it retries or splits a failing
+      task", "it is an implementation choice", "it changes only tests", "it
+      adds a dependency", "it departs from a landed design", "it spends
+      money past a budget", "it can’t be undone", "it changes what reaches
+      you" (`rules`), "no kind of decision names it" (`other`); for a reason
+      `set`, "it changes NAME", NAME the set's name in the project's classes
+      (5.13), or "one of PROJECT’s path sets" until they are read. With
+      `under` an item with words, " under “WORDS”" follows the subject. A
+      reason `always` reads "Reached you because its goal always asks you."
+      So: "Reached you because it changes vsr’s protocol core, which asks
+      you, even when away."
+    - *A question with no row,* its project's document delivered and not
+      `cut`: "Reached you because it was asked of you directly.": no call
+      judged it, so it came by its route (kind 6,
+      `../protocol/configuration.md`, 13.2) or without the tool. With no
+      row and the document cut, refused, ended or not yet delivered, no
+      line. A row whose reach says decided, which an option past the call's
+      leaves, reads as none.
+    - *A proposal,* "Reached you because a proposal always waits for whoever
+      may accept it."; *held,* "Reached you because a held task always waits
+      for whoever may release it."; *funds,* "Reached you because money past
+      a budget always waits for you." An approval, whose rule its context
+      names, and a person task not in words, the person's own work, have
+      no line.
+    - *Its card waits:* a card of a question, on this page and on Home,
+      draws once its project's `decided` document is delivered or its watch
+      refused or ended, as the column waits for the inbox, so that a line
+      never moves the choices under a finger.
+  - *Stop asking,* at the reason line's end, a button in the `.link`'s
+    look, `State::Expanded` while open, offered where the reach asked and
+    the kit offers something for it (`offers`, `../domain/forge.md`, 5.10:
+    none for a fixed kind, for `always`, or where the table has no room),
+    the card's project's classes are read (5.13), the person's dismissals
+    are delivered, and no Keep asking of the reach's subject in that
+    project is less than 7 days old. It opens in place, under the line,
+    `temper-why-offers`: a column, gap 8, a row an offer in the kit's order,
+    its words at the left and its act at the right, `.btn.small`, then
+    "Keep asking", quiet and small. One is open at a time; pressing it
+    again, another card's, an answer, Later or leaving the card closes it.
+    - *Its offers in words,* each the narrowed table's change
+      (`narrowed`): `Decide(subject)`, "Let agents decide OBJECT, then tell
+      you."; `Words(set)`, "Let agents decide changes to NAME that are:"
+      over a `.text` field, "Which changes", its placeholder "fixes that keep
+      the wire format", 1 to 120 bytes, its act off until it holds;
+      `Split(set)`, "Let agents decide changes to PATTERNS, apart from the
+      rest of NAME.", PATTERNS the matched patterns joined by ", ". OBJECT
+      is the subject's plural: "wording choices", "retries and splits",
+      "implementation choices", "test-only changes", "new dependencies",
+      "departures from a landed design", "changes to NAME", with `under`'s
+      words after it as in CLAUSE.
+    - *Its act:* an owner of the card's project (`me`'s row for it `Owner`)
+      has "Apply": jig's `ChangeSettings` of one item, kind 8 of that
+      project (`../protocol/configuration.md`, 13.2), set to the offer's
+      table, running work staying, against the newest revision the person
+      has, as 5.13's controls send it, a `stale` refusal sent once more
+      against the revision it names. Anyone else has "Propose": jig's
+      `Propose` in the deployment's scope, a change of settings of that one
+      item against the newest revision, its reason "Stop asking in PROJECT:
+      let agents decide OBJECT, then tell whoever they would have asked.",
+      which a party with a role in the project may make and the owners
+      decide (jig's `domain/people.md`, 5.1, and `domain/engine.md`, 17.6);
+      it is the person's own proposal, never a procedure's. While one is out
+      every act of the open offers is off. Applied, the toast "Applied: the
+      next one is decided and listed. This one still waits for you.";
+      proposed, "Proposed: it applies once an owner accepts it. This one
+      still waits for you."; refused, jig's words under the offers, as a
+      settings row's refusal (5.13), the offers staying open. The need in
+      hand waits for its answer whatever is applied: the rule changes what
+      comes next, never what was asked.
+  - *Keep asking* sends the FORGE request `Dismiss { keep_asking(project,
+    subject, at) }` (4.6), `subject` the reach's (the kind for a reason
+    `kind`, the set for a reason `set`), `at` the wall, one act, one request
+    (3.6), and closes the offers. Answered, the toast "It keeps asking.
+    Stop asking comes back in 7 days."; refused or lost, "temper couldn't
+    keep that. Try Keep asking again."; *unknown,* the subject `dismissed`
+    answers it. While it is out, and once kept, the line offers no Stop
+    asking for that subject in that project, on every card and device,
+    until 7 days after its `at`; a later Keep asking of the same replaces
+    it (`../domain/forge.md`, 5.5).
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
@@ -2414,6 +2521,9 @@ keeps (`../protocol/configuration.md`, section 2).
     held for the session as `dismissed` is, from when `me` is first delivered
     while the link is live: a watch refused or ended is kept as such, with no
     rows, and not opened again until the next sign-in.
+  - *Stop asking,* the one open (*Needs you,* above): its card's object,
+    the words typed for a `Words` offer, the act out and its refusal, gone
+    when it closes; and the Keep asking out, by its key, until answered.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, a
   project page in the rail's frame, a column as Home's, at most 720 px
@@ -2621,16 +2731,20 @@ keeps (`../protocol/configuration.md`, section 2).
     and `Adopt`, and never on `Ask` or an Ask temper chat. A project's Delete,
     when it is built, is on How work runs (section 10).
 - **Away** (the greenfield mock's `home.html`, `phone.html` and
-  `settings.html`'s `#away`; `../domain/forge.md`, 5.8 and 5.9): a person's
-  switch on a project, while which the goals they asked for decide for
-  themselves what its kinds allow and show it afterwards. It is the
-  rail's, Home's and Settings', and the mock draws nothing of it in Needs
-  you, nor does the client.
-  - *Shown* while any holds, one function's answer (`Domain::away_shown`),
-    so the rail and Settings agree: the project has a goal
-    (`Domain::has_goals`), the party's row there is on, or the project's
-    `Ways.away` (5.13). A fresh project has no switch, as the mock's first
-    run.
+  `settings.html`'s `#away`; `../domain/forge.md`, 5.8 and 5.10;
+  `../draft/what-reaches-you.md`, section 3): a person's switch on a
+  project, while which agents decide for that person what the project's
+  classes let Away decide, each listed under *Decided for you* (below). The
+  classes are the project's, the switch each person's. It is the rail's and
+  Settings'.
+  - *Shown* while either holds, one function's answer (`Domain::away_shown`),
+    so the rail and Settings agree: the project's classes, kind 8 as 5.13
+    reads it, hold an item Away may decide (`Classes::away_may_decide`,
+    `../domain/forge.md`, 5.10), or the party's row there is on, so that a
+    switch left on can be turned off. A project on You approve's table has no
+    switch, and one with no value of kind 8 has Agents review's table and so
+    has one. Until kind 8 is read, or after a lasting refusal, only an on row
+    shows it.
   - *The control,* in the rail's foot above Settings, a button, `State::Pressed` while on,
     in `temper-away`, the mock's `.away`: 8 below it, full
     width, 8 10 padding, 1px `--gf-line`, radius 8, `--gf-surface`, 13.5 px
@@ -2642,80 +2756,105 @@ keeps (`../protocol/configuration.md`, section 2).
     min-height 36, radius 18: "Away: off", "Away until 08:00", "Away" alone
     on with `until` none; the browser's alone. In the terminal the rail's
     button, numbered as any. While its request is out it is disabled.
-  - *Its act* sends `SetAway` (4.6): to off, `on` false, the row's `until`
-    and `kinds`; to on, the row's `kinds`, or 7 with no row
-    (implementation, retry, wording), and `until` none where the row's is
-    none, otherwise the next 08:00: the first wall after now whose hours
-    in the person's zone (5.12) read 08:00, computed by one pure function,
-    `forge::away::next_eight`. A row's `until` once past means nothing but
-    that the choice is 08:00.
+  - *Its act* sends `SetAway` (4.6): to off, `on` false and the row's
+    `until`; to on, `until` none where the row's is none, otherwise the next
+    08:00: the first wall after now whose hours in the person's zone (5.12)
+    read 08:00, computed by one pure function, `forge::away::next_eight`. A
+    row's `until` once past means nothing but that the choice is 08:00. What
+    Away decides is the classes', never the act's.
   - *Past `until`* agents are told to ask (`../domain/forge.md`, 5.8) and
     the control draws off, with no write: the build asks to wake at
     `until`. `Domain::away_on` holds the rule, the row and the wall.
-  - *Its toasts,* Needs' toast slot (*What the client keeps,* below), on
+  - *Its toasts,* Needs' toast slot (*What the client keeps,* above), on
     the request's answer: on, "Away until 08:00: agents decide within
     PROJECT’s limits." with the act "Limits", to Settings; "Away: agents
     decide within PROJECT’s limits." with `until` none; off, "Away is off:
     questions wait for you again."; refused, "Away didn’t change. Try again."
-  - *Home, while a decision shows.* A row (`decided`, 4.6) shows for 24
-    hours from its `at`. With any showing and To begin gone, *Home on any
-    project* takes this form, in the intro's one function; the build asks to
-    wake when the oldest row stops showing:
+  - *Settings' section,* `#away`, on *How work runs* after *What needs you*,
+    is 5.13's *While you're away, agents may decide*, a view of the classes.
+    "Limits", on the toast and on Home, opens Settings with this section
+    focused, so a browser brings it into view: `Address` holds no anchor, and
+    the page takes the request from `Pages` once.
+- **Decided for you** (`../draft/what-reaches-you.md`, section 6;
+  `../domain/forge.md`, 5.9): what agents decided for the person, any task's,
+  a goal's, a chat's or a delegate's, whether or not the person was away.
+  Each row shows for 24 hours from its `at` on Home and on *Needs you*,
+  then lives only in its task's history, where its call keeps its answer.
+  - *Its documents:* the subject `decided` (4.6) of each project the open
+    page shows, held by `Pages` while it is open, `pages::decided`: Home's
+    project; *Needs you*'s filter's project, or, unfiltered, the shown card's
+    project and then `me`'s projects in its order, at most `DECIDED_PROJECTS`,
+    4, in all, each watch counted in the client's `watches`. Other pages hold
+    none. A watch stays from one page to the next while its project does, so
+    "Answer in a row" keeps Home's. A watch refused or ended has no rows. The
+    same documents' `asked` rows give a need its reason (*Needs you,* *Why it
+    reached you*).
+  - *A row shows* while its `at` is less than 24 hours before the wall; the
+    build asks to wake when the oldest stops showing. With none showing, the
+    page draws nothing of this; nothing of it is drawn while To begin shows.
+  - *The region,* named by its heading: a `section-head`, the level-2
+    heading "Decided for you · 4", every row showing counted, "4+" where a
+    document is `cut` or, unfiltered, `me` holds more projects than are
+    watched; at its right "Limits", to the project's Settings, on Home and on
+    a filtered *Needs you*. Then `temper-decided` (the mock's `.decided`, a
+    top rule), a `temper-decision` a row (`.decision`), at most 7, the newest
+    kept, oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
+    5.12's *clock*, and on the unfiltered *Needs you* "PROJECT · TITLE ·
+    01:05"; muted, the question; `temper-decision-took` (500), what it took;
+    `temper-decision-allowed` (13.5 px, muted), what allowed it (below);
+    `temper-decision-why` (14 px, muted, none on a phone), the agent's why. At
+    the right, by the first that holds:
+    - the task ended: `temper-decision-late` (`.late`), "landed 03:12 · a new
+      goal can undo it", its ended time, "ended 03:12 · a new goal can undo
+      it" for one that did not end done;
+    - overturned: `.late`, "Overturned: it asks you again";
+    - the task live: "Overturn" (`.btn.small`);
+    - its read not delivered, or refused: nothing, TITLE reading "Task N".
+
+    An overturned row's took is struck through, in `--gf-faint`
+    (`temper-decision-overturned`), ended or not. Each shown row's task is
+    read (`Read::Task`), as the inbox reads its cards, within `reads`, a read
+    kept from one page to the next while its row shows.
+  - *What allowed it,* one sentence from the row's reach: "Allowed: OBJECT
+    are decided and listed." for a reach of class `decide`, and "Allowed:
+    OBJECT are decided while you’re away." for `ask` with `away`, OBJECT the
+    reason's subject as Stop asking names it (*Needs you,* above): so
+    "Allowed: test-only changes are decided and listed." A set's name is the
+    project's classes' (5.13), "a path set" until they are read. A reach that
+    does not decode draws no sentence.
+  - *On Home* (*Home on any project,* above), the first region after the
+    intro. While the party's Away row there is on, or its spell ended less
+    than 24 hours before the wall, the intro takes the spell's form, in the
+    intro's one function:
     - *the kicker:* "While you were away · 23:10 to now", or "· 23:10 to
       08:03" once off, by 5.12's *clock*: `since`, then `off`, or `until` once
-      past. With its row undelivered, "While you were away" alone;
+      past;
     - *the headline:* "57 changes landed." where `landed` less the row's
-      `landed` is above 0, "One change landed." for 1, nothing for 0 or
-      with the row undelivered; then "Four things were decided for you."
-      in number words to "Nine", digits after, or "One thing was decided
-      for you." in place of the needs sentence. The lede and the byline as
-      *Home on any project* has them;
-    - *"Decided for you · 4,"* the first region after the intro, every row
-      showing counted. A `section-head`, with "Limits" at the right, to
-      Settings. `temper-decided` (the mock's `.decided`, a top rule), a
-      `temper-decision` a row (`.decision`), at most 7, the newest kept,
-      oldest first: mono "TITLE · 01:05", TITLE the task's, its `at` by
-      5.12's *clock*; muted, the question; `temper-decision-took` (500), what
-      it took; `temper-decision-why` (14 px, muted, none on a phone), why. At
-      the right, by the first that holds:
-      - the task ended: `temper-decision-late` (`.late`), "landed 03:12 · a new
-        goal can undo it", its ended time, "ended 03:12 · a new goal can undo
-        it" for one that did not end done;
-      - overturned: `.late`, "Overturned: it asks you again";
-      - the task live: "Overturn" (`.btn.small`);
-      - its read not delivered, or refused: nothing, TITLE reading "Task N".
-
-      An overturned row's took is struck through, in `--gf-faint`
-      (`temper-decision-overturned`), ended or not. Each shown row's task is
-      read (`Read::Task`), as the inbox reads its cards, within `reads`;
+      `landed` is above 0, "One change landed." for 1, nothing for 0; then
+      "Four things were decided for you." in number words to "Nine", digits
+      after, or "One thing was decided for you." in place of the needs
+      sentence. The lede and the byline as *Home on any project* has them;
     - *Needs' head:* "Still needs you · 2", or "Still needs you" with none,
       and the rest of *Needs you* as it is.
 
-    Empty rows, the switch off and old: Home is as *Home on any project* has
-    it. Nothing of this is drawn while To begin shows.
-  - *Overturn* sends `Overturn` (4.6). Answered, the client sends the
-    task its existing message (`Ask::Message`), in words: "I overturn your
-    decision. QUESTION You took TOOK. Ask me again with message, as a question,
-    and wait for my answer."; sent, the toast "Overturned: its goal asks you
-    again, under Still needs you." The goal's question comes as any other. A
-    refused message (the task ended between) leaves the row marked, and the
-    toast "It has ended; a new goal can undo it." `Overturn` refused,
-    overturned or unknown: no message, the toast "That was overturned already."
-  - *Settings' section,* `#away`, on *How work runs* after *What needs you*
-    (5.13), while the switch is shown: `section-title` "While you’re away,
-    agents may decide"; a `.setting` "Kinds of decision", small "Each shows
-    afterwards as decided for you, with Overturn.", `.checks`:
-    "Implementation choices within a task", "Retries and splitting a failing
-    task", "A design document’s wording", "Adding a dependency", and locked and
-    unticked "Budgets, sign-ins, machines, what is hard to reverse: always
-    wait"; a `.setting` select "Away until", small "When it isn’t turned off by
-    hand.", options "08:00, the end of quiet hours", "I turn it off". Each writes
-    through `SetAway`, `on` as the row stands, the select's first choice sending
-    the next 08:00 and its second none. They work while off: the row keeps them.
-    With no row they read the defaults: the first three ticked, 08:00. "Limits",
-    on the toast and on Home, opens Settings with this section focused, so a
-    browser brings it into view: `Address` holds no anchor, and the page takes
-    the request from `Pages` once.
+    With no such spell, the row undelivered or the `away` watch refused or
+    ended among them, the intro and the needs' head are *Home on any
+    project*'s, and the region alone says what was decided.
+  - *On Needs you,* after the card's `.next-up` and its *Answered*, and in
+    the done state after the answered lines, before "Home" (*Needs you,*
+    above).
+  - *Overturn* sends `Overturn` (4.6), from either page, for a row it shows
+    whose task is live and that is not overturned. Answered, the client sends
+    the task its existing message (`Ask::Message`), in words: "I overturn your
+    decision. QUESTION You took TOOK. Ask me again with message, as a
+    question, and wait for my answer."; sent, the toast "Overturned: it asks
+    you again, under Needs you." Its question comes as any other. A refused
+    message (the task ended between) leaves the row marked, and the toast "It
+    has ended; a new goal can undo it." `Overturn` refused, overturned or
+    unknown: no message, the toast "That was overturned already." The
+    session's marks hold on both pages.
+  - *In the terminal* the region prints as a heading and a paragraph a row,
+    its parts one readable run of words, Overturn a numbered button.
 - **Goals** (the greenfield mock's `goals.html`), at `/projects/<project>/goals`,
   in the project's frame, is the project's goals, the filter in its address:
   `GoalsFilter`, All, Needs, Live or Ended, whose query is `?state=needs`,
@@ -3720,8 +3859,8 @@ the person to check existence and grant the repository to the App.
 - **`SetAway`:** of the project it names, from any party with a role
   there, as `Dismiss` (`../domain/forge.md`, 5.8): `project`, u32; `on`,
   bool; `until`, an optional u64, nanoseconds since the epoch as
-  `ChangesLanded.at`; `kinds`, u8, its bits past 15 refused by validation.
-  Its outcome: *away*, `away`, no fields, once the row has committed;
+  `ChangesLanded.at`. What Away may decide is the project's classes', not
+  the switch's (`../domain/forge.md`, 5.10). Its outcome: *away*, `away`, no fields, once the row has committed;
   *forge refused*, `too large`, the family's bound reached; or *unknown*,
   no longer held, which the subject `away` answers.
 - **`Overturn`:** of the project it names, from any party with a role
@@ -4019,16 +4158,23 @@ the person to check existence and grant the repository to the App.
   with no fields, its window unused; on the wire `Watching`'s `away`, one
   subject for the deployment and each watcher's own rows, as `dismissed`
   (below). Its document, `Aways`: `rows`, at most 1,024, each
-  `AwayRow { project, since, until, kinds, landed, off }`. *The client's forge
+  `AwayRow { project, since, until, landed, off }`. *The client's forge
   side watches it once,* for the session, as it does `dismissed`, a watch
   refused or ended kept as such, with no rows: then the switch draws off and
   its act is not offered.
 - **What was decided for a person, the subject `decided`:** of the project's
   scope, on the wire `Watching`'s `decided`, `DecidedSubject { project }`, its
-  window unused. Its document, `Decisions`: `project`; `rows`, at most 64, each
-  `Decision { number, task, at, question, took, why, overturned }`, the asking
-  party's alone, `took` the option's words (`../domain/forge.md`, 5.9). Home
-  watches it while open, as it does `status`.
+  window unused. Its document, `Decisions` (`../domain/forge.md`, 5.9):
+  `project`; `rows`, at most 128, each `Decision { number, task, at, question,
+  took, why, overturned, reach }`, `took` the option's words; `asked`, at most
+  128, each `Asked { number, task, at, reach }`, a call that was answered ask;
+  each list the asking party's alone, newest last; and `cut`, whether either
+  left older rows out. `reach` is a `Reach` (`../protocol/configuration.md`,
+  13.2): the kind, the class, the reason, the item used, the sets touched, the
+  patterns matched and whether Away was on. *The client watches it* per
+  project while a page that shows it is open, at most `DECIDED_PROJECTS`, 4,
+  at once (3.5, *Decided for you*), and decodes each reach by the kit's
+  `reach_from`.
 - **A person's facts, the subject `dismissed`:** of the party's own
   scope (jig's `client/domain/contract.md`, 7.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
@@ -4036,8 +4182,11 @@ the person to check existence and grant the repository to the App.
   watcher gets its own party's document (`../domain/forge.md`, 5.5). Its
   document, `Dismissals`: `dismissed`, the party's rows in their key's
   order, at most `DISMISSED` (8,192), each a `PersonFact`: `ToBegin {
-  project }`, or `GoalFrom { project, chat, goal, at }`, that the person started
-  goal `goal` from chat `chat`'s document at the client's clock's `at`. A start whose
+  project }`; `GoalFrom { project, chat, goal, at }`, that the person started
+  goal `goal` from chat `chat`'s document at the client's clock's `at`; or
+  `KeepAsking { project, subject, at }`, Keep asking pressed on a need of
+  that project for the item of `subject`, a `ClassSubject`, at the client's
+  clock's `at` (`../domain/forge.md`, 5.5). A start whose
   `forge.judge_projects` is past an eighth of that bound is refused, a party
   holding at most one `ToBegin` a project (`../protocol/configuration.md`,
   section 7). A party's rows are bounded by `DISMISSED` too, and all rows by
@@ -5418,8 +5567,9 @@ an open need on it, whether it has a report, and its direct delegates' total.
     11.1's. The mock's "last updated from main" is not drawn: no read says it.
   - **How it runs,** `p.facts`: the way, "Plan, tasks, land whole" with a goal
     branch, "Task by task" without, then " · always asks you" when the
-    goal’s words hold the exact line `Asks: always`, otherwise " · follows the
-    away switch". One pure domain function, `goal::always_asks(words) -> bool`,
+    goal’s words hold the exact line `Asks: always`, otherwise " · asks as the
+    project says", by its classes, Away included (`../domain/forge.md`, 5.10).
+    One pure domain function, `goal::always_asks(words) -> bool`,
     reads that line; a phrase inside a sentence does not count.
   - **Decided by the goal,** only with a report's `Decided:` line: `p.facts`,
     its items as written, joined by " · ".
@@ -6044,7 +6194,8 @@ on this tab.
     | Chats can write drafts | A chat keeps a document beside it, in docs/design/draft/, that a goal can start from. | On / Off | `drafts` |
     | Goals | Bigger work from a draft: a plan, tasks, landing. | Shown / Hidden | `goals` |
     | Changes | The landing queue, as a page. | Shown / Hidden | `changes` |
-    | Away switch | Lets agents decide within limits while you’re away. | Shown / Hidden | `away` |
+
+    The Away switch is no row of it: the classes show it (3.5, *Away*).
 
   - *Ways of working,* live, kind 7's `way`, only while Goals is shown: a row
     per template of the project with `tracked` set, in number order, named and
@@ -6059,8 +6210,37 @@ on this tab.
     6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
     too" (`up`), "Not asked: each agent decides alone" (`none`); "Funds",
     disabled, "Ask when a budget is used up".
-  - *While you're away, agents may decide,* after What needs you, shown only
-    while the Away switch is; its controls write through `SetAway`.
+  - *While you're away, agents may decide* (`#away`), after What needs you, a
+    view of the project's classes, kind 8 (`../domain/forge.md`, 5.10;
+    `../draft/what-reaches-you.md`, section 3), shown while the table holds
+    an "asks you" item: a movable kind whose own item is `ask` or `ask_away`
+    or that has none, which asks even when away, or an item with words or of
+    a set at `ask` or `ask_away`. A project on You approve's table shows it,
+    every kind unticked, so that an owner can let Away decide one:
+    - its `section-title`, "While you’re away, agents may decide"; then,
+      while the table holds an item at `decide`, small, "Agents decide, then
+      tell you: OBJECTS.", OBJECTS each such subject as Stop asking names it
+      (3.5, *Needs you*), joined by ", ";
+    - a `.setting` "What asks you", small "Ticked, Away decides it and lists
+      it, with Overturn. Unticked, it asks you even when away.", `.checks`: a
+      check an "asks you" item, the movable kinds in the kit's order (`Kind::ALL`)
+      and then the table's other items in their order, named by its subject,
+      capitalised: "Implementation choices", "New dependencies", "Departures
+      from a landed design", "Changes to vsr’s protocol core", an item with
+      words "Implementation choices under “inside the wasm crate”"; ticked
+      for `ask`; then, locked and unticked, "Money past a budget, what can’t
+      be undone, and changes to these rules: always wait";
+    - a `.setting` select "Away until", small "When it isn’t turned off by
+      hand.", options "08:00, the end of quiet hours", "I turn it off", while
+      the switch is shown: each writes through `SetAway`, `on` as the row
+      stands, the first sending the next 08:00 and the second none. They work
+      while off: the row keeps them. With no row it reads 08:00.
+
+    A check sends jig's `ChangeSettings` of kind 8's whole value (*Its acts,*
+    below): the table with that item's class turned between `ask` and
+    `ask_away`, a kind with no item of its own given one at `ask`, added at
+    the end. Until kind 8 is read the section draws the stock's, disabled,
+    as the tab's live controls do.
   - *Telling you,* disabled: "Notifications", "Only when something needs you;
     never for status.", "Off"; "Quiet hours", "None".
   - A disabled section's last line says once "Not built yet: this is what
@@ -6072,22 +6252,26 @@ on this tab.
   `ask-temper-place`). Ask temper changes settings by a proposal (below).
 - **What the client holds:** jig's `settings` watch, for the session, as the
   `dismissed` and `forges` watches are held, Home reading the same one. It reads
-  kind 7 of the open project as the project opens, and kind 6 on the tab,
-  through the forge's reads in that project's scope (`forge.md`, section 9),
-  and again whenever the document's line for that setting says it changed and
-  when the link comes back. A transient read failure (busy, unreachable, local
+  kinds 7 and 8 of the open project as the project opens, kind 8 also of the
+  card *Needs you* shows where that card's project is another, and kind 6 on
+  the tab, through the forge's reads in that project's scope (`forge.md`,
+  section 9), and again whenever the document's line for that setting says it
+  changed and when the link comes back. Kind 8 decodes to the kit's table
+  (`temper-protocol-reaches`, `classes_from`); one `Classes::check` refuses
+  reads as a lasting refusal. A transient read failure (busy, unreachable, local
   read capacity, or sign-in still settling) retries after one second, doubling
-  to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
-  while its project is open, kind 6 while the tab is open; leaving that scope
-  drops its retry. Until first read, or after a lasting refusal, the optional entries
+  to at most 30 seconds; a successful answer resets the wait. Kinds 7 and 8
+  retry while their project is open or its card shown, kind 6 while the tab is
+  open; leaving that scope drops its retry. Until first read, or after a lasting refusal, the optional entries
   read as hidden, with 5.3's exceptions for a current page and a project holding a
   goal; `drafts_offered` is false, with an Ask temper chat's exception (3.5).
   The tab's live controls draw the stock, disabled; a value of none reads as
   the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
   item, running work staying, against the newest revision the person has, the
-  one exception to the pages sending proposals alone. The control is disabled
-  while it is out, and so are the others of kind 7, since they write one record;
+  one exception to the pages sending proposals alone, beside Stop asking's
+  "Apply" (3.5, *Needs you*). The control is disabled while it is out, and so
+  are the others of its kind, since kind 7 is one record and kind 8 one table;
   the value asked shows meanwhile. A refusal is said under its row in jig's
   words, `full` and a person who is no owner too, the control back at its
   value. A `stale` refusal is sent once more against the revision it names.
@@ -6124,7 +6308,8 @@ on this tab.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
   the offer of Goals and not a goal the project holds; `drafts`,
   `pages::chats::drafts_offered`, the chats' offer of a draft, an Ask temper
-  chat's apart (3.5), and nothing else;
+  chat's apart (3.5); kind 8, the Away switch, a reason's set names and Stop
+  asking's offers (3.5, *Away* and *Needs you*); and nothing else;
   and these open the tab, `Address` having no anchors: Home's "Show goals",
   "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
@@ -6134,18 +6319,24 @@ on this tab.
   none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
   then each item, small and faint in the card's type, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
-  "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
+  "Changes page: shown" and "Way: NAME", kind 6 as
   "Questions: answered by the goal", "Questions: asked of me too" or "Questions:
-  not asked"; a template by its name, as "Way: NAME" names one, or "template 4"
+  not asked", kind 8 as "What reaches you:" and a line a class the proposed
+  table gives any subject, in the classes' order, each its subjects as
+  Settings' checks name them, lowercased and joined by ", ": "Agents decide,
+  then tell you: wording choices, retries and splits, test-only changes",
+  "Asks you; Away may decide: implementation choices", "Asks you, even when
+  away: changes to vsr’s protocol core", then a line a set, "NAME:
+  PATTERNS"; a template by its name, as "Way: NAME" names one, or "template 4"
   where the person's `me` names none; any other as "charter 2", "landing rule 1".
   A proposal's heads name jig's own settings alone, so a live card takes its
   application's items and project's policies from the proposal's review, and
   those values from the forge's read of a proposal's items under the review's
   `key`, which takes a role in the deployment
   (`../protocol/configuration.md`, 13.2). Until those values arrive, kinds
-  6 and 7 are named as `temper ctl` names them. With no review, no application
+  6, 7 and 8 are named as `temper ctl` names them. With no review, no application
   or project-policy rows can be recovered from the heads. A decided card has
-  no review: it keeps the kind 6 and 7 values it read in this session, and
+  no review: it keeps the kind 6, 7 and 8 values it read in this session, and
   otherwise draws its heads alone. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
   something", quiet: it focuses the composer, brings it into view and sets its
@@ -6339,10 +6530,12 @@ can open it. `draft` is the draft's path in the repository
     its text and is chosen: the way kind 7 names (5.13). After them, `.link` 13px muted
     "The project’s ways of working", to `Settings { project }`;
   - `fieldset`, legend "When it needs you": a `ChoiceGroup`, drawn as the ways:
-    "Follow the away switch", chosen by default, small "Asks while you’re here;
-    while you’re away, decides within the project's limits and tells you.";
-    "Always ask", small "Waits for you on every question it can’t answer from
-    the plan." `Act::StartAsks { always: bool }` changes this choice, as
+    "As the project says", chosen by default, small "Decides what the
+    project’s settings let agents decide, Away included, and tells you; asks
+    you the rest."; "Always ask", small "Asks you every question it can’t
+    answer from the plan, even while you’re away." A goal of either is judged
+    by the project's classes, "Always ask" lifting every class below
+    `ask_away` to it (`../domain/forge.md`, 5.10). `Act::StartAsks { always: bool }` changes this choice, as
     `Act::StartWay` changes the way. Both choices are disabled while a request
     is out.
   - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while
@@ -6374,7 +6567,7 @@ can open it. `draft` is the draft's path in the repository
   The first line is the task's title, as jig takes it. `Chat:` only when a chat
   opened the sheet, whose document's snapshot then stands in the "Build" line's
   place (3.5). "Always ask" appends the exact line `Asks: always`;
-  "Follow the away switch" adds no asking line. Nothing stores the choice
+  "As the project says" adds no asking line. Nothing stores the choice
   apart from these words.
 - **Its ends:** `Judged::Create`: sent, and on its answer to the goal's page, which
   shows planning. `Judged::Propose`: sent, the sheet closes, toast "Proposed to
@@ -8186,7 +8379,7 @@ does for the client:
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
   | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge.md`, 4.5; `../protocol/setup.md`, 6.9) | kept; make refused, `MakeRefusal`; then the watched row |
-  | `SetAway { project, on, until, kinds }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge.md`, 5.8) | away; forge refused, too large |
+  | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge.md`, 5.8) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge.md`, 5.9) | overturned; overturn refused, already or unknown |
   | `Dismiss { what }` | none | the party's `Dismissed` row saved in the request's decision, and the subject `dismissed` marked, a row held already writing nothing (`../domain/forge.md`, 5.5) | dismissed; forge refused, too large |
   | `Looked { project }` | none; its scope the project | the party's `Looked` row moved in the request's decision, the subject `status` marked, and, at a new sitting, the status agent's run asked (`../domain/forge.md`, 5.6 and 5.7) | looked; forge refused, too large |
@@ -8587,7 +8780,13 @@ own tests:
   with jig's client worlds' faults and jig's check (jig's
   `client/domain/testing.md`, sections 5, 6 and 7). The forge's request
   and outcome are decoded and encoded by the engine's routing (section
-  8), exhaustive both ways. Stories: signing in and seeing the inbox; a
+  8), exhaustive both ways. Stories: signing in and seeing the inbox; what
+  reaches a person on Agents review's table (`../draft/what-reaches-you.md`,
+  section 10's second and third steps): with Away off an implementation
+  question asking, its card saying why; with Away on the next decided and
+  listed under *Decided for you* on *Needs you*; a `money` question waiting,
+  Away or not; Stop asking applied by an owner, and the next question of that
+  item decided and listed (3.5, *Needs you* and *Decided for you*); a
   chat started and answered; a chat paused, resumed and paused again, and a
   message to it resuming it, answered; a goal proposed in a chat, accepted in the
   inbox, and gone from the chat's card; a
@@ -9321,6 +9520,12 @@ own tests:
   end of its quiet hours, a fixed hour here. Quiet hours and notifications
   are later parts, and a setting of the hour would come with them. The
   terminal reads no zone (5.12), so its 08:00 is universal time's.
+- **Decided for you across many projects** (3.5, *Decided for you*): the
+  unfiltered *Needs you* watches at most four projects' `decided`, the shown
+  card's first, within the client's watches; a person in more reads the
+  others' rows on each project's own pages, the count marked "+". A subject
+  of the party's rows across the deployment would lift the bound; default:
+  four.
 - **A browser on another machine, detected.** A sign-in's redirect
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address

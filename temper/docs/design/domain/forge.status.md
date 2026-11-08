@@ -336,6 +336,19 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
     charter 1's words: goals and chats share that charter, so a chat's call answers
     ask (`agent.status.md`, 4.3).
 
+- **Not yet:** 5.5: no person's fact `KeepAsking`
+  (`ui-reaches/keep-asking`).
+
+- **Not yet:** 5.8, 5.9: `Away` keeps `kinds` and `SetAway` carries them;
+  `decided` is judged by those bits, not by the project's classes; a call
+  writes a row only when decided, with no reach; a project keeps 64 rows,
+  the oldest erased whatever its age, by no limit; the document has no
+  `asked` and no `cut` (`ui-reaches/decide-forge`).
+
+- **Not yet:** 5.9: the root finds a person for a goal alone, a tracked
+  task, and answers a goal whose words say `Asks: always` itself, handing
+  the forge no `always` (`ui-reaches/decide-root`).
+
 - **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - The request's rule 1 ends a held repair when CI has passed at the head. A

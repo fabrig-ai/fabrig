@@ -233,7 +233,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes. A REVISION no longer held exits 2, `temper ctl: revision R is no longer held; its record is in temper ctl revision show R, and the held ones in temper ctl settings show` | `setting{kind, number, revision}` |
-| `settings show project-ways PROJECT [--revision REVISION]`, `settings show project-questions PROJECT [--revision REVISION]` | a project's ways and its questions (`../protocol/configuration.md`, 13.2): the value stored, or the stock's, marked so, with none | `forge`, kinds 7 and 6 |
+| `settings show project-ways PROJECT [--revision REVISION]`, `settings show project-questions PROJECT [--revision REVISION]`, `settings show project-classes PROJECT [--revision REVISION]` | a project's ways, its questions and its classes (`../protocol/configuration.md`, 13.2): the value stored, or the stock's, marked so, with none | `forge`, kinds 7, 6 and 8 |
 | `settings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]`, `settings show forge-charter NUMBER [--revision REVISION]` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or one of the forge's charters, 1 the change's and 2 its reviews'; its state from jig's `settings`, its value from the forge's read; with `--revision`, the value that revision set, while it remains in the history; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, and what it replaced (`was:` its value whole or its size, its default, removed, or not offered), a project's policy item with the policy it set and the one it replaced, temper's kinds' set items read at that revision from the forge and printed whole in text and JSON, their replaced explicit values read at the preceding set found in retained history, with size metadata when unavailable or too large, the forge keeping those values for a restore (jig's `domain/engine.md`, 17.10); a revision forgotten past the history names the oldest kept | `revision{n}`, the forge’s `RevisionSetting { kind, scope, number, revision }` |
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
@@ -385,15 +385,22 @@ agent must name.
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
   for project P's, `{"kind": "forge-charter", "number": N}`, N 1
   the change's charter and 2 its reviews', `{"kind": "project-ways",
-  "project": P}`, `{"kind": "project-questions", "project": P}`, or `{"kind":
+  "project": P}`, `{"kind": "project-questions", "project": P}`,
+  `{"kind": "project-classes", "project": P}`, or `{"kind":
   "project-policy", "project": P}`, project P's own policy (jig's
   `domain/engine.md`, 17.2), set alone and at most once in a file; VALUE is exactly the
   `value` member `settings show … --json` prints: for a landing rule, section
   3's rule member but `connector` and `kind`, its `pattern` in `FIELDS`'
   `landing-pattern` form, its segments as hex
   (`../protocol/configuration.md`, 13.2), for the forge's charter a charter's
-  number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL, "away": BOOL,
+  number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
   "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
+  for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,
+  each ITEM `{"kind": KIND, "words": TEXT, "class": CLASS}` or `{"set": N,
+  "words": TEXT, "class": CLASS}`, `words` optional and empty by default,
+  KIND one of the ten kinds' names and CLASS `"decide"`, `"ask"` or
+  `"ask-away"`, each SET `{"number": N, "name": TEXT, "patterns": [TEXT,
+  ...]}` (`../domain/forge.md`, 5.10), refused as `Classes::check` refuses,
   and for a project's policy a policy in the form `settings show
   policy NUMBER --json` prints, the stock's policy 1 a project's starting
   point. Decoded bounded (6.4): the file's size, the item count and every

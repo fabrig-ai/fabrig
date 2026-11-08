@@ -2,6 +2,44 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *Decided for you*, *Home on any project* and *Needs
+  you*; 4.6, `decided`: the client watches `decided` on Home alone
+  (`temper-client-domain`'s `pages/home.rs`), its rows carry no reach and no
+  `asked` list, *Needs you* draws no *Decided for you*, Home draws its rows
+  only in the Away form and always with "While you were away", no row says
+  what allowed it, Overturn is offered on Home alone and its toast names a
+  goal. `ui-reaches/decided-client`.
+
+- **Not yet:** 3.5, *Away*; 5.13, *While you're away, agents may decide*,
+  *What the client holds*, *Its acts* and *The card in a chat*'s kind 8; 5.8,
+  *How it runs*; 5.14, "When it needs you": the client reads no kind 8, the
+  switch shows by a goal or kind 7's `away`, Settings' section draws no
+  table, a proposal's kind 8 item reads as `temper ctl` names it, and a
+  goal's asking choice is worded as the Away switch's.
+  `ui-reaches/away-client`.
+
+- **Not yet:** 3.5, *Needs you*, *Why it reached you*, and *A card that
+  needs the person*; 5.13, kind 8 of the shown card's project: no need says
+  why it reached the person, and no card waits for its project's `decided`
+  document. `ui-reaches/needs-why`.
+
+- **Not yet:** 3.5, *Needs you*, *Stop asking* and *Keep asking*, and *What
+  the client keeps*' Stop asking: no reason line offers Stop asking, and the
+  client sends no `KeepAsking`. `ui-reaches/stop-asking`.
+
+- **Not yet:** 5.13, *What the project shows* and *The card in a chat*: the
+  tab draws kind 7's "Away switch" row and a proposal's "Away switch: shown",
+  from a member the kind keeps. `ui-reaches/ways-away`.
+
+- **Not yet:** 10: the client world holds no story of what reaches a person.
+  `ui-reaches/reaches-story`.
+
+- **Not yet:** 3.5, *Needs you*, *Why it reached you*, in the TUI (6.14, *The
+  launchpad*): its need lines say no reason, though
+  `temper_client_view::shared::why` gives it; temper/tui draws it with the
+  launchpad of milestone T1 in
+  [whole-story.execution.md](../draft/whole-story.execution.md).
+
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
@@ -697,7 +735,7 @@ read's head explicit.
   switch on and off at each and toasts open. They are saved on a builder, outside
   the repository, so what they show is unknown here; the gallery holds their
   states (`browser.md`, 7.2).
-- **Departs:** 3.5, *Away*, its *Overturn*: an `Overturn` whose outcome is no
+- **Departs:** 3.5, *Decided for you*, its *Overturn*: an `Overturn` whose outcome is no
   answer, unknown after a restart or its link lost, toasts "That was overturned
   already." and sends no message (`temper-client-domain`'s `forge/decided.rs`,
   `overturned`), where the section has those words for a refusal: if it

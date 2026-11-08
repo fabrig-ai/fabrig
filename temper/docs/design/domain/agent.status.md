@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
 
+- **Not yet:** 4.3: `decided` takes five kinds and no `paths` or
+  `under`, its Ask names no reason, and the charters tell goals alone to
+  call it (`ui-reaches/decide-root`).
+
+- **Not yet:** 4.3, 8.1, 8.4.1: no run's `settings`, `propose_settings`
+  or `see` names `project-classes` (`ui-reaches/classes-kind`).
+
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,
