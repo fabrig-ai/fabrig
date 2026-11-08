@@ -92,3 +92,14 @@ Acceptance:
 ## Report
 
 As the implementer's text asks; give each story's CPU seconds.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-m3a/ways-stories/foreman-1)
+
+preserve both ways test additions and rename the stories’ conflicting `words` helper.
+The merge conflicts in `temper/tests/engine/domain/tests/suite/ways.rs`.
+Landing commit `ec31db513ca20cd0dbf6d25185838b601880f718` adds view fixtures and `views_draw_stored_ways_paths_charters_and_waiting_proposals` at the same append point as this branch’s stories.
+Keep both additions, including landing’s `configuration()` extraction and updated `driver()`.
+Both sides introduce `words(&ways::Path)` with incompatible return types: landing returns `Vec<&str>`; stories returns a comma-joined `String`.
+Rename the stories helper to `path_words` and update its call in `stock_ways_paths_follow_the_projects_ci_and_tiers`; retain landing’s `words` for `drawn`.
+Preserve both stock-path/current/Yours stories and the view story.
+Run formatting and the spec’s focused domain ways checks after resolving; retain the remaining task changes.
