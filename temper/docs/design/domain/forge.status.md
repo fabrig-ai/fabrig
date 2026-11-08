@@ -428,5 +428,3 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
-
-- **Not yet:** 8.13, *A rule's card*: no view `rule K/N`; the address is unknown and draws `not_drawn` (`look-round-24`, `rule-view`).
