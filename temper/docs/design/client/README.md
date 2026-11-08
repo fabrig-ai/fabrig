@@ -6500,14 +6500,19 @@ terminal draw the same path.
   prints, is a stop a line, its words and its actor in words ("produce,
   an agent").
 - **Its layout,** of the box's width `W` alone:
-  - *across,* 140 pixels high, where `W` is 560 or more and its stops
-    stand at least 48 pixels apart: the dotted line
+  - *across,* where `W` is 560 or more and its stops would stand at
+    least 48 pixels apart in it (`W − 80` over the gaps between the stops
+    before the last bar): a scene `A` wide and 140 high, `A` being `W`
+    from 720 up and 720 under it, so that in a box under 720 the scene
+    says its width and is scaled to the box, keeping its proportions, as
+    the look request's picture is, 658 by 127.94 in a box 658 wide
+    (skein's `ui.md`, 11.2): the dotted line
     at 72; a person's and an agent's marks at 40, their words over them
     at 22; code's at 106, its words under it at 131; the stops before the
-    last bar evenly from 12 to `W − 68`, the first's words anchored at its
+    last bar evenly from 12 to `A − 68`, the first's words anchored at its
     start, the others' at their middle; a goal's branch's bar in a stop's
     place, dimmer, its words over the dotted line at 88; the landing
-    branch's bar at `W − 8`, its words ending there at 88. The line runs
+    branch's bar at `A − 8`, its words ending there at 88. The line runs
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
     curve each way, and ends at the landing branch's bar: above the
@@ -6527,10 +6532,13 @@ terminal draw the same path.
   below it across, a row 28 high down the page, carries its act, so that
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
   the open stop has a pale ring of 15 behind its mark and its words in
-  ink, bold, and, across, the scene grows 14 pixels at its foot for its
-  card's caret, a point under the open stop whose base meets the card's
-  top edge, the card following the drawing with no gap (3.5); down the
-  page there is no caret. Its fallback's lines are then buttons doing the same,
+  ink, bold, and the scene grows at its foot by what is 14 pixels in the
+  box (14 × `A` / `W` across, rounded to a whole pixel of the scene; 14
+  down the page), so that the card, following the drawing with no gap of
+  its own (3.5), stands 14 pixels under it as the request's does: across,
+  that room holds the card's caret, a point under the open stop 6 pixels
+  of the box high and 12 wide, its base on the scene's foot, where the
+  card's top edge is; down the page there is no caret. Its fallback's lines are then buttons doing the same,
   expanded while their card shows, for the keyboard, a screen reader and
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
