@@ -2562,8 +2562,8 @@ fn forge_subscription_rooms_name_their_limits() {
         ("forge", b"subscribe_forge".as_slice(), "subscriptions (limit 1)"),
         ("resources", b"subscribe_forge", "resources_per_task (limit 1)"),
         ("task", b"subscribe_forge", "tasks.subscriptions (limit 1)"),
-        ("delegate", b"subscribe", "it holds its most subscriptions (at most 1"),
         ("timer", b"subscribe", "it holds its most subscriptions (at most 1"),
+        ("delegate", b"subscribe", "it holds its most subscriptions (at most 1"),
         ("paths", b"subscribe_forge", "paths_per_subscription (limit 0)"),
         ("path_bytes", b"subscribe_forge", "path exceeds name_bytes"),
         ("branch_bytes", b"subscribe_forge", "branch exceeds name_bytes"),
@@ -2584,7 +2584,13 @@ fn forge_subscription_rooms_name_their_limits() {
             None
         };
         if bound == "forge" || bound == "task" || task_room {
-            let first = subscription_json(&mut world, &goal, b"subscribe_forge", 93, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+            let first = subscription_json(
+                &mut world,
+                &goal,
+                b"subscribe_forge",
+                93,
+                br#"{"topic":{"kind":"landings","branch":"main"}}"#,
+            );
             assert!(matches!(first, engine::CallAnswer::Subscribed { .. }), "room at the bound: {first:?}");
         }
         let long = "x".repeat(usize::try_from(world.env.limits.forge.name_bytes).expect("name bound") + 1);
@@ -2648,10 +2654,22 @@ fn forge_subscription_selection_and_duplicate_feedback_are_actionable() {
 
 fn subscription_repository_feedback() {
     let (mut world, goal) = change_tool::chat_world_with_words(false, b"Watch main");
-    let answer = subscription_json(&mut world, &goal, b"subscribe_forge", 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    let answer = subscription_json(
+        &mut world,
+        &goal,
+        b"subscribe_forge",
+        94,
+        br#"{"topic":{"kind":"landings","branch":"main"}}"#,
+    );
     subscription_feedback(&answer, "this project has no repository to read");
     world.adopt();
-    let replay = subscription_json(&mut world, &goal, b"subscribe_forge", 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    let replay = subscription_json(
+        &mut world,
+        &goal,
+        b"subscribe_forge",
+        94,
+        br#"{"topic":{"kind":"landings","branch":"main"}}"#,
+    );
     assert_eq!(replay, answer, "a refused named subscription stays refused after adoption");
     world.until(Until::Ready);
     assert!(
@@ -2659,14 +2677,26 @@ fn subscription_repository_feedback() {
         Key::Forge(forge_top::Key::Subscription { task, .. }) if *task == goal.task)),
         "replaying a refused subscription must not install an interest after adoption"
     );
-    let corrected = subscription_json(&mut world, &goal, b"subscribe_forge", 95, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    let corrected = subscription_json(
+        &mut world,
+        &goal,
+        b"subscribe_forge",
+        95,
+        br#"{"topic":{"kind":"landings","branch":"main"}}"#,
+    );
     assert!(
         matches!(corrected, engine::CallAnswer::Subscribed { .. }),
         "a new call can use the adoption: {corrected:?}"
     );
     world.close();
     let (mut world, goal) = change_tool::several_repositories();
-    let answer = subscription_json(&mut world, &goal, b"subscribe_forge", 94, br#"{"topic":{"kind":"landings","branch":"main"}}"#);
+    let answer = subscription_json(
+        &mut world,
+        &goal,
+        b"subscribe_forge",
+        94,
+        br#"{"topic":{"kind":"landings","branch":"main"}}"#,
+    );
     subscription_feedback(&answer, "name the repository: org/repo, org/extra");
     let answer = subscription_json(
         &mut world,
@@ -2721,7 +2751,13 @@ fn subscription_goal_bound(bound: &str) -> (World, engine::Assignment, Box<[u8]>
     (world, goal, branch)
 }
 
-fn subscription_json(world: &mut World, goal: &engine::Assignment, tool: &[u8], number: u32, json: &[u8]) -> engine::CallAnswer {
+fn subscription_json(
+    world: &mut World,
+    goal: &engine::Assignment,
+    tool: &[u8],
+    number: u32,
+    json: &[u8],
+) -> engine::CallAnswer {
     let input = smith_domain_run::HostInput::attested(json.into()).expect("bounded subscription JSON");
     let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
         smith_domain_run::CallName { activation: goal.attempt, completion: number, position: 1 },
