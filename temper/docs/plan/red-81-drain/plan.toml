@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/red-81-drain/inputs/request.md", "temper/crates/tem
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "exchange-gone"
+title = "jig's engine end says an exchange gone when its call ends unanswered, and the clients' component lets that caller go, so a drain never waits on it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 4.2"
+
+[[slice]]
+id = 1
+story = "In the engine-clients world, a family request admitted and left unanswered, its peer's connection cut before the stop, between the stop and the close, or after the close, and the component says closed once, with no reply written"
+parts = ["exchange-gone"]
+walk = false
