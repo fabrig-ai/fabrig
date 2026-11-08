@@ -69,5 +69,3 @@ pub const NAMES: Names<'static> = Names {
 };
 /// The link field's binding token under OWNER.
 pub const LINK: Token = Token::new(1);
-/// The quit button's binding token under OWNER.
-pub const QUIT: Token = Token::new(2);

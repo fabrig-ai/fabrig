@@ -12,7 +12,6 @@ use temper_client_domain::Limits;
 pub enum Word {
     Title,
     State,
-    Quit,
     QuitKeys,
     SignIn,
     Paste,
@@ -71,10 +70,9 @@ pub enum Word {
     Dots,
     Numbered,
 }
-pub(crate) const ALL: [Word; 60] = [
+pub(crate) const ALL: [Word; 59] = [
     Word::Title,
     Word::State,
-    Word::Quit,
     Word::QuitKeys,
     Word::SignIn,
     Word::Paste,
@@ -191,7 +189,6 @@ impl Word {
         match self {
             Self::Title => 0,
             Self::State => 1,
-            Self::Quit => 2,
             Self::QuitKeys => 3,
             Self::SignIn => 4,
             Self::Paste => 5,
@@ -282,7 +279,6 @@ impl Word {
             Self::Numbered => (&[b"", b". "], &[Slot::Number]),
             Self::Title => (&[b"temper"], &[]),
             Self::State => (&[b"\xe2\x97\x8f ", b""], &[Slot::State]),
-            Self::Quit => (&[b"q to quit"], &[]),
             Self::QuitKeys => (&[b"Ctrl+C to quit"], &[]),
             Self::SignIn => (&[b"Sign in this terminal to ", b""], &[Slot::Address]),
             Self::Paste => (&[b"Paste the link temper printed, then Enter."], &[]),
