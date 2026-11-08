@@ -85,7 +85,7 @@ or the nearest thing, and says so in that draft's status.
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | not started |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
-| N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge.md`, 8.3; its entry below | | temper/migration | should | not started |
+| N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge.md`, 8.3; its entry below | | temper/migration | should | in flight |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | in flight |
@@ -305,7 +305,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
-| N4 | starts | |
+| N4 | in flight | goal 147, `n4-request-changes` |
 | N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
 | R2, R3 | wait | R1, by their needs |
