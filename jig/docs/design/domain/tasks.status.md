@@ -33,11 +33,7 @@ parks without spending a try.
 - **Not yet:** 5.6: an agent run's finish while its
   task's delegates are live is refused, and the core fails its attempt
   invalid (`jig-domain-core`'s `route_refused_payload`), where the section
-  has it park. 8.6: a message that
-  arrives between a run's preparation and its claim, whose kind would add
-  to its reasons, is kept back against the parts prepared
-  (`jig-domain-core`'s `preparation_current`), where the section has the
-  run prepare again.
+  has it park.
   5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
