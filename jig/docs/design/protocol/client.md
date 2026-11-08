@@ -391,6 +391,7 @@ out, to the transport:
   Minted { exchange, credential, expires } | MintRefused { exchange, why }
 out, to the application's startup:
   Link { secret }                              the printed link's one-time secret, each time one is drawn (section 8)
+  LocalLink { secret }                         the local link's one-time secret, each time one is drawn, kept and never printed (section 8)
 ```
 
 - **`Minted` carries the sign-in's expiry,** its wall time, beside the
@@ -677,13 +678,43 @@ recipient.
   to the application's startup, `Link { secret }`, which prints a URL carrying
   it. The URL is the application's; the default mapping's is its link
   route (17.1). Signing in with the secret signs that person in as the
-  deployment's first owner it names, and spends it. One link is live at
-  a time: a sign-in with a secret spent, expired or unknown is answered
-  why (below), and the component draws a fresh one, which the startup
-  prints again, unless a link is live or the live one is reserved (below).
+  deployment's first owner it names, and spends it. Two links are live
+  at most, the printed link and the local link (below), each one at a
+  time: a sign-in with a secret spent, expired or unknown is answered
+  why (below), and the component draws a fresh printed link, which the
+  startup prints again, unless the printed link is live or reserved
+  (below), or the secret is remembered as a local link's: a native
+  client that tries the local link never makes the startup print.
+  - *The local link,* for the person's native clients on that machine:
+    at start, beside the printed link, the component draws a second
+    one-time secret from its generator and gives it to the application's
+    startup, `LocalLink { secret }`. The startup keeps its URL, made as
+    the printed link's, where only the person's own clients on that
+    machine read it, and never prints or logs it; an application that
+    keeps none drops it. It is the printed link's kind: it signs in the
+    deployment's first owner by the same route and spends itself, lives
+    `link_span` from its drawing, and all this section says of the
+    printed link holds of each of the two apart, so that signing in by
+    one, reserving it or its expiring leaves the other as it was.
+    - *Drawn again at once* when it is spent, by a sign-in or a refusal
+      (below), and given again, so that the next native client signs in
+      the same way; while the engine closes or aborts, none is drawn.
+    - *Expired,* found by its deadline or by a sign-in, it is remembered
+      expired, and the next sign-in whose secret isn't live, whatever
+      secret it tried, draws a fresh local link, unless one is live or
+      reserved.
+    - *Never given:* `link_secret` (below) is the printed link's alone,
+      and where the printed link isn't enabled there is no local link
+      either. A restart forgets both links, and the startup keeps the
+      local link the new component gives.
+    - *Its exposure* is where the startup keeps it: whoever can read
+      that can sign in as the owner, once, within its span, as whoever
+      can read the printed link's output can, so it is kept as privately
+      as the machine's other secrets. It adds nothing to the printed
+      link's exposure, which stays as it is.
   - *Why a link can't sign in.* The component keeps, in memory, the digests
-    of its last 8 links no longer live, each marked used or expired; a
-    restart forgets them. A link's sign-in whose secret isn't live is
+    of its last 8 links no longer live, printed or local, each marked used
+    or expired and with which of the two it was; a restart forgets them. A link's sign-in whose secret isn't live is
     answered by what it finds: `link_used`, a link a sign-in spent, signed
     in or refused; `link_expired`, one past its expiry; `link_unknown`, any
     other, whether another deployment's link, one past those 8, or bytes
@@ -712,11 +743,13 @@ recipient.
     any other length is refused at start, as unusable settings; one given
     where the printed link is not enabled is dropped, no link being live.
   - *The secret is the link's, or its exchange's.* A sign-in that finds
-    the secret live, before its expiry, reserves it for its exchange
-    until people answers. While it is reserved, a sign-in with the same
-    secret is answered *busy* and changes nothing, and one with another
-    secret is answered why (above) and draws no fresh link: an attempt that crosses
-    the exchange never replaces its secret. A sign-in the component has
+    the secret live, the printed link's or the local link's, before its
+    expiry, reserves that link for its exchange until people answers.
+    While it is reserved, a sign-in with the same secret is answered
+    *busy* and changes nothing, and one with a secret that isn't live is
+    answered why (above) and draws no fresh link of the reserved one's
+    kind: an attempt that crosses the exchange never replaces its secret.
+    The other link stays live meanwhile, and a sign-in by it goes on. A sign-in the component has
     no room for among its exchanges is answered busy, and the secret
     stays the link's.
   - *Not ready, busy and full spend nothing.* The reserved secret is the
@@ -724,11 +757,12 @@ recipient.
     signs in when sent again, until that expiry, checked again then.
     Signed in, refused and signed out spend it, as do the core's refusal
     before people answers and the engine's close or abort, which end the
-    exchange; a spent secret is the link's no more, and the next sign-in
-    by any other draws a fresh one.
+    exchange; a spent secret is the link's no more: the next sign-in by
+    any other draws a fresh printed link, and a spent local link is drawn
+    again at once (above).
   - *Full* (`../domain/people.md`, section 3) carries the deployment's
     room for sign-ins, the earliest saved expiry among them, and the
-    link's own expiry, both wall times: the person reads when the next
+    reserved link's own expiry, both wall times: the person reads when the next
     room comes, and until when this link serves, past which a fresh one
     is drawn when it is tried. The link's expiry is kept on the
     monotonic clock, and full says it at the answer's clocks. Full is the

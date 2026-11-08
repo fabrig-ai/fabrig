@@ -356,7 +356,9 @@ down:  released and door outputs → components → io submissions
   `http://<its listener>/jig/v1/sign-in/link?secret=…`, on a line of its
   own, by which a native client on loopback signs in (`client.md`,
   section 8), and which the browser tier's harness opens
-  (`browser.md`, sections 11 and 15). Its server's settings are members
+  (`browser.md`, sections 11 and 15). It keeps no local link and drops
+  the secret `LocalLink` gives (`client.md`, section 8, *The local
+  link*). Its server's settings are members
   of jig's test application's own configuration, as every application's
   server's are its own, beside jig's part, which names none of them
   (`configuration.md`, section 3): the clients' listener, a loopback
