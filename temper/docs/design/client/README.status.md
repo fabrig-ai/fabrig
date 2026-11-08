@@ -76,10 +76,6 @@ its 320 px, as the user accepted in `look-round-17`.
 - **Not yet:** 6.12, *The engine's link, kept at rest*: `temper`'s
   `link_file`, serve writing the file at its start under the box and at
   each `Link`, and removing it at exit, are not built.
-- **Not yet:** 6.12, `sign-in`, and 6.14, *Signed in from the engine's
-  link*, in `temper-client-tui`: `Note`, and the view's "Connecting to
-  HOST:PORT" while the TUI signs in from the file, with no refusal line
-  for the file's link, are not built.
 - **Not yet:** 6.13 and 6.14, *Signed in from the engine's link* and
   *Expired is not signed out*, in the host: `Start.local` and
   `Start.note`, `Report::Local`, the duties `local` and `note`, the
