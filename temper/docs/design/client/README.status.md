@@ -1017,12 +1017,6 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 6.13, 6.16 and 6.17, the seam's `Start.front` and
-  `Report::Front`, the handed link's sign-in with `held`, the box's lines
-  read and their end closing the run, Ctrl+C and `/exit` in front, `/log`
-  sent, the host back at the start's address once `me` drops its project,
-  and the recording's `front` fact and `box-line` record (`tui-seam`,
-  `tui-box-front`).
 - **Not yet:** 6.17, the welcome, before and after the person signed in
   (`tui-welcome`, `tui-box-front`).
 - **Not yet:** 6.11 and 6.17, `temper internal tui --box`: descriptor 3

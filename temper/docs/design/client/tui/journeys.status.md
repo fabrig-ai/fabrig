@@ -7,8 +7,6 @@
   doesn't show the dim person's words of `../README.md`, 6.15; it is
   recorded again with that repair.
 
-- **Not yet:** 3.2 and 4.1: the start fact `front` and the report record
-  `box-line`, written, read and replayed (`tui-seam`, `tui-box-front`).
 - **Not yet:** 5: the secret of a `box-line` record's `link` redacted and
   scanned as a *link* original, its URL-base64 form among them
   (`tui-redact`, `tui-box-front`).
