@@ -11,6 +11,7 @@ fn placeholder_exposes_the_loaders_nodes_and_words() {
     for required in [
         "{noscript}",
         "id=\"boot\"",
+        "<g fill=\"#c2410c\" transform=\"scale(11.4)\">",
         "id=\"boot-line\"></p>",
         "id=\"boot-note\" aria-live=\"polite\"></p>",
         "<progress max=\"1\" value=\"0\" aria-label=\"Loading temper\"></progress>",
@@ -31,6 +32,8 @@ fn placeholder_exposes_the_loaders_nodes_and_words() {
     ] {
         assert!(markup.contains(required), "missing loader contract: {required}");
     }
+    assert!(!markup.contains("<circle"), "placeholder mark has a dot");
+    assert!(!markup.contains("#b8664e"), "placeholder mark uses the old color");
 }
 
 #[test]
