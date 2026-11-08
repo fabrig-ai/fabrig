@@ -2,6 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
+- **Not yet:** 4.3: the Google endings' words keep the straight
+  apostrophe ("didn't", "can't", "hasn't", "isn't", "couldn't",
+  "account's"), where the table has the client's typographic one;
+  `look-round-22`'s `google-endings` closes it.
+
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain
 with no bundle served; the Google client's tables cover each ending with
