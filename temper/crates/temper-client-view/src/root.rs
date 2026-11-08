@@ -110,7 +110,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut builder = view.render.builder();
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
-    let terminal = root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
+    let no_project = crate::outside::no_project(root);
+    let terminal = !no_project && root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
     if !terminal {
         if let Some(project) = rail_project {
             crate::frame::rail(
@@ -124,7 +125,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 &view.forge_sign_in,
             );
         } else {
-            crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
+            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages);
         }
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
@@ -146,7 +147,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
-                crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+                if !no_project {
+                    crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+                }
             }
         }
         match root.pages().address() {
@@ -206,6 +209,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             crate::pages::task::reading(&mut builder, page, &view.forge_words);
         }
         builder.close();
+    } else if no_project {
+        crate::outside::no_project_main(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Welcome { step } = root.pages().address() {
         crate::pages::welcome::main(
             &mut builder,

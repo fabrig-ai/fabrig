@@ -5,9 +5,7 @@ use skein_ui::Role;
 #[test]
 fn the_frame_carries_its_tokens() {
     let view = fixtures::page_view(&fixtures::no_project_root());
-    for (role, token) in [(Role::Banner, BANNER), (Role::Navigation, NAVIGATION)] {
-        assert_eq!(fixtures::styles(view.tree(), role).as_ref(), [Box::from([token])], "{role:?}");
-    }
+    assert_eq!(fixtures::styles(view.tree(), Role::Banner).as_ref(), [Box::from([TOP])]);
 }
 #[test]
 fn the_looks_names_pass_skeins_check() {
@@ -536,34 +534,21 @@ fn the_choice_token_stays_on_the_composer_slot() {
 }
 
 #[test]
-fn the_account_and_adoption_pages_keep_their_headings() {
-    // One root at a time: two outgrow a stack array's 16 KiB.
-    for token in [ACCOUNTS_PAGE, SETTINGS_COL] {
-        let root = if token == ACCOUNTS_PAGE {
-            let (mut root, watch, _) =
-                fixtures::root_at(temper_client_domain::Address::Accounts, &fixtures::domain_limits());
-            let mut me = root.pages().me(root.client()).unwrap().clone();
-            me.projects.clear();
-            fixtures::deliver_me(&mut root, watch, me);
-            root
-        } else {
-            fixtures::adoption_root()
-        };
-        let view = fixtures::page_view(&root);
-        let heading: Box<[skein_ui::Style]> = Box::from([SETTINGS_HEADLINE]);
-        assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [heading]);
-        let mut found = false;
-        for node in view.tree().nodes() {
-            if node.styles.as_slice().contains(&token) {
-                assert_eq!(node.role, Role::Slot);
-            }
-            if node.styles.as_slice().contains(&PAGEBAR) {
-                assert_eq!(node.role, Role::Slot);
-                found = true;
-            }
+fn the_adoption_page_keeps_its_heading() {
+    let view = fixtures::page_view(&fixtures::adoption_root());
+    let heading: Box<[skein_ui::Style]> = Box::from([SETTINGS_HEADLINE]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).as_ref(), [heading]);
+    let mut found = false;
+    for node in view.tree().nodes() {
+        if node.styles.as_slice().contains(&SETTINGS_COL) {
+            assert_eq!(node.role, Role::Slot);
         }
-        assert!(!found);
+        if node.styles.as_slice().contains(&PAGEBAR) {
+            assert_eq!(node.role, Role::Slot);
+            found = true;
+        }
     }
+    assert!(!found);
 }
 
 #[test]

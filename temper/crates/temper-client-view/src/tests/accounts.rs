@@ -2051,31 +2051,6 @@ fn deployment_accounts_and_the_playgrounds_are_sections_of_the_same_rows() {
     }
 }
 
-#[test]
-fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
-    let (mut root, me_watch, _, _, accounts) =
-        fixtures::root_at_full(d::Address::Accounts, &fixtures::limits(), b"Shop");
-    deliver(&mut root, accounts.unwrap(), card_document(b"openai", b"Pat", c::AccountKind::SignIn));
-    let mut me = root.pages().me(root.client()).unwrap().clone();
-    me.projects.clear();
-    fixtures::deliver_me(&mut root, me_watch, me);
-    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-        let tree = view.tree();
-        let main = super::inbox::subtree(tree, tree.nodes().iter().position(|n| n.role == Role::Main).unwrap());
-        assert_eq!(main[0].styles.as_slice(), &[crate::look::MAIN, crate::look::SETTINGS]);
-        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_COL)));
-        assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"Accounts").is_some());
-        let lede = crate::words::Words::say(&fixtures::words(), crate::words::Word::SettingsAccountsLede, &[]);
-        assert_eq!(main.iter().filter(|n| n.name.as_deref() == Some(lede.as_ref())).count(), 1);
-        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_LEDE)));
-        for style in [crate::look::SETTINGS_KICKER, crate::look::SETTINGS_TABS] {
-            assert!(!main.iter().any(|n| n.styles.as_slice().contains(&style)));
-        }
-        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_SECTION)));
-        assert!(main.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW)));
-    }
-}
-
 fn assert_no_old_chrome(root: &d::Domain) {
     for view in [fixtures::page_view(root), fixtures::browser_page_view(root)] {
         for node in view.tree().nodes() {

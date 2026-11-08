@@ -2944,6 +2944,20 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "no-project",
+        heading: "No project yet",
+        parts: &[
+            Part::Named { role: Role::Form, name: "New project" },
+            Part::Named { role: Role::TextField, name: "Project name" },
+            Part::Named { role: Role::Button, name: "Create" },
+            Part::Named { role: Role::Button, name: "Sign out" },
+            Part::Named { role: Role::Status, name: "Pat" },
+            Part::NoStyle { style: temper_client_view::look::RAIL },
+            Part::NoStyle { style: temper_client_view::look::MENU },
+            Part::NoStyle { style: temper_client_view::look::PROJECTS },
+        ],
+    },
+    Holds {
         name: "signed-out",
         heading: "Signed out",
         parts: &[Part::Named { role: Role::Paragraph, name: "To sign in, open a sign-in link temper printed." }],
@@ -3480,7 +3494,8 @@ fn print_writes_every_page_and_the_bundle() {
         assert_eq!(page.contains("<html lang=\"en\" data-night>"), night, "{}: night attribute", sample.name);
         assert_eq!(page.contains("<html lang=\"en\">"), !night, "{}: day root", sample.name);
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
-            assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+            assert!(page.contains("class=\"temper-top\""), "welcome has a top bar");
+            assert!(!page.contains("temper-menu"), "welcome has no menu");
             assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
         } else if sample.name.starts_with("chat-terminal") {
             let (_, main) = page.split_once("<main ").expect("terminal main element");
@@ -3492,8 +3507,8 @@ fn print_writes_every_page_and_the_bundle() {
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
-            assert!(page.contains("class=\"temper-menu\""), "{}: menu disclosure", sample.name);
-            assert!(page.contains("<summary>Menu</summary>"), "{}: menu name", sample.name);
+            assert!(page.contains("class=\"temper-top\""), "{}: top bar", sample.name);
+            assert!(!page.contains("temper-menu"), "{}: no menu", sample.name);
         }
         let mut position = 0;
         for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
