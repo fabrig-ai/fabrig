@@ -1,0 +1,24 @@
+draft = "tui-whole-t1"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-whole-t1/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+
+# plan.md says what was decided and why; notes/contracts.md binds the tasks.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "views"
+title = "A view in a reply prints in the TUI's chat as lines of its own text: a stop a line with its actor's mark"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 1
+story = "A reply holding a way, a path, a proposal, a charter or a not_drawn prints it in the TUI's chat, a stop a line, code's stops indented and the branch's bar closing its part"
+parts = ["views"]
+walk = false

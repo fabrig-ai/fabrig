@@ -6602,7 +6602,8 @@ terminal draw the same path.
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
-  `task N timeline`. The TUI prints views: `../draft/surfaces.md`, 11.5.
+  `task N timeline`. The TUI prints views as lines of its own text
+  (6.14, *A chat*, *a view*; `../draft/surfaces.md`, 11.5).
 
 ## 6. The terminal shells
 
@@ -7714,6 +7715,61 @@ chat, the running line above them.
     (`shared::proposal_line`). A card carries no act: a proposal is
     accepted on the web. Placing each at the call that made it is later
     TUI work (section 11);
+  - *a view,* printed, not drawn (`../draft/surfaces.md`, 11.5; the
+    user, 2026-11-08): an agent's committed text is split at its `view`
+    blocks by the domain's `views::parts`, as the browser's is (5.16),
+    its text parts read as Markdown and each view printed in its place,
+    inside the entry's group, as lines of the terminal's own text with no
+    picture, from the chat page's read of its address
+    (`Chat::view`, 5.16, *Read when shown*). The words being written are
+    read as they are until the turn commits. `view::printed`, the one
+    function that prints a view, is what a chat's document calls too
+    where the TUI draws one:
+    - *a path:* a stop a paragraph, in the derivation's order (the
+      wire's `stops`): its mark, then a space and its words as the
+      derivation gives them, which the TUI never spells (they change
+      with the page How work runs, `../draft/surfaces.md`, 13). The mark
+      is the web's for its actor: a ring `○` for a person
+      (`tui-signal`, the person's colour alone), a four-point star `✦`
+      for an agent (no paint, the ink, as `../draft/surfaces.md`, 13,
+      turns it), a small square `▪` for code (`tui-hint`). Code's stops
+      stand four columns in, as they stand below the line on the web,
+      their words in `tui-hint`. A branch's bar closes its part, four
+      columns in: `┃` (`tui-faint`) and the branch's name, its words.
+      Illustrative, a way:
+
+      ```
+      You approve
+      An agent makes each change; nothing reaches main until you approve it.
+
+      ○ you ask
+      ✦ produce
+          ▪ check
+      ✦ repair
+          ▪ check
+      ○ you approve
+          ▪ update
+      ✦ resolve
+          ▪ merge
+          ┃ main
+      ```
+
+    - *a way:* its name (`tui-name`), and " · now" (`tui-hint`) on the
+      way the project runs, as the browser says it (`ViewNow`); its line
+      (`tui-hint`); a blank row; then its path;
+    - *a proposal:* "Before" (`tui-head`) and its first path, a blank
+      row, then "After" (`tui-head`) and its second, the view's words
+      (`ViewBefore`, `ViewAfter`);
+    - *a charter or a rule:* its card: its `name` (`tui-name`), its
+      `who` (`tui-hint`), then its `facts` as terms, each its label and
+      its value (skein's `Term` and `Description`);
+    - *a `not_drawn`:* its words, a paragraph;
+    - *asking or failed:* "Drawing ADDRESS…" (`tui-hint`) until the read
+      answers, then the view's "Couldn't draw ADDRESS." where it was
+      refused or failed, the browser's words (`ViewAsking`,
+      `ViewFailed`);
+    - *nothing to press:* a printed view carries no act, and a stop's
+      card stays the web's (3.5, Ask temper's page).
   - *not drawn,* as in the browser's terminal: the speakers' names, the
     turns' times, a turn's opaque blocks, a run's beginning and end;
     and, the TUI's, a document's write, since drafting is not the
@@ -7836,17 +7892,17 @@ Answer csv-export's question with "Comma"?
   | Token | Paint | Else | Carried by |
   |---|---|---|---|
   | `tui-title` | accent, bold | | "temper" in a title |
-  | `tui-hint` | dim | | hints, the quiet line's words, a chat's state on the launchpad, the chat's number |
+  | `tui-hint` | dim | | hints, the quiet line's words, a chat's state on the launchpad, the chat's number; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
   | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
   | `tui-refused` | accent | | a refusal |
-  | `tui-name` | bold | | the project's name, a chat's heading |
-  | `tui-faint` | faint | | " · " in the title, " / " in the rule above the box |
+  | `tui-name` | bold | | the project's name, a chat's heading; a printed way's or card's name |
+  | `tui-faint` | faint | | " · " in the title, " / " in the rule above the box; a printed branch's bar `┃` |
   | `tui-address` | dim | aligned to the end | `HOST:PORT` in a title, and the place in the rule above the box |
   | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
-  | `tui-head` | bold | | "Where you left off", "Needs you" |
-  | `tui-signal` | accent | | "?" before a question, the count of what needs the person, "Proposal" |
+  | `tui-head` | bold | | "Where you left off", "Needs you"; a printed proposal's "Before" and "After" |
+  | `tui-signal` | accent | | "?" before a question, the count of what needs the person, "Proposal"; a printed person's ring `○` |
   | `tui-said` | with a band, the band; else dim | a band where the theme has one; the mark `❯`, dim with a band, else accent | the person's words |
   | `tui-agent` | none | the mark `✦`, accent | the agent's texts, a delegate's words, a card |
   | `tui-run` | dim | the mark `▸`, dim | a run's line |
