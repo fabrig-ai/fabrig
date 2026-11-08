@@ -19,6 +19,10 @@ prints and pseudo-terminal/headless-browser generation are built, with
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
+The TUI's look requests stack on `tui-requests`, apart from the browser's
+`look-requests`; the same refresh script keeps either checked-out branch
+on `main` with its own lease and push target (`client/tui/journeys.md`,
+10; `client/journeys.md`, 7).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
