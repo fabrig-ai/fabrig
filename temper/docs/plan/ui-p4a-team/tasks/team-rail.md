@@ -160,3 +160,8 @@ now?* Same answer: the stop was right; change nothing. At 19:36Z `origin/main`
 for it to land and for this trunk to take main. Then do the base check first and
 go on only if it passes; until then each run ends with the same `Failed:` line,
 and that is not a question.
+
+2026-11-08. *Run team-rail-4 again found no `pages/rail.rs` on its base: what
+now?* Same answer: the stop was right; change nothing. At 19:47Z `origin/main`
+(ba10e9e72a) still has no `pages/rail.rs`, so ui-p1-rail hasn't landed. Don't
+rerun until it lands and this trunk takes main; then do the base check first.
