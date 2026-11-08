@@ -121,10 +121,10 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
     }
 }
 #[test]
-fn start_goes_to_configure_and_go_on_to_the_open_chat() {
+fn start_goes_to_ask_and_go_on_to_the_open_chat() {
     let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
     let template = f::chat::messaging_root();
-    let offered = f::configuring_me(template.pages().me(template.client()).unwrap().clone());
+    let offered = f::asking_me(template.pages().me(template.client()).unwrap().clone());
     let mut absent = offered.clone();
     let project = absent.projects.get_mut(0).unwrap();
     project.templates =
@@ -150,11 +150,7 @@ fn start_goes_to_configure_and_go_on_to_the_open_chat() {
                 Some(d::Action::Pages(pages::Act::Go { address: Address::Ask { project: f::PROJECT } }))
             );
         }
-        assert!(
-            !main(view.tree())
-                .iter()
-                .any(|n| n.name.as_deref() == Some(b"Configure temper") || n.name.as_deref() == Some(b"Ask temper"))
-        );
+        assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Ask temper")));
     }
     drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let mut out =

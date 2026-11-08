@@ -3989,8 +3989,8 @@ Each is intended; what it needs is named with it.
 - **Discovering models per account** (8.3): provider-list reads and their
   retained names are the catalogue's lists step
   (`../draft/model-catalogue.md`, sections 5 and 7). Default: the binary's
-  stock and model settings added by name through Settings, Models or the
-  configuring chat; neither generated configuration document holds models.
+  stock and model settings added by name through Settings, Models or
+  Ask temper; neither generated configuration document holds models.
 
 - **A handover made by a Forgejo's own restart** (6.5, 7.1): a Forgejo
   step that exits under a running serve runs its preparation again,

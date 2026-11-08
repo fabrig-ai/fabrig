@@ -79,7 +79,7 @@ fn fixture(openai: bool) -> (d::Domain, Token, Token) {
     }
     member.defaults = List::from_boxed(Box::new([
         c::MeDefault {
-            template: 3,
+            template: 7,
             choice: c::LlmChoice {
                 later: None,
                 account: None,

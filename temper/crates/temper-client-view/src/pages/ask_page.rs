@@ -1,4 +1,4 @@
-//! The configuring chat before its first words (temper/docs/design/client/README.md, 3.5).
+//! Ask temper before its first words (temper/docs/design/client/README.md, 3.5).
 use crate::{
     frame::Bindings,
     look,
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{Domain, pages::Act};
 
-#[expect(clippy::too_many_lines, reason = "one tree keeps the configuring opening, composer and reference in order")]
+#[expect(clippy::too_many_lines, reason = "one tree keeps the Ask temper opening, composer and reference in order")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -37,7 +37,7 @@ pub(crate) fn main(
         b.style(super::document::style(mode));
     }
     if terminal {
-        let heading = w.say(Word::ConfigureTitle, &[]);
+        let heading = w.say(Word::AskTitle, &[]);
         super::terminal::top(
             b,
             root,
@@ -60,7 +60,7 @@ pub(crate) fn main(
             bindings,
             Some(project),
             super::session::Path::Home,
-            super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
+            super::session::Heading::Words(&w.say(Word::AskTitle, &[])),
         );
         super::session::right(b);
         if let Some(mode) = reference {
@@ -81,25 +81,25 @@ pub(crate) fn main(
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
-    let question = w.say(Word::ConfigureQuestion, &[Hole::Name(name.clone())]);
+    let question = w.say(Word::AskQuestion, &[Hole::Name(name.clone())]);
     text(b, Role::Heading { level: 2 }, &question, None);
-    paragraph(b, &w.say(Word::ConfigureLede, &[]), look::STARTER_LEDE);
+    paragraph(b, &w.say(Word::AskLede, &[]), look::STARTER_LEDE);
     b.open(Role::List);
-    b.name(&w.say(Word::ConfigureSets, &[]));
+    b.name(&w.say(Word::AskSets, &[]));
     b.style(look::STARTER_SETS);
     for (term, line) in [
-        (Word::ConfigureWorkTerm, Word::ConfigureWorkLine),
-        (Word::ConfigureModelsTerm, Word::ConfigureModelsLine),
-        (Word::ConfigureApprovalsTerm, Word::ConfigureApprovalsLine),
+        (Word::AskWorkTerm, Word::AskWorkLine),
+        (Word::AskModelsTerm, Word::AskModelsLine),
+        (Word::AskApprovalsTerm, Word::AskApprovalsLine),
     ] {
         b.open(Role::Item);
         pair(b, w, term, line, &[]);
         b.close();
     }
     b.close();
-    paragraph(b, &w.say(Word::ConfigureNote, &[]), look::STARTER_NOTE);
+    paragraph(b, &w.say(Word::AskNote, &[]), look::STARTER_NOTE);
     b.open(Role::Region);
-    let ways = w.say(Word::ConfigureWays, &[]);
+    let ways = w.say(Word::AskWays, &[]);
     b.name(&ways);
     b.style(look::STARTER_WAYS);
     let pending = match root.pages().chats() {
@@ -112,16 +112,16 @@ pub(crate) fn main(
         text(b, Role::Heading { level: 3 }, &ways, None);
     }
     b.open(Role::Button);
-    b.name(&w.say(Word::ConfigureUnsureTitle, &[]));
+    b.name(&w.say(Word::AskUnsureTitle, &[]));
     b.style(look::STARTER_UNSURE);
-    starter(b, w, bindings, Word::ConfigureUnsure, &[], pending);
+    starter(b, w, bindings, Word::AskUnsure, &[], pending);
     b.close();
     b.close();
     b.open(Role::List);
     b.style(look::STARTERS);
     for (title, line, sent) in [
-        (Word::ConfigureAloneTitle, Word::ConfigureAloneLine, Word::ConfigureAlone),
-        (Word::ConfigureDesignTitle, Word::ConfigureDesignLine, Word::ConfigureDesign),
+        (Word::AskAloneTitle, Word::AskAloneLine, Word::AskAlone),
+        (Word::AskDesignTitle, Word::AskDesignLine, Word::AskDesign),
     ] {
         b.open(Role::Item);
         b.open(Role::Button);
@@ -133,8 +133,8 @@ pub(crate) fn main(
     if let Some(holes) = model_accounts(root, w) {
         b.open(Role::Item);
         b.open(Role::Button);
-        pair(b, w, Word::ConfigureModelsTitle, Word::ConfigureModelsCardLine, &holes);
-        starter(b, w, bindings, Word::ConfigureModels, &holes, pending);
+        pair(b, w, Word::AskModelsTitle, Word::AskModelsCardLine, &holes);
+        starter(b, w, bindings, Word::AskModels, &holes, pending);
         b.close();
         b.close();
     }
@@ -188,21 +188,15 @@ fn starter(b: &mut Builder, w: &Words, bindings: &mut Bindings, sent: Word, hole
 
 fn own_way(b: &mut Builder, w: &Words, bindings: &mut Bindings, name: Box<[u8]>, pending: bool) {
     b.open(Role::Group);
-    b.name(&w.say(Word::ConfigureOwn, &[]));
+    b.name(&w.say(Word::AskOwn, &[]));
     b.style(look::STARTER_OWN);
     b.open(Role::Slot);
     b.style(look::STARTER_OWN_TEXT);
-    paragraph(b, &w.say(Word::ConfigureOwnTitle, &[]), look::STARTER_OWN_TITLE);
+    paragraph(b, &w.say(Word::AskOwnTitle, &[]), look::STARTER_OWN_TITLE);
     b.open(Role::List);
-    b.name(&w.say(Word::ConfigureOwnSteps, &[]));
+    b.name(&w.say(Word::AskOwnSteps, &[]));
     b.style(look::STARTER_OWN_STEPS);
-    for step in [
-        Word::ConfigureOwnDraft,
-        Word::ConfigureOwnCut,
-        Word::ConfigureOwnAgents,
-        Word::ConfigureOwnBranch,
-        Word::ConfigureOwnMain,
-    ] {
+    for step in [Word::AskOwnDraft, Word::AskOwnCut, Word::AskOwnAgents, Word::AskOwnBranch, Word::AskOwnMain] {
         b.open(Role::Item);
         b.text(Run::Plain, &w.say(step, &[]));
         b.close();
@@ -212,12 +206,12 @@ fn own_way(b: &mut Builder, w: &Words, bindings: &mut Bindings, name: Box<[u8]>,
     b.open(Role::Slot);
     b.style(look::STARTER_OWN_ACTS);
     b.open(Role::Button);
-    b.name(&w.say(Word::ConfigureOwnSee, &[]));
+    b.name(&w.say(Word::AskOwnSee, &[]));
     b.bind(bindings.insert(Act::ShowReference));
     b.close();
     b.open(Role::Button);
-    b.name(&w.say(Word::ConfigureOwnStart, &[]));
-    starter(b, w, bindings, Word::ConfigureOwnSends, &[Hole::Name(name)], pending);
+    b.name(&w.say(Word::AskOwnStart, &[]));
+    starter(b, w, bindings, Word::AskOwnSends, &[Hole::Name(name)], pending);
     b.close();
     b.close();
     b.close();
@@ -292,9 +286,9 @@ fn account_name(
     let name = if program {
         crate::choice::shown(plan, w)
     } else if row.plan {
-        w.say(Word::ConfigurePlan, &[Hole::Name(crate::choice::shown(plan, w))])
+        w.say(Word::AskPlan, &[Hole::Name(crate::choice::shown(plan, w))])
     } else if key && !sign_in {
-        w.say(Word::ConfigureKey, &[Hole::Name(crate::choice::shown(brand, w))])
+        w.say(Word::AskKey, &[Hole::Name(crate::choice::shown(brand, w))])
     } else {
         crate::choice::shown(brand, w)
     };
@@ -310,12 +304,12 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         }
         (Some(_), None) | (None, Some(_) | None) => false,
     };
-    super::session::foot(b, &w.say(Word::ConfigureTitle, &[]));
+    super::session::foot(b, &w.say(Word::AskTitle, &[]));
     if terminal {
         super::terminal::prompt(b, w);
     }
     b.open(Role::TextArea);
-    let name = w.say(Word::ConfigureWords, &[]);
+    let name = w.say(Word::AskWords, &[]);
     b.name(&name);
     b.placeholder(&name);
     if !available {

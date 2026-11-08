@@ -192,7 +192,12 @@ fn chat() -> (Driver, engine::Assignment) {
 }
 
 fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
-    let limits = limits();
+    let mut limits = limits();
+    limits.tasks.charters = u32::try_from(config[0].core.defaults.charters.len()).expect("fixture charters fit");
+    limits.tasks.executor_kinds = u32::try_from(config[0].core.defaults.rules.ceiling.delegation.kinds.len())
+        .expect("fixture executor kinds fit");
+    limits.authority.executors = limits.tasks.executor_kinds;
+    limits.documents.executors = limits.tasks.executor_kinds;
     let template = config[0].core.defaults.templates[0].clone();
     let period_budget = config[0].core.defaults.rules.period_spend;
     let mut driver = Driver::configured(Store::with_limits(&limits), config, &limits);
@@ -367,11 +372,6 @@ fn asking_declarations() {
         let mut config = [configuration(), configuration()];
         for config in &mut config {
             let families = core::ToolFamilies::JIG.settings | core::ToolFamilies::JIG.ask.0;
-            for charter in &mut config.core.defaults.charters {
-                if charter.number == 3 {
-                    charter.policy.tools = tasks::Tools(3_072);
-                }
-            }
             config.core.defaults.rules.ceiling.tools.0 |= families;
             for project in &mut config.core.seed_projects {
                 project.policy.policy.ceiling.tools.0 |= families;
@@ -382,7 +382,7 @@ fn asking_declarations() {
         }
         let (mut driver, chat) = chat_in(config);
         let mut asking = delegate(&driver, chat.task, b"Ask temper", 0, K);
-        asking.executor = tasks::Executor::Agent { charter: 3 };
+        asking.executor = tasks::Executor::Agent { charter: 11 };
         if !allowed {
             asking.authority.tools.0 &= !core::ToolFamilies::JIG.ask.0;
         }
@@ -423,6 +423,9 @@ pub(super) fn changes_without_settings_or_message() {
     asking_declarations();
     let mut config = [configuration(), configuration()];
     for config in &mut config {
+        temper_engine_domain_world::forge_routes::add_settings_charter(&mut config.core.defaults);
+        config.core.seed_projects[0].policy =
+            config.core.defaults.policies.get(&POLICY_NUMBER).expect("policy 1").clone();
         config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
         for project in &mut config.core.seed_projects {
             project.policy.policy.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
@@ -437,21 +440,21 @@ pub(super) fn changes_without_settings_or_message() {
     for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
         assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
     }
-    let mut configuring = delegate(&driver, chat.task, b"Configure temper", 0, K);
-    configuring.executor = tasks::Executor::Agent { charter: 3 };
+    let mut settings = delegate(&driver, chat.task, b"Read settings", 0, K);
+    settings.executor = tasks::Executor::Agent { charter: SETTINGS_CHARTER };
     let engine::CallAnswer::Delegated(made) =
-        call(&mut driver, &chat, 40, engine::Tool::Delegate { batch: Box::new([configuring]) })
+        call(&mut driver, &chat, 40, engine::Tool::Delegate { batch: Box::new([settings]) })
     else {
-        panic!("configuring run admitted")
+        panic!("settings run admitted")
     };
-    let configuring = assigned(&driver, made[0].task).expect("configuring run");
-    assert_eq!(configuring.charter, 3);
+    let settings = assigned(&driver, made[0].task).expect("settings run");
+    assert_eq!(settings.charter, SETTINGS_CHARTER);
     for name in [b"settings".as_slice(), b"propose_settings"] {
         assert!(
-            temper_engine_smith::charter(&configuring).grants.host_tools.iter().any(|tool| tool.name.as_ref() == name)
+            temper_engine_smith::charter(&settings).grants.host_tools.iter().any(|tool| tool.name.as_ref() == name)
         );
     }
-    finish(&mut driver, &configuring, tasks::TaskResult::Report { words: b"Settings read".as_slice().into() });
+    finish(&mut driver, &settings, tasks::TaskResult::Report { words: b"Settings read".as_slice().into() });
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let coordinator = delegate(&driver, chat.task, b"Land a change", 5, 11 * K);
     let engine::CallAnswer::Delegated(made) =

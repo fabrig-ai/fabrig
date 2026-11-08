@@ -420,7 +420,7 @@ fn the_session_heading_keeps_its_name_and_shows_the_title_in_the_browser() {
         ),
     ] {
         let (mut root, _, watch) = fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &domain);
-        let mut task = configuring_task();
+        let mut task = asking_task();
         task.chip.title = c::DocumentText::complete(fixtures::first_run::text(title));
         deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
         let whole = crate::accounts::words::join(&["T9 · ".as_bytes(), title]);
@@ -764,9 +764,9 @@ fn a_turn_being_written_shows_no_raw_marker() {
 
 fn working_tree(thread: &Thread) -> skein_ui::Tree {
     use crate::pages::chat::{Drawn, Speakers, conversation_with_times};
-    let mut task = configuring_task();
+    let mut task = asking_task();
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
-    let root = configuring_task_root(task, true, 1);
+    let root = asking_task_root(task, true, 1);
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
     conversation_with_times(
         &mut b,
@@ -2864,10 +2864,10 @@ fn unavailable_models_block_send_and_enter_in_the_view() {
     }
 }
 
-pub(super) fn configuring_task_root(task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
-    configuring_task_root_owned(task, template, charter, true)
+pub(super) fn asking_task_root(task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
+    asking_task_root_owned(task, template, charter, true)
 }
-fn configuring_task_root_owned(
+fn asking_task_root_owned(
     mut task: c::Task,
     template: bool,
     charter: u32,
@@ -2878,7 +2878,7 @@ fn configuring_task_root_owned(
     let source = messaging_root();
     let mut me = source.pages().me(source.client()).expect("me").clone();
     if template {
-        me = fixtures::configuring_me(me);
+        me = fixtures::asking_me(me);
     }
     me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
     fixtures::deliver_me(&mut root, me_watch, me);
@@ -2889,7 +2889,7 @@ fn configuring_task_root_owned(
     deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
     root
 }
-pub(super) fn configuring_task() -> c::Task {
+pub(super) fn asking_task() -> c::Task {
     let source = messaging_root();
     let mut task = source.pages().chat().expect("chat").task(source.client()).expect("task").clone();
     task.chip.title = c::DocumentText::complete(fixtures::first_run::text(b"Hello"));
@@ -2900,10 +2900,10 @@ pub(super) fn configuring_task() -> c::Task {
     task
 }
 #[test]
-fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
+fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     use crate::look;
     use temper_client_domain::{self as d, Address, pages::Act};
-    let mut root = configuring_task_root(configuring_task(), true, 37);
+    let mut root = asking_task_root(asking_task(), true, 37);
     fixtures::root_event(
         &mut root,
         d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: b"My words".as_slice().into() }) },
@@ -2996,8 +2996,8 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
 #[test]
 fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
     use crate::look;
-    for (listed, charter, configuring) in [(true, 37, true), (true, 1, false), (false, 37, false), (false, 1, false)] {
-        let root = configuring_task_root(configuring_task(), listed, charter);
+    for (listed, charter, asking) in [(true, 37, true), (true, 1, false), (false, 37, false), (false, 1, false)] {
+        let root = asking_task_root(asking_task(), listed, charter);
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let tree = view.tree();
             assert!(style_position(tree.nodes(), look::SESSION).is_some());
@@ -3014,7 +3014,7 @@ fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
                         let link = link.unwrap();
                         assert_eq!(
                             nodes[link].states.as_slice().contains(&skein_ui::State::Current),
-                            if name == b"Ask temper" { configuring } else { !configuring }
+                            if name == b"Ask temper" { asking } else { !asking }
                         );
                     }
                 }
@@ -3032,9 +3032,9 @@ fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
 
 #[test]
 fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
-    for configuring in [false, true] {
+    for asking in [false, true] {
         for (offered, ended, result) in [(false, false, false), (true, true, false), (true, false, true)] {
-            let mut task = configuring_task();
+            let mut task = asking_task();
             if ended {
                 task.chip.phase = c::Phase::Ended;
                 task.chip.details.phase = c::ChipPhase::Ended;
@@ -3047,13 +3047,13 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                     c::DocumentText::complete(fixtures::first_run::text(b"Configured")),
                 )))));
             }
-            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            let root = asking_task_root(task, true, if asking { 37 } else { 1 });
             for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
                 assert_eq!(style_position(view.tree().nodes(), crate::look::SESSION_FOOT), None);
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
-                if configuring {
+                if asking {
                     assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
                 }
             }
@@ -3062,9 +3062,9 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
 }
 
 #[test]
-fn configuring_chats_keep_message_refusals_below_the_entry() {
+fn asking_chats_keep_message_refusals_below_the_entry() {
     use temper_client_domain::{self as d, pages::Act};
-    let mut root = configuring_task_root(configuring_task(), true, 37);
+    let mut root = asking_task_root(asking_task(), true, 37);
     let mut out = skein_lib::Queue::uncapped();
     for event in [
         d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: b"My words".as_slice().into() }) },
@@ -3112,7 +3112,7 @@ fn configuring_chats_keep_message_refusals_below_the_entry() {
 }
 
 #[test]
-fn configuring_chats_keep_the_conversation_and_proposals_whole() {
+fn asking_chats_keep_the_conversation_and_proposals_whole() {
     use fixtures::first_run as run;
     let activity = || {
         let mut rows = List::with_capacity(1);
@@ -3130,25 +3130,25 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         c::ActivityPage { rows, before: None, after: None, cut: false }
     };
     let plain = fixtures::chat::proposal_in_layout(Some(activity()), None, false, true);
-    let configuring = fixtures::chat::proposal_in_layout(Some(activity()), None, true, true);
+    let asking = fixtures::chat::proposal_in_layout(Some(activity()), None, true, true);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut plain_view = fixtures::view_of(words.clone());
-        let mut configuring_view = fixtures::view_of(words);
+        let mut asking_view = fixtures::view_of(words);
         let plain_tree = fixtures::build(&mut plain_view, &plain);
-        let configuring_tree = fixtures::build(&mut configuring_view, &configuring);
-        assert!(style_position(configuring_tree.nodes(), crate::look::SESSION).is_some());
+        let asking_tree = fixtures::build(&mut asking_view, &asking);
+        assert!(style_position(asking_tree.nodes(), crate::look::SESSION).is_some());
         assert!(style_position(plain_tree.nodes(), crate::look::SESSION).is_some());
         let original = subtree(plain_tree, styled(plain_tree, crate::look::THREAD));
-        let session = subtree(configuring_tree, styled(configuring_tree, crate::look::THREAD));
+        let session = subtree(asking_tree, styled(asking_tree, crate::look::THREAD));
         assert_eq!(original.len(), session.len());
         for (a, b) in original.iter().zip(session) {
             assert_eq!((a.role, &a.name, &a.text, &a.styles), (b.role, &b.name, &b.text, &b.styles));
         }
-        assert!(style_position(configuring_tree.nodes(), crate::look::TASK_CARD).is_some());
-        assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Delegated work").is_some());
-        assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
-        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"Read 1 file").is_some());
-        assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
+        assert!(style_position(asking_tree.nodes(), crate::look::TASK_CARD).is_some());
+        assert!(skein_lib::bytes::find(&fixtures::text(asking_tree), b"Delegated work").is_some());
+        assert_eq!(named_count(asking_tree, Role::Button, b"Accept"), 1);
+        assert!(fixtures::find(asking_tree, Role::Disclosure, b"Read 1 file").is_some());
+        assert!(skein_lib::bytes::find(&fixtures::text(asking_tree), b"Here is my proposal").is_some());
     }
 }
 
@@ -3193,13 +3193,13 @@ fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
 fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_path() {
     use crate::look;
     use temper_client_domain::Address;
-    for configuring in [false, true] {
+    for asking in [false, true] {
         for allowed in [false, true] {
-            let mut task = configuring_task();
+            let mut task = asking_task();
             if !allowed {
                 task.acts.clear();
             }
-            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            let root = asking_task_root(task, true, if asking { 37 } else { 1 });
             for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)]
             {
                 let tree = view.tree();
@@ -3228,7 +3228,7 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     let close = named_position(controls, Role::Button, Some(b"Close")).unwrap();
                     assert!(status < stop && stop < close && close < spend);
                 }
-                let path = if configuring { b"Ask temper".as_slice() } else { b"Chats" };
+                let path = if asking { b"Ask temper".as_slice() } else { b"Chats" };
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {
@@ -3236,7 +3236,7 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     }
                 }
                 assert_eq!(links.len(), 2, "phone back and desktop path");
-                let address = if configuring {
+                let address = if asking {
                     Address::Ask { project: fixtures::PROJECT }
                 } else {
                     Address::Chats { filter: temper_client_domain::ChatsFilter::All }
@@ -3256,10 +3256,10 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
 fn the_chat_bar_marks_yours_and_waiting_states_as_needing_the_person() {
     use crate::look;
     for (line, token) in super::chats::status_rows() {
-        let mut task = configuring_task();
+        let mut task = asking_task();
         task.chip = line.chip;
         task.waits_on = line.waits_on;
-        let root = configuring_task_root(task, true, 1);
+        let root = asking_task_root(task, true, 1);
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let controls = subtree(view.tree(), styled(view.tree(), look::SESSION_RIGHT));
             let status = &controls[named_position(controls, Role::Status, None).expect("bar status")];
@@ -3275,8 +3275,8 @@ fn the_chat_bar_marks_yours_and_waiting_states_as_needing_the_person() {
 #[test]
 fn the_session_send_arrow_waits_for_words_in_every_chat() {
     use temper_client_domain::{self as d, pages::Act};
-    for configuring in [false, true] {
-        let mut root = configuring_task_root(configuring_task(), true, if configuring { 37 } else { 1 });
+    for asking in [false, true] {
+        let mut root = asking_task_root(asking_task(), true, if asking { 37 } else { 1 });
         for (words, disabled) in [(b"".as_slice(), true), (b"Hello", false)] {
             fixtures::root_event(
                 &mut root,
@@ -3294,21 +3294,21 @@ fn the_session_send_arrow_waits_for_words_in_every_chat() {
 }
 
 #[test]
-fn working_dots_follow_each_status_in_the_browser_alone_including_configuring_chats() {
+fn working_dots_follow_each_status_in_the_browser_alone_including_asking_chats() {
     use crate::look;
     for (line, token) in super::chats::status_rows() {
-        for configuring in [false, true] {
-            let mut task = configuring_task();
+        for asking in [false, true] {
+            let mut task = asking_task();
             task.chip = line.chip.clone();
             task.waits_on = line.waits_on.clone();
-            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            let root = asking_task_root(task, true, if asking { 37 } else { 1 });
             for (view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
                 let tree = view.tree();
                 let dots = style_position(tree.nodes(), look::TYPING);
                 assert_eq!(
                     dots.is_some(),
                     browser && token == look::STATUS_ACTIVE,
-                    "{token:?}, configuring={configuring}, browser={browser}"
+                    "{token:?}, asking={asking}, browser={browser}"
                 );
                 if let Some(dots) = dots {
                     assert_eq!(tree.nodes()[dots].name.as_deref(), Some(b"Writing".as_slice()));
@@ -3325,9 +3325,9 @@ fn working_dots_follow_each_status_in_the_browser_alone_including_configuring_ch
 #[test]
 fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() {
     use crate::pages::chat::{Drawn, Speakers, conversation_with_times};
-    let mut task = configuring_task();
+    let mut task = asking_task();
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
-    let root = configuring_task_root(task, true, 1);
+    let root = asking_task_root(task, true, 1);
     for provisional_text in [false, true] {
         let thread = if provisional_text {
             provisional()
@@ -3390,7 +3390,7 @@ fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_do
         }),
         None,
     );
-    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(asking_task())));
     (root, limits)
 }
 #[test]
@@ -3526,7 +3526,7 @@ fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
         Some(activity),
         None,
     );
-    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(asking_task())));
     for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
         let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
         let bounds = crate::Limits::of(&domain, &words).unwrap();
@@ -3678,7 +3678,7 @@ pub(super) fn model_line_root(
         [true; 2],
         true,
     );
-    let mut me = fixtures::configuring_me(source.pages().me(source.client()).unwrap().clone());
+    let mut me = fixtures::asking_me(source.pages().me(source.client()).unwrap().clone());
     let project = me.projects.get_mut(0).unwrap();
     project.models = List::with_capacity(2);
     for (raw, shown, provider) in [("gpt-6-astra", "GPT-6 Astra", 17), ("claude-opus-5-5", "Opus 5.5", 18)] {
@@ -3744,7 +3744,7 @@ fn a_closed_chat_says_what_it_ran_on() {
         (Some(model_effort("gpt-6-astra", Some("low"))), None, Some(1), 1, false, true, None),
         (Some(model_effort("gpt-6-astra", Some("low"))), None, Some(1), 1, true, false, None),
     ] {
-        let mut task = configuring_task();
+        let mut task = asking_task();
         task.chip.executor = c::ChipExecutor::Agent { charter };
         task.activity = if caught_up { 1 } else { 2 };
         task.llm = own;
@@ -3879,8 +3879,8 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
         ),
     ] {
         super::choice::wait_pointers(reason);
-        for configuring in [false, true] {
-            let mut task = configuring_task();
+        for asking in [false, true] {
+            let mut task = asking_task();
             task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
             task.run_wait = Some(wait);
             task.llm = Some(c::LlmChoice {
@@ -3889,7 +3889,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
                 main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None },
                 subagents: List::with_capacity(0),
             });
-            let root = configuring_task_root_owned(task, true, if configuring { 37 } else { 1 }, owned);
+            let root = asking_task_root_owned(task, true, if asking { 37 } else { 1 }, owned);
             for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
                 let tree = view.tree();
                 super::choice::wait_pointers(&fixtures::text(tree));

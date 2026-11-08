@@ -296,9 +296,9 @@ fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
     let tree = line(&[call(1, b"settings", b"{}", None)], &[], Some(&current()), true, 29);
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"checking template 2".as_slice()));
     assert!(disclosure(&tree).styles.as_slice().contains(&look::WORK_RUNNING));
-    let mut task = super::chat::configuring_task();
+    let mut task = super::chat::asking_task();
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
-    let root = super::chat::configuring_task_root(task, true, 1);
+    let root = super::chat::asking_task_root(task, true, 1);
     let messages = [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])];
     let tree = conversation(
         &thread(&[(&answer_messages(), 12), (&messages, 41)]),

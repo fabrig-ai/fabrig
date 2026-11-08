@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
 
 Section 6.3's TUI host runs in the joint world: pasted-link sign-in
 drawing `me`, a restart showing Offline then Live with `me` retained,
@@ -269,13 +269,28 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   the fuzzy sweep's changes of landing rules
   (`tests/engine/forge`'s `suite::fuzzy::simulation` makes none); and
   the real loop's smoke of a gate added to a project's rule from the
-  client. 6.4: the client's How work runs, with its "Configure
-  temper", a proposal's card and its review, in their step and view
-  tests and joined with the engine, since the pages are not built
-  (`../client/README.status.md`); the joined world's configuring chat
-  starts from `Configure` and `Settings`' "Configure temper" finds it,
-  but it proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`).
+  client. 6.4: the client's How work runs, a proposal's card and its
+  review, in their step and view tests and joined with the engine,
+  since the pages are not built (`../client/README.status.md`).
+- **Not yet:** 6.4, the engine's domain world's configuring by Ask temper
+  and its configuring reads: the stories of
+  `temper/tests/engine/domain/tests/suite/configuring.rs` and
+  `configuring/` run charter 3 from template 3 (`configuring/fixture.rs`,
+  `CONFIGURING`), reading by `settings`, `read_docs` and `read_file`,
+  keeping the chat's document by `note` and proposing by
+  `propose_settings`' configuring form, where 6.4 has charter 11 from
+  template 5 through `see`, `document` and the asking form; and the
+  settings family's own stories run on charter 3, where 6.4 has a
+  charter of the world's own holding that family.
+- **Not yet:** 6.4, the client and the engine, joined: the configuring
+  stories of `temper/tests/client/tests/suite/configuring_chat.rs` start
+  template 3, through ctl by `chat start --template 3` and on
+  `Joint::with_configuring`, `fixtures::configuring_world` and
+  `fixtures::configuring_agent`, whose world offers no template 5, so
+  that `the_page_starts_the_asking_chat` and
+  `start_over_closes_and_opens_a_fresh_ask` stop before Ask temper's
+  page starts a chat, where 6.4 has Ask temper's page and `chat start
+  --template 5` starting charter 11.
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.

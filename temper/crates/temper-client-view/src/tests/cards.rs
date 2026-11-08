@@ -463,7 +463,7 @@ fn settings_up(root: &mut d::Domain, up: jig_client::Up) -> Queue<d::Request> {
 fn settings_root(page: c::ReadValue) -> (d::Domain, Queue<d::Request>) {
     settings_root_in(page, false)
 }
-fn settings_root_in(page: c::ReadValue, configuring: bool) -> (d::Domain, Queue<d::Request>) {
+fn settings_root_in(page: c::ReadValue, asking: bool) -> (d::Domain, Queue<d::Request>) {
     let (mut root, me_watch, watch) =
         fixtures::root_at(d::Address::Chat { task: fixtures::chat::TASK }, &fixtures::domain_limits());
     let source = fixtures::chat::messaging_root();
@@ -471,8 +471,8 @@ fn settings_root_in(page: c::ReadValue, configuring: bool) -> (d::Domain, Queue<
     task.chip.task = fixtures::chat::TASK;
     task.project = fixtures::PROJECT;
     let mut me = source.pages().me(source.client()).unwrap().clone();
-    if configuring {
-        me = fixtures::configuring_me(me);
+    if asking {
+        me = fixtures::asking_me(me);
         task.chip.executor = c::ChipExecutor::Agent { charter: 37 };
     }
     // Number order, not delivery order, chooses the default way of zero.
@@ -766,8 +766,8 @@ fn accept_decides_with_running_work_staying() {
 }
 #[test]
 fn change_something_focuses_the_composer() {
-    for configuring in [false, true] {
-        let (mut root, _) = settings_root_in(settings_page(&[], true), configuring);
+    for asking in [false, true] {
+        let (mut root, _) = settings_root_in(settings_page(&[], true), asking);
         for count in [1, 2] {
             let mut view = fixtures::page_view(&root);
             let button = fixtures::find(view.tree(), Role::Button, b"Change something").unwrap();

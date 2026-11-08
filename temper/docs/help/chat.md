@@ -10,16 +10,15 @@ A chat is a conversation between a party and an agent in a project: an untracked
   template, template 1 by default, or another offered chat template:
   its charter, its budget rule and its model.
   It is untracked, has no deadline, and keeps its transcript.
-- **The configuring chat,** template 3 under charter 3 in the stock,
-  turns how you describe your work into a proposal of settings. Describe
-  it in your words, paste a text, or name a document in an adopted
+- **Ask temper,** template 5 under charter 11 in the stock, explains temper
+  and this project's settings, and turns how you describe your work into
+  a proposal of settings. Describe it in your words, paste a text, or
+  name a document in an adopted
   repository. The agent reads the settings and asks one question at a
   time until it can propose. What temper must enforce becomes settings;
   what agents must follow stays in their instructions or in documents
   their charters name. An owner decides the proposal; the agent changes
   nothing itself (temper help settings).
-- **Ask temper,** template 5 under charter 11 in the stock, explains temper
-  and this project's settings, proposing changes for an owner to accept.
 - **Its conversation** is what `chat show` reads: each turn's words, from
   the party and from the agent, the brief supplied to each run, and each
   run's start and end.
@@ -118,16 +117,18 @@ A chat is a conversation between a party and an agent in a project: an untracked
   same `chat close` again gets its first answer; `task show` on its
   task with `--until replied` returns once it has answered or waits on
   someone; `task tree` shows the change tasks it started.
-- **To describe how you work,** start the configuring chat:
+- **To describe how you work,** start Ask temper:
 
   ```
-  temper ctl DIR chat start --project PROJECT --template 3 TEXT --key KEY < /dev/null
+  temper ctl DIR chat start --project PROJECT --template 5 TEXT --key KEY < /dev/null
   ```
 
-  On the web, a project's first chat starts it when template 3 is
-  offered; otherwise it starts the default chat.
-- **temper's runs** in a chat use the host tools `change`, `goal`,
+  On the web, choose **Ask temper** in the project's rail or **Ask** in
+  the tab bar to open its newest open chat, or start a new one.
+- **The stock chat's runs** use the host tools `change`, `goal`,
   `delegate`, `decided` and `message`, and read these pages with `read_docs`.
+  Ask temper reads with `see`, keeps its chat's document with `document`
+  and proposes settings with `propose_settings`.
 
 ## Limits
 

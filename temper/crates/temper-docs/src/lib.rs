@@ -77,7 +77,7 @@ pub struct Page {
     pub text: &'static str,
 }
 
-/// The way the client draws beside "Configure temper" and the configuring agent reads.
+/// The way shown beside Ask temper and read by its runs.
 #[expect(clippy::disallowed_macros, reason = "the page compiles its single Markdown source as static data")]
 pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
     name: "how-temper-builds-temper",

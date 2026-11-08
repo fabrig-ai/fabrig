@@ -93,7 +93,7 @@ fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
         },
         Command::StartOver => match (root.pages().chat(), task) {
             (Some(chat), Some(task)) => {
-                super::super::chat::configuring(root)
+                super::super::chat::asking(root)
                     && chat.draft.is_some()
                     && task.result.is_none()
                     && !chats::ended(&task.chip)
@@ -101,7 +101,7 @@ fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
             (Some(_), None) | (None, _) => false,
         },
         Command::Goal => {
-            if super::super::chat::configuring(root) {
+            if super::super::chat::asking(root) {
                 return false;
             }
             let Some(chat) = root.pages().chat() else { return false };

@@ -347,10 +347,10 @@ pub(super) fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: O
         grace: None,
         llm: None,
     };
-    let mut configuring = goal.clone();
-    configuring.number = 5;
-    configuring.executor = c::TemplateExecutor::Charter(3);
-    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([goal, configuring]));
+    let mut asking = goal.clone();
+    asking.number = 5;
+    asking.executor = c::TemplateExecutor::Charter(11);
+    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([goal, asking]));
     let mut out = Queue::uncapped();
     d::step(
         root,
@@ -486,14 +486,14 @@ fn goals_is_current_on_its_page_a_goal_and_a_goals_task() {
 
 #[test]
 fn a_chat_is_never_goals() {
-    for (configuring, expected) in [(false, b"Chats".as_slice()), (true, b"Ask temper".as_slice())] {
+    for (asking, expected) in [(false, b"Chats".as_slice()), (true, b"Ask temper".as_slice())] {
         let (mut root, me, chat) = f::root_at(Address::Chat { task: GOAL_TASK }, &f::domain_limits());
         with_goal_fact(&mut root, me, Some(true));
         let mut document = f::task::delegate();
         document.project = f::PROJECT;
         document.goal = Some(GOAL_TASK);
         document.priority = Some(GOAL_PRIORITY);
-        document.chip.executor = c::ChipExecutor::Agent { charter: if configuring { 3 } else { 1 } };
+        document.chip.executor = c::ChipExecutor::Agent { charter: if asking { 11 } else { 1 } };
         deliver_document(&mut root, chat.unwrap(), c::Delivery::Task(Box::new(document)));
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let nav = current_names(view.tree(), look::RAIL_NAV);
@@ -867,16 +867,12 @@ fn settings_is_current_on_every_page_of_settings() {
         let (mut root, _, _) = f::root_at(address.clone(), &f::domain_limits());
         if address == (Address::Chat { task: 9 }) {
             let template = f::chat::messaging_root();
-            let (mut configuring, watch, task_watch) = f::root_at(Address::Chat { task: 9 }, &f::domain_limits());
-            f::deliver_me(
-                &mut configuring,
-                watch,
-                f::configuring_me(template.pages().me(template.client()).unwrap().clone()),
-            );
+            let (mut asking, watch, task_watch) = f::root_at(Address::Chat { task: 9 }, &f::domain_limits());
+            f::deliver_me(&mut asking, watch, f::asking_me(template.pages().me(template.client()).unwrap().clone()));
             let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
             task.chip.executor = jig_client::contract::ChipExecutor::Agent { charter: 37 };
             f::root_event(
-                &mut configuring,
+                &mut asking,
                 Event::Client {
                     event: jig_client::Event::Up {
                         up: jig_client::Up::Watched {
@@ -888,7 +884,7 @@ fn settings_is_current_on_every_page_of_settings() {
                     },
                 },
             );
-            root = configuring;
+            root = asking;
         }
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             for style in [look::RAIL_FOOT, look::TABBAR] {

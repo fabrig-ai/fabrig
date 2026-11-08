@@ -4,7 +4,7 @@
 reference's profile (`../../design/protocol/configuration.md`, 13.9), applied
 over the stock as `temper help configure` says. They stay out of the binary:
 what a deployment runs until an owner applies them is the stock, and the
-configuring agent derives the reference from its description
+Ask temper chat derives the reference from its description
 (`../../design/draft/configuring.md`, 8.1). What follows stays out of it too.
 
 Before the first start, merge `limits.json` over the generated deployment document,
