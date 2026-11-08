@@ -93,6 +93,7 @@ pub struct Pages {
     accounts: accounts::Accounts,
     builders: builders::Builders,
     roles: roles::Roles,
+    team: team::Team,
     models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
@@ -104,6 +105,7 @@ pub struct Pages {
     accounts_open: bool,
     builders_open: bool,
     roles_open: bool,
+    team_open: bool,
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
@@ -346,6 +348,7 @@ impl Pages {
             accounts: accounts::Accounts::default(),
             builders: builders::Builders::default(),
             roles: roles::Roles::default(),
+            team: team::Team::default(),
             models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
@@ -357,6 +360,7 @@ impl Pages {
             accounts_open: false,
             builders_open: false,
             roles_open: false,
+            team_open: false,
             welcome: None,
             default_project: welcome::DefaultProject::new(),
             adopting: None,
@@ -690,6 +694,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.roles.leave(out);
+            pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -697,6 +702,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.accounts_open = false;
             pages.builders_open = false;
             pages.roles_open = false;
+            pages.team_open = false;
         }
         Event::Act { act: Act::Switcher(act) } => {
             let me = pages.me(client);
@@ -962,7 +968,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 out.push(Request::Show { address });
             }
         }
-        Event::Told { told: Told::Changed { handle } } if handle == me_handle() => me_changed(pages, client, out),
+        Event::Told { told: Told::Changed { handle } } if handle == me_handle() => {
+            me_changed(pages, client, out);
+            pages.team.told(client, &Told::Changed { handle });
+        }
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
                 // Successful sign-in can tell SignedOut then Starting in one step.
@@ -1017,6 +1026,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.roles.configure(&pages.address, client, env.limits.forge, &mut pages.next, out);
     } else {
         pages.roles.leave(out);
+    }
+    if pages.team_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
+        let you = match pages.me(client) {
+            Some(me) => me.party.number,
+            None => 0,
+        };
+        pages.team.configure(&pages.address, you, &env.limits, &mut pages.next, out);
+    } else {
+        pages.team.leave(out);
     }
     let showing = pages.watching
         && pages.project.is_some()
@@ -1166,12 +1184,14 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.accounts.leave(out);
     pages.builders.leave(out);
     pages.roles.leave(out);
+    pages.team.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
         page.leave();
     }
     pages.accounts_open = false;
     pages.builders_open = false;
     pages.roles_open = false;
+    pages.team_open = false;
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
@@ -1371,6 +1391,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     if (!pages.accounts_open
         && !pages.builders_open
         && !pages.roles_open
+        && !pages.team_open
         && pages.changes.is_none()
         && pages.stock_ways.is_none()
         && pages.home.is_none()
@@ -1388,6 +1409,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.accounts.leave(out);
         pages.builders.leave(out);
         pages.roles.leave(out);
+        pages.team.leave(out);
+        pages.team_open = false;
+        if let Address::Team { .. } = address {
+            pages.team_open = true;
+        }
         pages.accounts_open = address == Address::Accounts;
         pages.builders_open = match &address {
             Address::Builders { .. } => true,
@@ -1626,6 +1652,9 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
 
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if pages.team.told(client, &told) {
+        return true;
+    }
     if pages.roles.told(&told, env.limits.forge) {
         return true;
     }
@@ -2110,6 +2139,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.roles.leave(out);
+            pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -2187,6 +2217,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.roles.leave(out);
+            pages.team.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }

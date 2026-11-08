@@ -1,8 +1,11 @@
 //! Team: a project's people and what waits on each
 //! (temper/docs/design/client/README.md, 3.5, Team).
+use super::Request;
+use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
-use jig_client::contract as c;
+use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::List;
+use skein_lib::Queue;
 
 /// Other people whose waits are read, one `tasks{query}` watch each.
 pub const OTHERS: u32 = 8;
@@ -132,14 +135,268 @@ pub fn gather(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u
     Facts { people, cut: project.cut, triager: None, standing_roles: None }
 }
 
-/// Team's page for the project: no read gives Team its facts yet.
-#[must_use]
-pub fn shown(_root: &crate::Domain, _project: u32) -> Shown {
-    Shown::Reading
+/// Team's open project and its bounded reads (client/README.md, 3.5, Team, Its reads).
+#[derive(Debug)]
+pub struct Team {
+    project: Option<u32>,
+    handle: Option<Handle>,
+    document: Option<Box<c::Project>>,
+    reading: Reading,
+    others: List<Other>,
 }
-
-/// The project's people counted for the rail: no read gives Team its facts yet.
+#[derive(Debug, PartialEq, Eq)]
+enum Reading {
+    Idle,
+    Asked,
+    Refresh,
+    Failed,
+}
+#[derive(Debug)]
+struct Other {
+    party: u64,
+    handle: Handle,
+    waits: Option<Waits>,
+}
+impl Default for Team {
+    fn default() -> Self {
+        Self {
+            project: None,
+            handle: None,
+            document: None,
+            reading: Reading::Idle,
+            others: List::with_capacity(OTHERS),
+        }
+    }
+}
+impl Team {
+    pub(crate) fn configure(
+        &mut self,
+        address: &Address,
+        you: u64,
+        limits: &Limits,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
+        let Address::Team { project } = address else {
+            self.leave(out);
+            return;
+        };
+        if self.project != Some(*project) {
+            self.leave(out);
+            self.project = Some(*project);
+            self.reading = Reading::Refresh;
+        }
+        if self.reading == Reading::Refresh {
+            if let Some(handle) = self.handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            let handle = new_handle(next);
+            self.handle = Some(handle);
+            self.reading = Reading::Asked;
+            out.push(Request::Client(jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(c::Read::Project { project: *project }),
+            }));
+        }
+        self.configure_others(you, limits, next, out);
+    }
+    fn configure_others(&mut self, you: u64, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
+        let mut wanted = List::with_capacity(OTHERS);
+        if let Some(document) = &self.document {
+            for person in &gather(document, you, None, &[]).people {
+                if !person.you && wanted.len() < OTHERS {
+                    wanted.push(person.party).expect("at most OTHERS people");
+                }
+            }
+        }
+        let old = core::mem::replace(&mut self.others, List::with_capacity(OTHERS));
+        for other in old.into_boxed() {
+            if wanted.as_slice().contains(&other.party) {
+                self.others.push(other).expect("at most OTHERS watches");
+            } else {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle: other.handle }));
+            }
+        }
+        let Some(project) = self.project else { return };
+        for party in &wanted {
+            let mut held = false;
+            for other in &self.others {
+                if other.party == *party {
+                    held = true;
+                    break;
+                }
+            }
+            if held {
+                continue;
+            }
+            let handle = new_handle(next);
+            self.others.push(Other { party: *party, handle, waits: None }).expect("at most OTHERS watches");
+            let query = c::TaskQuery {
+                project: Some(project),
+                requester: Some(c::Requester::Person(*party)),
+                root: None,
+                parent: None,
+                label: None,
+                phase: None,
+                executor: None,
+                tracked: None,
+                order: c::QueryOrder::Activity,
+            };
+            out.push(Request::Client(jig_client::Event::Watch {
+                handle,
+                subject: Watchable::Jig(c::Subject::Tasks { query, window: limits.client.domain.rows }),
+            }));
+        }
+    }
+    pub(crate) fn leave(&mut self, out: &mut Queue<Request>) {
+        if let Some(handle) = self.handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
+        for other in &self.others {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: other.handle }));
+        }
+        *self = Self::default();
+    }
+    pub(super) fn told(&mut self, client: &Client, told: &Told) -> bool {
+        match told {
+            Told::Changed { handle } if *handle == super::me_handle() && self.project.is_some() => {
+                if self.reading != Reading::Asked {
+                    self.reading = Reading::Refresh;
+                }
+                true
+            }
+            Told::Page { handle, page } if self.handle == Some(*handle) && self.reading == Reading::Asked => {
+                self.document = match page {
+                    Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(document)))
+                        if self.project == Some(document.number) =>
+                    {
+                        Some(document.clone())
+                    }
+                    Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => None,
+                };
+                self.reading = if self.document.is_some() { Reading::Idle } else { Reading::Failed };
+                true
+            }
+            Told::Ended { handle, .. } if self.handle == Some(*handle) => {
+                self.document = None;
+                self.reading = Reading::Failed;
+                true
+            }
+            Told::Changed { handle } => {
+                for other in self.others.iter_mut() {
+                    if other.handle == *handle {
+                        other.waits = other_waits(client, *handle, other.party);
+                        return true;
+                    }
+                }
+                false
+            }
+            Told::Ended { handle, .. } => {
+                for other in self.others.iter_mut() {
+                    if other.handle == *handle {
+                        other.waits = None;
+                        return true;
+                    }
+                }
+                false
+            }
+            Told::Page { .. }
+            | Told::Pending { .. }
+            | Told::Answered { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Link { .. }
+            | Told::Text { .. } => false,
+        }
+    }
+}
+fn new_handle(next: &mut u64) -> Handle {
+    let handle = Handle { asker: Owner::Pages.asker(), number: *next };
+    *next = next.checked_add(1).expect("page handles fit");
+    handle
+}
+fn other_waits(client: &Client, handle: Handle, party: u64) -> Option<Waits> {
+    let document = client.document(handle)?;
+    if document.state == jig_client::State::Ended {
+        return None;
+    }
+    let Latest::Jig(c::Delivery::Tasks(tasks)) = document.latest? else { return None };
+    let mut waits = Waits { cut: tasks.more, ..Waits::default() };
+    for line in &tasks.rows {
+        if let c::WaitsOn::Party { whom: c::Whom::Person(whom), kind, .. } = line.waits_on
+            && whom == party
+            && line.ended_at.is_none()
+        {
+            match kind {
+                c::WaitedFor::Question => waits.questions = waits.questions.saturating_add(1),
+                c::WaitedFor::Proposal => waits.proposals = waits.proposals.saturating_add(1),
+                c::WaitedFor::Escalation => waits.held = waits.held.saturating_add(1),
+                c::WaitedFor::PersonTask => waits.person_tasks = waits.person_tasks.saturating_add(1),
+            }
+        }
+    }
+    Some(waits)
+}
+/// Team's page for the project, from its document and delivered waits.
 #[must_use]
-pub fn people(_root: &crate::Domain, _project: u32) -> Option<u32> {
-    None
+pub fn shown(root: &crate::Domain, project: u32) -> Shown {
+    let state = &root.pages.team;
+    if state.project != Some(project) {
+        return Shown::Reading;
+    }
+    let Some(document) = &state.document else {
+        return if state.reading == Reading::Failed { Shown::Unreadable } else { Shown::Reading };
+    };
+    let you = match root.pages.me(root.client()) {
+        Some(me) => me.party.number,
+        None => 0,
+    };
+    let mut others = List::with_capacity(OTHERS);
+    for other in &state.others {
+        if let Some(waits) = other.waits {
+            others.push((other.party, waits)).expect("at most OTHERS waits");
+        }
+    }
+    Shown::Read(gather(document, you, yours(root, project), others.as_slice()))
+}
+/// The project's people counted for the rail while its document is read.
+#[must_use]
+pub fn people(root: &crate::Domain, project: u32) -> Option<u32> {
+    let state = &root.pages.team;
+    if state.project != Some(project) {
+        return None;
+    }
+    let you = match root.pages.me(root.client()) {
+        Some(me) => me.party.number,
+        None => 0,
+    };
+    Some(gather(state.document.as_deref()?, you, None, &[]).people.len())
+}
+fn yours(root: &crate::Domain, project: u32) -> Option<Waits> {
+    let client = root.client();
+    let document = client.document(super::needs::handle())?;
+    if document.state == jig_client::State::Ended {
+        return None;
+    }
+    let Latest::Jig(c::Delivery::Inbox(inbox)) = document.latest? else { return None };
+    let session = root.pages.needs();
+    let approvals = root.forge().approvals();
+    let mut waits = Waits { cut: session.count(client, approvals, project).cut, ..Waits::default() };
+    for row in &inbox.needs {
+        if row.shows_in(project) && !session.answered_here(row.card_key()) {
+            match row.group() {
+                c::InboxGroup::Questions => waits.questions = waits.questions.saturating_add(1),
+                c::InboxGroup::Proposals => waits.proposals = waits.proposals.saturating_add(1),
+                c::InboxGroup::Escalations => waits.held = waits.held.saturating_add(1),
+                c::InboxGroup::PersonTasks => waits.person_tasks = waits.person_tasks.saturating_add(1),
+                c::InboxGroup::Replies | c::InboxGroup::Results => {}
+            }
+        }
+    }
+    for row in approvals.rows() {
+        if row.project == project {
+            waits.reviews = waits.reviews.saturating_add(1);
+        }
+    }
+    Some(waits)
 }
