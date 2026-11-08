@@ -85,6 +85,7 @@ impl Switcher {
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
+            | Address::AllHome
             | Address::Inbox { .. } => self.close(),
             Address::Home { .. }
             | Address::Changes { .. }

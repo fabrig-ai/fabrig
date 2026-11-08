@@ -448,6 +448,7 @@ fn welcome(root: &Domain) -> bool {
         Address::Welcome { .. } => true,
         Address::Forges
         | Address::ConnectForge { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

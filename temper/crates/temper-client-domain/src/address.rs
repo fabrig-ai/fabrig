@@ -14,6 +14,7 @@ pub enum Address {
     Chat { task: u64 },
     Task { task: u64 },
     Home { project: u32 },
+    AllHome,
     Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
     Settings { project: u32 },
@@ -113,6 +114,7 @@ pub enum Place {
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
         Address::Inbox { filter } => return print_filter(*filter),
+        Address::AllHome => (b"home".as_slice(), None, b"".as_slice()),
         Address::Welcome { step } => {
             return match step {
                 Step::Welcome => b"/welcome".as_slice().into(),
@@ -223,6 +225,7 @@ pub fn parse(path: &[u8]) -> Place {
         (b"forges", b"", b"") => Address::Forges,
         (b"forges", b"connect", b"") => Address::ConnectForge { forge: forge_choice(fields) },
         (b"accounts", b"", b"") => Address::Accounts,
+        (b"home", b"", b"") => Address::AllHome,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },
         (b"welcome", b"", b"") => Address::Welcome { step: welcome_step(fields) },
         (b"chats", b"", b"") => Address::Chats { filter: parse_chats(fields) },

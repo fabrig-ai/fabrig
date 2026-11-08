@@ -32,6 +32,7 @@ pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task
     };
     asking || drafts_offered(root, task.project)
 }
+pub mod all_home;
 pub mod chats;
 pub mod choice;
 pub mod composer;
@@ -43,6 +44,7 @@ pub mod home;
 pub mod inbox;
 pub mod models;
 pub mod needs;
+pub mod parts;
 pub mod report;
 pub mod start_goal;
 pub mod switcher;
@@ -923,7 +925,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
                 Address::Ask { .. } => out.push(Request::Show { address: Address::Ask { project } }),
-                Address::Inbox { .. }
+                Address::AllHome
+                | Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
                 | Address::Accounts
@@ -1004,6 +1007,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
@@ -1264,7 +1268,8 @@ fn rail_chats(address: &Address) -> bool {
         | Address::NewChat { .. }
         | Address::Chats { .. }
         | Address::Welcome { .. } => false,
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -1360,7 +1365,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.accounts_open = address == Address::Accounts;
         pages.builders_open = match &address {
             Address::Builders { .. } => true,
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Accounts
@@ -1485,7 +1491,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             {
                 way.source
             }
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Accounts
@@ -1973,7 +1980,8 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Builders { project }
         | Address::Repositories { project }
         | Address::Ask { project } => Some(*project),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Accounts
@@ -2174,7 +2182,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         Address::ConnectModel { way: Some(way) } | Address::Welcome { step: crate::Step::Model { way: Some(way) } } => {
             way.source = None;
         }
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Accounts

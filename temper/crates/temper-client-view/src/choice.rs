@@ -50,6 +50,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             Address::Accounts | Address::ConnectModel { .. } | Address::Welcome { .. } => true,
             Address::Forges
             | Address::ConnectForge { .. }
+            | Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }

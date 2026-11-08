@@ -658,6 +658,24 @@ pub enum CopyState {
     Failed { words: Box<[u8]> },
 }
 impl Facts {
+    #[must_use]
+    pub fn parts_facts(&self) -> super::parts::HomeFacts {
+        super::parts::HomeFacts {
+            across: false,
+            projects: 0,
+            brief: self.brief().is_some(),
+            open: match self.needs {
+                Needs::Count { count, .. } => count,
+                Needs::Unknown => 0,
+            },
+            showing: match &self.away {
+                Some(away) => away.showing,
+                None => 0,
+            },
+            to_begin: self.to_begin(),
+        }
+    }
+
     /// Changes landed since the previous sitting, zero until status is shown.
     #[must_use]
     pub fn landed_since(&self) -> u64 {
@@ -1014,6 +1032,7 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     let project = match root.pages.address() {
         crate::Address::Home { project } => *project,
         crate::Address::NewChat { .. }
+        | crate::Address::AllHome
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Accounts

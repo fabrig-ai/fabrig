@@ -1311,7 +1311,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
-        Address::Inbox { .. } => ("inbox", None),
+        Address::AllHome | Address::Inbox { .. } => ("inbox", None),
         Address::Accounts => ("accounts", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
@@ -1338,7 +1338,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(number)) } => {
             format!("&forge={number}")
         }
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Accounts

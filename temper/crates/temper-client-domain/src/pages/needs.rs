@@ -302,7 +302,7 @@ impl Session {
             self.reply_beyond = 0;
         }
         match after {
-            Address::Inbox { .. } => {}
+            Address::AllHome | Address::Inbox { .. } => {}
             Address::NewChat { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
@@ -705,7 +705,8 @@ pub(crate) fn act(
             }
             let project = match pages.address {
                 Address::Home { project } => Some(project),
-                Address::Inbox { .. }
+                Address::AllHome
+                | Address::Inbox { .. }
                 | Address::NewChat { .. }
                 | Address::Goals { .. }
                 | Address::Chats { .. }
