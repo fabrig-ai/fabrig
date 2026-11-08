@@ -756,7 +756,7 @@ recipient.
     where the printed link is not enabled is dropped, no link being live.
     The first local link's secret may be given alike, `local_secret`, so
     that the startup can hand it to a native client it starts itself, as a
-    box hands its front end one (temper's `protocol/setup.md`, 7.6): taken
+    box hands its front end one (temper's `protocol/setup.md`, section 7): taken
     in the first local link's draw's place, its `link_span` from that
     taking, no `LocalLink` said for it, spent and drawn again as any local
     link; refused at start for any length but 32 bytes, and dropped where

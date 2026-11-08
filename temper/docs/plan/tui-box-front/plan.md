@@ -49,6 +49,7 @@ its services with the TUI in front.
 | `foreground` | `skein-foreground` | skein-shell, skein's world | | 60 |
 | `jig-sign-in` | `jig-sign-in` | jig-protocol-engine-clients (+ forced arms in jig and temper) | | 75 |
 | `linked` | `forges-linked` | temper-client-protocol-wire (+ `linked: false` literals) | | 45 |
+| `linked` | `serve-sign-in` | temper (serve's stdin), temper-service (`local_secret`, `linked`) | `jig-sign-in`, `forges-linked` | 75 |
 
 The box's side (`protocol/setup.md`, 7.6) and the TUI's (`client/README.md`,
 6.17) are being designed; their tasks follow in the next pushes.
