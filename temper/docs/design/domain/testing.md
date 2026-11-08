@@ -1106,9 +1106,9 @@ terminal client, the captures and the faults.
   process exit order are their Musts. The case library's 4.1/4.3
   placement, 4.4 pace and 4.5 account choices run only in the real-loop
   fuzzy stories (5.3).
-- **Two drivers' offline proofs,** which their scripts once ran alone
-  (the user's request `ignored-tiers`, 2026-11-08). Each test sets up
-  what its script set up, and the script runs the test:
+- **Two drivers' offline proofs** (the user's request `ignored-tiers`,
+  2026-11-08). Each test sets up what its script sets up, and the
+  script runs the test:
   - *B0's,* `crates/temper/tests/proof_live.rs`: the rung's setup through
     its last read before the account's import, on the fake model with no
     account, and its whole walk on its twin, the driver the live rung
@@ -1123,8 +1123,12 @@ terminal client, the captures and the faults.
     printed link. Connect makes the App by its manifest and installs it
     on the one repository, and Ready adopts that repository. The
     sitting's driver runs the same test as its client, naming its mode
-    in `TEMPER_MANAGED_CLIENT` and giving the link on stdin. The push,
-    the planted refusals and the secrets' scan stay the driver's.
+    in `TEMPER_MANAGED_CLIENT` and giving the link on stdin. The test
+    ends as the driver's fake mode does: the engine and the fake GitHub
+    stopped, the relay's scan finds no secret bytes in its log or its
+    record. The push, the planted refusals, the cleanup, `fake-wide`'s
+    refusal, and the App key, JWT and installation token the driver
+    reads for its push and adds to that scan, stay the driver's.
 
   The profile selects these by name beside the `process` binary
   (`.config/nextest.toml`), so each binary's other tests stay in the
@@ -3212,6 +3216,15 @@ scripts/proof-live.sh               the live tier
   worlds (the request `walks-lower` of 2026-11-08), against the same
   540 CPU s. A plan compiles the walks and runs none; a red after landing
   is repaired by name, under 2.6's rule.
+- **The two drivers' offline proofs, after landing** (2.6, *Two drivers'
+  offline proofs*): the next after-landing run on main runs B0's setup
+  and twin walk and the managed sitting's Ready in profile
+  `process-temper` and reads their CPU against the tier's budgets; B0's
+  twin serves its setup and walk for at most 700 s. The owner's next
+  `scripts/proof-live-github-managed.sh fake` dry run proves the test as
+  the sitting's client, its driver setting up the same fake half as the
+  test. A red is repaired by name, under 2.6's rule; none of the three
+  moves to `live-temper`, which needs a real model.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:
   `authority_referee_rejects_a_person_without_a_grant` observes what
