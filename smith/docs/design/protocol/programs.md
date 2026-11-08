@@ -234,7 +234,12 @@ open is section 9.
   remove them one operation at a time. Each operation's answer goes to
   the program that asked for it, never a child's to main, main's to a
   child or one child's to another, in whatever order the agent's file
-  component answers a burst of children and main.
+  component answers a burst of children and main. The agent tells an
+  answer's program by the owner its operation named, one of that
+  program's own file owners, never by a token of its process's pipes,
+  its check's or its server's: those are the io component's, of the
+  same form as the owners of the run's own tools, so a tool's file
+  answer whose owner equals one goes to the tool, never to a program.
 - **An answer not asked for** fails its program's run, never the agent:
   a file answer that reaches a program with none of its operations
   outstanding fails that program's run as a start that fails does

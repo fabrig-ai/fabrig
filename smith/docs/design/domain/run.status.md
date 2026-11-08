@@ -46,10 +46,10 @@ a silent check still has no output to report (section 15).
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 5.3: the reported deployment abort on five or six
-  `sub_agent` calls remains unexplained. The scripted rows above cover
-  call-by-call admission, but identify no panicking bound and establish
-  no fix for that deployment failure (plan `subagent-burst`).
+- **Not yet:** 5.3: the reported deployment abort on several
+  `sub_agent` calls is no bound of admission: its likely cause is a
+  tool's file answer routed to a program backend, carried by
+  protocol/programs.status.md, 5.1 (plan `program-burst-files`).
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note

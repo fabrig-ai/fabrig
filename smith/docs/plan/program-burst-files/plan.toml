@@ -23,3 +23,16 @@ id = 1
 story = "A file answer delivered to a starting, running or child program backend with nothing outstanding fails that run with its reason; one delivered while it ends is dropped; the agent goes on"
 parts = ["unasked"]
 walk = false
+
+[[part]]
+id = "routing"
+title = "The agent service routes a file answer to a program by its own file owners alone, never by its pipes' tokens"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.1"
+
+[[slice]]
+id = 2
+story = "A program-backed main with 2, 3 and 5 sub_agent children: a tool's file answer whose owner equals a program's pipe token goes on to the machine, and each program's own answers still reach it"
+parts = ["routing"]
+walk = false
