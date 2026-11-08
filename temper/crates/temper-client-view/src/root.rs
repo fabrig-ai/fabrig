@@ -139,6 +139,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::NewChat { .. }
             | temper_client_domain::Address::Chat { .. }
             | temper_client_domain::Address::Task { .. }
+            | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
             | temper_client_domain::Address::Forges
             | temper_client_domain::Address::ConnectForge { .. }
@@ -172,6 +173,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Accounts
             | temper_client_domain::Address::Chat { .. }
             | temper_client_domain::Address::Task { .. }
+            | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
             | temper_client_domain::Address::Forges
             | temper_client_domain::Address::ConnectForge { .. }
@@ -275,6 +277,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Changes { project } = root.pages().address() {
         crate::pages::changes::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
+    } else if let temper_client_domain::Address::AllHome = root.pages().address() {
+        crate::pages::all_home::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times, view.rows);
     } else if let temper_client_domain::Address::Home { project } = root.pages().address() {
         crate::pages::home::main(
             &mut builder,

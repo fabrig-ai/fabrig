@@ -17,7 +17,7 @@ pub struct Home {
     decided: Option<Handle>,
     decisions: Option<Box<w::Decisions>>,
     reads: List<DecisionRead>,
-    look: Look,
+    pub(super) look: Look,
     pub add: Option<AddSheet>,
     skip: Option<Key>,
     skipped: bool,
@@ -25,14 +25,30 @@ pub struct Home {
     copies: List<Key>,
 }
 #[derive(Debug)]
-enum Look {
+pub(super) enum Look {
     NotSent,
     Out(Key),
     Answered,
 }
 impl Home {
     pub(super) fn new(project: u32, number: u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
-        let mut home = Self {
+        let mut home = Self::empty(project);
+        if let Some(subject) = forge::status::watch(project, &limits) {
+            let handle =
+                Handle { asker: Owner::Pages.asker(), number: number.checked_add(1).expect("page handles fit") };
+            home.status = Some(handle);
+            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+        }
+        home.watch_decided(number, limits, out);
+        home
+    }
+    pub(super) fn decided(project: u32, number: u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
+        let mut home = Self::empty(project);
+        home.watch_decided(number, limits, out);
+        home
+    }
+    fn empty(project: u32) -> Self {
+        Self {
             add: None,
             settings: forge::ways::handle(),
             project,
@@ -46,19 +62,14 @@ impl Home {
             skipped: false,
             skip_refused: false,
             copies: List::uncapped(),
-        };
-        if let Some(subject) = forge::status::watch(project, &limits) {
-            let handle =
-                Handle { asker: Owner::Pages.asker(), number: number.checked_add(1).expect("page handles fit") };
-            home.status = Some(handle);
-            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
         }
-        if let Some(subject) = forge::decided::watch(project, &limits) {
+    }
+    fn watch_decided(&mut self, number: u64, limits: forge::Limits, out: &mut Queue<Request>) {
+        if let Some(subject) = forge::decided::watch(self.project, &limits) {
             let handle = Handle { asker: Owner::Pages.asker(), number };
-            home.decided = Some(handle);
+            self.decided = Some(handle);
             out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
         }
-        home
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         if let Some(handle) = self.decided {
@@ -234,7 +245,7 @@ impl Home {
             Look::NotSent | Look::Answered => false,
         }
     }
-    fn shown_status(&self) -> Status {
+    pub(super) fn shown_status(&self) -> Status {
         match self.look {
             Look::Answered => match &self.document {
                 Some(document) => Status::Shown(document.clone()),
@@ -309,7 +320,7 @@ fn showing(row: &w::Decision, wall: Wall) -> bool {
     wall.as_nanos().saturating_sub(row.at()) < DAY
 }
 impl Home {
-    fn away(&self, spell: Option<forge::away::AwayRow>, wall: Wall) -> Option<AwayForm> {
+    pub(super) fn away(&self, spell: Option<forge::away::AwayRow>, wall: Wall) -> Option<AwayForm> {
         let document = self.decisions.as_ref()?;
         let mut count = 0_u32;
         let mut expiry = Wall::from_nanos(u64::MAX);
@@ -384,7 +395,7 @@ impl Home {
         };
         Some(AwayForm { span, landed, showing: count, rows, expires: expiry })
     }
-    fn read_tasks(&mut self, away: Option<&AwayForm>, next: &mut u64, out: &mut Queue<Request>) {
+    pub(super) fn read_tasks(&mut self, away: Option<&AwayForm>, next: &mut u64, out: &mut Queue<Request>) {
         let rows = match away {
             Some(away) => away.rows.as_ref(),
             None => &[],
@@ -658,6 +669,24 @@ pub enum CopyState {
     Failed { words: Box<[u8]> },
 }
 impl Facts {
+    #[must_use]
+    pub fn parts_facts(&self) -> super::parts::HomeFacts {
+        super::parts::HomeFacts {
+            across: false,
+            projects: 0,
+            brief: self.brief().is_some(),
+            open: match self.needs {
+                Needs::Count { count, .. } => count,
+                Needs::Unknown => 0,
+            },
+            showing: match &self.away {
+                Some(away) => away.showing,
+                None => 0,
+            },
+            to_begin: self.to_begin(),
+        }
+    }
+
     /// Changes landed since the previous sitting, zero until status is shown.
     #[must_use]
     pub fn landed_since(&self) -> u64 {
@@ -1011,9 +1040,11 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
 
 /// Send this entry's look once the facts and dismissals settle and To begin is gone.
 pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
+    super::all_home::look(root, env, out);
     let project = match root.pages.address() {
         crate::Address::Home { project } => *project,
         crate::Address::NewChat { .. }
+        | crate::Address::AllHome
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Members

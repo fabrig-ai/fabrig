@@ -282,10 +282,13 @@ fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
     assert!(world.step(host::Event::Down(host::LinkDown::SignOut { name: name_of(b"a") })).is_empty());
     assert_eq!(
         world.step(host::Event::CancelAll { reason: host::Reason::Shutdown }),
-        vec![host::Request::Up(host::LinkUp::SignedOut {
-            name: name_of(b"a"),
-            result: SignOutResult::Failed { reason: SourceFailure::Closed, detail: Box::new([]) }
-        })]
+        vec![
+            host::Request::Up(host::LinkUp::Draining),
+            host::Request::Up(host::LinkUp::SignedOut {
+                name: name_of(b"a"),
+                result: SignOutResult::Failed { reason: SourceFailure::Closed, detail: Box::new([]) }
+            })
+        ]
     );
     assert!(world.checked(check, LoginState::Usable).is_empty());
     assert!(world.host.sources_settled());
@@ -394,6 +397,7 @@ fn list_reads_share_the_source_queue_without_taking_slots() {
                         assert_eq!(
                             world.step(host::Event::CancelAll { reason: host::Reason::Shutdown }),
                             [
+                                host::Request::Up(host::LinkUp::Draining),
                                 host::Request::Up(host::LinkUp::ListRead {
                                     read: 1,
                                     outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent)

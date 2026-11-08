@@ -82,7 +82,8 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
             [Hole::Number(u64::from(*kind)), Hole::Number(u64::from(*number))],
             2,
         ),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }

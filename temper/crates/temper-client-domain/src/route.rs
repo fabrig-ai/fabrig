@@ -198,7 +198,8 @@ pub(crate) fn route_forge(
                     Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Managed) } } => {
                         Address::Welcome { step: crate::Step::Forge { forge: choice } }
                     }
-                    Address::Inbox { .. }
+                    Address::AllHome
+                    | Address::Inbox { .. }
                     | Address::Chats { .. }
                     | Address::NewChat { .. }
                     | Address::Members
@@ -526,6 +527,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

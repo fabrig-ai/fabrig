@@ -114,7 +114,7 @@ fn settings_restart_compares_changed_defaults_until_the_release_saves_them() {
     let default = SettingDefault { kind: KIND, scope: 0, number: 1, size: 11, charters: Box::new([]), differs: true };
     assert_eq!(
         world.event(Event::SettingsDefaults),
-        vec![Request::SettingsDefaults { defaults: Box::new([default.clone()]) }]
+        vec![Request::SettingsDefaults { defaults: Box::new([default.clone()]), dropped: Box::new([]) }]
     );
     assert_eq!(
         world.event(read(1)),
@@ -123,12 +123,15 @@ fn settings_restart_compares_changed_defaults_until_the_release_saves_them() {
     world.cold_restart();
     assert_eq!(
         world.event(Event::SettingsDefaults),
-        vec![Request::SettingsDefaults { defaults: Box::new([default.clone()]) }]
+        vec![Request::SettingsDefaults { defaults: Box::new([default.clone()]), dropped: Box::new([]) }]
     );
     world.event(Event::SaveSettingsDefaults { revision: Some(10) });
     world.cold_restart();
     assert_eq!(
         world.event(Event::SettingsDefaults),
-        vec![Request::SettingsDefaults { defaults: Box::new([SettingDefault { differs: false, ..default }]) }]
+        vec![Request::SettingsDefaults {
+            defaults: Box::new([SettingDefault { differs: false, ..default }]),
+            dropped: Box::new([])
+        }]
     );
 }

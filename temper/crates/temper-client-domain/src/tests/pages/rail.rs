@@ -183,9 +183,10 @@ fn facts_gather_the_open_projects_domain_values() {
 }
 
 #[test]
-fn across_means_inbox_without_a_project_filter() {
+fn across_means_all_home_or_inbox_without_a_project_filter() {
     let mut root = project_domain();
     for (address, expected) in [
+        (Address::AllHome, true),
         (Address::Inbox { filter: Filter::ALL }, true),
         (Address::Inbox { filter: Filter { project: Some(f::PROJECT), ..Filter::ALL } }, false),
         (Address::Home { project: f::PROJECT }, false),

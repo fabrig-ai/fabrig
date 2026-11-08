@@ -99,6 +99,7 @@ impl Measured {
                 | Request::SourceFault => unreachable!("source scheduling has its own world"),
                 Request::Up(
                     LinkUp::ListRead { .. }
+                    | LinkUp::Draining
                     | LinkUp::Logins { .. }
                     | LinkUp::SignedOut { .. }
                     | LinkUp::Piece { .. }
@@ -560,6 +561,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             }
             LinkUp::Activity { .. } => activity += 1,
             other @ (LinkUp::ListRead { .. }
+            | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Unauthorized { .. }
